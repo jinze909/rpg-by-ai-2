@@ -121,7 +121,8 @@ namespace Starfall
             int room;
             if (!int.TryParse(action.Substring(16), out room) || room < 1 || room > 3 ||
                 save.room != room || !Has("scout_saved") || Has("wayfarer_" + room) ||
-                wayfarerEncounterRoom != 0 || roadTrialRoom != 0 || practicing || Dying) return true;
+                wayfarerEncounterRoom != 0 || roadTrialRoom != 0 ||
+                atlasEchoRoom != 0 || practicing || Dying) return true;
             Point npc = ObjectPoint(room, "wayfarer" + room, new Point(-100, -100));
             if ((Position - npc).Length > 2.1f) return true;
             if (donation)

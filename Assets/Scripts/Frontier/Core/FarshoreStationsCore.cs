@@ -213,6 +213,14 @@ namespace Starfall
             }
             if (action.StartsWith("fieldstation_to_"))
             {
+                // Do not silently discard a timed, unfinished field reading.
+                // The player must finish or explicitly cancel it first.
+                if (fieldSurveyRoom != 0)
+                {
+                    Notify("巡测进行中。先完成或取消本次巡测，才能使用站点传送。",
+                        "Field survey underway. Finish or cancel it before station travel.");
+                    return true;
+                }
                 int destination;
                 if (!int.TryParse(action.Substring("fieldstation_to_".Length), out destination) ||
                     destination < 5 || destination > 7 || destination == save.room ||

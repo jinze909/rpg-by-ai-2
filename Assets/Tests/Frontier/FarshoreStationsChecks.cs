@@ -26,6 +26,14 @@ namespace Starfall.Tests
                 Check(g.Conditions().Contains("SURVEY") && g.Conditions().Contains("90s"),
                     "Active survey countdown stays visible in the conditions HUD");
                 g.save.english = false;
+                // Traveling through a linked station must not erase a live
+                // out-and-back survey without the player deliberately canceling.
+                int otherRegion = region == 5 ? 6 : 5;
+                float surveyTimeBefore = g.fieldSurveyTime;
+                Action(g, post.kind, "fieldstation_to_" + otherRegion);
+                Check(g.save.room == region && g.fieldSurveyRoom == region &&
+                    g.fieldSurveyPhase == 1 && g.fieldSurveyTime == surveyTimeBefore,
+                    "Linked station travel cannot silently destroy an unfinished regional survey");
                 if (region == 6)
                 {
                     g.save.x = Object(g, "skiff").x; g.save.y = Object(g, "skiff").y;

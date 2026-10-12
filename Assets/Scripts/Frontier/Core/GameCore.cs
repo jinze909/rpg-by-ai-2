@@ -374,6 +374,14 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
             enemies.Remove(e);
+            if (IsAtlasEchoEnemy(e))
+            {
+                // Killing the echo can happen before TickExpansion processes
+                // lethal pending hazards in this exact frame. Retire them at
+                // the contact transaction, not a later TickPolish phase.
+                hazards.RemoveAll(h => h.atlasEchoOwned);
+                atlasEchoOpenTime = 0;
+            }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,

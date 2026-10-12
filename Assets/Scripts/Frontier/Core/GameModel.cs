@@ -93,7 +93,15 @@ namespace Starfall
         public void Face(Point direction)
         { if(direction.Length<.001f)return;if(Math.Abs(facing.x)>.25f)lookLeft=facing.x<0;facing=direction.Normalized;if(Math.Abs(facing.x)>.25f)lookLeft=facing.x<0; }
         public Enemy(int id, int kind, float x, float y, float hp, bool boss = false)
-        { this.id = id; this.kind = kind; this.x = x; this.y = y; this.hp = maxHp = hp; this.boss = boss; timer = 1.3f + id * .13f; }
+        {
+            this.id = id; this.kind = kind; this.x = x; this.y = y;
+            this.hp = maxHp = hp; this.boss = boss;
+            // Spawn identity is not elapsed time. Large restored/procedural IDs
+            // must not postpone the very first AI attack for minutes or hours.
+            // Keep the original delays for the ordinary first eight enemies.
+            int openingSlot = id > 0 ? (id - 1) % 8 + 1 : 1;
+            timer = 1.3f + openingSlot * .13f;
+        }
         public Point Position { get { return new Point(x, y); } }
         public int BossPhase { get { return hp > maxHp * .66f ? 1 : hp > maxHp * .33f ? 2 : 3; } }
     }
