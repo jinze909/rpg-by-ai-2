@@ -36,6 +36,51 @@ namespace Starfall.Tests
             game.Tick(.05f, new Point());
         }
 
+        public static void RescueRaiderAIActuallyProtectsCivilians(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6", "farshore_relief_6" })
+                g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.reliefMissionWave == 1 && g.reliefFollowerSafety == 100,
+                "Reaching the actual shelter marker activates the real first raider wave");
+            Enemy raider = g.enemies.Find(e => e.id >= 85000 && e.id < 85100);
+            Check(raider != null, "There is a live raider to threaten civilians");
+            Point markerFoot = g.Position;
+            raider.x = markerFoot.x; raider.y = markerFoot.y;
+            raider.timer = 10; raider.state = 0;
+            g.save.x = post.x; g.save.y = post.y;
+            float before = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety < before &&
+                g.Conditions().Contains("安全 "),
+                "Raider proximity damages civilian health and visibly reports safety in the actual HUD");
+            float exposedLoss = before - g.reliefFollowerSafety;
+            g.save.x = markerFoot.x; g.save.y = markerFoot.y;
+            raider.timer = 10; raider.state = 0;
+            float protectedBefore = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            float protectedLoss = protectedBefore - g.reliefFollowerSafety;
+            Check(protectedLoss > 0 && protectedLoss < exposedLoss,
+                "The hero standing at the civilians mitigates actual raider pressure");
+            g.reliefFollowerSafety = 50;
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionWave == 2 &&
+                g.reliefFollowerSafety < 70 && g.reliefFollowerSafety > 50,
+                "Clearing wave one restores some civilian safety without fully resetting damage");
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive && g.reliefFollowerSafety < 90 &&
+                g.reliefFollowerSafety > 50,
+                "Battle wounds survive into the real civilian follow-and-return leg");
+        }
+
         public static void ReliefSurvivorsPhysicallyCompleteAllRegionalReturnRoutes(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

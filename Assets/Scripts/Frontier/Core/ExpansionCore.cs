@@ -438,7 +438,10 @@ namespace Starfall
                         L("护送 ", "ESCORT ") + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
                         L("相距 ", "GAP ") + ReliefEscortGap.ToString("0.0") :
                         L(reliefMissionWave == 0 ? "寻找居民" : "击退伏击",
-                            reliefMissionWave == 0 ? "FIND CIVILIANS" : "DEFEAT RAIDERS"));
+                            reliefMissionWave == 0 ? "FIND CIVILIANS" : "DEFEAT RAIDERS") +
+                        (reliefMissionWave >= 1 && reliefMissionWave <= 2 ?
+                            " · " + L("安全 ", "SAFE ") +
+                                (int)Math.Ceiling(reliefFollowerSafety) + "%" : ""));
             if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
                 return L("巡测 ", "SURVEY ") + (int)Math.Ceiling(fieldSurveyTime) + "s · " +
                     (save.room == 5 ? (LowTide ? L("低潮", "LOW TIDE") : L("高潮", "HIGH TIDE")) :

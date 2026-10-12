@@ -68,6 +68,16 @@ namespace Starfall
                     Game.reliefMissionWave == 3 ? Game.L("护送返程", "ESCORT HOME") :
                         Game.reliefMissionWave == 0 ? Game.L("寻找居民", "FIND CIVILIANS") :
                         Game.L("守护居民", "DEFEND CIVILIANS"), 12, gold, TextAnchor.MiddleCenter);
+                if (Game.reliefMissionWave >= 1 && Game.reliefMissionWave <= 2)
+                {
+                    Color protection = Game.reliefFollowerSafety < 30 ? PixelArt.C("#f27d7d") :
+                        Game.reliefFollowerSafety < 65 ? gold : mint;
+                    Bar(rp.x - 33, rp.y + 10, 66,
+                        Game.reliefFollowerSafety / 100f, protection, 6);
+                    Text(rp.x - 42, rp.y + 17, 84, 18,
+                        Game.L("安全 ", "SAFE ") + (int)Math.Ceiling(Game.reliefFollowerSafety) + "%",
+                        10, protection, TextAnchor.MiddleCenter);
+                }
             }
             if (Game.ReliefEscortActive)
             {
