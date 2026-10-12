@@ -5,6 +5,18 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        private static void StartCivilianRescueViaRealDialogue(GameCore game, WorldObject station)
+        {
+            Action(game, station.kind, "fieldstation_rescue_menu");
+            Check(game.conversation != null, "Rescue operations open a real submenu");
+            int next = -1;
+            for (int i = 0; i < game.conversation.choices.Length; i++)
+                if (game.conversation.choices[i].action == "fieldstation_rescue_start")
+                    { next = i; break; }
+            Check(next >= 0, "The actual submenu exposes the rescue start action");
+            game.Choose(next);
+        }
+
         public static void FarshoreEvacuationHasRealCombatAndPersistentFirstClear(Campaign data)
         {
             var g = Fresh(data); g.save.level = 10; g.save.stage = 3;
@@ -27,7 +39,7 @@ namespace Starfall.Tests
                     Array.Exists(g.conversation.choices, c => c.action == "fieldstation_rescue_start"),
                     "The physical shelter exposes a live, playable rescue action");
                 g.Close();
-                Action(g, station.kind, "fieldstation_rescue_start");
+                StartCivilianRescueViaRealDialogue(g, station);
                 Check(g.reliefMissionRoom == region && g.reliefMissionWave == 1 &&
                     g.reliefMissionTime > 119f && g.save.trackedQuest == "relief_rescue" &&
                     g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 2,
@@ -71,7 +83,7 @@ namespace Starfall.Tests
             WorldObject finalStation = Object(g, "fieldstation7");
             g.save.x = finalStation.x; g.save.y = finalStation.y;
             int rewarded = g.save.coins, rewardedShards = g.save.shards, rewardedPoints = g.save.skillPoints;
-            Action(g, finalStation.kind, "fieldstation_rescue_start");
+            StartCivilianRescueViaRealDialogue(g, finalStation);
             Check(g.reliefMissionRoom == 7, "Completed civilian rescue remains replayable as live combat");
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
             g.Tick(.05f, new Point());
@@ -81,12 +93,12 @@ namespace Starfall.Tests
             Check(g.save.coins == rewarded && g.save.shards == rewardedShards &&
                 g.save.skillPoints == rewardedPoints,
                 "Replaying civilian rescue yields no coins, shards or repeat talent");
-            Action(g, finalStation.kind, "fieldstation_rescue_start");
+            StartCivilianRescueViaRealDialogue(g, finalStation);
             g.reliefMissionTime = .01f;
             g.Tick(.05f, new Point());
             Check(g.reliefMissionRoom == 0 && !g.enemies.Exists(e => e.id >= 85000 && e.id < 85100),
                 "Timed-out rescues clean up all transient special combatants");
-            Action(g, finalStation.kind, "fieldstation_rescue_start");
+            StartCivilianRescueViaRealDialogue(g, finalStation);
             g.PrepareSave();
             var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
             Check(restored.reliefMissionRoom == 0 &&
