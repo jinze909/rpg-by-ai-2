@@ -3,6 +3,46 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        private static float OpeningStrike(Campaign data, float step, bool boss, Point facing, float recovery, out GameCore game, out Enemy target)
+        {
+            game = Quiet(data);
+            game.save.seed = 1; game.save.english = true;
+            target = new Enemy(88001, boss ? 0 : 2, 13, 14, 900, boss)
+            { facing = facing, timer = 999, releaseTime = recovery };
+            game.enemies.Add(target);
+            game.Attack(new Point(1, 0));
+            for (int frame = 0; frame < 60 && target.hp >= 900; frame++)
+                game.Tick(step, new Point());
+            Check(target.hp < 900, "Real sword contact must hit the production enemy");
+            return 900 - target.hp;
+        }
+
+        public static void TimedRecoveryAndArmoredFlanksCreateCombatOpenings(Campaign data)
+        {
+            foreach (float step in new[] { .01f, .02f, .05f })
+            {
+                GameCore normalGame, flankGame, guardedGame, bossGame, openGame, staleGame;
+                Enemy normal, flank, guarded, boss, opening, stale;
+                float neutral = OpeningStrike(data, step, false, new Point(0, 1), 0, out normalGame, out normal);
+                float rear = OpeningStrike(data, step, false, new Point(1, 0), 0, out flankGame, out flank);
+                float front = OpeningStrike(data, step, false, new Point(-1, 0), 0, out guardedGame, out guarded);
+                Check(rear > neutral * 1.24f && rear < neutral * 1.27f && front < neutral * .42f,
+                    "Heavy armor must reward a rear flank without weakening frontal guard");
+                Check(flank.stagger >= normal.stagger + 5.9f && flankGame.effects.Exists(e => e.text == "FLANK"),
+                    "Flanking adds poise pressure and player feedback");
+                float ordinaryBoss = OpeningStrike(data, step, true, new Point(0, 1), 0, out bossGame, out boss);
+                float recoveryBoss = OpeningStrike(data, step, true, new Point(0, 1), .5f, out openGame, out opening);
+                float expiredBoss = OpeningStrike(data, step, true, new Point(0, 1), .04f, out staleGame, out stale);
+                Check(recoveryBoss > ordinaryBoss * 1.24f && recoveryBoss < ordinaryBoss * 1.27f &&
+                    Math.Abs(expiredBoss - ordinaryBoss) < .001f,
+                    "Only a contact during live post-attack recovery earns the opening");
+                Check(openGame.effects.Exists(e => e.text == "OPEN") &&
+                    !bossGame.effects.Exists(e => e.text == "OPEN") &&
+                    !staleGame.effects.Exists(e => e.text == "OPEN"),
+                    "Opening feedback is never awarded to stale contacts");
+            }
+        }
+
         public static void HeldAttacksPreserveSkillContactPoses(Campaign data)
         {
             foreach(float step in new[]{.01f,.02f,.05f}) for(int profession=0;profession<3;profession++)

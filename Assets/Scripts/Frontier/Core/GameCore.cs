@@ -343,9 +343,26 @@ namespace Starfall
             if(profile.playerOwned){TutorialAction(3);if(technique)TutorialAction(5);}
             if (practicing) { if(profile.playerOwned){if (technique) PracticeSkill(); else PracticeHit();} return; }
             Point approach = attackDirection.HasValue ? attackDirection.Value * -1 : (Position - e.Position).Normalized;
-            if (!technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 && approach.x * e.facing.x + approach.y * e.facing.y > .45f)
+            float facingDot = approach.x * e.facing.x + approach.y * e.facing.y;
+            if (!technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 && facingDot > .45f)
             { damage *= .4f; effects.Add(new Effect("number", e.Position, .7f, L("正面护甲", "GUARDED"))); sound = "guard"; }
-            else sound = "hit";
+            else
+            {
+                sound = "hit";
+                // Flank heavy armor for bonus damage and extra stagger.
+                if (profile.playerOwned && !technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 && facingDot < -.45f)
+                {
+                    damage *= 1.25f;
+                    if (e.staggerRecovery <= 0) e.stagger += 6;
+                    effects.Add(new Effect("number", e.Position, .7f, L("侧袭", "FLANK")));
+                }
+            }
+            // The post-release recovery is a brief, player-owned punish window.
+            if (profile.playerOwned && e.releaseTime > .001f && e.stun <= 0)
+            {
+                damage *= 1.25f;
+                effects.Add(new Effect("number", e.Position, .7f, L("破绽", "OPEN")));
+            }
             bool crit = Random() < profile.criticalChance;
             if (crit) damage *= 1.7f;
             if (e.staggerRecovery <= 0) e.stagger += damage * (profile.weapon == 0 ? .7f : .45f) * (profile.weapon == 0 && profile.style == 2 ? 1.4f : 1);

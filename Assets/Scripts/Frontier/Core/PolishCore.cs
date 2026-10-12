@@ -86,7 +86,7 @@ namespace Starfall
         private void ActionUnavailable(float cooldown, float cost)
         { if (actionHintTimer > 0) return; actionHintTimer = 1.5f; Notify(cooldown > 0 ? "正在冷却，剩余 " + Math.Ceiling(cooldown) + " 秒。" : "耐力不足，需要 " + (int)cost + "。", cooldown > 0 ? "Cooling down: " + Math.Ceiling(cooldown) + " seconds." : "Need " + (int)cost + " energy."); sound = "deny"; }
         public string EnemyHint(Enemy e)
-        { return e.boss ? L("红圈锁定落点：离开后再反击", "Locked red circle: leave, then counter") : e.kind == 1 ? L("射手：沿侧面接近，利用墙体挡箭", "Archer: approach sideways; walls stop arrows") : e.kind == 2 ? L("重甲：绕到背后，或等抡击时破势", "Heavy: flank or break during its wind-up") : L("追猎者：闪过近身扑击，再接连击", "Hunter: dodge its lunge, then combo"); }
+        { return e.boss ? L("闪开红圈；薄荷色环出现时反击，伤害提升", "Evade the red mark; counter during the mint-ring opening") : e.kind == 1 ? L("侧移躲箭，借墙掩护；射后薄荷色环是破绽", "Sidestep arrows, use walls; the mint ring after firing marks an opening") : e.kind == 2 ? L("重甲正面减伤；绕背侧袭，或抓住抡击后的薄荷色环", "Heavy armor guards the front; flank or punish its mint-ring recovery") : L("闪过扑击；薄荷色环出现时抓住反击窗口", "Dodge the lunge; punish the mint-ring recovery"); }
         public void StartPractice()
         {
             if (Dying) return;
