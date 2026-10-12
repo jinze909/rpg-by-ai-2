@@ -205,6 +205,54 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RescueCivilianAppearsOnSiteAndEncounterEffectsRetire(Campaign data)
+        {
+            var g = Fresh(data); g.save.level = 10; g.save.stage = 3;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            Check(!g.ReliefCivilianVisible && g.reliefMissionWave == 0,
+                "A stranded civilian is not present until the hero actually finds the site");
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.ReliefCivilianVisible && g.CanStand(g.reliefFollowerPosition),
+                "Finding the survivor creates a physically placed world actor during the ambush");
+            Enemy attacker = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 &&
+                e.kind == 0);
+            Check(attacker != null, "The real combat wave includes a melee raider");
+            g.enemies.RemoveAll(e => e != attacker);
+            Point civilian = g.reliefFollowerPosition;
+            attacker.x = civilian.x - 1.3f; attacker.y = civilian.y;
+            attacker.Face(civilian - attacker.Position);
+            attacker.target = civilian; attacker.targetingReliefCivilian = true;
+            attacker.state = 1; attacker.timer = .01f; attacker.releaseTime = 0;
+            g.save.x = station.x; g.save.y = station.y;
+            g.Tick(.05f, new Point());
+            Check(g.reliefCivilianHitTime > .1f && g.ReliefCivilianVisible &&
+                g.effects.Exists(e => e.reliefMissionOwned &&
+                    e.kind == "number"),
+                "Real released contact flashes the actual civilian actor and produces owned safety damage feedback");
+            var ordinary = new Effect("discover", new Point(station.x, station.y), 3);
+            g.effects.Add(ordinary);
+            g.effects.Add(new Effect("danger", civilian, 3) {
+                radius = 1, reliefMissionOwned = true });
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 && !g.ReliefCivilianVisible &&
+                g.reliefCivilianHitTime == 0 &&
+                !g.effects.Exists(e => e.reliefMissionOwned) &&
+                g.effects.Contains(ordinary),
+                "Timeout removes special civilians and every encounter-owned warning, but preserves unrelated world effects");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            Check(g.reliefMissionRoom == 6 && g.reliefMissionWave == 0 &&
+                !g.ReliefCivilianVisible,
+                "Free rescue retry starts from clean staging with no ghost sprite or obsolete warnings");
+        }
+
         public static void CivilianRescueArcherUsesReadableRealStandoff(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
