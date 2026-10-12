@@ -27,6 +27,14 @@ namespace Starfall
     [Serializable] public class BossData { public string name, en; public float hp; }
     [Serializable] public class LoreData { public string title, en, zh, text; }
 
+    // Optional, version-2-compatible checkpoint for a completed rescue
+    // ambush. Old saves deserialize this as null.
+    [Serializable] public class RescueCheckpoint
+    {
+        public int room;
+        public float x, y, time, safety;
+        public bool waiting, treated, escortGuardUsed;
+    }
     [Serializable] public class SaveData
     {
         public int version = 2, room, stage, coins = 25, level = 1, xp, weapon, upgrades, ending, profession, skillPoints;
@@ -56,6 +64,7 @@ namespace Starfall
         public float musicVolume = .65f, effectsVolume = .8f, ambienceVolume = .5f;
         public int[] weaponStyles = { 0, 0, 0 };
         public EnemyRecord[] worldEnemies;
+        public RescueCheckpoint rescueCheckpoint;
         public int savedRunes;
         public string savedAtUtc, lastFailureZh, lastFailureEn;
         public List<JournalMoment> moments = new List<JournalMoment>();

@@ -150,6 +150,9 @@ namespace Starfall
         { return e != null && e.id >= 85000 && e.id < 85100; }
         private void ResetReliefMission()
         {
+            // Explicitly discard the optional checkpoint on actual completion,
+            // defeat, abandonment or a new-game reset.
+            if (save != null) save.rescueCheckpoint = null;
             enemies.RemoveAll(IsReliefMissionEnemy);
             // Ordinary patrols temporarily redirect attacks toward an escort.
             // Restore their normal AI on abort or completion so no old
@@ -171,6 +174,48 @@ namespace Starfall
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
+        }
+        private void CaptureReliefCheckpoint()
+        {
+            // Combat waves require exact live enemy state; do not restore a
+            // fake victory. Only the safely reached escort leg can be resumed.
+            if (!ReliefEscortActive || save.room != reliefMissionRoom ||
+                Dying || !CanStand(reliefFollowerPosition))
+            { save.rescueCheckpoint = null; return; }
+            save.rescueCheckpoint = new RescueCheckpoint {
+                room = reliefMissionRoom, x = reliefFollowerPosition.x,
+                y = reliefFollowerPosition.y,
+                time = reliefMissionTime, safety = reliefFollowerSafety,
+                waiting = reliefFollowerWaiting, treated = reliefMedicalUsed,
+                escortGuardUsed = reliefWardUsed
+            };
+        }
+        private void RestoreReliefCheckpoint(RescueCheckpoint checkpoint)
+        {
+            if (checkpoint == null) return;
+            // A malformed/foreign/expired checkpoint cannot inject a civilian
+            // in town, an inaccessible map or a missing construction project.
+            if (checkpoint.room != save.room || checkpoint.room < 5 ||
+                checkpoint.room > 7 || !Has("farshore_relief_" + checkpoint.room) ||
+                save.frontierEnding == 0 ||
+                !Finite(checkpoint.x) || !Finite(checkpoint.y) ||
+                !Finite(checkpoint.time) || checkpoint.time <= 0 ||
+                checkpoint.time > 120 || !Finite(checkpoint.safety) ||
+                checkpoint.safety <= 0 || checkpoint.safety > 100 ||
+                !CanStand(new Point(checkpoint.x, checkpoint.y))) return;
+            reliefMissionRoom = checkpoint.room; reliefMissionWave = 3;
+            reliefMissionTime = checkpoint.time; reliefFollowerSafety = checkpoint.safety;
+            reliefFollowerPosition = new Point(checkpoint.x, checkpoint.y);
+            reliefFollowerWaiting = checkpoint.waiting;
+            reliefMedicalUsed = checkpoint.treated;
+            reliefWardUsed = checkpoint.escortGuardUsed;
+            // Never bring a short-term shield back at full duration by
+            // repeatedly saving and reloading.
+            reliefWardTime = 0;
+            reliefTimeWarning = reliefMissionTime <= 30;
+            reliefSafetyWarning = reliefFollowerSafety <= 30;
+            reliefFollowerMoving = false; reliefFollowerWalkDistance = 0;
+            revision++;
         }
         private bool SpawnReliefMissionWave()
         {

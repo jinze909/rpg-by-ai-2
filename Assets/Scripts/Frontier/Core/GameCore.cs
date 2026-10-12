@@ -92,7 +92,12 @@ namespace Starfall
             save.foodUntil = Finite(save.foodUntil) ? Clamp(save.foodUntil, 0, save.totalTime + 120) : 0;
             if (save.weapon > 0 && !Has("weapon_" + save.weapon)) save.weapon = 0;
             if (!Finite(save.x) || !Finite(save.y) || !Fits(Position)) { save.x = Map.spawnX; save.y = Map.spawnY; }
-            ResetTransient(); SpawnRoom(); RestoreWorld(); revision++;
+            // SaveData belongs to the loaded slot. Keep only the optional
+            // validated in-progress escort while clearing runtime combat.
+            RescueCheckpoint pendingRescue = save.rescueCheckpoint;
+            ResetTransient(); SpawnRoom(); RestoreWorld();
+            RestoreReliefCheckpoint(pendingRescue);
+            revision++;
         }
         private void ResetTransient()
         {

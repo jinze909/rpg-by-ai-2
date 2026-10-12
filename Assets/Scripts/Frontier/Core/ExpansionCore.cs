@@ -140,6 +140,7 @@ namespace Starfall
         public void PrepareSave()
         {
             CaptureWorld();
+            CaptureReliefCheckpoint();
             if (!InAbyss) return;
             save.abyssSnapshotFloor = save.abyssFloor; save.abyssEnemies = new EnemyRecord[enemies.Count];
             for (int i = 0; i < enemies.Count; i++)
