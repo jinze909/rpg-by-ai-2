@@ -99,6 +99,17 @@ namespace Starfall
         private void DrawEnemyWarning(Enemy enemy)
         {
             if(enemy.state!=1)return;
+            // The amber tether marks the exact traveler-targeted strike lane.
+            // Keep it static for reduced-motion mode and behind the existing
+            // melee arc/area warning so players can plan a bodyguard intercept.
+            if (enemy.targetingWayfarer && Game.WayfarerEncounterRoom == Game.save.room)
+            {
+                float progress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
+                Color tether = PixelArt.C("#f4b58b");
+                float opacity = Game.save.reducedMotion ? .4f : .24f + progress * .25f;
+                DrawRay(enemy.Position, enemy.target, new Color(tether.r, tether.g, tether.b, opacity));
+                Ring(enemy.target, .34f, new Color(tether.r, tether.g, tether.b, .65f), 20);
+            }
             if(enemy.boss||enemy.kind==2){DrawTelegraph(enemy);return;}
             float progress=Mathf.Clamp01(1-enemy.timer/Math.Max(.01f,enemy.windupDuration));
             Color color=new Color(.875f,.54f,.408f,.35f+progress*.4f);
