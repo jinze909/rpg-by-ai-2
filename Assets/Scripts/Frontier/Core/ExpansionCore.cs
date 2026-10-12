@@ -655,6 +655,7 @@ namespace Starfall
         }
         private bool ChooseExpansion(string action)
         {
+            if (ChooseReliefFieldGuard(action)) return true;
             if (ChooseRescuedCivilian(action)) return true;
             if (ChooseFieldStation(action)) return true;
             if (action == "exp_begin") { if (save.stage >= 1) { Flag("exp_intro"); TrackQuest("shore"); Enter(5); } return true; }

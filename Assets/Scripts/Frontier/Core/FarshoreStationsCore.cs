@@ -102,6 +102,14 @@ namespace Starfall
         public float reliefMissionTime;
         public Point reliefFollowerPosition;
         public float reliefFollowerSafety;
+        public float reliefWardTime;
+        private bool reliefWardUsed;
+        public bool ReliefFieldGuardAvailable
+        {
+            get { return reliefMissionRoom == save.room && (reliefMissionWave == 1 ||
+                reliefMissionWave == 2) && reliefWardTime <= 0 && !reliefWardUsed &&
+                save.energy >= 20 && !Dying; }
+        }
         // Distance-driven, transient gait data; the NPC keeps one consistent
         // authored appearance and never borrows the playable hero sprite.
         public float reliefFollowerWalkDistance;
@@ -118,6 +126,7 @@ namespace Starfall
             projectiles.RemoveAll(p => p.reliefMissionOwned);
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
             reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
+            reliefWardTime = 0; reliefWardUsed = false;
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
@@ -193,6 +202,39 @@ namespace Starfall
             }
             return false;
         }
+        // A tactical rally is an actual field command, not an inventory click
+        // or free mission reset. It protects civilians for a short period, once
+        // per wave, using the hero's existing combat energy.
+        private void TalkReliefFieldGuard()
+        {
+            if (reliefMissionRoom != save.room ||
+                (reliefMissionWave != 1 && reliefMissionWave != 2) ||
+                (Position - FieldSurveyTarget(reliefMissionRoom)).Length > 1.7f) return;
+            var options = new List<Choice>();
+            if (ReliefFieldGuardAvailable)
+                options.Add(C("组织紧急护卫 · 耐力20", "Rally defenders · 20 energy",
+                    "relief_field_guard"));
+            options.Add(C("继续守护", "Keep defending", "close"));
+            Dialog("平民紧急集结点", "Civilian rally point",
+                "幸存者仍被围困。你可以组织一次紧急护卫，持续8秒减少他们受到的攻击与破坏伤害。每波只能使用一次，且不会免疫伤害。\n\n当前安全度 " +
+                    (int)Math.Ceiling(reliefFollowerSafety) + "% · 第" + reliefMissionWave + "/2波。",
+                "Civilians are still under siege. Rally a field guard for 8 seconds to reduce attacks and sabotage. Once per wave; this does not grant immunity.\n\nSafety " +
+                    (int)Math.Ceiling(reliefFollowerSafety) + "% · wave " + reliefMissionWave + "/2.",
+                options.ToArray());
+        }
+        private bool ChooseReliefFieldGuard(string action)
+        {
+            if (action != "relief_field_guard") return false;
+            if (!ReliefFieldGuardAvailable ||
+                (Position - FieldSurveyTarget(reliefMissionRoom)).Length > 1.7f)
+                return true;
+            save.energy -= 20; reliefWardTime = 8f; reliefWardUsed = true;
+            effects.Add(new Effect("discover", FieldSurveyTarget(reliefMissionRoom), .7f));
+            sound = "guard"; revision++;
+            Notify("临时护卫队就位！8秒内减轻居民安全度损失。",
+                "Field guard rallied! Civilian safety damage is reduced for 8 seconds.");
+            return true;
+        }
         // The committed windup/release follows the existing combat timeline.
         // Only a raider that is still in reach and has line of sight can
         // injure civilians; the hero can step between them and take the blow.
@@ -227,6 +269,7 @@ namespace Starfall
                 !ClearAttackPath(attacker.Position, civilians) ||
                 InterceptReliefCivilianStrike(attacker, civilians)) return;
             float loss = attacker.kind == 2 ? 22 : 14;
+            if (reliefWardTime > 0) loss *= .55f;
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
             effects.Add(new Effect("danger", civilians, .45f) { radius = .7f });
             effects.Add(new Effect("number", civilians, .75f,
@@ -249,6 +292,8 @@ namespace Starfall
             if (save.room != region || Dying || practicing)
             { ResetReliefMission(); return; }
             reliefMissionTime -= dt;
+            if (reliefWardTime > 0)
+                reliefWardTime = Math.Max(0, reliefWardTime - dt);
             if (reliefMissionTime <= 0)
             {
                 ResetReliefMission(); revision++;
@@ -289,7 +334,8 @@ namespace Starfall
                 {
                     float cover = (Position - civilians).Length < 2.2f ? .65f : 1f;
                     reliefFollowerSafety = Math.Max(0,
-                        reliefFollowerSafety - dt * pressure * 1.2f * cover);
+                        reliefFollowerSafety - dt * pressure * 1.2f * cover *
+                            (reliefWardTime > 0 ? .55f : 1f));
                     if (reliefFollowerSafety <= 0)
                     {
                         ResetReliefMission(); revision++; sound = "deny";
@@ -305,6 +351,7 @@ namespace Starfall
             {
                 projectiles.RemoveAll(p => p.reliefMissionOwned);
                 reliefMissionWave = 2;
+                reliefWardTime = 0; reliefWardUsed = false;
                 reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
                 if (!SpawnReliefMissionWave())
                 {

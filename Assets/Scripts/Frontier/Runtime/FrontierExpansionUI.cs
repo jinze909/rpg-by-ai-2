@@ -82,6 +82,19 @@ namespace Starfall
                         Game.L("守护居民", "DEFEND CIVILIANS"), 12, gold, TextAnchor.MiddleCenter);
                 if (Game.reliefMissionWave >= 1 && Game.reliefMissionWave <= 2)
                 {
+                    if ((Game.Position - rescue).Length < 1.7f &&
+                        Game.ReliefFieldGuardAvailable)
+                        Text(rp.x - 72, rp.y - 94, 144, 23,
+                            ControlKey("E", "B") + Game.L(" · 紧急护卫", " · Rally guard"),
+                            11, gold, TextAnchor.MiddleCenter);
+                    if (Game.reliefWardTime > 0)
+                    {
+                        Ring(rescue, .8f, mint, 24);
+                        Text(rp.x - 40, rp.y - 103, 80, 22,
+                            Game.L("护卫 ", "GUARD ") +
+                                Game.reliefWardTime.ToString("0.0") + "s",
+                            11, mint, TextAnchor.MiddleCenter);
+                    }
                     Color protection = Game.reliefFollowerSafety < 30 ? PixelArt.C("#f27d7d") :
                         Game.reliefFollowerSafety < 65 ? gold : mint;
                     Bar(rp.x - 33, rp.y + 10, 66,
