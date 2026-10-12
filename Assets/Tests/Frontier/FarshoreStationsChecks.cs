@@ -205,6 +205,60 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CivilianRescueArcherUsesReadableRealStandoff(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.reliefMissionWave == 1, "Real mission triggers combat at the authored survey site");
+            Enemy archer = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 &&
+                e.kind == 1);
+            Check(archer != null, "First wave must include a real combat archer");
+            g.enemies.RemoveAll(e => e != archer);
+            Point marker = g.FieldSurveyTarget(6), close = new Point();
+            bool found = false;
+            for (int dx = -3; dx <= 3 && !found; dx++)
+            for (int dy = -3; dy <= 3 && !found; dy++)
+            {
+                Point test = marker + new Point(dx * .5f, dy * .5f);
+                float distance = (test - marker).Length;
+                if (distance < 2.2f || distance >= 2.85f ||
+                    !g.CanStand(test) || !g.ClearAttackPath(test, marker)) continue;
+                close = test; found = true;
+            }
+            Check(found, "The authored civilian site has a walkable and visible archer retreat lane");
+            archer.x = close.x; archer.y = close.y; archer.state = 0;
+            archer.timer = 100; archer.stun = archer.releaseTime = archer.hitTime = 0;
+            g.save.x = station.x; g.save.y = station.y;
+            float before = (archer.Position - marker).Length;
+            g.Tick(.05f, new Point());
+            float after = (archer.Position - marker).Length;
+            Check(after > before + .025f && archer.backpedaling,
+                "Rescue archers retreat from crowded civilians rather than closing to melee range");
+            archer.x = close.x; archer.y = close.y;
+            archer.timer = .01f; archer.state = 0; archer.releaseTime = 0;
+            g.effects.Clear();
+            g.Tick(.05f, new Point());
+            Check(archer.state == 1 && archer.targetingReliefCivilian &&
+                (archer.target - marker).Length < .001f &&
+                (archer.facing - (marker - archer.Position).Normalized).Length < .1f,
+                "Rescue archer locks the true civilian position with the combat facing during windup");
+            Check(!g.effects.Exists(e => e.kind == "danger" && e.radius > 1),
+                "Archer preparation never fakes a melee-area impact warning");
+            float safety = g.reliefFollowerSafety;
+            archer.timer = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.projectiles.Exists(p => p.reliefMissionOwned && !p.friendly &&
+                p.visual == "enemyArrow") && g.reliefFollowerSafety > safety - 1,
+                "The archer release uses a real projectile; civilian health is not instantly hit");
+        }
+
         public static void RescueThreatDifficultyAndOneShotWarnings(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
