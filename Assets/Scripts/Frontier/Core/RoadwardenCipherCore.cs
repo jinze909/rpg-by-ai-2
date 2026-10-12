@@ -249,9 +249,9 @@ namespace Starfall
             }
             if (planned.Count == 0) return;
             // Never create an unavoidable warning in a cramped or sealed space.
-            Point[] exits = { center, center + new Point(2.5f, 0),
-                center + new Point(-2.5f, 0), center + new Point(0, 2.5f),
-                center + new Point(0, -2.5f) };
+            Point[] exits = { center, center + new Point(1.6f, 0),
+                center + new Point(-1.6f, 0), center + new Point(0, 1.6f),
+                center + new Point(0, -1.6f) };
             bool escape = false;
             foreach (Point exit in exits)
             {

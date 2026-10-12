@@ -348,11 +348,28 @@ namespace Starfall.Tests
                 for (int frame = 0; frame < 32; frame++) g.Tick(.05f, new Point());
                 string kind = region == 1 ? "root" : region == 2 ? "tide" : "glass";
                 var warnings = g.hazards.FindAll(h => h.kind == kind);
-                Check(warnings.Count >= 1, "Region " + region + " did not schedule its hazard; mode=" + g.mode + ", wave=" + g.RoadwardenTrialWave + ", enemies=" + g.enemies.Count + ", all hazards=" + g.hazards.Count + ", hp=" + g.save.health);
+                Check(warnings.Count == (region == 1 ? 2 : 3), "Region " + region + " did not schedule its hazard; mode=" + g.mode + ", wave=" + g.RoadwardenTrialWave + ", enemies=" + g.enemies.Count + ", all hazards=" + g.hazards.Count + ", hp=" + g.save.health);
                 foreach (Hazard warning in warnings)
                     Check(g.CanStand(warning.position) && warning.timer > 0 &&
                         warning.damage > 0 && warning.radius > 0,
                         "Hazards are telegraphed on traversable ground with real damage");
+                // A wave-two pattern must leave a reachable short-dodge escape.
+                Point origin = g.Position;
+                Point[] exits = { origin, origin + new Point(1.6f, 0),
+                    origin + new Point(-1.6f, 0), origin + new Point(0, 1.6f),
+                    origin + new Point(0, -1.6f) };
+                bool escape = false;
+                foreach (Point exit in exits)
+                {
+                    if (!g.CanStand(exit) || ((exit - origin).Length > .01f &&
+                        g.NavigationPath(exit).Count == 0)) continue;
+                    bool safe = true;
+                    foreach (Hazard warning in warnings)
+                        if ((exit - warning.position).Length <= warning.radius + .3f)
+                        { safe = false; break; }
+                    if (safe) { escape = true; break; }
+                }
+                Check(escape, "Region " + region + " has no reachable dodge-length escape");
                 g.PrepareSave();
                 var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
                 Check(resumed.hazards.Count == 0 && resumed.RoadwardenTrialRoom == 0,
