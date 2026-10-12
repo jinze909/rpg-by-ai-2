@@ -41,3 +41,5 @@
 - Next: validate wave-two warnings and staged root in Unity 2022.3.53f1; if native testing is unavailable, deepen player-facing roadwarden encounters or add clear in-world guidance without disrupting existing rewards.
 
 - AI-2 veteran replay (parent `61a6f86fa932ae4de4bde65f7263ebb6f4932c5c`): each cleared beacon now offers an optional three-wave harder defense. The final wave mixes armored and hunter attackers, regional telegraphs continue faster, and all repeat clears award zero coins, shards, XP, talent or kill credit. Existing first-clear two-wave rewards and flags remain unchanged; no save schema or asset GUID changes. Regression: `RoadwardenVeteranReplayAddsAThirdWaveWithoutFarmingRewards`. CI pending after push; Unity Editor `NATIVE_UNVERIFIED`. Next: native combat feel/visual QA for veteran third wave and regional surges, then develop a new player-facing content theme.
+
+- Veteran follow-up (parent `2dd2741da7b6ad048a3a54ce8f898f82af2f9a25`): active beacon labels now show accurate 1/3–3/3 progress and a distinct violet ELITE marker; ordinary first-clear challenges retain their 1/2–2/2 warm marker. Native visual check still required.

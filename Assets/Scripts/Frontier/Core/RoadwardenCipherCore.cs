@@ -107,6 +107,7 @@ namespace Starfall
         public int RoadwardenTrialRoom { get { return roadTrialRoom; } }
         public int RoadwardenTrialWave { get { return roadTrialWave; } }
         public int RoadwardenTrialTotalWaves { get { return roadTrialVeteran ? 3 : 2; } }
+        public bool RoadwardenTrialVeteran { get { return roadTrialVeteran; } }
         private string RoadwardenVigilInnNote(bool english)
         {
             if (Has("road_trial_complete"))

@@ -72,12 +72,12 @@ namespace Starfall
                 bool found = desk ? Game.Has("survey_complete") : Game.Has("survey_" + o.kind.Substring(6));
                 bool defending = !desk && Game.RoadwardenTrialRoom == Game.save.room;
                 bool defended = !desk && Game.Has("road_trial_" + o.kind.Substring(6));
-                Color accent = defending ? PixelArt.C("#e69d83") : defended ? gold : found ? mint : gold;
+                Color accent = defending ? (Game.RoadwardenTrialVeteran ? PixelArt.C("#b9a4ed") : PixelArt.C("#e69d83")) : defended ? gold : found ? mint : gold;
                 PropImage(desk ? "bookshelf" : "column", 0, p.x - 27, p.y - 62, 54, 68, found ? muted : Color.white);
                 float pulse = found || Game.save.reducedMotion ? 0 : Mathf.Sin(clock * 2.6f) * .05f;
                 Ring(new Point(o.x, o.y), .36f + pulse, accent, 16);
                 string label = desk ? Game.L("归乡星图", "ROAD CHART") :
-                    defending ? Game.L("守望 ", "WAVE ") + Game.RoadwardenTrialWave + "/2" :
+                    defending ? Game.L(Game.RoadwardenTrialVeteran ? "精英 " : "守望 ", Game.RoadwardenTrialVeteran ? "ELITE " : "WAVE ") + Game.RoadwardenTrialWave + "/" + Game.RoadwardenTrialTotalWaves :
                     defended ? Game.L("已守住", "GUARDED") : found ? "✓" : o.kind.Substring(6);
                 Text(p.x - 46, p.y - 72, 92, 24, label, 12, accent, TextAnchor.MiddleCenter);
                 return true;
