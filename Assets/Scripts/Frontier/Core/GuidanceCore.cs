@@ -83,8 +83,10 @@ namespace Starfall
                     FieldSurveyTarget(reliefMissionRoom) :
                     ObjectPoint(q.room, "fieldstation" + q.room, new Point(12, 12));
                 q.next = q.complete ? L("三地居民已获救，救援可无奖励重演", "Three regions safe; replay with no rewards") :
-                    reliefMissionRoom != 0 ? L(reliefMissionWave == 3 ? "带领居民返回气象站" : "击退巡测地点的袭击者",
-                        reliefMissionWave == 3 ? "Return survivors to the weather station" : "Defeat raiders near the landmark") +
+                    reliefMissionRoom != 0 ? L(reliefMissionWave == 0 ? "先到巡测地标找到失联居民" :
+                            reliefMissionWave == 3 ? "带领居民返回气象站" : "击退巡测地点的袭击者",
+                        reliefMissionWave == 0 ? "Reach the survey marker to find civilians" :
+                            reliefMissionWave == 3 ? "Return survivors to the weather station" : "Defeat raiders near the landmark") +
                         " · " + (int)Math.Ceiling(reliefMissionTime) + "s" :
                     next == 0 ? L("先建设一处远岸避难站", "Build a farshore civilian shelter") :
                         L("前往已建成的站台接取居民救援", "Start a rescue at a finished shelter");

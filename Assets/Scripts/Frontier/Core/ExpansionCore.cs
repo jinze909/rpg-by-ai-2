@@ -434,7 +434,8 @@ namespace Starfall
             // even if the player temporarily tracks a different journal quest.
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
                 return L("救援 ", "RESCUE ") + (int)Math.Ceiling(reliefMissionTime) + "s · " +
-                    L(reliefMissionWave == 3 ? "护送返程" : "击退敌人",
+                    L(reliefMissionWave == 0 ? "寻找居民" : reliefMissionWave == 3 ? "护送返程" : "击退伏击",
+                        reliefMissionWave == 0 ? "FIND CIVILIANS" :
                         reliefMissionWave == 3 ? "ESCORT HOME" : "DEFEAT RAIDERS");
             if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
                 return L("巡测 ", "SURVEY ") + (int)Math.Ceiling(fieldSurveyTime) + "s · " +

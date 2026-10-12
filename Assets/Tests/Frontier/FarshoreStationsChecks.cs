@@ -17,6 +17,25 @@ namespace Starfall.Tests
             game.Choose(next);
         }
 
+        // The live ambush must be discovered on foot at the authored landmark,
+        // rather than spawning at the shelter the instant a mission is accepted.
+        private static void ReachCivilianRescueMarker(GameCore game, int region)
+        {
+            Point marker = game.FieldSurveyTarget(region);
+            Point[] candidates = { marker, marker + new Point(1, 0),
+                marker + new Point(-1, 0), marker + new Point(0, 1),
+                marker + new Point(0, -1) };
+            bool found = false;
+            foreach (Point candidate in candidates)
+                if (game.CanStand(candidate) && (candidate - marker).Length < 2.1f)
+                {
+                    game.save.x = candidate.x; game.save.y = candidate.y;
+                    found = true; break;
+                }
+            Check(found, "A walkable rescue approach exists at the authored regional landmark");
+            game.Tick(.05f, new Point());
+        }
+
         public static void RescueSurvivorsRequireRealProtectionAndSafeTravel(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
@@ -28,7 +47,9 @@ namespace Starfall.Tests
             WorldObject station = Object(g, "fieldstation6");
             g.save.x = station.x; g.save.y = station.y;
             StartCivilianRescueViaRealDialogue(g, station);
-            Check(g.reliefMissionRoom == 6, "Rescue starts from the real rebuilt station");
+            Check(g.reliefMissionRoom == 6 && g.reliefMissionWave == 0 &&
+                g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 0,
+                "Starting from the station never summons distant raiders before the hero visits the landmark");
             int coins = g.save.coins;
             g.ReturnToTown();
             Check(g.save.room == 6 && g.reliefMissionRoom == 6,
@@ -41,6 +62,10 @@ namespace Starfall.Tests
             g.save.flags.Add("fieldstation_survey_6");
             Check(g.fieldSurveyRoom == 0 && g.reliefMissionRoom == 6,
                 "Another timed survey cannot replace the active rescue timer");
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.reliefMissionWave == 1 &&
+                g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 2,
+                "Reaching the surveyed landmark starts the first actual ambush");
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
             g.Tick(.05f, new Point());
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
@@ -84,10 +109,17 @@ namespace Starfall.Tests
                     "The physical shelter exposes a live, playable rescue action");
                 g.Close();
                 StartCivilianRescueViaRealDialogue(g, station);
-                Check(g.reliefMissionRoom == region && g.reliefMissionWave == 1 &&
+                Check(g.reliefMissionRoom == region && g.reliefMissionWave == 0 &&
                     g.reliefMissionTime > 119f && g.save.trackedQuest == "relief_rescue" &&
+                    g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 0,
+                    "Each region begins with an actual outbound search and no premature enemy spawning");
+                Check(g.GetQuest("relief_rescue").next.Contains("巡测地标") &&
+                    g.GetQuest("relief_rescue").next.Contains("120s"),
+                    "The active quest points to the rescue site and displays the timed search");
+                ReachCivilianRescueMarker(g, region);
+                Check(g.reliefMissionWave == 1 &&
                     g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 2,
-                    "Each region spawns two genuine AI combatants and a 120-second objective");
+                    "Arriving at each real field marker spawns exactly two hostile raiders");
                 foreach (Enemy enemy in g.enemies)
                     if (enemy.id >= 85000 && enemy.id < 85100)
                         Check(enemy.timer < 2 && enemy.hp > 0 &&
@@ -139,7 +171,9 @@ namespace Starfall.Tests
             g.save.x = finalStation.x; g.save.y = finalStation.y;
             int rewarded = g.save.coins, rewardedShards = g.save.shards, rewardedPoints = g.save.skillPoints;
             StartCivilianRescueViaRealDialogue(g, finalStation);
-            Check(g.reliefMissionRoom == 7, "Completed civilian rescue remains replayable as live combat");
+            Check(g.reliefMissionRoom == 7 && g.reliefMissionWave == 0,
+                "Completed civilian rescue remains replayable with the outbound phase");
+            ReachCivilianRescueMarker(g, 7);
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
             g.Tick(.05f, new Point());
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
@@ -148,6 +182,7 @@ namespace Starfall.Tests
             Check(g.save.coins == rewarded && g.save.shards == rewardedShards &&
                 g.save.skillPoints == rewardedPoints,
                 "Replaying civilian rescue yields no coins, shards or repeat talent");
+            g.save.x = finalStation.x; g.save.y = finalStation.y;
             StartCivilianRescueViaRealDialogue(g, finalStation);
             g.reliefMissionTime = .01f;
             g.Tick(.05f, new Point());

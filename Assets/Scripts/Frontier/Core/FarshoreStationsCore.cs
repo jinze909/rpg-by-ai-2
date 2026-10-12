@@ -154,16 +154,12 @@ namespace Starfall
             if ((Position - post).Length > 2.2f) return;
             if (!SafeTravel)
             { Notify("先清理站台附近的巡逻敌人，才能启动救援。", "Clear patrols near the station before starting rescue."); return; }
-            reliefMissionRoom = region; reliefMissionWave = 1; reliefMissionTime = 120;
-            if (!SpawnReliefMissionWave())
-            {
-                ResetReliefMission();
-                Notify("救援路线无法安全布置敌人，稍后可重试。", "Unable to set up a safe rescue route. Retry later.");
-                return;
-            }
-            TrackQuest("relief_rescue");
-            Notify("民用救援开始！120秒内赶往地图标记、击退两波敌人，再返回站台。",
-                "Rescue launched! Reach the marked landmark, defeat two waves and return within 120 seconds.");
+            // Stage zero is the outbound journey. Do not let raiders chase the
+            // hero from the station before anyone reaches the stranded civilians.
+            reliefMissionRoom = region; reliefMissionWave = 0; reliefMissionTime = 120;
+            TrackQuest("relief_rescue"); revision++; sound = "quest";
+            Notify("已接取撤离：先抵达巡测标记，找到居民后拦截伏击者；120秒内完成往返。",
+                "Rescue underway: first reach the survey marker and locate civilians. Return within 120 seconds.");
         }
         private void TickReliefMission(float dt)
         {
@@ -177,6 +173,23 @@ namespace Starfall
                 ResetReliefMission(); revision++;
                 Notify("救援时间已过。未消耗物资，可再次行动。",
                     "Rescue timed out. No supplies lost; retry freely.");
+                return;
+            }
+            if (reliefMissionWave == 0)
+            {
+                // Reaching the actual field site is now mandatory. A hostile
+                // wave cannot be cleared remotely from the station.
+                if ((Position - FieldSurveyTarget(region)).Length > 2.1f) return;
+                reliefMissionWave = 1;
+                if (!SpawnReliefMissionWave())
+                {
+                    ResetReliefMission(); revision++;
+                    Notify("伏击地点暂时没有足够的安全空间，可以回站台免费重试。",
+                        "The ambush cannot spawn safely here. Retry from the station for free.");
+                    return;
+                }
+                Notify("找到失联居民！第一波掠夺者逼近，保护他们并击退伏击。",
+                    "Civilians located! First raider wave incoming. Defeat the ambush to reach them.");
                 return;
             }
             if (enemies.Exists(IsReliefMissionEnemy)) return;
@@ -412,9 +425,14 @@ namespace Starfall
                 options.Add(C("离开", "Leave", "close"));
                 Dialog("远岸避难行动", "Farshore Evacuation",
                     "已有居民被困在巡测地点附近。前往标记处击退两波真实敌人，再把居民带回站台。若失败或中途离开，可免费重试。" +
-                    (reliefMissionRoom == currentRoom ? "\n\n阶段 " + reliefMissionWave + "/3，剩余 " + (int)Math.Ceiling(reliefMissionTime) + " 秒。" : ""),
+                    (reliefMissionRoom == currentRoom ? "\n\n" + (reliefMissionWave == 0 ? "正在寻找巡测点的居民" :
+                        reliefMissionWave == 3 ? "正在护送幸存者返回站台" : "正在击退第" + reliefMissionWave + "/2波伏击") +
+                        "，剩余 " + (int)Math.Ceiling(reliefMissionTime) + " 秒。" : ""),
                     "Civilians are stranded near the surveyed landmark. Defeat two real enemy waves, then escort them back to this station. Retries are free." +
-                    (reliefMissionRoom == currentRoom ? "\n\nStage " + reliefMissionWave + "/3, " + (int)Math.Ceiling(reliefMissionTime) + "s remaining." : ""),
+                    (reliefMissionRoom == currentRoom ? "\n\n" + (reliefMissionWave == 0 ? "Finding civilians at the field marker" :
+                        reliefMissionWave == 3 ? "Escorting survivors back to this station" :
+                            "Defeating ambush wave " + reliefMissionWave + "/2") +
+                        ", " + (int)Math.Ceiling(reliefMissionTime) + "s remaining." : ""),
                     options.ToArray());
                 return true;
             }

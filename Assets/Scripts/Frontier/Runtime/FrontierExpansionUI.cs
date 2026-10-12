@@ -61,7 +61,8 @@ namespace Starfall
                 Point rp = ScreenPoint(rescue);
                 Text(rp.x - 56, rp.y - 65, 112, 24,
                     Game.reliefMissionWave == 3 ? Game.L("护送返程", "ESCORT HOME") :
-                        Game.L("营救居民", "RESCUE CIVILIANS"), 12, gold, TextAnchor.MiddleCenter);
+                        Game.reliefMissionWave == 0 ? Game.L("寻找居民", "FIND CIVILIANS") :
+                        Game.L("守护居民", "DEFEND CIVILIANS"), 12, gold, TextAnchor.MiddleCenter);
             }
             if (Game.ReliefEscortActive)
             {
