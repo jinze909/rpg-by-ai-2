@@ -209,7 +209,7 @@ namespace Starfall
             Point follow = Position - reliefFollowerPosition;
             if (follow.Length > 1.3f)
             {
-                Point advance = follow.Normalized * Math.Min(dt * 2.6f, follow.Length - 1.3f);
+                Point advance = DirectionTo(reliefFollowerPosition, Position) * Math.Min(dt * 2.6f, follow.Length - 1.3f);
                 reliefFollowerPosition = SweepActor(reliefFollowerPosition, advance);
             }
             Point station = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
