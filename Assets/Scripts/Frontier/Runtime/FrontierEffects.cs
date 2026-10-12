@@ -104,9 +104,9 @@ namespace Starfall
             // melee arc/area warning so players can plan a bodyguard intercept.
             if (enemy.targetingWayfarer && Game.WayfarerEncounterRoom == Game.save.room)
             {
-                float progress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
+                float laneProgress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
                 Color tether = PixelArt.C("#f4b58b");
-                float opacity = Game.save.reducedMotion ? .4f : .24f + progress * .25f;
+                float opacity = Game.save.reducedMotion ? .4f : .24f + laneProgress * .25f;
                 DrawRay(enemy.Position, enemy.target, new Color(tether.r, tether.g, tether.b, opacity));
                 Ring(enemy.target, .34f, new Color(tether.r, tether.g, tether.b, .65f), 20);
             }
