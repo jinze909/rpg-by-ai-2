@@ -36,7 +36,9 @@ namespace Starfall.Tests
             Action(g, station.kind, "fieldstation_to_5");
             Check(g.save.room == 6 && g.reliefMissionRoom == 6,
                 "Regional station travel preserves a live rescue rather than discarding it");
+            g.save.flags.Remove("fieldstation_survey_6");
             Action(g, station.kind, "fieldstation_survey_start");
+            g.save.flags.Add("fieldstation_survey_6");
             Check(g.fieldSurveyRoom == 0 && g.reliefMissionRoom == 6,
                 "Another timed survey cannot replace the active rescue timer");
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);

@@ -703,6 +703,12 @@ namespace Starfall
             }
             if (action == "race")
             {
+                if (reliefMissionRoom != 0)
+                {
+                    Notify("正在护送居民，不能参加沙舟竞速。先完成或取消救援。",
+                        "Cannot race during a civilian rescue. Finish or cancel the rescue first.");
+                    return true;
+                }
                 if (fieldSurveyRoom != 0)
                 {
                     Notify("先完成或取消观测站巡测，再参加沙舟竞速。",
