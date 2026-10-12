@@ -511,7 +511,9 @@ namespace Starfall
                         else if (e.kind == 1) Fire(e, e.facing, 5);
                         else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position)) Hurt(11, "lunge", e.facing);
                         if (travelerAttacker && e.targetingWayfarer) DamageWayfarer(e);
-                        e.targetingWayfarer = false;
+                        if (reliefMissionRoom != 0 && IsReliefMissionEnemy(e) &&
+                            e.targetingReliefCivilian) DamageReliefCivilian(e);
+                        e.targetingWayfarer = e.targetingReliefCivilian = false;
                         e.state = 0; e.timer = e.boss ? 2.2f - e.BossPhase * .3f : 1.4f;
                     }
                     continue;
@@ -540,11 +542,25 @@ namespace Starfall
                 // Standing in the raider's reach lets the hero draw its attention.
                 // Otherwise the telegraphed strike lands on the vulnerable traveler.
                 bool strikeTraveler = nearTraveler && (!heroInRange || distance > 2.2f);
-                if (e.timer <= 0 && (heroInRange || strikeTraveler))
+                // A rescue raider must visibly commit to striking the civilians.
+                // Archers still attack the playable hero; melee and breakers can
+                // target civilians when the hero does not hold the frontline.
+                bool nearCivilian = reliefAttacker && e.kind != 1 &&
+                    (pursuit - e.Position).Length < 2.1f &&
+                    ClearAttackPath(e.Position, pursuit);
+                bool strikeCivilian = nearCivilian &&
+                    (!heroInRange || distance > 2.2f);
+                if (e.timer <= 0 && (heroInRange || strikeTraveler || strikeCivilian))
                 {
                     e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer;
-                    e.targetingWayfarer = strikeTraveler; e.target = strikeTraveler ? pursuit : Position; e.Face(e.target - e.Position);
-                    if (e.boss || distance < 6) sound = "windup";
+                    e.targetingWayfarer = strikeTraveler;
+                    e.targetingReliefCivilian = strikeCivilian;
+                    e.target = strikeTraveler || strikeCivilian ? pursuit : Position;
+                    e.Face(e.target - e.Position);
+                    if (strikeCivilian)
+                        effects.Add(new Effect("danger", pursuit, e.timer) {
+                            radius = e.kind == 2 ? EnemyAreaRadius(e) : EnemyMeleeRadius });
+                    if (e.boss || distance < 6 || strikeCivilian) sound = "windup";
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)
                         for (int step = 0; step < 12; step++)

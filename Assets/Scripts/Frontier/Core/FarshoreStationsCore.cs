@@ -193,6 +193,55 @@ namespace Starfall
             }
             return false;
         }
+        // The committed windup/release follows the existing combat timeline.
+        // Only a raider that is still in reach and has line of sight can
+        // injure civilians; the hero can step between them and take the blow.
+        private bool InterceptReliefCivilianStrike(Enemy attacker, Point civilian)
+        {
+            Point lane = civilian - attacker.Position;
+            float distance = lane.Length;
+            if (distance < .45f) return false;
+            Point blocker = Position - attacker.Position;
+            float radius = attacker.kind == 2 ? EnemyAreaRadius(attacker) : EnemyMeleeRadius;
+            if (blocker.Length >= radius || !ClearAttackPath(attacker.Position, Position))
+                return false;
+            float along = (blocker.x * lane.x + blocker.y * lane.y) / distance;
+            float across = Math.Abs(blocker.x * lane.y - blocker.y * lane.x) / distance;
+            if (along < .2f || along > distance + .1f || across > .75f)
+                return false;
+            if (attacker.kind == 2 ?
+                (Position - attacker.target).Length >= radius :
+                !InEnemyMeleeArc(attacker, Position)) return false;
+            effects.Add(new Effect("number", Position, .7f, L("护卫拦截", "INTERCEPT")));
+            effects.Add(new Effect("discover", civilian, .35f));
+            return true;
+        }
+        private void DamageReliefCivilian(Enemy attacker)
+        {
+            if (reliefMissionRoom == 0 || reliefMissionWave < 1 ||
+                reliefMissionWave > 2 || save.room != reliefMissionRoom ||
+                !IsReliefMissionEnemy(attacker)) return;
+            Point civilians = FieldSurveyTarget(reliefMissionRoom);
+            float radius = attacker.kind == 2 ? EnemyAreaRadius(attacker) : 2.1f;
+            if ((attacker.Position - civilians).Length >= radius ||
+                !ClearAttackPath(attacker.Position, civilians) ||
+                InterceptReliefCivilianStrike(attacker, civilians)) return;
+            float loss = attacker.kind == 2 ? 22 : 14;
+            reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
+            effects.Add(new Effect("danger", civilians, .45f) { radius = .7f });
+            effects.Add(new Effect("number", civilians, .75f,
+                "-" + (int)loss + L("安全", " SAFETY")));
+            revision++;
+            if (reliefFollowerSafety <= 0)
+            {
+                ResetReliefMission(); sound = "deny";
+                Notify("掠夺者击散了被困居民！可以免费重新组织撤离。",
+                    "Raiders overwhelmed the civilians! Retry the rescue for free.");
+            }
+            else if (reliefFollowerSafety <= 30)
+                Notify("居民安全度极低！拦截敌人的下一次蓄力攻击。",
+                    "Civilian safety critical! Intercept the next telegraphed strike.");
+        }
         private void TickReliefMission(float dt)
         {
             if (reliefMissionRoom == 0) return;
@@ -240,7 +289,7 @@ namespace Starfall
                 {
                     float cover = (Position - civilians).Length < 2.2f ? .65f : 1f;
                     reliefFollowerSafety = Math.Max(0,
-                        reliefFollowerSafety - dt * pressure * 3.5f * cover);
+                        reliefFollowerSafety - dt * pressure * 1.2f * cover);
                     if (reliefFollowerSafety <= 0)
                     {
                         ResetReliefMission(); revision++; sound = "deny";
