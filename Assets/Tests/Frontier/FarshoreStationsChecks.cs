@@ -312,9 +312,14 @@ namespace Starfall.Tests
             attacker.x = origin.x; attacker.y = origin.y;
             attacker.target = civilian; attacker.Face(civilian - origin);
             attacker.state = 1; attacker.timer = .01f; attacker.targetingReliefCivilian = true;
+            attacker.releaseTime = 0; attacker.stun = attacker.hitTime = 0;
             g.save.x = guard.x; g.save.y = guard.y;
             float beforeGuard = g.reliefFollowerSafety;
+            float heroBeforeGuard = g.save.health;
             g.Tick(.05f, new Point());
+            Check(g.save.health < heroBeforeGuard &&
+                !attacker.targetingReliefCivilian,
+                "A real frontline interception resolves an attack and transfers impact to the hero");
             Check(g.reliefFollowerSafety > beforeGuard - 1,
                 "A hero standing between raider and civilian intercepts the actual strike");
             // A real hero interception can hit the hero and create one
@@ -325,6 +330,7 @@ namespace Starfall.Tests
             attacker.x = origin.x; attacker.y = origin.y;
             attacker.target = civilian; attacker.Face(civilian - origin);
             attacker.state = 1; attacker.timer = .01f; attacker.targetingReliefCivilian = true;
+            attacker.releaseTime = 0; attacker.stun = attacker.hitTime = 0;
             Point side = new Point(civilian.x, civilian.y + 1.1f);
             Check(g.CanStand(side), "The test has walkable ground outside the line of impact");
             g.save.x = side.x; g.save.y = side.y;
