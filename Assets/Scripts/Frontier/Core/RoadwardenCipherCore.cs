@@ -87,8 +87,8 @@ namespace Starfall
                 Flag("dispatch_complete"); save.coins += 40; save.skillPoints++; revision++;
                 RecordMoment("三封旧信拼成巡路队的誓言：让每个人都能找到归途。",
                     "Three letters reveal the wardens' promise: a way home for everyone.");
-                Notify("巡路誓言完成！额外获得40硬币、技能点1。",
-                    "Roadwarden promise complete! Bonus: 40 coins and 1 talent point.");
+                Notify("巡路誓言完成！额外获得40硬币、技能点1。三座信标的守路试炼现已开放。",
+                    "Roadwarden promise complete! +40 coins, 1 talent point. Beacon defense drills unlocked.");
             }
             else Notify("暗号解开！获得20硬币、1碎片、25经验。",
                 "Cipher solved! +20 coins, 1 shard, 25 XP.");

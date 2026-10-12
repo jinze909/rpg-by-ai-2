@@ -259,6 +259,10 @@ namespace Starfall.Tests
             Check(g.GetQuest("vigil").locked, "Vigil is locked until the roadwarden promise is decoded");
             foreach (string flag in new[] { "survey_1", "survey_2", "survey_3", "survey_complete", "dispatch_complete" })
                 g.save.flags.Add(flag);
+            g.Enter(9); g.Talk(Object(g, "surveyDesk"));
+            Check(g.conversation.textEn.Contains("two-wave defense drills"),
+                "Completed chart tells players where to find the newly unlocked defense challenges");
+            g.Close();
             var hit = typeof(GameCore).GetMethod("Hit", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             Check(hit != null, "The production hit path is available to the regression");
             int totalCoins = g.save.coins, totalShards = g.save.shards, totalPoints = g.save.skillPoints;
