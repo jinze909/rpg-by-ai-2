@@ -205,6 +205,70 @@ namespace Starfall.Tests
             }
         }
 
+        public static void EmergencyCivilianRallyUsesLiveEnergyAndOncePerWave(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.reliefMissionWave == 1 && g.reliefWardTime <= 0,
+                "After real field discovery the first combat wave has no free protective buff");
+            float originalEnergy = g.save.energy;
+            Point marker = g.FieldSurveyTarget(6);
+            g.save.x = marker.x; g.save.y = marker.y;
+            g.Interact();
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices,
+                    c => c.action == "relief_field_guard"),
+                "Standing with civilians offers a real tactical rally through E input");
+            int choice = Array.FindIndex(g.conversation.choices,
+                c => c.action == "relief_field_guard");
+            g.Choose(choice);
+            Check(g.reliefWardTime > 7.5f &&
+                g.save.energy == originalEnergy - 20 &&
+                !g.ReliefFieldGuardAvailable,
+                "Rally activates once for eight seconds and consumes exactly twenty real energy");
+            g.Interact();
+            Check(!Array.Exists(g.conversation.choices,
+                c => c.action == "relief_field_guard"),
+                "The same wave cannot repeatedly spend energy to keep a permanent rally");
+            g.Close();
+            Enemy attacker = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 && e.kind == 0);
+            Check(attacker != null, "A real melee enemy remains to test guarded impact");
+            g.enemies.RemoveAll(e => e != attacker);
+            attacker.x = marker.x - 1.3f; attacker.y = marker.y;
+            attacker.Face(marker - attacker.Position);
+            attacker.target = marker; attacker.targetingReliefCivilian = true;
+            attacker.state = 1; attacker.timer = .01f;
+            g.save.x = post.x; g.save.y = post.y;
+            float before = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            float guardedLoss = before - g.reliefFollowerSafety;
+            Check(guardedLoss > 7 && guardedLoss < 9,
+                "Actual committed melee contact is reduced, not erased, by a civilian field rally");
+            attacker.releaseTime = 0; attacker.stun = attacker.hitTime = 0;
+            attacker.state = 1; attacker.timer = .01f;
+            attacker.targetingReliefCivilian = true; attacker.target = marker;
+            g.reliefWardTime = 0;
+            float beforeExposed = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            float exposedLoss = beforeExposed - g.reliefFollowerSafety;
+            Check(exposedLoss > 13.5f && exposedLoss > guardedLoss,
+                "When the short rally expires the same actual melee contact again fully damages civilians");
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionWave == 2 && g.ReliefFieldGuardAvailable,
+                "The next real wave refreshes the tactical rally once");
+            g.reliefMissionTime = .01f; g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 && g.reliefWardTime == 0,
+                "Mission failure removes combat rally state from old-schema saves");
+        }
+
         public static void CivilianDefenseStrikesMatchReleaseAndBodyguardPosition(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
@@ -253,6 +317,10 @@ namespace Starfall.Tests
             g.Tick(.05f, new Point());
             Check(g.reliefFollowerSafety > beforeGuard - 1,
                 "A hero standing between raider and civilian intercepts the actual strike");
+            // A real hero interception can hit the hero and create one
+            // short hit-stop tick. Finish it before scheduling the next
+            // distinct enemy release; test the actual gameplay timeline.
+            g.Tick(.05f, new Point());
             // The same general proximity is insufficient from off the attack lane.
             attacker.x = origin.x; attacker.y = origin.y;
             attacker.target = civilian; attacker.Face(civilian - origin);
