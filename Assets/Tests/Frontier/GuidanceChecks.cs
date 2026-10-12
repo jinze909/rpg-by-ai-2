@@ -110,7 +110,7 @@ namespace Starfall.Tests
                 foes.TrueForAll(e => e.timer > 0 && e.timer < 2 && fight.CanStand(e.Position)),
                 "A real two-enemy ambush starts on reachable terrain with playable timing");
             fight.PrepareSave(); var resumed = new GameCore(data, CloneSave(fight.save)); resumed.Start();
-            Check(resumed.WayfarerEncounterRoom == 0 && !resumed.Has("wayfarer_1") &&
+            Check(resumed.WayfarerEncounterRoom == 0 && resumed.WayfarerIntegrity == 0 && !resumed.Has("wayfarer_1") &&
                 !resumed.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
                 "Saving mid-ambush never persists temporary attackers");
             int beforeKills = fight.save.kills[1], beforeCoins = fight.save.coins;
@@ -175,6 +175,17 @@ namespace Starfall.Tests
             Action(defend, protectedNpc.kind, "wayfarer_defend_1");
             Check(defend.WayfarerEncounterRoom == 1 && defend.WayfarerIntegrity == 100,
                 "Failed defense can restart without a permanent penalty or save migration");
+            var interceptor = defend.enemies.Find(e => e.id >= 82000 && e.id < 82100 && e.kind == 0);
+            var other = defend.enemies.Find(e => e != interceptor && e.id >= 82000 && e.id < 82100);
+            Check(interceptor != null && other != null, "Retry creates the same two enemy archetypes");
+            interceptor.x = protectedNpc.x; interceptor.y = protectedNpc.y; interceptor.timer = 0;
+            other.stun = 100;
+            defend.Tick(.02f, new Point());
+            Check(interceptor.state == 1 && !interceptor.targetingWayfarer,
+                "A hero holding position beside the traveler draws the raider's windup");
+            Advance(defend, .85f);
+            Check(defend.WayfarerIntegrity == 100 && defend.WayfarerEncounterRoom == 1,
+                "Intercepting the attack protects the traveler without auto-completing the rescue");
         }
 
         public static void RoadwardenSignalsUnlockOnePersistentTravelReward(Campaign data)

@@ -65,8 +65,8 @@ namespace Starfall
                 q.title = L("失联旅人的归途", "The Missing Travelers");
                 q.category = L("旅途支线", "ROADSIDE STORY");
                 q.locked = !Has("scout_saved");
-                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份急需材料，或击退两名伏击者，让他们重返归途。",
-                    "Three travelers need help in Thornwood, the Ruins and the Mine. Donate two materials or repel two ambushers.");
+                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份材料，或在伏击战中保护旅人安全度并击退两名掠夺者。",
+                    "Three travelers need help in Thornwood, the Ruins and the Mine. Donate two supplies, or protect their safety meter while defeating two raiders.");
                 int next = 0;
                 for (int region = 1; region <= 3; region++)
                 {
@@ -81,7 +81,7 @@ namespace Starfall
                 q.target = ObjectPoint(q.room, "wayfarer" + q.room, new Point(15, 14));
                 q.next = q.locked ? L("先救回密林的公会侦察员", "Rescue the guild scout first") :
                     q.complete ? L("三名旅人已经平安出发", "All three travelers are safe") :
-                    wayfarerEncounterRoom != 0 ? L("击退两名伏击者", "Defeat both ambushers") :
+                    wayfarerEncounterRoom != 0 ? L("保护旅人安全度，击退两名伏击者", "Keep the traveler safe; defeat both raiders") :
                     L("找旅人交谈：物资援助或战斗守护", "Talk to the traveler: donate supplies or defend");
                 q.reward = L("每人20硬币、1碎片、25经验；全部完成额外技能点1、炖汤1",
                     "Each: 20 coins, 1 shard, 25 XP; all three: 1 talent point and 1 stew");
