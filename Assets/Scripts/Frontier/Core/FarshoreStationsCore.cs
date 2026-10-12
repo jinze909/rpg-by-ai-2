@@ -102,6 +102,10 @@ namespace Starfall
         public float reliefMissionTime;
         public Point reliefFollowerPosition;
         public float reliefFollowerSafety;
+        // Distance-driven, transient gait data; the NPC keeps one consistent
+        // authored appearance and never borrows the playable hero sprite.
+        public float reliefFollowerWalkDistance;
+        public bool reliefFollowerMoving, reliefFollowerFacingLeft;
         public bool ReliefEscortActive { get { return reliefMissionRoom != 0 && reliefMissionWave == 3; } }
         public float ReliefEscortGap { get { return ReliefEscortActive ?
             (Position - reliefFollowerPosition).Length : 0; } }
@@ -113,6 +117,8 @@ namespace Starfall
             projectiles.RemoveAll(p => p.reliefMissionOwned);
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
             reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
+            reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
+            reliefFollowerFacingLeft = false;
         }
         private bool SpawnReliefMissionWave()
         {
@@ -266,6 +272,8 @@ namespace Starfall
                 // Authored markers are prop positions, not guaranteed actor feet
                 // on every tide phase. Spawn survivors on real walkable ground.
                 reliefFollowerPosition = SafeActorFoot(FieldSurveyTarget(region));
+                reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
+                reliefFollowerFacingLeft = false;
                 // Carry battle losses forward; winning does not reset civilians
                 // to full protection for the dangerous walk home.
                 reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
@@ -298,15 +306,25 @@ namespace Starfall
             // Real evacuees follow at human pace, constrained by actual
             // collision rather than teleporting to the hero or the station.
             Point follow = Position - reliefFollowerPosition;
+            Point beforeWalk = reliefFollowerPosition;
+            reliefFollowerMoving = false;
             if (follow.Length > 1.3f)
             {
                 // Follow the route through real collision, never teleport.
-                // A modest catch-up pace reduces frustrating stalls when the
-                // hero runs ahead, without matching a sprint or dodge dash.
                 float walk = follow.Length > 5.5f ? 3.5f : 2.6f;
                 Point advance = DirectionTo(reliefFollowerPosition, Position) *
                     Math.Min(dt * walk, follow.Length - 1.3f);
                 reliefFollowerPosition = SweepActor(reliefFollowerPosition, advance);
+            }
+            Point traveled = reliefFollowerPosition - beforeWalk;
+            // A wall must not make the survivor walk in place. Record only
+            // physical distance, with a stable horizontal orientation.
+            reliefFollowerMoving = traveled.Length > .001f;
+            if (reliefFollowerMoving)
+            {
+                reliefFollowerWalkDistance += traveled.Length;
+                if (Math.Abs(traveled.x) > .015f)
+                    reliefFollowerFacingLeft = traveled.x < 0;
             }
             // The same weather that challenges the hero now affects escorted
             // travelers: shelter and shade restore safety; exposed heat, cold

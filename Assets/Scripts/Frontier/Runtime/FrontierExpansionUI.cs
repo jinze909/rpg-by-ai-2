@@ -45,7 +45,19 @@ namespace Starfall
         private void DrawRescueSurvivorActor()
         {
             if (!Game.ReliefEscortActive) return;
-            DrawNpc("innGuest", Game.reliefFollowerPosition, 14);
+            Point p = ScreenPoint(Game.reliefFollowerPosition);
+            bool walking = Game.reliefFollowerMoving && !Game.save.reducedMotion;
+            float cycle = Game.reliefFollowerWalkDistance * 8.2f;
+            float step = walking ? Mathf.Abs(Mathf.Sin(cycle)) : 0;
+            float bob = step * 3.2f;
+            float lean = walking ? Mathf.Sin(cycle) * 2.5f : 0;
+            if (!drawingOutline)
+                Box(p.x - 13, p.y - 2, 26, 5, new Color(.025f, .04f, .07f, .32f));
+            // Frame 14 is the canonical rescue civilian, not an animation
+            // sheet. Procedural footfall bounce and tiny body lean preserve
+            // visual identity and follow distance, without changing frames.
+            Actor(npcSheet, 4, 4, 14, new Point(p.x, p.y - bob), 96,
+                Color.white, Game.reliefFollowerFacingLeft, lean);
         }
         private void DrawExpansionWorld()
         {

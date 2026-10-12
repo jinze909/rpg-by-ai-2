@@ -36,6 +36,49 @@ namespace Starfall.Tests
             game.Tick(.05f, new Point());
         }
 
+        public static void RescuedSurvivorsUseActualDistanceDrivenMovement(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive && g.reliefFollowerWalkDistance == 0,
+                "A newly freed civilian is idle with a zeroed walk cycle");
+            Point start = g.reliefFollowerPosition;
+            g.save.x = start.x - 4; g.save.y = start.y;
+            g.Tick(.05f, new Point());
+            float first = (g.reliefFollowerPosition - start).Length;
+            Check(g.reliefFollowerMoving && first > .001f &&
+                Math.Abs(g.reliefFollowerWalkDistance - first) < .0002f &&
+                g.reliefFollowerFacingLeft,
+                "Actual leftward displacement, not the movement intent, drives the gait and facing");
+            g.save.x = g.reliefFollowerPosition.x; g.save.y = g.reliefFollowerPosition.y;
+            float beforeIdle = g.reliefFollowerWalkDistance;
+            g.Tick(.05f, new Point());
+            Check(!g.reliefFollowerMoving &&
+                Math.Abs(g.reliefFollowerWalkDistance - beforeIdle) < .0001f,
+                "Standing still freezes the sprite's walking cadence");
+            g.save.x = g.reliefFollowerPosition.x + 4; g.save.y = g.reliefFollowerPosition.y;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerMoving && !g.reliefFollowerFacingLeft &&
+                g.reliefFollowerWalkDistance > beforeIdle,
+                "Walking right mirrors the same canonical NPC art and accumulates real traveled distance");
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 && !g.reliefFollowerMoving &&
+                g.reliefFollowerWalkDistance == 0,
+                "Abandoning a timed escort removes all ephemeral animation state");
+        }
+
         public static void EvacueesUseRealClimateSheltersAndShade(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
@@ -170,6 +213,8 @@ namespace Starfall.Tests
                 Check(g.ReliefEscortActive && g.CanStand(g.reliefFollowerPosition),
                     "The rescued civilian is created at a physically walkable actor foot");
                 Point initial = g.reliefFollowerPosition;
+                Check(g.reliefFollowerWalkDistance == 0 && !g.reliefFollowerMoving,
+                    "Escort starts still, not with an inherited gait from an earlier region");
                 g.save.x = post.x; g.save.y = post.y;
                 float elapsed = 0;
                 while (g.reliefMissionRoom == region && elapsed < 75)
@@ -180,6 +225,9 @@ namespace Starfall.Tests
                         Check(g.CanStand(g.reliefFollowerPosition),
                             "The civilian follows only valid ground, even as regional collision changes");
                 }
+                Check(g.Has("relief_rescue_" + region) && g.reliefMissionRoom == 0 &&
+                    g.reliefFollowerWalkDistance == 0 && !g.reliefFollowerMoving,
+                    "A successful escort clears its transient gait instead of leaking to another map");
                 Check(g.Has("relief_rescue_" + region) && g.reliefMissionRoom == 0,
                     "A real survivor walks from the regional landmark to the station within 75s (room " +
                         region + "; elapsed " + elapsed.ToString("0.0") + "; from " +
