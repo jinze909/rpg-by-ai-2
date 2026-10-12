@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "farshore_relief" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,35 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+            if (id == "farshore_relief")
+            {
+                q.title = L("远岸平民避难网", "Civilian Farshore Refuges");
+                q.category = L("灾后重建", "CIVILIAN RELIEF");
+                q.locked = save.frontierEnding == 0;
+                q.description = L("三方协定已经签署。先修复远岸观测站，完成当地90秒环境巡测，随后投入物资建设浮桥、遮阳道和防寒补给棚。工程将永久延长低潮或扩大气候庇护范围。",
+                    "After the council covenant, repair regional stations and complete their 90-second field surveys. Then supply rescue pontoons, a shaded lane and a warming depot for lasting tide and climate protection.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool complete = Has("farshore_relief_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "建设雾港救援浮桥", "建设沙海遮阳道", "建设高原防寒补给棚" }[region - 5],
+                        new[] { "Build Mistport rescue pontoons", "Build the desert shaded lane", "Build Frostchime's warming depot" }[region - 5]), complete));
+                    if (!complete && next == 0) next = region;
+                }
+                q.complete = Has("farshore_relief_complete");
+                q.steps.Add(new QuestStep(L("贯通三地平民避难网", "Connect all civilian shelters"), q.complete));
+                q.room = next == 0 ? 5 : next;
+                q.target = ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
+                q.next = q.complete ? L("浮桥、遮阳道和防寒棚已经开放", "Pontoons, shade lane and warming depot are open") :
+                    !Has("fieldstation_" + q.room) ? L("先维修本地气象站", "Repair this region's weather station first") :
+                    !Has("fieldstation_survey_" + q.room) ? L("先完成本站90秒环境巡测", "Complete this station's 90-second survey first") :
+                    !CanEnter(q.room) ? L("先完成前一地区主线", "Complete the preceding region first") :
+                    L("带物资到安全的站台建设平民避难通道", "Bring supplies to the safe station and build the civilian refuge");
+                q.reward = L("每处30硬币、2碎片、35经验；三处另得技能点1、凉茶2，并永久增强安全区",
+                    "Each: 30 coins, 2 shards, 35 XP. All three: 1 talent, 2 teas and permanent stronger refuges");
+                return q;
+            }
 
             if (id == "archive_echo")
             {

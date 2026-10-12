@@ -89,6 +89,13 @@ namespace Starfall
                     (new Point(o.x, o.y) - Position).Length < radius) return true;
             return false;
         }
+        // Relief upgrades use persistent string flags already supported by old saves.
+        // A finished local survey supplies the measurements needed to site each refuge.
+        public float FieldStationRefugeRadius(int region)
+        {
+            return region >= 6 && region <= 7 && Has("farshore_relief_" + region) ? 6.5f : 4.2f;
+        }
+        public int TidewatchHoldSeconds { get { return Has("farshore_relief_5") ? 90 : 45; } }
         private bool TalkFieldStation(WorldObject o)
         {
             if (!o.kind.StartsWith("fieldstation")) return false;
@@ -98,16 +105,16 @@ namespace Starfall
             if (Has("fieldstation_" + region))
             {
                 string textZh = region == 5 ?
-                    "潮汐观测站重新运作。这里能稳定低潮45秒，让被水淹没的浅滩重新成为道路。" :
+                    "潮汐观测站重新运作。这里能稳定低潮" + TidewatchHoldSeconds + "秒，让被水淹没的浅滩重新成为道路。" :
                     region == 6 ? "蓄光管开始运转。站在附近，沙海的热度会迅速消退。" :
                     "火盆热流已经送到小站。靠近站台，寒意会迅速消散。";
                 string textEn = region == 5 ?
-                    "Tidewatch is online. Hold low tide for 45 seconds to reopen flooded shoals." :
+                    "Tidewatch is online. Hold low tide for " + TidewatchHoldSeconds + " seconds to reopen flooded shoals." :
                     region == 6 ? "The restored sun channel cools the surrounding desert." :
                     "The repaired frost shelter now warms nearby travelers.";
                 var stationChoices = new List<Choice>();
                 if (region == 5)
-                    stationChoices.Add(C("固定低潮45秒", "Hold low tide for 45 seconds", "fieldstation_tide"));
+                    stationChoices.Add(C("固定低潮" + TidewatchHoldSeconds + "秒", "Hold low tide for " + TidewatchHoldSeconds + " seconds", "fieldstation_tide"));
                 if (Has("fieldstation_complete"))
                 {
                     textZh += "\n\n三座观测站已联通。在周围安全时，可以直接前往其他两座站点。";
@@ -136,6 +143,27 @@ namespace Starfall
                     }
                 }
                 else { textZh += "\n\n本站巡测报告已归档。"; textEn += "\n\nThis station's field survey is archived."; }
+                if (save.frontierEnding > 0)
+                {
+                    if (Has("farshore_relief_" + region))
+                    {
+                        textZh += "\n\n本地应急庇护工程已完成。新的避险范围与潮汐控制立即生效。";
+                        textEn += "\n\nThe local civilian refuge is reinforced. Its wider shelter or longer tide control is active."; 
+                    }
+                    else if (Has("fieldstation_survey_" + region))
+                    {
+                        textZh += "\n\n地区巡测已确定安全施工地点。可以投入物资建设真正的平民避难通道；周围有敌人时无法施工。";
+                        textEn += "\n\nField readings identified a safe construction route. Deliver supplies to build civilian shelter access; clear nearby hostiles first.";
+                        string[] buildZh = { "增建救援浮桥 · 木材2 零件1", "增建绿洲遮阳道 · 星晶2 药草1", "增建防寒补给棚 · 木材1 药草2" };
+                        string[] buildEn = { "Rescue pontoons · 2 timber, 1 part", "Shaded supply lane · 2 crystals, 1 herb", "Warming depot · 1 timber, 2 herbs" };
+                        stationChoices.Add(C(buildZh[region - 5], buildEn[region - 5], "fieldstation_relief_" + region));
+                    }
+                    else
+                    {
+                        textZh += "\n\n新协定允许建设平民避难通道；请先完成本站的90秒环境巡测。";
+                        textEn += "\n\nThe covenant funds civilian refuges. Complete this station's 90-second field survey first.";
+                    }
+                }
                 if (Has("fieldstation_survey_complete"))
                     stationChoices.Add(C("查看远岸气象预报", "View farshore weather forecast", "fieldstation_forecast"));
                 stationChoices.Add(C("离开观测站", "Leave the station", "close"));
@@ -157,6 +185,50 @@ namespace Starfall
         }
         private bool ChooseFieldStation(string action)
         {
+            if (action.StartsWith("fieldstation_relief_"))
+            {
+                int region;
+                if (!int.TryParse(action.Substring("fieldstation_relief_".Length), out region) ||
+                    region < 5 || region > 7 || save.room != region ||
+                    save.frontierEnding == 0 || !Has("fieldstation_" + region) ||
+                    !Has("fieldstation_survey_" + region) || Has("farshore_relief_" + region) ||
+                    !CanEnter(region) || Dying || practicing || racing || fieldSurveyRoom != 0 ||
+                    roadTrialRoom != 0 || wayfarerEncounterRoom != 0 || atlasEchoRoom != 0)
+                    return true;
+                WorldObject post = null;
+                foreach (WorldObject o in Map.objects)
+                    if (o.kind == "fieldstation" + region) { post = o; break; }
+                if (post == null || (Position - new Point(post.x, post.y)).Length > 2.2f) return true;
+                if (!SafeTravel)
+                { Notify("敌人正在威胁施工路线。先清理附近的巡逻队。", "Hostiles threaten the construction route. Clear nearby patrols first."); return true; }
+                if (region == 5 && !LowTide)
+                { Notify("修建浮桥需要低潮。先启动潮汐站或等待退潮。", "Pontoons must be built at low tide. Use the tidewatch or wait for the ebb."); return true; }
+                if (!Spend(region == 5 ? 2 : region == 7 ? 1 : 0,
+                    region == 6 ? 2 : 0, region == 6 ? 1 : region == 7 ? 2 : 0,
+                    0, region == 5 ? 1 : 0)) return true;
+                Flag("farshore_relief_" + region);
+                save.coins += 30; save.shards += 2; AddXp(35);
+                effects.Add(new Effect("discover", new Point(post.x, post.y), .8f));
+                RecordMoment(region == 5 ? "新的浮桥和救援旗使低潮安全时段延长到90秒。" :
+                    region == 6 ? "绿洲遮阳道将沙海的降温庇护范围扩大到6.5格。" :
+                    "防寒补给棚将高原的保暖庇护范围扩大到6.5格。",
+                    region == 5 ? "New rescue pontoons extend tidewatch access to 90 seconds." :
+                    region == 6 ? "The shaded supply route expands desert cooling to 6.5 tiles." :
+                    "The warming depot expands frost shelter to 6.5 tiles.");
+                if (Has("farshore_relief_5") && Has("farshore_relief_6") &&
+                    Has("farshore_relief_7") && !Has("farshore_relief_complete"))
+                {
+                    Flag("farshore_relief_complete"); save.skillPoints++; save.tea += 2;
+                    RecordMoment("三地应急避难通道建成，远岸旅人终于有了可持续的庇护网络。",
+                        "All three civilian refuge routes are open. The farshore has a lasting shelter network.");
+                    Notify("远岸平民庇护网完成！本站30硬币、2碎片、35经验；额外技能点1、凉茶2。",
+                        "Civilian refuge network complete! +30 coins, 2 shards, 35 XP; bonus talent and 2 teas.");
+                }
+                else Notify("应急工程完工：30硬币、2碎片、35经验；本站气候庇护已强化。",
+                    "Relief works complete: +30 coins, 2 shards, 35 XP; the local refuge is strengthened.");
+                TrackQuest("farshore_relief"); revision++; sound = "reward";
+                return true;
+            }
             if (action == "fieldstation_forecast")
             {
                 int currentRegion = save.room;
@@ -182,9 +254,9 @@ namespace Starfall
                 }
                 Dialog("远岸风暴观测网", "Farshore Stormwatch",
                     "巡测数据已同步。\n\n雾港：" + tideZh +
-                    "。\n沙海：无遮阴时热度每秒约增加1.3，达到85后会持续受伤；降温站附近4.2格内可消暑。\n高原：无火盆时寒意每秒约增加1.1，达到90后会持续受伤；保暖站附近4.2格内可驱寒。\n\n可以利用观测网传送到安全的站点，但敌人靠近时不能启动。",
+                    "。\n沙海：无遮阴时热度每秒约增加1.3，达到85后会持续受伤；降温站附近" + FieldStationRefugeRadius(6).ToString("0.0") + "格内可消暑。\n高原：无火盆时寒意每秒约增加1.1，达到90后会持续受伤；保暖站附近" + FieldStationRefugeRadius(7).ToString("0.0") + "格内可驱寒。\n\n可以利用观测网传送到安全的站点，但敌人靠近时不能启动。",
                     "Field readings synchronized.\n\nMistport: " + tideEn +
-                    ".\nGlass Desert: exposed heat rises about 1.3/s; 85+ causes repeated harm. The cooler protects a 4.2-tile radius.\nFrostchime: exposed cold rises about 1.1/s; 90+ causes repeated harm. The shelter warms a 4.2-tile radius.\n\nStation travel requires a clear area with no nearby hostiles.",
+                    ".\nGlass Desert: exposed heat rises about 1.3/s; 85+ causes repeated harm. The cooler protects a " + FieldStationRefugeRadius(6).ToString("0.0") + "-tile radius.\nFrostchime: exposed cold rises about 1.1/s; 90+ causes repeated harm. The shelter warms a " + FieldStationRefugeRadius(7).ToString("0.0") + "-tile radius.\n\nStation travel requires a clear area with no nearby hostiles.",
                     C("收起预报", "Close forecast", "close"));
                 return true;
             }
@@ -279,10 +351,10 @@ namespace Starfall
                 foreach (WorldObject o in Map.objects) if (o.kind == "fieldstation5") { post = o; break; }
                 if (post == null || (new Point(post.x, post.y) - Position).Length > 2.2f) return true;
                 if (!SafeTravel) { Notify("附近仍有威胁，潮汐装置暂不可操作。", "Clear nearby hostiles before operating the tidewatch."); return true; }
-                save.tideHeldUntil = Math.Max(save.tideHeldUntil, save.totalTime + 45);
+                save.tideHeldUntil = Math.Max(save.tideHeldUntil, save.totalTime + TidewatchHoldSeconds);
                 revision++; sound = "quest";
                 effects.Add(new Effect("discover", new Point(post.x, post.y), .6f));
-                Notify("潮汐稳定：低潮延长45秒。", "Tide stabilized: low tide for 45 seconds.");
+                Notify("潮汐稳定：低潮延长" + TidewatchHoldSeconds + "秒。", "Tide stabilized: low tide for " + TidewatchHoldSeconds + " seconds.");
                 return true;
             }
             if (!action.StartsWith("fieldstation_repair_")) return false;

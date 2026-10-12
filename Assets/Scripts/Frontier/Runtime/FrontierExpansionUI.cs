@@ -90,14 +90,20 @@ namespace Starfall
                 if (!int.TryParse(kind.Substring("fieldstation".Length), out station) ||
                     station < 5 || station > 7) return false;
                 bool powered = Game.Has("fieldstation_" + station);
-                Color light = powered ? mint : gold;
+                bool reinforced = Game.Has("farshore_relief_" + station);
+                Color light = reinforced ? PixelArt.C("#a7e8da") : powered ? mint : gold;
                 PropImage("lamp", 0, p.x - 26, p.y - 54, 52, 65, powered ? Color.white : muted);
                 Ring(new Point(o.x, o.y), .55f, light, 16);
                 Text(p.x - 55, p.y - 86, 110, 24,
+                    reinforced ? Game.L("民用避难区", "RELIEF REFUGE") :
                     powered ? Game.L("安全观测站", "SHELTER ONLINE") :
                     Game.L("等待维修", "REPAIR STATION"), 11, light, TextAnchor.MiddleCenter);
-                if (powered && station >= 6 && Game.NearActiveFieldStation(station, 4.2f))
-                    Ring(new Point(o.x, o.y), 1.1f, new Color(mint.r, mint.g, mint.b, .52f), 24);
+                if (powered && station >= 6 && Game.NearActiveFieldStation(station, Game.FieldStationRefugeRadius(station)))
+                    Ring(new Point(o.x, o.y), reinforced ? 1.4f : 1.1f,
+                        new Color(light.r, light.g, light.b, .52f), 24);
+                if (reinforced)
+                    Text(p.x - 32, p.y + 13, 64, 21, station == 5 ? "90s" : "6.5", 13,
+                        light, TextAnchor.MiddleCenter);
                 return true;
             }
             if (kind.StartsWith("mirror"))

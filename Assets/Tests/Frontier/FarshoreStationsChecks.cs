@@ -5,6 +5,79 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void FarshoreReliefWorksProvidePersistentClimateSanctuaries(Campaign data)
+        {
+            var g = Fresh(data); g.save.level = 10; g.save.stage = 3;
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_5", "fieldstation_6", "fieldstation_7", "fieldstation_complete",
+                "fieldstation_survey_5", "fieldstation_survey_6", "fieldstation_survey_7",
+                "fieldstation_survey_complete" }) g.save.flags.Add(flag);
+            Check(g.GetQuest("farshore_relief").locked && g.TidewatchHoldSeconds == 45 &&
+                g.FieldStationRefugeRadius(6) == 4.2f,
+                "New relief work stays locked before governance, keeping original station balance");
+            g.Enter(5); g.enemies.Clear();
+            WorldObject harbor = Object(g, "fieldstation5");
+            g.save.x = harbor.x; g.save.y = harbor.y;
+            g.Talk(harbor);
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "fieldstation_relief_5"),
+                "Before the covenant, the harbor station does not advertise a future upgrade");
+            g.Close(); g.save.frontierEnding = 2;
+            Check(!g.GetQuest("farshore_relief").locked && g.GetQuest("farshore_relief").steps.Count == 4,
+                "Council governance unlocks a three-region construction quest");
+            g.save.inventory[0] = 6; g.save.inventory[4] = 3;
+            int startWood = g.save.inventory[0], startGear = g.save.inventory[4];
+            g.save.totalTime = 28;
+            Action(g, harbor.kind, "fieldstation_relief_5");
+            Check(!g.Has("farshore_relief_5") && g.save.inventory[0] == startWood &&
+                g.save.inventory[4] == startGear,
+                "Unsafe high tide blocks actual pontoon construction without taking supplies");
+            g.save.totalTime = 0;
+            g.enemies.Add(new Enemy(47, 0, harbor.x + 1, harbor.y, 50));
+            Action(g, harbor.kind, "fieldstation_relief_5");
+            Check(!g.Has("farshore_relief_5") && g.save.inventory[0] == startWood,
+                "An enemy close to construction blocks the upgrade and preserves supplies");
+            g.enemies.Clear();
+            int coins = g.save.coins, shards = g.save.shards, talents = g.save.skillPoints;
+            Action(g, harbor.kind, "fieldstation_relief_5");
+            Check(g.Has("farshore_relief_5") && g.TidewatchHoldSeconds == 90 &&
+                g.save.inventory[0] == startWood - 2 && g.save.inventory[4] == startGear - 1 &&
+                g.save.coins == coins + 30 && g.save.shards == shards + 2,
+                "Survey-backed harbor pontoons consume their cost once and double the real ebb window");
+            g.save.totalTime = 30; Action(g, harbor.kind, "fieldstation_tide");
+            Check(g.save.tideHeldUntil >= 119.9f && g.LowTide,
+                "Upgraded tidewatch holds flooded shoals open for ninety actual game seconds");
+            g.Talk(harbor);
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "fieldstation_relief_5"),
+                "Finished harbor shelter cannot replay its construction reward");
+            g.Close();
+            g.Enter(6); g.enemies.Clear();
+            WorldObject desert = Object(g, "fieldstation6"); g.save.x = desert.x; g.save.y = desert.y;
+            g.save.inventory[1] = 4; g.save.inventory[2] = 4;
+            int crystals = g.save.inventory[1], herbs = g.save.inventory[2];
+            Action(g, desert.kind, "fieldstation_relief_6");
+            Check(g.Has("farshore_relief_6") && g.save.inventory[1] == crystals - 2 &&
+                g.save.inventory[2] == herbs - 1 && g.FieldStationRefugeRadius(6) == 6.5f,
+                "Shaded desert supply lane consumes real resources and expands the heat refuge");
+            g.Enter(7); g.enemies.Clear();
+            WorldObject mountain = Object(g, "fieldstation7"); g.save.x = mountain.x; g.save.y = mountain.y;
+            g.save.inventory[0] = 3; g.save.inventory[2] = 4;
+            Action(g, mountain.kind, "fieldstation_relief_7");
+            Check(g.Has("farshore_relief_7") && g.Has("farshore_relief_complete") &&
+                g.FieldStationRefugeRadius(7) == 6.5f && g.save.inventory[0] == 2 &&
+                g.save.inventory[2] == 2 && g.save.skillPoints == talents + 1 &&
+                g.GetQuest("farshore_relief").complete,
+                "Last warming depot builds the final physical shelter and pays one completion talent");
+            int totalCoins = g.save.coins, totalShards = g.save.shards;
+            g.Close(); g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            Check(restored.GetQuest("farshore_relief").complete &&
+                restored.TidewatchHoldSeconds == 90 &&
+                restored.FieldStationRefugeRadius(6) == 6.5f &&
+                restored.FieldStationRefugeRadius(7) == 6.5f &&
+                restored.save.coins == totalCoins && restored.save.shards == totalShards,
+                "All physical climate upgrades and rewards survive old-schema save reload");
+        }
+
         public static void FarshoreStationSurveysRequireRealOutAndBackTravel(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
