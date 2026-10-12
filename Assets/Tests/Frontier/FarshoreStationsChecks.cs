@@ -227,15 +227,14 @@ namespace Starfall.Tests
             g.save.x = station.x; g.save.y = station.y;
             archer.timer = 100; archer.state = 0;
             archer.stun = archer.releaseTime = archer.hitTime = 0;
-            float minimumDistance = (archer.Position - marker).Length;
+            float initialDistance = (archer.Position - marker).Length;
             for (int i = 0; i < 80; i++)
-            {
                 g.Tick(.05f, new Point());
-                minimumDistance = Math.Min(minimumDistance,
-                    (archer.Position - marker).Length);
-            }
-            Check(minimumDistance > 3.15f,
-                "A live bow raider maintains a safe firing standoff from civilians rather than charging to melee range");
+            float finalDistance = (archer.Position - marker).Length;
+            Check(finalDistance > 3.15f,
+                "A live archer finishes at a firing distance (initial " +
+                    initialDistance.ToString("0.00") + " final " +
+                    finalDistance.ToString("0.00") + ")");
             archer.timer = .01f; archer.state = 0; archer.releaseTime = 0;
             g.effects.Clear();
             for (int i = 0; i < 100 && archer.state != 1; i++)

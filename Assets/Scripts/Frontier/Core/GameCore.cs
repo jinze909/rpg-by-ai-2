@@ -533,17 +533,21 @@ namespace Starfall
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 Point before = e.Position;
-                if (visible && e.kind == 1 && !e.boss && !wardAttacker &&
+                if (e.kind == 1 && !e.boss && !wardAttacker &&
                     !travelerAttacker && !practicing &&
-                    (reliefAttacker ? distance < 2.9f : distance < 3f))
+                    (reliefAttacker ? distance < 3.4f : distance < 3f) &&
+                    (visible || reliefAttacker))
                 {
-                    // Backpedal away from the true intended target (civilian
-                    // for rescue archers), preserving obstacle sweep and gait.
-                    Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f);
-                    e.backpedaling=(back-e.Position).Length>.001f;
+                    // Backstep even with blocked LOS. Never counteract an
+                    // actual retreat by walking toward the target this tick.
+                    Point away = delta.Length > .001f ?
+                        delta.Normalized * -dt * (reliefAttacker ? 2.2f : 1.6f) :
+                        new Point(-dt * 1.6f, 0);
+                    Point back = SweepActor(e.Position, away);
+                    e.backpedaling = (back - e.Position).Length > .001f;
                     e.x = back.x; e.y = back.y;
                 }
-                if (distance > desired || !visible)
+                if (!e.backpedaling && (distance > desired || !visible))
                 {
                     Point p = e.Position + DirectionTo(e.Position, pursuit) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
                     Point swept = SweepActor(e.Position, p - e.Position); e.x = swept.x; e.y = swept.y;
