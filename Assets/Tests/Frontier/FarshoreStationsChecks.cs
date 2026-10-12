@@ -647,6 +647,58 @@ namespace Starfall.Tests
             }
         }
 
+        public static void EscortPatrolArrowsRequireRealFlightAndRetireOnFailure(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive, "Patrol arrow regression starts during a real return escort");
+            Point resident = g.reliefFollowerPosition;
+            g.reliefFollowerWaiting = true;
+            g.save.x = post.x; g.save.y = post.y;
+            var archer = new Enemy(591, 1, resident.x - 2.5f, resident.y, 50);
+            archer.target = resident;
+            archer.Face(resident - archer.Position);
+            archer.state = 1; archer.timer = .01f;
+            archer.targetingReliefCivilian = true;
+            g.enemies.Add(archer);
+            float safety = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Projectile shot = g.projectiles.Find(p => p.reliefMissionOwned && !p.friendly &&
+                p.visual == "enemyArrow");
+            Check(shot != null && g.reliefFollowerSafety > safety - 1,
+                "Ordinary patrol archer fires an encounter-owned physical arrow without hitscan injury");
+            archer.state = 0; archer.timer = 100;
+            shot.position = new Point(resident.x - .60f, resident.y);
+            shot.velocity = new Point(6, 0); shot.life = 1;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety < safety - 8.5f &&
+                !g.projectiles.Contains(shot),
+                "Patrol arrow must collide with the real resident before inflicting safety damage");
+            g.save.x = post.x; g.save.y = post.y;
+            g.projectiles.Add(new Projectile {
+                position = new Point(resident.x - .6f, resident.y),
+                velocity = new Point(6, 0), visual = "enemyArrow",
+                source = "shot", damage = 10, reliefMissionOwned = true, life = 1
+            });
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 &&
+                !g.projectiles.Exists(p => p.reliefMissionOwned) &&
+                !g.enemies.Exists(e => e.targetingReliefCivilian),
+                "Timeout removes escort-targeted arrows and returns live ordinary patrols to hero-only AI");
+        }
+
         public static void RescueSurvivorsRequireRealProtectionAndSafeTravel(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
@@ -685,12 +737,26 @@ namespace Starfall.Tests
                 "The evacuee begins the return nearly fully protected, with immediate real weather exposure");
             Point follower = g.reliefFollowerPosition;
             g.save.x = station.x; g.save.y = station.y;
-            g.enemies.Add(new Enemy(590, 0, follower.x, follower.y, 50));
+            // Patrol strikes should be telegraphed and released, not
+            // invisible recurring proximity damage during the return.
+            g.reliefFollowerWaiting = true;
+            var patrol = new Enemy(590, 0, follower.x - 1.3f, follower.y, 50);
+            patrol.timer = .01f; g.enemies.Add(patrol);
             g.Tick(.05f, new Point());
-            Check(g.reliefFollowerSafety < 100 && g.reliefMissionRoom == 6 &&
+            Check(g.reliefFollowerSafety > 99.8f && patrol.state == 1 &&
+                patrol.targetingReliefCivilian &&
+                (patrol.target - follower).Length < .001f,
+                "Normal escort patrols warn before committing actual contact instead of draining by proximity");
+            patrol.timer = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety < 87 && g.reliefMissionRoom == 6 &&
                 !g.Has("relief_rescue_6"),
-                "Actual surviving patrols threaten the rescued civilian rather than generating passive completion");
+                "Released normal patrol contact inflicts actual safety damage and does not grant completion");
             g.reliefFollowerSafety = .01f;
+            patrol.releaseTime = patrol.stun = patrol.hitTime = 0;
+            patrol.state = 1; patrol.timer = .01f;
+            patrol.targetingReliefCivilian = true; patrol.target = follower;
+            patrol.Face(follower - patrol.Position);
             g.Tick(.05f, new Point());
             Check(g.reliefMissionRoom == 0 && !g.Has("relief_rescue_6") &&
                 g.save.coins == coins,
