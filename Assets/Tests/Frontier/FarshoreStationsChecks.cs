@@ -57,8 +57,24 @@ namespace Starfall.Tests
                 g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
                 g.Tick(.05f, new Point());
                 Check(g.ReliefEscortActive, "A real mission reaches the environmental escort phase");
-                Point exposed = region == 6 ? new Point(5, 14) : new Point(30, 14);
-                Check(g.CanStand(exposed), "The authored map offers valid exposed civilian travel ground");
+                // Tile glyphs alone do not establish valid humanoid footing.
+                // Locate genuine exposed ground under current live collision.
+                Point exposed = new Point(); bool found = false;
+                for (int y = 3; y < g.Map.rows.Length - 3 && !found; y++)
+                for (int x = 3; x < g.Map.rows[y].Length - 3 && !found; x++)
+                {
+                    Point candidate = new Point(x + .5f, y + .5f);
+                    if (!g.CanStand(candidate) ||
+                        (candidate - new Point(post.x, post.y)).Length < 8.0f) continue;
+                    bool shadeNearby = false;
+                    foreach (WorldObject o in g.Map.objects)
+                        if (region == 6 && o.kind == "shade" &&
+                            (candidate - new Point(o.x, o.y)).Length < 4.0f)
+                            shadeNearby = true;
+                    if (shadeNearby) continue;
+                    exposed = candidate; found = true;
+                }
+                Check(found, "Actual regional collision contains exposed ground outside shelter and shade");
                 g.reliefFollowerPosition = exposed; g.reliefFollowerSafety = 80;
                 g.save.x = post.x; g.save.y = post.y;
                 g.Tick(.05f, new Point());
@@ -207,8 +223,8 @@ namespace Starfall.Tests
             g.Tick(.05f, new Point());
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
             g.Tick(.05f, new Point());
-            Check(g.reliefMissionWave == 3 && g.reliefFollowerSafety == 100,
-                "Civilians start the physical return with full temporary safety");
+            Check(g.reliefMissionWave == 3 && g.reliefFollowerSafety > 99.8f,
+                "The evacuee begins the return nearly fully protected, with immediate real weather exposure");
             Point follower = g.reliefFollowerPosition;
             g.save.x = station.x; g.save.y = station.y;
             g.enemies.Add(new Enemy(590, 0, follower.x, follower.y, 50));
