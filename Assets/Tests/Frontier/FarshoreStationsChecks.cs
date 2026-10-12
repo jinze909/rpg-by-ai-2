@@ -910,8 +910,32 @@ namespace Starfall.Tests
                 Check(g.reliefMissionWave == 2 &&
                     g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 2,
                     "The first defeat opens a second real wave rather than instantly paying a reward");
+                // Defeating the second wave must retire its old arrows
+                // before any return-escort frame can resolve their impact.
+                g.projectiles.Add(new Projectile {
+                    position = g.Position, velocity = new Point(),
+                    life = 2, friendly = false, visual = "enemyArrow",
+                    reliefMissionOwned = true, source = "shot"
+                });
+                var unrelatedShot = new Projectile {
+                    position = g.Position, velocity = new Point(),
+                    life = 2, friendly = true, visual = "arrow"
+                };
+                g.projectiles.Add(unrelatedShot);
+                g.effects.Add(new Effect("danger", g.Position, 2) {
+                    radius = .7f, reliefMissionOwned = true
+                });
+                var unrelatedEffect = new Effect("discover", g.Position, 2);
+                g.effects.Add(unrelatedEffect);
                 g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
                 g.Tick(.05f, new Point());
+                Check(!g.projectiles.Exists(p => p.reliefMissionOwned) &&
+                    !g.effects.Exists(e => e.reliefMissionOwned) &&
+                    g.projectiles.Contains(unrelatedShot) &&
+                    g.effects.Contains(unrelatedEffect),
+                    "Completing wave two retires only defeated raiders' late arrows and warnings");
+                g.projectiles.Remove(unrelatedShot);
+                g.effects.Remove(unrelatedEffect);
                 Check(g.reliefMissionWave == 3 && !g.Has("relief_rescue_" + region),
                     "Killing all raiders still requires actually returning survivors to the shelter");
                 Point savedSurvivor = g.reliefFollowerPosition;

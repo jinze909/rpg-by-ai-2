@@ -460,6 +460,11 @@ namespace Starfall
             }
             if (reliefMissionWave == 2)
             {
+                // The second ambush is over. Do not let an already-defeated
+                // raider's delayed arrow hit the civilians during escort.
+                // Keep unrelated world shots and effects fully intact.
+                projectiles.RemoveAll(p => p.reliefMissionOwned);
+                effects.RemoveAll(e => e.reliefMissionOwned);
                 reliefMissionWave = 3; revision++; sound = "quest";
                 // Escort is a distinct tactical leg: one additional
                 // limited-duration rally opportunity after defending wave two.
