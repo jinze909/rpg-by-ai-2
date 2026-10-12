@@ -133,6 +133,7 @@ namespace Starfall
         }
         private bool TalkPolish(WorldObject o)
         {
+            if (TalkWorldChronicle(o)) return true;
             if (TalkAtlasEcho(o)) return true;
             if (TalkArchiveTrail(o)) return true;
             if (TalkWayfarer(o)) return true;
@@ -209,6 +210,7 @@ namespace Starfall
         }
         private bool ChoosePolish(string action)
         {
+            if (ChooseWorldChronicle(action)) return true;
             if (ChooseAtlasEcho(action)) return true;
             if (ChooseArchiveTrail(action)) return true;
             if (ChooseWayfarer(action)) return true;

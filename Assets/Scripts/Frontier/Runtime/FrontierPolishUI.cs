@@ -66,6 +66,16 @@ namespace Starfall
         {
             Point p = ScreenPoint(new Point(o.x, o.y));
 
+            if (o.kind == "worldchronicle")
+            {
+                PropImage("bookshelf", 0, p.x - 29, p.y - 64, 58, 68, Color.white);
+                // A small persistent location cue, with no large text HUD.
+                Ring(new Point(o.x, o.y), .43f, mint, 16);
+                Text(p.x - 52, p.y - 84, 104, 21,
+                    Game.L("世界档案", "WORLD LORE"), 11, mint, TextAnchor.MiddleCenter);
+                return true;
+            }
+
             if (o.kind.StartsWith("wayfarer"))
             {
                 int region;

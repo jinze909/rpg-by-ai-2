@@ -7,8 +7,8 @@
       "id": 0,
       "name": "余烬镇",
       "en": "EMBERFALL",
-      "subtitle": "冒险的起点，也是值得守住的家。",
-      "suben": "A beginning worth coming home to.",
+      "subtitle": "余烬镇 · 还在等待的人",
+      "suben": "Emberfall · A town still waiting for its missing",
       "color": "#3d7970",
       "spawnX": 18,
       "spawnY": 15,
@@ -190,6 +190,14 @@
           "kind": "archivekeeper",
           "x": 14.5,
           "y": 11.5
+        },
+        {
+          "id": "worldchronicle0",
+          "name": "边境编年册 · 公会开放档案",
+          "en": "Frontier Chronicle · Public Archive",
+          "kind": "worldchronicle",
+          "x": 13.5,
+          "y": 9.5
         }
       ],
       "decor": [
@@ -343,8 +351,8 @@
       "id": 1,
       "name": "荆棘密林",
       "en": "THORNWOOD",
-      "subtitle": "星陨之后，森林开始拒绝人类。",
-      "suben": "After the star fell, the forest turned on us.",
+      "subtitle": "荆棘密林 · 星根被砍断，森林以荆棘封路",
+      "suben": "Thornwood · Severed roots have barricaded the old road",
       "color": "#39685d",
       "spawnX": 5,
       "spawnY": 14,
@@ -638,8 +646,8 @@
       "id": 2,
       "name": "沉没遗迹",
       "en": "DROWNED RUINS",
-      "subtitle": "古老石碑记录着灾变之前的真相。",
-      "suben": "The stones remember the truth before the fall.",
+      "subtitle": "沉没遗迹 · 水闸仍记得次序，却忘了等候的人",
+      "suben": "Drowned Ruins · The sluice remembers an order, not those left outside",
       "color": "#385a79",
       "spawnX": 5,
       "spawnY": 14,
@@ -949,8 +957,8 @@
       "id": 3,
       "name": "赤铁矿场",
       "en": "IRONREACH",
-      "subtitle": "矿工们正在为一台永不停止的机器工作。",
-      "suben": "The miners work for a machine that never sleeps.",
+      "subtitle": "赤铁矿场 · 机器不停，谁来决定它为谁运转",
+      "suben": "Ironreach · The machines do not stop. Who decides whom they serve?",
       "color": "#7a6052",
       "spawnX": 5,
       "spawnY": 14,
@@ -1252,8 +1260,8 @@
       "id": 4,
       "name": "星陨堡垒",
       "en": "STARFALL CITADEL",
-      "subtitle": "保护世界的力量，也可能囚禁世界。",
-      "suben": "The power to protect can also imprison.",
+      "subtitle": "星陨堡垒 · 城墙之内的光，由谁承担代价",
+      "suben": "Starfall Citadel · Whose land pays for the light behind the wall?",
       "color": "#4d4772",
       "spawnX": 5,
       "spawnY": 14,
@@ -1498,8 +1506,8 @@
       "id": 5,
       "name": "雾港",
       "en": "MISTPORT",
-      "subtitle": "灯指引远处的人，船带回眼前的人。",
-      "suben": "Lights guide the distant. Ferries save those nearby.",
+      "subtitle": "雾港 · 白灯指船，青灯等落水的人",
+      "suben": "Mistport · White lights guide ships; teal lights guide survivors",
       "color": "#547478",
       "spawnX": 5,
       "spawnY": 14,
@@ -1761,8 +1769,8 @@
       "id": 6,
       "name": "玻璃沙海",
       "en": "GLASS DESERT",
-      "subtitle": "九年前的命令，仍在决定今天谁能喝到水。",
-      "suben": "A nine-year-old order still decides who drinks today.",
+      "subtitle": "玻璃沙海 · 九年前的供水命令仍在运行",
+      "suben": "Glass Desert · A nine-year-old water order still holds",
       "color": "#a58a61",
       "spawnX": 5,
       "spawnY": 14,
@@ -2002,8 +2010,8 @@
       "id": 7,
       "name": "霜钟高原",
       "en": "FROSTCHIME",
-      "subtitle": "有些钟声，是为了让人听不见。",
-      "suben": "Some bells ring so nobody can hear.",
+      "subtitle": "霜钟高原 · 钟阵护住冰路，也封存了名字",
+      "suben": "Frostchime · Chimes guard the pass and hide the missing names",
       "color": "#8b9caa",
       "spawnX": 5,
       "spawnY": 14,
@@ -2235,8 +2243,8 @@
       "id": 8,
       "name": "地脉深渊",
       "en": "ROOT ABYSS",
-      "subtitle": "六层远征：祝福、风险与带回家的东西。",
-      "suben": "Six floors of boons, risk, and what you bring home.",
+      "subtitle": "地脉深渊 · 六层星根旧管道，试探获取与归还",
+      "suben": "Root Abyss · Six old conduits test what you take and return",
       "color": "#425b5c",
       "spawnX": 5,
       "spawnY": 14,
@@ -2291,8 +2299,8 @@
       "name": "炉火旅店",
       "en": "Hearth Inn",
       "color": "#80664d",
-      "subtitle": "让下一次出发，从一顿热汤和一夜好眠开始。",
-      "suben": "Warm stew, good rest, and another road tomorrow.",
+      "subtitle": "炉火旅店 · 每一封旧信，都有一个等它的人",
+      "suben": "Hearth Inn · Every unsent letter has someone waiting",
       "spawnX": 18,
       "spawnY": 18,
       "rows": [
@@ -2369,6 +2377,14 @@
           "en": "The inn ledger",
           "x": 9,
           "y": 13
+        },
+        {
+          "id": "worldchronicle9",
+          "name": "边境编年册 · 旅店抄本",
+          "en": "Frontier Chronicle · Inn Copy",
+          "kind": "worldchronicle",
+          "x": 21.5,
+          "y": 14.5
         }
       ],
       "decor": [
@@ -2503,62 +2519,62 @@
     {
       "title": "侦察记录",
       "en": "Scouting log",
-      "zh": "星晶让动物变得狂暴，但它们似乎是在保护地下的根。公会的采矿令，没有告诉我们会伤害整片森林。",
-      "text": "Starcrystals drove the beasts mad. Yet they seem to be defending the roots below. The guild never told us its mines would wound the whole forest."
+      "zh": "星晶让动物变得狂暴，但它们似乎是在保护地下的根。公会的采矿令，没有告诉我们会伤害整片森林。\n\n星根不是普通矿藏。暴露的星晶让野兽承受过量调谐，森林封路也许是被逼出来的防御。带走第一枚星核，不能等于永远带走森林的生机。",
+      "text": "Starcrystals drove the beasts mad. Yet they seem to be defending the roots below. The guild never told us its mines would wound the whole forest.\n\nStarroot is no ordinary ore. Leaking crystals overload the beasts, and the forest's barricade may be a forced defense. Taking the first core into custody must not mean taking the forest's life forever."
     },
     {
       "title": "遗迹石碑",
       "en": "The ancient tablet",
-      "zh": "碑文写着：先有日，后有月，最后潮水吞没天空。星核从来不是武器，它维系着这片土地。",
-      "text": "Sun first, then moon, then tide swallowing the sky. The starcore was never a weapon. It held this land together."
+      "zh": "碑文写着：先有日，后有月，最后潮水吞没天空。星核从来不是武器，它维系着这片土地。\n\n古代的七处调谐锚点曾让日、月与潮的符号连接水脉。后来有人把共同约定改成了必须盖章的命令，只有机关忘不掉那个顺序。",
+      "text": "Sun first, then moon, then tide swallowing the sky. The starcore was never a weapon. It held this land together.\n\nSeven ancient tuning anchors once linked the tide to symbols of sun and moon. Later, a shared ritual was reduced to a stamped command. Only the mechanism remembers the old sequence."
     },
     {
       "title": "矿工的日记",
       "en": "A miner's diary",
-      "zh": "统领说堡垒的屏障能保护所有人。可星核抽走了森林、河流和村庄的生机。保护谁，又牺牲谁？",
-      "text": "The warden says the citadel shield protects everyone. But the starcore drains the forest, river and villages. Who is protected, and who pays?"
+      "zh": "统领说堡垒的屏障能保护所有人。可星核抽走了森林、河流和村庄的生机。保护谁，又牺牲谁？\n\n堡垒把抽取星核称为稳定边境，矿工却在每一班供能中失去空气、桥和清水。星陨只是长期失衡在七天前终于露出伤口。",
+      "text": "The warden says the citadel shield protects everyone. But the starcore drains the forest, river and villages. Who is protected, and who pays?\n\nThe citadel calls its starcore extraction stabilization, while miners lose clean water, bridges and air each shift. Seven days ago, the long imbalance finally broke into visible light."
     },
     {
       "title": "港口：谁能被写进船册",
       "en": "Mistport: who makes the manifest",
-      "zh": "水位账目每逢堡垒供能便少一行。补上的字不是数字，而是一个又一个陌生人的名字。\n\n米拉的弟弟给守灯会写过三封信。前两封请求停灯检修，第三封写着：如果你们不能承认代价，就让我把代价带回港口。",
-      "text": "A line vanishes from the tide ledger at every shield surge. Its replacement is a name, not a number.\n\nMira's brother sent three letters. Two asked for repairs. The third: If you cannot admit the cost, let me bring it home."
+      "zh": "水位账目每逢堡垒供能便少一行。补上的字不是数字，而是一个又一个陌生人的名字。\n\n米拉的弟弟给守灯会写过三封信。前两封请求停灯检修，第三封写着：如果你们不能承认代价，就让我把代价带回港口。\n\n白灯为海上船只指路，青灯为落水者留岸。两种灯争同一份零件，记录却不该把任何一方的名字删掉。米拉要带回的是能让三方核对的证词。",
+      "text": "A line vanishes from the tide ledger at every shield surge. Its replacement is a name, not a number.\n\nMira's brother sent three letters. Two asked for repairs. The third: If you cannot admit the cost, let me bring it home.\n\nWhite lights serve offshore ships; teal lights guide those in the water. Both need parts, yet neither set of names deserves erasure. Mira seeks evidence all sides can audit."
     },
     {
       "title": "沙海：机器没有忘记",
       "en": "Glass Desert: the machine remembers",
-      "zh": "主人要求蓄光机每天为他预留一杯水。九年过去，城空了，机器仍坚持这条最初的约定。\n\n伊沃在调度单上写：它不是坏了，只是没人告诉它，别人的明天也值得保存。",
-      "text": "The master asked the reservoir to keep one cup for him each day. Nine years later the city is empty. The machine keeps its first promise.\n\nIvo writes: It is not broken. Nobody told it that other people's tomorrows matter too."
+      "zh": "主人要求蓄光机每天为他预留一杯水。九年过去，城空了，机器仍坚持这条最初的约定。\n\n伊沃在调度单上写：它不是坏了，只是没人告诉它，别人的明天也值得保存。\n\n九年前的主人死后，自动供给指令仍在执行。七日前的星陨让蓄光网更加脆弱，伊沃要做的不是砸坏机器，而是让命令重新接受人的决定。",
+      "text": "The master asked the reservoir to keep one cup for him each day. Nine years later the city is empty. The machine keeps its first promise.\n\nIvo writes: It is not broken. Nobody told it that other people's tomorrows matter too.\n\nThe owner died nine years ago, but the reservoir retained its order. Starfall destabilized its light network seven days ago. Ivo wants not to smash the machine but to make its orders accountable again."
     },
     {
       "title": "高原：钟声之下",
       "en": "Frostchime: beneath the bells",
-      "zh": "北岸撤离的最后一天，钟阵改用最低的一组频率。声音能压住冰面的裂缝，也能掩盖冰下的人声。\n\n被封存的名单上，有守灯人、摆渡人和山野村民。没有一方独自付出了代价。",
-      "text": "On the final evacuation day, the chimes used their lowest frequencies. The sound could still cracks in the ice, and voices beneath it.\n\nThe sealed list holds lamplighters, ferrymen and villagers. No faction paid alone."
+      "zh": "北岸撤离的最后一天，钟阵改用最低的一组频率。声音能压住冰面的裂缝，也能掩盖冰下的人声。\n\n被封存的名单上，有守灯人、摆渡人和山野村民。没有一方独自付出了代价。\n\n真正的修复不能只让钟声变得悦耳。森想记录每一个没能归来的人，保证下一次撤离时再没有人因为被抹去名字而被忘记。",
+      "text": "On the final evacuation day, the chimes used their lowest frequencies. The sound could still cracks in the ice, and voices beneath it.\n\nThe sealed list holds lamplighters, ferrymen and villagers. No faction paid alone.\n\nMaking the bells sound right cannot alone repair the pass. Sen wants each missing person named so the next evacuation will not forget those written out of the record."
     },
     {
       "title": "杏写给港口孩子的信",
       "en": "An's letter to the harbor children",
-      "zh": "药草晒干后要放在纸袋里，别装进密封的旧灯罩。受伤的人先用干净水冲洗。\n\n不用谢我。等你们安全回家，就替我在港口种一小块田。药物不应该只沿着堡垒的路送过去。",
-      "text": "Dry the herbs in paper bags, not old sealed lanterns. Clean wounds with fresh water first.\n\nNo thanks needed. When you get home, plant a small harbor garden for me. Medicine should follow more than the road to the citadel."
+      "zh": "药草晒干后要放在纸袋里，别装进密封的旧灯罩。受伤的人先用干净水冲洗。\n\n不用谢我。等你们安全回家，就替我在港口种一小块田。药物不应该只沿着堡垒的路送过去。\n\n旧巡路队的最后一项任务不再是找到更多矿脉，而是让药物、食物和人能沿不受许可的路安全往返。",
+      "text": "Dry the herbs in paper bags, not old sealed lanterns. Clean wounds with fresh water first.\n\nNo thanks needed. When you get home, plant a small harbor garden for me. Medicine should follow more than the road to the citadel.\n\nThe roadwardens' last mission was not to locate more ore. It was to keep medicines, food and people moving along roads that no official map would permit."
     },
     {
       "title": "老潮的旧船票",
       "en": "Old Tide's old ferry ticket",
-      "zh": "这张船票可以换一次免费摆渡。背面写着：没有钱的人，可以用一个故事来付。\n\n老潮年轻时常在雾港讲故事。后来他说不动了，就开始给孩子们煮鱼汤。",
-      "text": "This ticket pays for one ferry crossing. On the back: Those without money may pay with a story.\n\nOld Tide once told stories in Mistport. When words became hard, he began cooking soup for children."
+      "zh": "这张船票可以换一次免费摆渡。背面写着：没有钱的人，可以用一个故事来付。\n\n老潮年轻时常在雾港讲故事。后来他说不动了，就开始给孩子们煮鱼汤。\n\n无钱的旅客也应该被看见。老潮把一次摆渡记作一则故事的交换，是为后来公会的救援承诺留下实证。",
+      "text": "This ticket pays for one ferry crossing. On the back: Those without money may pay with a story.\n\nOld Tide once told stories in Mistport. When words became hard, he began cooking soup for children.\n\nTravelers without coins still deserve passage. Old Tide accepted a story for fare, leaving evidence of a promise the guild would later need to remember."
     },
     {
       "title": "诺尔的第一张设计图",
       "en": "Noll's first blueprint",
-      "zh": "水泵的轴心和屏障的供能机，用的是同一种零件。图上有一句划掉的批注：技术没有选边。\n\n下面是他后来添的一句：但拿着图纸的人得选。",
-      "text": "The water pump and shield generator use the same core part. A crossed-out note reads: Technology takes no side.\n\nUnder it, a later addition: But the person holding the drawing must."
+      "zh": "水泵的轴心和屏障的供能机，用的是同一种零件。图上有一句划掉的批注：技术没有选边。\n\n下面是他后来添的一句：但拿着图纸的人得选。\n\n零件可以安装在屏障里，也可以装在水泵上。诺尔不再问机器能工作多久，而是问坏掉的地方由谁负责修好。",
+      "text": "The water pump and shield generator use the same core part. A crossed-out note reads: Technology takes no side.\n\nUnder it, a later addition: But the person holding the drawing must.\n\nA component can strengthen a shield or repair a village pump. Noll no longer asks how long a machine can run, but who must be able to repair what it breaks."
     },
     {
       "title": "厄洛没有发出的道歉",
       "en": "Orrin's unsent apology",
-      "zh": "我本想等到所有人安全，再告诉他们为此付出了什么。可安全从来没有真正到来，于是我一直没有开口。\n\n如果有人走出了我的城墙，希望他带回来的不是另一面更高的墙。",
-      "text": "I meant to tell everyone the cost once they were safe. Safety never truly arrived, so I never spoke.\n\nIf someone walks beyond my walls, I hope they return with something other than a taller wall."
+      "zh": "我本想等到所有人安全，再告诉他们为此付出了什么。可安全从来没有真正到来，于是我一直没有开口。\n\n如果有人走出了我的城墙，希望他带回来的不是另一面更高的墙。\n\n厄洛的恐惧是真的：他曾亲眼看见没有屏障的人失去家。但靠外围土地供能的城墙，仍无法替那些被排除的人回答什么是安全。",
+      "text": "I meant to tell everyone the cost once they were safe. Safety never truly arrived, so I never spoke.\n\nIf someone walks beyond my walls, I hope they return with something other than a taller wall.\n\nOrrin's fear is real: he saw families perish without protection. Yet a wall fed by the outer land cannot decide safety on behalf of those it excludes."
     },
     {
       "title": "密林 · 留在树上的路标",

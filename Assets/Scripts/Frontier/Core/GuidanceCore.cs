@@ -314,7 +314,7 @@ namespace Starfall
             }
             if (id == "shore")
             {
-                q.title = L("远岸来信", "Letters from Afar"); q.category = L("远岸剧情", "DISTANT SHORES"); q.description = L("港口的水位、沙海的调度、高原的名字。把三份原始记录带到同一张桌前。", "Tide levels, allocations and names. Bring the original records to one council table."); q.locked = save.stage < 1; q.complete = save.frontierEnding > 0;
+                q.title = L("远岸来信", "Letters from Afar"); q.category = L("远岸剧情", "DISTANT SHORES"); q.description = L("星根失衡不止发生在堡垒附近。雾港的水位、沙海九年前的配给命令与高原被封存的遇难者名单，记录了谁在为屏障付出代价。把三份原始证词带到议事厅，让每一方亲自参与修复。", "The shield's cost reaches beyond the citadel: falsified harbor tides, a nine-year-old desert allocation order and names sealed beneath the mountain bells. Bring the three original records to the council so every community can decide what to repair."); q.locked = save.stage < 1; q.complete = save.frontierEnding > 0;
                 foreach (string flag in new[] { "harbor_report", "desert_report", "mountain_report", "frontier_settled" }) q.steps.Add(new QuestStep(L(new[] { "雾港调查", "沙海调查", "高原调查", "达成三方协定" }[q.steps.Count], new[] { "Mistport report", "Desert report", "Mountain report", "Council covenant" }[q.steps.Count]), Has(flag)));
                 if (q.complete) { q.next = L("协定已达成，自由探索远岸", "Covenant settled; explore the distant shores"); return q; }
                 if (!Has("exp_intro")) { q.target = new Point(26, 9); q.next = L("找露恩接取调查；先交回第一枚星核", "Meet Lune; deliver the first starcore first"); return q; }
@@ -336,7 +336,16 @@ namespace Starfall
                 else if (!Has("boss_" + region)) { q.target = new Point(30, 8); q.next = L("前往祭坛挑战地区守护者", "Challenge the regional guardian at the altar"); }
                 else q.next = L("与当地同伴交谈，提交调查", "Speak to the local companion and file the report"); return q;
             }
-            q.title = L("星陨主线", "The Fallen Star"); q.description = L("找到边境的星核，追查堡垒屏障背后的代价。", "Recover the frontier's starcores and uncover the shield's cost."); q.complete = save.ending > 0;
+            q.title = L("星陨主线", "The Fallen Star"); q.description = L(
+                save.stage == 0 ? "星陨第七天，巡路队失踪，密林里的侦察员仍在等待救援。救回他，找到第一枚星核，同时查清森林为何开始封路。" :
+                save.stage == 1 ? "第一枚星核已由公会保管，森林的伤口却没有愈合。遗迹水闸被旧命令困住，解开日、月、潮的机关，寻找下一份供能真相。" :
+                save.stage == 2 ? "两枚星核被汇入堡垒，矿场却没有停止抽取。修复升降机，查清不停运转的机器究竟为谁工作。" :
+                "三枚星核已汇集到堡垒。厄洛的屏障保护了城内，也抽走城外的生机。对峙后决定力量的归属；远岸证词可能证明还有替代之路。",
+                save.stage == 0 ? "Day seven after Starfall: the roadwardens are missing and the forest scout waits for rescue. Find him, reach the first core and learn why the roots barricaded the road." :
+                save.stage == 1 ? "The first core is in guild custody, but the forest is not healed. A forgotten order locks the ruined sluices; restore Sun, Moon and Tide to expose its cost." :
+                save.stage == 2 ? "Two cores now feed the citadel, and the mines refuse to stop. Repair the elevator and discover whom the tireless machines serve." :
+                "Three cores feed Orrin's shield, protecting those inside while draining the outer land. Confront him and choose where their power belongs. Farshore testimony can reveal another path.");
+            q.complete = save.ending > 0;
             int chapter = save.stage + 1; q.room = chapter; q.target = new Point(29, 8);
             bool gateOpen = chapter == 4 || chapter == 1 && Has("scout_saved") || Has("gate_" + chapter);
             q.steps.Add(new QuestStep(L(chapter == 1 ? "解救侦察员" : chapter == 2 ? "破解遗迹石碑" : chapter == 3 ? "修复矿场升降机" : "抵达统领所在祭坛", chapter == 1 ? "Rescue the scout" : chapter == 2 ? "Solve the tablets" : chapter == 3 ? "Repair the elevator" : "Reach the warden's altar"), gateOpen));

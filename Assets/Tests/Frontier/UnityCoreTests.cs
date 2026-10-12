@@ -68,6 +68,8 @@ namespace Starfall.Tests
         [Test] public void RestoredEnemyTimersRemainPlayable() { CoreChecks.BoundedEnemyOpeningDelaysAndRestoredPatrols(Data()); }
         [Test] public void EchoHazardsRetireOnFinishingHit() { CoreChecks.EliteVictoryRetiresWarningsBeforeNextDamageStep(Data()); }
         [Test] public void SpecialEncountersCannotOverlap() { CoreChecks.OptionalEncountersNeverStartInsideEachOther(Data()); }
+        [Test] public void WorldChronicleRespectsPlayerDiscovery() { CoreChecks.WorldChronicleRespectsChapterProgressAndRealInteractions(Data()); }
+        [Test] public void CampaignAndCouncilEpiloguesMatchWorldLore() { CoreChecks.IndependentEndingsAndCampaignLoreRemainConsistent(Data()); }
         [Test] public void SurveyorEchoHasLiveTimedCombat() { CoreChecks.SurveyorEchoCombatHasWarningsAndSafeRewards(Data()); }
         [Test] public void LostSurveyorAtlasIsPlayable() { CoreChecks.LostSurveyorAtlasHasRealSequenceAndOneTimeRewards(Data()); }
         [Test] public void FarshoreWeatherStationsAreLive() { CoreChecks.FarshoreWeatherStationsChangeActualClimateAndTide(Data()); }
