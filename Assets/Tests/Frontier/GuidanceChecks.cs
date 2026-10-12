@@ -209,7 +209,7 @@ namespace Starfall.Tests
             Check(g.Has("dispatch_complete") && g.GetQuest("dispatches").complete,
                 "All three letters complete the exploration quest");
             Check(g.ShopStewCost == originalStewPrice - 2 &&
-                g.GetQuest("dispatches").reward.Contains("stew -2 coins"),
+                g.GetQuest("dispatches").reward.Contains("热汤减价2"),
                 "The promise permanently discounts inn stew and explains the benefit");
             g.Enter(9); g.enemies.Clear();
             g.Talk(Object(g, "innGuest"));
