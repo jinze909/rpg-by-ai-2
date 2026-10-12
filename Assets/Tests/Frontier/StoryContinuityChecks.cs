@@ -19,6 +19,59 @@ namespace Starfall.Tests
                 if (c.action == action) return true;
             return false;
         }
+        public static void ChronicleChapterNavigationNeverLeaksFutureEvents(Campaign data)
+        {
+            var g = Fresh(data); g.NewGame(0); g.Close();
+            WorldObject book = Object(g, "worldchronicle");
+            g.Talk(book); ChooseStoryChoice(g, "story_section_origins");
+            ChooseStoryChoice(g, "story_read_origin");
+            Check(StoryChoicePresent(g, "story_read_roots") &&
+                !StoryChoicePresent(g, "story_read_wardens") &&
+                StoryChoicePresent(g, "story_section_origins"),
+                "A new player can read the next unlocked origin and return to the current chapter");
+            ChooseStoryChoice(g, "story_read_roots");
+            Check(StoryChoicePresent(g, "story_read_origin") &&
+                StoryChoicePresent(g, "story_read_orders") &&
+                !StoryChoicePresent(g, "story_read_wardens"),
+                "Previous and next navigation skip all undiscovered pages");
+            ChooseStoryChoice(g, "story_read_orders");
+            Check(!StoryChoicePresent(g, "story_read_wardens"),
+                "Last discovered page has no next-page spoiler");
+            g.Close(); g.save.flags.Add("scout_saved");
+            g.Talk(book); ChooseStoryChoice(g, "story_section_origins");
+            ChooseStoryChoice(g, "story_read_orders");
+            Check(StoryChoicePresent(g, "story_read_wardens"),
+                "Rescuing the scout enables a genuine next-page action");
+            ChooseStoryChoice(g, "story_read_wardens");
+            Check(g.conversation.text.Contains("巡路") &&
+                StoryChoicePresent(g, "story_read_orders"),
+                "Next-page action opens the newly unlocked patrol account");
+            ChooseStoryChoice(g, "story_section_origins");
+            Check(StoryChoicePresent(g, "story_read_wardens"),
+                "Back to this chapter retains the right section, not the global index");
+            g.Close(); g.save.flags.Add("harbor_report");
+            g.save.flags.Add("mountain_report");
+            g.Talk(book); ChooseStoryChoice(g, "story_section_farshore");
+            ChooseStoryChoice(g, "story_read_harbor");
+            Check(StoryChoicePresent(g, "story_read_mountain") &&
+                !StoryChoicePresent(g, "story_read_desert"),
+                "Navigation skips undiscovered middle chapters rather than exposing them");
+            ChooseStoryChoice(g, "story_read_mountain");
+            Check(StoryChoicePresent(g, "story_read_harbor") &&
+                !StoryChoicePresent(g, "story_read_covenant"),
+                "Farshore evidence navigation respects individual report gates");
+            int coins = g.save.coins, shards = g.save.shards, flags = g.save.flags.Count;
+            g.Close(); g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
+            resumed.Talk(Object(resumed, "worldchronicle"));
+            ChooseStoryChoice(resumed, "story_section_farshore");
+            ChooseStoryChoice(resumed, "story_read_harbor");
+            Check(StoryChoicePresent(resumed, "story_read_mountain") &&
+                resumed.save.coins == coins && resumed.save.shards == shards &&
+                resumed.save.flags.Count == flags,
+                "Chapter navigation survives saving without currency or progress mutation");
+        }
+
         public static void WorldChronicleRespectsChapterProgressAndRealInteractions(Campaign data)
         {
             var g = Fresh(data); g.NewGame(0);

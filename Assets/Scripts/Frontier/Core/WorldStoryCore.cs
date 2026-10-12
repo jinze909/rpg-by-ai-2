@@ -94,6 +94,31 @@ namespace Starfall
             choices.Add(StoryChoice("返回编年册目录", "Back to chronicle", "story_menu"));
             Dialog(titleZh, titleEn, descriptionZh, descriptionEn, choices.ToArray());
         }
+        // Chapter navigation is derived entirely from existing milestone flags.
+        // No new save field or reward can be introduced by browsing the book.
+        private static string StorySectionForPage(string page)
+        {
+            if (page == "origin" || page == "roots" || page == "orders" || page == "wardens") return "origins";
+            if (page == "forest" || page == "ruins" || page == "mine" || page == "citadel") return "campaign";
+            if (page == "harbor" || page == "desert" || page == "mountain" || page == "covenant") return "farshore";
+            return "after";
+        }
+        private static string[] StoryPagesForSection(string section)
+        {
+            if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
+            if (section == "campaign") return new[] { "forest", "ruins", "mine", "citadel" };
+            if (section == "farshore") return new[] { "harbor", "desert", "mountain", "covenant" };
+            return new[] { "signal", "atlas", "abyss", "ending" };
+        }
+        private string AdjacentStoryPage(string page, int direction)
+        {
+            string[] pages = StoryPagesForSection(StorySectionForPage(page));
+            int index = Array.IndexOf(pages, page);
+            if (index < 0) return null;
+            for (int i = index + direction; i >= 0 && i < pages.Length; i += direction)
+                if (StoryUnlocked(pages[i])) return pages[i];
+            return null;
+        }
         private void WorldChroniclePage(string page)
         {
             string zh = "", en = "", headingZh = "", headingEn = "";
@@ -185,9 +210,20 @@ namespace Starfall
                     break;
                 default: WorldChronicleMenu(); return;
             }
-            Dialog(headingZh, headingEn, zh, en,
-                StoryChoice("返回编年册目录", "Back to chronicle", "story_menu"),
-                StoryChoice("收起记录", "Close record", "close"));
+            // Offer chapter-local navigation without jumping across locked
+            // milestones. The current page is always one the player earned.
+            var choices = new List<Choice>();
+            string previous = AdjacentStoryPage(page, -1);
+            string next = AdjacentStoryPage(page, 1);
+            if (previous != null)
+                choices.Add(StoryChoice("上一页", "Previous page", "story_read_" + previous));
+            if (next != null)
+                choices.Add(StoryChoice("下一页", "Next page", "story_read_" + next));
+            choices.Add(StoryChoice("返回本章", "Back to this chapter",
+                "story_section_" + StorySectionForPage(page)));
+            choices.Add(StoryChoice("返回编年册目录", "Back to chronicle", "story_menu"));
+            choices.Add(StoryChoice("收起记录", "Close record", "close"));
+            Dialog(headingZh, headingEn, zh, en, choices.ToArray());
         }
         private bool ChooseWorldChronicle(string action)
         {
