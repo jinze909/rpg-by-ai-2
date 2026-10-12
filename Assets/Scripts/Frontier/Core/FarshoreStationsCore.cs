@@ -187,33 +187,33 @@ namespace Starfall
         {
             if (action.StartsWith("fieldstation_relief_"))
             {
-                int region;
-                if (!int.TryParse(action.Substring("fieldstation_relief_".Length), out region) ||
-                    region < 5 || region > 7 || save.room != region ||
-                    save.frontierEnding == 0 || !Has("fieldstation_" + region) ||
-                    !Has("fieldstation_survey_" + region) || Has("farshore_relief_" + region) ||
-                    !CanEnter(region) || Dying || practicing || racing || fieldSurveyRoom != 0 ||
+                int reliefRegion;
+                if (!int.TryParse(action.Substring("fieldstation_relief_".Length), out reliefRegion) ||
+                    reliefRegion < 5 || reliefRegion > 7 || save.room != reliefRegion ||
+                    save.frontierEnding == 0 || !Has("fieldstation_" + reliefRegion) ||
+                    !Has("fieldstation_survey_" + reliefRegion) || Has("farshore_relief_" + reliefRegion) ||
+                    !CanEnter(reliefRegion) || Dying || practicing || racing || fieldSurveyRoom != 0 ||
                     roadTrialRoom != 0 || wayfarerEncounterRoom != 0 || atlasEchoRoom != 0)
                     return true;
                 WorldObject post = null;
                 foreach (WorldObject o in Map.objects)
-                    if (o.kind == "fieldstation" + region) { post = o; break; }
+                    if (o.kind == "fieldstation" + reliefRegion) { post = o; break; }
                 if (post == null || (Position - new Point(post.x, post.y)).Length > 2.2f) return true;
                 if (!SafeTravel)
                 { Notify("敌人正在威胁施工路线。先清理附近的巡逻队。", "Hostiles threaten the construction route. Clear nearby patrols first."); return true; }
-                if (region == 5 && !LowTide)
+                if (reliefRegion == 5 && !LowTide)
                 { Notify("修建浮桥需要低潮。先启动潮汐站或等待退潮。", "Pontoons must be built at low tide. Use the tidewatch or wait for the ebb."); return true; }
-                if (!Spend(region == 5 ? 2 : region == 7 ? 1 : 0,
-                    region == 6 ? 2 : 0, region == 6 ? 1 : region == 7 ? 2 : 0,
-                    0, region == 5 ? 1 : 0)) return true;
-                Flag("farshore_relief_" + region);
+                if (!Spend(reliefRegion == 5 ? 2 : reliefRegion == 7 ? 1 : 0,
+                    reliefRegion == 6 ? 2 : 0, reliefRegion == 6 ? 1 : reliefRegion == 7 ? 2 : 0,
+                    0, reliefRegion == 5 ? 1 : 0)) return true;
+                Flag("farshore_relief_" + reliefRegion);
                 save.coins += 30; save.shards += 2; AddXp(35);
                 effects.Add(new Effect("discover", new Point(post.x, post.y), .8f));
-                RecordMoment(region == 5 ? "新的浮桥和救援旗使低潮安全时段延长到90秒。" :
-                    region == 6 ? "绿洲遮阳道将沙海的降温庇护范围扩大到6.5格。" :
+                RecordMoment(reliefRegion == 5 ? "新的浮桥和救援旗使低潮安全时段延长到90秒。" :
+                    reliefRegion == 6 ? "绿洲遮阳道将沙海的降温庇护范围扩大到6.5格。" :
                     "防寒补给棚将高原的保暖庇护范围扩大到6.5格。",
-                    region == 5 ? "New rescue pontoons extend tidewatch access to 90 seconds." :
-                    region == 6 ? "The shaded supply route expands desert cooling to 6.5 tiles." :
+                    reliefRegion == 5 ? "New rescue pontoons extend tidewatch access to 90 seconds." :
+                    reliefRegion == 6 ? "The shaded supply route expands desert cooling to 6.5 tiles." :
                     "The warming depot expands frost shelter to 6.5 tiles.");
                 if (Has("farshore_relief_5") && Has("farshore_relief_6") &&
                     Has("farshore_relief_7") && !Has("farshore_relief_complete"))
