@@ -450,7 +450,11 @@ namespace Starfall
                 e.moving = e.backpedaling = false; e.flash -= dt; e.hitTime -= dt; e.releaseTime -= dt; e.stun -= dt; e.staggerRecovery -= dt;
                 if (e.hitTime > 0) { Point pushed = SweepActor(e.Position, e.recoil * dt * (e.boss ? .15f : .8f)); e.x = pushed.x; e.y = pushed.y; continue; }
                 if (e.stun > 0 || e.releaseTime > 0) continue;
-                Point delta = Position - e.Position; float distance = delta.Length;
+                // Beacon attackers advance on the ward instead of blindly following
+                // the hero. Their normal attacks still target the hero if in range.
+                bool wardAttacker = roadTrialRoom == save.room && IsRoadwardenTrialEnemy(e);
+                Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) : Position;
+                Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
                     e.timer -= dt;
@@ -496,13 +500,13 @@ namespace Starfall
                 }
                 if (distance > (e.boss ? 18 : 8)) continue;
                 e.timer -= dt;
-                float desired = e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
-                bool visible = ClearAttackPath(e.Position, Position);
+                float desired = wardAttacker ? 1.05f : e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
+                bool visible = ClearAttackPath(e.Position, pursuit);
                 Point before = e.Position;
-                if (visible && e.kind == 1 && !e.boss && distance < 3 && !practicing) { Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f); e.backpedaling=(back-e.Position).Length>.001f;e.x = back.x; e.y = back.y; }
+                if (visible && e.kind == 1 && !e.boss && !wardAttacker && distance < 3 && !practicing) { Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f); e.backpedaling=(back-e.Position).Length>.001f;e.x = back.x; e.y = back.y; }
                 if (distance > desired || !visible)
                 {
-                    Point p = e.Position + DirectionTo(e.Position, Position) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
+                    Point p = e.Position + DirectionTo(e.Position, pursuit) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
                     Point swept = SweepActor(e.Position, p - e.Position); e.x = swept.x; e.y = swept.y;
                 }
                 Point travelled = e.Position - before; e.moving = travelled.Length > .001f;

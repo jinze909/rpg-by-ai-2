@@ -65,8 +65,8 @@ namespace Starfall
                 q.title = L("巡路信标守望", "Roadwarden Vigil");
                 q.category = L("战斗挑战", "COMBAT CHALLENGE");
                 q.locked = !Has("dispatch_complete");
-                q.description = L("巡路誓言不只是地图：在密林、遗迹与矿场各守住两波袭击，证明归途仍然安全。",
-                    "The wardens left more than a map. Defend each restored beacon against two waves to keep the homeward road safe.");
+                q.description = L("巡路誓言不只是地图：在密林、遗迹与矿场保护信标护盾，阻止敌人靠近侵蚀，并守住两波袭击。",
+                    "Protect each beacon ward from attackers who drain it up close; hold two waves in each region to keep the homeward road safe.");
                 int next = 0;
                 for (int region = 1; region <= 3; region++)
                 {

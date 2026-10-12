@@ -80,6 +80,16 @@ namespace Starfall
                     defending ? Game.L(Game.RoadwardenTrialVeteran ? "精英 " : "守望 ", Game.RoadwardenTrialVeteran ? "ELITE " : "WAVE ") + Game.RoadwardenTrialWave + "/" + Game.RoadwardenTrialTotalWaves :
                     defended ? Game.L("已守住", "GUARDED") : found ? "✓" : o.kind.Substring(6);
                 Text(p.x - 46, p.y - 72, 92, 24, label, 12, accent, TextAnchor.MiddleCenter);
+                if (defending)
+                {
+                    Color wardColor = Game.RoadwardenWardIntegrity < 30 ? PixelArt.C("#f27d7d") :
+                        Game.RoadwardenWardUnderAttack ? PixelArt.C("#f4b16c") : mint;
+                    // Fixed, motion-independent integrity readout at the actual
+                    // protected beacon; no extra overlay across the combat arena.
+                    Bar(p.x - 35, p.y + 11, 70, Game.RoadwardenWardIntegrity / 100f, wardColor, 6);
+                    Text(p.x - 42, p.y + 17, 84, 18, Game.L("护盾 ", "WARD ") +
+                        (int)Math.Ceiling(Game.RoadwardenWardIntegrity) + "%", 10, wardColor, TextAnchor.MiddleCenter);
+                }
                 return true;
             }
             if (o.kind == "mentor" || o.kind == "returnscout") { DrawNpc(o.kind, new Point(o.x, o.y)); Text(p.x - 55, p.y - 89, 110, 24, o.kind == "mentor" ? Game.L("训练场", "PRACTICE") : Game.L("已归来", "HOME"), 12, mint, TextAnchor.MiddleCenter); return true; }

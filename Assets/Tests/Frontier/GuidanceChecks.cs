@@ -374,6 +374,63 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RoadwardenBeaconWardIsARealDefendableObjective(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "survey_1", "survey_2", "survey_3",
+                "survey_complete", "dispatch_complete" }) g.save.flags.Add(flag);
+            g.Enter(1); g.enemies.Clear();
+            WorldObject beacon = Object(g, "survey1");
+            g.save.x = beacon.x; g.save.y = beacon.y;
+            g.Talk(beacon);
+            Check(g.conversation.textEn.Contains("drain the beacon ward"),
+                "Players must be told that the beacon is a vulnerable objective");
+            g.Close();
+            Action(g, beacon.kind, "road_trial_start_1");
+            Check(g.RoadwardenWardIntegrity == 100 && g.RoadwardenTrialRoom == 1,
+                "Starting a drill creates a full transient beacon ward");
+            // Position the hero away from the ward so the hunter channels
+            // rather than interrupting itself to attack the hero.
+            Point retreat = new Point(); bool found = false;
+            for (int y = 2; y < 22 && !found; y++)
+            for (int x = 2; x < 34 && !found; x++)
+            {
+                Point candidate = new Point(x + .5f, y + .5f);
+                if ((candidate - new Point(beacon.x, beacon.y)).Length > 10 &&
+                    g.CanStand(candidate)) { retreat = candidate; found = true; }
+            }
+            Check(found, "The map offers a safe distant observation position");
+            g.save.x = retreat.x; g.save.y = retreat.y;
+            Enemy hunter = g.enemies.Find(e => e.id >= 81000 && e.id < 81100 && e.kind == 0);
+            Check(hunter != null, "Wave one contains a real hunter");
+            foreach (Enemy foe in g.enemies) foe.stun = 15;
+            hunter.stun = 0; hunter.x = beacon.x; hunter.y = beacon.y; hunter.timer = 20;
+            float start = g.RoadwardenWardIntegrity;
+            for (int frame = 0; frame < 40; frame++) g.Tick(.05f, new Point());
+            Check(g.RoadwardenWardIntegrity < start - 5 && g.RoadwardenWardUnderAttack,
+                "A living attacker at the ward drains actual integrity over time");
+            hunter.stun = 5;
+            float interrupted = g.RoadwardenWardIntegrity;
+            for (int frame = 0; frame < 20; frame++) g.Tick(.05f, new Point());
+            Check(Math.Abs(g.RoadwardenWardIntegrity - interrupted) < .001f &&
+                !g.RoadwardenWardUnderAttack, "Staggering an attacker interrupts the siphon");
+            hunter.stun = 0; hunter.timer = 20;
+            typeof(GameCore).GetField("roadTrialWard",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .SetValue(g, .1f);
+            g.Tick(.05f, new Point());
+            Check(g.RoadwardenTrialRoom == 0 && g.RoadwardenWardIntegrity == 0 &&
+                !g.enemies.Exists(e => e.id >= 81000 && e.id < 81100) &&
+                !g.Has("road_trial_1"), "Broken ward fails safely without rewards or leftover drill enemies");
+            g.save.x = beacon.x; g.save.y = beacon.y;
+            Action(g, beacon.kind, "road_trial_start_1");
+            Check(g.RoadwardenWardIntegrity == 100, "Retry starts with a fresh ward");
+            g.PrepareSave(); var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
+            Check(resumed.RoadwardenTrialRoom == 0 && resumed.RoadwardenWardIntegrity == 0 &&
+                !resumed.enemies.Exists(e => e.id >= 81000 && e.id < 81100),
+                "Existing saves never persist an unfinished ward defense");
+        }
+
         public static void RoadwardenVigilRegionalSurgesAreReadableAndTransient(Campaign data)
         {
             var hit = typeof(GameCore).GetMethod("Hit",

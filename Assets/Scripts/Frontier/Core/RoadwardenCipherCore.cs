@@ -102,6 +102,13 @@ namespace Starfall
         private bool roadTrialVeteran;
         private float roadTrialSurgeTimer;
         private int roadTrialSurgeCount;
+        // The ward is a real, vulnerable objective, not a second health bar
+        // persisted in saves. Leaving, losing, or loading restarts it cleanly.
+        private float roadTrialWard;
+        private bool roadTrialWardUnderAttack;
+        private int roadTrialWardWarning;
+        public float RoadwardenWardIntegrity { get { return roadTrialRoom == 0 ? 0 : roadTrialWard; } }
+        public bool RoadwardenWardUnderAttack { get { return roadTrialRoom != 0 && roadTrialWardUnderAttack; } }
         // Transient warnings belong to this drill, never to the persistent world.
         private readonly List<Hazard> roadTrialWarnings = new List<Hazard>();
         public int RoadwardenTrialRoom { get { return roadTrialRoom; } }
@@ -128,6 +135,7 @@ namespace Starfall
             roadTrialRoom = roadTrialWave = 0;
             roadTrialVeteran = false;
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
+            roadTrialWard = 0; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
         }
         private string RoadwardenSurgeHint(int region, bool english)
         {
@@ -145,10 +153,10 @@ namespace Starfall
                 return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Defeat the attackers, or abandon the drill here."
                     : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。击败来袭者，或在此放弃试炼。";
             if (Has("road_trial_" + region))
-                return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense for practice; rewards cannot be claimed twice."
-                    : "\n\n守路誓约已完成。可再次挑战更难的三波精英守卫战；奖励不会重复领取。";
-            return english ? "\n\nOptional two-wave defense. " + RoadwardenSurgeHint(region, true) + " Complete all three for a talent point. Leaving or loading restarts a drill."
-                : "\n\n可选双波守路试炼。" + RoadwardenSurgeHint(region, false) + " 完成三座信标可获得技能点。离开或读档需重新挑战。";
+                return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense. Attackers drain the beacon ward if they reach it; stop them before it breaks. Rewards cannot be claimed twice."
+                    : "\n\n守路誓约已完成。可再次挑战更难的三波精英守卫战。敌人靠近后会侵蚀信标护盾，务必阻止；奖励不会重复领取。";
+            return english ? "\n\nOptional two-wave defense. Stop attackers before they drain the beacon ward. " + RoadwardenSurgeHint(region, true) + " Complete all three for a talent point. Leaving or loading restarts a drill."
+                : "\n\n可选双波守路试炼。阻止敌人靠近并侵蚀信标护盾。" + RoadwardenSurgeHint(region, false) + " 完成三座信标可获得技能点。离开或读档需重新挑战。";
         }
         private bool ChooseRoadwardenTrial(string action)
         {
@@ -178,6 +186,7 @@ namespace Starfall
             roadTrialRoom = region; roadTrialWave = 1;
             roadTrialVeteran = Has("road_trial_" + region);
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
+            roadTrialWard = 100; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
             if (!SpawnRoadwardenTrialWave())
             {
                 ResetRoadwardenTrial();
@@ -185,8 +194,8 @@ namespace Starfall
                 return true;
             }
             TrackQuest("vigil");
-            Notify(roadTrialVeteran ? "精英守路试炼！三波敌人，奖励不会重复领取。" : "守路试炼开始！第一波：追猎者与射手。",
-                roadTrialVeteran ? "Veteran defense! Three tougher waves; no repeat rewards." : "Defense drill! Wave one: hunter and archer.");
+            Notify(roadTrialVeteran ? "精英守路试炼！保护信标护盾，击退三波敌人；无重复奖励。" : "守路试炼开始！保护信标护盾，击退追猎者与射手。",
+                roadTrialVeteran ? "Veteran defense! Protect the beacon ward through three waves; no repeat rewards." : "Defense drill! Protect the beacon ward from the hunter and archer.");
             return true;
         }
         private bool SpawnRoadwardenTrialWave()
@@ -286,6 +295,38 @@ namespace Starfall
         {
             if (roadTrialRoom == 0) return;
             if (save.room != roadTrialRoom || Dying || practicing) { ResetRoadwardenTrial(); return; }
+            // Attackers reaching the beacon siphon its ward until interrupted by
+            // a hit, stagger, windup or death. This makes intercepting enemies
+            // meaningful instead of merely kiting them around the map.
+            float pressure = 0;
+            Point anchor = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position);
+            foreach (Enemy attacker in enemies)
+                if (IsRoadwardenTrialEnemy(attacker) && attacker.hp > 0 &&
+                    attacker.stun <= 0 && attacker.hitTime <= 0 &&
+                    attacker.state != 1 && attacker.releaseTime <= 0 &&
+                    (attacker.Position - anchor).Length < 1.7f)
+                    pressure += attacker.kind == 2 ? 1.3f : 1;
+            roadTrialWardUnderAttack = pressure > 0;
+            if (roadTrialWardUnderAttack)
+            {
+                roadTrialWard = Math.Max(0, roadTrialWard - dt * pressure * (roadTrialVeteran ? 7f : 5f));
+                if (roadTrialWard <= 0)
+                {
+                    enemies.RemoveAll(IsRoadwardenTrialEnemy);
+                    ResetRoadwardenTrial(); revision++; sound = "deny";
+                    effects.Add(new Effect("danger", anchor, .55f) { radius = 1.2f });
+                    Notify("信标护盾破碎！守路试炼失败，重整后可再次挑战。",
+                        "Beacon ward shattered! Defense failed; regroup and try again.");
+                    return;
+                }
+                int threshold = roadTrialWard <= 30 ? 2 : roadTrialWard <= 65 ? 1 : 0;
+                if (threshold > roadTrialWardWarning)
+                {
+                    roadTrialWardWarning = threshold;
+                    Notify(threshold == 2 ? "警告：信标护盾即将破碎！" : "信标受到侵蚀！击退靠近的敌人。",
+                        threshold == 2 ? "Warning: beacon ward nearly broken!" : "Beacon under attack! Push back nearby enemies.");
+                }
+            }
             if (enemies.Exists(IsRoadwardenTrialEnemy))
             {
                 if (roadTrialWave >= 2)
@@ -302,6 +343,10 @@ namespace Starfall
             if (roadTrialWave < RoadwardenTrialTotalWaves)
             {
                 roadTrialWave++;
+                // A cleared wave restores a little ward, but damage sustained
+                // earlier still matters during the remaining defense.
+                roadTrialWard = Math.Min(100, roadTrialWard + 18);
+                roadTrialWardUnderAttack = false;
                 roadTrialSurgeTimer = 1.25f;
                 if (roadTrialWave == 2) roadTrialSurgeCount = 0;
                 if (!SpawnRoadwardenTrialWave())
