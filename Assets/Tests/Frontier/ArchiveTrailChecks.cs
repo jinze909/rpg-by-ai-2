@@ -24,6 +24,8 @@ namespace Starfall.Tests
             // This harness now advances the original campaign gates before
             // inspecting its three optional, ordered artifacts.
             g.save.stage = 3;
+            // Reward tests isolate the quest from ordinary XP level-up grants.
+            g.save.level = 10; g.save.xp = 0;
             int coins = g.save.coins, shards = g.save.shards, skill = g.save.skillPoints;
             for (int region = 1; region <= 3; region++)
             {

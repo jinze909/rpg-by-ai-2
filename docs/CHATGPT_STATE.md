@@ -83,3 +83,5 @@
 - 2026-10-12 independent content: Lost Surveyor's Atlas sidequest across Emberfall, Thornwood, Sunken Ruins and Rediron Mine. New town NPC Lin and three map artifacts; ordered clues, real chapter gating, bilingual dialogue, unique reward transaction per artifact, final one-time skill point, persistent flags, quest tracker, prop visuals, and offline/Editor regression. No changes to legacy save schema. Native NATIVE_UNVERIFIED.
 
 - Atlas CI repair: independent sidequest test now first asserts region 2 stays locked at stage 0, then unlocks the existing campaign chapters before traversing all three optional artifacts. Prior CI failure was `Missing object archivefragment2` after a legitimately denied travel. This does not weaken chapter progression. Native remains NATIVE_UNVERIFIED.
+
+- Atlas QA follow-up: the initial ledger assertion mixed the quest's +1 talent reward with ordinary level-ups triggered by 120 quest XP at level 1. Test now sets level 10 to isolate one-time quest rewards and preserve normal leveling behavior. Check CI after push.
