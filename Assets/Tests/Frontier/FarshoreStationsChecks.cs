@@ -177,8 +177,14 @@ namespace Starfall.Tests
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
             g.Tick(.05f, new Point());
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
-            g.Tick(.05f, new Point()); g.reliefFollowerPosition = new Point(finalStation.x, finalStation.y);
             g.Tick(.05f, new Point());
+            // In the real replay both the hero and survivor must return.
+            // Completing only the NPC's position cannot end an active sortie.
+            g.reliefFollowerPosition = new Point(finalStation.x, finalStation.y);
+            g.save.x = finalStation.x; g.save.y = finalStation.y;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0,
+                "The replay ends only after both the player and evacuee reach home");
             Check(g.save.coins == rewarded && g.save.shards == rewardedShards &&
                 g.save.skillPoints == rewardedPoints,
                 "Replaying civilian rescue yields no coins, shards or repeat talent");
