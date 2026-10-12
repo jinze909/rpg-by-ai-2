@@ -157,7 +157,7 @@ namespace Starfall
                 return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Ward " + (int)Math.Ceiling(roadTrialWard) + "%. Return to this beacon to restore 25 ward for 35 energy once per wave, or abandon."
                     : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。护盾剩余 " + (int)Math.Ceiling(roadTrialWard) + "%。每波可在此花费35耐力修复25点护盾一次，或放弃试炼。";
             if (Has("road_trial_" + region))
-                return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense. Attackers drain the beacon ward if they reach it; stop them before it breaks. Rewards cannot be claimed twice."
+                return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense. Attackers drain the beacon ward if they reach it; stop them before it breaks; rewards cannot be claimed twice."
                     : "\n\n守路誓约已完成。可再次挑战更难的三波精英守卫战。敌人靠近后会侵蚀信标护盾，务必阻止；奖励不会重复领取。";
             return english ? "\n\nOptional two-wave defense. Stop attackers before they drain the beacon ward. " + RoadwardenSurgeHint(region, true) + " Complete all three for a talent point. Leaving or loading restarts a drill."
                 : "\n\n可选双波守路试炼。阻止敌人靠近并侵蚀信标护盾。" + RoadwardenSurgeHint(region, false) + " 完成三座信标可获得技能点。离开或读档需重新挑战。";
