@@ -52,8 +52,11 @@ namespace Starfall
             }
             if (Game.reliefMissionRoom == Game.save.room)
             {
-                Point rescue = Game.reliefMissionWave <= 2 ? Game.FieldSurveyTarget(Game.save.room) :
-                    Game.FieldSurveyTarget(Game.save.room);
+                Point rescue = Game.FieldSurveyTarget(Game.save.room);
+                if (Game.reliefMissionWave == 3)
+                    foreach (WorldObject o in Game.Map.objects)
+                        if (o.kind == "fieldstation" + Game.save.room)
+                        { rescue = new Point(o.x, o.y); break; }
                 Ring(rescue, .55f, Game.reliefMissionWave == 3 ? mint : gold, 20);
                 Point rp = ScreenPoint(rescue);
                 Text(rp.x - 56, rp.y - 65, 112, 24,

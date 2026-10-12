@@ -5,6 +5,90 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void FarshoreEvacuationHasRealCombatAndPersistentFirstClear(Campaign data)
+        {
+            var g = Fresh(data); g.save.level = 10; g.save.stage = 3;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_5", "fieldstation_6", "fieldstation_7", "fieldstation_complete",
+                "fieldstation_survey_5", "fieldstation_survey_6", "fieldstation_survey_7",
+                "fieldstation_survey_complete", "farshore_relief_5", "farshore_relief_6",
+                "farshore_relief_7", "farshore_relief_complete" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 3;
+            Check(!g.GetQuest("relief_rescue").locked && g.GetQuest("relief_rescue").steps.Count == 4,
+                "The real regional mission appears only after the playable shelter network exists");
+            int coins = g.save.coins, shards = g.save.shards, talents = g.save.skillPoints;
+            for (int region = 5; region <= 7; region++)
+            {
+                g.Enter(region); g.enemies.Clear();
+                WorldObject station = Object(g, "fieldstation" + region);
+                g.save.x = station.x; g.save.y = station.y;
+                Action(g, station.kind, "fieldstation_rescue_menu");
+                Check(g.conversation != null &&
+                    Array.Exists(g.conversation.choices, c => c.action == "fieldstation_rescue_start"),
+                    "The physical shelter exposes a live, playable rescue action");
+                g.Close();
+                Action(g, station.kind, "fieldstation_rescue_start");
+                Check(g.reliefMissionRoom == region && g.reliefMissionWave == 1 &&
+                    g.reliefMissionTime > 119f && g.save.trackedQuest == "relief_rescue" &&
+                    g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 2,
+                    "Each region spawns two genuine AI combatants and a 120-second objective");
+                foreach (Enemy enemy in g.enemies)
+                    if (enemy.id >= 85000 && enemy.id < 85100)
+                        Check(enemy.timer < 2 && enemy.hp > 0 &&
+                            g.CanStand(enemy.Position) && g.NavigationPath(enemy.Position).Count > 0,
+                            "Relief attackers have real health, bounded opening timers and reachable spawns");
+                Check(g.GetQuest("relief_rescue").room == region &&
+                    g.GetQuest("relief_rescue").next.Contains("120s"),
+                    "The journal directs the player to the active rescue while displaying remaining time");
+                // Clear through normal world enemy removal as though both foes were
+                // defeated; this checks the production wave-and-reward state machine.
+                g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+                g.Tick(.05f, new Point());
+                Check(g.reliefMissionWave == 2 &&
+                    g.enemies.FindAll(e => e.id >= 85000 && e.id < 85100).Count == 2,
+                    "The first defeat opens a second real wave rather than instantly paying a reward");
+                g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+                g.Tick(.05f, new Point());
+                Check(g.reliefMissionWave == 3 && !g.Has("relief_rescue_" + region),
+                    "Killing all raiders still requires actually returning survivors to the shelter");
+                g.save.x = station.x; g.save.y = station.y;
+                g.Tick(.05f, new Point());
+                Check(g.reliefMissionRoom == 0 && g.Has("relief_rescue_" + region) &&
+                    g.save.coins == coins + (region - 4) * 45,
+                    "Real return completes and permanently records the rescued civilians");
+            }
+            Check(g.Has("relief_rescue_complete") &&
+                g.save.coins == coins + 135 && g.save.shards == shards + 9 &&
+                g.save.skillPoints == talents + 1 &&
+                g.GetQuest("relief_rescue").complete,
+                "Three non-repeatable local clear rewards unlock the final civic rescue bonus");
+            WorldObject finalStation = Object(g, "fieldstation7");
+            g.save.x = finalStation.x; g.save.y = finalStation.y;
+            int rewarded = g.save.coins, rewardedShards = g.save.shards, rewardedPoints = g.save.skillPoints;
+            Action(g, finalStation.kind, "fieldstation_rescue_start");
+            Check(g.reliefMissionRoom == 7, "Completed civilian rescue remains replayable as live combat");
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point()); g.Tick(.05f, new Point());
+            Check(g.save.coins == rewarded && g.save.shards == rewardedShards &&
+                g.save.skillPoints == rewardedPoints,
+                "Replaying civilian rescue yields no coins, shards or repeat talent");
+            Action(g, finalStation.kind, "fieldstation_rescue_start");
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 && !g.enemies.Exists(e => e.id >= 85000 && e.id < 85100),
+                "Timed-out rescues clean up all transient special combatants");
+            Action(g, finalStation.kind, "fieldstation_rescue_start");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            Check(restored.reliefMissionRoom == 0 &&
+                !restored.enemies.Exists(e => e.id >= 85000 && e.id < 85100) &&
+                restored.GetQuest("relief_rescue").complete &&
+                restored.save.coins == rewarded,
+                "Old-schema save reload keeps completed rescues without restoring unfinished raider waves");
+        }
+
         public static void CivilianReliefActuallyHealsAndProtectsOuterClimate(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

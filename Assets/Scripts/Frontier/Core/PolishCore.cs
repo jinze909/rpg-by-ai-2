@@ -293,7 +293,7 @@ namespace Starfall
             {
                 // A completed chart opens travel between existing, already discovered
                 // landmarks; it never bypasses region progression or nearby combat.
-                if (!Has("survey_complete") || roadTrialRoom != 0 || practicing || Dying || !SafeTravel)
+                if (!Has("survey_complete") || roadTrialRoom != 0 || reliefMissionRoom != 0 || practicing || Dying || !SafeTravel)
                 {
                     Notify("敌人尚未退去，无法稳定巡路信号。先脱离战斗。", "Enemies disrupt the road signal. Leave combat before traveling.");
                     return true;
