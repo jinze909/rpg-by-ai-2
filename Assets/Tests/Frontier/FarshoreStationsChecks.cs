@@ -205,6 +205,63 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RescueThreatDifficultyAndOneShotWarnings(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            Enemy raider = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 && e.kind == 0);
+            Check(raider != null, "A real raider is present to pressure the rescue across difficulties");
+            g.enemies.RemoveAll(e => e != raider);
+            Point marker = g.FieldSurveyTarget(6);
+            raider.x = marker.x; raider.y = marker.y;
+            raider.timer = 100; raider.state = 0;
+            g.save.x = post.x; g.save.y = post.y;
+            float[] loss = new float[3];
+            for (int difficulty = 0; difficulty < 3; difficulty++)
+            {
+                g.save.difficulty = difficulty;
+                g.reliefFollowerSafety = 60;
+                g.Tick(.05f, new Point());
+                loss[difficulty] = 60 - g.reliefFollowerSafety;
+            }
+            Check(loss[0] > 0 && loss[0] < loss[1] && loss[1] < loss[2] &&
+                Math.Abs(g.ReliefCombatThreatScale - 1.3f) < .001f,
+                "A live raider inflicts increasing safety pressure from Easy to Normal to Hard");
+            g.save.difficulty = 1;
+            g.reliefFollowerSafety = 60;
+            g.reliefMissionTime = 30.04f;
+            g.Tick(.05f, new Point());
+            Check(g.toast.Contains("倒计时") && g.reliefMissionTime < 30,
+                "Entering the last 30 seconds produces a single clear bilingual urgency warning");
+            string warning = g.toast;
+            g.Tick(.05f, new Point());
+            Check(g.toast == warning, "The urgency warning is not repeated on every frame");
+            g.reliefFollowerSafety = 29;
+            g.Tick(.05f, new Point());
+            Check(g.toast.Contains("安全度危险"),
+                "The first actual low-safety state warns players before the rescue silently fails");
+            string dangerWarning = g.toast;
+            g.Tick(.05f, new Point());
+            Check(g.toast == dangerWarning,
+                "Safety warnings appear once per rescue, without covering every attack with toast spam");
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 &&
+                !g.Has("relief_rescue_6"),
+                "A timed-out rescue cleans transient warnings and does not grant completion");
+            StartCivilianRescueViaRealDialogue(g, post);
+            Check(g.reliefMissionRoom == 6 && g.reliefMissionWave == 0 &&
+                g.reliefMissionTime == 120,
+                "Retry begins fresh without retaining prior difficulty warnings or partial progress");
+        }
+
         public static void RescueArrowsUseActualFlightAndCanBeBodyBlocked(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
