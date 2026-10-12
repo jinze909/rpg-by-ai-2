@@ -229,7 +229,7 @@ namespace Starfall.Tests
                 Point test = marker + new Point(dx * .5f, dy * .5f);
                 float distance = (test - marker).Length;
                 if (distance < 2.2f || distance >= 2.85f ||
-                    !g.CanStand(test) || !g.ClearAttackPath(test, marker)) continue;
+                    !g.CanStand(test) || g.NavigationPath(test).Count == 0) continue;
                 close = test; found = true;
             }
             Check(found, "The authored civilian site has a walkable and visible archer retreat lane");
