@@ -133,6 +133,16 @@ namespace Starfall
         private void ResetReliefMission()
         {
             enemies.RemoveAll(IsReliefMissionEnemy);
+            // Ordinary patrols temporarily redirect attacks toward an escort.
+            // Restore their normal AI on abort or completion so no old
+            // civilian-locked windup survives this rescue.
+            foreach (Enemy enemy in enemies)
+                if (enemy.targetingReliefCivilian)
+                {
+                    enemy.targetingReliefCivilian = false;
+                    enemy.state = 0;
+                    enemy.timer = Math.Max(enemy.timer, .45f);
+                }
             projectiles.RemoveAll(p => p.reliefMissionOwned);
             effects.RemoveAll(e => e.reliefMissionOwned);
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
@@ -275,7 +285,7 @@ namespace Starfall
         private void DamageReliefCivilianArrow(Projectile shot)
         {
             if (!shot.reliefMissionOwned || reliefMissionRoom == 0 ||
-                (reliefMissionWave != 1 && reliefMissionWave != 2) ||
+                (reliefMissionWave < 1 || reliefMissionWave > 3) ||
                 save.room != reliefMissionRoom) return;
             Point civilians = reliefFollowerPosition;
             float loss = 9f * ReliefCombatThreatScale *
@@ -299,8 +309,10 @@ namespace Starfall
         private void DamageReliefCivilian(Enemy attacker)
         {
             if (reliefMissionRoom == 0 || reliefMissionWave < 1 ||
-                reliefMissionWave > 2 || save.room != reliefMissionRoom ||
-                !IsReliefMissionEnemy(attacker)) return;
+                reliefMissionWave > 3 || save.room != reliefMissionRoom ||
+                attacker.boss || attacker.kind == 1 ||
+                (reliefMissionWave == 3 ? IsReliefMissionEnemy(attacker) :
+                    !IsReliefMissionEnemy(attacker))) return;
             Point civilians = reliefFollowerPosition;
             float radius = attacker.kind == 2 ? EnemyAreaRadius(attacker) : 2.1f;
             if ((attacker.Position - civilians).Length >= radius ||
@@ -448,26 +460,10 @@ namespace Starfall
                     "Raiders defeated! Guide the survivors back to the shelter before time expires.");
             }
             if (reliefMissionWave != 3) return;
-            // Unfinished patrols can attack the people being escorted. The
-            // hero can intercept by staying close but must remove the threat.
-            float threat = 0;
-            foreach (Enemy patrol in enemies)
-                if (!IsReliefMissionEnemy(patrol) && patrol.hp > 0 &&
-                    (patrol.Position - reliefFollowerPosition).Length < 2.3f &&
-                    ClearAttackPath(patrol.Position, reliefFollowerPosition))
-                    threat += patrol.kind == 2 ? 1.5f : 1f;
-            if (threat > 0)
-            {
-                float cover = (Position - reliefFollowerPosition).Length < 1.8f ? .55f : 1;
-                reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - dt * threat * 8f * cover * ReliefCombatThreatScale);
-                if (reliefFollowerSafety <= 0)
-                {
-                    ResetReliefMission(); revision++; sound = "deny";
-                    Notify("巡逻敌人击散了护送队！幸存者已撤至安全处，可以免费重试。",
-                        "Patrols scattered the escort! Civilians retreated safely; retry without cost.");
-                    return;
-                }
-            }
+            // Ordinary escort patrols now threaten residents through their
+            // actual committed enemy windup/release and swept projectiles.
+            // No invisible per-frame proximity damage. Weather continues to
+            // affect civilians independently below.
             // Real evacuees follow at human pace, constrained by actual
             // collision rather than teleporting to the hero or the station.
             Point follow = Position - reliefFollowerPosition;

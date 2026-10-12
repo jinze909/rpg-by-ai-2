@@ -467,9 +467,12 @@ namespace Starfall
                 bool travelerAttacker = wayfarerEncounterRoom == save.room && IsWayfarerEnemy(e);
                 bool reliefAttacker = reliefMissionRoom == save.room &&
                     (reliefMissionWave == 1 || reliefMissionWave == 2) && IsReliefMissionEnemy(e);
+                bool escortPatrol = reliefMissionRoom == save.room &&
+                    reliefMissionWave == 3 && !IsReliefMissionEnemy(e) && !e.boss &&
+                    (e.Position - reliefFollowerPosition).Length < 8f;
                 Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
-                    reliefAttacker ? reliefFollowerPosition : Position;
+                    reliefAttacker || escortPatrol ? reliefFollowerPosition : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
@@ -485,7 +488,8 @@ namespace Starfall
                         sound = e.boss || e.kind == 2 ? "slam" : e.kind == 1 ? "arrow" : "attack";
                         effects.Add(new Effect("enemyRelease", e.Position, .24f) {
                             direction = e.facing, variant = e.boss ? 10 + save.room : e.kind,
-                            reliefMissionOwned = IsReliefMissionEnemy(e) });
+                            reliefMissionOwned = IsReliefMissionEnemy(e) ||
+                                escortPatrol && e.targetingReliefCivilian });
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
@@ -513,7 +517,8 @@ namespace Starfall
                         else if (e.kind == 1) Fire(e, e.facing, 5);
                         else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position)) Hurt(11, "lunge", e.facing);
                         if (travelerAttacker && e.targetingWayfarer) DamageWayfarer(e);
-                        if (reliefMissionRoom != 0 && IsReliefMissionEnemy(e) &&
+                        if (reliefMissionRoom != 0 &&
+                            (IsReliefMissionEnemy(e) || escortPatrol) &&
                             e.targetingReliefCivilian && e.kind != 1)
                             DamageReliefCivilian(e);
                         // Rescue archers only injure civilians where their real
@@ -525,25 +530,25 @@ namespace Starfall
                 }
                 // Defense attackers cannot abandon the beacon after knockback
                 // or while navigating around a distant obstruction.
-                if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
+                if (!wardAttacker && !travelerAttacker && !reliefAttacker && !escortPatrol &&
                     distance > (e.boss ? 18 : 8)) continue;
                 e.timer -= dt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
-                float desired = reliefAttacker && e.kind == 1 ? 4.3f :
-                    wardAttacker || travelerAttacker || reliefAttacker ? 1.05f :
+                float desired = (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
+                    wardAttacker || travelerAttacker || reliefAttacker || escortPatrol ? 1.05f :
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 Point before = e.Position;
                 if (e.kind == 1 && !e.boss && !wardAttacker &&
                     !travelerAttacker && !practicing &&
-                    (reliefAttacker ? distance < 3.4f : distance < 3f) &&
-                    (visible || reliefAttacker))
+                    (reliefAttacker || escortPatrol ? distance < 3.4f : distance < 3f) &&
+                    (visible || reliefAttacker || escortPatrol))
                 {
                     // Backstep even with blocked LOS. Never counteract an
                     // actual retreat by walking toward the target this tick.
                     Point away = delta.Length > .001f ?
-                        delta.Normalized * -dt * (reliefAttacker ? 2.2f : 1.6f) :
+                        delta.Normalized * -dt * (reliefAttacker || escortPatrol ? 2.2f : 1.6f) :
                         new Point(-dt * 1.6f, 0);
                     Point back = SweepActor(e.Position, away);
                     e.backpedaling = (back - e.Position).Length > .001f;
@@ -567,7 +572,7 @@ namespace Starfall
                 // A rescue raider must visibly commit to striking the civilians.
                 // Archers still attack the playable hero; melee and breakers can
                 // target civilians when the hero does not hold the frontline.
-                bool nearCivilian = reliefAttacker &&
+                bool nearCivilian = (reliefAttacker || escortPatrol) &&
                     (pursuit - e.Position).Length < (e.kind == 1 ? 6.5f : 2.1f) &&
                     ClearAttackPath(e.Position, pursuit);
                 bool strikeCivilian = nearCivilian &&
@@ -601,7 +606,9 @@ namespace Starfall
             tickingEnemies.Clear();
         }
         private void Fire(Enemy e, Point dir, float speed)
-        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
+                reliefMissionWave == 3 && reliefMissionRoom == save.room &&
+                e.targetingReliefCivilian;shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -651,7 +658,7 @@ namespace Starfall
                     else if ((Position - p.position).Length < .38f)
                     { Hurt(p.damage, p.source ?? "shot", p.velocity.Normalized); dead = true; }
                     else if (p.reliefMissionOwned && reliefMissionRoom == save.room &&
-                        (reliefMissionWave == 1 || reliefMissionWave == 2) &&
+                        (reliefMissionWave >= 1 && reliefMissionWave <= 3) &&
                         (p.position - reliefFollowerPosition).Length < .45f)
                     {
                         // A genuine hostile arrow, after sweeping through any

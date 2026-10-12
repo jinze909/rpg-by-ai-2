@@ -107,7 +107,7 @@ namespace Starfall
                 enemy.targetingWayfarer && Game.WayfarerEncounterRoom == Game.save.room ||
                 enemy.targetingReliefCivilian &&
                     Game.reliefMissionRoom == Game.save.room &&
-                    (Game.reliefMissionWave == 1 || Game.reliefMissionWave == 2);
+                    (Game.reliefMissionWave >= 1 && Game.reliefMissionWave <= 3);
             if (targetedCivilian)
             {
                 float laneProgress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
