@@ -94,6 +94,16 @@ namespace Starfall
                 s += "\n" + L("远岸观测：", "Farshore weather: ") +
                     L(Has("fieldstation_survey_complete") ? "三地巡测完成。" : "三地避风站连通。",
                       Has("fieldstation_survey_complete") ? "three surveys filed." : "three shelters linked.");
+            if (Has("relief_rescue_5") || Has("relief_rescue_6") || Has("relief_rescue_7"))
+            {
+                int rescued = 0;
+                for (int region = 5; region <= 7; region++)
+                    if (Has("relief_rescue_" + region)) rescued++;
+                s += "\n" + L("远岸居民撤离：", "Civilian evacuations: ") +
+                    rescued + "/3" +
+                    (Has("relief_rescue_complete") ?
+                        L("；三地补给与避难路线均已守护。", "; all three shelter roads are secured.") : "");
+            }
             if (save.ending > 0)
                 s += "\n" + L("星核归宿：", "Starcore outcome: ") +
                     L(new[] { "", "还给土地", "保留屏障", "居民共管" }[save.ending],

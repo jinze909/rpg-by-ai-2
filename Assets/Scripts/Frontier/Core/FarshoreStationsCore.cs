@@ -333,6 +333,11 @@ namespace Starfall
                         textEn += "\n\nThe covenant funds civilian refuges. Complete this station's 90-second field survey first.";
                     }
                 }
+                if (Has("relief_rescue_" + region))
+                {
+                    textZh += "\n\n失联居民已经从危险地段安全撤回。本地救援仍可重演，但不会重复发放奖励。";
+                    textEn += "\n\nThe stranded civilians returned safely. The rescue can be replayed, with no repeated rewards.";
+                }
                 if (Has("farshore_relief_" + region) && Has("fieldstation_survey_" + region))
                     stationChoices.Add(C("平民撤离行动", "Civilian rescue sortie", "fieldstation_rescue_menu"));
                 if (Has("fieldstation_survey_complete") && !Has("farshore_relief_complete"))

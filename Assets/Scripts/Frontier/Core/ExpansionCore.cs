@@ -620,6 +620,20 @@ namespace Starfall
                 "\n\nThe warming depot carries heat beyond the old braziers. Travelers can recover at the station before braving the next snowfield." };
             string addedZh = Has("farshore_relief_" + (id + 5)) ? reliefZh[id] : "";
             string addedEn = Has("farshore_relief_" + (id + 5)) ? reliefEn[id] : "";
+            if (Has("relief_rescue_" + (id + 5)))
+            {
+                string[] rescuedZh = {
+                    "\n\n你从滩涂救回的居民已经把孩子和补给送上了渡船。那次撤离让我们知道浮桥真的可以救命。",
+                    "\n\n沙海的失联行路者平安回到了遮阳道，新的公共机器不再只记得旧城主的名字。",
+                    "\n\n你带回的旅人已经把姓名写进山口的避难簿。我们这回记住的是活着归来的人。"
+                };
+                string[] rescuedEn = {
+                    "\n\nThe civilians you brought from the tidal flats have boarded the ferry with their children and supplies. Those pontoons truly saved lives.",
+                    "\n\nThe missing desert travelers made it back to the shaded road. Our public machines now serve people, not a dead ruler's name.",
+                    "\n\nThe travelers you brought home have written their names in the pass shelter's book. This time we remember those who returned alive."
+                };
+                addedZh += rescuedZh[id]; addedEn += rescuedEn[id];
+            }
             Dialog(o.name, o.en, (Has("personal_" + id) ? new[] { "米拉把名册交还给幸存的孩子。她不再等一封回信，而是开始写下一条新航线。", "伊沃给新机器起名叫明天。它没有主人，只记录每个用水人的名字。", "森拆下了钟舌，铸成一块路碑。他仍守着高原，这一次是在路口听人说话。" }[id] : zh[id]) + addedZh, (Has("personal_" + id) ? new[] { "Mira gives the manifest to the surviving children. She stops waiting for a reply and starts drawing a new route.", "Ivo names the machine Tomorrow. It has no master; it records everyone who shares its water.", "Sen casts the old clapper into a road marker. He still keeps the pass, but now he listens." }[id] : en[id]) + addedEn, choices.ToArray());
         }
         private void ExpansionAltar(WorldObject o)

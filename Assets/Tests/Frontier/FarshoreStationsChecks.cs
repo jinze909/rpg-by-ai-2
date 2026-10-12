@@ -118,12 +118,21 @@ namespace Starfall.Tests
                 Check(g.reliefMissionRoom == 0 && g.Has("relief_rescue_" + region) &&
                     g.save.coins == coins + (region - 4) * 45,
                     "Real return completes and permanently records the rescued civilians");
+                string npcKind = region == 5 ? "captain" : region == 6 ? "tinker" : "keeper";
+                g.Talk(Object(g, npcKind));
+                Check(g.conversation.text.Contains(region == 5 ? "滩涂救回" :
+                    region == 6 ? "失联行路者" : "带回的旅人") &&
+                    g.conversation.textEn.Contains(region == 5 ? "pontoons truly saved lives" :
+                    region == 6 ? "missing desert travelers" : "travelers you brought home"),
+                    "The living regional companion directly remembers the specific rescue in both languages");
+                g.Close();
             }
             Check(g.Has("relief_rescue_complete") &&
                 g.save.coins == coins + 135 && g.save.shards == shards + 9 &&
                 g.save.skillPoints == talents + 1 &&
-                g.GetQuest("relief_rescue").complete,
-                "Three non-repeatable local clear rewards unlock the final civic rescue bonus");
+                g.GetQuest("relief_rescue").complete &&
+                g.WorldResponse().Contains("远岸居民撤离：3/3"),
+                "Three first-clears unlock the final talent, complete journal and saved world response");
             WorldObject finalStation = Object(g, "fieldstation7");
             g.save.x = finalStation.x; g.save.y = finalStation.y;
             int rewarded = g.save.coins, rewardedShards = g.save.shards, rewardedPoints = g.save.skillPoints;
