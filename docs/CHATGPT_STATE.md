@@ -7,5 +7,6 @@
 - Regression: `CoreChecks.DashExitKeepsVisibleFacing` covers 20 ms and 30 ms simulation ticks and registers an Editor test. Offline `tools/run_core_tests.py` and `tools/run_combat_input_checks.py` CI are the applicable checks; inspect the actual GitHub Actions result before claiming a pass.
 - Native: `NATIVE_UNVERIFIED` until Unity 2022.3.53f1 Editor compilation and PlayMode/visual validation are actually run.
 - Assets: Git tree contains LFS pointer blobs; remote availability of all binary LFS objects has not been independently verified in this environment.
-- Next valuable gameplay work: check dodge-to-run leg-frame cadence and directional transitions in the actual runtime rendering; preserve the canonical blond hero, quest/region coverage, and old saves.
+- Follow-up gameplay fix: cap the final dash translation to the remaining active interval, keeping the authored 2.7-world-unit travel consistent across 10–50 ms tick sizes. Added `DashDistanceIsFrameStepIndependent` offline/Editor coverage; CI result must be checked before calling it passed.
+- Next valuable gameplay work: examine dodge-to-run leg-frame cadence and directional transitions in the production renderer; preserve canonical hero, quest/region coverage, and old saves.
 - Each iteration: inspect current branch HEAD and CI, choose one player-facing production change, run appropriate real checks, fast-forward commit/push, update this concise state only when facts change. No periodic status-only commits.

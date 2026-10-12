@@ -68,7 +68,14 @@ namespace Starfall
             Point start = Position; bool wasDashing = dashTime > 0;
             if (explicitAim.HasValue) SetAim(explicitAim.Value);
             else if (movement.Length > .1f && (playerAction == null || PlayerPhase == ActionPhase.Recovery)) SetAim(movement);
-            if (dashTime > 0) { dashTime = Math.Max(0, dashTime - dt); Move(dashDirection * dt * 15); }
+            if (dashTime > 0)
+            {
+                // Consume only the remaining dash interval: a coarse final tick
+                // must not add extra travel beyond the authored 0.18 seconds.
+                float dashStep = Math.Min(dt, dashTime);
+                dashTime = Math.Max(0, dashTime - dt);
+                Move(dashDirection * dashStep * 15);
+            }
             else if (playerHitTime > 0) Move(playerRecoil * dt * recoilSpeed);
             else
             {

@@ -77,6 +77,31 @@ namespace Starfall.Tests
                 Check(g.Dying&&g.PlayerPose==11&&g.AppearanceWeapon==displayed&&(g.VisualFacing-facing).Length<.001f,"An actual lethal followup captures the displayed recoil outfit and facing");
             }
         }
+        public static void DashDistanceIsFrameStepIndependent(Campaign data)
+        {
+            // The same dodge must cover 0.18 * 15 world units on clear ground,
+            // even when its final simulation frame is shorter than the tick.
+            foreach(float step in new[]{.01f,.02f,.03f,.04f,.05f})
+            {
+                var g=Quiet(data);Point heading=new Point(1,0),start=g.Position;
+                Check(g.CanStand(start+heading*3f),"Dash distance test needs open production ground");
+                g.Dash(heading);float travelledTime=0;int frames=0;
+                while(g.dashTime>0&&frames++<32)
+                {
+                    float remaining=g.dashTime;Point before=g.Position;
+                    g.Tick(step,new Point());
+                    float actual=(g.Position-before).Length;
+                    float allowed=15f*Math.Min(step,remaining);
+                    Check(actual<=allowed+.001f,
+                        "A partial last dash tick cannot travel a full tick's distance");
+                    travelledTime+=Math.Min(step,remaining);
+                }
+                Check(frames<32&&g.dashTime<=0&&Math.Abs(travelledTime-.18f)<.001f,
+                    "Dodge consumes exactly its intended active time");
+                Check(Math.Abs((g.Position-start).Length-2.7f)<.003f&&g.CanStand(g.Position),
+                    "Dodge distance and collision remain consistent across simulation frame sizes");
+            }
+        }
         public static void DashExitKeepsVisibleFacing(Campaign data)
         {
             // The last moving dash tick changes PlayerPose to walking. It must not
