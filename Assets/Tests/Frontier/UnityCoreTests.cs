@@ -65,6 +65,7 @@ namespace Starfall.Tests
         [Test] public void RoadsideTravelersHaveTwoRescueRoutes() { CoreChecks.MissingTravelersOfferSupplyAndCombatRescues(Data()); }
         [Test] public void FarshoreFieldSurveys() { CoreChecks.FarshoreStationSurveysRequireRealOutAndBackTravel(Data()); }
         [Test] public void FarshoreStationTravelIsSafe() { CoreChecks.FarshoreStationNetworkProvidesSafeUnlockAwareTravel(Data()); }
+        [Test] public void LostSurveyorAtlasIsPlayable() { CoreChecks.LostSurveyorAtlasHasRealSequenceAndOneTimeRewards(Data()); }
         [Test] public void FarshoreWeatherStationsAreLive() { CoreChecks.FarshoreWeatherStationsChangeActualClimateAndTide(Data()); }
         [Test] public void RoadwardenSignalChartAndSave() { CoreChecks.RoadwardenSignalsUnlockOnePersistentTravelReward(Data()); }
         [Test] public void LiveQuestProgressAndTracking() { CoreChecks.QuestTrackingTransitions(Data()); }

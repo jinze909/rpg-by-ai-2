@@ -56,6 +56,17 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if (kind == "archivekeeper" || kind.StartsWith("archivefragment"))
+            {
+                bool collected = kind == "archivekeeper" ? Game.Has("archive_complete") :
+                    Game.Has("archive_fragment_" + kind.Substring("archivefragment".Length));
+                PropImage(kind == "archivekeeper" ? "post" : "altar", 0,
+                    p.x - 26, p.y - 55, 52, 63, collected ? muted : Color.white);
+                Ring(new Point(o.x, o.y), .48f, collected ? mint : gold, 16);
+                Text(p.x - 18, p.y - 69, 36, 25, collected ? "✓" : "!", 19,
+                    collected ? mint : gold, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (kind.StartsWith("fieldstation"))
             {
                 int station;

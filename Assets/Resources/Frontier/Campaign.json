@@ -182,6 +182,14 @@
           "en": "Enter Hearth Inn",
           "x": 7,
           "y": 17.7
+        },
+        {
+          "id": "archivekeeper",
+          "name": "星图修复师·琳",
+          "en": "Lin · Cartographic Conservator",
+          "kind": "archivekeeper",
+          "x": 14.5,
+          "y": 11.5
         }
       ],
       "decor": [
@@ -463,6 +471,14 @@
           "x": 4.5,
           "y": 19.5,
           "lore": 10
+        },
+        {
+          "id": "archivefragment1",
+          "name": "林地残缺航图",
+          "en": "Torn woodland chart",
+          "kind": "archivefragment1",
+          "x": 23.5,
+          "y": 10.5
         }
       ],
       "decor": [
@@ -766,6 +782,14 @@
           "x": 4.5,
           "y": 19.5,
           "lore": 11
+        },
+        {
+          "id": "archivefragment2",
+          "name": "遗迹潮刻石板",
+          "en": "Tidal inscription",
+          "kind": "archivefragment2",
+          "x": 8.5,
+          "y": 11.5
         }
       ],
       "decor": [
@@ -1053,6 +1077,14 @@
           "x": 4.5,
           "y": 19.5,
           "lore": 12
+        },
+        {
+          "id": "archivefragment3",
+          "name": "矿场旧式测距仪",
+          "en": "Abandoned rangefinder",
+          "kind": "archivefragment3",
+          "x": 25.5,
+          "y": 11.5
         }
       ],
       "decor": [

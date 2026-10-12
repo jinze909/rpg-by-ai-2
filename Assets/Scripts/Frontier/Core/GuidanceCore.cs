@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,32 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+            if (id == "archive_trail")
+            {
+                q.title = L("失落测绘师的星图", "The Lost Surveyor's Atlas");
+                q.category = L("遗迹调查", "LOST CARTOGRAPHY");
+                q.locked = !Has("archive_started");
+                q.description = L("镇上的修复师琳发现三份被拆散的远征测绘记录。先在密林找残图，再按残图线索去沉没遗迹，最后回收矿场的测距仪，将记录交回镇上。",
+                    "Lin needs three lost expedition records. Find the woodland chart, follow its clue into the ruins, then recover the mine rangefinder and return to town.");
+                for (int i = 1; i <= 3; i++)
+                    q.steps.Add(new QuestStep(L(new[] { "找回林地航图", "读取遗迹潮刻", "回收矿场测距仪" }[i - 1],
+                        new[] { "Recover the woodland chart", "Read the ruins' tide inscription", "Retrieve the mine rangefinder" }[i - 1]), Has("archive_fragment_" + i)));
+                q.complete = Has("archive_complete");
+                q.steps.Add(new QuestStep(L("回到余烬镇交付完整星图", "Return the restored atlas to Lin"), q.complete));
+                int next = !Has("archive_fragment_1") ? 1 : !Has("archive_fragment_2") ? 2 :
+                    !Has("archive_fragment_3") ? 3 : 0;
+                q.room = next; q.target = next == 0 ? ObjectPoint(0, "archivekeeper", new Point(14, 11)) :
+                    ObjectPoint(next, "archivefragment" + next, new Point(18, 11));
+                q.next = q.complete ? L("星图已归档，测绘师的故事终于完整", "Atlas archived; the surveyor's story is complete") :
+                    q.locked ? L("与余烬镇的修复师琳交谈", "Speak with Lin in Emberfall") :
+                    next == 0 ? L("回镇上把三份记录交给琳", "Deliver all three records to Lin") :
+                    !CanEnter(next) ? L("先完成当前章节，解锁下一片地区", "Progress the story to unlock the next region") :
+                    L("调查地图上的失落测绘物件", "Investigate the marked lost survey artifact");
+                q.reward = L("每份记录20硬币、2碎片、20经验；归档再得技能点1、硬币60",
+                    "Each artifact: 20 coins, 2 shards, 20 XP; completion: 1 talent point and 60 coins");
+                return q;
+            }
 
             if (id == "station_patrol")
             {
