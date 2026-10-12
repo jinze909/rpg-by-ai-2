@@ -30,8 +30,30 @@ namespace Starfall
             }
             if (Has("wayfarer_" + room))
             {
-                Dialog(o.name, o.en, "多亏你的帮助，我能继续赶路了。其他旅人也许还在等待救援。",
-                    "Thanks to you, I can travel again. Others may still be stranded.",
+                string[] defendedZh = { "",
+                    "你替我挡住掠夺者，我终于把药袋重新扎好。伤者们已经能继续赶路。",
+                    "你守住渡口时，我把信号灯重新挂回河岸。今晚的船终于有了归途。",
+                    "你守住矿道，我把散落的零件装回运输车。下一班工人不必摸黑回家。" };
+                string[] defendedEn = { "",
+                    "You held off the raiders while I secured the medicine. The wounded can travel again.",
+                    "You guarded the crossing while I relit the river signal. Tonight's boats have a way home.",
+                    "You held the mine passage while I repaired the cart. The next shift can return safely." };
+                string[] suppliedZh = { "",
+                    "你送来的药草救了伤者，也让我能带着药袋重新上路。",
+                    "你送来的星晶点亮了渡口信号，涨水时也能看清安全航道。",
+                    "你送来的零件修好了运输车，矿道补给终于重新流动。" };
+                string[] suppliedEn = { "",
+                    "Your Moonherbs helped the wounded and put my medicine bag back on the road.",
+                    "Your starcrystals lit the crossing signal, even when the river rises.",
+                    "Your spare parts repaired the cart and restored the mine supply route." };
+                string zh = Has("wayfarer_defended_" + room) ? defendedZh[room] :
+                    Has("wayfarer_supplied_" + room) ? suppliedZh[room] :
+                    "多亏你的帮助，我能继续赶路了。";
+                string en = Has("wayfarer_defended_" + room) ? defendedEn[room] :
+                    Has("wayfarer_supplied_" + room) ? suppliedEn[room] :
+                    "Thanks to you, I can travel again.";
+                Dialog(o.name, o.en, zh + " 其他旅人也许还在等待救援。",
+                    en + " Others may still be stranded.",
                     C("旅途平安", "Safe travels", "close"));
                 return true;
             }
@@ -206,12 +228,15 @@ namespace Starfall
             if (save.room != wayfarerEncounterRoom || Dying || practicing)
             { ResetWayfarerEncounter(); return; }
             if (enemies.Exists(IsWayfarerEnemy)) return;
-            int room = wayfarerEncounterRoom; ResetWayfarerEncounter(); CompleteWayfarer(room);
+            int room = wayfarerEncounterRoom; ResetWayfarerEncounter(); CompleteWayfarer(room, true);
         }
-        private void CompleteWayfarer(int room)
+        private void CompleteWayfarer(int room, bool defended = false)
         {
             if (Has("wayfarer_" + room)) return;
             Flag("wayfarer_" + room);
+            // Existing string flags persist the chosen rescue method without
+            // changing the save schema or overwriting older completed saves.
+            Flag((defended ? "wayfarer_defended_" : "wayfarer_supplied_") + room);
             save.coins += 20; save.shards++; AddXp(25); revision++;
             RecordMoment("帮助第 " + room + " 位失联旅人：获得20硬币、1碎片、25经验。",
                 "Helped traveler " + room + ": 20 coins, 1 shard, 25 XP.");

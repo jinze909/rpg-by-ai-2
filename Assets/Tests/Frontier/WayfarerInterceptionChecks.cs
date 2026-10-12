@@ -60,5 +60,51 @@ namespace Starfall.Tests
             Check(g.WayfarerIntegrity < 100 && g.WayfarerEncounterRoom == 1,
                 "A strike not intercepted by the player still damages the traveler");
         }
+
+        public static void WayfarerRescueChoicesPersistAsDistinctWorldReactions(Campaign data)
+        {
+            var supplied = Fresh(data); supplied.save.stage = 3;
+            supplied.save.flags.Add("scout_saved"); supplied.Enter(1); supplied.enemies.Clear();
+            WorldObject npc = Object(supplied, "wayfarer1");
+            supplied.save.x = npc.x; supplied.save.y = npc.y;
+            supplied.save.inventory[2] = 2;
+            Action(supplied, npc.kind, "wayfarer_supply_1");
+            Check(supplied.Has("wayfarer_1") && supplied.Has("wayfarer_supplied_1") &&
+                !supplied.Has("wayfarer_defended_1"), "Supply rescue records its method exactly once");
+            supplied.Talk(npc);
+            Check(supplied.conversation.textEn.Contains("Moonherbs"),
+                "Traveler acknowledges the actual supplies after a donation");
+            supplied.Close(); supplied.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(supplied.save)); loaded.Start();
+            Check(loaded.Has("wayfarer_supplied_1") && loaded.Has("wayfarer_1"),
+                "Choice-specific dialogue survives the existing save format");
+            loaded.Talk(npc);
+            Check(loaded.conversation.textEn.Contains("Moonherbs"),
+                "A loaded save keeps the same traveler reaction");
+
+            var defended = Fresh(data); defended.save.stage = 3; defended.save.level = 10;
+            defended.save.flags.Add("scout_saved"); defended.Enter(1); defended.enemies.Clear();
+            WorldObject survivor = Object(defended, "wayfarer1");
+            defended.save.x = survivor.x; defended.save.y = survivor.y;
+            Action(defended, survivor.kind, "wayfarer_defend_1");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "The real combat hit method is available");
+            foreach (Enemy foe in defended.enemies.FindAll(e => e.id >= 82000 && e.id < 82100))
+                hit.Invoke(defended, new object[] { foe, 9999f, false, null, null });
+            Advance(defended, .35f);
+            Check(defended.Has("wayfarer_1") && defended.Has("wayfarer_defended_1") &&
+                !defended.Has("wayfarer_supplied_1"), "Combat rescue records a different lasting choice");
+            defended.Talk(survivor);
+            Check(defended.conversation.textEn.Contains("held off the raiders"),
+                "Traveler remembers being defended rather than donated to");
+            // Older saves already marked rescued must retain a safe generic response.
+            var oldSave = CloneSave(defended.save);
+            oldSave.flags.Remove("wayfarer_defended_1");
+            var legacy = new GameCore(data, oldSave); legacy.Start();
+            legacy.Talk(survivor);
+            Check(legacy.conversation.textEn.Contains("Thanks to you"),
+                "Older rescued saves remain readable without a migration");
+        }
     }
 }
