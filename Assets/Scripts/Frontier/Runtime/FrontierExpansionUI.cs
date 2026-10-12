@@ -115,6 +115,14 @@ namespace Starfall
                 Point escort = Game.reliefFollowerPosition;
                 // Sprite is depth-sorted with the world, not drawn over hero.
                 Ring(escort, .35f, mint, 16);
+                if (Game.reliefWardTime > 0)
+                {
+                    Ring(escort, .88f, mint, 24);
+                    Point guardScreen = ScreenPoint(escort);
+                    Text(guardScreen.x - 44, guardScreen.y - 110, 88, 23,
+                        Game.L("护卫 ", "GUARD ") + Game.reliefWardTime.ToString("0.0") + "s",
+                        11, mint, TextAnchor.MiddleCenter);
+                }
                 Point escortScreen = ScreenPoint(escort);
                 if (Game.ReliefEscortGap < 1.7f)
                     Text(escortScreen.x - 60, escortScreen.y - 89, 120, 26,

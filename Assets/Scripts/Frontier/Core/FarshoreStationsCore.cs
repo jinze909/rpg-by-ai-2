@@ -126,6 +126,11 @@ namespace Starfall
         public bool reliefFollowerMoving, reliefFollowerFacingLeft;
         public bool reliefFollowerWaiting, reliefMedicalUsed;
         public bool ReliefEscortActive { get { return reliefMissionRoom != 0 && reliefMissionWave == 3; } }
+        public bool ReliefEscortGuardAvailable
+        {
+            get { return ReliefEscortActive && reliefWardTime <= 0 &&
+                !reliefWardUsed && save.energy >= 20 && !Dying; }
+        }
         public float ReliefEscortGap { get { return ReliefEscortActive ?
             (Position - reliefFollowerPosition).Length : 0; } }
         private static bool IsReliefMissionEnemy(Enemy e)
@@ -443,6 +448,9 @@ namespace Starfall
             if (reliefMissionWave == 2)
             {
                 reliefMissionWave = 3; revision++; sound = "quest";
+                // Escort is a distinct tactical leg: one additional
+                // limited-duration rally opportunity after defending wave two.
+                reliefWardTime = 0; reliefWardUsed = false;
                 // Authored markers are prop positions, not guaranteed actor feet
                 // on every tide phase. Spawn survivors on real walkable ground.
                 // Keep the same visible civilian through the battle and
@@ -539,21 +547,25 @@ namespace Starfall
                 reliefFollowerWaiting ? "relief_follow" : "relief_wait"));
             if (!reliefMedicalUsed && save.inventory[2] > 0 && reliefFollowerSafety < 95)
                 options.Add(C("为伤者敷药 · 药草1", "Treat wounds · 1 herb", "relief_treat"));
+            if (ReliefEscortGuardAvailable)
+                options.Add(C("组织随行护卫 · 耐力20",
+                    "Form escort guard · 20 energy", "relief_escort_guard"));
             options.Add(C("继续前行", "Continue", "close"));
             Dialog("获救居民", "Rescued civilian",
                 (reliefFollowerWaiting ? "我会留在这里，等你清理道路。记得回来接我。" :
                     "我会跟上。请不要走太远，前面还有巡逻队和恶劣天气。") +
                 "\n\n居民安全度 " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
-                    (int)Math.Ceiling(reliefMissionTime) + " 秒剩余。按 E 可指挥停留、继续或提供一次伤药。",
+                    (int)Math.Ceiling(reliefMissionTime) + " 秒剩余。按 E 可指挥停留、继续、敷药一次或组织一次随行护卫。",
                 (reliefFollowerWaiting ? "I will stay here until you clear the road. Come back for me." :
                     "I'll follow. Don't leave me behind among patrols and harsh weather.") +
                 "\n\nCivilian safety " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
-                    (int)Math.Ceiling(reliefMissionTime) + " seconds left. Interact to wait, follow or tend wounds once.",
+                    (int)Math.Ceiling(reliefMissionTime) + " seconds left. Interact to wait, follow, tend wounds once or rally one guard.",
                 options.ToArray());
         }
         private bool ChooseRescuedCivilian(string action)
         {
-            if (action != "relief_wait" && action != "relief_follow" && action != "relief_treat") return false;
+            if (action != "relief_wait" && action != "relief_follow" &&
+                action != "relief_treat" && action != "relief_escort_guard") return false;
             if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f)
                 return true;
             if (action == "relief_wait")
@@ -565,6 +577,17 @@ namespace Starfall
             {
                 reliefFollowerWaiting = false;
                 Notify("居民重新跟随你。", "The civilian resumes following you.");
+            }
+            else if (action == "relief_escort_guard")
+            {
+                if (!ReliefEscortGuardAvailable) return true;
+                save.energy -= 20;
+                reliefWardUsed = true; reliefWardTime = 8f;
+                effects.Add(new Effect("discover", reliefFollowerPosition, .6f) {
+                    reliefMissionOwned = true });
+                sound = "guard";
+                Notify("随行护卫已建立：8秒内减轻居民受击伤害，本次护送不能重复发动。",
+                    "Escort guard active: civilian attack damage reduced for 8 seconds. Once per return trip.");
             }
             else
             {
