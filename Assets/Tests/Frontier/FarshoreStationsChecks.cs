@@ -17,6 +17,48 @@ namespace Starfall.Tests
             game.Choose(next);
         }
 
+        public static void RescueSurvivorsRequireRealProtectionAndSafeTravel(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_5", "fieldstation_6", "fieldstation_7", "fieldstation_complete",
+                "fieldstation_survey_6", "farshore_relief_6", "farshore_relief_complete" })
+                g.save.flags.Add(flag);
+            g.save.frontierEnding = 3; g.Enter(6); g.enemies.Clear();
+            WorldObject station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            Check(g.reliefMissionRoom == 6, "Rescue starts from the real rebuilt station");
+            int coins = g.save.coins;
+            g.ReturnToTown();
+            Check(g.save.room == 6 && g.reliefMissionRoom == 6,
+                "Fast return to town cannot silently abandon a civilian mission");
+            Action(g, station.kind, "fieldstation_to_5");
+            Check(g.save.room == 6 && g.reliefMissionRoom == 6,
+                "Regional station travel preserves a live rescue rather than discarding it");
+            Action(g, station.kind, "fieldstation_survey_start");
+            Check(g.fieldSurveyRoom == 0 && g.reliefMissionRoom == 6,
+                "Another timed survey cannot replace the active rescue timer");
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionWave == 3 && g.reliefFollowerSafety == 100,
+                "Civilians start the physical return with full temporary safety");
+            Point follower = g.reliefFollowerPosition;
+            g.save.x = station.x; g.save.y = station.y;
+            g.enemies.Add(new Enemy(590, 0, follower.x, follower.y, 50));
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety < 100 && g.reliefMissionRoom == 6 &&
+                !g.Has("relief_rescue_6"),
+                "Actual surviving patrols threaten the rescued civilian rather than generating passive completion");
+            g.reliefFollowerSafety = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 && !g.Has("relief_rescue_6") &&
+                g.save.coins == coins,
+                "Losing civilian safety cancels the escort without permanent progress or a paid reward");
+        }
+
         public static void FarshoreEvacuationHasRealCombatAndPersistentFirstClear(Campaign data)
         {
             var g = Fresh(data); g.save.level = 10; g.save.stage = 3;

@@ -71,6 +71,9 @@ namespace Starfall
                 Point escortScreen = ScreenPoint(escort);
                 Text(escortScreen.x - 50, escortScreen.y - 84, 100, 22,
                     Game.L("获救居民", "SURVIVORS"), 11, mint, TextAnchor.MiddleCenter);
+                Color safetyColor = Game.reliefFollowerSafety < 30 ? PixelArt.C("#f27d7d") : mint;
+                Bar(escortScreen.x - 30, escortScreen.y + 10, 60,
+                    Game.reliefFollowerSafety / 100f, safetyColor, 6);
             }
             if (Game.save.room == 7 && !Game.save.reducedMotion && Game.save.effectsQuality > 0)
                 for (int i = 0; i < 28; i++) { float x = (i * 91 + clock * 19) % Width, y = (i * 67 + clock * 32) % Height; Box(x, y, 3, 3, new Color(.9f, .96f, 1, .58f)); }

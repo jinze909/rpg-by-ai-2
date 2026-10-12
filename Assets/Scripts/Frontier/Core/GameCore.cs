@@ -206,6 +206,8 @@ namespace Starfall
         }
         public void ReturnToTown()
         {
+            if (reliefMissionRoom != 0)
+            { Notify("正在护送居民，先返回站台或者取消行动。", "You are escorting civilians. Return to the station or cancel the rescue first."); return; }
             if (Dying) return;
             if (save.room == 0) return;
             if (InAbyss) { AbyssExitConversation(); return; }

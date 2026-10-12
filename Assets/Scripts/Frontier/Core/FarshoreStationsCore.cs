@@ -101,6 +101,7 @@ namespace Starfall
         public int reliefMissionRoom, reliefMissionWave;
         public float reliefMissionTime;
         public Point reliefFollowerPosition;
+        public float reliefFollowerSafety;
         public bool ReliefEscortActive { get { return reliefMissionRoom != 0 && reliefMissionWave == 3; } }
         private static bool IsReliefMissionEnemy(Enemy e)
         { return e != null && e.id >= 85000 && e.id < 85100; }
@@ -109,7 +110,7 @@ namespace Starfall
             enemies.RemoveAll(IsReliefMissionEnemy);
             projectiles.RemoveAll(p => p.reliefMissionOwned);
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
-            reliefFollowerPosition = new Point();
+            reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
         }
         private bool SpawnReliefMissionWave()
         {
@@ -198,12 +199,33 @@ namespace Starfall
             {
                 reliefMissionWave = 3; revision++; sound = "quest";
                 reliefFollowerPosition = FieldSurveyTarget(region);
+                reliefFollowerSafety = 100;
                 Point marker = FieldSurveyTarget(region);
                 effects.Add(new Effect("discover", marker, .7f));
                 Notify("掠夺者已击退！带领幸存者在剩余时间内返回避难站。",
                     "Raiders defeated! Guide the survivors back to the shelter before time expires.");
             }
             if (reliefMissionWave != 3) return;
+            // Unfinished patrols can attack the people being escorted. The
+            // hero can intercept by staying close but must remove the threat.
+            float threat = 0;
+            foreach (Enemy patrol in enemies)
+                if (!IsReliefMissionEnemy(patrol) && patrol.hp > 0 &&
+                    (patrol.Position - reliefFollowerPosition).Length < 2.3f &&
+                    ClearAttackPath(patrol.Position, reliefFollowerPosition))
+                    threat += patrol.kind == 2 ? 1.5f : 1f;
+            if (threat > 0)
+            {
+                float cover = (Position - reliefFollowerPosition).Length < 1.8f ? .55f : 1;
+                reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - dt * threat * 8f * cover);
+                if (reliefFollowerSafety <= 0)
+                {
+                    ResetReliefMission(); revision++; sound = "deny";
+                    Notify("巡逻敌人击散了护送队！幸存者已撤至安全处，可以免费重试。",
+                        "Patrols scattered the escort! Civilians retreated safely; retry without cost.");
+                    return;
+                }
+            }
             // Real evacuees follow at human pace, constrained by actual
             // collision rather than teleporting to the hero or the station.
             Point follow = Position - reliefFollowerPosition;
@@ -401,6 +423,8 @@ namespace Starfall
             { BeginReliefMission(); return true; }
             if (action == "fieldstation_inn")
             {
+                if (reliefMissionRoom != 0)
+                { Notify("先护送居民返回站台，或明确取消本次救援。", "Escort the civilians home or explicitly abandon rescue before traveling."); return true; }
                 int sourceStation = save.room;
                 if (sourceStation < 5 || sourceStation > 7 || !Has("farshore_relief_complete") ||
                     !Has("fieldstation_" + sourceStation) || Dying || practicing || racing ||
@@ -523,6 +547,8 @@ namespace Starfall
             }
             if (action == "fieldstation_survey_start")
             {
+                if (reliefMissionRoom != 0)
+                { Notify("先完成当前居民救援，才能接取新巡测。", "Finish the active civilian rescue before beginning another survey."); return true; }
                 int surveyRegion = save.room;
                 if (surveyRegion < 5 || surveyRegion > 7 || fieldSurveyRoom != 0 ||
                     !Has("fieldstation_" + surveyRegion) || Has("fieldstation_survey_" + surveyRegion) ||
@@ -540,6 +566,8 @@ namespace Starfall
             }
             if (action.StartsWith("fieldstation_to_"))
             {
+                if (reliefMissionRoom != 0)
+                { Notify("救援进行中，不能抛下居民传送。可返回站台取消行动。", "Rescue underway. Return to the station to cancel instead of abandoning civilians."); return true; }
                 // Do not silently discard a timed, unfinished field reading.
                 // The player must finish or explicitly cancel it first.
                 if (fieldSurveyRoom != 0)
