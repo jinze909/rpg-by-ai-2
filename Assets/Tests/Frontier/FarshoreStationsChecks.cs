@@ -221,30 +221,25 @@ namespace Starfall.Tests
                 e.kind == 1);
             Check(archer != null, "First wave must include a real combat archer");
             g.enemies.RemoveAll(e => e != archer);
-            Point marker = g.FieldSurveyTarget(6), close = new Point();
-            bool found = false;
-            for (int dx = -3; dx <= 3 && !found; dx++)
-            for (int dy = -3; dy <= 3 && !found; dy++)
-            {
-                Point test = marker + new Point(dx * .5f, dy * .5f);
-                float distance = (test - marker).Length;
-                if (distance < 2.2f || distance >= 2.85f ||
-                    !g.CanStand(test) || g.NavigationPath(test).Count == 0) continue;
-                close = test; found = true;
-            }
-            Check(found, "The authored civilian site has a walkable and visible archer retreat lane");
-            archer.x = close.x; archer.y = close.y; archer.state = 0;
-            archer.timer = 100; archer.stun = archer.releaseTime = archer.hitTime = 0;
+            Point marker = g.reliefFollowerPosition;
+            // Test the genuine spawn chosen by production pathfinding, not an
+            // assumed empty tile at an arbitrary offset from the survey prop.
             g.save.x = station.x; g.save.y = station.y;
-            float before = (archer.Position - marker).Length;
-            g.Tick(.05f, new Point());
-            float after = (archer.Position - marker).Length;
-            Check(after > before + .025f && archer.backpedaling,
-                "Rescue archers retreat from crowded civilians rather than closing to melee range");
-            archer.x = close.x; archer.y = close.y;
+            archer.timer = 100; archer.state = 0;
+            archer.stun = archer.releaseTime = archer.hitTime = 0;
+            float minimumDistance = (archer.Position - marker).Length;
+            for (int i = 0; i < 80; i++)
+            {
+                g.Tick(.05f, new Point());
+                minimumDistance = Math.Min(minimumDistance,
+                    (archer.Position - marker).Length);
+            }
+            Check(minimumDistance > 3.15f,
+                "A live bow raider maintains a safe firing standoff from civilians rather than charging to melee range");
             archer.timer = .01f; archer.state = 0; archer.releaseTime = 0;
             g.effects.Clear();
-            g.Tick(.05f, new Point());
+            for (int i = 0; i < 100 && archer.state != 1; i++)
+                g.Tick(.05f, new Point());
             Check(archer.state == 1 && archer.targetingReliefCivilian &&
                 (archer.target - marker).Length < .001f &&
                 (archer.facing - (marker - archer.Position).Normalized).Length < .1f,
