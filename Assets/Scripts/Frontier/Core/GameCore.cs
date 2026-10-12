@@ -465,8 +465,11 @@ namespace Starfall
                 // the hero. Their normal attacks still target the hero if in range.
                 bool wardAttacker = roadTrialRoom == save.room && IsRoadwardenTrialEnemy(e);
                 bool travelerAttacker = wayfarerEncounterRoom == save.room && IsWayfarerEnemy(e);
+                bool reliefAttacker = reliefMissionRoom == save.room &&
+                    (reliefMissionWave == 1 || reliefMissionWave == 2) && IsReliefMissionEnemy(e);
                 Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
-                    travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) : Position;
+                    travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
+                    reliefAttacker ? FieldSurveyTarget(reliefMissionRoom) : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
@@ -515,12 +518,13 @@ namespace Starfall
                 }
                 // Defense attackers cannot abandon the beacon after knockback
                 // or while navigating around a distant obstruction.
-                if (!wardAttacker && !travelerAttacker && distance > (e.boss ? 18 : 8)) continue;
+                if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
+                    distance > (e.boss ? 18 : 8)) continue;
                 e.timer -= dt;
-                float desired = wardAttacker || travelerAttacker ? 1.05f : e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
+                float desired = wardAttacker || travelerAttacker || reliefAttacker ? 1.05f : e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 Point before = e.Position;
-                if (visible && e.kind == 1 && !e.boss && !wardAttacker && !travelerAttacker && distance < 3 && !practicing) { Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f); e.backpedaling=(back-e.Position).Length>.001f;e.x = back.x; e.y = back.y; }
+                if (visible && e.kind == 1 && !e.boss && !wardAttacker && !travelerAttacker && !reliefAttacker && distance < 3 && !practicing) { Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f); e.backpedaling=(back-e.Position).Length>.001f;e.x = back.x; e.y = back.y; }
                 if (distance > desired || !visible)
                 {
                     Point p = e.Position + DirectionTo(e.Position, pursuit) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);

@@ -183,6 +183,7 @@ namespace Starfall
                 // wave cannot be cleared remotely from the station.
                 if ((Position - FieldSurveyTarget(region)).Length > 2.1f) return;
                 reliefMissionWave = 1;
+                reliefFollowerSafety = 100;
                 if (!SpawnReliefMissionWave())
                 {
                     ResetReliefMission(); revision++;
@@ -194,11 +195,38 @@ namespace Starfall
                     "Civilians located! First raider wave incoming. Defeat the ambush to reach them.");
                 return;
             }
+            if (reliefMissionWave == 1 || reliefMissionWave == 2)
+            {
+                Point civilians = FieldSurveyTarget(region);
+                float pressure = 0;
+                foreach (Enemy raider in enemies)
+                    if (IsReliefMissionEnemy(raider) && raider.hp > 0 &&
+                        raider.stun <= 0 && raider.hitTime <= 0 &&
+                        raider.state != 1 && raider.releaseTime <= 0 &&
+                        (raider.Position - civilians).Length < 1.75f &&
+                        ClearAttackPath(raider.Position, civilians))
+                        pressure += raider.kind == 2 ? 1.4f : 1f;
+                if (pressure > 0)
+                {
+                    float cover = (Position - civilians).Length < 2.2f ? .65f : 1f;
+                    reliefFollowerSafety = Math.Max(0,
+                        reliefFollowerSafety - dt * pressure * 3.5f * cover);
+                    if (reliefFollowerSafety <= 0)
+                    {
+                        ResetReliefMission(); revision++; sound = "deny";
+                        effects.Add(new Effect("danger", civilians, .6f) { radius = 1 });
+                        Notify("掠夺者冲散了被困居民！可以重新组织撤离，无需支付物资。",
+                            "Raiders scattered the civilians! Reorganize the evacuation for free.");
+                        return;
+                    }
+                }
+            }
             if (enemies.Exists(IsReliefMissionEnemy)) return;
             if (reliefMissionWave == 1)
             {
                 projectiles.RemoveAll(p => p.reliefMissionOwned);
                 reliefMissionWave = 2;
+                reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
                 if (!SpawnReliefMissionWave())
                 {
                     ResetReliefMission(); revision++;
@@ -216,7 +244,9 @@ namespace Starfall
                 // Authored markers are prop positions, not guaranteed actor feet
                 // on every tide phase. Spawn survivors on real walkable ground.
                 reliefFollowerPosition = SafeActorFoot(FieldSurveyTarget(region));
-                reliefFollowerSafety = 100;
+                // Carry battle losses forward; winning does not reset civilians
+                // to full protection for the dangerous walk home.
+                reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
                 Point marker = FieldSurveyTarget(region);
                 effects.Add(new Effect("discover", marker, .7f));
                 Notify("掠夺者已击退！带领幸存者在剩余时间内返回避难站。",
@@ -433,11 +463,11 @@ namespace Starfall
                     options.Add(C("查看远岸气象预报", "Read weather forecast", "fieldstation_forecast"));
                 options.Add(C("离开", "Leave", "close"));
                 Dialog("远岸避难行动", "Farshore Evacuation",
-                    "已有居民被困在巡测地点附近。前往标记处击退两波真实敌人，再把居民带回站台。若失败或中途离开，可免费重试。" +
+                    "被困居民在巡测标记附近。掠夺者接近就会损耗安全度，站在居民身边可减轻伤害；击退两波敌人，再护送返程。失败免费重试。" +
                     (reliefMissionRoom == currentRoom ? "\n\n" + (reliefMissionWave == 0 ? "正在寻找巡测点的居民" :
                         reliefMissionWave == 3 ? "正在护送幸存者返回站台" : "正在击退第" + reliefMissionWave + "/2波伏击") +
                         "，剩余 " + (int)Math.Ceiling(reliefMissionTime) + " 秒。" : ""),
-                    "Civilians are stranded near the surveyed landmark. Defeat two real enemy waves, then escort them back to this station. Retries are free." +
+                    "Raiders threaten stranded civilians near the marker. Stand close to protect them, defeat two waves, then escort them home. Retries are free." +
                     (reliefMissionRoom == currentRoom ? "\n\n" + (reliefMissionWave == 0 ? "Finding civilians at the field marker" :
                         reliefMissionWave == 3 ? "Escorting survivors back to this station" :
                             "Defeating ambush wave " + reliefMissionWave + "/2") +
