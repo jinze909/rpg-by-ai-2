@@ -81,11 +81,18 @@ namespace Starfall
                 q.room = reliefMissionRoom != 0 ? reliefMissionRoom : next == 0 ? 5 : next;
                 q.target = reliefMissionRoom != 0 && reliefMissionWave <= 2 ?
                     FieldSurveyTarget(reliefMissionRoom) :
+                    reliefMissionRoom != 0 && reliefMissionWave == 3 &&
+                        (reliefFollowerWaiting || ReliefEscortGap > 6.5f) ?
+                    reliefFollowerPosition :
                     ObjectPoint(q.room, "fieldstation" + q.room, new Point(12, 12));
                 q.next = q.complete ? L("三地居民已获救，救援可无奖励重演", "Three regions safe; replay with no rewards") :
                     reliefMissionRoom != 0 ? L(reliefMissionWave == 0 ? "先到巡测地标找到失联居民" :
+                            reliefMissionWave == 3 && reliefFollowerWaiting ? "回到居民身旁，按E继续护送" :
+                            reliefMissionWave == 3 && ReliefEscortGap > 6.5f ? "不要走得太远，等待幸存者赶上" :
                             reliefMissionWave == 3 ? "带领居民返回气象站" : "击退巡测地点的袭击者",
                         reliefMissionWave == 0 ? "Reach the survey marker to find civilians" :
+                            reliefMissionWave == 3 && reliefFollowerWaiting ? "Return to the civilian and press E to resume following" :
+                            reliefMissionWave == 3 && ReliefEscortGap > 6.5f ? "Wait for your survivor to catch up" :
                             reliefMissionWave == 3 ? "Return survivors to the weather station" : "Defeat raiders near the landmark") +
                         " · " + (int)Math.Ceiling(reliefMissionTime) + "s" :
                     next == 0 ? L("先建设一处远岸避难站", "Build a farshore civilian shelter") :

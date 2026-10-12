@@ -66,7 +66,12 @@ namespace Starfall.Tests
             g.save.x = civilian.x; g.save.y = civilian.y;
             ChooseRescueCivilianOption(g, "relief_wait");
             Check(g.reliefFollowerWaiting, "The rescued civilian accepts an actual wait command");
-            g.save.x = station.x; g.save.y = station.y;
+            Point waitingPoint = g.reliefFollowerPosition;
+            g.save.x = station.x;
+            Check((g.GetQuest("relief_rescue").target - waitingPoint).Length < .001f &&
+                g.GetQuest("relief_rescue").next.Contains("按E"),
+                "Quest guidance points back to the actual waiting civilian rather than the empty home station");
+             g.save.y = station.y;
             for (int i = 0; i < 5; i++) g.Tick(.05f, new Point());
             Check((civilian - g.reliefFollowerPosition).Length < .001f &&
                 !g.reliefFollowerMoving && g.ReliefEscortActive,
