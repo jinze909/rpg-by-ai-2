@@ -647,6 +647,63 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CivilianEscortHurryAddsRealSpeedAndCannotFarmReload(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive && g.ReliefEscortHurryAvailable,
+                "Completing two genuine enemy waves unlocks one optional hurry command");
+            Point start = g.reliefFollowerPosition;
+            g.save.x = start.x; g.save.y = start.y;
+            float energy = g.save.energy;
+            ChooseRescueCivilianOption(g, "relief_hurry");
+            Check(g.reliefHurryTime > 6.9f && !g.ReliefEscortHurryAvailable &&
+                Math.Abs(g.save.energy - (energy - 15)) < .001f,
+                "Hurry is a real 15-energy, seven-second one-use rescue command");
+            g.Interact();
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "relief_hurry"),
+                "The same escort cannot purchase a permanent speed boost repeatedly");
+            g.Close();
+            g.save.x = post.x; g.save.y = post.y;
+            g.Tick(.05f, new Point());
+            float hurried = (g.reliefFollowerPosition - start).Length;
+            Check(hurried > .17f, "Hurry visibly increases actual displacement through world collision");
+            // Compare the same actor, start coordinate, player position and
+            // map; only the temporary burst should change walking speed.
+            g.reliefFollowerPosition = start; g.reliefHurryTime = 0;
+            g.Tick(.05f, new Point());
+            float normal = (g.reliefFollowerPosition - start).Length;
+            Check(hurried > normal + .045f,
+                "The speed boost produces more real ground movement than ordinary following");
+            g.save.x = g.reliefFollowerPosition.x;
+            g.save.y = g.reliefFollowerPosition.y;
+            g.PrepareSave();
+            Check(g.save.rescueCheckpoint != null &&
+                g.save.rescueCheckpoint.hurryUsed,
+                "A checkpoint remembers the consumed command instead of resetting its charge");
+            var restored = new GameCore(data, g.save);
+            restored.Start();
+            Check(restored.ReliefEscortActive &&
+                !restored.ReliefEscortHurryAvailable &&
+                restored.reliefHurryTime == 0,
+                "Reloading cannot renew a spent speed charge or extend its seven-second duration");
+            restored.PrepareSave();
+            Check(restored.save.rescueCheckpoint != null &&
+                restored.save.rescueCheckpoint.hurryUsed,
+                "A second save preserves the original paid decision without refunding it");
+        }
+
         public static void CivilianEscortReloadContinuesRealReturn(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
