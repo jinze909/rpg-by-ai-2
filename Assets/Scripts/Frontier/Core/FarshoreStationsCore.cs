@@ -125,6 +125,13 @@ namespace Starfall
         public float reliefFollowerWalkDistance;
         public bool reliefFollowerMoving, reliefFollowerFacingLeft;
         public bool reliefFollowerWaiting, reliefMedicalUsed;
+        public float reliefHurryTime;
+        private bool reliefHurryUsed;
+        public bool ReliefEscortHurryAvailable
+        {
+            get { return ReliefEscortActive && !reliefHurryUsed &&
+                save.energy >= 15 && !Dying; }
+        }
         public bool ReliefEscortActive { get { return reliefMissionRoom != 0 && reliefMissionWave == 3; } }
         public bool ReliefEscortGuardAvailable
         {
@@ -174,6 +181,7 @@ namespace Starfall
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
+            reliefHurryTime = 0; reliefHurryUsed = false;
         }
         private void CaptureReliefCheckpoint()
         {
@@ -187,7 +195,7 @@ namespace Starfall
                 y = reliefFollowerPosition.y,
                 time = reliefMissionTime, safety = reliefFollowerSafety,
                 waiting = reliefFollowerWaiting, treated = reliefMedicalUsed,
-                escortGuardUsed = reliefWardUsed
+                escortGuardUsed = reliefWardUsed, hurryUsed = reliefHurryUsed
             };
         }
         private void RestoreReliefCheckpoint(RescueCheckpoint checkpoint)
@@ -209,6 +217,10 @@ namespace Starfall
             reliefFollowerWaiting = checkpoint.waiting;
             reliefMedicalUsed = checkpoint.treated;
             reliefWardUsed = checkpoint.escortGuardUsed;
+            reliefHurryUsed = checkpoint.hurryUsed;
+            // The one-time burst stays spent after reload, but cannot be
+            // extended by reloading at the end of its original duration.
+            reliefHurryTime = 0;
             // Never bring a short-term shield back at full duration by
             // repeatedly saving and reloading.
             reliefWardTime = 0;
@@ -411,6 +423,8 @@ namespace Starfall
             reliefMissionTime -= dt;
             if (reliefWardTime > 0)
                 reliefWardTime = Math.Max(0, reliefWardTime - dt);
+            if (reliefHurryTime > 0)
+                reliefHurryTime = Math.Max(0, reliefHurryTime - dt);
             if (reliefMissionTime <= 0)
             {
                 ResetReliefMission(); revision++;
@@ -522,6 +536,7 @@ namespace Starfall
                 reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
                 reliefFollowerFacingLeft = false;
                 reliefFollowerWaiting = reliefMedicalUsed = false;
+                reliefHurryTime = 0; reliefHurryUsed = false;
                 // Carry battle losses forward; winning does not reset civilians
                 // to full protection for the dangerous walk home.
                 reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
@@ -548,6 +563,7 @@ namespace Starfall
                 // the warning as though nothing dangerous were happening.
                 // Follow the route through real collision, never teleport.
                 float walk = follow.Length > 5.5f ? 3.5f : 2.6f;
+                if (reliefHurryTime > 0) walk += 1.7f;
                 Point advance = DirectionTo(reliefFollowerPosition, Position) *
                     Math.Min(dt * walk, follow.Length - 1.3f);
                 reliefFollowerPosition = SweepActor(reliefFollowerPosition, advance);
@@ -617,22 +633,26 @@ namespace Starfall
             if (ReliefEscortGuardAvailable)
                 options.Add(C("组织随行护卫 · 耐力20",
                     "Form escort guard · 20 energy", "relief_escort_guard"));
+            if (ReliefEscortHurryAvailable)
+                options.Add(C("紧急赶路 · 耐力15",
+                    "Hurry to shelter · 15 energy", "relief_hurry"));
             options.Add(C("继续前行", "Continue", "close"));
             Dialog("获救居民", "Rescued civilian",
                 (reliefFollowerWaiting ? "我会留在这里，等你清理道路。记得回来接我。" :
                     "我会跟上。请不要走太远，前面还有巡逻队和恶劣天气。") +
                 "\n\n居民安全度 " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
-                    (int)Math.Ceiling(reliefMissionTime) + " 秒剩余。按 E 可指挥停留、继续、敷药一次或组织一次随行护卫。",
+                    (int)Math.Ceiling(reliefMissionTime) + " 秒剩余。按 E 可让居民等待、继续、敷药、组织护卫或紧急赶路。",
                 (reliefFollowerWaiting ? "I will stay here until you clear the road. Come back for me." :
                     "I'll follow. Don't leave me behind among patrols and harsh weather.") +
                 "\n\nCivilian safety " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
-                    (int)Math.Ceiling(reliefMissionTime) + " seconds left. Interact to wait, follow, tend wounds once or rally one guard.",
+                    (int)Math.Ceiling(reliefMissionTime) + " seconds left. Interact to wait, follow, tend wounds, rally a guard or hurry home.",
                 options.ToArray());
         }
         private bool ChooseRescuedCivilian(string action)
         {
             if (action != "relief_wait" && action != "relief_follow" &&
-                action != "relief_treat" && action != "relief_escort_guard") return false;
+                action != "relief_treat" && action != "relief_escort_guard" &&
+                action != "relief_hurry") return false;
             if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f)
                 return true;
             if (action == "relief_wait")
@@ -644,6 +664,18 @@ namespace Starfall
             {
                 reliefFollowerWaiting = false;
                 Notify("居民重新跟随你。", "The civilian resumes following you.");
+            }
+            else if (action == "relief_hurry")
+            {
+                if (!ReliefEscortHurryAvailable) return true;
+                save.energy -= 15;
+                reliefHurryUsed = true; reliefHurryTime = 7f;
+                reliefFollowerWaiting = false;
+                effects.Add(new Effect("discover", reliefFollowerPosition, .55f) {
+                    reliefMissionOwned = true });
+                sound = "quest";
+                Notify("已组织紧急赶路！7秒内居民加快步伐；危险前摇期间仍会警戒停步。",
+                    "Hurry to shelter! Civilian travel speed boosted for 7 seconds; incoming attacks still halt movement.");
             }
             else if (action == "relief_escort_guard")
             {

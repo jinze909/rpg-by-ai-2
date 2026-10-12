@@ -116,6 +116,14 @@ namespace Starfall
                 Point escort = Game.reliefFollowerPosition;
                 // Sprite is depth-sorted with the world, not drawn over hero.
                 Ring(escort, .35f, mint, 16);
+                if (Game.reliefHurryTime > 0)
+                {
+                    Point pace = ScreenPoint(escort);
+                    Text(pace.x - 41, pace.y - 130, 82, 20,
+                        Game.L("急行 ", "HURRY ") +
+                            Game.reliefHurryTime.ToString("0.0") + "s",
+                        11, gold, TextAnchor.MiddleCenter);
+                }
                 if (Game.reliefWardTime > 0)
                 {
                     Ring(escort, .88f, mint, 24);
