@@ -857,7 +857,7 @@ namespace Starfall
             if (save.frontierEnding > 0)
             {
                 string[] farZh = { "", "与此同时，远岸的共同水渠把水送向曾经被遗漏的田地。", "远岸灯网开始由三方轮流值守，每次供能都有记录。", "远岸开放星路由三方共同治理，能源账目交由居民审阅。" };
-                string[] farEn = { "", "Meanwhile, shared farshore canals deliver water to formerly neglected fields.", "Farshore navigation lights now run on a recorded rotation shared by all three communities.", "The open starroads are governed jointly, with public energy accounts." };
+                string[] farEn = { "", "Meanwhile, shared farshore canals deliver water to formerly neglected fields.", "Farshore navigation lights now run on a recorded rotation shared by all three communities.", "The farshore's open starroads are governed jointly, with public energy accounts." };
                 zh[ending] += "\n\n" + farZh[save.frontierEnding];
                 en[ending] += "\n\n" + farEn[save.frontierEnding];
             }
