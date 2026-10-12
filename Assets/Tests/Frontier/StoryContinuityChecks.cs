@@ -136,6 +136,61 @@ namespace Starfall.Tests
                 "Old-schema saves preserve narrative access without duplicating rewards");
         }
 
+        public static void LivingWorldLedgerAndAtlasEchoShareOneStory(Campaign data)
+        {
+            var g = Fresh(data); g.save.level = 12;
+            Check(!g.WorldResponse().Contains("星核归宿") &&
+                !g.WorldResponse().Contains("远岸治理") &&
+                !g.WorldResponse().Contains("测绘师遗产"),
+                "The world-response panel must not spoil unresolved endings or quests");
+            int coins = g.save.coins, skill = g.save.skillPoints;
+            foreach (string flag in new[] { "scout_saved", "survey_complete",
+                "road_trial_complete", "wayfarer_complete", "archive_complete",
+                "archive_echo_complete", "fieldstation_complete",
+                "fieldstation_survey_complete" }) g.save.flags.Add(flag);
+            g.save.harborPledge = 3; g.save.desertChoice = 1;
+            g.save.mountainChoice = 2; g.save.ending = 2; g.save.frontierEnding = 3;
+            string zh = g.WorldResponse();
+            Check(zh.Contains("归乡网络") && zh.Contains("旅人获救") &&
+                zh.Contains("测绘师遗产") && zh.Contains("旧罗盘") &&
+                zh.Contains("远岸观测") && zh.Contains("星核归宿：保留屏障") &&
+                zh.Contains("远岸治理：开放星路"),
+                "The actual world-response UI reconciles completed quests and two independent endings");
+            g.save.english = true;
+            string en = g.WorldResponse();
+            Check(en.Contains("Homeward network") && en.Contains("travelers rescued") &&
+                en.Contains("compass restored") && en.Contains("Farshore weather") &&
+                en.Contains("Starcore outcome: shield retained") &&
+                en.Contains("Farshore governance: open starroads"),
+                "Every lived-world summary is available in English without changing state");
+            Check(g.save.coins == coins && g.save.skillPoints == skill,
+                "Reading the dynamic world-response panel never issues rewards");
+            g.Close(); g.save.stage = 3; g.Enter(3); g.enemies.Clear();
+            WorldObject compass = Object(g, "archiveecho");
+            // Both pre-fight and cleared versions must explain that this
+            // is an old machine protocol rather than the surveyor's ghost.
+            g.save.flags.Remove("archive_echo_complete");
+            g.Talk(compass);
+            Check(g.conversation.text.Contains("自动防御协议") &&
+                g.conversation.text.Contains("不是测绘师的幽灵") &&
+                g.conversation.textEn.Contains("defense protocol") &&
+                StoryChoicePresent(g, "archive_echo_start"),
+                "Before a fight, the real calibrator explains the guardian's historical origin");
+            g.Close();
+            g.save.flags.Add("archive_echo_complete");
+            g.Talk(compass);
+            Check(g.conversation.text.Contains("守卫协议") &&
+                g.conversation.textEn.Contains("defense protocol") &&
+                !StoryChoicePresent(g, "archive_echo_start"),
+                "After victory, the same calibrator stays retired with no repeatable first-clear fight");
+            g.Close(); g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            restored.save.english = false;
+            Check(restored.WorldResponse().Contains("星核归宿：保留屏障") &&
+                restored.WorldResponse().Contains("远岸治理：开放星路"),
+                "The living-world consequences remain readable from old-schema save flags");
+        }
+
         public static void IndependentEndingsAndCampaignLoreRemainConsistent(Campaign data)
         {
             Check(data.maps.Length >= 10 && data.bosses.Length >= 7 &&

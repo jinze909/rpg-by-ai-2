@@ -149,3 +149,6 @@
 
 ---
 English canonical summary: A star-root lattice once distributed water, heat and life through seven ancient anchors. The citadel shield draws too heavily on these anchors; seven days ago this stressed lattice fractured in the Starfall. An old allocation order already remained in place from nine years earlier. The traveler carries an unsent roadwarden letter, rescues stranded people, follows the source of the drain, and confronts Orrin's understandable but costly doctrine of safety through walls. Three campaign endings decide what happens to the cores. A parallel farshore council negotiates how communities govern repairs, water and routes. Optional beacons, lost atlas, rescued travelers, shelters and the Root Abyss are all fragments of this same practical question: who gets a safe road home, and who gets to decide?
+
+### 玩家可见的叙事结果（2026-10-12 第二阶段）
+「世界记得你的选择」面板是世界观的动态结果页：只显示玩家已完成的巡路星图、守路信标、旅人救援、测绘师记录、远岸避风站与调查，以及互相独立的星核去向和远岸治理协定。不得提前预示未发生的结局，避免使用无意义的大型状态 HUD。矿场回声明确属于古代校准台的自动重甲防御协议，不是测绘师死后被召唤的灵魂。以上动态面板和游戏内回声对白属于本次实际开发，其余未来动画演出仍是计划。

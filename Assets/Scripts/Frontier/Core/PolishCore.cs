@@ -58,12 +58,50 @@ namespace Starfall
         { save.moments.Add(new JournalMoment { zh = zh, en = en, day = Day }); while (save.moments.Count > 8) save.moments.RemoveAt(0); revision++; sound = "quest"; }
         public string WorldResponse()
         {
-            string s = L("选择留下的变化", "Changes you made") + "\n";
-            s += Has("scout_saved") ? L("侦察员在镇中等你，向他领取谢礼。", "The scout is home with a thank-you gift.") : L("侦察员仍被困在密林。", "The scout is still in Thornwood.");
-            s += "\n" + L("摆渡盟声望3后：炖汤15、木材8硬币。", "Ferry trust 3: stew costs 15; timber costs 8 coins.");
-            if (save.harborPledge > 0) s += "\n" + L("港口优先：", "Harbor priority: ") + L(new[] { "", "守灯", "救援", "协调" }[save.harborPledge], new[] { "", "lighthouse", "rescue", "coordination" }[save.harborPledge]);
-            if (save.desertChoice > 0) s += "\n" + L(save.desertChoice == 1 ? "沙海调度公开，山野议会支持增加。" : "沙海机器保留，守灯会支持增加。", save.desertChoice == 1 ? "Desert allocations published; Assembly trust grew." : "Desert machinery retained; Lamplighter trust grew.");
-            if (save.mountainChoice > 0) s += "\n" + L(save.mountainChoice == 1 ? "高原记录封存，守灯会支持增加。" : "高原名字公开，山野议会支持增加。", save.mountainChoice == 1 ? "Mountain records sealed; Lamplighter trust grew." : "Mountain names published; Assembly trust grew.");
+            // This is the player's lived world state, not a spoiler-filled
+            // setting encyclopedia. Keep it compact for the existing journal.
+            string s = L("选择留下的变化", "Changes you made");
+            s += "\n" + (Has("scout_saved") ?
+                L("密林侦察员已平安归来。", "The woodland scout came home safely.") :
+                L("密林侦察员仍在等待救援。", "The woodland scout still needs rescue."));
+            s += "\n" + L("摆渡盟声望3后：炖汤15、木材8硬币。",
+                "Ferry trust 3: stew 15 coins, timber 8 coins.");
+            if (save.harborPledge > 0)
+                s += "\n" + L("雾港优先：", "Mistport priority: ") +
+                    L(new[] { "", "守灯", "救援", "协调" }[save.harborPledge],
+                      new[] { "", "lights", "rescue", "coordination" }[save.harborPledge]);
+            if (save.desertChoice > 0)
+                s += "\n" + L(save.desertChoice == 1 ? "沙海供水优先绿洲。" :
+                    "沙海供能优先灯网.", save.desertChoice == 1 ?
+                    "Desert supply prioritizes oasis water." : "Desert supply prioritizes navigation lights.");
+            if (save.mountainChoice > 0)
+                s += "\n" + L(save.mountainChoice == 1 ? "高原证词由议会保存。" :
+                    "高原遇难者名字已经公开。", save.mountainChoice == 1 ?
+                    "Mountain evidence preserved for reform." : "The mountain names are public.");
+            if (Has("survey_complete") || Has("road_trial_complete") || Has("wayfarer_complete"))
+                s += "\n" + L("归乡网络：", "Homeward network: ") +
+                    L((Has("survey_complete") ? "星图 " : "") +
+                      (Has("road_trial_complete") ? "守路信标 " : "") +
+                      (Has("wayfarer_complete") ? "旅人获救" : ""),
+                      (Has("survey_complete") ? "chart " : "") +
+                      (Has("road_trial_complete") ? "beacons " : "") +
+                      (Has("wayfarer_complete") ? "travelers rescued" : ""));
+            if (Has("archive_complete") || Has("archive_echo_complete"))
+                s += "\n" + L("测绘师遗产：", "Surveyor legacy: ") +
+                    L(Has("archive_echo_complete") ? "旧罗盘已校准。" : "撤离星图已归档。",
+                      Has("archive_echo_complete") ? "compass restored." : "escape atlas archived.");
+            if (Has("fieldstation_complete") || Has("fieldstation_survey_complete"))
+                s += "\n" + L("远岸观测：", "Farshore weather: ") +
+                    L(Has("fieldstation_survey_complete") ? "三地巡测完成。" : "三地避风站连通。",
+                      Has("fieldstation_survey_complete") ? "three surveys filed." : "three shelters linked.");
+            if (save.ending > 0)
+                s += "\n" + L("星核归宿：", "Starcore outcome: ") +
+                    L(new[] { "", "还给土地", "保留屏障", "居民共管" }[save.ending],
+                      new[] { "", "returned to land", "shield retained", "shared by communities" }[save.ending]);
+            if (save.frontierEnding > 0)
+                s += "\n" + L("远岸治理：", "Farshore governance: ") +
+                    L(new[] { "", "共同水渠", "轮值灯网", "开放星路" }[save.frontierEnding],
+                      new[] { "", "shared canals", "rotating lightwatch", "open starroads" }[save.frontierEnding]);
             return s;
         }
         private void TickPolish(float dt)

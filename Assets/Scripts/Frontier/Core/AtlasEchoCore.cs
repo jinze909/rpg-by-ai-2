@@ -34,8 +34,8 @@ namespace Starfall
             if (Has("archive_echo_complete"))
             {
                 Dialog(o.name, o.en,
-                    "你平息了旧测绘仪的回声，四向刻度重新对齐。首胜奖励不会重复发放。",
-                    "You silenced the lost compass echo. Its bearings are aligned again; the first-clear reward cannot repeat.",
+                    "你停止了旧校准台错误运转的守卫协议。四向刻度重新对齐，测绘师留下的撤离路线可以重新交还旅人。首胜奖励不会重复发放。",
+                    "You retired the calibrator's obsolete defense protocol. Its bearings align again, restoring the surveyor's escape route to travelers. The first-clear reward cannot repeat.",
                     C("查看罗盘", "Inspect the compass", "close"));
                 return true;
             }
@@ -49,8 +49,8 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name, o.en,
-                "完整星图唤醒重甲回声守卫。它将在脚下旋转三方位打击，留出一个安全方向。观察预警、闪避落点，并从背后破甲。失败可重试。",
-                "The atlas awakens an armored echo. Three rotating impact bearings leave one safe direction. Read the tells, dodge, and flank its armor. Retries are free.",
+                "完整星图启动了旧校准台的自动防御协议：重甲回声守卫。它不是测绘师的幽灵，而是一套仍把旅人当成闯入者的方位机关。三道紫色落点会旋转，留出一个安全方向；观察预警闪避，再从背后破甲。失败可以重试。",
+                "The atlas activates the calibrator's old armored defense protocol, not a surveyor's ghost. It still treats travelers as intruders. Three violet impact bearings rotate around you, leaving one clear exit. Read the tells, dodge, and flank its armor. Retries are free.",
                 C("激活回声试炼", "Awaken the echo", "archive_echo_start"),
                 C("先准备", "Prepare first", "close"));
             return true;
