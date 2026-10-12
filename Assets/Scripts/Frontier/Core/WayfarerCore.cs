@@ -76,11 +76,11 @@ namespace Starfall
                 "Raiders scattered my medicines. Two Moonherbs can help the wounded, or you can fight the pursuers.",
                 "The flood carried away our ferry lamp. Two starcrystals can restore the crossing, or we must repel raiders.",
                 "The supply cart broke down. Two spare parts will repair it, or we can fight the ambushers." };
-            string[] supplyZh = { "", "交出两份药草", "交出两块星晶", "交出两份零件" };
-            string[] supplyEn = { "", "Give 2 Moonherbs", "Give 2 starcrystals", "Give 2 spare parts" };
+            string[] supplyZh = { "", "药草×2 · 当地声望+1", "星晶×2 · 当地声望+1", "零件×2 · 当地声望+1" };
+            string[] supplyEn = { "", "2 Moonherbs · trust +1", "2 starcrystals · trust +1", "2 spare parts · trust +1" };
             Dialog(o.name, o.en, zh[room], en[room],
                 C(supplyZh[room], supplyEn[room], "wayfarer_supply_" + room),
-                C("守护旅人并击退两名伏击者", "Protect traveler from two raiders", "wayfarer_defend_" + room),
+                C("守护旅人 · 武器熟练度+4", "Defend traveler · mastery +4", "wayfarer_defend_" + room),
                 C("稍后再说", "Prepare first", "close"));
             return true;
         }
@@ -237,6 +237,11 @@ namespace Starfall
             // Existing string flags persist the chosen rescue method without
             // changing the save schema or overwriting older completed saves.
             Flag((defended ? "wayfarer_defended_" : "wayfarer_supplied_") + room);
+            // Material generosity earns faction trust; fighting develops mastery.
+            if (defended)
+                save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 4);
+            else
+                Reputation(room == 1 ? 2 : room == 2 ? 1 : 0, 1);
             save.coins += 20; save.shards++; AddXp(25); revision++;
             RecordMoment("帮助第 " + room + " 位失联旅人：获得20硬币、1碎片、25经验。",
                 "Helped traveler " + room + ": 20 coins, 1 shard, 25 XP.");
@@ -248,8 +253,11 @@ namespace Starfall
                 Notify("三位旅人平安出发！额外技能点1、炖汤1。",
                     "All three travelers safe! Bonus: 1 talent point and 1 stew.");
             }
-            else Notify("旅人安全出发！20硬币、1碎片、25经验。",
-                "Traveler safe! +20 coins, 1 shard, 25 XP.");
+            else Notify(defended ?
+                    "守护成功！20硬币、1碎片、25经验；当前武器熟练度+4。" :
+                    "补给成功！20硬币、1碎片、25经验；当地阵营声望+1。",
+                defended ? "Defense complete! 20 coins, 1 shard, 25 XP; weapon mastery +4." :
+                    "Supplies delivered! 20 coins, 1 shard, 25 XP; local faction trust +1.");
             TrackQuest("wayfarers"); sound = "reward";
         }
     }

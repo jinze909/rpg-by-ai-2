@@ -81,6 +81,7 @@ namespace Starfall.Tests
                 g.save.x = npc.x; g.save.y = npc.y;
                 Check(g.CanStand(g.Position), "Roadside NPC is placed on valid ground");
                 int item = room == 1 ? 2 : room == 2 ? 1 : 4, coins = g.save.coins;
+                int faction = room == 1 ? 2 : room == 2 ? 1 : 0, trust = g.save.reputation[faction];
                 g.save.inventory[item] = 0;
                 Action(g, npc.kind, "wayfarer_supply_" + room);
                 Check(!g.Has("wayfarer_" + room) && g.save.coins == coins,
@@ -88,7 +89,9 @@ namespace Starfall.Tests
                 g.save.inventory[item] = 3;
                 Action(g, npc.kind, "wayfarer_supply_" + room);
                 Check(g.Has("wayfarer_" + room) && g.save.inventory[item] == 1 &&
-                    g.save.coins == coins + 20, "Each region needs two resources and pays once");
+                    g.save.coins == coins + 20 &&
+                    g.save.reputation[faction] == Math.Min(10, trust + 1),
+                    "Each donated supply route awards one relevant faction trust and pays once");
                 Action(g, npc.kind, "close");
                 Check(g.save.coins == coins + 20, "A completed traveler cannot pay again");
             }
@@ -114,6 +117,7 @@ namespace Starfall.Tests
                 !resumed.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
                 "Saving mid-ambush never persists temporary attackers");
             int beforeKills = fight.save.kills[1], beforeCoins = fight.save.coins;
+            int beforeMastery = fight.save.mastery[fight.save.weapon];
             foreach (Enemy foe in foes)
                 hit.Invoke(fight, new object[] { foe, 9999f, false, null, null });
             Check(fight.save.kills[1] == beforeKills && fight.save.coins == beforeCoins,
@@ -123,6 +127,7 @@ namespace Starfall.Tests
             for (int frame = 0; frame < 8 && fight.WayfarerEncounterRoom != 0; frame++)
                 fight.Tick(.05f, new Point());
             Check(fight.WayfarerEncounterRoom == 0 && fight.Has("wayfarer_1") &&
+                fight.save.mastery[fight.save.weapon] == Math.Min(100, beforeMastery + 4) &&
                 fight.save.coins == beforeCoins + 20,
                 "Defeating both foes pays the same one-time rescue reward");
 
