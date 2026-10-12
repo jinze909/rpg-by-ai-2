@@ -118,7 +118,10 @@ namespace Starfall.Tests
                 hit.Invoke(fight, new object[] { foe, 9999f, false, null, null });
             Check(fight.save.kills[1] == beforeKills && fight.save.coins == beforeCoins,
                 "Ambush enemies never farm ordinary drops, bounty kills or story gates");
-            fight.Tick(.05f, new Point());
+            // Actual hits induce a brief hit-stop, so the encounter resolves
+            // after combat resumes rather than inside the frozen damage frame.
+            for (int frame = 0; frame < 8 && fight.WayfarerEncounterRoom != 0; frame++)
+                fight.Tick(.05f, new Point());
             Check(fight.WayfarerEncounterRoom == 0 && fight.Has("wayfarer_1") &&
                 fight.save.coins == beforeCoins + 20,
                 "Defeating both foes pays the same one-time rescue reward");
