@@ -36,6 +36,52 @@ namespace Starfall.Tests
             game.Tick(.05f, new Point());
         }
 
+        public static void EvacueesUseRealClimateSheltersAndShade(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "mountain_report", "fieldstation_5", "fieldstation_6",
+                "fieldstation_7", "fieldstation_complete", "fieldstation_survey_6",
+                "fieldstation_survey_7", "fieldstation_survey_5", "farshore_relief_5",
+                "farshore_relief_6", "farshore_relief_7" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 1;
+            for (int region = 6; region <= 7; region++)
+            {
+                g.Enter(region); g.enemies.Clear();
+                WorldObject post = Object(g, "fieldstation" + region);
+                g.save.x = post.x; g.save.y = post.y;
+                StartCivilianRescueViaRealDialogue(g, post);
+                ReachCivilianRescueMarker(g, region);
+                g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+                g.Tick(.05f, new Point());
+                g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+                g.Tick(.05f, new Point());
+                Check(g.ReliefEscortActive, "A real mission reaches the environmental escort phase");
+                Point exposed = region == 6 ? new Point(5, 14) : new Point(30, 14);
+                Check(g.CanStand(exposed), "The authored map offers valid exposed civilian travel ground");
+                g.reliefFollowerPosition = exposed; g.reliefFollowerSafety = 80;
+                g.save.x = post.x; g.save.y = post.y;
+                g.Tick(.05f, new Point());
+                Check(g.reliefFollowerSafety < 80 && g.ReliefEscortActive,
+                    "Real weather reduces a civilian's protection while outside restored refuges");
+                g.reliefFollowerPosition = new Point(post.x, post.y);
+                g.save.x = exposed.x; g.save.y = exposed.y;
+                g.reliefFollowerSafety = 80;
+                g.Tick(.05f, new Point());
+                Check(g.reliefFollowerSafety > 80 && g.ReliefEscortActive,
+                    "Returning a survivor to a rebuilt field station actively heals civilian safety");
+                if (region == 6)
+                {
+                    WorldObject shade = Object(g, "shade");
+                    g.reliefFollowerPosition = new Point(shade.x, shade.y);
+                    g.reliefFollowerSafety = 80;
+                    g.Tick(.05f, new Point());
+                    Check(g.reliefFollowerSafety > 80,
+                        "Original desert shade remains meaningful to the rescue, not just the hero");
+                }
+            }
+        }
+
         public static void RescueRaiderAIActuallyProtectsCivilians(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

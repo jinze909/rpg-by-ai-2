@@ -163,6 +163,28 @@ namespace Starfall
             Notify("已接取撤离：先抵达巡测标记，找到居民后拦截伏击者；120秒内完成往返。",
                 "Rescue underway: first reach the survey marker and locate civilians. Return within 120 seconds.");
         }
+        // Environmental protection follows the survivor's real feet, never
+        // the hero's coordinates. Repaired field shelters and the original
+        // oasis shade / lit highland braziers are meaningful rescue landmarks.
+        private bool ReliefSurvivorSheltered(int region)
+        {
+            if (region == 5)
+                return LowTide ||
+                    (reliefFollowerPosition -
+                        ObjectPoint(5, "fieldstation5", new Point(-100, -100))).Length < 4.2f;
+            foreach (WorldObject o in Map.objects)
+            {
+                Point p = new Point(o.x, o.y);
+                float distance = (p - reliefFollowerPosition).Length;
+                if (o.kind == "fieldstation" + region &&
+                    Has("farshore_relief_" + region) &&
+                    distance < FieldStationRefugeRadius(region)) return true;
+                if (region == 6 && o.kind == "shade" && distance < 3) return true;
+                if (region == 7 && o.kind == "brazier" &&
+                    Has("warm_" + o.id) && distance < 3.5f) return true;
+            }
+            return false;
+        }
         private void TickReliefMission(float dt)
         {
             if (reliefMissionRoom == 0) return;
@@ -285,6 +307,21 @@ namespace Starfall
                 Point advance = DirectionTo(reliefFollowerPosition, Position) *
                     Math.Min(dt * walk, follow.Length - 1.3f);
                 reliefFollowerPosition = SweepActor(reliefFollowerPosition, advance);
+            }
+            // The same weather that challenges the hero now affects escorted
+            // travelers: shelter and shade restore safety; exposed heat, cold
+            // and unsafe tides erode it gradually. This is separate from
+            // direct raider pressure and cannot exceed the original 100 max.
+            if (ReliefSurvivorSheltered(region))
+                reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + dt * 1.4f);
+            else reliefFollowerSafety = Math.Max(0, reliefFollowerSafety -
+                dt * (region == 5 ? 1f : 1.5f));
+            if (reliefFollowerSafety <= 0)
+            {
+                ResetReliefMission(); revision++; sound = "deny";
+                Notify("恶劣环境让居民无法继续前进！请利用安全站、树荫与火盆再试一次。",
+                    "The weather overwhelmed the evacuees! Use shelters, shade and braziers on the next attempt.");
+                return;
             }
             Point station = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
             if ((Position - station).Length >= 1.6f ||
@@ -463,11 +500,11 @@ namespace Starfall
                     options.Add(C("查看远岸气象预报", "Read weather forecast", "fieldstation_forecast"));
                 options.Add(C("离开", "Leave", "close"));
                 Dialog("远岸避难行动", "Farshore Evacuation",
-                    "被困居民在巡测标记附近。掠夺者接近就会损耗安全度，站在居民身边可减轻伤害；击退两波敌人，再护送返程。失败免费重试。" +
+                    "被困居民在巡测标记附近。掠夺者会威胁居民，贴近守护可减轻伤害。击退两波敌人后，高潮、沙海酷热与高原严寒也会影响安全度，安全站、树荫和火盆能帮助恢复。失败可免费重试。" +
                     (reliefMissionRoom == currentRoom ? "\n\n" + (reliefMissionWave == 0 ? "正在寻找巡测点的居民" :
                         reliefMissionWave == 3 ? "正在护送幸存者返回站台" : "正在击退第" + reliefMissionWave + "/2波伏击") +
                         "，剩余 " + (int)Math.Ceiling(reliefMissionTime) + " 秒。" : ""),
-                    "Raiders threaten stranded civilians near the marker. Stand close to protect them, defeat two waves, then escort them home. Retries are free." +
+                    "Raiders threaten stranded civilians near the marker. Stand close to protect them, defeat two waves, then escort them home. Exposed tides, desert heat and frost also drain safety; shelters restore it. Retries are free." +
                     (reliefMissionRoom == currentRoom ? "\n\n" + (reliefMissionWave == 0 ? "Finding civilians at the field marker" :
                         reliefMissionWave == 3 ? "Escorting survivors back to this station" :
                             "Defeating ambush wave " + reliefMissionWave + "/2") +
