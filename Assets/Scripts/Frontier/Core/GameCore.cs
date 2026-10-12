@@ -634,6 +634,12 @@ namespace Starfall
             if (mode == "fish") { FishHit(); return; }
             if (mode != "world" || Dying) return;
             WorldObject o = Nearest();
+            if (ReliefEscortActive &&
+                (Position - reliefFollowerPosition).Length < 1.7f &&
+                (o == null ||
+                 (Position - reliefFollowerPosition).Length <
+                    (Position - new Point(o.x, o.y)).Length))
+            { TalkRescuedCivilian(); return; }
             if (o == null) { Notify("靠近居民、路牌或发光物，再按 E。", "Approach a resident, sign or glowing object, then press E."); return; }
             TutorialAction(1); Talk(o);
         }

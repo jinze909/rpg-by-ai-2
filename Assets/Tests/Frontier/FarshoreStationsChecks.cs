@@ -36,6 +36,65 @@ namespace Starfall.Tests
             game.Tick(.05f, new Point());
         }
 
+        private static void ChooseRescueCivilianOption(GameCore g, string action)
+        {
+            g.Interact();
+            Check(g.conversation != null, "E opens the actual nearby survivor conversation");
+            int choice = -1;
+            for (int i = 0; i < g.conversation.choices.Length; i++)
+                if (g.conversation.choices[i].action == action) { choice = i; break; }
+            Check(choice >= 0, "The survivor offers the requested player command: " + action);
+            g.Choose(choice);
+        }
+        public static void RescueCivilianWaitFollowAndOneUseAidArePlayable(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive, "Two real waves lead to the interactive survivor escort");
+            Point civilian = g.reliefFollowerPosition;
+            g.save.x = civilian.x; g.save.y = civilian.y;
+            ChooseRescueCivilianOption(g, "relief_wait");
+            Check(g.reliefFollowerWaiting, "The rescued civilian accepts an actual wait command");
+            g.save.x = station.x; g.save.y = station.y;
+            for (int i = 0; i < 5; i++) g.Tick(.05f, new Point());
+            Check((civilian - g.reliefFollowerPosition).Length < .001f &&
+                !g.reliefFollowerMoving && g.ReliefEscortActive,
+                "Waiting stops physical movement without aborting the rescue");
+            g.save.x = civilian.x; g.save.y = civilian.y;
+            g.reliefFollowerSafety = 50;
+            int herbs = g.save.inventory[2];
+            Check(herbs >= 1, "The test profile starts with at least one real herb");
+            ChooseRescueCivilianOption(g, "relief_treat");
+            Check(g.reliefMedicalUsed && g.save.inventory[2] == herbs - 1 &&
+                g.reliefFollowerSafety == 75,
+                "One genuine herb treats civilian safety by 25 and records a per-sortie use");
+            g.Interact();
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "relief_treat"),
+                "A civilian cannot be healed repeatedly to farm safety in one rescue");
+            g.Close();
+            ChooseRescueCivilianOption(g, "relief_follow");
+            Check(!g.reliefFollowerWaiting, "Player can resume a paused escort using the same E interaction");
+            g.save.x = station.x; g.save.y = station.y;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerMoving && g.reliefFollowerWalkDistance > 0,
+                "Resuming follow restores real distance-driven movement");
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 && !g.reliefFollowerWaiting && !g.reliefMedicalUsed,
+                "Failed rescues remove temporary wait and medical status, preserving old save schema");
+        }
+
         public static void RescuedSurvivorsUseActualDistanceDrivenMovement(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

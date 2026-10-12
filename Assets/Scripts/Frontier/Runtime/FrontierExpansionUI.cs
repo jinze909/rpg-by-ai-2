@@ -99,7 +99,12 @@ namespace Starfall
                 Point escortScreen = ScreenPoint(escort);
                 if (Game.ReliefEscortGap > 1.3f)
                     Text(escortScreen.x - 50, escortScreen.y - 84, 100, 22,
-                        Game.L("获救居民", "SURVIVORS"), 11, mint, TextAnchor.MiddleCenter);
+                        Game.L(Game.reliefFollowerWaiting ? "等待接应" : "获救居民",
+                            Game.reliefFollowerWaiting ? "WAITING" : "SURVIVORS"),
+                        11, mint, TextAnchor.MiddleCenter);
+                if (Game.reliefFollowerWaiting)
+                    Text(escortScreen.x - 22, escortScreen.y - 99, 44, 20,
+                        "II", 15, gold, TextAnchor.MiddleCenter);
                 Color safetyColor = Game.reliefFollowerSafety < 30 ? PixelArt.C("#f27d7d") : mint;
                 Bar(escortScreen.x - 30, escortScreen.y + 10, 60,
                     Game.reliefFollowerSafety / 100f, safetyColor, 6);

@@ -435,7 +435,9 @@ namespace Starfall
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
                 return L("救援 ", "RESCUE ") + (int)Math.Ceiling(reliefMissionTime) + "s · " +
                     (reliefMissionWave == 3 ?
-                        L("护送 ", "ESCORT ") + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
+                        L(reliefFollowerWaiting ? "等候 " : "护送 ",
+                            reliefFollowerWaiting ? "WAITING " : "ESCORT ") +
+                        (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
                         L("相距 ", "GAP ") + ReliefEscortGap.ToString("0.0") :
                         L(reliefMissionWave == 0 ? "寻找居民" : "击退伏击",
                             reliefMissionWave == 0 ? "FIND CIVILIANS" : "DEFEAT RAIDERS") +
@@ -653,6 +655,7 @@ namespace Starfall
         }
         private bool ChooseExpansion(string action)
         {
+            if (ChooseRescuedCivilian(action)) return true;
             if (ChooseFieldStation(action)) return true;
             if (action == "exp_begin") { if (save.stage >= 1) { Flag("exp_intro"); TrackQuest("shore"); Enter(5); } return true; }
             if (action == "camp" || action == "companions") { mode = action; return true; }

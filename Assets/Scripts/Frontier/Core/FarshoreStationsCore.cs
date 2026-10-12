@@ -106,6 +106,7 @@ namespace Starfall
         // authored appearance and never borrows the playable hero sprite.
         public float reliefFollowerWalkDistance;
         public bool reliefFollowerMoving, reliefFollowerFacingLeft;
+        public bool reliefFollowerWaiting, reliefMedicalUsed;
         public bool ReliefEscortActive { get { return reliefMissionRoom != 0 && reliefMissionWave == 3; } }
         public float ReliefEscortGap { get { return ReliefEscortActive ?
             (Position - reliefFollowerPosition).Length : 0; } }
@@ -119,6 +120,7 @@ namespace Starfall
             reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
+            reliefFollowerWaiting = reliefMedicalUsed = false;
         }
         private bool SpawnReliefMissionWave()
         {
@@ -274,6 +276,7 @@ namespace Starfall
                 reliefFollowerPosition = SafeActorFoot(FieldSurveyTarget(region));
                 reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
                 reliefFollowerFacingLeft = false;
+                reliefFollowerWaiting = reliefMedicalUsed = false;
                 // Carry battle losses forward; winning does not reset civilians
                 // to full protection for the dangerous walk home.
                 reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
@@ -308,7 +311,7 @@ namespace Starfall
             Point follow = Position - reliefFollowerPosition;
             Point beforeWalk = reliefFollowerPosition;
             reliefFollowerMoving = false;
-            if (follow.Length > 1.3f)
+            if (!reliefFollowerWaiting && follow.Length > 1.3f)
             {
                 // Follow the route through real collision, never teleport.
                 float walk = follow.Length > 5.5f ? 3.5f : 2.6f;
@@ -365,6 +368,57 @@ namespace Starfall
             else Notify("居民平安抵达！45硬币、3碎片、50经验。",
                 "Civilians safe! +45 coins, +3 shards and +50 XP.");
             TrackQuest("relief_rescue"); sound = "reward";
+        }
+        // The rescued civilian is a moving actor, not an authored Map object.
+        // The existing E/gamepad interaction must reach it through its actual
+        // world-space position, without creating a fake persistent WorldObject.
+        private void TalkRescuedCivilian()
+        {
+            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f) return;
+            var options = new List<Choice>();
+            options.Add(C(reliefFollowerWaiting ? "跟上我" : "在这里等候",
+                reliefFollowerWaiting ? "Follow me" : "Wait here",
+                reliefFollowerWaiting ? "relief_follow" : "relief_wait"));
+            if (!reliefMedicalUsed && save.inventory[2] > 0 && reliefFollowerSafety < 95)
+                options.Add(C("为伤者敷药 · 药草1", "Treat wounds · 1 herb", "relief_treat"));
+            options.Add(C("继续前行", "Continue", "close"));
+            Dialog("获救居民", "Rescued civilian",
+                (reliefFollowerWaiting ? "我会留在这里，等你清理道路。记得回来接我。" :
+                    "我会跟上。请不要走太远，前面还有巡逻队和恶劣天气。") +
+                "\n\n居民安全度 " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
+                    (int)Math.Ceiling(reliefMissionTime) + " 秒剩余。按 E 可指挥停留、继续或提供一次伤药。",
+                (reliefFollowerWaiting ? "I will stay here until you clear the road. Come back for me." :
+                    "I'll follow. Don't leave me behind among patrols and harsh weather.") +
+                "\n\nCivilian safety " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
+                    (int)Math.Ceiling(reliefMissionTime) + " seconds left. Interact to wait, follow or tend wounds once.",
+                options.ToArray());
+        }
+        private bool ChooseRescuedCivilian(string action)
+        {
+            if (action != "relief_wait" && action != "relief_follow" && action != "relief_treat") return false;
+            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f)
+                return true;
+            if (action == "relief_wait")
+            {
+                reliefFollowerWaiting = true; reliefFollowerMoving = false;
+                Notify("居民会在此等候。清理道路后回来接应。", "Civilian waiting here. Return after clearing the route.");
+            }
+            else if (action == "relief_follow")
+            {
+                reliefFollowerWaiting = false;
+                Notify("居民重新跟随你。", "The civilian resumes following you.");
+            }
+            else
+            {
+                if (reliefMedicalUsed || save.inventory[2] < 1 || reliefFollowerSafety >= 95) return true;
+                save.inventory[2]--; reliefMedicalUsed = true;
+                reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 25);
+                effects.Add(new Effect("discover", reliefFollowerPosition, .5f));
+                Notify("为获救居民敷药：安全度 +25。本次撤离只能使用一次。", "Tended civilian wounds: +25 safety. Once per sortie.");
+                sound = "reward";
+            }
+            revision++;
+            return true;
         }
         private bool TalkFieldStation(WorldObject o)
         {
