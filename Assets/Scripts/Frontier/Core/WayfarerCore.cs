@@ -41,8 +41,8 @@ namespace Starfall
                 if (wayfarerIntegrity < 100 && !wayfarerAidUsed)
                     options.Add(C("紧急援助：1份物资恢复35安全度", "Field aid: 1 supply restores 35 safety", "wayfarer_aid"));
                 options.Add(C("撤离战斗", "Withdraw", "wayfarer_abandon"));
-                Dialog(o.name, o.en, "伏击者正试图袭击旅人！旅人安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。拦截敌人；安全度归零会导致救援失败。受伤后可使用一次紧急援助。",
-                    "Raiders are attacking the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Intercept them; reaching zero fails the rescue. One emergency field aid is available after injury.",
+                Dialog(o.name, o.en, "伏击者正试图袭击旅人！旅人安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。即使敌人已蓄力，也可站到敌人与旅人之间挡下攻击。安全度归零即失败；受伤后可紧急援助一次。",
+                    "Raiders are attacking the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Stand between a raider and me to intercept even a committed strike. Reaching zero fails the rescue; one field aid is available after injury.",
                     options.ToArray());
                 return true;
             }
@@ -152,6 +152,29 @@ namespace Starfall
                 "Protect the traveler! Raiders will rush them; intercept and defeat both.");
             return true;
         }
+        // The player can physically bodyguard a committed traveler strike.
+        // Interception only succeeds inside the actual enemy contact area:
+        // it never makes the traveler invulnerable from behind a wall or at range.
+        private bool InterceptWayfarerStrike(Enemy attacker, Point traveler)
+        {
+            Point lane = traveler - attacker.Position;
+            Point blocker = Position - attacker.Position;
+            float length = lane.Length;
+            float radius = attacker.kind == 2 ? EnemyAreaRadius(attacker) : EnemyMeleeRadius;
+            if (length < .7f || blocker.Length >= radius) return false;
+            float forward = (blocker.x * lane.x + blocker.y * lane.y) / length;
+            float lateral = Math.Abs(blocker.x * lane.y - blocker.y * lane.x) / length;
+            if (forward < .3f || forward > length + .05f || lateral > .75f ||
+                !ClearAttackPath(attacker.Position, Position)) return false;
+            // The original release has already resolved the hero's real hit.
+            // Heavy sweeps require the hero to be inside the warned area too.
+            if (attacker.kind == 2
+                ? (Position - attacker.target).Length >= radius
+                : !InEnemyMeleeArc(attacker, Position)) return false;
+            effects.Add(new Effect("number", Position, .7f, L("护卫拦截", "INTERCEPT")));
+            effects.Add(new Effect("discover", traveler, .35f));
+            return true;
+        }
         // A traveler is a real defendable objective, not a passive kill counter.
         // Raider strikes require both proximity and an unobstructed attack path.
         private void DamageWayfarer(Enemy attacker)
@@ -160,6 +183,7 @@ namespace Starfall
                 !IsWayfarerEnemy(attacker)) return;
             Point npc = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
             if ((attacker.Position - npc).Length > 2.2f || !ClearAttackPath(attacker.Position, npc)) return;
+            if (InterceptWayfarerStrike(attacker, npc)) return;
             wayfarerIntegrity = Math.Max(0, wayfarerIntegrity - (attacker.kind == 2 ? 24 : 18));
             effects.Add(new Effect("danger", npc, .35f) { radius = .55f });
             if (wayfarerIntegrity <= 0)
