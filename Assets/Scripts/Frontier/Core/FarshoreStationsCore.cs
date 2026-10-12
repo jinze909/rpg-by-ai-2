@@ -103,7 +103,11 @@ namespace Starfall
         public Point reliefFollowerPosition;
         public float reliefFollowerSafety;
         public float reliefWardTime;
-        private bool reliefWardUsed;
+        private bool reliefWardUsed, reliefTimeWarning, reliefSafetyWarning;
+        public float ReliefCombatThreatScale
+        {
+            get { return save.difficulty == 0 ? .7f : save.difficulty == 2 ? 1.3f : 1f; }
+        }
         public bool ReliefFieldGuardAvailable
         {
             get { return reliefMissionRoom == save.room && (reliefMissionWave == 1 ||
@@ -127,6 +131,7 @@ namespace Starfall
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
             reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
             reliefWardTime = 0; reliefWardUsed = false;
+            reliefTimeWarning = reliefSafetyWarning = false;
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
@@ -264,7 +269,8 @@ namespace Starfall
                 (reliefMissionWave != 1 && reliefMissionWave != 2) ||
                 save.room != reliefMissionRoom) return;
             Point civilians = FieldSurveyTarget(reliefMissionRoom);
-            float loss = reliefWardTime > 0 ? 4.95f : 9f;
+            float loss = 9f * ReliefCombatThreatScale *
+                (reliefWardTime > 0 ? .55f : 1f);
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
             effects.Add(new Effect("projectileImpact", civilians, .28f) {
                 direction = shot.velocity.Normalized, variant = 1, height = shot.height });
@@ -288,7 +294,7 @@ namespace Starfall
             if ((attacker.Position - civilians).Length >= radius ||
                 !ClearAttackPath(attacker.Position, civilians) ||
                 InterceptReliefCivilianStrike(attacker, civilians)) return;
-            float loss = attacker.kind == 2 ? 22 : 14;
+            float loss = (attacker.kind == 2 ? 22f : 14f) * ReliefCombatThreatScale;
             if (reliefWardTime > 0) loss *= .55f;
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
             effects.Add(new Effect("danger", civilians, .45f) { radius = .7f });
@@ -320,6 +326,24 @@ namespace Starfall
                 Notify("救援时间已过。未消耗物资，可再次行动。",
                     "Rescue timed out. No supplies lost; retry freely.");
                 return;
+            }
+            if (reliefMissionTime <= 30 && !reliefTimeWarning)
+            {
+                reliefTimeWarning = true;
+                sound = "quest";
+                Notify("撤离倒计时不足30秒！立即完成目标并返回站台。",
+                    "Less than 30 seconds remain! Finish the rescue and return now.");
+            }
+            if (reliefFollowerSafety > 0 && reliefFollowerSafety <= 30 &&
+                !reliefSafetyWarning && reliefMissionWave >= 1)
+            {
+                reliefSafetyWarning = true;
+                sound = "deny";
+                Point endangered = reliefMissionWave == 3 ? reliefFollowerPosition :
+                    FieldSurveyTarget(region);
+                effects.Add(new Effect("danger", endangered, .65f) { radius = .8f });
+                Notify("居民安全度危险！拦截攻击、利用护卫或寻找避难处。",
+                    "Civilian safety critical! Intercept attacks, rally guards or find shelter.");
             }
             if (reliefMissionWave == 0)
             {
@@ -355,7 +379,7 @@ namespace Starfall
                     float cover = (Position - civilians).Length < 2.2f ? .65f : 1f;
                     reliefFollowerSafety = Math.Max(0,
                         reliefFollowerSafety - dt * pressure * 1.2f * cover *
-                            (reliefWardTime > 0 ? .55f : 1f));
+                            ReliefCombatThreatScale * (reliefWardTime > 0 ? .55f : 1f));
                     if (reliefFollowerSafety <= 0)
                     {
                         ResetReliefMission(); revision++; sound = "deny";
@@ -413,7 +437,7 @@ namespace Starfall
             if (threat > 0)
             {
                 float cover = (Position - reliefFollowerPosition).Length < 1.8f ? .55f : 1;
-                reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - dt * threat * 8f * cover);
+                reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - dt * threat * 8f * cover * ReliefCombatThreatScale);
                 if (reliefFollowerSafety <= 0)
                 {
                     ResetReliefMission(); revision++; sound = "deny";
