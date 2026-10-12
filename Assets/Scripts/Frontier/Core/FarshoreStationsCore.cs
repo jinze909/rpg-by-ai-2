@@ -100,6 +100,8 @@ namespace Starfall
         // The route and enemies are live combat; replay gives no further rewards.
         public int reliefMissionRoom, reliefMissionWave;
         public float reliefMissionTime;
+        public Point reliefFollowerPosition;
+        public bool ReliefEscortActive { get { return reliefMissionRoom != 0 && reliefMissionWave == 3; } }
         private static bool IsReliefMissionEnemy(Enemy e)
         { return e != null && e.id >= 85000 && e.id < 85100; }
         private void ResetReliefMission()
@@ -107,6 +109,7 @@ namespace Starfall
             enemies.RemoveAll(IsReliefMissionEnemy);
             projectiles.RemoveAll(p => p.reliefMissionOwned);
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
+            reliefFollowerPosition = new Point();
         }
         private bool SpawnReliefMissionWave()
         {
@@ -194,14 +197,24 @@ namespace Starfall
             if (reliefMissionWave == 2)
             {
                 reliefMissionWave = 3; revision++; sound = "quest";
+                reliefFollowerPosition = FieldSurveyTarget(region);
                 Point marker = FieldSurveyTarget(region);
                 effects.Add(new Effect("discover", marker, .7f));
                 Notify("掠夺者已击退！带领幸存者在剩余时间内返回避难站。",
                     "Raiders defeated! Guide the survivors back to the shelter before time expires.");
             }
             if (reliefMissionWave != 3) return;
+            // Real evacuees follow at human pace, constrained by actual
+            // collision rather than teleporting to the hero or the station.
+            Point follow = Position - reliefFollowerPosition;
+            if (follow.Length > 1.3f)
+            {
+                Point advance = follow.Normalized * Math.Min(dt * 2.6f, follow.Length - 1.3f);
+                reliefFollowerPosition = SweepActor(reliefFollowerPosition, advance);
+            }
             Point station = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
-            if ((Position - station).Length >= 1.6f) return;
+            if ((Position - station).Length >= 1.6f ||
+                (reliefFollowerPosition - station).Length >= 2f) return;
             ResetReliefMission(); revision++;
             if (Has("relief_rescue_" + region))
             {

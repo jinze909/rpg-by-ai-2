@@ -51,7 +51,13 @@ namespace Starfall.Tests
                 g.Tick(.05f, new Point());
                 Check(g.reliefMissionWave == 3 && !g.Has("relief_rescue_" + region),
                     "Killing all raiders still requires actually returning survivors to the shelter");
+                Point savedSurvivor = g.reliefFollowerPosition;
                 g.save.x = station.x; g.save.y = station.y;
+                g.Tick(.05f, new Point());
+                Check(g.reliefMissionWave == 3 && g.reliefMissionRoom == region &&
+                    (g.reliefFollowerPosition - savedSurvivor).Length > 0,
+                    "The rescued civilian physically follows the hero and cannot teleport to the station");
+                g.reliefFollowerPosition = new Point(station.x, station.y);
                 g.Tick(.05f, new Point());
                 Check(g.reliefMissionRoom == 0 && g.Has("relief_rescue_" + region) &&
                     g.save.coins == coins + (region - 4) * 45,
@@ -70,7 +76,8 @@ namespace Starfall.Tests
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
             g.Tick(.05f, new Point());
             g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
-            g.Tick(.05f, new Point()); g.Tick(.05f, new Point());
+            g.Tick(.05f, new Point()); g.reliefFollowerPosition = new Point(finalStation.x, finalStation.y);
+            g.Tick(.05f, new Point());
             Check(g.save.coins == rewarded && g.save.shards == rewardedShards &&
                 g.save.skillPoints == rewardedPoints,
                 "Replaying civilian rescue yields no coins, shards or repeat talent");

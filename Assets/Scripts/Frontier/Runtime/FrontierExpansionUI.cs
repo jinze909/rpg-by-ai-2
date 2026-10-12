@@ -63,6 +63,15 @@ namespace Starfall
                     Game.reliefMissionWave == 3 ? Game.L("护送返程", "ESCORT HOME") :
                         Game.L("营救居民", "RESCUE CIVILIANS"), 12, gold, TextAnchor.MiddleCenter);
             }
+            if (Game.ReliefEscortActive)
+            {
+                Point escort = Game.reliefFollowerPosition;
+                DrawNpc("innGuest", escort, 14);
+                Ring(escort, .35f, mint, 16);
+                Point escortScreen = ScreenPoint(escort);
+                Text(escortScreen.x - 50, escortScreen.y - 84, 100, 22,
+                    Game.L("获救居民", "SURVIVORS"), 11, mint, TextAnchor.MiddleCenter);
+            }
             if (Game.save.room == 7 && !Game.save.reducedMotion && Game.save.effectsQuality > 0)
                 for (int i = 0; i < 28; i++) { float x = (i * 91 + clock * 19) % Width, y = (i * 67 + clock * 32) % Height; Box(x, y, 3, 3, new Color(.9f, .96f, 1, .58f)); }
         }
