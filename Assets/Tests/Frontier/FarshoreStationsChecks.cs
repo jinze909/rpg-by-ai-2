@@ -697,7 +697,7 @@ namespace Starfall.Tests
             invalid.save.x = g.Map.spawnX; invalid.save.y = g.Map.spawnY;
             invalid.save.totalTime = 30;
             invalid.save.rescueCheckpoint = new RescueCheckpoint {
-                room = 5, x = 2.5f, y = 2.5f, time = 50, safety = 90
+                room = 5, x = 2.1f, y = 2.1f, time = 50, safety = 90
             };
             var rejected = new GameCore(data, invalid.save); rejected.Start();
             Check(!rejected.ReliefEscortActive && rejected.save.rescueCheckpoint == null,
