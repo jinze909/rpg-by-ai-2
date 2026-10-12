@@ -108,6 +108,11 @@ namespace Starfall
         {
             Point p = ScreenPoint(e.Position); float size = e.boss ? BossCanvasSize(Game.save.room) : e.kind == 2 ? 106 : 96;
             if(!drawingOutline)Box(p.x - size * .22f, p.y - 3, size * .44f, 7, new Color(.025f, .04f, .07f, .35f));
+            // The two-wave roadwarden attackers are real combat enemies, but
+            // their warm foot ring distinguishes them from roaming patrols.
+            // A fixed ring is legible even with reduced-motion effects.
+            if (!drawingOutline && e.id >= 81000 && e.id < 81100)
+                Ring(e.Position, .52f, PixelArt.C("#e6a06c"), 16);
             if (Game.practicing)
             {
                 // The safe training rig still demonstrates a bodily wind-up and
