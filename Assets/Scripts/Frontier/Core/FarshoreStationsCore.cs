@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Starfall
 {
@@ -22,19 +23,31 @@ namespace Starfall
                 region < 5 || region > 7 || save.room != region) return true;
             if (Has("fieldstation_" + region))
             {
+                string textZh = region == 5 ?
+                    "潮汐观测站重新运作。这里能稳定低潮45秒，让被水淹没的浅滩重新成为道路。" :
+                    region == 6 ? "蓄光管开始运转。站在附近，沙海的热度会迅速消退。" :
+                    "火盆热流已经送到小站。靠近站台，寒意会迅速消散。";
+                string textEn = region == 5 ?
+                    "Tidewatch is online. Hold low tide for 45 seconds to reopen flooded shoals." :
+                    region == 6 ? "The restored sun channel cools the surrounding desert." :
+                    "The repaired frost shelter now warms nearby travelers.";
+                var stationChoices = new List<Choice>();
                 if (region == 5)
-                    Dialog(o.name, o.en, "潮汐观测站重新运作。值守者可以在这里稳定低潮45秒，让被水淹没的浅滩重新成为道路。",
-                        "Tidewatch is online. Hold low tide for 45 seconds to reopen flooded shoals.",
-                        C("固定低潮45秒", "Hold low tide for 45 seconds", "fieldstation_tide"),
-                        C("离开", "Leave", "close"));
-                else
-                    Dialog(o.name, o.en, region == 6 ?
-                        "蓄光管开始运转。站在附近，沙海的热度会迅速消退。这里成了新的安全歇脚处。" :
-                        "火盆热流已经送到小站。靠近站台，寒意会迅速消散。",
-                        region == 6 ?
-                        "The sun channel now cools nearby travelers. Heat drops inside the station's refuge." :
-                        "The brazier feeds this shelter. Nearby travelers warm up as the cold fades.",
-                        C("检查运行情况", "Inspect the shelter", "close"));
+                    stationChoices.Add(C("固定低潮45秒", "Hold low tide for 45 seconds", "fieldstation_tide"));
+                if (Has("fieldstation_complete"))
+                {
+                    textZh += "\n\n三座观测站已联通。在周围安全时，可以直接前往其他两座站点。";
+                    textEn += "\n\nThe three stations are linked. Travel directly to either other post when the coast is clear.";
+                    string[] locationsZh = { "雾港潮汐站", "沙海降温站", "高原保暖站" };
+                    string[] locationsEn = { "Mistport tidewatch", "Glass Desert cooler", "Frostchime shelter" };
+                    for (int destination = 5; destination <= 7; destination++)
+                        if (destination != region)
+                            stationChoices.Add(C("传送至" + locationsZh[destination - 5],
+                                "Travel to " + locationsEn[destination - 5],
+                                "fieldstation_to_" + destination));
+                }
+                stationChoices.Add(C("离开观测站", "Leave the station", "close"));
+                Dialog(o.name, o.en, textZh, textEn, stationChoices.ToArray());
                 return true;
             }
             string[] zh = { "潮水正在冲毁通往北岸的标记。维修需要木材1与零件1，必须在低潮时工作；修好后可以随时稳定低潮45秒。",
@@ -52,6 +65,59 @@ namespace Starfall
         }
         private bool ChooseFieldStation(string action)
         {
+            if (action.StartsWith("fieldstation_to_"))
+            {
+                int destination;
+                if (!int.TryParse(action.Substring("fieldstation_to_".Length), out destination) ||
+                    destination < 5 || destination > 7 || destination == save.room ||
+                    save.room < 5 || save.room > 7 || !Has("fieldstation_complete") ||
+                    !Has("fieldstation_" + save.room) || !Has("fieldstation_" + destination) ||
+                    !CanEnter(destination) || Dying || practicing || roadTrialRoom != 0 ||
+                    wayfarerEncounterRoom != 0 || racing) return true;
+                WorldObject origin = null;
+                foreach (WorldObject o in Map.objects)
+                    if (o.kind == "fieldstation" + save.room) { origin = o; break; }
+                if (origin == null || (Position - new Point(origin.x, origin.y)).Length > 2.2f)
+                    return true;
+                if (!SafeTravel)
+                {
+                    Notify("敌人还在附近，观测网无法稳定传送。", "Nearby enemies disrupt station travel.");
+                    return true;
+                }
+                Enter(destination);
+                if (save.room != destination) return true;
+                foreach (WorldObject o in Map.objects)
+                {
+                    if (o.kind != "fieldstation" + destination) continue;
+                    Point anchor = new Point(o.x, o.y);
+                    Point[] approaches = { new Point(0, 1), new Point(0, -1),
+                        new Point(1, 0), new Point(-1, 0), new Point(1, 1),
+                        new Point(-1, 1), new Point(1, -1), new Point(-1, -1) };
+                    Point chosen = Position;
+                    float safety = -1; bool found = false;
+                    foreach (Point offset in approaches)
+                    {
+                        Point candidate = anchor + offset;
+                        // This checks destination collision and reachability from
+                        // the normal map entrance; it cannot place the hero inside
+                        // a locked gate or disconnected walkable island.
+                        if (!CanStand(candidate) || NavigationPath(candidate).Count == 0)
+                            continue;
+                        float clearance = 9999;
+                        foreach (Enemy enemy in enemies)
+                            if (enemy.hp > 0)
+                                clearance = Math.Min(clearance, (enemy.Position - candidate).Length);
+                        if (found && clearance <= safety) continue;
+                        chosen = candidate; safety = clearance; found = true;
+                    }
+                    if (found) { save.x = chosen.x; save.y = chosen.y; }
+                    break; // Safe map spawn stays the fallback.
+                }
+                revision++; sound = "travel";
+                Notify("观测网已连接。你抵达另一座远岸安全站。",
+                    "Stormwatch linked! Arrived at another farshore shelter.");
+                return true;
+            }
             if (action == "fieldstation_tide")
             {
                 if (save.room != 5 || !Has("fieldstation_5") || Dying || practicing) return true;

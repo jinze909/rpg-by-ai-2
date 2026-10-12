@@ -80,7 +80,7 @@ namespace Starfall
                 q.room = next == 0 ? 5 : next;
                 q.target = ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
                 q.next = q.locked ? L("推进主线，开启远岸雾港", "Advance the story and unlock Mistport") :
-                    q.complete ? L("三座观测站现已提供当地环境保护", "All three stations now protect nearby travelers") :
+                    q.complete ? L("三地避险站已连通，可在站点之间快速旅行", "All three refuges linked for direct station-to-station travel") :
                     !CanEnter(q.room) ? L("先完成上一地区的调查报告", "Complete the previous regional report") :
                     q.room == 5 ? L("在低潮时维修，之后可随时固定45秒低潮", "Repair at low tide; then hold it for 45 seconds") :
                     q.room == 6 ? L("先接通三面镜子的光路，再维修降温站", "Connect the mirror light channel before repairing") :

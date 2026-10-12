@@ -4,6 +4,56 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void FarshoreStationNetworkProvidesSafeUnlockAwareTravel(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3;
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_5", "fieldstation_6", "fieldstation_7" })
+                g.save.flags.Add(flag);
+            g.Enter(5); g.enemies.Clear();
+            WorldObject harbor = Object(g, "fieldstation5");
+            g.save.x = harbor.x; g.save.y = harbor.y;
+            g.Talk(harbor);
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "fieldstation_to_6"),
+                "Travel options remain locked until the entire station network is restored");
+            g.Close();
+            g.save.flags.Add("fieldstation_complete");
+            g.Talk(harbor);
+            Check(Array.Exists(g.conversation.choices, c => c.action == "fieldstation_to_6") &&
+                Array.Exists(g.conversation.choices, c => c.action == "fieldstation_to_7"),
+                "Completed harbor station advertises both regional connections");
+            g.Close();
+            g.enemies.Add(new Enemy(450, 0, g.save.x + .8f, g.save.y, 70));
+            Action(g, harbor.kind, "fieldstation_to_6");
+            Check(g.save.room == 5, "Nearby hostiles disable cross-region station travel");
+            g.enemies.Clear();
+            Action(g, harbor.kind, "fieldstation_to_6");
+            Check(g.save.room == 6 && g.CanStand(g.Position) &&
+                (g.Position - new Point(Object(g, "fieldstation6").x,
+                    Object(g, "fieldstation6").y)).Length <= 1.5f,
+                "Harbor link reaches a walkable landing beside the actual desert shelter");
+            foreach (Enemy enemy in g.enemies)
+                Check((enemy.Position - g.Position).Length >= 2.0f,
+                    "No active patrol may occupy the destination landing");
+
+            var cooler = Object(g, "fieldstation6");
+            g.save.x = cooler.x; g.save.y = cooler.y; g.enemies.Clear();
+            Action(g, cooler.kind, "fieldstation_to_7");
+            var heater = Object(g, "fieldstation7");
+            Check(g.save.room == 7 && g.CanStand(g.Position) &&
+                (g.Position - new Point(heater.x, heater.y)).Length <= 1.5f,
+                "Desert network reaches a safe Frostchime station arrival");
+
+            g.save.x = heater.x; g.save.y = heater.y; g.enemies.Clear();
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            restored.enemies.Clear();
+            Action(restored, "fieldstation7", "fieldstation_to_5");
+            Check(restored.save.room == 5 && restored.Has("fieldstation_complete") &&
+                restored.CanStand(restored.Position),
+                "Network travel persists after old-schema save/load without duplicate rewards");
+        }
+
         public static void FarshoreWeatherStationsChangeActualClimateAndTide(Campaign data)
         {
             var g = Fresh(data); g.save.level = 10;
