@@ -268,7 +268,7 @@ namespace Starfall.Tests
             Enemy raider = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 && e.kind == 0);
             Check(raider != null, "A real raider is present to pressure the rescue across difficulties");
             g.enemies.RemoveAll(e => e != raider);
-            Point marker = g.FieldSurveyTarget(6);
+            Point marker = g.reliefFollowerPosition;
             raider.x = marker.x; raider.y = marker.y;
             raider.timer = 100; raider.state = 0;
             g.save.x = post.x; g.save.y = post.y;
@@ -323,7 +323,7 @@ namespace Starfall.Tests
             StartCivilianRescueViaRealDialogue(g, post);
             ReachCivilianRescueMarker(g, 6);
             Check(g.reliefMissionWave == 1, "The rescue archer is tested in a live regional ambush");
-            Point marker = g.FieldSurveyTarget(6);
+            Point marker = g.reliefFollowerPosition;
             Enemy archer = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 && e.kind == 1);
             Check(archer != null, "Wave one includes a real bow raider");
             g.enemies.RemoveAll(e => e != archer);
@@ -385,7 +385,7 @@ namespace Starfall.Tests
             Check(g.reliefMissionWave == 1 && g.reliefWardTime <= 0,
                 "After real field discovery the first combat wave has no free protective buff");
             float originalEnergy = g.save.energy;
-            Point marker = g.FieldSurveyTarget(6);
+            Point marker = g.reliefFollowerPosition;
             g.save.x = marker.x; g.save.y = marker.y;
             g.Interact();
             Check(g.conversation != null &&
@@ -450,7 +450,7 @@ namespace Starfall.Tests
             Enemy attacker = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 && e.kind == 0);
             Check(attacker != null, "A real melee raider can attack the civilian");
             g.enemies.RemoveAll(e => e != attacker);
-            Point civilian = g.FieldSurveyTarget(6);
+            Point civilian = g.reliefFollowerPosition;
             Point origin = new Point(civilian.x - 1.3f, civilian.y);
             Point guard = new Point(civilian.x - .6f, civilian.y);
             Check(g.CanStand(origin) && g.CanStand(guard),
