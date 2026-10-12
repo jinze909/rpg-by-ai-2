@@ -469,7 +469,7 @@ namespace Starfall
                     (reliefMissionWave == 1 || reliefMissionWave == 2) && IsReliefMissionEnemy(e);
                 Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
-                    reliefAttacker ? FieldSurveyTarget(reliefMissionRoom) : Position;
+                    reliefAttacker ? reliefFollowerPosition : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
@@ -642,7 +642,7 @@ namespace Starfall
                     { Hurt(p.damage, p.source ?? "shot", p.velocity.Normalized); dead = true; }
                     else if (p.reliefMissionOwned && reliefMissionRoom == save.room &&
                         (reliefMissionWave == 1 || reliefMissionWave == 2) &&
-                        (p.position - FieldSurveyTarget(reliefMissionRoom)).Length < .45f)
+                        (p.position - reliefFollowerPosition).Length < .45f)
                     {
                         // A genuine hostile arrow, after sweeping through any
                         // walls or an intervening hero, reaches the civilians.

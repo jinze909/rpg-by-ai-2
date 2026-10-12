@@ -74,7 +74,8 @@ namespace Starfall
             }
             if (Game.reliefMissionRoom == Game.save.room)
             {
-                Point rescue = Game.FieldSurveyTarget(Game.save.room);
+                Point rescue = Game.reliefMissionWave == 0 ?
+                    Game.FieldSurveyTarget(Game.save.room) : Game.reliefFollowerPosition;
                 if (Game.reliefMissionWave == 3)
                     foreach (WorldObject o in Game.Map.objects)
                         if (o.kind == "fieldstation" + Game.save.room)

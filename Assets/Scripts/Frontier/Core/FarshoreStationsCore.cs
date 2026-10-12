@@ -221,7 +221,7 @@ namespace Starfall
         {
             if (reliefMissionRoom != save.room ||
                 (reliefMissionWave != 1 && reliefMissionWave != 2) ||
-                (Position - FieldSurveyTarget(reliefMissionRoom)).Length > 1.7f) return;
+                (Position - reliefFollowerPosition).Length > 1.7f) return;
             var options = new List<Choice>();
             if (ReliefFieldGuardAvailable)
                 options.Add(C("组织紧急护卫 · 耐力20", "Rally defenders · 20 energy",
@@ -238,10 +238,10 @@ namespace Starfall
         {
             if (action != "relief_field_guard") return false;
             if (!ReliefFieldGuardAvailable ||
-                (Position - FieldSurveyTarget(reliefMissionRoom)).Length > 1.7f)
+                (Position - reliefFollowerPosition).Length > 1.7f)
                 return true;
             save.energy -= 20; reliefWardTime = 8f; reliefWardUsed = true;
-            effects.Add(new Effect("discover", FieldSurveyTarget(reliefMissionRoom), .7f));
+            effects.Add(new Effect("discover", reliefFollowerPosition, .7f));
             sound = "guard"; revision++;
             Notify("临时护卫队就位！8秒内减轻居民安全度损失。",
                 "Field guard rallied! Civilian safety damage is reduced for 8 seconds.");
@@ -275,7 +275,7 @@ namespace Starfall
             if (!shot.reliefMissionOwned || reliefMissionRoom == 0 ||
                 (reliefMissionWave != 1 && reliefMissionWave != 2) ||
                 save.room != reliefMissionRoom) return;
-            Point civilians = FieldSurveyTarget(reliefMissionRoom);
+            Point civilians = reliefFollowerPosition;
             float loss = 9f * ReliefCombatThreatScale *
                 (reliefWardTime > 0 ? .55f : 1f);
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
@@ -297,7 +297,7 @@ namespace Starfall
             if (reliefMissionRoom == 0 || reliefMissionWave < 1 ||
                 reliefMissionWave > 2 || save.room != reliefMissionRoom ||
                 !IsReliefMissionEnemy(attacker)) return;
-            Point civilians = FieldSurveyTarget(reliefMissionRoom);
+            Point civilians = reliefFollowerPosition;
             float radius = attacker.kind == 2 ? EnemyAreaRadius(attacker) : 2.1f;
             if ((attacker.Position - civilians).Length >= radius ||
                 !ClearAttackPath(attacker.Position, civilians) ||
@@ -349,8 +349,7 @@ namespace Starfall
             {
                 reliefSafetyWarning = true;
                 sound = "deny";
-                Point endangered = reliefMissionWave == 3 ? reliefFollowerPosition :
-                    FieldSurveyTarget(region);
+                Point endangered = reliefFollowerPosition;
                 effects.Add(new Effect("danger", endangered, .65f) { radius = .8f });
                 Notify("居民安全度危险！拦截攻击、利用护卫或寻找避难处。",
                     "Civilian safety critical! Intercept attacks, rally guards or find shelter.");
@@ -379,7 +378,7 @@ namespace Starfall
             }
             if (reliefMissionWave == 1 || reliefMissionWave == 2)
             {
-                Point civilians = FieldSurveyTarget(region);
+                Point civilians = reliefFollowerPosition;
                 float pressure = 0;
                 foreach (Enemy raider in enemies)
                     if (IsReliefMissionEnemy(raider) && raider.hp > 0 &&
@@ -427,7 +426,9 @@ namespace Starfall
                 reliefMissionWave = 3; revision++; sound = "quest";
                 // Authored markers are prop positions, not guaranteed actor feet
                 // on every tide phase. Spawn survivors on real walkable ground.
-                reliefFollowerPosition = SafeActorFoot(FieldSurveyTarget(region));
+                // Keep the same visible civilian through the battle and
+                // return journey. Recheck footing against any tide change.
+                reliefFollowerPosition = SafeActorFoot(reliefFollowerPosition);
                 reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
                 reliefFollowerFacingLeft = false;
                 reliefFollowerWaiting = reliefMedicalUsed = false;
