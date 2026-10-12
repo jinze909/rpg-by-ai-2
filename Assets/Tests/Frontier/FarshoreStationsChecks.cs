@@ -72,6 +72,18 @@ namespace Starfall.Tests
             }
             Check(g.Has("fieldstation_survey_complete") && g.GetQuest("station_patrol").complete &&
                 g.save.tea == tea + 2, "All three readings grant exactly one network-wide tea bonus");
+            // Completing the full circuit unlocks an actual forecast, not just flavor text.
+            g.Enter(5); g.enemies.Clear();
+            WorldObject weatherPost = Object(g, "fieldstation5");
+            g.save.x = weatherPost.x; g.save.y = weatherPost.y;
+            g.save.totalTime = 27; // high tide; next natural ebb in 9 seconds
+            Action(g, weatherPost.kind, "fieldstation_forecast");
+            Check(g.mode == "dialog" && g.conversation != null &&
+                g.conversation.textEn.Contains("9s") &&
+                g.conversation.textEn.Contains("1.3/s") &&
+                g.conversation.textEn.Contains("4.2-tile"),
+                "All three field reports unlock a real tide and climate forecast at any restored station");
+            g.Close();
             g.PrepareSave();
             var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
             Check(restored.GetQuest("station_patrol").complete && restored.fieldSurveyRoom == 0 &&

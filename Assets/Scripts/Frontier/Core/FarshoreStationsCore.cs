@@ -136,6 +136,8 @@ namespace Starfall
                     }
                 }
                 else { textZh += "\n\n本站巡测报告已归档。"; textEn += "\n\nThis station's field survey is archived."; }
+                if (Has("fieldstation_survey_complete"))
+                    stationChoices.Add(C("查看远岸气象预报", "View farshore weather forecast", "fieldstation_forecast"));
                 stationChoices.Add(C("离开观测站", "Leave the station", "close"));
                 Dialog(o.name, o.en, textZh, textEn, stationChoices.ToArray());
                 return true;
@@ -155,6 +157,37 @@ namespace Starfall
         }
         private bool ChooseFieldStation(string action)
         {
+            if (action == "fieldstation_forecast")
+            {
+                int currentRegion = save.room;
+                if (currentRegion < 5 || currentRegion > 7 || !Has("fieldstation_survey_complete") ||
+                    !Has("fieldstation_" + currentRegion) || Dying || practicing) return true;
+                WorldObject forecastPost = null;
+                foreach (WorldObject o in Map.objects)
+                    if (o.kind == "fieldstation" + currentRegion) { forecastPost = o; break; }
+                if (forecastPost == null ||
+                    (Position - new Point(forecastPost.x, forecastPost.y)).Length > 2.2f) return true;
+                float phase = save.totalTime % 36;
+                int toEbb = (int)Math.Ceiling(phase < 22 ? 0 : 36 - phase);
+                int toFlood = (int)Math.Ceiling(phase < 22 ? 22 - phase : 0);
+                int held = (int)Math.Ceiling(Math.Max(0, save.tideHeldUntil - save.totalTime));
+                string tideZh = phase < 22 ? "自然低潮，约" + toFlood + "秒后涨潮" :
+                    "自然高潮，约" + toEbb + "秒后退潮";
+                string tideEn = phase < 22 ? "natural low tide, rising in about " + toFlood + "s" :
+                    "natural high tide, ebb in about " + toEbb + "s";
+                if (held > 0)
+                {
+                    tideZh += "；潮闸仍固定低潮约" + held + "秒";
+                    tideEn += "; sluice holds low tide for another " + held + "s";
+                }
+                Dialog("远岸风暴观测网", "Farshore Stormwatch",
+                    "巡测数据已同步。\n\n雾港：" + tideZh +
+                    "。\n沙海：无遮阴时热度每秒约增加1.3，达到85后会持续受伤；降温站附近4.2格内可消暑。\n高原：无火盆时寒意每秒约增加1.1，达到90后会持续受伤；保暖站附近4.2格内可驱寒。\n\n可以利用观测网传送到安全的站点，但敌人靠近时不能启动。",
+                    "Field readings synchronized.\n\nMistport: " + tideEn +
+                    ".\nGlass Desert: exposed heat rises about 1.3/s; 85+ causes repeated harm. The cooler protects a 4.2-tile radius.\nFrostchime: exposed cold rises about 1.1/s; 90+ causes repeated harm. The shelter warms a 4.2-tile radius.\n\nStation travel requires a clear area with no nearby hostiles.",
+                    C("收起预报", "Close forecast", "close"));
+                return true;
+            }
             if (action == "fieldstation_survey_cancel")
             {
                 if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
