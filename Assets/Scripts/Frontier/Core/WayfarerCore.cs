@@ -68,8 +68,8 @@ namespace Starfall
             {
                 if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
                     wayfarerAidUsed || wayfarerIntegrity >= 100 || Dying || practicing) return true;
-                Point npc = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
-                if ((Position - npc).Length > 2.1f) return true;
+                Point aidTarget = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
+                if ((Position - aidTarget).Length > 2.1f) return true;
                 int item = WayfarerItem(wayfarerEncounterRoom);
                 if (save.inventory[item] < 1)
                 {
@@ -78,8 +78,8 @@ namespace Starfall
                 save.inventory[item]--;
                 wayfarerIntegrity = Math.Min(100, wayfarerIntegrity + 35);
                 wayfarerAidUsed = true; sound = "reward"; revision++;
-                effects.Add(new Effect("discover", npc, .5f));
-                Notify("紧急援助成功！旅人恢复35点安全度（每次伏击限一次）。",
+                effects.Add(new Effect("discover", aidTarget, .5f));
+                Notify("紧急援助成功！旅人最多恢复35点安全度（每次伏击限一次）。",
                     "Field aid applied! Restored up to 35 safety (once per ambush).");
                 return true;
             }
