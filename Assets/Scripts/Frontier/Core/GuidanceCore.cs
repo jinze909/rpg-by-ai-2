@@ -65,8 +65,8 @@ namespace Starfall
                 q.title = L("失联旅人的归途", "The Missing Travelers");
                 q.category = L("旅途支线", "ROADSIDE STORY");
                 q.locked = !Has("scout_saved");
-                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份材料，或在伏击战中保护旅人安全度并击退两名掠夺者。",
-                    "Three travelers need help in Thornwood, the Ruins and the Mine. Donate two supplies, or protect their safety meter while defeating two raiders.");
+                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份材料，或保护旅人安全度并击退两名掠夺者。受伤后可花一份材料紧急援助一次。",
+                    "Three travelers need help in Thornwood, the Ruins and the Mine. Donate two supplies, or protect their safety meter while defeating two raiders. Spend one supply for a single emergency aid after injury.");
                 int next = 0;
                 for (int region = 1; region <= 3; region++)
                 {

@@ -9,11 +9,12 @@ namespace Starfall
         private int wayfarerEncounterRoom;
         private float wayfarerIntegrity;
         private bool wayfarerWarned;
+        private bool wayfarerAidUsed;
         public int WayfarerEncounterRoom { get { return wayfarerEncounterRoom; } }
         public float WayfarerIntegrity { get { return wayfarerIntegrity; } }
         private static bool IsWayfarerEnemy(Enemy e) { return e != null && e.id >= 82000 && e.id < 82100; }
         private void ResetWayfarerEncounter()
-        { wayfarerEncounterRoom = 0; wayfarerIntegrity = 0; wayfarerWarned = false; }
+        { wayfarerEncounterRoom = 0; wayfarerIntegrity = 0; wayfarerWarned = wayfarerAidUsed = false; }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
         private bool TalkWayfarer(WorldObject o)
         {
@@ -36,10 +37,13 @@ namespace Starfall
             }
             if (wayfarerEncounterRoom == room)
             {
-                Dialog(o.name, o.en, "伏击者正试图袭击旅人！旅人安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。拦截并击退敌人；安全度归零会导致救援失败。",
-                    "Raiders are attacking the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Intercept and defeat them; if safety reaches zero, the rescue fails.",
-                    C("继续守护", "Keep defending", "close"),
-                    C("撤离战斗", "Withdraw", "wayfarer_abandon"));
+                var options = new List<Choice> { C("继续守护", "Keep defending", "close") };
+                if (wayfarerIntegrity < 100 && !wayfarerAidUsed)
+                    options.Add(C("紧急援助：1份物资恢复35安全度", "Field aid: 1 supply restores 35 safety", "wayfarer_aid"));
+                options.Add(C("撤离战斗", "Withdraw", "wayfarer_abandon"));
+                Dialog(o.name, o.en, "伏击者正试图袭击旅人！旅人安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。拦截敌人；安全度归零会导致救援失败。受伤后可使用一次紧急援助。",
+                    "Raiders are attacking the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Intercept them; reaching zero fails the rescue. One emergency field aid is available after injury.",
+                    options.ToArray());
                 return true;
             }
             string[] zh = { "",
@@ -60,6 +64,25 @@ namespace Starfall
         }
         private bool ChooseWayfarer(string action)
         {
+            if (action == "wayfarer_aid")
+            {
+                if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
+                    wayfarerAidUsed || wayfarerIntegrity >= 100 || Dying || practicing) return true;
+                Point npc = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
+                if ((Position - npc).Length > 2.1f) return true;
+                int item = WayfarerItem(wayfarerEncounterRoom);
+                if (save.inventory[item] < 1)
+                {
+                    Notify("缺少紧急援助所需的物资。", "No supplies left for field aid."); return true;
+                }
+                save.inventory[item]--;
+                wayfarerIntegrity = Math.Min(100, wayfarerIntegrity + 35);
+                wayfarerAidUsed = true; sound = "reward"; revision++;
+                effects.Add(new Effect("discover", npc, .5f));
+                Notify("紧急援助成功！旅人恢复35点安全度（每次伏击限一次）。",
+                    "Field aid applied! Restored up to 35 safety (once per ambush).");
+                return true;
+            }
             if (action == "wayfarer_abandon")
             {
                 if (wayfarerEncounterRoom != 0)
@@ -115,7 +138,7 @@ namespace Starfall
             }
             wayfarerEncounterRoom = room;
             wayfarerIntegrity = 100;
-            wayfarerWarned = false;
+            wayfarerWarned = wayfarerAidUsed = false;
             for (int slot = 0; slot < 2; slot++)
             {
                 var e = new Enemy(82000 + room * 10 + slot, slot == 0 ? 0 : 2,

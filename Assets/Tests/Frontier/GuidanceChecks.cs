@@ -152,6 +152,7 @@ namespace Starfall.Tests
                 defend.save.x = far.x; defend.save.y = far.y; foundSafe = true;
             }
             Check(foundSafe, "Region offers a safe interception test position");
+            Point waitingPosition = defend.Position;
             defend.invulnerable = 100;
             raiders[0].x = protectedNpc.x; raiders[0].y = protectedNpc.y;
             raiders[0].timer = 0;
@@ -167,6 +168,17 @@ namespace Starfall.Tests
             Advance(defend, 1.2f);
             Check(defend.WayfarerIntegrity < safe && defend.WayfarerIntegrity > 0,
                 "A completed, unobstructed attack actually damages the traveler");
+            float injured = defend.WayfarerIntegrity;
+            defend.save.x = protectedNpc.x; defend.save.y = protectedNpc.y;
+            defend.save.inventory[2] = 1;
+            Action(defend, protectedNpc.kind, "wayfarer_aid");
+            Check(defend.WayfarerIntegrity == Math.Min(100, injured + 35) &&
+                defend.save.inventory[2] == 0, "Field aid restores bounded safety and spends one real herb");
+            defend.Talk(protectedNpc);
+            Check(!Array.Exists(defend.conversation.choices, choice => choice.action == "wayfarer_aid"),
+                "A single ambush cannot repeatedly buy more safety");
+            defend.Close();
+            defend.save.x = waitingPosition.x; defend.save.y = waitingPosition.y;
             Advance(defend, 25f);
             Check(defend.WayfarerEncounterRoom == 0 && defend.WayfarerIntegrity == 0 &&
                 !defend.Has("wayfarer_1") && !defend.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
