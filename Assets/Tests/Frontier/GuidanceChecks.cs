@@ -348,11 +348,20 @@ namespace Starfall.Tests
                 for (int frame = 0; frame < 32; frame++) g.Tick(.05f, new Point());
                 string kind = region == 1 ? "root" : region == 2 ? "tide" : "glass";
                 var warnings = g.hazards.FindAll(h => h.kind == kind);
-                Check(warnings.Count == (region == 1 ? 2 : 3), "Region " + region + " did not schedule its hazard; mode=" + g.mode + ", wave=" + g.RoadwardenTrialWave + ", enemies=" + g.enemies.Count + ", all hazards=" + g.hazards.Count + ", hp=" + g.save.health);
+                Check(warnings.Count == 3, "Region " + region + " did not schedule its hazard; mode=" + g.mode + ", wave=" + g.RoadwardenTrialWave + ", enemies=" + g.enemies.Count + ", all hazards=" + g.hazards.Count + ", hp=" + g.save.health);
                 foreach (Hazard warning in warnings)
                     Check(g.CanStand(warning.position) && warning.timer > 0 &&
                         warning.damage > 0 && warning.radius > 0,
                         "Hazards are telegraphed on traversable ground with real damage");
+                if (region == 1)
+                {
+                    Hazard delayedRoot = warnings.Find(h => (h.position - g.Position).Length < .1f);
+                    Check(delayedRoot != null, "Forest pincer must threaten the initially safe center after a delay");
+                    foreach (Hazard root in warnings)
+                        if (root != delayedRoot)
+                            Check(delayedRoot.timer > root.timer + .3f,
+                                "Forest roots close from the sides before the center erupts");
+                }
                 // A wave-two pattern must leave a reachable short-dodge escape.
                 Point origin = g.Position;
                 Point[] exits = { origin, origin + new Point(1.6f, 0),

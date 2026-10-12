@@ -127,8 +127,8 @@ namespace Starfall
         }
         private string RoadwardenSurgeHint(int region, bool english)
         {
-            if (region == 1) return english ? "Wave two: thorn pincers. Slip between the roots."
-                : "第二波：荆棘夹击，从根刺之间闪开。";
+            if (region == 1) return english ? "Wave two: thorn pincers, then a delayed root underfoot. Dodge across the gap."
+                : "第二波：荆棘先从两侧夹击，随后脚下生根。沿空隙闪避。";
             if (region == 2) return english ? "Wave two: sweeping tides. Step out of the marked lane."
                 : "第二波：潮痕横扫，离开预警水线。";
             return english ? "Wave two: mine bursts. Leave the glowing blast circles."
@@ -231,6 +231,9 @@ namespace Starfall
                 for (int side = -1; side <= 1; side += 2)
                     PlanRoadwardenSurge(planned, center + axis * (side * 1.6f),
                         .9f, 1.4f, 13, "root");
+                // The pincer gap is safe initially, but not a permanent
+                // camping spot. A delayed central root rewards repositioning.
+                PlanRoadwardenSurge(planned, center, .65f, 1.9f, 12, "root");
             }
             else if (roadTrialRoom == 2)
             {
