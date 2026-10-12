@@ -19,3 +19,6 @@
 - Follow-up checkpoint `d8fef14a9d9c73b4448c91b3790b8e2f35562efe`: the Hearth Inn traveler now acknowledges partial/completed signals without losing original advice; offline core and combat-input CI passed. Beacon glyphs now use numbered labels and a reduced-motion-aware pulse (CI pending).
 - Next: Unity 2022.3.53f1 Editor visual/PlayMode validation for beacons and inn; consider deeper map events after this discovery quest.
 - Each iteration: inspect current branch HEAD and CI, choose one player-facing production change, run appropriate real checks, fast-forward commit/push, update this concise state only when facts change. No periodic status-only commits.
+
+- Homeward chart follow-up: completed survey desk now connects to the three discovered beacons, with return trips to the inn; region gates, nearby-enemy safety, collision-safe arrival and no-repeat rewards are covered by `HomewardChartConnectsSafeRegionalTravel`. No new save fields or asset GUIDs. Unity native: `NATIVE_UNVERIFIED`; inspect CI after push.
+- Next: verify relay dialogues/arrivals in Unity Editor, then expand roadwarden exploration encounters and meaningful map interactions.

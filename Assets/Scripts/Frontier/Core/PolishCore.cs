@@ -139,7 +139,7 @@ namespace Starfall
                     for (int i = 1; i <= 3; i++) if (Has("survey_" + i)) found++;
                     if (Has("survey_complete"))
                     {
-                        Dialog(o.name, o.en, "三段信号已经绘成一条新路。旧巡路队留下的不是宝藏坐标，而是能让人平安回家的路。你的步伐也因此更轻快。", "The three signals form a safe road home, not a treasure map. The wardens left a route for anyone who needed shelter. You now travel a little faster.", C("收好地图", "Keep the map", "close"));
+                        Dialog(o.name, o.en, "三段信号已经绘成一条新路。旧巡路队留下的不是宝藏坐标，而是能让人平安回家的路。你的步伐也因此更轻快。\n\n信标已经连通：只要附近没有敌人，就能从星图桌前往三座信标，或从信标返回旅店。", "The three signals form a safe road home, not a treasure map. The wardens left a route for anyone who needed shelter. You now travel a little faster.\n\nThe beacons are linked. When enemies are clear, travel from this chart to any of the three beacons, or return to the inn from a beacon.", C("收好地图", "Keep the map", "close"), C("前往苔根信标 · 密林", "Travel to Mossroot · Thornwood", "survey_to_1"), C("前往潮痕信标 · 遗迹", "Travel to Tidemark · Ruins", "survey_to_2"), C("前往矿灯信标 · 矿场", "Travel to Minelight · Mine", "survey_to_3"));
                         return true;
                     }
                     if (found < 3)
@@ -160,7 +160,9 @@ namespace Starfall
                     Flag("survey_" + signal); save.coins += 12; save.shards++; AddXp(15); revision++; sound = "reward";
                     RecordMoment("恢复巡路信号 " + signal + "/3：" + o.name + "。", "Recovered road signal " + signal + "/3: " + o.en + ".");
                 }
-                Dialog(o.name, o.en, notesZh[signal] + (first ? "\n\n信号已记录：12硬币、1碎片、15经验。到炉火旅店拼合三段路线。" : "\n\n讯息已记录，可在旅店的星图桌查看进度。"), notesEn[signal] + (first ? "\n\nSignal recorded: 12 coins, 1 shard, 15 XP. Assemble all three at the Hearth Inn." : "\n\nSignal already recorded. Check the chart table at the Hearth Inn."), C("记住这条路", "Remember the road", "close"));
+                var signalChoices = new List<Choice> { C("记住这条路", "Remember the road", "close") };
+                if (Has("survey_complete")) signalChoices.Add(C("沿巡路信号返回炉火旅店", "Follow the signal back to the Hearth Inn", "survey_home"));
+                Dialog(o.name, o.en, notesZh[signal] + (first ? "\n\n信号已记录：12硬币、1碎片、15经验。到炉火旅店拼合三段路线。" : Has("survey_complete") ? "\n\n归乡星图已连通。附近安全时，可以沿信号返回旅店。" : "\n\n讯息已记录，可在旅店的星图桌查看进度。"), notesEn[signal] + (first ? "\n\nSignal recorded: 12 coins, 1 shard, 15 XP. Assemble all three at the Hearth Inn." : Has("survey_complete") ? "\n\nThe homeward chart is linked. Return to the inn when nearby enemies are clear." : "\n\nSignal already recorded. Check the chart table at the Hearth Inn."), signalChoices.ToArray());
                 return true;
             }
             if (o.kind == "mentor") { Dialog(o.name, o.en, "先练习命中，再观察预告并闪避，最后用职业技能完成挑战。训练无伤害，不消耗物资；首次完成获得技能点1、硬币15。", "Hit a dummy, read a telegraph and dodge, then land your class technique. Practice costs no health or supplies. First clear: 1 point and 15 coins.", C("开始练习", "Start practice", "practice"), C("稍后", "Later", "close")); return true; }
@@ -184,7 +186,48 @@ namespace Starfall
         }
         private bool ChoosePolish(string action)
         {
-
+            if (action == "survey_home" || action.StartsWith("survey_to_"))
+            {
+                // A completed chart opens travel between existing, already discovered
+                // landmarks; it never bypasses region progression or nearby combat.
+                if (!Has("survey_complete") || practicing || Dying || !SafeTravel)
+                {
+                    Notify("敌人尚未退去，无法稳定巡路信号。先脱离战斗。", "Enemies disrupt the road signal. Leave combat before traveling.");
+                    return true;
+                }
+                if (action == "survey_home")
+                {
+                    if (save.room < 1 || save.room > 3 || !Has("survey_" + save.room)) return true;
+                    Enter(9);
+                    Point nearDesk = new Point(15, 15);
+                    if (save.room == 9 && CanStand(nearDesk)) { save.x = nearDesk.x; save.y = nearDesk.y; }
+                    Notify("归乡信号将你带回炉火旅店。", "The homeward signal guides you back to the Hearth Inn.");
+                    return true;
+                }
+                int destination;
+                if (save.room != 9 || !int.TryParse(action.Substring(10), out destination) || destination < 1 || destination > 3 || !Has("survey_" + destination)) return true;
+                if (!CanEnter(destination)) { Notify(RouteHint(destination, false), RouteHint(destination, true)); return true; }
+                Enter(destination);
+                if (save.room != destination) return true;
+                foreach (var beacon in Map.objects)
+                {
+                    if (beacon.kind != "survey" + destination) continue;
+                    Point anchor = new Point(beacon.x, beacon.y);
+                    // Place the hero beside the beacon, never on an impassable
+                    // tile or across a sealed path; the normal map spawn remains
+                    // a safe fallback if future level art changes this clearing.
+                    Point[] approaches = { new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0) };
+                    foreach (Point offset in approaches)
+                    {
+                        Point candidate = anchor + offset;
+                        if (!CanStand(candidate)) continue;
+                        save.x = candidate.x; save.y = candidate.y; break;
+                    }
+                    break;
+                }
+                Notify("巡路信号接通。你抵达了已恢复的信标。", "Road signal connected. You arrive beside a restored beacon.");
+                return true;
+            }
             if (action == "survey_finish")
             {
                 if (!Has("survey_complete") && Has("survey_1") && Has("survey_2") && Has("survey_3"))

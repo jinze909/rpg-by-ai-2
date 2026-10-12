@@ -106,6 +106,49 @@ namespace Starfall.Tests
             Check(resumed.Has("survey_complete") && resumed.GetQuest("signals").complete && resumed.save.trackedQuest == "signals", "Existing save schema persists chart flags and tracking");
             Check(Math.Abs(resumed.Speed - baseSpeed - .25f) < .001f, "Movement bonus survives save and load");
         }
+        public static void HomewardChartConnectsSafeRegionalTravel(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            g.Enter(9);
+            var desk = Object(g, "surveyDesk");
+            g.Talk(desk);
+            Check(g.conversation.choices.Length == 1, "An unfinished chart cannot offer relay travel");
+            g.Close();
+            foreach (int region in new[] { 1, 2, 3 }) g.save.flags.Add("survey_" + region);
+            g.save.flags.Add("survey_complete");
+            int coins = g.save.coins, shards = g.save.shards, points = g.save.skillPoints;
+            for (int region = 1; region <= 3; region++)
+            {
+                g.Talk(desk);
+                Check(g.conversation.choices.Length == 4 && g.conversation.choices[region].action == "survey_to_" + region, "Completed chart lists three distinct discovered destinations");
+                g.enemies.Add(new Enemy(910 + region, 0, g.save.x, g.save.y, 100));
+                g.Choose(region);
+                Check(g.save.room == 9, "The relay cannot teleport the player away from nearby enemies");
+                g.enemies.Clear();
+                g.Talk(desk); g.Choose(region);
+                Check(g.save.room == region && g.CanStand(g.Position), "Relay lands on valid walkable ground in region " + region);
+                var beacon = Object(g, "survey" + region);
+                Check((g.Position - new Point(beacon.x, beacon.y)).Length <= 1.75f, "Arrival is close enough to interact with the correct beacon");
+                g.Interact();
+                Check(g.conversation != null && g.conversation.choices.Length == 2 && g.conversation.choices[1].action == "survey_home", "Linked beacon exposes a return route");
+                g.enemies.Add(new Enemy(920 + region, 0, g.save.x, g.save.y, 100));
+                g.Choose(1);
+                Check(g.save.room == region, "Beacon return is blocked during nearby combat");
+                g.enemies.Clear();
+                g.Talk(beacon); g.Choose(1);
+                Check(g.save.room == 9 && g.CanStand(g.Position) && (g.Position - new Point(desk.x, desk.y)).Length <= 1.75f, "Return arrives beside the chart without crossing walls");
+                Check(g.save.coins == coins && g.save.shards == shards && g.save.skillPoints == points, "Repeated travel cannot duplicate chart or signal rewards");
+            }
+            g.save.stage = 0;
+            g.Talk(desk); g.Choose(2);
+            Check(g.save.room == 9, "A forged completion flag cannot bypass normal regional access requirements");
+            g.save.stage = 3;
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            restored.Talk(Object(restored, "surveyDesk")); restored.Choose(3);
+            Check(restored.save.room == 3 && restored.CanStand(restored.Position), "Linked relay works after loading an existing-format save");
+        }
         public static void NavigationRespectsWorldCollision(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.frontierEnding = 1;
