@@ -263,6 +263,10 @@ namespace Starfall
             if (mode != "world" || Dying) return;
             if (dashCooldown > 0 || save.energy < cost) { ActionUnavailable(dashCooldown, cost); return; }
             CancelAction();
+            // A dodge is airborne/low-contact locomotion, not the next step of
+            // the previous walk cycle. Restart its legs on the first real run
+            // frame without manufacturing a footstep during the dodge.
+            walkDistance = 0;
             dashDirection = direction.Length > .1f ? direction.Normalized : aim;
             dashTime = .18f; dashCooldown = .75f - save.talents[2] * .06f; invulnerable = .32f; save.energy -= cost;
             perfectDodgeArmed = true; dashOrigin = Position; dodgeEscapeTime = .30f;

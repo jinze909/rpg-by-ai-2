@@ -102,6 +102,35 @@ namespace Starfall.Tests
                     "Dodge distance and collision remain consistent across simulation frame sizes");
             }
         }
+        public static void DashToRunRestartsLegCadence(Campaign data)
+        {
+            // Dodge travel does not plant feet. On resuming a run, use a fresh
+            // gait cycle instead of the unrelated frame from before the dodge.
+            foreach(float step in new[]{.01f,.02f,.03f,.05f})
+            {
+                var g=Quiet(data);Point direction=new Point(1,0);
+                Check(g.CanStand(g.Position+direction*3f),"Dodge gait test requires clear campaign ground");
+                g.walkDistance=GameCore.WalkStride*.70f;g.footContacts=4;
+                g.Dash(direction);
+                Check(g.dashTime>0&&g.WalkFrame==0&&g.walkDistance==0,
+                    "Starting a valid dodge restarts the walk leg cycle");
+                int frames=0;
+                while(g.dashTime>0&&frames++<32)g.Tick(step,new Point());
+                Check(frames<32&&g.footContacts==4&&g.WalkFrame==0,
+                    "A dodge never creates phantom footstep sounds or advances the run cycle");
+                Point end=g.Position;g.Tick(step,direction);
+                float distance=(g.Position-end).Length;
+                Check(distance>.001f&&g.ActuallyMoving&&g.PlayerPose>=2&&g.PlayerPose<=3,
+                    "Holding movement after a dodge resumes the real walking pose");
+                Check(Math.Abs(g.walkDistance-distance)<.001f&&
+                    g.WalkFrame==GameCore.GaitFrame(distance,GameCore.WalkStride)&&g.footContacts==4,
+                    "First running leg frame follows only post-dodge travel, not stale pre-dodge strides");
+            }
+            var rejected=Quiet(data);rejected.walkDistance=.75f;rejected.dashCooldown=1;
+            rejected.Dash(new Point(1,0));
+            Check(Math.Abs(rejected.walkDistance-.75f)<.001f&&rejected.dashTime<=0,
+                "A failed cooldown dodge cannot reset the visible walking phase");
+        }
         public static void DashExitKeepsVisibleFacing(Campaign data)
         {
             // The last moving dash tick changes PlayerPose to walking. It must not
