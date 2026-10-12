@@ -913,12 +913,12 @@ namespace Starfall.Tests
                 // Defeating the second wave must retire its old arrows
                 // before any return-escort frame can resolve their impact.
                 g.projectiles.Add(new Projectile {
-                    position = g.Position, velocity = new Point(),
+                    position = new Point(station.x, station.y), velocity = new Point(),
                     life = 2, friendly = false, visual = "enemyArrow",
                     reliefMissionOwned = true, source = "shot"
                 });
                 var unrelatedShot = new Projectile {
-                    position = g.Position, velocity = new Point(),
+                    position = new Point(station.x, station.y), velocity = new Point(),
                     life = 2, friendly = true, visual = "arrow"
                 };
                 g.projectiles.Add(unrelatedShot);
