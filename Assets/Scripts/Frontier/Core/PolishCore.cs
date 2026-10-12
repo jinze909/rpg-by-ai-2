@@ -224,13 +224,25 @@ namespace Starfall
                     // Place the hero beside the beacon, never on an impassable
                     // tile or across a sealed path; the normal map spawn remains
                     // a safe fallback if future level art changes this clearing.
-                    Point[] approaches = { new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0) };
+                    Point[] approaches = {
+                        new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0),
+                        new Point(1, 1), new Point(-1, 1), new Point(1, -1), new Point(-1, -1)
+                    };
+                    // A valid tile may still sit directly beside a freshly
+                    // spawned patrol. Prefer the clearest adjacent landing while
+                    // keeping the beacon within immediate interaction range.
+                    Point safest = Position; float bestClearance = -1; bool found = false;
                     foreach (Point offset in approaches)
                     {
                         Point candidate = anchor + offset;
                         if (!CanStand(candidate)) continue;
-                        save.x = candidate.x; save.y = candidate.y; break;
+                        float clearance = 9999;
+                        foreach (Enemy enemy in enemies)
+                            if (enemy.hp > 0) clearance = Math.Min(clearance, (enemy.Position - candidate).Length);
+                        if (found && clearance <= bestClearance) continue;
+                        safest = candidate; bestClearance = clearance; found = true;
                     }
+                    if (found) { save.x = safest.x; save.y = safest.y; }
                     break;
                 }
                 Notify("巡路信号接通。你抵达了已恢复的信标。", "Road signal connected. You arrive beside a restored beacon.");

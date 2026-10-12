@@ -133,6 +133,25 @@ namespace Starfall.Tests
                 Check(g.save.room == region && g.CanStand(g.Position), "Relay lands on valid walkable ground in region " + region);
                 var beacon = Object(g, "survey" + region);
                 Check((g.Position - new Point(beacon.x, beacon.y)).Length <= 1.75f, "Arrival is close enough to interact with the correct beacon");
+                // Travel must not pick a collision-free tile that is unnecessarily
+                // closer to a newly spawned enemy than another adjacent tile.
+                Point[] offsets = {
+                    new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0),
+                    new Point(1, 1), new Point(-1, 1), new Point(1, -1), new Point(-1, -1)
+                };
+                float landedClearance = 9999;
+                foreach (Enemy enemy in g.enemies)
+                    if (enemy.hp > 0) landedClearance = Math.Min(landedClearance, (enemy.Position - g.Position).Length);
+                foreach (Point offset in offsets)
+                {
+                    Point candidate = new Point(beacon.x, beacon.y) + offset;
+                    if (!g.CanStand(candidate)) continue;
+                    float clearance = 9999;
+                    foreach (Enemy enemy in g.enemies)
+                        if (enemy.hp > 0) clearance = Math.Min(clearance, (enemy.Position - candidate).Length);
+                    Check(landedClearance + .001f >= clearance,
+                        "Beacon travel chooses the safest adjacent walkable tile instead of spawning beside a patrol");
+                }
                 g.Interact();
                 Check(g.conversation != null && g.conversation.choices.Length == 2 && g.conversation.choices[1].action == "survey_home", "Linked beacon exposes a return route");
                 g.enemies.Add(new Enemy(920 + region, 0, g.save.x, g.save.y, 100));
