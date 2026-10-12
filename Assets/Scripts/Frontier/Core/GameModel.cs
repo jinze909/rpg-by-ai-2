@@ -107,6 +107,8 @@ namespace Starfall
         public float life = 3, damage;
         public bool friendly, explosive, piercing;
         public bool slowing, technique, blockedAtSpawn;
+        // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
+        public bool roadTrialOwned;
         public string source, visual;
         public float age, height = 32, launchHeight = -1, flightHeight = -1;
         public ImpactProfile impact;

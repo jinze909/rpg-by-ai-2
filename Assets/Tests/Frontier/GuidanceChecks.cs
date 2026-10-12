@@ -433,16 +433,33 @@ namespace Starfall.Tests
             g.Close();
             g.save.x = retreat.x; g.save.y = retreat.y;
             hunter.stun = 0; hunter.timer = 20;
+            var fire = typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Enemy trialArcher = g.enemies.Find(e => e.id >= 81000 && e.id < 81100 && e.kind == 1);
+            Check(fire != null && trialArcher != null, "The trial uses a real archer projectile path");
+            fire.Invoke(g, new object[] { trialArcher, new Point(1, 0), 5f });
+            Check(g.projectiles.Exists(p => p.roadTrialOwned),
+                "Arrows fired by trial archers are identified before leaving the combat state");
             typeof(GameCore).GetField("roadTrialWard",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 .SetValue(g, .1f);
             g.Tick(.05f, new Point());
             Check(g.RoadwardenTrialRoom == 0 && g.RoadwardenWardIntegrity == 0 &&
                 !g.enemies.Exists(e => e.id >= 81000 && e.id < 81100) &&
-                !g.Has("road_trial_1"), "Broken ward fails safely without rewards or leftover drill enemies");
+                !g.projectiles.Exists(p => p.roadTrialOwned) &&
+                !g.Has("road_trial_1"), "Broken ward fails without rewards, enemies or lingering drill arrows");
             g.save.x = beacon.x; g.save.y = beacon.y;
             Action(g, beacon.kind, "road_trial_start_1");
             Check(g.RoadwardenWardIntegrity == 100, "Retry starts with a fresh ward");
+            trialArcher = g.enemies.Find(e => e.id >= 81000 && e.id < 81100 && e.kind == 1);
+            Check(trialArcher != null, "Retry still spawns a live archer");
+            fire.Invoke(g, new object[] { trialArcher, new Point(1, 0), 5f });
+            Check(g.projectiles.Exists(p => p.roadTrialOwned), "Retry arrows are tracked");
+            Action(g, beacon.kind, "road_trial_abandon");
+            Check(!g.projectiles.Exists(p => p.roadTrialOwned) && g.RoadwardenTrialRoom == 0,
+                "Abandoning the trial removes its pending arrows");
+            Action(g, beacon.kind, "road_trial_start_1");
+            Check(g.RoadwardenWardIntegrity == 100, "Restart after abandonment is healthy");
             g.PrepareSave(); var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
             Check(resumed.RoadwardenTrialRoom == 0 && resumed.RoadwardenWardIntegrity == 0 &&
                 !resumed.enemies.Exists(e => e.id >= 81000 && e.id < 81100),
