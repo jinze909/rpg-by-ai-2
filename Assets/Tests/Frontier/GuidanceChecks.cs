@@ -292,6 +292,20 @@ namespace Starfall.Tests
                 {
                     var attackers = g.enemies.FindAll(e => e.id >= 81000 && e.id < 81100);
                     Check(attackers.Count == 2, "Each trial wave has exactly two opponents");
+                    Check(attackers.TrueForAll(e => e.timer >= .5f && e.timer <= 2.5f),
+                        "High-ID trial foes enter combat in seconds, not hours");
+                    if (region == 1 && wave == 1)
+                    {
+                        bool attacking = false;
+                        for (int frame = 0; frame < 80; frame++)
+                        {
+                            g.Tick(.05f, new Point());
+                            if (g.enemies.Exists(e => e.id >= 81000 && e.id < 81100 && e.state == 1) ||
+                                g.projectiles.Exists(p => p.roadTrialOwned)) attacking = true;
+                            if (attacking) break;
+                        }
+                        Check(attacking, "Real trial AI starts a telegraphed attack within four seconds");
+                    }
                     foreach (var enemy in attackers)
                         hit.Invoke(g, new object[] { enemy, 9999f, false, null, null });
                     Check(g.save.kills[region] == kills && g.save.coins == coins,

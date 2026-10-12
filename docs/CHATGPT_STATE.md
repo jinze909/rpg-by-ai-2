@@ -56,3 +56,5 @@
 - 2026-10-12 audit: trial archer shots are now tagged as transient drill-owned projectiles and removed on clear, abandon, loss, or room reset. The regression exercises real enemy Fire, failure and abandonment, while preserving all non-trial shots. Unity native remains `NATIVE_UNVERIFIED`.
 
 - Additional defense QA: trial attackers stay committed to the beacon beyond the normal eight-unit aggro cutoff and cannot siphon integrity through solid walls. Trial-owned projectiles retire between waves as well as on defeat/abandon. Added a reachable long-range pursuit regression. Unity native remains `NATIVE_UNVERIFIED`.
+
+- Combat AI audit: fixed 81000-range roadwarden enemy IDs accidentally producing a ~10500-second opening cooldown through the generic Enemy constructor. Trial foes now start an authored 1.1–1.56-second opening timer; wave regression checks both bounded timers and an actual enemy windup. Native Unity remains `NATIVE_UNVERIFIED`.

@@ -248,7 +248,12 @@ namespace Starfall
                 int id = 81000 + roadTrialRoom * 10 + roadTrialWave * 2 + slot;
                 float hp = 55 + roadTrialRoom * 15 + (roadTrialWave - 1) * 30 +
                     (roadTrialVeteran ? 20 : 0);
-                enemies.Add(new Enemy(id, kind, positions[slot].x, positions[slot].y, hp));
+                // Trial IDs live in the 81000 range. The Enemy constructor's
+                // ID-based opening delay would otherwise postpone their first
+                // attack for nearly three hours instead of seconds.
+                var attacker = new Enemy(id, kind, positions[slot].x, positions[slot].y, hp);
+                attacker.timer = 1.1f + slot * .22f + (roadTrialWave - 1) * .12f;
+                enemies.Add(attacker);
                 effects.Add(new Effect("discover", positions[slot], .65f));
             }
             revision++; sound = "quest";
