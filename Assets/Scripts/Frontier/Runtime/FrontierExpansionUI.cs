@@ -97,7 +97,11 @@ namespace Starfall
                 // Sprite is depth-sorted with the world, not drawn over hero.
                 Ring(escort, .35f, mint, 16);
                 Point escortScreen = ScreenPoint(escort);
-                if (Game.ReliefEscortGap > 1.3f)
+                if (Game.ReliefEscortGap < 1.7f)
+                    Text(escortScreen.x - 60, escortScreen.y - 89, 120, 26,
+                        ControlKey("E", "B") + Game.L(" · 指挥 / 敷药", " · Command / care"),
+                        11, gold, TextAnchor.MiddleCenter);
+                else
                     Text(escortScreen.x - 50, escortScreen.y - 84, 100, 22,
                         Game.L(Game.reliefFollowerWaiting ? "等待接应" : "获救居民",
                             Game.reliefFollowerWaiting ? "WAITING" : "SURVIVORS"),

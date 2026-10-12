@@ -32,6 +32,16 @@ namespace Starfall
         {
             Box(x, y, w, h, PixelArt.C("#243b4c"));
             if (id >= 0 && id < 3 && playerPortraits != null) { float side = Math.Min(w, h); Atlas(playerPortraits, 3, 1, id, new Rect(x + (w - side) / 2, y + (h - side) / 2, side, side), Color.white); return; }
+            // The player can speak to the moving survivor. Reuse her exact
+            // in-world atlas identity in dialogue instead of a journal icon
+            // or an invented second playable character portrait.
+            if (id == 8 && npcSheet != null)
+            {
+                float size = Math.Min(w, h);
+                Atlas(npcSheet, 4, 4, 14,
+                    new Rect(x + (w - size) / 2, y + h - size, size, size), Color.white);
+                return;
+            }
             if (id < 0 || portraits == null) { Icon(id < 0 ? "journal" : "companion", x + w * .2f, y + h * .25f, w * .6f); return; }
             float size = Math.Min(w, h); id = Math.Max(0, Math.Min(7, id)); GUI.DrawTextureWithTexCoords(new Rect(x + (w - size) / 2, y + h - size, size, size), portraits, new Rect(id % 4 / 4f, id < 4 ? .5f : 0, .25f, .5f));
         }
@@ -243,7 +253,7 @@ namespace Starfall
             if (dialoguePage == pages.Count - 1) { int count = c.choices.Length; for (int i = 0; i < count; i++) { int cols = count > 2 ? 2 : count; float w = (832 - (cols - 1) * 14) / Math.Max(1, cols), y = 539 + i / cols * 45; if (Button(320 + i % cols * (w + 14), y, w, 37, (controllerUsed ? "" : (i + 1) + "  ") + Game.L(c.choices[i].label, c.choices[i].en), i == 0)) { ChooseDialogue(i); break; } } }
             else Text(320, 552, 832, 50, Game.L("读完这一段，再作出你的选择。", "Finish reading before making your choice."), 15, muted);
         }
-        private int SpeakerPortrait(string name) { if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }
+        private int SpeakerPortrait(string name) { if (name == "获救居民" || name == "Rescued civilian") return 8; if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }
         private void DrawFishing()
         {
             Window(Game.L("湖畔垂钓", "Fishing by the lake"), Game.L("浮标进入青绿色区时收线 · E / 空格 / 点击收线", "Reel while the marker is in the teal band · E / Space / Reel")); Card(279, 179, 938, 510); Icon("fish", 667, 202, 134); Text(307, 361, 875, 41, Game.L("成功 ", "Good pulls ") + Game.fishHits + "/3   ·   " + Game.L("失误 ", "Misses ") + Game.fishMisses + "/3", 24, paper, TextAnchor.MiddleCenter);
