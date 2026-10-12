@@ -107,6 +107,9 @@ namespace Starfall
         private float roadTrialWard;
         private bool roadTrialWardUnderAttack;
         private int roadTrialWardWarning;
+        private int roadTrialRepairedWave;
+        public bool RoadwardenWardRepairAvailable
+        { get { return roadTrialRoom != 0 && roadTrialWard < 99.9f && roadTrialRepairedWave != roadTrialWave; } }
         public float RoadwardenWardIntegrity { get { return roadTrialRoom == 0 ? 0 : roadTrialWard; } }
         public bool RoadwardenWardUnderAttack { get { return roadTrialRoom != 0 && roadTrialWardUnderAttack; } }
         // Transient warnings belong to this drill, never to the persistent world.
@@ -136,6 +139,7 @@ namespace Starfall
             roadTrialVeteran = false;
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
             roadTrialWard = 0; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
+            roadTrialRepairedWave = 0;
         }
         private string RoadwardenSurgeHint(int region, bool english)
         {
@@ -150,8 +154,8 @@ namespace Starfall
         {
             if (!Has("dispatch_complete")) return "";
             if (roadTrialRoom == region)
-                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Defeat the attackers, or abandon the drill here."
-                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。击败来袭者，或在此放弃试炼。";
+                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Ward " + (int)Math.Ceiling(roadTrialWard) + "%. Return to this beacon to restore 25 ward for 35 energy once per wave, or abandon."
+                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。护盾剩余 " + (int)Math.Ceiling(roadTrialWard) + "%。每波可在此花费35耐力修复25点护盾一次，或放弃试炼。";
             if (Has("road_trial_" + region))
                 return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense. Attackers drain the beacon ward if they reach it; stop them before it breaks. Rewards cannot be claimed twice."
                     : "\n\n守路誓约已完成。可再次挑战更难的三波精英守卫战。敌人靠近后会侵蚀信标护盾，务必阻止；奖励不会重复领取。";
@@ -160,6 +164,24 @@ namespace Starfall
         }
         private bool ChooseRoadwardenTrial(string action)
         {
+            if (action == "road_trial_repair")
+            {
+                if (!RoadwardenWardRepairAvailable || roadTrialRoom != save.room ||
+                    (Position - ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)).Length > 2.1f)
+                    return true;
+                if (save.energy < 35)
+                {
+                    Notify("耐力不足：修复信标需要35耐力。", "Not enough energy: repairing the ward costs 35.");
+                    return true;
+                }
+                save.energy -= 35;
+                roadTrialWard = Math.Min(100, roadTrialWard + 25);
+                roadTrialRepairedWave = roadTrialWave;
+                Point ward = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position);
+                effects.Add(new Effect("heal", ward, .55f)); sound = "heal"; revision++;
+                Notify("信标护盾修复25点！本波不能再次修复。", "Beacon ward restored by 25! One repair per wave.");
+                return true;
+            }
             if (action == "road_trial_abandon")
             {
                 if (roadTrialRoom != 0)

@@ -414,6 +414,24 @@ namespace Starfall.Tests
             for (int frame = 0; frame < 20; frame++) g.Tick(.05f, new Point());
             Check(Math.Abs(g.RoadwardenWardIntegrity - interrupted) < .001f &&
                 !g.RoadwardenWardUnderAttack, "Staggering an attacker interrupts the siphon");
+            g.save.x = beacon.x; g.save.y = beacon.y;
+            int energyBeforeRepair = (int)g.save.energy;
+            float wardBeforeRepair = g.RoadwardenWardIntegrity;
+            g.Talk(beacon);
+            int repairChoice = -1;
+            for (int i = 0; i < g.conversation.choices.Length; i++)
+                if (g.conversation.choices[i].action == "road_trial_repair") repairChoice = i;
+            Check(repairChoice >= 0, "Damaged ward offers a clear in-world repair choice");
+            g.Choose(repairChoice);
+            Check(Math.Abs(g.RoadwardenWardIntegrity - Math.Min(100, wardBeforeRepair + 25)) < .001f &&
+                Math.Abs(g.save.energy - (energyBeforeRepair - 35)) < 1.1f &&
+                !g.RoadwardenWardRepairAvailable,
+                "Repair restores 25 ward for exactly 35 energy once per wave");
+            g.Talk(beacon);
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "road_trial_repair"),
+                "Repair cannot be spammed for free within the same wave");
+            g.Close();
+            g.save.x = retreat.x; g.save.y = retreat.y;
             hunter.stun = 0; hunter.timer = 20;
             typeof(GameCore).GetField("roadTrialWard",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)

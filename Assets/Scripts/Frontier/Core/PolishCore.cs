@@ -170,7 +170,12 @@ namespace Starfall
                 }
                 var signalChoices = new List<Choice> { C("记住这条路", "Remember the road", "close") };
                 if (Has("survey_complete") && roadTrialRoom != signal) signalChoices.Add(C("沿巡路信号返回炉火旅店", "Follow the signal back to the Hearth Inn", "survey_home"));
-                if (roadTrialRoom == signal) signalChoices.Add(C("放弃守路试炼", "Abandon defense drill", "road_trial_abandon"));
+                if (roadTrialRoom == signal)
+                {
+                    if (RoadwardenWardRepairAvailable)
+                        signalChoices.Add(C("花费35耐力 · 修复护盾25点", "Spend 35 energy · restore 25 ward", "road_trial_repair"));
+                    signalChoices.Add(C("放弃守路试炼", "Abandon defense drill", "road_trial_abandon"));
+                }
                 else if (Has("dispatch_complete"))
                     signalChoices.Add(Has("road_trial_" + signal)
                         ? C("再战三波精英守路试炼（无重复奖励）", "Replay three-wave veteran defense (no repeat reward)", "road_trial_start_" + signal)
