@@ -46,14 +46,14 @@ namespace Starfall
                     "Your Moonherbs helped the wounded and put my medicine bag back on the road.",
                     "Your starcrystals lit the crossing signal, even when the river rises.",
                     "Your spare parts repaired the cart and restored the mine supply route." };
-                string zh = Has("wayfarer_defended_" + room) ? defendedZh[room] :
+                string responseZh = Has("wayfarer_defended_" + room) ? defendedZh[room] :
                     Has("wayfarer_supplied_" + room) ? suppliedZh[room] :
                     "多亏你的帮助，我能继续赶路了。";
-                string en = Has("wayfarer_defended_" + room) ? defendedEn[room] :
+                string responseEn = Has("wayfarer_defended_" + room) ? defendedEn[room] :
                     Has("wayfarer_supplied_" + room) ? suppliedEn[room] :
                     "Thanks to you, I can travel again.";
-                Dialog(o.name, o.en, zh + " 其他旅人也许还在等待救援。",
-                    en + " Others may still be stranded.",
+                Dialog(o.name, o.en, responseZh + " 其他旅人也许还在等待救援。",
+                    responseEn + " Others may still be stranded.",
                     C("旅途平安", "Safe travels", "close"));
                 return true;
             }
