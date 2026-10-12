@@ -64,7 +64,7 @@ namespace Starfall.Tests
         public static void FarshoreEvacuationHasRealCombatAndPersistentFirstClear(Campaign data)
         {
             var g = Fresh(data); g.save.level = 10; g.save.stage = 3;
-            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report", "desert_report",
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report", "desert_report", "mountain_report",
                 "fieldstation_5", "fieldstation_6", "fieldstation_7", "fieldstation_complete",
                 "fieldstation_survey_5", "fieldstation_survey_6", "fieldstation_survey_7",
                 "fieldstation_survey_complete", "farshore_relief_5", "farshore_relief_6",
