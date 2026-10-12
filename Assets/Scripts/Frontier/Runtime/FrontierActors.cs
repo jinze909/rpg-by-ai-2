@@ -148,6 +148,14 @@ namespace Starfall
                 Actor(sheet, columns, rows, frame, p + offset, canvas, tint, !vertical && e.VisualFlip);
                 if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, canvas, new Color(1, 1, 1, e.flash / .09f * .86f), !vertical && e.VisualFlip);
             }
+            // The boss already has a HUD poise meter. Give ordinary enemies a
+            // tiny contextual meter only after the player has built stagger.
+            if (!drawingOutline && !e.boss && e.stagger > .01f && e.staggerRecovery <= 0)
+            {
+                float y = p.y - size * .72f;
+                Box(p.x - 17, y, 34, 5, new Color(.04f, .09f, .12f, .72f));
+                Box(p.x - 16, y + 1, 32 * Mathf.Clamp01(e.stagger / 30f), 3, mint);
+            }
         }
         private void DrawFallen(FallenActor body)
         {

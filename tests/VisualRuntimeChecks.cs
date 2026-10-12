@@ -56,6 +56,24 @@ public static class VisualRuntimeChecks
                 Check(app.Game.CanStand(app.Game.Position) && app.Game.CanStand(app.Game.companionPosition), "Region review actors stand on real ground " + region);
                 Capture(app, folder, "review-region-" + region);
             }
+            // Offline render command capture checks that combat openings and
+            // ordinary-enemy poise are visible without relying on animation.
+            app.BeginVisualReview(0, 1);
+            app.Game.enemies.Clear(); app.Game.save.x = 12; app.Game.save.y = 14;
+            app.Game.save.reducedMotion = true;
+            app.Game.enemies.Add(new Enemy(88001, 2, 13, 14, 200)
+            { releaseTime = .22f, stagger = 18, timer = 999 });
+            GUI.textureCalls.Clear();
+            Capture(app, folder, "qa-combat-opening-and-poise");
+            Check(GUI.textureCalls.FindAll(t => Math.Abs(t.color.r - .48f) < .001f &&
+                Math.Abs(t.color.g - 1f) < .001f && Math.Abs(t.color.b - .79f) < .001f &&
+                Math.Abs(t.color.a - .85f) < .001f).Count >= 24,
+                "The recovery opening has a static mint ring even with reduced motion");
+            Check(GUI.textureCalls.Exists(t => Math.Abs(t.rect.height - 3) < .001f &&
+                t.rect.width > 15 && t.rect.width < 25 &&
+                Math.Abs(t.color.r - 122f / 255) < .002f &&
+                Math.Abs(t.color.g - 202f / 255) < .002f),
+                "An engaged ordinary enemy shows the actual 18/30 poise progress");
             for (int companion = 0; companion < 3; companion++)
             {
                 app.BeginVisualReview(0, 0); GameCore g = app.Game;
