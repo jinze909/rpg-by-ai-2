@@ -100,7 +100,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter();
         }
         public void NewGame(int profession)
         {
@@ -374,7 +374,7 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
             enemies.Remove(e);
-            bool roadTrialEnemy = IsRoadwardenTrialEnemy(e);
+            bool roadTrialEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e);
             // Drill opponents do not advance chapter kill gates, contracts,
             // or normal loot. Clearing both waves pays the fixed trial prize.
             if (!roadTrialEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }

@@ -65,6 +65,74 @@ namespace Starfall.Tests
             g.AcceptBounty(0); Check(g.save.trackedQuest == "bounty", "Accepting a contract automatically tracks it"); g.save.trackedQuest = "invalid"; g.save.explored = null; g.Load(g.save); Check(g.save.trackedQuest == "main" && g.save.explored.Length == data.maps.Length, "Malformed fields repaired");
         }
 
+        public static void MissingTravelersOfferSupplyAndCombatRescues(Campaign data)
+        {
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "Production combat is available for roadside defense");
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            Check(g.GetQuest("wayfarers").locked, "Side quest is locked before the scout rescue");
+            g.save.flags.Add("scout_saved");
+            int points = g.save.skillPoints;
+            for (int room = 1; room <= 3; room++)
+            {
+                g.Enter(room); g.enemies.Clear();
+                var npc = Object(g, "wayfarer" + room);
+                g.save.x = npc.x; g.save.y = npc.y;
+                Check(g.CanStand(g.Position), "Roadside NPC is placed on valid ground");
+                int item = room == 1 ? 2 : room == 2 ? 1 : 4, coins = g.save.coins;
+                g.save.inventory[item] = 0;
+                Action(g, npc.kind, "wayfarer_supply_" + room);
+                Check(!g.Has("wayfarer_" + room) && g.save.coins == coins,
+                    "Insufficient supplies cannot grant a rescue reward");
+                g.save.inventory[item] = 3;
+                Action(g, npc.kind, "wayfarer_supply_" + room);
+                Check(g.Has("wayfarer_" + room) && g.save.inventory[item] == 1 &&
+                    g.save.coins == coins + 20, "Each region needs two resources and pays once");
+                Action(g, npc.kind, "close");
+                Check(g.save.coins == coins + 20, "A completed traveler cannot pay again");
+            }
+            Check(g.GetQuest("wayfarers").complete && g.Has("wayfarer_complete") &&
+                g.save.skillPoints == points + 1,
+                "All three travelers award exactly one bonus talent point");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save)); loaded.Start();
+            Check(loaded.Has("wayfarer_complete") && loaded.GetQuest("wayfarers").complete,
+                "Three-region progress survives an old-schema save round trip");
+
+            var fight = Fresh(data); fight.save.stage = 3; fight.save.level = 10;
+            fight.save.flags.Add("scout_saved"); fight.Enter(1); fight.enemies.Clear();
+            var healer = Object(fight, "wayfarer1");
+            fight.save.x = healer.x; fight.save.y = healer.y;
+            Action(fight, healer.kind, "wayfarer_defend_1");
+            var foes = fight.enemies.FindAll(e => e.id >= 82000 && e.id < 82100);
+            Check(fight.WayfarerEncounterRoom == 1 && foes.Count == 2 &&
+                foes.TrueForAll(e => e.timer > 0 && e.timer < 2 && fight.CanStand(e.Position)),
+                "A real two-enemy ambush starts on reachable terrain with playable timing");
+            fight.PrepareSave(); var resumed = new GameCore(data, CloneSave(fight.save)); resumed.Start();
+            Check(resumed.WayfarerEncounterRoom == 0 && !resumed.Has("wayfarer_1") &&
+                !resumed.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
+                "Saving mid-ambush never persists temporary attackers");
+            int beforeKills = fight.save.kills[1], beforeCoins = fight.save.coins;
+            foreach (Enemy foe in foes)
+                hit.Invoke(fight, new object[] { foe, 9999f, false, null, null });
+            Check(fight.save.kills[1] == beforeKills && fight.save.coins == beforeCoins,
+                "Ambush enemies never farm ordinary drops, bounty kills or story gates");
+            fight.Tick(.05f, new Point());
+            Check(fight.WayfarerEncounterRoom == 0 && fight.Has("wayfarer_1") &&
+                fight.save.coins == beforeCoins + 20,
+                "Defeating both foes pays the same one-time rescue reward");
+
+            var retry = Fresh(data); retry.save.stage = 3; retry.save.flags.Add("scout_saved");
+            retry.Enter(1); retry.enemies.Clear();
+            var traveler = Object(retry, "wayfarer1"); retry.save.x = traveler.x; retry.save.y = traveler.y;
+            Action(retry, traveler.kind, "wayfarer_defend_1");
+            Action(retry, traveler.kind, "wayfarer_abandon");
+            Check(retry.WayfarerEncounterRoom == 0 && !retry.Has("wayfarer_1") &&
+                !retry.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
+                "Withdrawing removes temporary attackers and leaves the rescue replayable");
+        }
+
         public static void RoadwardenSignalsUnlockOnePersistentTravelReward(Campaign data)
         {
             var g = Fresh(data);

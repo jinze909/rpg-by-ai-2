@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,34 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+            if (id == "wayfarers")
+            {
+                q.title = L("失联旅人的归途", "The Missing Travelers");
+                q.category = L("旅途支线", "ROADSIDE STORY");
+                q.locked = !Has("scout_saved");
+                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份急需材料，或击退两名伏击者，让他们重返归途。",
+                    "Three travelers need help in Thornwood, the Ruins and the Mine. Donate two materials or repel two ambushers.");
+                int next = 0;
+                for (int region = 1; region <= 3; region++)
+                {
+                    bool done = Has("wayfarer_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "", "帮助林间药师", "帮助遗迹摆渡人", "帮助矿道修理匠" }[region],
+                        new[] { "", "Help the woodland healer", "Help the ferryman", "Help the mine mechanic" }[region]), done));
+                    if (!done && next == 0) next = region;
+                }
+                q.complete = Has("wayfarer_complete");
+                q.steps.Add(new QuestStep(L("三名旅人重归旅途", "All three travelers back on the road"), q.complete));
+                q.room = wayfarerEncounterRoom != 0 ? wayfarerEncounterRoom : next == 0 ? 1 : next;
+                q.target = ObjectPoint(q.room, "wayfarer" + q.room, new Point(15, 14));
+                q.next = q.locked ? L("先救回密林的公会侦察员", "Rescue the guild scout first") :
+                    q.complete ? L("三名旅人已经平安出发", "All three travelers are safe") :
+                    wayfarerEncounterRoom != 0 ? L("击退两名伏击者", "Defeat both ambushers") :
+                    L("找旅人交谈：物资援助或战斗守护", "Talk to the traveler: donate supplies or defend");
+                q.reward = L("每人20硬币、1碎片、25经验；全部完成额外技能点1、炖汤1",
+                    "Each: 20 coins, 1 shard, 25 XP; all three: 1 talent point and 1 stew");
+                return q;
+            }
 
             if (id == "vigil")
             {

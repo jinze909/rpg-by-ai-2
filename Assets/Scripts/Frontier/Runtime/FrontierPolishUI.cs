@@ -66,6 +66,18 @@ namespace Starfall
         {
             Point p = ScreenPoint(new Point(o.x, o.y));
 
+            if (o.kind.StartsWith("wayfarer"))
+            {
+                int region;
+                if (!int.TryParse(o.kind.Substring(8), out region) || region < 1 || region > 3) return false;
+                bool done = Game.Has("wayfarer_" + region), active = Game.WayfarerEncounterRoom == region;
+                DrawNpc(o.kind, new Point(o.x, o.y), 11 + region);
+                Color accent = done ? mint : active ? PixelArt.C("#f3a57a") : gold;
+                Ring(new Point(o.x, o.y), .38f, accent, 16);
+                Text(p.x - 44, p.y - 91, 88, 24, done ? "✓" :
+                    active ? Game.L("伏击！", "AMBUSH!") : "!", 15, accent, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (o.kind.StartsWith("survey"))
             {
                 bool desk = o.kind == "surveyDesk";

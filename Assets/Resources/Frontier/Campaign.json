@@ -376,6 +376,14 @@
           "kind": "portal0"
         },
         {
+          "id": "wayfarer1",
+          "kind": "wayfarer1",
+          "name": "林间药师 · 茉伊",
+          "en": "Moy · woodland healer",
+          "x": 10.5,
+          "y": 11.5
+        },
+        {
           "id": "survey1",
           "kind": "survey1",
           "name": "苔根巡路信标",
@@ -653,6 +661,14 @@
           "x": 3,
           "y": 14,
           "kind": "portal0"
+        },
+        {
+          "id": "wayfarer2",
+          "kind": "wayfarer2",
+          "name": "遗迹摆渡人 · 艾鲁",
+          "en": "Eru · ferryman",
+          "x": 19.5,
+          "y": 16.5
         },
         {
           "id": "survey2",
@@ -948,6 +964,14 @@
           "x": 3,
           "y": 14,
           "kind": "portal0"
+        },
+        {
+          "id": "wayfarer3",
+          "kind": "wayfarer3",
+          "name": "矿道修理匠 · 塔尔",
+          "en": "Tal · mine mechanic",
+          "x": 19.5,
+          "y": 11.5
         },
         {
           "id": "survey3",
