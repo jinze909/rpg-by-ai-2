@@ -205,6 +205,66 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RescueArrowsUseActualFlightAndCanBeBodyBlocked(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.reliefMissionWave == 1, "The rescue archer is tested in a live regional ambush");
+            Point marker = g.FieldSurveyTarget(6);
+            Enemy archer = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 && e.kind == 1);
+            Check(archer != null, "Wave one includes a real bow raider");
+            g.enemies.RemoveAll(e => e != archer);
+            Point bow = new Point(marker.x - 2.5f, marker.y);
+            Check(g.CanStand(bow), "Physical shot test has a valid desert bow lane");
+            archer.x = bow.x; archer.y = bow.y;
+            archer.target = marker; archer.Face(marker - bow);
+            archer.state = 1; archer.timer = .01f; archer.releaseTime = 0;
+            archer.targetingReliefCivilian = true;
+            float initial = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Check(g.projectiles.Exists(p => p.reliefMissionOwned && !p.friendly &&
+                p.visual == "enemyArrow") && g.reliefFollowerSafety > initial - 1,
+                "A committed bow release creates a real hostile arrow, never hitscans the civilian");
+            archer.timer = 100; archer.state = 0;
+            for (int i = 0; i < 20 && g.projectiles.Count > 0; i++)
+                g.Tick(.05f, new Point());
+            float arrowLoss = initial - g.reliefFollowerSafety;
+            Check(arrowLoss > 8.5f && arrowLoss < 11 &&
+                !g.projectiles.Exists(p => p.reliefMissionOwned),
+                "An unobstructed hostile arrow must physically reach civilian ground for one nine-point hit");
+            // Place hero between the same bow lane and the civilian.
+            g.save.x = marker.x - 1; g.save.y = marker.y;
+            g.projectiles.Add(new Projectile {
+                position = bow, velocity = new Point(5, 0), visual = "enemyArrow",
+                source = "shot", damage = 10, reliefMissionOwned = true, life = 1
+            });
+            float beforeBlock = g.reliefFollowerSafety;
+            for (int i = 0; i < 20 && g.projectiles.Count > 0; i++)
+                g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety > beforeBlock - 1 &&
+                g.projectiles.Count == 0,
+                "The hero physically intercepts the arrow before it can reach the civilian");
+            // Even a visually identical unrelated arrow cannot modify rescue
+            // safety without an encounter ownership tag.
+            g.save.x = post.x; g.save.y = post.y;
+            g.projectiles.Add(new Projectile {
+                position = bow, velocity = new Point(5, 0), visual = "enemyArrow",
+                source = "shot", damage = 10, reliefMissionOwned = false, life = 1
+            });
+            float beforeOrdinary = g.reliefFollowerSafety;
+            for (int i = 0; i < 20 && g.projectiles.Count > 0; i++)
+                g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety > beforeOrdinary - 1,
+                "Ordinary world projectiles cannot accidentally drain civilian rescue safety");
+        }
+
         public static void EmergencyCivilianRallyUsesLiveEnergyAndOncePerWave(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
@@ -315,11 +375,9 @@ namespace Starfall.Tests
             attacker.releaseTime = 0; attacker.stun = attacker.hitTime = 0;
             g.save.x = guard.x; g.save.y = guard.y;
             float beforeGuard = g.reliefFollowerSafety;
-            float heroBeforeGuard = g.save.health;
             g.Tick(.05f, new Point());
-            Check(g.save.health < heroBeforeGuard &&
-                !attacker.targetingReliefCivilian,
-                "A real frontline interception resolves an attack and transfers impact to the hero");
+            Check(attacker.state == 0 && !attacker.targetingReliefCivilian,
+                "A frontline interception resolves a committed attack once, even during player hit invulnerability");
             Check(g.reliefFollowerSafety > beforeGuard - 1,
                 "A hero standing between raider and civilian intercepts the actual strike");
             // A real hero interception can hit the hero and create one
