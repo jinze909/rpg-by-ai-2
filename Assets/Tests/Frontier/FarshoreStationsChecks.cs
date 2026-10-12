@@ -205,6 +205,67 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CivilianDefenseStrikesMatchReleaseAndBodyguardPosition(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.reliefMissionWave == 1, "True field discovery activates raider wave one");
+            Enemy attacker = g.enemies.Find(e => e.id >= 85000 && e.id < 85100 && e.kind == 0);
+            Check(attacker != null, "A real melee raider can attack the civilian");
+            g.enemies.RemoveAll(e => e != attacker);
+            Point civilian = g.FieldSurveyTarget(6);
+            Point origin = new Point(civilian.x - 1.3f, civilian.y);
+            Point guard = new Point(civilian.x - .6f, civilian.y);
+            Check(g.CanStand(origin) && g.CanStand(guard),
+                "Rescue marker offers physical raider and bodyguard lanes in the authored desert");
+            attacker.x = origin.x; attacker.y = origin.y;
+            attacker.target = civilian; attacker.Face(civilian - origin);
+            attacker.state = 1; attacker.timer = .6f; attacker.targetingReliefCivilian = true;
+            g.save.x = station.x; g.save.y = station.y;
+            float initial = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety > initial - 1 &&
+                attacker.state == 1 && attacker.targetingReliefCivilian,
+                "Telegraphed windup does not apply the full civilian hit before contact");
+            attacker.timer = .01f;
+            g.Tick(.05f, new Point());
+            float exposedDamage = initial - g.reliefFollowerSafety;
+            Check(exposedDamage > 13.5f && exposedDamage < 15,
+                "A real enemy contact releases roughly 14 safety damage once, not every frame");
+            float afterStrike = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety > afterStrike - 1,
+                "Recovery frames cannot repeat the same committed strike");
+            // Reset combat windup, then place the hero inside the real attack
+            // lane. Only physical interception may prevent the safety loss.
+            attacker.x = origin.x; attacker.y = origin.y;
+            attacker.target = civilian; attacker.Face(civilian - origin);
+            attacker.state = 1; attacker.timer = .01f; attacker.targetingReliefCivilian = true;
+            g.save.x = guard.x; g.save.y = guard.y;
+            float beforeGuard = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety > beforeGuard - 1,
+                "A hero standing between raider and civilian intercepts the actual strike");
+            // The same general proximity is insufficient from off the attack lane.
+            attacker.x = origin.x; attacker.y = origin.y;
+            attacker.target = civilian; attacker.Face(civilian - origin);
+            attacker.state = 1; attacker.timer = .01f; attacker.targetingReliefCivilian = true;
+            Point side = new Point(civilian.x, civilian.y + 1.1f);
+            Check(g.CanStand(side), "The test has walkable ground outside the line of impact");
+            g.save.x = side.x; g.save.y = side.y;
+            float beforeSide = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety < beforeSide - 13.5f,
+                "Standing near, but outside, the attack lane cannot negate a civilian hit");
+        }
+
         public static void RescueRaiderAIActuallyProtectsCivilians(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

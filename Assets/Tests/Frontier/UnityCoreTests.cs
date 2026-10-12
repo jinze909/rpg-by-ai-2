@@ -66,6 +66,7 @@ namespace Starfall.Tests
         [Test] public void EscortPlayersCanPauseAndTendSurvivors() { CoreChecks.RescueCivilianWaitFollowAndOneUseAidArePlayable(Data()); }
         [Test] public void RescueCiviliansWalkInsteadOfSliding() { CoreChecks.RescuedSurvivorsUseActualDistanceDrivenMovement(Data()); }
         [Test] public void CivilianRescuesUseRealRegionalWeather() { CoreChecks.EvacueesUseRealClimateSheltersAndShade(Data()); }
+        [Test] public void CivilianStrikeTimingAndBodyguardCollision() { CoreChecks.CivilianDefenseStrikesMatchReleaseAndBodyguardPosition(Data()); }
         [Test] public void RescueRaiderAITargetsActualCivilians() { CoreChecks.RescueRaiderAIActuallyProtectsCivilians(Data()); }
         [Test] public void CiviliansTraverseEntireReturnPaths() { CoreChecks.ReliefSurvivorsPhysicallyCompleteAllRegionalReturnRoutes(Data()); }
         [Test] public void FarshoreSurvivorsRequireDefense() { CoreChecks.RescueSurvivorsRequireRealProtectionAndSafeTravel(Data()); }
