@@ -99,6 +99,10 @@ namespace Starfall
         // Optional two-wave beacon defense. Completion uses existing save flags.
         // Leaving or loading restarts a drill; trial foes never become world patrols.
         private int roadTrialRoom, roadTrialWave;
+        private float roadTrialSurgeTimer;
+        private int roadTrialSurgeCount;
+        // Transient warnings belong to this drill, never to the persistent world.
+        private readonly List<Hazard> roadTrialWarnings = new List<Hazard>();
         public int RoadwardenTrialRoom { get { return roadTrialRoom; } }
         public int RoadwardenTrialWave { get { return roadTrialWave; } }
         private string RoadwardenVigilInnNote(bool english)
@@ -114,7 +118,22 @@ namespace Starfall
 
         private static bool IsRoadwardenTrialEnemy(Enemy e)
         { return e != null && e.id >= 81000 && e.id < 81100; }
-        private void ResetRoadwardenTrial() { roadTrialRoom = roadTrialWave = 0; }
+        private void ResetRoadwardenTrial()
+        {
+            foreach (Hazard warning in roadTrialWarnings) hazards.Remove(warning);
+            roadTrialWarnings.Clear();
+            roadTrialRoom = roadTrialWave = 0;
+            roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
+        }
+        private string RoadwardenSurgeHint(int region, bool english)
+        {
+            if (region == 1) return english ? "Wave two: thorn pincers. Slip between the roots."
+                : "第二波：荆棘夹击，从根刺之间闪开。";
+            if (region == 2) return english ? "Wave two: sweeping tides. Step out of the marked lane."
+                : "第二波：潮痕横扫，离开预警水线。";
+            return english ? "Wave two: mine bursts. Leave the glowing blast circles."
+                : "第二波：矿脉爆裂，避开发光的爆炸圈。";
+        }
         private string RoadwardenTrialHint(int region, bool english)
         {
             if (!Has("dispatch_complete")) return "";
@@ -123,8 +142,8 @@ namespace Starfall
             if (roadTrialRoom == region)
                 return english ? "\n\nDefense underway: wave " + roadTrialWave + "/2. Defeat the attackers, or abandon the drill here."
                     : "\n\n守路试炼进行中：第 " + roadTrialWave + "/2 波。击败来袭者，或在此放弃试炼。";
-            return english ? "\n\nOptional two-wave defense. Complete all three for a talent point. Leaving or loading restarts a drill."
-                : "\n\n可选双波守路试炼。完成三座信标可获得技能点。离开或读档需重新挑战。";
+            return english ? "\n\nOptional two-wave defense. " + RoadwardenSurgeHint(region, true) + " Complete all three for a talent point. Leaving or loading restarts a drill."
+                : "\n\n可选双波守路试炼。" + RoadwardenSurgeHint(region, false) + " 完成三座信标可获得技能点。离开或读档需重新挑战。";
         }
         private bool ChooseRoadwardenTrial(string action)
         {
@@ -152,6 +171,7 @@ namespace Starfall
                 return true;
             }
             roadTrialRoom = region; roadTrialWave = 1;
+            roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
             if (!SpawnRoadwardenTrialWave())
             {
                 ResetRoadwardenTrial();
@@ -191,21 +211,95 @@ namespace Starfall
             revision++; sound = "quest";
             return true;
         }
-        private void TickRoadwardenTrial()
+        // The second wave has a distinct, telegraphed regional hazard pattern.
+        // All strikes use the existing warning, dodge and damage pipeline.
+        private void PlanRoadwardenSurge(List<Hazard> planned, Point position,
+            float radius, float delay, float damage, string kind)
+        {
+            if (Fits(position))
+                planned.Add(new Hazard { position = position, radius = radius,
+                    timer = delay, damage = damage, kind = kind });
+        }
+        private void SpawnRoadwardenSurge()
+        {
+            Point center = Position;
+            Point axis = roadTrialSurgeCount++ % 2 == 0 ? new Point(1, 0) : new Point(0, 1);
+            var planned = new List<Hazard>();
+            if (roadTrialRoom == 1)
+            {
+                // Two roots close from opposite sides; standing between them is safe.
+                for (int side = -1; side <= 1; side += 2)
+                    PlanRoadwardenSurge(planned, center + axis * (side * 1.6f),
+                        .9f, 1.4f, 13, "root");
+            }
+            else if (roadTrialRoom == 2)
+            {
+                // A sequential tide lane: dodge perpendicular, not along the wave.
+                for (int step = -1; step <= 1; step++)
+                    PlanRoadwardenSurge(planned, center + axis * (step * 2.1f),
+                        .95f, 1.25f + (step + 1) * .2f, 14, "tide");
+            }
+            else if (roadTrialRoom == 3)
+            {
+                // Mine charges target the center, then burst out along one axis.
+                PlanRoadwardenSurge(planned, center, 1.15f, 1.4f, 16, "glass");
+                for (int side = -1; side <= 1; side += 2)
+                    PlanRoadwardenSurge(planned, center + axis * (side * 2.3f),
+                        .85f, 1.75f, 12, "glass");
+            }
+            if (planned.Count == 0) return;
+            // Never create an unavoidable warning in a cramped or sealed space.
+            Point[] exits = { center, center + new Point(2.5f, 0),
+                center + new Point(-2.5f, 0), center + new Point(0, 2.5f),
+                center + new Point(0, -2.5f) };
+            bool escape = false;
+            foreach (Point exit in exits)
+            {
+                if (!Fits(exit) || (exit - center).Length > .01f &&
+                    NavigationPath(exit).Count == 0) continue;
+                bool safe = true;
+                foreach (Hazard warning in planned)
+                    if ((exit - warning.position).Length <= warning.radius + .3f)
+                    { safe = false; break; }
+                if (safe) { escape = true; break; }
+            }
+            if (!escape) return;
+            foreach (Hazard warning in planned)
+            {
+                hazards.Add(warning);
+                roadTrialWarnings.Add(warning);
+            }
+        }
+        private void TickRoadwardenTrial(float dt)
         {
             if (roadTrialRoom == 0) return;
             if (save.room != roadTrialRoom || Dying || practicing) { ResetRoadwardenTrial(); return; }
-            if (enemies.Exists(IsRoadwardenTrialEnemy)) return;
+            if (enemies.Exists(IsRoadwardenTrialEnemy))
+            {
+                if (roadTrialWave == 2)
+                {
+                    roadTrialSurgeTimer -= dt;
+                    if (roadTrialSurgeTimer <= 0)
+                    {
+                        roadTrialSurgeTimer = 4.5f;
+                        SpawnRoadwardenSurge();
+                    }
+                }
+                return;
+            }
             if (roadTrialWave == 1)
             {
                 roadTrialWave = 2;
+                roadTrialSurgeTimer = 1.25f;
+                roadTrialSurgeCount = 0;
                 if (!SpawnRoadwardenTrialWave())
                 {
                     ResetRoadwardenTrial();
                     Notify("战场已改变，试炼中断；可以再次挑战。", "The arena changed; restart the drill at the beacon.");
                     return;
                 }
-                Notify("第二波！重甲破阵者与射手，注意攻击前摇。", "Wave two! Armored breaker and archer. Read the wind-up.");
+                Notify("第二波！重甲破阵者与射手。" + RoadwardenSurgeHint(roadTrialRoom, false),
+                    "Wave two! Armored breaker and archer. " + RoadwardenSurgeHint(roadTrialRoom, true));
                 return;
             }
             int region = roadTrialRoom;

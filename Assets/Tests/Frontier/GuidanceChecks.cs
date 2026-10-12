@@ -321,6 +321,49 @@ namespace Starfall.Tests
                 "Vigil completion and talent persist in the original save schema");
         }
 
+        public static void RoadwardenVigilRegionalSurgesAreReadableAndTransient(Campaign data)
+        {
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "Production combat hit path is available");
+            for (int region = 1; region <= 3; region++)
+            {
+                var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+                foreach (string flag in new[] { "survey_1", "survey_2", "survey_3",
+                    "survey_complete", "dispatch_complete" }) g.save.flags.Add(flag);
+                g.Enter(region); g.enemies.Clear();
+                var beacon = Object(g, "survey" + region);
+                g.save.x = beacon.x; g.save.y = beacon.y;
+                g.Talk(beacon);
+                Check(g.conversation.textEn.Contains(region == 1 ? "thorn pincers" :
+                    region == 2 ? "sweeping tides" : "mine bursts"),
+                    "Players are warned about their region's unique second wave");
+                g.Close();
+                Action(g, beacon.kind, "road_trial_start_" + region);
+                foreach (Enemy foe in g.enemies.FindAll(e => e.id >= 81000 && e.id < 81100))
+                    hit.Invoke(g, new object[] { foe, 9999f, false, null, null });
+                for (int frame = 0; frame < 8; frame++) g.Tick(.05f, new Point());
+                Check(g.RoadwardenTrialWave == 2, "Defeating wave one starts wave two");
+                foreach (Enemy foe in g.enemies) foe.stun = 12;
+                for (int frame = 0; frame < 32; frame++) g.Tick(.05f, new Point());
+                string kind = region == 1 ? "root" : region == 2 ? "tide" : "glass";
+                var warnings = g.hazards.FindAll(h => h.kind == kind);
+                Check(warnings.Count >= 1, "Each region schedules real visible warning hazards");
+                foreach (Hazard warning in warnings)
+                    Check(g.CanStand(warning.position) && warning.timer > 0 &&
+                        warning.damage > 0 && warning.radius > 0,
+                        "Hazards are telegraphed on traversable ground with real damage");
+                g.PrepareSave();
+                var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
+                Check(resumed.hazards.Count == 0 && resumed.RoadwardenTrialRoom == 0,
+                    "Loading during a defense cannot restore transient hazards");
+                Action(g, beacon.kind, "road_trial_abandon");
+                Check(g.RoadwardenTrialRoom == 0 && g.hazards.Count == 0 &&
+                    !g.enemies.Exists(e => e.id >= 81000 && e.id < 81100),
+                    "Abandoning removes both enemies and all pending regional strikes");
+            }
+        }
+
         public static void NavigationRespectsWorldCollision(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.frontierEnding = 1;

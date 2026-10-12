@@ -68,7 +68,7 @@ namespace Starfall
         }
         private void TickPolish(float dt)
         {
-            TickRoadwardenTrial();
+            TickRoadwardenTrial(dt);
             actionHintTimer = Math.Max(0, actionHintTimer - dt);
             // Permanent quest mutations increment revision; tablet progress is
             // transient. Do not rebuild two language journals every idle frame.
