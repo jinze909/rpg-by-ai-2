@@ -31,6 +31,43 @@ namespace Starfall.Tests
             foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report", "mountain_report", "gate_5", "gate_6", "gate_7", "companion_0", "companion_1", "companion_2", "seal_5", "seal_6", "seal_7" }) g.save.flags.Add(flag);
             g.save.frontierEnding = 1; return g;
         }
+        public static void RegionalBossesSweepAlternatingLanes(Campaign data)
+        {
+            var g = Unlocked(data);
+            MethodInfo release = typeof(GameCore).GetMethod("BossExpansionAttack", BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(release != null, "Regional Boss attacks must use the live production release");
+            foreach (int room in new[] { 5, 6 })
+            {
+                g.Enter(room);
+                var boss = new Enemy(901, 3, 29, 9, 600, true) { target = new Point(20, 12) };
+                for (int phase = 1; phase <= 3; phase++)
+                for (int cycle = 1; cycle <= 2; cycle++)
+                {
+                    boss.hp = phase == 1 ? 500 : phase == 2 ? 300 : 100;
+                    boss.cycle = cycle;
+                    g.hazards.Clear();
+                    release.Invoke(g, new object[] { boss });
+                    Check(g.hazards.Count == 3, "Regional release must warn all three lane contacts");
+                    bool horizontal = room == 5 ? phase == 1 || cycle % 2 == 1
+                                                : phase > 1 && cycle % 2 == 0;
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        Hazard h = g.hazards[i + 1];
+                        float expectedX = 20 + (horizontal ? i * 2 : 0);
+                        float expectedY = 12 + (horizontal ? 0 : i * 2);
+                        float expectedDelay = (room == 5 ? 1.2f : .9f) + (phase == 3 ? (i + 1) * .22f : 0);
+                        Check(Math.Abs(h.position.x - expectedX) < .001f && Math.Abs(h.position.y - expectedY) < .001f,
+                            "The warning lane must rotate around the locked attack target");
+                        Check(Math.Abs(h.timer - expectedDelay) < .001f && Math.Abs(h.radius - (room == 5 ? 1.35f : 1.1f)) < .001f,
+                            "Each phase uses visible, dodgeable, correctly timed warning circles");
+                        Check(h.kind == (room == 5 ? "tide" : "glass") && Math.Abs(h.damage - (room == 5 ? 17 : 18)) < .001f,
+                            "Regional hazard identity and damage remain compatible");
+                    }
+                    Check(phase != 3 || g.hazards[0].timer < g.hazards[1].timer && g.hazards[1].timer < g.hazards[2].timer,
+                        "Final-phase sweeps release in a visible sequence");
+                }
+            }
+        }
         public static void MigrationAndBuilds(Campaign data)
         {
             var old = new SaveData { version = 1, stage = 1, room = 1, x = 5, y = 14, coins = 91, health = 72, kills = new[] { 0, 6, 0, 0, 0 }, flags = new List<string> { "intro", "scout_saved", "core_1", "lore_1" } };

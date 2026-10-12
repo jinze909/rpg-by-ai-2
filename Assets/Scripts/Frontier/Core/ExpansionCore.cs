@@ -358,10 +358,26 @@ namespace Starfall
         { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : 8; }
         private void BossExpansionAttack(Enemy e)
         {
-            if (save.room == 5)
-            { for (int i = -1; i <= 1; i++) AddHazard(e.target + new Point(i * 2, 0), 1.35f, 1.2f, 17, "tide"); }
-            if (save.room == 6)
-            { for (int i = -1; i <= 1; i++) AddHazard(e.target + new Point(0, i * 2), 1.1f, .9f, 18, "glass"); }
+            // The harbor beast and glass guardian learn to sweep the other axis
+            // as their armor breaks. Warnings remain visible Hazard objects.
+            if (save.room == 5 || save.room == 6)
+            {
+                bool harbor = save.room == 5;
+                bool horizontal = harbor ? e.BossPhase == 1 || e.cycle % 2 == 1
+                                         : e.BossPhase > 1 && e.cycle % 2 == 0;
+                float radius = harbor ? 1.35f : 1.1f;
+                float delay = harbor ? 1.2f : .9f;
+                float damage = harbor ? 17 : 18;
+                string kind = harbor ? "tide" : "glass";
+                for (int i = -1; i <= 1; i++)
+                {
+                    Point offset = horizontal ? new Point(i * 2, 0) : new Point(0, i * 2);
+                    // Final-phase contacts travel along the lane in sequence;
+                    // each circle is warned before its own delayed impact.
+                    float sweepDelay = e.BossPhase == 3 ? (i + 1) * .22f : 0;
+                    AddHazard(e.target + offset, radius, delay + sweepDelay, damage, kind);
+                }
+            }
             if (save.room == 7 || save.room == 8)
             { AddHazard(Position, 2, 1.5f, 20 + e.BossPhase * 2, "rift"); }
         }
