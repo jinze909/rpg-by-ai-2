@@ -133,6 +133,19 @@ namespace Starfall
         }
         public float ReliefEscortGap { get { return ReliefEscortActive ?
             (Position - reliefFollowerPosition).Length : 0; } }
+        public bool ReliefEscortUnderAttack
+        {
+            get
+            {
+                if (!ReliefEscortActive) return false;
+                foreach (Enemy enemy in enemies)
+                    if (enemy.hp > 0 && enemy.state == 1 &&
+                        enemy.targetingReliefCivilian &&
+                        (enemy.target - reliefFollowerPosition).Length < 2.2f)
+                        return true;
+                return false;
+            }
+        }
         private static bool IsReliefMissionEnemy(Enemy e)
         { return e != null && e.id >= 85000 && e.id < 85100; }
         private void ResetReliefMission()
@@ -477,8 +490,12 @@ namespace Starfall
             Point follow = Position - reliefFollowerPosition;
             Point beforeWalk = reliefFollowerPosition;
             reliefFollowerMoving = false;
-            if (!reliefFollowerWaiting && follow.Length > 1.3f)
+            if (!reliefFollowerWaiting && !ReliefEscortUnderAttack &&
+                reliefCivilianHitTime <= 0 && follow.Length > 1.3f)
             {
+                // Visible committed strikes make the civilian brace and stay
+                // put until the attack resolves. They no longer skate across
+                // the warning as though nothing dangerous were happening.
                 // Follow the route through real collision, never teleport.
                 float walk = follow.Length > 5.5f ? 3.5f : 2.6f;
                 Point advance = DirectionTo(reliefFollowerPosition, Position) *

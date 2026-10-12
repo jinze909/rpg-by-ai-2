@@ -52,6 +52,7 @@ namespace Starfall
             float step = walking ? (float)Math.Abs(Math.Sin(cycle)) : 0;
             float bob = step * 3.2f;
             float lean = walking ? (float)Math.Sin(cycle) * 2.5f : 0;
+            if (Game.ReliefEscortUnderAttack) lean = -4f;
             if (!drawingOutline)
                 Box(p.x - 13, p.y - 2, 26, 5, new Color(.025f, .04f, .07f, .32f));
             // Frame 14 is the canonical rescue civilian, not an animation
@@ -124,7 +125,11 @@ namespace Starfall
                         11, mint, TextAnchor.MiddleCenter);
                 }
                 Point escortScreen = ScreenPoint(escort);
-                if (Game.ReliefEscortGap < 1.7f)
+                if (Game.ReliefEscortUnderAttack)
+                    Text(escortScreen.x - 60, escortScreen.y - 89, 120, 26,
+                        Game.L("警戒！来袭", "INCOMING"), 11, gold,
+                        TextAnchor.MiddleCenter);
+                else if (Game.ReliefEscortGap < 1.7f)
                     Text(escortScreen.x - 60, escortScreen.y - 89, 120, 26,
                         ControlKey("E", "B") + Game.L(" · 指挥 / 敷药", " · Command / care"),
                         11, gold, TextAnchor.MiddleCenter);

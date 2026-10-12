@@ -647,6 +647,48 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CivilianBracesForRealEscortWindupThenResumesWalking(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            StartCivilianRescueViaRealDialogue(g, station);
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Point civilian = g.reliefFollowerPosition;
+            Check(g.ReliefEscortActive && !g.reliefFollowerWaiting,
+                "Real completed ambush begins with an escort ready to walk");
+            g.save.x = station.x; g.save.y = station.y;
+            var attacker = new Enemy(590, 0, civilian.x - 1.3f, civilian.y, 50);
+            attacker.target = civilian; attacker.Face(civilian - attacker.Position);
+            attacker.state = 1; attacker.timer = .5f;
+            attacker.targetingReliefCivilian = true;
+            g.enemies.Add(attacker);
+            Check(g.ReliefEscortUnderAttack,
+                "A real enemy windup targeted at the moving civilian is visible as immediate danger");
+            g.Tick(.05f, new Point());
+            Check((g.reliefFollowerPosition - civilian).Length < .001f &&
+                !g.reliefFollowerMoving && g.ReliefEscortUnderAttack,
+                "The civilian braces rather than stepping into a committed hostile strike");
+            attacker.state = 0; attacker.timer = 100;
+            attacker.targetingReliefCivilian = false;
+            g.Tick(.05f, new Point());
+            Check(!g.ReliefEscortUnderAttack && g.reliefFollowerMoving &&
+                (g.reliefFollowerPosition - civilian).Length > .001f,
+                "Once the attack is disarmed, the same civilian resumes real collision-safe following");
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(!g.ReliefEscortUnderAttack && g.reliefMissionRoom == 0,
+                "Mission exit clears incoming-attack signals without changing the persistent save");
+        }
+
         public static void EscortGuardUsesRealEnergyAndInterceptsPatrolDamage(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
