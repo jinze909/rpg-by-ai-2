@@ -17,6 +17,13 @@ namespace Starfall.Tests
             Check(g.Has("archive_started") && !g.GetQuest("archive_trail").locked &&
                 g.save.trackedQuest == "archive_trail",
                 "Talking to Lin accepts and tracks the atlas quest");
+            // Chapters are still locked by the original main quest: the atlas
+            // must neither teleport nor grant premature access to region 2.
+            g.Enter(2);
+            Check(g.save.room == 0, "Atlas commission cannot bypass chapter gate to ruins");
+            // This harness now advances the original campaign gates before
+            // inspecting its three optional, ordered artifacts.
+            g.save.stage = 3;
             int coins = g.save.coins, shards = g.save.shards, skill = g.save.skillPoints;
             for (int region = 1; region <= 3; region++)
             {
