@@ -647,6 +647,94 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CivilianEscortReloadContinuesRealReturn(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6", "farshore_relief_6" })
+                g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            g.PrepareSave();
+            Check(g.save.rescueCheckpoint == null,
+                "A saved unfinished ambush cannot pretend that two real waves were defeated");
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive, "The real combat advances to the return escort");
+            Point civilian = g.reliefFollowerPosition;
+            g.save.x = civilian.x; g.save.y = civilian.y;
+            ChooseRescueCivilianOption(g, "relief_wait");
+            g.reliefFollowerSafety = 63; g.reliefMissionTime = 46;
+            int coins = g.save.coins, herbs = g.save.inventory[2];
+            g.PrepareSave();
+            Check(g.save.rescueCheckpoint != null &&
+                g.save.rescueCheckpoint.room == 6 &&
+                g.save.rescueCheckpoint.waiting &&
+                Math.Abs(g.save.rescueCheckpoint.time - 46) < .001f,
+                "The saved record includes a real waiting survivor and the original timer");
+            var resumed = new GameCore(data, g.save); resumed.Start();
+            Check(resumed.ReliefEscortActive && resumed.reliefFollowerWaiting &&
+                resumed.reliefMissionWave == 3 &&
+                Math.Abs(resumed.reliefMissionTime - 46) < .001f &&
+                Math.Abs(resumed.reliefFollowerSafety - 63) < .001f &&
+                (resumed.reliefFollowerPosition - civilian).Length < .001f,
+                "Reloading resumes the real civilian at the correct world-space location");
+            Check(resumed.CanStand(resumed.reliefFollowerPosition) &&
+                resumed.save.coins == coins && resumed.save.inventory[2] == herbs,
+                "Restoration does not invent rewards, items or impassable actor positions");
+            resumed.PrepareSave();
+            Check(resumed.save.rescueCheckpoint != null,
+                "A recovered escort can be saved again without losing its checkpoint");
+            resumed.save.x = post.x; resumed.save.y = post.y;
+            resumed.Tick(.05f, new Point());
+            Check((resumed.reliefFollowerPosition - civilian).Length < .001f,
+                "A saved waiting command continues to hold the survivor after loading");
+            resumed.save.x = civilian.x; resumed.save.y = civilian.y;
+            ChooseRescueCivilianOption(resumed, "relief_follow");
+            resumed.save.x = post.x; resumed.save.y = post.y;
+            for (int i = 0; i < 1000 && resumed.reliefMissionRoom != 0; i++)
+                resumed.Tick(.05f, new Point());
+            Check(resumed.Has("relief_rescue_6") && resumed.reliefMissionRoom == 0,
+                "The resumed civilian physically arrives home and earns only the normal first-clear reward");
+            resumed.PrepareSave();
+            Check(resumed.save.rescueCheckpoint == null,
+                "Successful rescue does not leave a stale award-generating checkpoint");
+        }
+
+        public static void OldAndCorruptCivilianCheckpointsRemainSafe(Campaign data)
+        {
+            var old = Fresh(data); old.PrepareSave();
+            Check(old.save.version == 2 && old.save.rescueCheckpoint == null,
+                "Previous save slots have no mandatory rescue checkpoint");
+            var normal = new GameCore(data, old.save); normal.Start();
+            Check(normal.reliefMissionRoom == 0, "Older saved games continue to load normally");
+            old.save.stage = 3; old.save.room = 6;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6", "farshore_relief_6" })
+                if (!old.save.flags.Contains(flag)) old.save.flags.Add(flag);
+            old.save.frontierEnding = 2;
+            old.save.x = data.maps[6].spawnX; old.save.y = data.maps[6].spawnY;
+            old.save.rescueCheckpoint = new RescueCheckpoint {
+                room = 6, x = float.NaN, y = 14, time = 50, safety = 40
+            };
+            var invalid = new GameCore(data, old.save); invalid.Start();
+            Check(invalid.reliefMissionRoom == 0 &&
+                invalid.save.rescueCheckpoint == null,
+                "An invalid coordinate cannot create an invisible or off-map civilian");
+            old.save.rescueCheckpoint = new RescueCheckpoint {
+                room = 7, x = 16, y = 14, time = 44, safety = 65
+            };
+            var foreign = new GameCore(data, old.save); foreign.Start();
+            Check(foreign.reliefMissionRoom == 0 &&
+                foreign.save.rescueCheckpoint == null,
+                "An unrelated room's checkpoint cannot alter current progression");
+        }
+
         public static void CivilianBracesForRealEscortWindupThenResumesWalking(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
