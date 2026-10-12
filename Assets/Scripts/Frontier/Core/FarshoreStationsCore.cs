@@ -209,11 +209,26 @@ namespace Starfall
                 !Finite(checkpoint.x) || !Finite(checkpoint.y) ||
                 !Finite(checkpoint.time) || checkpoint.time <= 0 ||
                 checkpoint.time > 120 || !Finite(checkpoint.safety) ||
-                checkpoint.safety <= 0 || checkpoint.safety > 100 ||
-                !CanStand(new Point(checkpoint.x, checkpoint.y))) return;
+                checkpoint.safety <= 0 || checkpoint.safety > 100) return;
+            Point savedFoot = new Point(checkpoint.x, checkpoint.y);
+            if (!CanStand(savedFoot))
+            {
+                // A saved Mistport shoal can become flooded when tide locks
+                // expire. Only actual authored '%' shoals may use the same
+                // short-range bank recovery as live actors; arbitrary walls
+                // and invalid coordinates are rejected, not teleported.
+                int tx = (int)Math.Floor(savedFoot.x), ty = (int)Math.Floor(savedFoot.y);
+                if (checkpoint.room != 5 || LowTide ||
+                    tx < 2 || ty < 2 || tx >= Map.rows[0].Length - 2 ||
+                    ty >= Map.rows.Length - 2 || Map.rows[ty][tx] != '%')
+                    return;
+                Point dryBank = SafeActorFoot(savedFoot);
+                if ((dryBank - savedFoot).Length > 4.5f) return;
+                savedFoot = dryBank;
+            }
             reliefMissionRoom = checkpoint.room; reliefMissionWave = 3;
             reliefMissionTime = checkpoint.time; reliefFollowerSafety = checkpoint.safety;
-            reliefFollowerPosition = new Point(checkpoint.x, checkpoint.y);
+            reliefFollowerPosition = savedFoot;
             reliefFollowerWaiting = checkpoint.waiting;
             reliefMedicalUsed = checkpoint.treated;
             reliefWardUsed = checkpoint.escortGuardUsed;
