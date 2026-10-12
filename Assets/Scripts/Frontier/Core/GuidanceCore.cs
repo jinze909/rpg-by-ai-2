@@ -76,11 +76,12 @@ namespace Starfall
                     if (!done && next == 0) next = region;
                 }
                 q.complete = Has("road_trial_complete");
-                q.room = next == 0 ? 9 : next;
-                q.target = ObjectPoint(q.room, next == 0 ? "surveyDesk" : "survey" + next, new Point(15, 14));
+                q.room = roadTrialRoom != 0 ? roadTrialRoom : next == 0 ? 9 : next;
+                q.target = ObjectPoint(q.room, roadTrialRoom != 0 ? "survey" + roadTrialRoom :
+                    next == 0 ? "surveyDesk" : "survey" + next, new Point(15, 14));
                 q.next = q.locked ? L("先解读三封巡路旧信", "Decode the three roadwarden letters first") :
-                    q.complete ? L("三座信标已守住，归乡之路仍然明亮", "All three beacons stand watch over the road") :
-                    roadTrialRoom != 0 ? L("击退第 " + roadTrialWave + "/2 波敌人", "Defeat wave " + roadTrialWave + "/2") :
+                    roadTrialRoom != 0 ? L("击退第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波敌人", "Defeat wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves) :
+                    q.complete ? L("三座信标已守住；信标可重玩三波精英试炼", "All beacons defended; replay three-wave veteran challenges") :
                     L("在信标处开始双波守路试炼", "Begin the two-wave defense at the beacon");
                 q.reward = L("每座35硬币、2碎片、40经验；全部完成额外技能点1、碎片3",
                     "Each: 35 coins, 2 shards, 40 XP; all three: bonus 1 talent point, 3 shards");

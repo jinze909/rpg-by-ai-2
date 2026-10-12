@@ -302,8 +302,9 @@ namespace Starfall.Tests
                     g.save.shards == shards + 2 + (region == 3 ? 3 : 0),
                     "Clearing both waves grants exactly one region reward");
                 g.Talk(beacon);
-                Check(!Array.Exists(g.conversation.choices, c => c.action == "road_trial_start_" + region),
-                    "Completed beacon cannot repeat its reward");
+                Check(Array.Exists(g.conversation.choices, c => c.action == "road_trial_start_" + region) &&
+                    g.conversation.textEn.Contains("rewards cannot be claimed twice"),
+                    "Completed beacon unlocks a clearly labeled veteran replay without repeat rewards");
                 g.Close();
             }
             Check(g.Has("road_trial_complete") && g.GetQuest("vigil").complete &&
@@ -319,6 +320,58 @@ namespace Starfall.Tests
             Check(loaded.Has("road_trial_complete") && loaded.GetQuest("vigil").complete &&
                 loaded.save.skillPoints == totalPoints + 1,
                 "Vigil completion and talent persist in the original save schema");
+        }
+
+
+        public static void RoadwardenVeteranReplayAddsAThirdWaveWithoutFarmingRewards(Campaign data)
+        {
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "Veteran drill uses the production hit path");
+            for (int region = 1; region <= 3; region++)
+            {
+                var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+                foreach (string flag in new[] { "survey_1", "survey_2", "survey_3",
+                    "survey_complete", "dispatch_complete", "road_trial_1",
+                    "road_trial_2", "road_trial_3", "road_trial_complete" })
+                    g.save.flags.Add(flag);
+                g.Enter(region); g.enemies.Clear();
+                var beacon = Object(g, "survey" + region);
+                g.save.x = beacon.x; g.save.y = beacon.y;
+                int coins = g.save.coins, shards = g.save.shards;
+                int points = g.save.skillPoints, xp = g.save.xp, kills = g.save.kills[region];
+                Action(g, beacon.kind, "road_trial_start_" + region);
+                Check(g.RoadwardenTrialRoom == region && g.RoadwardenTrialTotalWaves == 3,
+                    "Previously defended beacon starts an independent three-wave veteran trial");
+                for (int wave = 1; wave <= 3; wave++)
+                {
+                    Check(g.RoadwardenTrialWave == wave, "Veteran drill advances to wave " + wave);
+                    var attackers = g.enemies.FindAll(e => e.id >= 81000 && e.id < 81100);
+                    Check(attackers.Count == 2 && attackers.TrueForAll(e =>
+                        e.maxHp >= 75 + region * 15 + (wave - 1) * 30),
+                        "Veteran wave has two stronger, real combatants");
+                    if (wave == 3)
+                        Check(attackers.Exists(e => e.kind == 2) &&
+                            attackers.Exists(e => e.kind == 0),
+                            "Final wave combines armored breaker with close-range hunter");
+                    foreach (Enemy enemy in attackers)
+                        hit.Invoke(g, new object[] { enemy, 9999f, false, null, null });
+                    for (int frame = 0; frame < 8; frame++) g.Tick(.05f, new Point());
+                }
+                Check(g.RoadwardenTrialRoom == 0 && g.enemies.FindAll(e =>
+                    e.id >= 81000 && e.id < 81100).Count == 0,
+                    "Veteran drill finishes cleanly after its third wave");
+                Check(g.save.coins == coins && g.save.shards == shards &&
+                    g.save.skillPoints == points && g.save.xp == xp &&
+                    g.save.kills[region] == kills,
+                    "Veteran clears cannot farm one-time oath rewards or ordinary combat loot");
+                Action(g, beacon.kind, "road_trial_start_" + region);
+                Check(g.RoadwardenTrialWave == 1, "Completed veteran trial remains replayable");
+                Action(g, beacon.kind, "road_trial_abandon");
+                Check(g.RoadwardenTrialRoom == 0 && g.hazards.Count == 0 &&
+                    !g.enemies.Exists(e => e.id >= 81000 && e.id < 81100),
+                    "Abandoning a veteran replay clears its transient combat state");
+            }
         }
 
         public static void RoadwardenVigilRegionalSurgesAreReadableAndTransient(Campaign data)

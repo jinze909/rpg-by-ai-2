@@ -99,12 +99,14 @@ namespace Starfall
         // Optional two-wave beacon defense. Completion uses existing save flags.
         // Leaving or loading restarts a drill; trial foes never become world patrols.
         private int roadTrialRoom, roadTrialWave;
+        private bool roadTrialVeteran;
         private float roadTrialSurgeTimer;
         private int roadTrialSurgeCount;
         // Transient warnings belong to this drill, never to the persistent world.
         private readonly List<Hazard> roadTrialWarnings = new List<Hazard>();
         public int RoadwardenTrialRoom { get { return roadTrialRoom; } }
         public int RoadwardenTrialWave { get { return roadTrialWave; } }
+        public int RoadwardenTrialTotalWaves { get { return roadTrialVeteran ? 3 : 2; } }
         private string RoadwardenVigilInnNote(bool english)
         {
             if (Has("road_trial_complete"))
@@ -123,6 +125,7 @@ namespace Starfall
             foreach (Hazard warning in roadTrialWarnings) hazards.Remove(warning);
             roadTrialWarnings.Clear();
             roadTrialRoom = roadTrialWave = 0;
+            roadTrialVeteran = false;
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
         }
         private string RoadwardenSurgeHint(int region, bool english)
@@ -137,11 +140,12 @@ namespace Starfall
         private string RoadwardenTrialHint(int region, bool english)
         {
             if (!Has("dispatch_complete")) return "";
-            if (Has("road_trial_" + region))
-                return english ? "\n\nThe beacon defense oath has been fulfilled." : "\n\n这座信标的守路誓约已完成。";
             if (roadTrialRoom == region)
-                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/2. Defeat the attackers, or abandon the drill here."
-                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/2 波。击败来袭者，或在此放弃试炼。";
+                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Defeat the attackers, or abandon the drill here."
+                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。击败来袭者，或在此放弃试炼。";
+            if (Has("road_trial_" + region))
+                return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense for practice; rewards cannot be claimed twice."
+                    : "\n\n守路誓约已完成。可再次挑战更难的三波精英守卫战；奖励不会重复领取。";
             return english ? "\n\nOptional two-wave defense. " + RoadwardenSurgeHint(region, true) + " Complete all three for a talent point. Leaving or loading restarts a drill."
                 : "\n\n可选双波守路试炼。" + RoadwardenSurgeHint(region, false) + " 完成三座信标可获得技能点。离开或读档需重新挑战。";
         }
@@ -161,7 +165,7 @@ namespace Starfall
             int region;
             if (!int.TryParse(action.Substring(17), out region) || region < 1 || region > 3 ||
                 save.room != region || !Has("dispatch_complete") || !Has("survey_" + region) ||
-                Has("road_trial_" + region) || roadTrialRoom != 0 || practicing || Dying)
+                roadTrialRoom != 0 || practicing || Dying)
                 return true;
             Point beacon = ObjectPoint(region, "survey" + region, new Point(-100, -100));
             if ((Position - beacon).Length > 2.1f) return true;
@@ -171,6 +175,7 @@ namespace Starfall
                 return true;
             }
             roadTrialRoom = region; roadTrialWave = 1;
+            roadTrialVeteran = Has("road_trial_" + region);
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
             if (!SpawnRoadwardenTrialWave())
             {
@@ -179,7 +184,8 @@ namespace Starfall
                 return true;
             }
             TrackQuest("vigil");
-            Notify("守路试炼开始！第一波：追猎者与射手。", "Defense drill! Wave one: hunter and archer.");
+            Notify(roadTrialVeteran ? "精英守路试炼！三波敌人，奖励不会重复领取。" : "守路试炼开始！第一波：追猎者与射手。",
+                roadTrialVeteran ? "Veteran defense! Three tougher waves; no repeat rewards." : "Defense drill! Wave one: hunter and archer.");
             return true;
         }
         private bool SpawnRoadwardenTrialWave()
@@ -202,9 +208,11 @@ namespace Starfall
             if (positions.Count != 2) return false;
             for (int slot = 0; slot < 2; slot++)
             {
-                int kind = roadTrialWave == 1 ? slot : slot == 0 ? 2 : 1;
+                int kind = roadTrialWave == 1 ? slot :
+                    roadTrialWave == 2 ? (slot == 0 ? 2 : 1) : (slot == 0 ? 2 : 0);
                 int id = 81000 + roadTrialRoom * 10 + roadTrialWave * 2 + slot;
-                float hp = 55 + roadTrialRoom * 15 + (roadTrialWave - 1) * 30;
+                float hp = 55 + roadTrialRoom * 15 + (roadTrialWave - 1) * 30 +
+                    (roadTrialVeteran ? 20 : 0);
                 enemies.Add(new Enemy(id, kind, positions[slot].x, positions[slot].y, hp));
                 effects.Add(new Effect("discover", positions[slot], .65f));
             }
@@ -279,34 +287,47 @@ namespace Starfall
             if (save.room != roadTrialRoom || Dying || practicing) { ResetRoadwardenTrial(); return; }
             if (enemies.Exists(IsRoadwardenTrialEnemy))
             {
-                if (roadTrialWave == 2)
+                if (roadTrialWave >= 2)
                 {
                     roadTrialSurgeTimer -= dt;
                     if (roadTrialSurgeTimer <= 0)
                     {
-                        roadTrialSurgeTimer = 4.5f;
+                        roadTrialSurgeTimer = roadTrialWave == 3 ? 3.2f : 4.5f;
                         SpawnRoadwardenSurge();
                     }
                 }
                 return;
             }
-            if (roadTrialWave == 1)
+            if (roadTrialWave < RoadwardenTrialTotalWaves)
             {
-                roadTrialWave = 2;
+                roadTrialWave++;
                 roadTrialSurgeTimer = 1.25f;
-                roadTrialSurgeCount = 0;
+                if (roadTrialWave == 2) roadTrialSurgeCount = 0;
                 if (!SpawnRoadwardenTrialWave())
                 {
                     ResetRoadwardenTrial();
                     Notify("战场已改变，试炼中断；可以再次挑战。", "The arena changed; restart the drill at the beacon.");
                     return;
                 }
-                Notify("第二波！重甲破阵者与射手。" + RoadwardenSurgeHint(roadTrialRoom, false),
-                    "Wave two! Armored breaker and archer. " + RoadwardenSurgeHint(roadTrialRoom, true));
+                if (roadTrialWave == 2)
+                    Notify("第二波！重甲破阵者与射手。" + RoadwardenSurgeHint(roadTrialRoom, false),
+                        "Wave two! Armored breaker and archer. " + RoadwardenSurgeHint(roadTrialRoom, true));
+                else
+                    Notify("最终波！重甲破阵者与追猎者，区域攻击将更加频繁！",
+                        "Final wave! Armored breaker and hunter; regional surges accelerate!");
                 return;
             }
             int region = roadTrialRoom;
+            bool veteran = roadTrialVeteran;
             ResetRoadwardenTrial();
+            if (veteran)
+            {
+                effects.Add(new Effect("discover", Position, .8f));
+                sound = "quest"; revision++;
+                Notify("精英守路试炼完成！誓约奖励已领取，不会重复发放。",
+                    "Veteran defense cleared! Oath rewards remain one-time only.");
+                return;
+            }
             if (Has("road_trial_" + region)) return;
             Flag("road_trial_" + region);
             save.coins += 35; save.shards += 2; AddXp(40); revision++;

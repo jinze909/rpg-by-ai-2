@@ -171,8 +171,10 @@ namespace Starfall
                 var signalChoices = new List<Choice> { C("记住这条路", "Remember the road", "close") };
                 if (Has("survey_complete") && roadTrialRoom != signal) signalChoices.Add(C("沿巡路信号返回炉火旅店", "Follow the signal back to the Hearth Inn", "survey_home"));
                 if (roadTrialRoom == signal) signalChoices.Add(C("放弃守路试炼", "Abandon defense drill", "road_trial_abandon"));
-                else if (Has("dispatch_complete") && !Has("road_trial_" + signal))
-                    signalChoices.Add(C("挑战双波守路试炼", "Begin two-wave defense", "road_trial_start_" + signal));
+                else if (Has("dispatch_complete"))
+                    signalChoices.Add(Has("road_trial_" + signal)
+                        ? C("再战三波精英守路试炼（无重复奖励）", "Replay three-wave veteran defense (no repeat reward)", "road_trial_start_" + signal)
+                        : C("挑战双波守路试炼", "Begin two-wave defense", "road_trial_start_" + signal));
                 Dialog(o.name, o.en, notesZh[signal] + (first ? "\n\n信号已记录：12硬币、1碎片、15经验。到炉火旅店拼合三段路线。" : Has("survey_complete") ? "\n\n归乡星图已连通。附近安全时，可以沿信号返回旅店。" : "\n\n讯息已记录，可在旅店的星图桌查看进度。") + RoadwardenTrialHint(signal, false), notesEn[signal] + (first ? "\n\nSignal recorded: 12 coins, 1 shard, 15 XP. Assemble all three at the Hearth Inn." : Has("survey_complete") ? "\n\nThe homeward chart is linked. Return to the inn when nearby enemies are clear." : "\n\nSignal already recorded. Check the chart table at the Hearth Inn.") + RoadwardenTrialHint(signal, true), signalChoices.ToArray());
                 return true;
             }
