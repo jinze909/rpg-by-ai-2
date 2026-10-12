@@ -647,6 +647,63 @@ namespace Starfall.Tests
             }
         }
 
+        public static void MistportEscortCheckpointRecoversOnlyFloodedFooting(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "fieldstation_5", "fieldstation_survey_5", "farshore_relief_5" })
+                g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(5);
+            g.save.totalTime = 30; g.save.tideHeldUntil = 0;
+            Check(!g.LowTide, "The authored tidal world is truly high tide for this restoration test");
+            Point flooded = new Point(); bool found = false;
+            for (int y = 3; y < g.Map.rows.Length - 3 && !found; y++)
+            for (int x = 3; x < g.Map.rows[y].Length - 3 && !found; x++)
+            {
+                if (g.Map.rows[y][x] != '%') continue;
+                Point candidate = new Point(x + .5f, y + .5f);
+                if (g.CanStand(candidate)) continue;
+                Point[] neighbors = {
+                    candidate + new Point(1, 0), candidate + new Point(-1, 0),
+                    candidate + new Point(0, 1), candidate + new Point(0, -1)
+                };
+                foreach (Point next in neighbors)
+                    if (g.CanStand(next)) { flooded = candidate; found = true; break; }
+            }
+            Check(found, "An actual shoal becomes underwater beside valid, dry actor footing");
+            g.save.rescueCheckpoint = new RescueCheckpoint {
+                room = 5, x = flooded.x, y = flooded.y,
+                time = 40, safety = 65
+            };
+            var resumed = new GameCore(data, g.save); resumed.Start();
+            Check(resumed.ReliefEscortActive &&
+                resumed.CanStand(resumed.reliefFollowerPosition) &&
+                (resumed.reliefFollowerPosition - flooded).Length < 4.5f &&
+                Math.Abs(resumed.reliefMissionTime - 40) < .001f,
+                "A high-tide load recovers the civilian onto the neighboring bank with no lost deadline");
+            resumed.PrepareSave();
+            Check(resumed.save.rescueCheckpoint != null &&
+                resumed.save.rescueCheckpoint.room == 5 &&
+                resumed.CanStand(new Point(resumed.save.rescueCheckpoint.x,
+                    resumed.save.rescueCheckpoint.y)),
+                "Subsequent saves preserve the newly dry real-world civilian coordinates");
+            // Restoring from a wall is not a tidal recovery. Reject it.
+            var invalid = Fresh(data);
+            invalid.save.stage = 3; invalid.save.room = 5;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "fieldstation_5", "fieldstation_survey_5", "farshore_relief_5" })
+                if (!invalid.save.flags.Contains(flag)) invalid.save.flags.Add(flag);
+            invalid.save.frontierEnding = 2;
+            invalid.save.x = g.Map.spawnX; invalid.save.y = g.Map.spawnY;
+            invalid.save.totalTime = 30;
+            invalid.save.rescueCheckpoint = new RescueCheckpoint {
+                room = 5, x = 2.5f, y = 2.5f, time = 50, safety = 90
+            };
+            var rejected = new GameCore(data, invalid.save); rejected.Start();
+            Check(!rejected.ReliefEscortActive && rejected.save.rescueCheckpoint == null,
+                "A wall or arbitrary blocked map coordinate cannot exploit shore recovery");
+        }
+
         public static void CivilianEscortHurryAddsRealSpeedAndCannotFarmReload(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
