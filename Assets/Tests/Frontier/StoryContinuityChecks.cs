@@ -72,6 +72,67 @@ namespace Starfall.Tests
                 "Chapter navigation survives saving without currency or progress mutation");
         }
 
+        public static void ChronicleRetellsRegionalChoicesAndSurvivesReload(Campaign data)
+        {
+            var g = Fresh(data); g.NewGame(0); g.Close();
+            WorldObject archive = Object(g, "worldchronicle");
+            g.save.flags.Add("harbor_report");
+            g.save.flags.Add("desert_report");
+            g.save.flags.Add("mountain_report");
+            string[] harborZh = { "", "守灯优先", "救援优先", "协同方案" };
+            string[] harborEn = { "", "Lights first", "Rescue first", "Shared priority" };
+            string[] desertZh = { "", "绿洲优先", "航路优先" };
+            string[] desertEn = { "", "Oasis first", "Routes first" };
+            string[] mountainZh = { "", "证据封存", "公开名单" };
+            string[] mountainEn = { "", "Evidence preserved", "Names made public" };
+            string[] councilZh = { "", "共同水渠", "轮值灯网", "开放星路" };
+            string[] councilEn = { "", "Shared canals", "Rotating lightwatch", "Open starroads" };
+            int coins = g.save.coins, shards = g.save.shards, talent = g.save.skillPoints;
+            int flags = g.save.flags.Count;
+            for (int variant = 1; variant <= 3; variant++)
+            {
+                int regional = Math.Min(2, variant);
+                g.save.harborPledge = variant;
+                g.save.desertChoice = regional;
+                g.save.mountainChoice = regional;
+                g.save.frontierEnding = variant;
+                g.Talk(archive);
+                ChooseStoryChoice(g, "story_section_farshore");
+                ChooseStoryChoice(g, "story_read_harbor");
+                Check(g.conversation.text.Contains(harborZh[variant]) &&
+                    g.conversation.textEn.Contains(harborEn[variant]),
+                    "The harbor archive follows each saved lighthouse/rescue priority in both languages");
+                ChooseStoryChoice(g, "story_section_farshore");
+                ChooseStoryChoice(g, "story_read_desert");
+                Check(g.conversation.text.Contains(desertZh[regional]) &&
+                    g.conversation.textEn.Contains(desertEn[regional]),
+                    "The desert archive distinguishes actual oasis and navigation choices");
+                ChooseStoryChoice(g, "story_section_farshore");
+                ChooseStoryChoice(g, "story_read_mountain");
+                Check(g.conversation.text.Contains(mountainZh[regional]) &&
+                    g.conversation.textEn.Contains(mountainEn[regional]),
+                    "The mountain archive remembers sealed versus public names");
+                ChooseStoryChoice(g, "story_section_farshore");
+                ChooseStoryChoice(g, "story_read_covenant");
+                Check(g.conversation.text.Contains(councilZh[variant]) &&
+                    g.conversation.textEn.Contains(councilEn[variant]),
+                    "All three farshore governance outcomes receive distinct, bilingual aftermath");
+                Check(g.save.coins == coins && g.save.shards == shards &&
+                    g.save.skillPoints == talent && g.save.flags.Count == flags,
+                    "Reading recorded choices never changes currency, flags or talents");
+                g.Close();
+            }
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            restored.Talk(Object(restored, "worldchronicle"));
+            ChooseStoryChoice(restored, "story_section_farshore");
+            ChooseStoryChoice(restored, "story_read_covenant");
+            Check(restored.conversation.text.Contains("开放星路") &&
+                restored.conversation.textEn.Contains("Open starroads") &&
+                restored.save.coins == coins && restored.save.flags.Count == flags,
+                "An existing-schema save reload retains the precise covenant account");
+        }
+
         public static void WorldChronicleRespectsChapterProgressAndRealInteractions(Campaign data)
         {
             var g = Fresh(data); g.NewGame(0);

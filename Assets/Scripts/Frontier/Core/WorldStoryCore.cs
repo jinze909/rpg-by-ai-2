@@ -119,6 +119,73 @@ namespace Starfall
                 if (StoryUnlocked(pages[i])) return pages[i];
             return null;
         }
+        // The chronicle reflects choices already recorded in the original save
+        // fields. It never commits a new decision, quest flag or reward.
+        private void AppendChronicleConsequences(string page, ref string zh, ref string en)
+        {
+            if (page == "harbor")
+            {
+                if (save.harborPledge == 1)
+                {
+                    zh += "\n\n【守灯优先】你将有限的零件先交给守灯会，重新点亮外海航道。摆渡盟仍要逐个寻找失联的人；船册不会把那些等待抹掉。";
+                    en += "\n\n[Lights first] You gave the scarce parts to the Lamplighters to reopen the sea lanes. The Ferry Union still has people to find, and the log cannot erase those left waiting.";
+                }
+                else if (save.harborPledge == 2)
+                {
+                    zh += "\n\n【救援优先】你先让摆渡盟接回被困旅客。海上的灯列还需要修复，而获救者也终于能讲述潮水改变的那一夜。";
+                    en += "\n\n[Rescue first] You helped the Ferry Union bring stranded passengers home before restoring the lights. The sea lanes still need repair, but survivors can now testify about the changing tide.";
+                }
+                else if (save.harborPledge == 3)
+                {
+                    zh += "\n\n【协同方案】你让灯塔维修和渡船救援共用一份紧张的物资表。两边都不能假装自己的安全是唯一需要守护的。";
+                    en += "\n\n[Shared priority] You split scarce supplies between lighthouse repairs and ferry rescues. Neither side could call its own safety the only kind worth protecting.";
+                }
+            }
+            else if (page == "desert")
+            {
+                if (save.desertChoice == 1)
+                {
+                    zh += "\n\n【绿洲优先】你把蓄光池的补给转向活人居住的绿洲。山野议会得到一份公开的调度账，也必须负责让供水持续运转。";
+                    en += "\n\n[Oasis first] You redirected the reservoir toward living oasis communities. The Assembly gained a public allocation ledger and the responsibility to keep the water flowing.";
+                }
+                else if (save.desertChoice == 2)
+                {
+                    zh += "\n\n【航路优先】你保留机器对远岸灯网的供能，帮助船只辨认归途；但旧城主的指令不再能代替活人的监督。";
+                    en += "\n\n[Routes first] You retained power for the navigation lights so ships could find home. The dead ruler's old instruction no longer substitutes for oversight by the living.";
+                }
+            }
+            else if (page == "mountain")
+            {
+                if (save.mountainChoice == 1)
+                {
+                    zh += "\n\n【证据封存】你将原始名单交给议会保存，作为推动修正撤离制度的证据。名字没有公开，保管的人因此更有责任作出改变。";
+                    en += "\n\n[Evidence preserved] You entrusted the original names to the council as evidence for evacuation reform. The names remain protected, and their keepers are responsible for acting on them.";
+                }
+                else if (save.mountainChoice == 2)
+                {
+                    zh += "\n\n【公开名单】你让失踪者的名字刻在所有人都能读到的路碑上。钟声不再只掩盖事故，也提醒后人记住每个人。";
+                    en += "\n\n[Names made public] You had the missing names set where every traveler can read them. The bells no longer only conceal a disaster; they ask people to remember each life.";
+                }
+            }
+            else if (page == "covenant")
+            {
+                if (save.frontierEnding == 1)
+                {
+                    zh += "\n\n【共同水渠】摆渡盟负责管道，旧灯缆成为输水材料，沙海得到新的种子。农田会多收获药草，但远海的灯仍需要节制供能。";
+                    en += "\n\n[Shared canals] The Ferry Union manages pipes made partly from old lamp cables, while new seeds reach the desert. Farms gain extra herbs; distant lights still need careful power use.";
+                }
+                else if (save.frontierEnding == 2)
+                {
+                    zh += "\n\n【轮值灯网】三地轮流负责航路灯列，并公开每次交班的耗材与风险。灯没有永远不灭的主人，只有必须有人接起的下一班。";
+                    en += "\n\n[Rotating lightwatch] Three regions share navigation shifts and publish their supplies and risks. No keeper owns the lights forever; each has to hand them on.";
+                }
+                else if (save.frontierEnding == 3)
+                {
+                    zh += "\n\n【开放星路】米拉、伊沃与森共同管理渡船、水渠和路碑。能源账向所有人开放，同伴配合与公共委托也因此得到实际改善。";
+                    en += "\n\n[Open starroads] Mira, Ivo and Sen jointly care for ferries, canals and the memorial road. Energy accounts are public, and companions and community contracts benefit from their cooperation.";
+                }
+            }
+        }
         private void WorldChroniclePage(string page)
         {
             string zh = "", en = "", headingZh = "", headingEn = "";
@@ -210,6 +277,7 @@ namespace Starfall
                     break;
                 default: WorldChronicleMenu(); return;
             }
+            AppendChronicleConsequences(page, ref zh, ref en);
             // Offer chapter-local navigation without jumping across locked
             // milestones. The current page is always one the player earned.
             var choices = new List<Choice>();

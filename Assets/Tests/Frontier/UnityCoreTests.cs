@@ -70,6 +70,7 @@ namespace Starfall.Tests
         [Test] public void SpecialEncountersCannotOverlap() { CoreChecks.OptionalEncountersNeverStartInsideEachOther(Data()); }
         [Test] public void WorldLedgerAndEchoLoreStayCoherent() { CoreChecks.LivingWorldLedgerAndAtlasEchoShareOneStory(Data()); }
         [Test] public void ChroniclePageNavigationRespectsMilestones() { CoreChecks.ChronicleChapterNavigationNeverLeaksFutureEvents(Data()); }
+        [Test] public void ChronicleReflectsActualRegionalDecisions() { CoreChecks.ChronicleRetellsRegionalChoicesAndSurvivesReload(Data()); }
         [Test] public void WorldChronicleRespectsPlayerDiscovery() { CoreChecks.WorldChronicleRespectsChapterProgressAndRealInteractions(Data()); }
         [Test] public void CampaignAndCouncilEpiloguesMatchWorldLore() { CoreChecks.IndependentEndingsAndCampaignLoreRemainConsistent(Data()); }
         [Test] public void SurveyorEchoHasLiveTimedCombat() { CoreChecks.SurveyorEchoCombatHasWarningsAndSafeRewards(Data()); }
