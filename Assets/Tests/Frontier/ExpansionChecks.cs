@@ -113,6 +113,60 @@ namespace Starfall.Tests
                         "Final phase bell strikes must ring one after another");
             }
         }
+        public static void RootReaperClosesRootPincers(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.StartAbyss(0);
+            g.save.abyssFloor = 6;
+            g.save.x = 29; g.save.y = 9;
+            MethodInfo release = typeof(GameCore).GetMethod("BossExpansionAttack", BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(release != null, "Root Reaper uses the production Boss attack release");
+            var boss = new Enemy(903, 3, 29, 9, 680, true) { target = new Point(29, 9) };
+            for (int risk = 0; risk <= 2; risk++)
+            for (int phase = 1; phase <= 3; phase++)
+            for (int cycle = 1; cycle <= 2; cycle++)
+            {
+                g.save.abyssRisk = risk;
+                boss.hp = phase == 1 ? 680 : phase == 2 ? 340 : 120;
+                boss.cycle = cycle;
+                g.hazards.Clear();
+                release.Invoke(g, new object[] { boss });
+                Check(g.hazards.Count == (phase == 1 ? 1 : phase == 2 ? 3 : 5),
+                    "The Reaper gains two outer roots and then two inward roots");
+                Hazard mark = g.hazards[0];
+                Check(mark.kind == "rift" && Math.Abs(mark.timer - 1.5f) < .001f &&
+                      Math.Abs(mark.radius - 2) < .001f && Math.Abs(mark.damage - (20 + phase * 2)) < .001f,
+                    "The existing abyss mark is preserved");
+                if (phase == 1) continue;
+                Point axis = cycle % 2 == 1 ? new Point(1, 0) : new Point(0, 1);
+                int index = 1;
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Point outer = new Point(29, 9) + axis * (side * 2.8f);
+                    Hazard h = g.hazards[index++];
+                    Check(h.kind == "root" && GameCore.HazardTheme(h) == 8 &&
+                          Math.Abs(h.position.x - outer.x) < .001f && Math.Abs(h.position.y - outer.y) < .001f &&
+                          Math.Abs(h.radius - 1.05f) < .001f && Math.Abs(h.timer - 1.85f) < .001f &&
+                          Math.Abs(h.damage - (16 + risk * 3)) < .001f,
+                        "Outer roots alternate axes with a warning and risk-scaled damage");
+                    if (phase == 3)
+                    {
+                        Point inner = new Point(29, 9) + axis * (side * 1.5f);
+                        Hazard h2 = g.hazards[index++];
+                        Check(h2.kind == "root" && Math.Abs(h2.position.x - inner.x) < .001f &&
+                              Math.Abs(h2.position.y - inner.y) < .001f &&
+                              Math.Abs(h2.radius - .9f) < .001f && Math.Abs(h2.timer - 2.25f) < .001f &&
+                              Math.Abs(h2.damage - (16 + risk * 3)) < .001f,
+                            "Final-phase roots close inward after the first warning");
+                    }
+                }
+            }
+            g.save.abyssFloor = 5;
+            boss.hp = 120;
+            g.hazards.Clear();
+            release.Invoke(g, new object[] { boss });
+            Check(g.hazards.Count == 1, "Other floors never spawn final Boss root pincers");
+        }
         public static void MigrationAndBuilds(Campaign data)
         {
             var old = new SaveData { version = 1, stage = 1, room = 1, x = 5, y = 14, coins = 91, health = 72, kills = new[] { 0, 6, 0, 0, 0 }, flags = new List<string> { "intro", "scout_saved", "core_1", "lore_1" } };

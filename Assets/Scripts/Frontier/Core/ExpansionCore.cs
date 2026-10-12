@@ -382,6 +382,21 @@ namespace Starfall
             {
                 Point center = Position;
                 AddHazard(center, 2, 1.5f, 20 + e.BossPhase * 2, "rift");
+                if (save.room == 8 && InAbyss && save.abyssFloor == 6 && e.BossPhase >= 2)
+                {
+                    // Paired roots close on the player; alternate the axis each release.
+                    Point axis = e.cycle % 2 == 1 ? new Point(1, 0) : new Point(0, 1);
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        Point outer = center + axis * (side * 2.8f);
+                        if (Fits(outer)) AddHazard(outer, 1.05f, 1.85f, 16 + save.abyssRisk * 3, "root");
+                        if (e.BossPhase == 3)
+                        {
+                            Point inner = center + axis * (side * 1.5f);
+                            if (Fits(inner)) AddHazard(inner, .9f, 2.25f, 16 + save.abyssRisk * 3, "root");
+                        }
+                    }
+                }
                 if (save.room == 7 && e.BossPhase >= 2)
                 {
                     // Three blue bell strikes surround the frost mark,
@@ -744,7 +759,7 @@ namespace Starfall
         private void OpenAbyssEntrance()
         {
             if (!CanEnter(8)) { Notify(RouteHint(8, false), RouteHint(8, true)); return; }
-            Dialog("地脉裂口", "The root fissure", "每次远征有六层，房间随种子改变。清层后选择一种祝福，并结算本层战利品；继续深入会保留祝福。\n\n倒下或提前离开会失去本层未结算收益，已结算物品保留。第三层之后有落印，最后一层有地脉收割者。风险越高，生命与碎片收益越高。", "Six seeded floors. Clear a floor, choose a boon and bank its loot; boons stay while descending.\n\nFalling or leaving loses only the unbanked floor. Rift marks begin on floor three; the Root Reaper waits on six. Higher risk means tougher enemies and more shards.", C("巡行 · 风险0", "Survey · risk 0", "abyssStart0"), C("深入 · 风险1", "Delve · risk 1", "abyssStart1"), C("裂隙 · 风险2", "Rift · risk 2", "abyssStart2"), C("稍后再来", "Later", "close"));
+            Dialog("地脉裂口", "The root fissure", "每次远征有六层，房间随种子改变。清层后选择一种祝福，并结算本层战利品；继续深入会保留祝福。\n\n倒下或提前离开会失去本层未结算收益，已结算物品保留。第三层之后有落印，最后一层有地脉收割者，根刺会从两侧合拢，沿垂直方向闪避。风险越高，生命与碎片收益越高。", "Six seeded floors. Clear a floor, choose a boon and bank its loot; boons stay while descending.\n\nFalling or leaving loses only the unbanked floor. Rift marks begin on floor three; the Root Reaper waits on six; its roots close from both sides, so dodge perpendicular to their line. Higher risk means tougher enemies and more shards.", C("巡行 · 风险0", "Survey · risk 0", "abyssStart0"), C("深入 · 风险1", "Delve · risk 1", "abyssStart1"), C("裂隙 · 风险2", "Rift · risk 2", "abyssStart2"), C("稍后再来", "Later", "close"));
         }
         public void StartAbyss(int risk)
         {
