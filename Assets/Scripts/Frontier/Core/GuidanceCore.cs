@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,27 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+            if (id == "archive_echo")
+            {
+                q.title = L("测绘师的回声", "The Surveyor's Echo");
+                q.category = L("精英战斗", "ELITE COMBAT");
+                q.locked = !Has("archive_complete");
+                q.description = L("星图指向矿场的旧方位校准台。与回声守卫交战时会出现三条紫色范围预警，留下一条空白方位。观察预警闪避，守卫虚弱后注意延迟中心爆发。",
+                    "The completed atlas reveals an echo guardian in Rediron. Three purple area tells leave one clear cardinal exit. Dodge toward it; at low health the center also erupts after a delay.");
+                q.steps.Add(new QuestStep(L("修复失落测绘师的星图", "Restore the Lost Surveyor's Atlas"),
+                    Has("archive_complete")));
+                q.complete = Has("archive_echo_complete");
+                q.steps.Add(new QuestStep(L("击败回声守卫", "Defeat the echo guardian"), q.complete));
+                q.room = 3; q.target = ObjectPoint(3, "archiveecho", new Point(23, 11));
+                q.next = q.locked ? L("先完成琳的星图委托", "Complete Lin's atlas commission first") :
+                    q.complete ? L("回声已平息，矿场方位重新校准", "Echo silenced and the compass is aligned") :
+                    atlasEchoRoom == 3 ? L("闪避三向落点，击败重甲守卫", "Dodge the three bearings and defeat the elite") :
+                    L("前往赤铁矿场的旧校准台", "Visit the calibrator in Rediron Mine");
+                q.reward = L("首次胜利85硬币、5碎片、90经验；不可重复领取",
+                    "First clear: 85 coins, 5 shards and 90 XP; cannot repeat");
+                return q;
+            }
 
             if (id == "archive_trail")
             {

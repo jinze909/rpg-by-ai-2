@@ -115,6 +115,8 @@ namespace Starfall
                 Ring(e.Position, .52f, PixelArt.C("#e6a06c"), 16);
             if (!drawingOutline && e.id >= 82000 && e.id < 82100)
                 Ring(e.Position, .52f, PixelArt.C("#f27d7d"), 16);
+            if (!drawingOutline && e.id == 83001)
+                Ring(e.Position, .72f, PixelArt.C("#e7b0f2"), 24);
             // Static mint outline also works with reduced-motion enabled.
             if (!drawingOutline && !Game.practicing && e.releaseTime > .001f && e.stun <= 0)
                 Ring(e.Position, e.boss ? .86f : .54f, new Color(.48f, 1f, .79f, .85f), 24);

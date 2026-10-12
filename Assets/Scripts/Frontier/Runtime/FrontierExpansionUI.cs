@@ -56,6 +56,23 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if (kind == "archiveecho")
+            {
+                bool completed = Game.Has("archive_echo_complete"), active = Game.AtlasEchoRoom == Game.save.room;
+                Color tint = active ? PixelArt.C("#e7b0f2") : completed ? mint : gold;
+                PropImage("column", 0, p.x - 28, p.y - 65, 56, 73, completed ? muted : Color.white);
+                Ring(new Point(o.x, o.y), .55f, tint, 20);
+                Text(p.x - 53, p.y - 92, 106, 22,
+                    active ? Game.L("回声激活", "ECHO ACTIVE") :
+                    completed ? Game.L("已完成", "CALIBRATED") :
+                    Game.L("方位试炼", "COMPASS TRIAL"),
+                    12, tint, TextAnchor.MiddleCenter);
+                Enemy guardian = Game.enemies.Find(enemy => enemy.id == 83001);
+                if (active && guardian != null)
+                    Bar(p.x - 37, p.y + 12, 74,
+                        guardian.hp / Math.Max(1, guardian.maxHp), tint, 6);
+                return true;
+            }
             if (kind == "archivekeeper" || kind.StartsWith("archivefragment"))
             {
                 bool collected = kind == "archivekeeper" ? Game.Has("archive_complete") :

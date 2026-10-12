@@ -100,7 +100,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho();
         }
         public void NewGame(int profession)
         {
@@ -374,12 +374,13 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
             enemies.Remove(e);
-            bool roadTrialEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e);
-            // Drill opponents do not advance chapter kill gates, contracts,
-            // or normal loot. Clearing both waves pays the fixed trial prize.
-            if (!roadTrialEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }
-            if (!roadTrialEnemy) effects.Add(new Effect("loot", e.Position, .75f) { variant = e.boss ? 5 : e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2 });
-            if (!InAbyss && !roadTrialEnemy)
+            bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
+                IsAtlasEchoEnemy(e);
+            // Authored encounter combat pays only its first-clear quest reward,
+            // never normal chapter kills, bounty credits, or loot drops.
+            if (!specialEncounterEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }
+            if (!specialEncounterEnemy) effects.Add(new Effect("loot", e.Position, .75f) { variant = e.boss ? 5 : e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2 });
+            if (!InAbyss && !specialEncounterEnemy)
             {
                 save.coins += e.boss ? 70 : 6; save.xp += e.boss ? 80 : 12;
                 save.inventory[e.boss ? 5 : (e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2)]++;

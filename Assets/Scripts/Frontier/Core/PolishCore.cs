@@ -70,6 +70,7 @@ namespace Starfall
         {
             TickRoadwardenTrial(dt);
             TickWayfarerEncounter();
+            TickAtlasEcho(dt);
             actionHintTimer = Math.Max(0, actionHintTimer - dt);
             // Permanent quest mutations increment revision; tablet progress is
             // transient. Do not rebuild two language journals every idle frame.
@@ -132,6 +133,7 @@ namespace Starfall
         }
         private bool TalkPolish(WorldObject o)
         {
+            if (TalkAtlasEcho(o)) return true;
             if (TalkArchiveTrail(o)) return true;
             if (TalkWayfarer(o)) return true;
             if (TalkRoadwardenCipher(o)) return true;
@@ -207,6 +209,7 @@ namespace Starfall
         }
         private bool ChoosePolish(string action)
         {
+            if (ChooseAtlasEcho(action)) return true;
             if (ChooseArchiveTrail(action)) return true;
             if (ChooseWayfarer(action)) return true;
             if (ChooseRoadwardenCipher(action)) return true;
@@ -288,7 +291,7 @@ namespace Starfall
             {
                 // Temporary trial attackers restart after loading; never save
                 // them as ordinary world patrols.
-                if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e)) continue;
+                if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();

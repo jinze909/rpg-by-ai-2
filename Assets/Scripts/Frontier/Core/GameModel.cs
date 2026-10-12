@@ -133,6 +133,8 @@ namespace Starfall
         public Point position;
         public float timer, radius, damage;
         public string kind;
+        // Transient ownership prevents encounter hazards surviving retirement.
+        public bool atlasEchoOwned;
     }
     public struct LightRay
     {

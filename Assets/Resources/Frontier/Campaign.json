@@ -1085,6 +1085,14 @@
           "kind": "archivefragment3",
           "x": 25.5,
           "y": 11.5
+        },
+        {
+          "id": "archiveecho",
+          "kind": "archiveecho",
+          "name": "测绘师的回声试炼",
+          "en": "Surveyor's Echo Challenge",
+          "x": 23.5,
+          "y": 11.5
         }
       ],
       "decor": [
