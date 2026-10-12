@@ -329,7 +329,8 @@ namespace Starfall
                 if (IsRoadwardenTrialEnemy(attacker) && attacker.hp > 0 &&
                     attacker.stun <= 0 && attacker.hitTime <= 0 &&
                     attacker.state != 1 && attacker.releaseTime <= 0 &&
-                    (attacker.Position - anchor).Length < 1.7f)
+                    (attacker.Position - anchor).Length < 1.7f &&
+                    ClearAttackPath(attacker.Position, anchor))
                     pressure += attacker.kind == 2 ? 1.3f : 1;
             roadTrialWardUnderAttack = pressure > 0;
             if (roadTrialWardUnderAttack)
@@ -367,6 +368,9 @@ namespace Starfall
             }
             if (roadTrialWave < RoadwardenTrialTotalWaves)
             {
+                // End the cleared wave cleanly before spawning its successor;
+                // an old archer shot must not punish the hero in the next wave.
+                projectiles.RemoveAll(p => p.roadTrialOwned);
                 roadTrialWave++;
                 // A cleared wave restores a little ward, but damage sustained
                 // earlier still matters during the remaining defense.

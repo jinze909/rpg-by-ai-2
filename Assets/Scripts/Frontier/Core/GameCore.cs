@@ -498,7 +498,9 @@ namespace Starfall
                     }
                     continue;
                 }
-                if (distance > (e.boss ? 18 : 8)) continue;
+                // Defense attackers cannot abandon the beacon after knockback
+                // or while navigating around a distant obstruction.
+                if (!wardAttacker && distance > (e.boss ? 18 : 8)) continue;
                 e.timer -= dt;
                 float desired = wardAttacker ? 1.05f : e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);

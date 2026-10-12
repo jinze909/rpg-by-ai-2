@@ -397,14 +397,20 @@ namespace Starfall.Tests
             {
                 Point candidate = new Point(x + .5f, y + .5f);
                 if ((candidate - new Point(beacon.x, beacon.y)).Length > 10 &&
-                    g.CanStand(candidate)) { retreat = candidate; found = true; }
+                    g.CanStand(candidate) && g.NavigationPath(candidate).Count > 0)
+                { retreat = candidate; found = true; }
             }
             Check(found, "The map offers a safe distant observation position");
             g.save.x = retreat.x; g.save.y = retreat.y;
             Enemy hunter = g.enemies.Find(e => e.id >= 81000 && e.id < 81100 && e.kind == 0);
             Check(hunter != null, "Wave one contains a real hunter");
             foreach (Enemy foe in g.enemies) foe.stun = 15;
-            hunter.stun = 0; hunter.x = beacon.x; hunter.y = beacon.y; hunter.timer = 20;
+            hunter.stun = 0; hunter.x = retreat.x; hunter.y = retreat.y; hunter.timer = 20;
+            float strandedDistance = (hunter.Position - new Point(beacon.x, beacon.y)).Length;
+            g.Tick(.05f, new Point());
+            Check((hunter.Position - new Point(beacon.x, beacon.y)).Length < strandedDistance,
+                "Trial attackers must pursue the ward even beyond ordinary aggro range");
+            hunter.x = beacon.x; hunter.y = beacon.y; hunter.timer = 20;
             float start = g.RoadwardenWardIntegrity;
             for (int frame = 0; frame < 40; frame++) g.Tick(.05f, new Point());
             Check(g.RoadwardenWardIntegrity < start - 5 && g.RoadwardenWardUnderAttack,

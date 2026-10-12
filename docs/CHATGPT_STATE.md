@@ -54,3 +54,5 @@
 - Tactical follow-up: while defending, the hero can return to the beacon and spend 35 energy for a one-time 25-point ward repair per wave. Repair is explicitly offered only when ward is damaged; it cannot be spammed, and remains transient on load. Extended `RoadwardenBeaconWardIsARealDefendableObjective` to cover the actual dialogue and resource cost. Native visual balance remains `NATIVE_UNVERIFIED`.
 
 - 2026-10-12 audit: trial archer shots are now tagged as transient drill-owned projectiles and removed on clear, abandon, loss, or room reset. The regression exercises real enemy Fire, failure and abandonment, while preserving all non-trial shots. Unity native remains `NATIVE_UNVERIFIED`.
+
+- Additional defense QA: trial attackers stay committed to the beacon beyond the normal eight-unit aggro cutoff and cannot siphon integrity through solid walls. Trial-owned projectiles retire between waves as well as on defeat/abandon. Added a reachable long-range pursuit regression. Unity native remains `NATIVE_UNVERIFIED`.
