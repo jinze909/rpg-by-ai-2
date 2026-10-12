@@ -1,6 +1,6 @@
 # Repository RPG skills
 
-Eight reviewed skill packages are committed here so a fresh Codex Cloud or GitHub Actions checkout can read them without depending on a previous host snapshot. Use the repository root as the working directory. Enumerate `*/SKILL.md`; read the relevant skill and its references once when a task needs it, then only re-read what the current task directly requires. Do not re-read all skills or log SKILLS_USAGE every round.
+Reviewed skill packages are committed here so a fresh Codex Cloud or GitHub Actions checkout can read them without depending on a previous host snapshot. Use the repository root as the working directory. Enumerate `*/SKILL.md`; read the relevant skill and its references once when a task needs it, then only re-read what the current task directly requires. Do not re-read all skills or log SKILLS_USAGE every round.
 
 The user has authorized game development. Preserve accepted design and user edits, follow repository AGENTS.md, validate actual behavior, never force push, and separate unavailable or unrun checks from passes.
 
@@ -14,6 +14,7 @@ The user has authorized game development. Preserve accepted design and user edit
 | verification-before-completion | Match every completion claim to fresh evidence | Offline checks cannot substitute for licensed Unity playback |
 | unity-mcp-orchestrator | Inspect/editor/compile/test workflows when MCP is connected | Guidance only; compatible plugin, server, licensed editor required; Unity 6 examples require adaptation |
 | imagegen | Reference-driven raster assets and consistent character-frame production | A callable image tool must exist; CI runners do not inherit chat image generation; CLI API billing is separate and explicit opt-in |
+| unity-plugin-coordination | Coordinate optional @Unity and $unity-essentials integrations when actually available | Writing about plugins in a skill does not install/connect them; no Editor/MCP access is assumed |
 
 Source revisions, licenses, checksums, upstream/local modifications and attribution are preserved in each package and docs/skills-source-manifest.json. Code and documentation licenses differ for the three game-* packages. No models, editor caches, credentials or host registration links are included. Existing same-name user files are never silently overwritten.
 
