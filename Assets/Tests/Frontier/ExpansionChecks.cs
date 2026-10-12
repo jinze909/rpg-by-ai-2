@@ -68,6 +68,51 @@ namespace Starfall.Tests
                 }
             }
         }
+        public static void FrostPrelateRotatesSafeBellExit(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.Enter(7);
+            g.save.x = 20; g.save.y = 12;
+            MethodInfo release = typeof(GameCore).GetMethod("BossExpansionAttack", BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(release != null, "Frost Prelate must use the live regional Boss attack");
+            var boss = new Enemy(902, 3, 29, 9, 600, true) { target = new Point(15, 8) };
+            Point[] directions = { new Point(1, 0), new Point(0, 1), new Point(-1, 0), new Point(0, -1) };
+            for (int phase = 1; phase <= 3; phase++)
+            for (int cycle = 1; cycle <= 4; cycle++)
+            {
+                boss.hp = phase == 1 ? 500 : phase == 2 ? 300 : 100;
+                boss.cycle = cycle;
+                g.hazards.Clear();
+                release.Invoke(g, new object[] { boss });
+                Check(g.hazards.Count == (phase == 1 ? 1 : 4),
+                    "First phase preserves one frost mark; later phases add three bells");
+                Hazard mark = g.hazards[0];
+                Check(mark.kind == "rift" && Math.Abs(mark.position.x - 20) < .001f &&
+                      Math.Abs(mark.position.y - 12) < .001f && Math.Abs(mark.radius - 2) < .001f &&
+                      Math.Abs(mark.timer - 1.5f) < .001f && Math.Abs(mark.damage - (20 + phase * 2)) < .001f,
+                    "The original frost mark and damage remain intact");
+                if (phase == 1) continue;
+                int safe = (cycle - 1) % 4, strike = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i == safe) continue;
+                    Hazard bell = g.hazards[++strike];
+                    Point expected = new Point(20, 12) + directions[i] * 3.5f;
+                    float delay = 1.75f + (phase == 3 ? (strike - 1) * .22f : 0);
+                    Check(Math.Abs(bell.position.x - expected.x) < .001f &&
+                          Math.Abs(bell.position.y - expected.y) < .001f,
+                        "The unmarked safe exit rotates through all four directions");
+                    Check(bell.kind == "bell" && GameCore.HazardTheme(bell) == 7 &&
+                          Math.Abs(bell.radius - 1.1f) < .001f &&
+                          Math.Abs(bell.timer - delay) < .001f && Math.Abs(bell.damage - 14) < .001f,
+                        "Blue bell warnings keep their timing and damage");
+                }
+                if (phase == 3)
+                    Check(g.hazards[1].timer < g.hazards[2].timer &&
+                          g.hazards[2].timer < g.hazards[3].timer,
+                        "Final phase bell strikes must ring one after another");
+            }
+        }
         public static void MigrationAndBuilds(Campaign data)
         {
             var old = new SaveData { version = 1, stage = 1, room = 1, x = 5, y = 14, coins = 91, health = 72, kills = new[] { 0, 6, 0, 0, 0 }, flags = new List<string> { "intro", "scout_saved", "core_1", "lore_1" } };

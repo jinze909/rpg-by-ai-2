@@ -36,6 +36,7 @@ namespace Starfall.Tests
         [Test] public void JournalRefreshTriggers(){CoreChecks.JournalRecordsRefreshOnlyOnStateChanges(Data());}
         [Test] public void LastDodgeFrameFacing(){CoreChecks.DashExitKeepsVisibleFacing(Data());}
         [Test] public void RegionalBossLaneSweeps(){CoreChecks.RegionalBossesSweepAlternatingLanes(Data());}
+        [Test] public void FrostPrelateSafeBellExit(){CoreChecks.FrostPrelateRotatesSafeBellExit(Data());}
         [Test] public void DodgeRunLegCadence(){CoreChecks.DashToRunRestartsLegCadence(Data());}
         [Test] public void DodgeEscapesAwardRiposte(){CoreChecks.EscapingTelegraphedAttacksEarnsOneCounter(Data());}
         [Test] public void DashDistanceAcrossFrameSizes(){CoreChecks.DashDistanceIsFrameStepIndependent(Data());}

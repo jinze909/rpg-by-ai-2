@@ -355,7 +355,7 @@ namespace Starfall
         private void AddHazard(Point p, float radius, float delay, float damage, string kind)
         { hazards.Add(new Hazard { position = p, radius = radius, timer = delay, damage = damage, kind = kind }); }
         public static int HazardTheme(Hazard hazard)
-        { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : 8; }
+        { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : hazard.kind == "bell" ? 7 : 8; }
         private void BossExpansionAttack(Enemy e)
         {
             // The harbor beast and glass guardian learn to sweep the other axis
@@ -379,7 +379,26 @@ namespace Starfall
                 }
             }
             if (save.room == 7 || save.room == 8)
-            { AddHazard(Position, 2, 1.5f, 20 + e.BossPhase * 2, "rift"); }
+            {
+                Point center = Position;
+                AddHazard(center, 2, 1.5f, 20 + e.BossPhase * 2, "rift");
+                if (save.room == 7 && e.BossPhase >= 2)
+                {
+                    // Three blue bell strikes surround the frost mark,
+                    // leaving one rotating cardinal exit unmarked.
+                    Point[] directions = { new Point(1, 0), new Point(0, 1),
+                                           new Point(-1, 0), new Point(0, -1) };
+                    int safeExit = (e.cycle - 1) % directions.Length;
+                    int strike = 0;
+                    for (int i = 0; i < directions.Length; i++)
+                    {
+                        if (i == safeExit) continue;
+                        float delay = 1.75f + (e.BossPhase == 3 ? strike * .22f : 0);
+                        AddHazard(center + directions[i] * 3.5f, 1.1f, delay, 14, "bell");
+                        strike++;
+                    }
+                }
+            }
         }
         public string Conditions()
         {
@@ -557,7 +576,7 @@ namespace Starfall
             if (Has("boss_" + save.room))
             { Dialog(o.name, o.en, "异常能源已经平静。保留这里的记录，去找当地的同伴提交调查。", "The unstable energy settles. Bring its record to your local companion.", C("去提交调查", "File the regional report", save.room == 5 ? "report_mira" : save.room == 6 ? "report_ivo" : "report_sen"), C("继续探索", "Keep exploring", "close")); return; }
             if (enemies.Exists(e => e.boss)) { Notify("挑战已经开始。注意环形与分段攻击预告。", "The challenge is underway. Watch the segmented warning rings."); return; }
-            Dialog(CurrentBoss.name, CurrentBoss.en, new[] { "潮壳海兽身上长满了废弃的航标。它吞下废水，再把毒潮吐回港口。避开横向三连潮击，打断它的蓄力。", "玻璃守卫仍在执行九年前的命令。它用纵向光柱封住退路。走出金色警戒区，再击破它的护甲。", "霜钟执事举起权杖：如果他们不再相信钟声，谁来让他们走过冬天？\n\n霜印会跟随你落下。不要站在原地。" }[save.room - 5], new[] { "The Tide Maw is covered in broken buoys. It swallows waste and spits poison tides. Dodge its three lateral surges and break its charge.", "The Glass Custodian still obeys a nine-year-old order. Vertical light pillars seal the retreat. Leave their warnings, then break its armor.", "The Frost Prelate raises his staff: If they stop believing in the bells, who gets them through winter?\n\nFrost marks follow you. Keep moving." }[save.room - 5], C("开始挑战", "Challenge", "expboss"), C("准备一下", "Prepare", "close"));
+            Dialog(CurrentBoss.name, CurrentBoss.en, new[] { "潮壳海兽身上长满了废弃的航标。它吞下废水，再把毒潮吐回港口。避开横向三连潮击，打断它的蓄力。", "玻璃守卫仍在执行九年前的命令。它用纵向光柱封住退路。走出金色警戒区，再击破它的护甲。", "霜钟执事举起权杖：如果他们不再相信钟声，谁来让他们走过冬天？\n\n霜印会跟随你落下。不要站在原地。受伤后它会敲响三面冰钟；向没有蓝色预警的方向撤离。" }[save.room - 5], new[] { "The Tide Maw is covered in broken buoys. It swallows waste and spits poison tides. Dodge its three lateral surges and break its charge.", "The Glass Custodian still obeys a nine-year-old order. Vertical light pillars seal the retreat. Leave their warnings, then break its armor.", "The Frost Prelate raises his staff: If they stop believing in the bells, who gets them through winter?\n\nFrost marks follow you. Keep moving. When wounded, it rings three frost bells; escape through the unmarked direction." }[save.room - 5], C("开始挑战", "Challenge", "expboss"), C("准备一下", "Prepare", "close"));
         }
         private bool ChooseExpansion(string action)
         {
