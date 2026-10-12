@@ -318,10 +318,12 @@ namespace Starfall
             TickFrost(dt);
             if(Dying||mode!="world")return;
             bool tea = save.teaUntil > save.totalTime;
-            save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) && !racing ? 1.3f : -10), 0, 100);
+            save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
+                !NearActiveFieldStation(6, 4.2f) && !racing ? 1.3f : -10), 0, 100);
             bool warm = false;
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
-            save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm ? 1.1f : -8), 0, 100);
+            save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
+                !NearActiveFieldStation(7, 4.2f) ? 1.1f : -8), 0, 100);
             climateTimer -= dt;
             if (climateTimer <= 0) { climateTimer = 1; if (save.heat >= 85 || save.cold >= 90) Hurt(4); }
             if (Dying) return;
@@ -419,8 +421,12 @@ namespace Starfall
         {
             if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " + L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards;
             if (save.room == 5) return LowTide ? L("低潮 · 潮滩可通行", "LOW TIDE · shoals open") : L("高潮 · 等待退潮或使用闸门", "HIGH TIDE · wait or use the sluice");
-            if (save.room == 6) return L("热度 ", "HEAT ") + (int)save.heat + "/100 · " + L("绿洲降温 / 凉茶免疫", "shade cools / tea protects");
-            if (save.room == 7) return L("寒意 ", "COLD ") + (int)save.cold + "/100 · " + L("点燃火盆 / 凉茶抗寒", "light braziers / tea protects");
+            if (save.room == 6) return L("热度 ", "HEAT ") + (int)save.heat + "/100 · " +
+                (NearActiveFieldStation(6, 4.2f) ? L("气象站正在降温", "STATION COOLING") :
+                    L("绿洲降温 / 凉茶免疫", "shade cools / tea protects"));
+            if (save.room == 7) return L("寒意 ", "COLD ") + (int)save.cold + "/100 · " +
+                (NearActiveFieldStation(7, 4.2f) ? L("气象站正在供暖", "STATION WARMING") :
+                    L("点燃火盆 / 凉茶抗寒", "light braziers / tea protects"));
             return L("第 ", "DAY ") + Day + L(" 日 · ", " · ") + (Night ? L("星夜", "STARLIT NIGHT") : L("日照", "DAYLIGHT"));
         }
         public void DrinkTea()
@@ -507,6 +513,7 @@ namespace Starfall
         }
         private bool TalkExpansion(WorldObject o)
         {
+            if (TalkFieldStation(o)) return true;
             string kind = o.kind;
             if (kind == "envoy")
             {
@@ -595,6 +602,7 @@ namespace Starfall
         }
         private bool ChooseExpansion(string action)
         {
+            if (ChooseFieldStation(action)) return true;
             if (action == "exp_begin") { if (save.stage >= 1) { Flag("exp_intro"); TrackQuest("shore"); Enter(5); } return true; }
             if (action == "camp" || action == "companions") { mode = action; return true; }
             if (action == "journal") { mode = "journal"; return true; }

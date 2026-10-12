@@ -1491,6 +1491,14 @@
       ],
       "objects": [
         {
+          "id": "fieldstation5",
+          "kind": "fieldstation5",
+          "name": "潮痕观测站",
+          "en": "Tidewatch weather station",
+          "x": 9.5,
+          "y": 12.5
+        },
+        {
           "id": "porthome",
           "name": "返回余烬镇",
           "en": "Emberfall",
@@ -1746,6 +1754,14 @@
       ],
       "objects": [
         {
+          "id": "fieldstation6",
+          "kind": "fieldstation6",
+          "name": "风蚀观测站",
+          "en": "Sunglass weather station",
+          "x": 15.5,
+          "y": 11.5
+        },
+        {
           "id": "glasshome",
           "name": "返回余烬镇",
           "en": "Emberfall",
@@ -1978,6 +1994,14 @@
         "####################################"
       ],
       "objects": [
+        {
+          "id": "fieldstation7",
+          "kind": "fieldstation7",
+          "name": "霜钟观测站",
+          "en": "Frostbell weather station",
+          "x": 10.5,
+          "y": 11.5
+        },
         {
           "id": "frosthome",
           "name": "返回余烬镇",

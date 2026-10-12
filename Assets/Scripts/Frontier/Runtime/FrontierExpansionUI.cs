@@ -56,6 +56,22 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if (kind.StartsWith("fieldstation"))
+            {
+                int station;
+                if (!int.TryParse(kind.Substring("fieldstation".Length), out station) ||
+                    station < 5 || station > 7) return false;
+                bool powered = Game.Has("fieldstation_" + station);
+                Color light = powered ? mint : gold;
+                PropImage("lamp", 0, p.x - 26, p.y - 54, 52, 65, powered ? Color.white : muted);
+                Ring(new Point(o.x, o.y), .55f, light, 16);
+                Text(p.x - 55, p.y - 86, 110, 24,
+                    powered ? Game.L("安全观测站", "SHELTER ONLINE") :
+                    Game.L("等待维修", "REPAIR STATION"), 11, light, TextAnchor.MiddleCenter);
+                if (powered && station >= 6 && Game.NearActiveFieldStation(station, 4.2f))
+                    Ring(new Point(o.x, o.y), 1.1f, new Color(mint.r, mint.g, mint.b, .52f), 24);
+                return true;
+            }
             if (kind.StartsWith("mirror"))
             {
                 int id = int.Parse(kind.Substring(6)); PropImage("mirror", id, p.x - 34, p.y - 68, 68, 79);

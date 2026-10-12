@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,36 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+            if (id == "stations")
+            {
+                q.title = L("远岸风暴观测网", "The Farshore Stormwatch");
+                q.category = L("环境探索", "ENVIRONMENTAL EXPLORATION");
+                q.locked = !CanEnter(5);
+                q.description = L("修复雾港潮汐站、沙海降温站与高原保暖站。利用各地的潮汐、镜面光路和火盆，建立安全的远岸补给路线。",
+                    "Restore a tidewatch, cooling and warming station. Read the tides, route the desert mirrors and kindle a highland brazier.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool done = Has("fieldstation_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "启动雾港潮汐站", "启动沙海降温站", "启动高原保暖站" }[region - 5],
+                        new[] { "Repair the harbor tidewatch", "Repair the desert cooler", "Repair the frost shelter" }[region - 5]), done));
+                    if (!done && next == 0) next = region;
+                }
+                q.complete = Has("fieldstation_complete");
+                q.steps.Add(new QuestStep(L("建立三地安全观测网", "Connect all three weather stations"), q.complete));
+                q.room = next == 0 ? 5 : next;
+                q.target = ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
+                q.next = q.locked ? L("推进主线，开启远岸雾港", "Advance the story and unlock Mistport") :
+                    q.complete ? L("三座观测站现已提供当地环境保护", "All three stations now protect nearby travelers") :
+                    !CanEnter(q.room) ? L("先完成上一地区的调查报告", "Complete the previous regional report") :
+                    q.room == 5 ? L("在低潮时维修，之后可随时固定45秒低潮", "Repair at low tide; then hold it for 45 seconds") :
+                    q.room == 6 ? L("先接通三面镜子的光路，再维修降温站", "Connect the mirror light channel before repairing") :
+                    L("点燃西侧火盆后维修保暖站", "Light the western brazier before repairing");
+                q.reward = L("每站18硬币、2碎片、20经验；全修额外技能点1、凉茶2",
+                    "Each: 18 coins, 2 shards, 20 XP; all three: +1 talent point, +2 tea");
+                return q;
+            }
 
             if (id == "wayfarers")
             {
