@@ -44,9 +44,10 @@ namespace Starfall
         { return hazard.kind == "glass" ? gold : hazard.kind == "bell" ? PixelArt.C("#9bd8f5") : hazard.kind == "root" ? PixelArt.C("#82d9a3") : hazard.kind == "rift" ? PixelArt.C("#b9a1d1") : PixelArt.C("#d59583"); }
         private void DrawRescueSurvivorActor()
         {
-            if (!Game.ReliefEscortActive) return;
+            if (!Game.ReliefCivilianVisible) return;
             Point p = ScreenPoint(Game.reliefFollowerPosition);
-            bool walking = Game.reliefFollowerMoving && !Game.save.reducedMotion;
+            bool walking = Game.ReliefEscortActive && Game.reliefFollowerMoving &&
+                !Game.save.reducedMotion;
             float cycle = Game.reliefFollowerWalkDistance * 8.2f;
             float step = walking ? (float)Math.Abs(Math.Sin(cycle)) : 0;
             float bob = step * 3.2f;
@@ -56,8 +57,12 @@ namespace Starfall
             // Frame 14 is the canonical rescue civilian, not an animation
             // sheet. Procedural footfall bounce and tiny body lean preserve
             // visual identity and follow distance, without changing frames.
-            Actor(npcSheet, 4, 4, 14, new Point(p.x, p.y - bob), 96,
-                Color.white, Game.reliefFollowerFacingLeft, lean);
+            bool justHit = Game.reliefCivilianHitTime > 0;
+            Color tint = justHit ? PixelArt.C("#ffe2bd") : Color.white;
+            float reaction = justHit && !Game.save.reducedMotion ?
+                Game.reliefCivilianHitTime * 7f : 0;
+            Actor(npcSheet, 4, 4, 14, new Point(p.x, p.y - bob - reaction), 96,
+                tint, Game.reliefFollowerFacingLeft, lean);
         }
         private void DrawExpansionWorld()
         {

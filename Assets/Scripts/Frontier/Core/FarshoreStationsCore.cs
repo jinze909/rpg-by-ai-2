@@ -102,6 +102,12 @@ namespace Starfall
         public float reliefMissionTime;
         public Point reliefFollowerPosition;
         public float reliefFollowerSafety;
+        public float reliefCivilianHitTime;
+        public bool ReliefCivilianVisible
+        {
+            get { return reliefMissionRoom == save.room &&
+                reliefMissionWave >= 1 && reliefMissionWave <= 3; }
+        }
         public float reliefWardTime;
         private bool reliefWardUsed, reliefTimeWarning, reliefSafetyWarning;
         public float ReliefCombatThreatScale
@@ -130,6 +136,7 @@ namespace Starfall
             projectiles.RemoveAll(p => p.reliefMissionOwned);
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
             reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
+            reliefCivilianHitTime = 0;
             reliefWardTime = 0; reliefWardUsed = false;
             reliefTimeWarning = reliefSafetyWarning = false;
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
@@ -272,6 +279,7 @@ namespace Starfall
             float loss = 9f * ReliefCombatThreatScale *
                 (reliefWardTime > 0 ? .55f : 1f);
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
+            reliefCivilianHitTime = .24f;
             effects.Add(new Effect("projectileImpact", civilians, .28f) {
                 direction = shot.velocity.Normalized, variant = 1, height = shot.height });
             effects.Add(new Effect("number", civilians, .7f,
@@ -297,6 +305,7 @@ namespace Starfall
             float loss = (attacker.kind == 2 ? 22f : 14f) * ReliefCombatThreatScale;
             if (reliefWardTime > 0) loss *= .55f;
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
+            reliefCivilianHitTime = .24f;
             effects.Add(new Effect("danger", civilians, .45f) { radius = .7f });
             effects.Add(new Effect("number", civilians, .75f,
                 "-" + (int)loss + L("安全", " SAFETY")));
@@ -315,6 +324,7 @@ namespace Starfall
         {
             if (reliefMissionRoom == 0) return;
             int region = reliefMissionRoom;
+            reliefCivilianHitTime = Math.Max(0, reliefCivilianHitTime - dt);
             if (save.room != region || Dying || practicing)
             { ResetReliefMission(); return; }
             reliefMissionTime -= dt;
@@ -351,6 +361,10 @@ namespace Starfall
                 // wave cannot be cleared remotely from the station.
                 if ((Position - FieldSurveyTarget(region)).Length > 2.1f) return;
                 reliefMissionWave = 1;
+                // Reveal an actual rescued resident at a collision-safe spot
+                // during the battle, not an invisible safety meter. The same
+                // actor continues into the follow-home stage.
+                reliefFollowerPosition = SafeActorFoot(FieldSurveyTarget(region));
                 reliefFollowerSafety = 100;
                 if (!SpawnReliefMissionWave())
                 {

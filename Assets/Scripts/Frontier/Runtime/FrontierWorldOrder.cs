@@ -42,7 +42,7 @@ namespace Starfall
             // Keep the moving rescue survivor in the same depth pass as every
             // hero, NPC, tree and enemy. Painting her as a late HUD overlay
             // made her appear on top of walls and the golden-haired hero.
-            if(Game.ReliefEscortActive)
+            if(Game.ReliefCivilianVisible)
                 AddWorldEntry(new WorldDrawEntry{
                     depth=Game.reliefFollowerPosition.y+.001f,kind=WorldDrawKind.Survivor});
             worldDrawEntries.Sort(worldDepthComparer);
