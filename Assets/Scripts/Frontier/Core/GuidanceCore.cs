@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,32 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+            if (id == "dispatches")
+            {
+                q.title = L("巡路队的未寄之信", "The Wardens' Unsent Letters");
+                q.category = L("巡路探索", "ROADWARDEN DISCOVERY");
+                q.locked = !Has("survey_complete");
+                q.description = L("归乡星图指向密林、遗迹和矿场的三封未寄之信。重读旧信，解开隐藏的巡路誓言。",
+                    "The homeward chart points to three unsent letters in Thornwood, the Drowned Ruins and Ironreach. Reread them and decode the wardens' promise.");
+                int next = 0;
+                for (int idLetter = 6; idLetter <= 8; idLetter++)
+                {
+                    bool done = Has("dispatch_" + idLetter);
+                    q.steps.Add(new QuestStep(L(new[] { "解读密林旧信", "解读遗迹船票", "解读矿场图纸" }[idLetter - 6],
+                        new[] { "Decode forest letter", "Decode ferry ticket", "Decode mine blueprint" }[idLetter - 6]), done));
+                    if (!done && next == 0) next = idLetter;
+                }
+                q.complete = Has("dispatch_complete");
+                q.steps.Add(new QuestStep(L("拼合巡路队的誓言", "Reassemble the wardens' promise"), q.complete));
+                q.room = next == 0 ? 9 : next - 5;
+                q.target = ObjectPoint(q.room, next == 0 ? "surveyDesk" : "history" + next, new Point(15, 14));
+                q.next = q.locked ? L("先恢复三座信标并完成归乡星图", "Restore the beacons and complete the chart") :
+                    q.complete ? L("巡路队的誓言已传承", "The wardens' promise lives on") :
+                    L("重读旧信并解读暗号", "Reread the letter and decode its cipher");
+                q.reward = L("每封20硬币、1碎片、25经验；全解额外40硬币、技能点1",
+                    "Each: 20 coins, 1 shard, 25 XP; all three: 40 coins and 1 talent point");
+                return q;
+            }
             if (id == "signals")
             {
                 q.title = L("归乡的三段信号", "Three Signals Home"); q.category = L("巡路探索", "ROADWARDEN DISCOVERY");

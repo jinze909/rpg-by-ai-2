@@ -74,7 +74,17 @@ namespace Starfall
                 PropImage("fire", 0, p.x - 28, p.y - 44, 56, 65, lit ? Color.white : muted); return true;
             }
             if (kind.StartsWith("history") || kind == "manifest")
-            { PropImage("post", 0, p.x - 24, p.y - 55, 48, 56); Text(p.x - 16, p.y - 51, 32, 23, "?", 17, gold, TextAnchor.MiddleCenter); return true; }
+            {
+                PropImage("post", 0, p.x - 24, p.y - 55, 48, 56);
+                int letter = -1;
+                bool cipher = kind.StartsWith("history") && int.TryParse(kind.Substring(7), out letter) &&
+                    letter >= 6 && letter <= 8 && Game.Has("survey_complete");
+                bool decoded = cipher && Game.Has("dispatch_" + letter);
+                if (cipher) Ring(new Point(o.x, o.y), .43f, decoded ? mint : gold, 14);
+                Text(p.x - 16, p.y - 51, 32, 23, cipher ? decoded ? "✓" : "!" : "?", 17,
+                    decoded ? mint : gold, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (kind == "expAltar" || kind == "receiver" || kind == "sluice" || kind == "abyssGate" || kind == "abyssEntry" || kind == "abyssExit")
             {
                 bool active = kind == "expAltar" ? Game.GateOpen : kind == "receiver" ? Game.Has("mirrors_lit") : kind == "abyssEntry" ? Game.CanEnter(8) : true;

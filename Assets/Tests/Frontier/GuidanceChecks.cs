@@ -152,6 +152,69 @@ namespace Starfall.Tests
             restored.Talk(Object(restored, "surveyDesk")); restored.Choose(3);
             Check(restored.save.room == 3 && restored.CanStand(restored.Position), "Linked relay works after loading an existing-format save");
         }
+        public static void RoadwardenLettersHaveFairPersistentCipherRewards(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            Check(g.GetQuest("dispatches").locked, "The letter quest requires the restored chart");
+            g.TrackQuest("dispatches");
+            Check(g.save.trackedQuest != "dispatches", "Locked letters cannot be tracked");
+            for (int id = 6; id <= 8; id++)
+            {
+                g.Enter(id - 5); g.enemies.Clear();
+                g.Talk(Object(g, "history" + id));
+                Check(g.conversation.choices.Length == 1, "Original lore has its original reading before chart unlock");
+                g.Close();
+            }
+            foreach (int room in new[] { 1, 2, 3 }) g.save.flags.Add("survey_" + room);
+            g.save.flags.Add("survey_complete");
+            Check(!g.GetQuest("dispatches").locked && g.GetQuest("dispatches").room == 1,
+                "The chart unlocks a quest guiding players to the first old letter");
+            g.TrackQuest("dispatches");
+            int coins = g.save.coins, shards = g.save.shards, points = g.save.skillPoints;
+            for (int id = 6; id <= 8; id++)
+            {
+                g.Enter(id - 5); g.enemies.Clear();
+                WorldObject letter = Object(g, "history" + id);
+                g.save.x = letter.x; g.save.y = letter.y;
+                g.Talk(letter);
+                Check(g.conversation.choices.Length == 2 && g.conversation.choices[1].action == "dispatch_open_" + id,
+                    "Existing lore stays readable with an optional cipher choice");
+                g.Choose(1);
+                Check(g.conversation != null && g.conversation.choices.Length == 3,
+                    "Each letter offers a three-answer cipher");
+                g.Choose(0);
+                Check(!g.Has("dispatch_" + id) && g.save.coins == coins && g.save.shards == shards,
+                    "Wrong answers do not consume supplies or grant rewards");
+                Check(g.conversation.choices[0].action == "dispatch_open_" + id,
+                    "Players can retry a wrong answer");
+                g.Choose(0);
+                g.Choose(id == 7 ? 2 : 1);
+                Check(g.Has("dispatch_" + id) && g.mode == "world",
+                    "Correct answer completes the regional cipher");
+                coins += 20; shards++;
+                if (id == 8) { coins += 40; points++; }
+                Check(g.save.coins == coins && g.save.shards == shards && g.save.skillPoints == points,
+                    "Each letter and the final talent reward are one-time only");
+                g.Talk(letter);
+                Check(g.conversation.choices.Length == 1,
+                    "Solved letters preserve lore but no longer offer rewards");
+                g.Close();
+                Check(g.GetQuest("dispatches").room == (id == 8 ? 9 : id - 4),
+                    "Quest guidance advances to the next missing letter");
+            }
+            Check(g.Has("dispatch_complete") && g.GetQuest("dispatches").complete,
+                "All three letters complete the exploration quest");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            Check(restored.Has("dispatch_complete") && restored.GetQuest("dispatches").complete &&
+                restored.save.trackedQuest == "dispatches" && restored.save.skillPoints == points,
+                "Original save schema persists the decoded letters");
+            restored.Enter(1); restored.enemies.Clear();
+            restored.Talk(Object(restored, "history6"));
+            Check(restored.conversation.choices.Length == 1 && restored.save.coins == coins,
+                "Loading cannot duplicate rewards");
+        }
         public static void NavigationRespectsWorldCollision(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.frontierEnding = 1;

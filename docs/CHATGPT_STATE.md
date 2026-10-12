@@ -22,3 +22,5 @@
 
 - Homeward chart follow-up: completed survey desk now connects to the three discovered beacons, with return trips to the inn; region gates, nearby-enemy safety, collision-safe arrival and no-repeat rewards are covered by `HomewardChartConnectsSafeRegionalTravel`. No new save fields or asset GUIDs. Unity native: `NATIVE_UNVERIFIED`; inspect CI after push.
 - Next: verify relay dialogues/arrivals in Unity Editor, then expand roadwarden exploration encounters and meaningful map interactions.
+
+- AI-2 continuation (parent `bb77c45b6cae28c36fbd9b5beef72f90a3a37e96`): after completing the chart, the existing three unsent history letters (6–8) gain optional 3-answer ciphers. Correct choices grant one-time coins/shards/XP; solving all three grants a one-time talent point. The `dispatches` journal quest guides between existing letter locations, with a visual post marker. Original letter text/rewards, save schema, hero, and GUIDs are preserved; a new C# partial and `.meta` are added. Test: `RoadwardenLettersHaveFairPersistentCipherRewards`. CI pending after push; Unity Editor `NATIVE_UNVERIFIED`. Next: check native presentation and enhance route encounters or combat.
