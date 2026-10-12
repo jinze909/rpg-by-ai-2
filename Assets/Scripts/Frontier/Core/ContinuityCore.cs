@@ -87,6 +87,10 @@ namespace Starfall
             }
             Point actual = Position - start;
             movementDirection = actual;
+            // The final dodge tick still draws moving legs after dashTime reaches zero.
+            // Carry the dodge heading into that frame instead of an older walk heading.
+            if (wasDashing && dashTime <= 0 && actual.Length > .001f)
+                locomotionFacing = dashDirection;
             bool walking = actual.Length > .001f && !wasDashing && playerHitTime <= 0 && (playerAction == null || PlayerPhase == ActionPhase.Recovery);
             if (walking)
             {

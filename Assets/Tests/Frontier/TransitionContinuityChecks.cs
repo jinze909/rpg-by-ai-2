@@ -77,6 +77,29 @@ namespace Starfall.Tests
                 Check(g.Dying&&g.PlayerPose==11&&g.AppearanceWeapon==displayed&&(g.VisualFacing-facing).Length<.001f,"An actual lethal followup captures the displayed recoil outfit and facing");
             }
         }
+        public static void DashExitKeepsVisibleFacing(Campaign data)
+        {
+            // The last moving dash tick changes PlayerPose to walking. It must not
+            // briefly face the old walking/aim direction before the next tick.
+            foreach(float step in new[]{.02f,.03f})
+            {
+                var g=Quiet(data);Point dash=new Point(1,0),old=new Point(-1,0);
+                Check(g.CanStand(g.Position+dash*3),"Dodge continuity test uses open production map ground");
+                g.locomotionFacing=old;g.SetAim(old);g.Dash(dash);
+                Check(g.dashTime>0,"The real dodge enters its active interval");
+                int ticks=0;
+                while(g.dashTime>0&&ticks++<16)
+                {
+                    g.Tick(step,new Point(),old);
+                    if(g.dashTime>0)Check((g.VisualFacing-dash).Length<.001f,
+                        "Active dodge ignores the old walking and cursor direction");
+                }
+                Check(ticks<16&&g.dashTime<=0&&g.ActuallyMoving,
+                    "Dodge finishes with a real final translation tick");
+                Check((g.VisualFacing-dash).Length<.001f&&g.PlayerPose>=2&&g.PlayerPose<=3,
+                    "Final moving dodge frame keeps the actual dodge heading when switching to walking");
+            }
+        }
         public static void StandingRecoveryAndCrossEquipmentDeath(Campaign data)
         {
             Point[] directions={new Point(1,0),new Point(-1,0),new Point(0,-1),new Point(0,1)};

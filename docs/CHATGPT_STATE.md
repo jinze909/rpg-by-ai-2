@@ -1,0 +1,11 @@
+# Starfall Frontier — ChatGPT AI-2 state
+
+- Repository: `jinze909/rpg-by-ai-2` only. Development branch: `chatgpt/dev`. Never write to `jinze909/rpg-by-ai` or `jinze909/2D-RPG-Project`.
+- Trusted starting point: `68a40c3bb307286d60b7fbc9d0588000c8da91ea` (full Work RPG). `main` is older; do not reset to it.
+- Real entry: `Assets/Scenes/Frontier.unity`; `Assets/Scripts/Frontier/{Core,Runtime}/`; `Assets/Resources/Frontier/Campaign.json`.
+- Initial gameplay change: keep the last translating dash frame facing its actual dodge heading rather than the preceding walk heading. Existing collision, dodge duration, energy, actions, save schema, art and GUIDs remain untouched.
+- Regression: `CoreChecks.DashExitKeepsVisibleFacing` covers 20 ms and 30 ms simulation ticks and registers an Editor test. Offline `tools/run_core_tests.py` and `tools/run_combat_input_checks.py` CI are the applicable checks; inspect the actual GitHub Actions result before claiming a pass.
+- Native: `NATIVE_UNVERIFIED` until Unity 2022.3.53f1 Editor compilation and PlayMode/visual validation are actually run.
+- Assets: Git tree contains LFS pointer blobs; remote availability of all binary LFS objects has not been independently verified in this environment.
+- Next valuable gameplay work: check dodge-to-run leg-frame cadence and directional transitions in the actual runtime rendering; preserve the canonical blond hero, quest/region coverage, and old saves.
+- Each iteration: inspect current branch HEAD and CI, choose one player-facing production change, run appropriate real checks, fast-forward commit/push, update this concise state only when facts change. No periodic status-only commits.
