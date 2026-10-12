@@ -88,6 +88,7 @@ namespace Starfall.Tests
                 g.Talk(beacon); g.Choose(0);
                 Check(g.save.coins == coins && g.save.shards == shards, "Re-reading a beacon cannot farm supplies");
                 if (room < 3) Check(g.GetQuest("signals").room == room + 1, "Guidance advances to the next missing signal");
+                if (room == 1) { g.Enter(9); g.Talk(Object(g, "innGuest")); Check(g.conversation.textEn.Contains("Once all three signals") && g.conversation.textEn.Contains("Coming home with a story"), "Traveler offers a mid-quest clue without losing original advice"); g.Close(); }
             }
             Check(g.save.coins == startingCoins + 36 && g.save.shards == startingShards + 3, "Each beacon grants its one-time supplies");
             Check(g.GetQuest("signals").room == 9 && !g.GetQuest("signals").complete, "The collected signals lead to the inn");
@@ -97,6 +98,7 @@ namespace Starfall.Tests
             Check(g.Has("survey_complete") && g.GetQuest("signals").complete, "The chart completes the tracked quest");
             Check(Math.Abs(g.Speed - baseSpeed - .25f) < .001f, "The permanent exploration reward changes actual movement");
             Check(g.save.coins == startingCoins + 96 && g.save.shards == startingShards + 8 && g.save.skillPoints >= startingPoints + 1, "Completion grants the advertised rewards");
+            g.Talk(Object(g, "innGuest")); Check(g.conversation.textEn.Contains("helped three late travelers") && g.conversation.textEn.Contains("Coming home with a story"), "Inn traveler acknowledges the completed chart while preserving original guidance"); g.Close();
             int finalCoins = g.save.coins, finalShards = g.save.shards, finalPoints = g.save.skillPoints;
             g.Talk(desk); Check(g.conversation.choices[0].action == "close", "Finished chart cannot be redeemed again"); g.Choose(0);
             Check(g.save.coins == finalCoins && g.save.shards == finalShards && g.save.skillPoints == finalPoints, "Inn revisits cannot duplicate rewards");
