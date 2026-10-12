@@ -647,6 +647,62 @@ namespace Starfall.Tests
             }
         }
 
+        public static void EscortGuardUsesRealEnergyAndInterceptsPatrolDamage(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive && g.ReliefEscortGuardAvailable,
+                "Winning both waves offers one fresh escort formation without retaining the prior rally");
+            Point citizen = g.reliefFollowerPosition;
+            g.reliefFollowerWaiting = true;
+            g.save.x = citizen.x; g.save.y = citizen.y;
+            float energy = g.save.energy;
+            ChooseRescueCivilianOption(g, "relief_escort_guard");
+            Check(g.reliefWardTime > 7.5f && !g.ReliefEscortGuardAvailable &&
+                Math.Abs(g.save.energy - (energy - 20)) < .001f,
+                "A real interaction spends twenty energy for eight seconds of physical protection");
+            g.Interact();
+            Check(g.conversation != null &&
+                !Array.Exists(g.conversation.choices,
+                    c => c.action == "relief_escort_guard"),
+                "The escort dialog no longer offers a second rally during the same return");
+            g.Close();
+            var patrol = new Enemy(590, 0, citizen.x - 1.3f, citizen.y, 55);
+            patrol.state = 1; patrol.timer = .01f;
+            patrol.targetingReliefCivilian = true;
+            patrol.target = citizen; patrol.Face(citizen - patrol.Position);
+            g.enemies.Add(patrol);
+            g.save.x = post.x; g.save.y = post.y;
+            float safety = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            float loss = safety - g.reliefFollowerSafety;
+            Check(loss > 7 && loss < 9 && g.ReliefEscortActive,
+                "The temporary formation reduces a real patrol melee release instead of hiding the damage");
+            g.reliefWardTime = 0; patrol.releaseTime = 0; patrol.stun = patrol.hitTime = 0;
+            patrol.state = 1; patrol.timer = .01f;
+            patrol.targetingReliefCivilian = true; patrol.target = citizen;
+            float unprotected = g.reliefFollowerSafety;
+            g.Tick(.05f, new Point());
+            Check(unprotected - g.reliefFollowerSafety > 13.5f,
+                "A subsequent actual contact inflicts full danger after the short formation expires");
+            g.reliefMissionTime = .01f;
+            g.Tick(.05f, new Point());
+            Check(g.reliefMissionRoom == 0 && g.reliefWardTime == 0 &&
+                !g.ReliefEscortGuardAvailable && !g.enemies.Exists(e => e.targetingReliefCivilian),
+                "Timeout resets formation and ordinary patrol targeting with no saved combat state");
+        }
+
         public static void EscortPatrolArrowsRequireRealFlightAndRetireOnFailure(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
