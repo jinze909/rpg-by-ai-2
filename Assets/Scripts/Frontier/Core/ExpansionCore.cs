@@ -11,6 +11,9 @@ namespace Starfall
         public float companionCooldown, raceTime, comboTimer, riposteTime;
         public int raceCheckpoint, combo;
         public bool racing, perfectDodgeArmed;
+        // Short-lived dodge escape proof, never serialized into old save files.
+        private Point dashOrigin;
+        private float dodgeEscapeTime;
         private float companionAttack, climateTimer, stormTimer;
         private MapData abyssMap;
         private bool previousLowTide;
@@ -102,7 +105,7 @@ namespace Starfall
             companionAction = null; companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
             climateTimer = 1; stormTimer = 6; ClearFrost();
-            combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; previousLowTide = LowTide;
+            combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; dashOrigin = new Point(); dodgeEscapeTime = 0; previousLowTide = LowTide;
         }
         private bool SpawnExpansionRoom()
         {
@@ -345,6 +348,7 @@ namespace Starfall
                 if (h.timer > 0) continue;
                 hazards.Remove(h); effects.Add(new Effect("danger", h.position, .45f) { radius = h.radius, variant = HazardTheme(h) });
                 if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
+                else TryRewardEscapedWarning(h.position, h.radius);
             }
             tickingHazards.Clear();
         }

@@ -125,6 +125,48 @@ namespace Starfall.Tests
                     "Final moving dodge frame keeps the actual dodge heading when switching to walking");
             }
         }
+        public static void EscapingTelegraphedAttacksEarnsOneCounter(Campaign data)
+        {
+            // A genuine escape from the enemy's marked ground should grant the
+            // same one-use riposte as a contact during dodge invulnerability.
+            foreach(float step in new[]{.02f,.03f,.05f})
+            {
+                var g=Quiet(data);Point start=g.Position;
+                Check(g.CanStand(start+new Point(3,0)),"Escape test uses open campaign ground");
+                g.invulnerable=0;
+                var heavy=new Enemy(1510,2,10,14,999){state=1,timer=.18f,windupDuration=.65f,target=start};
+                g.enemies.Add(heavy);g.Dash(new Point(1,0));
+                for(int n=0;n<16&&heavy.state==1;n++)g.Tick(step,new Point());
+                Check(heavy.state==0&&g.dashTime<=0&&(g.Position-start).Length>2.5f,
+                    "Real heavy attack resolves after a complete collision-safe dodge");
+                Check(g.riposteTime>1&&!g.perfectDodgeArmed&&g.effects.Exists(e=>e.kind=="number"&&e.text==g.L("闪避反击","COUNTER")),
+                    "Escaping a marked attack grants a visible one-use counter at timestep "+step);
+                Check(g.save.health==g.save.maxHealth&&g.save.energy>89,
+                    "A clean escape avoids damage and restores the authored eight energy");
+                float expected=g.Profile(g.save.weapon,g.Style).damage*1.5f;
+                g.Attack(new Point(1,0));
+                Check(g.playerAction!=null&&Math.Abs(g.playerAction.damage-expected)<.001f&&g.riposteTime==0,
+                    "The next actual attack consumes the counter for exactly 50 percent bonus damage");
+            }
+            // Regional delayed hazards use the same visible escape rule.
+            var hazard=Quiet(data);Point hazardStart=hazard.Position;
+            hazard.hazards.Add(new Hazard{position=hazardStart,radius=1.5f,timer=.18f,damage=14,kind="rift"});
+            hazard.Dash(new Point(1,0));
+            for(int n=0;n<16&&hazard.hazards.Count>0;n++)hazard.Tick(.03f,new Point());
+            Check(hazard.hazards.Count==0&&hazard.riposteTime>1&&
+                hazard.effects.Exists(e=>e.kind=="number"&&e.text==hazard.L("闪避反击","COUNTER")),
+                "Dodging out of a delayed regional hazard earns the same readable counter");
+            // Neither an unrelated dodge nor an expired dodge may manufacture a riposte.
+            var outside=Quiet(data);outside.Dash(new Point(1,0));
+            outside.enemies.Add(new Enemy(1511,2,10,14,999){state=1,timer=.18f,windupDuration=.65f,target=new Point(19,14)});
+            for(int n=0;n<16&&outside.enemies[0].state==1;n++)outside.Tick(.03f,new Point());
+            Check(outside.riposteTime<=0,"Dashing outside the warning from the start is not a perfect escape");
+            var stale=Quiet(data);Point staleStart=stale.Position;stale.Dash(new Point(1,0));
+            for(int n=0;n<12;n++)stale.Tick(.05f,new Point());
+            stale.enemies.Add(new Enemy(1512,2,10,14,999){state=1,timer=.001f,windupDuration=.65f,target=staleStart});
+            stale.Tick(.02f,new Point());
+            Check(stale.riposteTime<=0,"An old dodge cooldown cannot earn a counter after its escape window");
+        }
         public static void StandingRecoveryAndCrossEquipmentDeath(Campaign data)
         {
             Point[] directions={new Point(1,0),new Point(-1,0),new Point(0,-1),new Point(0,1)};

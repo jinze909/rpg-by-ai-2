@@ -8,5 +8,8 @@
 - Native: `NATIVE_UNVERIFIED` until Unity 2022.3.53f1 Editor compilation and PlayMode/visual validation are actually run.
 - Assets: Git tree contains LFS pointer blobs; remote availability of all binary LFS objects has not been independently verified in this environment.
 - Follow-up gameplay fix: cap the final dash translation to the remaining active interval, keeping the authored 2.7-world-unit travel consistent across 10–50 ms tick sizes. Added `DashDistanceIsFrameStepIndependent` offline/Editor coverage; CI result must be checked before calling it passed.
+- Latest verified parent before this iteration: `f2e7c22663720a0b70ade688707e3f3884b5c08c` (CI success); always re-read live branch HEAD.
+- This iteration: a real dodge that starts inside a heavy/Boss warning or delayed regional hazard and exits its radius within 0.30 s earns the existing one-use riposte (+50% next attack, +8 energy, counter text). Unrelated/stale dodges cannot claim it; environmental periodic damage cannot fake a perfect dodge. No save-schema, hero art, GUID, or quest changes.
+- Added offline/Editor coverage `EscapingTelegraphedAttacksEarnsOneCounter` for 20/30/50 ms frames, regional hazards, unrelated and stale dodges. CI and Unity-native validation must be checked after pushing.
 - Next valuable gameplay work: examine dodge-to-run leg-frame cadence and directional transitions in the production renderer; preserve canonical hero, quest/region coverage, and old saves.
 - Each iteration: inspect current branch HEAD and CI, choose one player-facing production change, run appropriate real checks, fast-forward commit/push, update this concise state only when facts change. No periodic status-only commits.

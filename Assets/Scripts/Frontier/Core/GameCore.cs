@@ -242,6 +242,7 @@ namespace Starfall
             // Resolve changed world collision before any body, missile or contact advances.
             TickTideTransition(); Point beforeMove = Position;
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
+            dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
@@ -264,7 +265,7 @@ namespace Starfall
             CancelAction();
             dashDirection = direction.Length > .1f ? direction.Normalized : aim;
             dashTime = .18f; dashCooldown = .75f - save.talents[2] * .06f; invulnerable = .32f; save.energy -= cost;
-            perfectDodgeArmed = true;
+            perfectDodgeArmed = true; dashOrigin = Position; dodgeEscapeTime = .30f;
             if (Relic(0)) save.health = Math.Min(save.maxHealth, save.health + 3);
             effects.Add(new Effect("dash", Position, .3f) { direction = dashDirection }); sound = "dash";
         }
@@ -370,10 +371,32 @@ namespace Starfall
             }
             revision++;
         }
+        // Escaping a marked strike is as skillful as letting its contact graze
+        // the dodge invulnerability. Reward either outcome exactly once.
+        private void AwardPerfectDodge()
+        {
+            perfectDodgeArmed = false; dodgeEscapeTime = 0;
+            TutorialAction(4); PracticeDodge();
+            riposteTime = Relic(3) ? 3 : 1.5f;
+            save.energy = Math.Min(100, save.energy + 8);
+            effects.Add(new Effect("number", Position, .7f, L("闪避反击", "COUNTER")));
+            sound = "counter";
+        }
+        private bool TryRewardEscapedWarning(Point center, float radius)
+        {
+            // A recent real dodge must carry the player from inside the actual
+            // danger footprint to outside it. An old cooldown, walking away,
+            // or dashing entirely outside the warning never earns a counter.
+            if (!perfectDodgeArmed || dodgeEscapeTime <= 0 ||
+                (dashOrigin - center).Length >= radius ||
+                (Position - center).Length < radius ||
+                (Position - dashOrigin).Length < .35f) return false;
+            AwardPerfectDodge(); return true;
+        }
         private void Hurt(float damage, string source = "environment", Point? incoming = null)
         {
             if (mode != "world" || Dying) return;
-            if (invulnerable > 0) { if (dashTime > 0 && perfectDodgeArmed) { perfectDodgeArmed = false; TutorialAction(4); PracticeDodge(); riposteTime = Relic(3) ? 3 : 1.5f; save.energy = Math.Min(100, save.energy + 8); effects.Add(new Effect("number", Position, .7f, L("闪避反击", "COUNTER"))); sound = "counter"; } return; }
+            if (invulnerable > 0) { if (dashTime > 0 && perfectDodgeArmed && source != "environment") AwardPerfectDodge(); return; }
             if (practicing) { Notify("观察红圈：在命中前闪避，或闪到圈外。练习不会受伤。", "Read the red circle: dodge before impact or leave its area. Practice cannot hurt you."); return; }
             float multiplier = save.difficulty == 0 ? .45f : save.difficulty == 2 ? 1.4f : 1;
             float armor = (guardTime > 0 ? .45f : 1) * (1 - save.talents[1] * .035f) * (InAbyss ? 1 - save.boons[2] * .12f : 1) * (Relic(5) ? 1.15f : 1);
@@ -421,7 +444,7 @@ namespace Starfall
                             float radius = EnemyAreaRadius(e);
                             effects.Add(new Effect("danger", e.target, .45f) { variant = e.boss ? save.room : 0, radius = radius });
                             if ((Position - e.target).Length < radius && ClearAttackPath(e.Position, Position)) Hurt(e.boss ? 22 + e.BossPhase * 3 : 14, "slam", (Position - e.Position).Normalized);
-                            else if (perfectDodgeArmed && dashCooldown > 0) { TutorialAction(4); PracticeDodge(); }
+                            else TryRewardEscapedWarning(e.target, radius);
                             if (Dying) break;
                             if (e.boss)
                             {
