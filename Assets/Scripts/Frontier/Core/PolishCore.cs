@@ -169,6 +169,15 @@ namespace Starfall
             RecordMoment("打开隐藏路线：" + near.name + "。", "Hidden route opened: " + near.en + ".");
             Notify("封印解除！走入支路，寻找旧日补给。", "Seal released! Explore the side route for forgotten supplies.");
         }
+        // The Inn chart shares its existing small dialogue panel with the relief route.
+        // Add one submenu entry, never seven or more clipped choices.
+        private void AddFarshoreReliefChartChoice()
+        {
+            if (save.room != 9 || !Has("farshore_relief_complete") || conversation == null) return;
+            var choices = new List<Choice>(conversation.choices);
+            choices.Add(C("远岸平民避难路网", "Farshore civilian relief routes", "farshore_relief_routes"));
+            conversation.choices = choices.ToArray();
+        }
         private bool TalkPolish(WorldObject o)
         {
             if (TalkWorldChronicle(o)) return true;
@@ -192,14 +201,17 @@ namespace Starfall
                             choices.Add(C("重读巡路队的誓言", "Reread the wardens\u0027 promise", "dispatch_recap"));
                             conversation.choices = choices.ToArray();
                         }
+                        AddFarshoreReliefChartChoice();
                         return true;
                     }
                     if (found < 3)
                     {
                         Dialog(o.name, o.en, "桌上的星图缺少 " + (3 - found) + " 段巡路信号。密林、沉没遗迹和矿场各有一座旧信标。靠近并按 E，听完留下的讯息。", "The chart still lacks " + (3 - found) + " road signals. Find the old beacons in Thornwood, the Drowned Ruins and Ironreach. Approach each one and press E.", C("继续寻找", "Keep searching", "close"));
+                        AddFarshoreReliefChartChoice();
                         return true;
                     }
                     Dialog(o.name, o.en, "三段讯息合起来是一条避开塌桥、洪水和矿坑的安全归途。把坐标抄给旅店，所有晚归的人都能借这张图回家。", "Together, the three signals chart a safe return past broken bridges, floods and mine shafts. Leave a copy at the inn so every late traveler can find the way home.", C("完成巡路图 · 永久移速提升", "Complete chart · permanent travel speed", "survey_finish"), C("稍后再来", "Return later", "close"));
+                    AddFarshoreReliefChartChoice();
                     return true;
                 }
                 int signal = int.Parse(o.kind.Substring(6));
@@ -248,6 +260,28 @@ namespace Starfall
         }
         private bool ChoosePolish(string action)
         {
+            if (action == "farshore_relief_routes")
+            {
+                if (save.room != 9 || !Has("farshore_relief_complete")) return true;
+                Point desk = ObjectPoint(9, "surveyDesk", new Point(-100, -100));
+                if ((Position - desk).Length > 2.2f) return true;
+                Dialog("远岸平民避难路网", "Farshore Civilian Relief Network",
+                    "三处工程开放后，巡路员与地方居民共同标注了可通行的避难补给道。路况危险时不能传送；原来的章节关卡仍然有效。",
+                    "The wardens and three communities have charted supply roads between the Inn and their rebuilt refuges. Hostile roads remain unsafe and campaign gates still apply.",
+                    C("前往雾港救援浮桥", "Travel to Mistport pontoons", "farshore_relief_to_5"),
+                    C("前往沙海遮阳道", "Travel to the desert shade lane", "farshore_relief_to_6"),
+                    C("前往高原保暖棚", "Travel to Frostchime shelter", "farshore_relief_to_7"),
+                    C("返回归乡星图", "Back to the homeward chart", "farshore_relief_return"),
+                    C("离开", "Leave", "close"));
+                return true;
+            }
+            if (action == "farshore_relief_return")
+            {
+                if (save.room != 9) return true;
+                foreach (WorldObject o in Map.objects)
+                    if (o.kind == "surveyDesk") { Talk(o); break; }
+                return true;
+            }
             if (ChooseWorldChronicle(action)) return true;
             if (ChooseAtlasEcho(action)) return true;
             if (ChooseArchiveTrail(action)) return true;

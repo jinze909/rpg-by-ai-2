@@ -430,10 +430,10 @@ namespace Starfall
                      L("寒意 ", "COLD ") + (int)save.cold + "/100");
             if (save.room == 5) return LowTide ? L("低潮 · 潮滩可通行", "LOW TIDE · shoals open") : L("高潮 · 等待退潮或使用闸门", "HIGH TIDE · wait or use the sluice");
             if (save.room == 6) return L("热度 ", "HEAT ") + (int)save.heat + "/100 · " +
-                (NearActiveFieldStation(6, 4.2f) ? L("气象站正在降温", "STATION COOLING") :
+                (NearActiveFieldStation(6, FieldStationRefugeRadius(6)) ? L("气象站正在降温", "STATION COOLING") :
                     L("绿洲降温 / 凉茶免疫", "shade cools / tea protects"));
             if (save.room == 7) return L("寒意 ", "COLD ") + (int)save.cold + "/100 · " +
-                (NearActiveFieldStation(7, 4.2f) ? L("气象站正在供暖", "STATION WARMING") :
+                (NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? L("气象站正在供暖", "STATION WARMING") :
                     L("点燃火盆 / 凉茶抗寒", "light braziers / tea protects"));
             return L("第 ", "DAY ") + Day + L(" 日 · ", " · ") + (Night ? L("星夜", "STARLIT NIGHT") : L("日照", "DAYLIGHT"));
         }

@@ -5,6 +5,62 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void FarshoreReliefRoutesLinkExistingInnAndStations(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_5", "fieldstation_6", "fieldstation_7", "fieldstation_complete",
+                "farshore_relief_5", "farshore_relief_6", "farshore_relief_7", "farshore_relief_complete" })
+                g.save.flags.Add(flag);
+            g.save.frontierEnding = 2;
+            int coins = g.save.coins, skill = g.save.skillPoints;
+            g.Enter(9); g.enemies.Clear();
+            WorldObject desk = Object(g, "surveyDesk");
+            g.save.x = desk.x; g.save.y = desk.y;
+            Check(!g.Has("survey_complete"),
+                "Civilian refuge travel does not depend on an unrelated completed warden chart");
+            Action(g, desk.kind, "farshore_relief_routes");
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices, c => c.action == "farshore_relief_to_7"),
+                "The actual Hearth Inn chart opens a separate three-destination relief submenu");
+            for (int i = 0; i < g.conversation.choices.Length; i++)
+                if (g.conversation.choices[i].action == "farshore_relief_to_6")
+                { g.Choose(i); break; }
+            Check(g.save.room == 6 && g.CanStand(g.Position) &&
+                (g.Position - new Point(Object(g, "fieldstation6").x,
+                    Object(g, "fieldstation6").y)).Length <= 1.5f,
+                "Inn convoy reaches the desert station at a safe walkable adjacent landing");
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            g.enemies.Add(new Enemy(58, 0, post.x + 1, post.y, 50));
+            Action(g, post.kind, "fieldstation_inn");
+            Check(g.save.room == 6, "Live enemies prevent instant escape along civilian supply routes");
+            g.enemies.Clear();
+            Action(g, post.kind, "fieldstation_inn");
+            Check(g.save.room == 9 && g.CanStand(g.Position) &&
+                g.save.coins == coins && g.save.skillPoints == skill,
+                "Relief route returns to the real Inn without awarding duplicate currency or talents");
+            g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
+            WorldObject savedDesk = Object(resumed, "surveyDesk");
+            resumed.save.x = savedDesk.x; resumed.save.y = savedDesk.y;
+            Action(resumed, savedDesk.kind, "farshore_relief_routes");
+            Check(Array.Exists(resumed.conversation.choices, c => c.action == "farshore_relief_to_5"),
+                "Existing save flags preserve the additional rescue routes after loading");
+            var locked = Fresh(data); locked.save.stage = 1; locked.save.frontierEnding = 1;
+            foreach (string flag in new[] { "farshore_relief_complete", "fieldstation_7" })
+                locked.save.flags.Add(flag);
+            locked.Enter(9); locked.enemies.Clear();
+            WorldObject restrictedDesk = Object(locked, "surveyDesk");
+            locked.save.x = restrictedDesk.x; locked.save.y = restrictedDesk.y;
+            Action(locked, restrictedDesk.kind, "farshore_relief_routes");
+            for (int i = 0; i < locked.conversation.choices.Length; i++)
+                if (locked.conversation.choices[i].action == "farshore_relief_to_7")
+                { locked.Choose(i); break; }
+            Check(locked.save.room == 9 && !locked.CanEnter(7),
+                "Malformed or early save flags never bypass the real Frostchime chapter gate");
+        }
+
         public static void FarshoreReliefWorksProvidePersistentClimateSanctuaries(Campaign data)
         {
             var g = Fresh(data); g.save.level = 10; g.save.stage = 3;

@@ -115,6 +115,12 @@ namespace Starfall
                 var stationChoices = new List<Choice>();
                 if (region == 5)
                     stationChoices.Add(C("固定低潮" + TidewatchHoldSeconds + "秒", "Hold low tide for " + TidewatchHoldSeconds + " seconds", "fieldstation_tide"));
+                if (Has("farshore_relief_complete"))
+                {
+                    textZh += "\n\n平民避难路网已接通炉火旅店。附近安全时可经旧驿道返回旅店星图桌。";
+                    textEn += "\n\nThe civilian refuge roads now reach the Hearth Inn. Travel back to its chart when the surrounding paths are clear.";
+                    stationChoices.Add(C("返回炉火旅店", "Return to the Hearth Inn", "fieldstation_inn"));
+                }
                 if (Has("fieldstation_complete"))
                 {
                     textZh += "\n\n三座观测站已联通。在周围安全时，可以直接前往其他两座站点。";
@@ -183,8 +189,81 @@ namespace Starfall
                 C("先调查附近环境", "Explore the surroundings", "close"));
             return true;
         }
+        // One collision-safe landing rule for local station links and the Inn relief chart.
+        // Guard locked islands and newly spawned patrols rather than teleporting to the prop.
+        private void LandNearFieldStation(int destination)
+        {
+            foreach (WorldObject o in Map.objects)
+            {
+                if (o.kind != "fieldstation" + destination) continue;
+                Point anchor = new Point(o.x, o.y);
+                Point[] approaches = { new Point(0, 1), new Point(0, -1),
+                    new Point(1, 0), new Point(-1, 0), new Point(1, 1),
+                    new Point(-1, 1), new Point(1, -1), new Point(-1, -1) };
+                Point chosen = Position;
+                float safety = -1; bool found = false;
+                foreach (Point offset in approaches)
+                {
+                    Point candidate = anchor + offset;
+                    // This checks destination collision and reachability from
+                    // the normal map entrance; it cannot place the hero inside
+                    // a locked gate or disconnected walkable island.
+                    if (!CanStand(candidate) || NavigationPath(candidate).Count == 0)
+                        continue;
+                    float clearance = 9999;
+                    foreach (Enemy enemy in enemies)
+                        if (enemy.hp > 0)
+                            clearance = Math.Min(clearance, (enemy.Position - candidate).Length);
+                    if (found && clearance <= safety) continue;
+                    chosen = candidate; safety = clearance; found = true;
+                }
+                if (found) { save.x = chosen.x; save.y = chosen.y; }
+                break; // Safe map spawn stays the fallback.
+            }
+        }
         private bool ChooseFieldStation(string action)
         {
+            if (action == "fieldstation_inn")
+            {
+                int sourceStation = save.room;
+                if (sourceStation < 5 || sourceStation > 7 || !Has("farshore_relief_complete") ||
+                    !Has("fieldstation_" + sourceStation) || Dying || practicing || racing ||
+                    roadTrialRoom != 0 || wayfarerEncounterRoom != 0 || atlasEchoRoom != 0 ||
+                    fieldSurveyRoom != 0) return true;
+                WorldObject homePost = null;
+                foreach (WorldObject o in Map.objects)
+                    if (o.kind == "fieldstation" + sourceStation) { homePost = o; break; }
+                if (homePost == null || (Position - new Point(homePost.x, homePost.y)).Length > 2.2f) return true;
+                if (!SafeTravel)
+                { Notify("附近敌人正在破坏补给线。暂时无法返回旅店。", "Nearby hostiles block the supply route to the inn."); return true; }
+                Enter(9);
+                if (save.room == 9 && CanStand(new Point(15, 15)))
+                { save.x = 15; save.y = 15; }
+                Notify("沿平民避难路线返回炉火旅店，物资仍在背包里。",
+                    "The civilian refuge road leads back to the Hearth Inn with your supplies intact.");
+                return true;
+            }
+            if (action.StartsWith("farshore_relief_to_"))
+            {
+                int reliefDestination;
+                if (!int.TryParse(action.Substring("farshore_relief_to_".Length), out reliefDestination) ||
+                    reliefDestination < 5 || reliefDestination > 7 || save.room != 9 ||
+                    !Has("farshore_relief_complete") || !Has("fieldstation_" + reliefDestination) ||
+                    !CanEnter(reliefDestination) || Dying || practicing || racing ||
+                    roadTrialRoom != 0 || wayfarerEncounterRoom != 0 || atlasEchoRoom != 0 ||
+                    fieldSurveyRoom != 0) return true;
+                Point chart = ObjectPoint(9, "surveyDesk", new Point(-100, -100));
+                if ((Position - chart).Length > 2.2f) return true;
+                if (!SafeTravel)
+                { Notify("旅店附近尚有敌人，不能启动运输路线。", "The route cannot open while hostiles threaten the inn."); return true; }
+                Enter(reliefDestination);
+                if (save.room != reliefDestination) return true;
+                LandNearFieldStation(reliefDestination);
+                revision++; sound = "travel";
+                Notify("平民避难交通线已接通，你安全抵达远岸气象站。",
+                    "Civilian relief route connected. You arrive safely beside a farshore station.");
+                return true;
+            }
             if (action.StartsWith("fieldstation_relief_"))
             {
                 int reliefRegion;
@@ -312,33 +391,7 @@ namespace Starfall
                 }
                 Enter(destination);
                 if (save.room != destination) return true;
-                foreach (WorldObject o in Map.objects)
-                {
-                    if (o.kind != "fieldstation" + destination) continue;
-                    Point anchor = new Point(o.x, o.y);
-                    Point[] approaches = { new Point(0, 1), new Point(0, -1),
-                        new Point(1, 0), new Point(-1, 0), new Point(1, 1),
-                        new Point(-1, 1), new Point(1, -1), new Point(-1, -1) };
-                    Point chosen = Position;
-                    float safety = -1; bool found = false;
-                    foreach (Point offset in approaches)
-                    {
-                        Point candidate = anchor + offset;
-                        // This checks destination collision and reachability from
-                        // the normal map entrance; it cannot place the hero inside
-                        // a locked gate or disconnected walkable island.
-                        if (!CanStand(candidate) || NavigationPath(candidate).Count == 0)
-                            continue;
-                        float clearance = 9999;
-                        foreach (Enemy enemy in enemies)
-                            if (enemy.hp > 0)
-                                clearance = Math.Min(clearance, (enemy.Position - candidate).Length);
-                        if (found && clearance <= safety) continue;
-                        chosen = candidate; safety = clearance; found = true;
-                    }
-                    if (found) { save.x = chosen.x; save.y = chosen.y; }
-                    break; // Safe map spawn stays the fallback.
-                }
+                LandNearFieldStation(destination);
                 revision++; sound = "travel";
                 Notify("观测网已连接。你抵达另一座远岸安全站。",
                     "Stormwatch linked! Arrived at another farshore shelter.");
