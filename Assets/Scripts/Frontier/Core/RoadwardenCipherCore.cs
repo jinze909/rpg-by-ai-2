@@ -24,6 +24,15 @@ namespace Starfall
 
         private bool ChooseRoadwardenCipher(string action)
         {
+            if (action == "dispatch_recap")
+            {
+                if (save.room == 9 && Has("dispatch_complete"))
+                    Dialog("巡路队的誓言", "The Wardens' Promise",
+                        "杏让药物送到需要的人手里；老潮让没有硬币的人用故事渡河；诺尔提醒人们，图纸握在谁手里，机器就会为谁服务。三封信留下的不是命令，而是一个约定：每个人都应该有回家的路。旅店愿意为守护这条路的人便宜两枚硬币供应热汤。",
+                        "An sent medicine to those in need. Old Tide let people cross with stories instead of coins. Noll knew that the person holding a blueprint decides whom a machine serves. The letters left a promise: everyone deserves a way home. The inn now offers stew for two fewer coins to those who keep that road open.",
+                        C("收起星图", "Close the chart", "close"));
+                return true;
+            }
             if (action.StartsWith("dispatch_open_"))
             {
                 int id;

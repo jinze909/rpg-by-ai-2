@@ -171,7 +171,10 @@ namespace Starfall.Tests
             Check(!g.GetQuest("dispatches").locked && g.GetQuest("dispatches").room == 1,
                 "The chart unlocks a quest guiding players to the first old letter");
             g.TrackQuest("dispatches");
+            // Isolate quest rewards from ordinary XP level-up talents.
+            g.save.level = 10; g.save.xp = 0;
             int coins = g.save.coins, shards = g.save.shards, points = g.save.skillPoints;
+            int originalStewPrice = g.ShopStewCost;
             for (int id = 6; id <= 8; id++)
             {
                 g.Enter(id - 5); g.enemies.Clear();
@@ -205,6 +208,21 @@ namespace Starfall.Tests
             }
             Check(g.Has("dispatch_complete") && g.GetQuest("dispatches").complete,
                 "All three letters complete the exploration quest");
+            Check(g.ShopStewCost == originalStewPrice - 2 &&
+                g.GetQuest("dispatches").reward.Contains("stew -2 coins"),
+                "The promise permanently discounts inn stew and explains the benefit");
+            g.Enter(9); g.enemies.Clear();
+            g.Talk(Object(g, "innGuest"));
+            Check(g.conversation.textEn.Contains("discounts stew by two coins"),
+                "The inn traveler acknowledges the decoded promise");
+            g.Close();
+            g.Talk(Object(g, "surveyDesk"));
+            Check(g.conversation.choices.Length == 5 && g.conversation.choices[4].action == "dispatch_recap",
+                "The chart offers a permanent reread of the promise");
+            g.Choose(4);
+            Check(g.conversation.textEn.Contains("everyone deserves a way home"),
+                "The chart retells the three letters without new rewards");
+            g.Close();
             g.PrepareSave();
             var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
             Check(restored.Has("dispatch_complete") && restored.GetQuest("dispatches").complete &&

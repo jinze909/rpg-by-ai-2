@@ -81,8 +81,8 @@ namespace Starfall
                 q.next = q.locked ? L("先恢复三座信标并完成归乡星图", "Restore the beacons and complete the chart") :
                     q.complete ? L("巡路队的誓言已传承", "The wardens' promise lives on") :
                     L("重读旧信并解读暗号", "Reread the letter and decode its cipher");
-                q.reward = L("每封20硬币、1碎片、25经验；全解额外40硬币、技能点1",
-                    "Each: 20 coins, 1 shard, 25 XP; all three: 40 coins and 1 talent point");
+                q.reward = L("每封20硬币、1碎片、25经验；全解额外40硬币、技能点1、热汤减价2",
+                    "Each: 20 coins, 1 shard, 25 XP; all three: 40 coins, 1 talent point, stew -2 coins");
                 return q;
             }
             if (id == "signals")

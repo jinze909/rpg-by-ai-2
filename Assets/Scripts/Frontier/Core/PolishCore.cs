@@ -17,7 +17,7 @@ namespace Starfall
         public int Style { get { return save.weaponStyles[save.weapon]; } }
         public bool StylesUnlocked { get { return Has("core_1") || MasteryRank(save.weapon) >= 1; } }
         public bool Ability(int id) { return id >= 1 && id <= 3 && Has("core_" + id); }
-        public int ShopStewCost { get { return save.reputation[1] >= 3 ? 15 : 18; } }
+        public int ShopStewCost { get { return (save.reputation[1] >= 3 ? 15 : 18) - (Has("dispatch_complete") ? 2 : 0); } }
         public int ShopTimberCost { get { return save.reputation[1] >= 3 ? 8 : 10; } }
         public void SanitizePolish()
         {
@@ -141,6 +141,12 @@ namespace Starfall
                     if (Has("survey_complete"))
                     {
                         Dialog(o.name, o.en, "三段信号已经绘成一条新路。旧巡路队留下的不是宝藏坐标，而是能让人平安回家的路。你的步伐也因此更轻快。\n\n信标已经连通：只要附近没有敌人，就能从星图桌前往三座信标，或从信标返回旅店。\n\n密林、遗迹和矿场各有一封未寄出的旧信。重读它们，解开巡路队最后的誓言。", "The three signals form a safe road home, not a treasure map. The wardens left a route for anyone who needed shelter. You now travel a little faster.\n\nThe beacons are linked. When enemies are clear, travel from this chart to any of the three beacons, or return to the inn from a beacon.\n\nThree unsent letters in those regions hide the wardens' final promise. Reread them to decode it.", C("收好地图", "Keep the map", "close"), C("前往苔根信标 · 密林", "Travel to Mossroot · Thornwood", "survey_to_1"), C("前往潮痕信标 · 遗迹", "Travel to Tidemark · Ruins", "survey_to_2"), C("前往矿灯信标 · 矿场", "Travel to Minelight · Mine", "survey_to_3"));
+                        if (Has("dispatch_complete"))
+                        {
+                            var choices = new List<Choice>(conversation.choices);
+                            choices.Add(C("重读巡路队的誓言", "Reread the wardens\u0027 promise", "dispatch_recap"));
+                            conversation.choices = choices.ToArray();
+                        }
                         return true;
                     }
                     if (found < 3)
