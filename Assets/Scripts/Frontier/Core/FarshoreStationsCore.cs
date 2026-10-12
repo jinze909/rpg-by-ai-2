@@ -167,10 +167,10 @@ namespace Starfall
                 if (surveyRegion < 5 || surveyRegion > 7 || fieldSurveyRoom != 0 ||
                     !Has("fieldstation_" + surveyRegion) || Has("fieldstation_survey_" + surveyRegion) ||
                     Dying || practicing || racing || !SafeTravel) return true;
-                WorldObject station = null;
+                WorldObject surveyPost = null;
                 foreach (WorldObject o in Map.objects)
-                    if (o.kind == "fieldstation" + surveyRegion) { station = o; break; }
-                if (station == null || (Position - new Point(station.x, station.y)).Length > 2.2f) return true;
+                    if (o.kind == "fieldstation" + surveyRegion) { surveyPost = o; break; }
+                if (surveyPost == null || (Position - new Point(surveyPost.x, surveyPost.y)).Length > 2.2f) return true;
                 fieldSurveyRoom = surveyRegion; fieldSurveyPhase = 1; fieldSurveyTime = 90;
                 fieldSurveyConditionWarned = false; TrackQuest("station_patrol");
                 revision++; sound = "quest";

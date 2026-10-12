@@ -421,6 +421,13 @@ namespace Starfall
         public string Conditions()
         {
             if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " + L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards;
+            // Reuse the existing conditions HUD slot: a timed survey remains legible
+            // even if the player temporarily tracks a different journal quest.
+            if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
+                return L("巡测 ", "SURVEY ") + (int)Math.Ceiling(fieldSurveyTime) + "s · " +
+                    (save.room == 5 ? (LowTide ? L("低潮", "LOW TIDE") : L("高潮", "HIGH TIDE")) :
+                     save.room == 6 ? L("热度 ", "HEAT ") + (int)save.heat + "/100" :
+                     L("寒意 ", "COLD ") + (int)save.cold + "/100");
             if (save.room == 5) return LowTide ? L("低潮 · 潮滩可通行", "LOW TIDE · shoals open") : L("高潮 · 等待退潮或使用闸门", "HIGH TIDE · wait or use the sluice");
             if (save.room == 6) return L("热度 ", "HEAT ") + (int)save.heat + "/100 · " +
                 (NearActiveFieldStation(6, 4.2f) ? L("气象站正在降温", "STATION COOLING") :
@@ -671,7 +678,17 @@ namespace Starfall
                 if (save.projects[1] == 2 && !Has("camptea_" + Day)) { Flag("camptea_" + Day); save.tea++; }
                 revision++; Notify("驿站补给已送达，整装再出发。", "Waystation supplies delivered. Ready to set out."); return true;
             }
-            if (action == "race") { if (save.room == 6) { racing = true; raceTime = 0; raceCheckpoint = 0; Notify("竞速开始：沿金色风旗走！", "Race started: follow the golden flags!"); } return true; }
+            if (action == "race")
+            {
+                if (fieldSurveyRoom != 0)
+                {
+                    Notify("先完成或取消观测站巡测，再参加沙舟竞速。",
+                        "Finish or abandon the field survey before entering the sand-skiff race.");
+                    return true;
+                }
+                if (save.room == 6) { racing = true; raceTime = 0; raceCheckpoint = 0; Notify("竞速开始：沿金色风旗走！", "Race started: follow the golden flags!"); }
+                return true;
+            }
             if (action.StartsWith("personal")) { CompletePersonal(int.Parse(action.Substring(8))); return true; }
             if (action.StartsWith("gift"))
             {

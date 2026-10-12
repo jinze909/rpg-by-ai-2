@@ -22,6 +22,17 @@ namespace Starfall.Tests
                 Check(g.fieldSurveyRoom == region && g.fieldSurveyPhase == 1 &&
                     g.fieldSurveyTime > 89 && g.save.trackedQuest == "station_patrol",
                     "Each repaired station starts a tracked 90-second local field mission");
+                g.save.english = true;
+                Check(g.Conditions().Contains("SURVEY") && g.Conditions().Contains("90s"),
+                    "Active survey countdown stays visible in the conditions HUD");
+                g.save.english = false;
+                if (region == 6)
+                {
+                    g.save.x = Object(g, "skiff").x; g.save.y = Object(g, "skiff").y;
+                    Action(g, "skiff", "race");
+                    Check(!g.racing && g.fieldSurveyRoom == 6,
+                        "Starting the sand-skiff race cannot silently overwrite a live field survey");
+                }
                 Point marker = g.FieldSurveyTarget(region);
                 Check(g.CanStand(marker), "Regional survey landmark is on walkable ground");
                 g.save.x = marker.x; g.save.y = marker.y;
