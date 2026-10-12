@@ -130,6 +130,39 @@ namespace Starfall
         }
         private bool TalkPolish(WorldObject o)
         {
+
+            if (o.kind.StartsWith("survey"))
+            {
+                if (o.kind == "surveyDesk")
+                {
+                    int found = 0;
+                    for (int i = 1; i <= 3; i++) if (Has("survey_" + i)) found++;
+                    if (Has("survey_complete"))
+                    {
+                        Dialog(o.name, o.en, "三段信号已经绘成一条新路。旧巡路队留下的不是宝藏坐标，而是能让人平安回家的路。你的步伐也因此更轻快。", "The three signals form a safe road home, not a treasure map. The wardens left a route for anyone who needed shelter. You now travel a little faster.", C("收好地图", "Keep the map", "close"));
+                        return true;
+                    }
+                    if (found < 3)
+                    {
+                        Dialog(o.name, o.en, "桌上的星图缺少 " + (3 - found) + " 段巡路信号。密林、沉没遗迹和矿场各有一座旧信标。靠近并按 E，听完留下的讯息。", "The chart still lacks " + (3 - found) + " road signals. Find the old beacons in Thornwood, the Drowned Ruins and Ironreach. Approach each one and press E.", C("继续寻找", "Keep searching", "close"));
+                        return true;
+                    }
+                    Dialog(o.name, o.en, "三段讯息合起来是一条避开塌桥、洪水和矿坑的安全归途。把坐标抄给旅店，所有晚归的人都能借这张图回家。", "Together, the three signals chart a safe return past broken bridges, floods and mine shafts. Leave a copy at the inn so every late traveler can find the way home.", C("完成巡路图 · 永久移速提升", "Complete chart · permanent travel speed", "survey_finish"), C("稍后再来", "Return later", "close"));
+                    return true;
+                }
+                int signal = int.Parse(o.kind.Substring(6));
+                if (signal < 1 || signal > 3) return true;
+                string[] notesZh = { "", "密林记录：树根在夜里替迷路的人指路。公会要我们标出矿脉，却不准画出村庄。", "遗迹记录：水涨之前，旧桥的信号被改成了指向堡垒。有人偷偷保留了安全的退路。", "矿场记录：最后一班巡路员把归途藏在三段信号里，托付给任何愿意带人回家的人。" };
+                string[] notesEn = { "", "Forest signal: The roots guided lost travelers at night. The guild ordered us to chart ore veins, but not the villages.", "Ruins signal: Before the flood, the bridge marker was redirected toward the citadel. Someone kept a safe return route.", "Mine signal: The last wardens split the way home into three signals, trusting anyone willing to bring others back." };
+                bool first = !Has("survey_" + signal);
+                if (first)
+                {
+                    Flag("survey_" + signal); save.coins += 12; save.shards++; AddXp(15); revision++; sound = "reward";
+                    RecordMoment("恢复巡路信号 " + signal + "/3：" + o.name + "。", "Recovered road signal " + signal + "/3: " + o.en + ".");
+                }
+                Dialog(o.name, o.en, notesZh[signal] + (first ? "\n\n信号已记录：12硬币、1碎片、15经验。到炉火旅店拼合三段路线。" : "\n\n讯息已记录，可在旅店的星图桌查看进度。"), notesEn[signal] + (first ? "\n\nSignal recorded: 12 coins, 1 shard, 15 XP. Assemble all three at the Hearth Inn." : "\n\nSignal already recorded. Check the chart table at the Hearth Inn."), C("记住这条路", "Remember the road", "close"));
+                return true;
+            }
             if (o.kind == "mentor") { Dialog(o.name, o.en, "先练习命中，再观察预告并闪避，最后用职业技能完成挑战。训练无伤害，不消耗物资；首次完成获得技能点1、硬币15。", "Hit a dummy, read a telegraph and dodge, then land your class technique. Practice costs no health or supplies. First clear: 1 point and 15 coins.", C("开始练习", "Start practice", "practice"), C("稍后", "Later", "close")); return true; }
             if (o.kind == "returnscout")
             { if (!Has("scout_saved")) return true; Dialog(o.name, o.en, "我回来了。你替我打开的是回家的路。公会的记录里现在有我的名字；也请记住，被星核伤害的土地上还住着人。", "I'm home. You opened my way back. My name is in the guild records now. Remember: people live on the land the cores are draining.", C(Has("scout_gift") ? "一路平安" : "收下谢礼：炖汤1", Has("scout_gift") ? "Stay safe" : "Accept thanks: 1 stew", "scoutgift")); return true; }
@@ -151,6 +184,17 @@ namespace Starfall
         }
         private bool ChoosePolish(string action)
         {
+
+            if (action == "survey_finish")
+            {
+                if (!Has("survey_complete") && Has("survey_1") && Has("survey_2") && Has("survey_3"))
+                {
+                    Flag("survey_complete"); save.coins += 60; save.shards += 5; save.skillPoints++; AddXp(50); revision++; sound = "reward";
+                    RecordMoment("三段巡路信号拼成了归乡星图：永久移动速度+0.25，技能点1。", "The road signals became a homeward chart: +0.25 permanent movement speed and 1 talent point.");
+                    Notify("巡路图完成！移速永久+0.25，技能点+1，硬币+60，碎片+5。", "Road chart complete! Permanent speed +0.25, +1 talent point, +60 coins, +5 shards.");
+                }
+                return true;
+            }
             if (action == "practice") { StartPractice(); return true; }
             if (action == "scoutgift") { if (Has("scout_saved") && !Has("scout_gift")) { Flag("scout_gift"); save.inventory[6]++; RecordMoment("侦察员回家了，并送来一份热汤。", "The scout made it home and brought you a warm stew."); } return true; }
             return false;

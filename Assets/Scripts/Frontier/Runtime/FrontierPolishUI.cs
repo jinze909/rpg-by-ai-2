@@ -65,6 +65,16 @@ namespace Starfall
         private bool DrawPolishObject(WorldObject o)
         {
             Point p = ScreenPoint(new Point(o.x, o.y));
+
+            if (o.kind.StartsWith("survey"))
+            {
+                bool desk = o.kind == "surveyDesk";
+                bool found = desk ? Game.Has("survey_complete") : Game.Has("survey_" + o.kind.Substring(6));
+                PropImage(desk ? "bookshelf" : "column", 0, p.x - 27, p.y - 62, 54, 68, found ? muted : Color.white);
+                Ring(new Point(o.x, o.y), .36f, found ? mint : gold, 16);
+                Text(p.x - 46, p.y - 72, 92, 24, desk ? Game.L("归乡星图", "ROAD CHART") : found ? "✓" : "✦", 12, found ? mint : gold, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (o.kind == "mentor" || o.kind == "returnscout") { DrawNpc(o.kind, new Point(o.x, o.y)); Text(p.x - 55, p.y - 89, 110, 24, o.kind == "mentor" ? Game.L("训练场", "PRACTICE") : Game.L("已归来", "HOME"), 12, mint, TextAnchor.MiddleCenter); return true; }
             if (o.kind.StartsWith("seal")) { bool open = Game.Has("seal_" + Game.save.room); Ring(new Point(o.x, o.y), .4f, open ? mint : gold, 16); if (!open) { Icon("relic", p.x - 18, p.y - 38, 36); Text(p.x - 44, p.y + 14, 88, 23, ControlKey("R / E", "B"), 12, gold, TextAnchor.MiddleCenter); } return true; }
             if (o.kind.StartsWith("cache")) { bool found = Game.Has("cache_" + Game.save.room); PropImage("cache", 0, p.x - 26, p.y - 42, 52, 61, found ? muted : Color.white); return true; }

@@ -64,6 +64,46 @@ namespace Starfall.Tests
             g.save.flags.Add("mountain_report"); Check(g.CurrentGuide.room == 5 && g.CurrentGuide.target.x == 18, "Reports point to council"); g.save.frontierEnding = 1; Check(g.CurrentGuide.complete && g.CurrentGuide.Progress == 1, "Settled covenant is complete");
             g.AcceptBounty(0); Check(g.save.trackedQuest == "bounty", "Accepting a contract automatically tracks it"); g.save.trackedQuest = "invalid"; g.save.explored = null; g.Load(g.save); Check(g.save.trackedQuest == "main" && g.save.explored.Length == data.maps.Length, "Malformed fields repaired");
         }
+
+        public static void RoadwardenSignalsUnlockOnePersistentTravelReward(Campaign data)
+        {
+            var g = Fresh(data);
+            float baseSpeed = g.Speed;
+            var guide = g.GetQuest("signals");
+            Check(!guide.locked && !guide.complete && guide.room == 1 && guide.steps.Count == 4, "The exploration quest is visible from a fresh save");
+            g.TrackQuest("signals"); Check(g.save.trackedQuest == "signals", "Players can track the signal quest");
+            g.Enter(9); g.enemies.Clear(); WorldObject desk = Object(g, "surveyDesk"); g.save.x = desk.x; g.save.y = desk.y;
+            int startingCoins = g.save.coins, startingShards = g.save.shards, startingPoints = g.save.skillPoints;
+            g.Interact(); Check(g.mode == "dialog" && g.conversation.choices[0].action == "close", "The chart cannot be claimed before finding the signals"); g.Choose(0);
+            g.save.stage = 3;
+            for (int room = 1; room <= 3; room++)
+            {
+                g.Enter(room); g.enemies.Clear();
+                WorldObject beacon = Object(g, "survey" + room);
+                Check(g.CanStand(new Point(beacon.x, beacon.y)), "Survey beacon must have clear footing in region " + room);
+                g.save.x = beacon.x; g.save.y = beacon.y;
+                g.Interact(); Check(g.Has("survey_" + room) && g.mode == "dialog", "In-world beacon interaction records the signal");
+                g.Choose(0);
+                int coins = g.save.coins, shards = g.save.shards;
+                g.Talk(beacon); g.Choose(0);
+                Check(g.save.coins == coins && g.save.shards == shards, "Re-reading a beacon cannot farm supplies");
+                if (room < 3) Check(g.GetQuest("signals").room == room + 1, "Guidance advances to the next missing signal");
+            }
+            Check(g.save.coins == startingCoins + 36 && g.save.shards == startingShards + 3, "Each beacon grants its one-time supplies");
+            Check(g.GetQuest("signals").room == 9 && !g.GetQuest("signals").complete, "The collected signals lead to the inn");
+            g.Enter(9); g.enemies.Clear(); g.save.x = desk.x; g.save.y = desk.y;
+            g.Interact(); Check(g.conversation.choices[0].action == "survey_finish", "Chart completion is an explicit player choice");
+            g.Choose(0);
+            Check(g.Has("survey_complete") && g.GetQuest("signals").complete, "The chart completes the tracked quest");
+            Check(Math.Abs(g.Speed - baseSpeed - .25f) < .001f, "The permanent exploration reward changes actual movement");
+            Check(g.save.coins == startingCoins + 96 && g.save.shards == startingShards + 8 && g.save.skillPoints >= startingPoints + 1, "Completion grants the advertised rewards");
+            int finalCoins = g.save.coins, finalShards = g.save.shards, finalPoints = g.save.skillPoints;
+            g.Talk(desk); Check(g.conversation.choices[0].action == "close", "Finished chart cannot be redeemed again"); g.Choose(0);
+            Check(g.save.coins == finalCoins && g.save.shards == finalShards && g.save.skillPoints == finalPoints, "Inn revisits cannot duplicate rewards");
+            g.PrepareSave(); var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
+            Check(resumed.Has("survey_complete") && resumed.GetQuest("signals").complete && resumed.save.trackedQuest == "signals", "Existing save schema persists chart flags and tracking");
+            Check(Math.Abs(resumed.Speed - baseSpeed - .25f) < .001f, "Movement bonus survives save and load");
+        }
         public static void NavigationRespectsWorldCollision(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.frontierEnding = 1;

@@ -376,6 +376,14 @@
           "kind": "portal0"
         },
         {
+          "id": "survey1",
+          "kind": "survey1",
+          "name": "苔根巡路信标",
+          "en": "Mossroot road beacon",
+          "x": 14.5,
+          "y": 10.5
+        },
+        {
           "id": "shrine1",
           "name": "星核祭坛",
           "en": "Starcore altar",
@@ -645,6 +653,14 @@
           "x": 3,
           "y": 14,
           "kind": "portal0"
+        },
+        {
+          "id": "survey2",
+          "kind": "survey2",
+          "name": "潮痕巡路信标",
+          "en": "Tidemark road beacon",
+          "x": 8.5,
+          "y": 12.5
         },
         {
           "id": "shrine2",
@@ -932,6 +948,14 @@
           "x": 3,
           "y": 14,
           "kind": "portal0"
+        },
+        {
+          "id": "survey3",
+          "kind": "survey3",
+          "name": "矿灯巡路信标",
+          "en": "Minelight road beacon",
+          "x": 15.5,
+          "y": 19.5
         },
         {
           "id": "shrine3",
@@ -2241,6 +2265,14 @@
           "en": "The night traveler",
           "x": 20,
           "y": 12
+        },
+        {
+          "id": "surveyDesk",
+          "kind": "surveyDesk",
+          "name": "归乡星图桌",
+          "en": "Homeward chart table",
+          "x": 15,
+          "y": 14
         },
         {
           "id": "innLedger",

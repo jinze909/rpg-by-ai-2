@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -58,6 +58,24 @@ namespace Starfall
         {
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
+
+            if (id == "signals")
+            {
+                q.title = L("归乡的三段信号", "Three Signals Home"); q.category = L("巡路探索", "ROADWARDEN DISCOVERY");
+                q.description = L("密林、沉没遗迹和矿场留下了三段失联的巡路信号。将它们带回炉火旅店，拼出一条真正属于旅人的安全归途。", "Recover three lost roadwarden signals across Thornwood, the Drowned Ruins and Ironreach. Assemble them at the Hearth Inn to chart a safe way home.");
+                int next = 0;
+                for (int i = 1; i <= 3; i++)
+                {
+                    bool done = Has("survey_" + i);
+                    q.steps.Add(new QuestStep(L(new[] { "", "恢复密林信号", "恢复遗迹信号", "恢复矿场信号" }[i], new[] { "", "Restore forest signal", "Restore ruins signal", "Restore mine signal" }[i]), done));
+                    if (!done && next == 0) next = i;
+                }
+                q.complete = Has("survey_complete"); q.steps.Add(new QuestStep(L("在炉火旅店拼合归乡星图", "Assemble the chart at the Hearth Inn"), q.complete));
+                q.room = next == 0 ? 9 : next; q.target = ObjectPoint(q.room, next == 0 ? "surveyDesk" : "survey" + next, new Point(18, 14));
+                q.next = q.complete ? L("归乡星图已留在旅店，所有旅人都能使用", "The completed chart now guides every traveler") : next == 0 ? L("三段信号已齐，去炉火旅店的星图桌", "All signals found; visit the chart table in the Hearth Inn") : L("调查第 ", "Investigate signal ") + next + L(" 座旧信标", " at the old beacon");
+                q.reward = L("每座12硬币/1碎片；完工60硬币、5碎片、技能点1、移速+0.25", "Each: 12 coins/1 shard; final: 60 coins, 5 shards, 1 point, +0.25 speed");
+                return q;
+            }
             if (id == "secrets")
             {
                 q.title = L("旧路的新光", "Light on Old Roads"); q.category = L("探索发现", "DISCOVERY"); q.description = L("巡路队的补给留在六条封闭支路里。用星核能力重访旧地，把他们的故事带回来。", "Six sealed paths hold road-warden caches. Return with core powers and recover their stories.");
