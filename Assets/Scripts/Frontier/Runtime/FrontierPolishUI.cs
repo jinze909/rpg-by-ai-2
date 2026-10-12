@@ -125,6 +125,16 @@ namespace Starfall
             if (near != null && !Game.practicing) { Panel(24, 228, 298, 90, new Color(.06f, .08f, .13f, .88f), PixelArt.C("#b37c6a")); Text(40, 241, 266, 68, Game.EnemyHint(near), 13, paper, TextAnchor.MiddleCenter); }
             if (Game.practicing) { Panel(348, 190, 584, 104, panel, mint); Text(365, 206, 549, 34, Game.L("安全练习 ", "Safe practice ") + (Game.practiceStage + 1) + "/3", 20, gold); Text(365, 250, 390, 31, PracticeInputHint, 16, paper); if (Button(785, 246, 130, 34, Game.L("结束练习", "End practice"))) Game.EndPractice(); }
             if (resumeTime > 0 && !Game.practicing) { Panel(352, 205, 576, 98, panel, gold); Text(369, 219, 542, 27, Game.L("欢迎回来 · 接下来", "Welcome back · next step"), 19, gold); Text(369, 255, 542, 40, resumeBrief, 14, paper); }
+            // Keep the unmarked escape bearing legible even in reduced-motion
+            // mode, using a small in-world ring rather than another HUD panel.
+            if (Game.AtlasEchoRoom == Game.save.room && Game.AtlasEchoOpenTime > 0)
+            {
+                Point openBearing = Game.AtlasEchoOpenBearing;
+                Point screenBearing = ScreenPoint(openBearing);
+                Ring(openBearing, .55f, mint, 18);
+                Text(screenBearing.x - 48, screenBearing.y - 57, 96, 25,
+                    Game.L("空方位", "OPEN BEARING"), 11, mint, TextAnchor.MiddleCenter);
+            }
             if (Game.save.reducedMotion || Game.save.effectsQuality == 0) return;
             if (Game.save.room == 5) for (int i = 0; i < 24; i++) { float x = (i * 71 + clock * 27) % Width, y = (i * 53 + clock * 135) % Height; Box(x, y, 1, 6, new Color(.71f, .82f, .91f, .22f)); }
         }

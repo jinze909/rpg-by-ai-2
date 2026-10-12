@@ -5,14 +5,19 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int atlasEchoRoom, atlasEchoCycle;
-        private float atlasEchoPulseTime;
+        private float atlasEchoPulseTime, atlasEchoOpenTime;
+        private Point atlasEchoOpenBearing;
         public int AtlasEchoRoom { get { return atlasEchoRoom; } }
+        public float AtlasEchoOpenTime { get { return atlasEchoOpenTime; } }
+        public Point AtlasEchoOpenBearing { get { return atlasEchoOpenBearing; } }
         private static bool IsAtlasEchoEnemy(Enemy e) { return e != null && e.id == 83001; }
         private void ResetAtlasEcho()
         {
             enemies.RemoveAll(IsAtlasEchoEnemy);
             hazards.RemoveAll(h => h.atlasEchoOwned);
-            atlasEchoRoom = atlasEchoCycle = 0; atlasEchoPulseTime = 0;
+            atlasEchoRoom = atlasEchoCycle = 0;
+            atlasEchoPulseTime = atlasEchoOpenTime = 0;
+            atlasEchoOpenBearing = new Point();
         }
         private bool TalkAtlasEcho(WorldObject o)
         {
@@ -92,6 +97,7 @@ namespace Starfall
         {
             if (atlasEchoRoom == 0) return;
             if (save.room != atlasEchoRoom || Dying || practicing) { ResetAtlasEcho(); return; }
+            atlasEchoOpenTime = Math.Max(0, atlasEchoOpenTime - dt);
             Enemy elite = enemies.Find(IsAtlasEchoEnemy);
             if (elite == null)
             {
@@ -109,13 +115,28 @@ namespace Starfall
             }
             atlasEchoPulseTime -= dt;
             if (atlasEchoPulseTime > 0) return;
-            atlasEchoCycle++;
-            float phase = elite.hp / Math.Max(1, elite.maxHp);
-            atlasEchoPulseTime = phase < .4f ? 3.1f : phase < .7f ? 3.6f : 4.4f;
             Point center = Position;
             Point[] cardinal = { new Point(1, 0), new Point(0, 1),
                 new Point(-1, 0), new Point(0, -1) };
-            int safe = (atlasEchoCycle - 1) % cardinal.Length, marks = 0;
+            // Rotating a nominal safe bearing into a wall would create an
+            // unavoidable pattern. Choose the next actually walkable exit
+            // with a clear route from the hero's current position.
+            int safe = -1;
+            int preferred = atlasEchoCycle % cardinal.Length;
+            for (int step = 0; step < cardinal.Length; step++)
+            {
+                int direction = (preferred + step) % cardinal.Length;
+                Point exit = center + cardinal[direction] * 1.6f;
+                if (CanStand(exit) && ClearAttackPath(center, exit))
+                { safe = direction; break; }
+            }
+            if (safe < 0) { atlasEchoPulseTime = .7f; return; }
+            atlasEchoCycle++;
+            float phase = elite.hp / Math.Max(1, elite.maxHp);
+            atlasEchoPulseTime = phase < .4f ? 3.1f : phase < .7f ? 3.6f : 4.4f;
+            atlasEchoOpenBearing = center + cardinal[safe] * 1.6f;
+            atlasEchoOpenTime = 1.4f;
+            int marks = 0;
             for (int i = 0; i < cardinal.Length; i++)
             {
                 if (i == safe) continue;

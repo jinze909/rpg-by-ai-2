@@ -33,13 +33,16 @@ namespace Starfall.Tests
                 echo.timer > 0 && echo.timer < 2 && g.CanStand(echo.Position) &&
                 g.NavigationPath(echo.Position).Count > 0,
                 "A real armored elite starts in normal attack time on navigable ground");
-            bool sawWarnings = false;
+            bool sawWarnings = false, sawReachableExit = false;
             for (int frame = 0; frame < 70; frame++)
             {
                 g.Tick(.05f, new Point());
                 if (g.hazards.Exists(h => h.atlasEchoOwned)) sawWarnings = true;
+                if (g.AtlasEchoOpenTime > 0 && g.CanStand(g.AtlasEchoOpenBearing))
+                    sawReachableExit = true;
             }
-            Check(sawWarnings, "Echo repeatedly emits live delayed three-direction attack warnings");
+            Check(sawWarnings && sawReachableExit,
+                "Echo telegraphs actual area contacts with a visible reachable unmarked exit");
             g.save.x = compass.x; g.save.y = compass.y;
             echo.hp = 78;
             typeof(GameCore).GetField("atlasEchoPulseTime",
@@ -47,7 +50,22 @@ namespace Starfall.Tests
                 .SetValue(g, .01f);
             g.Tick(.05f, new Point());
             Check(g.hazards.Exists(h => h.atlasEchoOwned && h.kind == "rift" &&
-                h.timer > 2f), "Low-health echo warns a delayed center pulse");
+                h.timer > 2f) && g.AtlasEchoOpenTime > 0 &&
+                g.CanStand(g.AtlasEchoOpenBearing),
+                "Low-health echo warns a delayed center pulse and retains a walkable compass exit");
+            // The eastern compass bearing hits the protected arena barrier.
+            // It must never be advertised as the sole safe route.
+            g.save.x = 25.5f; g.save.y = 11.5f;
+            typeof(GameCore).GetField("atlasEchoCycle",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .SetValue(g, 0);
+            typeof(GameCore).GetField("atlasEchoPulseTime",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .SetValue(g, .01f);
+            g.Tick(.05f, new Point());
+            Check(g.AtlasEchoOpenTime > 0 && g.CanStand(g.AtlasEchoOpenBearing) &&
+                g.AtlasEchoOpenBearing.x < 26,
+                "Near the closed boss gate, compass warning picks a reachable alternative to the blocked east exit");
             Check(!g.Has("archive_echo_complete"),
                 "The encounter must not grant rewards before victory");
             g.PrepareSave();
