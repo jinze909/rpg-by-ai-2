@@ -348,7 +348,7 @@ namespace Starfall.Tests
                 for (int frame = 0; frame < 32; frame++) g.Tick(.05f, new Point());
                 string kind = region == 1 ? "root" : region == 2 ? "tide" : "glass";
                 var warnings = g.hazards.FindAll(h => h.kind == kind);
-                Check(warnings.Count >= 1, "Each region schedules real visible warning hazards");
+                Check(warnings.Count >= 1, "Region " + region + " did not schedule its hazard; mode=" + g.mode + ", wave=" + g.RoadwardenTrialWave + ", enemies=" + g.enemies.Count + ", all hazards=" + g.hazards.Count + ", hp=" + g.save.health);
                 foreach (Hazard warning in warnings)
                     Check(g.CanStand(warning.position) && warning.timer > 0 &&
                         warning.damage > 0 && warning.radius > 0,
