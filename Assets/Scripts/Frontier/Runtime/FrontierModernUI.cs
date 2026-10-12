@@ -37,9 +37,10 @@ namespace Starfall
             // or an invented second playable character portrait.
             if (id == 8 && npcSheet != null)
             {
-                float size = Math.Min(w, h);
+                float survivorSize = Math.Min(w, h);
                 Atlas(npcSheet, 4, 4, 14,
-                    new Rect(x + (w - size) / 2, y + h - size, size, size), Color.white);
+                    new Rect(x + (w - survivorSize) / 2, y + h - survivorSize,
+                        survivorSize, survivorSize), Color.white);
                 return;
             }
             if (id < 0 || portraits == null) { Icon(id < 0 ? "journal" : "companion", x + w * .2f, y + h * .25f, w * .6f); return; }
