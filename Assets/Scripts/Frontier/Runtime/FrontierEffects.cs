@@ -99,16 +99,31 @@ namespace Starfall
         private void DrawEnemyWarning(Enemy enemy)
         {
             if(enemy.state!=1)return;
-            // The amber tether marks the exact traveler-targeted strike lane.
-            // Keep it static for reduced-motion mode and behind the existing
-            // melee arc/area warning so players can plan a bodyguard intercept.
-            if (enemy.targetingWayfarer && Game.WayfarerEncounterRoom == Game.save.room)
+            // A civilian-targeted strike (traveler or rescue) uses the same
+            // locked simulation target as its actual damage or projectile.
+            // Draw a slender, always-visible interception lane even in reduced
+            // motion; never flood the arena with an opaque HUD.
+            bool targetedCivilian =
+                enemy.targetingWayfarer && Game.WayfarerEncounterRoom == Game.save.room ||
+                enemy.targetingReliefCivilian &&
+                    Game.reliefMissionRoom == Game.save.room &&
+                    (Game.reliefMissionWave == 1 || Game.reliefMissionWave == 2);
+            if (targetedCivilian)
             {
                 float laneProgress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
                 Color tether = PixelArt.C("#f4b58b");
                 float opacity = Game.save.reducedMotion ? .4f : .24f + laneProgress * .25f;
                 DrawRay(enemy.Position, enemy.target, new Color(tether.r, tether.g, tether.b, opacity));
                 Ring(enemy.target, .34f, new Color(tether.r, tether.g, tether.b, .65f), 20);
+                if (enemy.targetingReliefCivilian && enemy.kind == 1)
+                {
+                    // The projectile can be blocked mid-flight; warn about
+                    // the arrow's actual shot lane, not a ground shockwave.
+                    Point muzzle = GameCore.WeaponOrigin(enemy.Position, 1, enemy.facing);
+                    DrawRay(muzzle, enemy.target,
+                        new Color(tether.r, tether.g, tether.b,
+                            Game.save.reducedMotion ? .6f : .35f + laneProgress * .4f));
+                }
             }
             if(enemy.boss||enemy.kind==2){DrawTelegraph(enemy);return;}
             float progress=Mathf.Clamp01(1-enemy.timer/Math.Max(.01f,enemy.windupDuration));

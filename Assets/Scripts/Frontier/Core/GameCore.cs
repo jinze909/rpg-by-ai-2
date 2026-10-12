@@ -526,10 +526,23 @@ namespace Starfall
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
                     distance > (e.boss ? 18 : 8)) continue;
                 e.timer -= dt;
-                float desired = wardAttacker || travelerAttacker || reliefAttacker ? 1.05f : e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
+                // A rescue archer is a ranged threat, not another melee saboteur.
+                // Hold a genuine firing lane outside the civilian's reach.
+                float desired = reliefAttacker && e.kind == 1 ? 4.3f :
+                    wardAttacker || travelerAttacker || reliefAttacker ? 1.05f :
+                    e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 Point before = e.Position;
-                if (visible && e.kind == 1 && !e.boss && !wardAttacker && !travelerAttacker && !reliefAttacker && distance < 3 && !practicing) { Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f); e.backpedaling=(back-e.Position).Length>.001f;e.x = back.x; e.y = back.y; }
+                if (visible && e.kind == 1 && !e.boss && !wardAttacker &&
+                    !travelerAttacker && !practicing &&
+                    (reliefAttacker ? distance < 2.9f : distance < 3f))
+                {
+                    // Backpedal away from the true intended target (civilian
+                    // for rescue archers), preserving obstacle sweep and gait.
+                    Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f);
+                    e.backpedaling=(back-e.Position).Length>.001f;
+                    e.x = back.x; e.y = back.y;
+                }
                 if (distance > desired || !visible)
                 {
                     Point p = e.Position + DirectionTo(e.Position, pursuit) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
@@ -561,8 +574,12 @@ namespace Starfall
                     e.target = strikeTraveler || strikeCivilian ? pursuit : Position;
                     e.Face(e.target - e.Position);
                     if (strikeCivilian)
-                        effects.Add(new Effect("danger", pursuit, e.timer) {
-                            radius = e.kind == 2 ? EnemyAreaRadius(e) : EnemyMeleeRadius });
+                        // Archers use their real swept arrow. Showing a melee
+                        // blast ring for a bow would falsely imply instant AOE.
+                        if (e.kind != 1)
+                            effects.Add(new Effect("danger", pursuit, e.timer) {
+                                radius = e.kind == 2 ?
+                                    EnemyAreaRadius(e) : EnemyMeleeRadius });
                     if (e.boss || distance < 6 || strikeCivilian) sound = "windup";
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)
