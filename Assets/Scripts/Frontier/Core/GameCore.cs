@@ -583,7 +583,8 @@ namespace Starfall
                         if (e.kind != 1)
                             effects.Add(new Effect("danger", pursuit, e.timer) {
                                 radius = e.kind == 2 ?
-                                    EnemyAreaRadius(e) : EnemyMeleeRadius });
+                                    EnemyAreaRadius(e) : EnemyMeleeRadius,
+                                reliefMissionOwned = true });
                     if (e.boss || distance < 6 || strikeCivilian) sound = "windup";
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)

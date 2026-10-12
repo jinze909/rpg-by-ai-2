@@ -134,6 +134,7 @@ namespace Starfall
         {
             enemies.RemoveAll(IsReliefMissionEnemy);
             projectiles.RemoveAll(p => p.reliefMissionOwned);
+            effects.RemoveAll(e => e.reliefMissionOwned);
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
             reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
             reliefCivilianHitTime = 0;
@@ -169,7 +170,8 @@ namespace Starfall
                     65 + (reliefMissionRoom - 5) * 18 + (reliefMissionWave - 1) * 32);
                 enemy.timer = .9f + .25f * i;
                 enemies.Add(enemy);
-                effects.Add(new Effect("discover", spots[i], .65f));
+                effects.Add(new Effect("discover", spots[i], .65f) {
+                    reliefMissionOwned = true });
             }
             revision++; sound = "quest";
             return true;
@@ -281,9 +283,11 @@ namespace Starfall
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
             reliefCivilianHitTime = .24f;
             effects.Add(new Effect("projectileImpact", civilians, .28f) {
-                direction = shot.velocity.Normalized, variant = 1, height = shot.height });
+                direction = shot.velocity.Normalized, variant = 1,
+                height = shot.height, reliefMissionOwned = true });
             effects.Add(new Effect("number", civilians, .7f,
-                "-" + (int)Math.Ceiling(loss) + L("安全", " SAFETY")));
+                "-" + (int)Math.Ceiling(loss) + L("安全", " SAFETY")) {
+                    reliefMissionOwned = true });
             revision++;
             if (reliefFollowerSafety <= 0)
             {
@@ -306,9 +310,11 @@ namespace Starfall
             if (reliefWardTime > 0) loss *= .55f;
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
             reliefCivilianHitTime = .24f;
-            effects.Add(new Effect("danger", civilians, .45f) { radius = .7f });
+            effects.Add(new Effect("danger", civilians, .45f) {
+                radius = .7f, reliefMissionOwned = true });
             effects.Add(new Effect("number", civilians, .75f,
-                "-" + (int)loss + L("安全", " SAFETY")));
+                "-" + (int)loss + L("安全", " SAFETY")) {
+                    reliefMissionOwned = true });
             revision++;
             if (reliefFollowerSafety <= 0)
             {
@@ -407,6 +413,7 @@ namespace Starfall
             if (reliefMissionWave == 1)
             {
                 projectiles.RemoveAll(p => p.reliefMissionOwned);
+                effects.RemoveAll(e => e.reliefMissionOwned);
                 reliefMissionWave = 2;
                 reliefWardTime = 0; reliefWardUsed = false;
                 reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
