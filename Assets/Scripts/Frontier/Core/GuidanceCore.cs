@@ -72,8 +72,8 @@ namespace Starfall
                 }
                 q.complete = Has("survey_complete"); q.steps.Add(new QuestStep(L("在炉火旅店拼合归乡星图", "Assemble the chart at the Hearth Inn"), q.complete));
                 q.room = next == 0 ? 9 : next; q.target = ObjectPoint(q.room, next == 0 ? "surveyDesk" : "survey" + next, new Point(18, 14));
-                q.next = q.complete ? L("归乡星图已留在旅店，所有旅人都能使用", "The completed chart now guides every traveler") : next == 0 ? L("三段信号已齐，去炉火旅店的星图桌", "All signals found; visit the chart table in the Hearth Inn") : L("调查第 ", "Investigate signal ") + next + L(" 座旧信标", " at the old beacon");
-                q.reward = L("每座12硬币/1碎片；完工60硬币、5碎片、技能点1、移速+0.25", "Each: 12 coins/1 shard; final: 60 coins, 5 shards, 1 point, +0.25 speed");
+                q.next = q.complete ? L("在炉火旅店星图桌快速前往三座信标；靠近信标可返回旅店", "Use the Hearth Inn chart to travel to three beacons; return from any beacon") : next == 0 ? L("三段信号已齐，去炉火旅店的星图桌", "All signals found; visit the chart table in the Hearth Inn") : L("调查第 ", "Investigate signal ") + next + L(" 座旧信标", " at the old beacon");
+                q.reward = L("每座12硬币/1碎片；完工60硬币、5碎片、技能点1、移速+0.25、信标往返", "Each: 12 coins/1 shard; final: 60 coins, 5 shards, 1 point, +0.25 speed and beacon travel");
                 return q;
             }
             if (id == "secrets")

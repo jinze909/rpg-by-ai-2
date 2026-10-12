@@ -96,6 +96,9 @@ namespace Starfall.Tests
             g.Interact(); Check(g.conversation.choices[0].action == "survey_finish", "Chart completion is an explicit player choice");
             g.Choose(0);
             Check(g.Has("survey_complete") && g.GetQuest("signals").complete, "The chart completes the tracked quest");
+            g.save.english = true;
+            Check(g.GetQuest("signals").next.Contains("travel to three beacons") && g.GetQuest("signals").reward.Contains("beacon travel"), "Completed quest clearly explains the unlocked travel network");
+            g.save.english = false;
             Check(Math.Abs(g.Speed - baseSpeed - .25f) < .001f, "The permanent exploration reward changes actual movement");
             Check(g.save.coins == startingCoins + 96 && g.save.shards == startingShards + 8 && g.save.skillPoints >= startingPoints + 1, "Completion grants the advertised rewards");
             g.Talk(Object(g, "innGuest")); Check(g.conversation.textEn.Contains("helped three late travelers") && g.conversation.textEn.Contains("Coming home with a story"), "Inn traveler acknowledges the completed chart while preserving original guidance"); g.Close();

@@ -234,7 +234,7 @@ namespace Starfall
                 {
                     Flag("survey_complete"); save.coins += 60; save.shards += 5; save.skillPoints++; AddXp(50); revision++; sound = "reward";
                     RecordMoment("三段巡路信号拼成了归乡星图：永久移动速度+0.25，技能点1。", "The road signals became a homeward chart: +0.25 permanent movement speed and 1 talent point.");
-                    Notify("巡路图完成！移速永久+0.25，技能点+1，硬币+60，碎片+5。", "Road chart complete! Permanent speed +0.25, +1 talent point, +60 coins, +5 shards.");
+                    Notify("巡路图完成！移速+0.25、技能点+1，三座信标快速往返已解锁！", "Chart complete! +0.25 speed, +1 talent point; fast travel to all three beacons unlocked!");
                 }
                 return true;
             }
