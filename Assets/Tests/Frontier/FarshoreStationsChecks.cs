@@ -124,7 +124,9 @@ namespace Starfall.Tests
                     region == 6 ? "失联行路者" : "带回的旅人") &&
                     g.conversation.textEn.Contains(region == 5 ? "pontoons truly saved lives" :
                     region == 6 ? "missing desert travelers" : "travelers you brought home"),
-                    "The living regional companion directly remembers the specific rescue in both languages");
+                    "The living regional companion directly remembers the rescue in both languages [room=" + region +
+                    "; zh=" + (g.conversation == null ? "none" : g.conversation.text.Substring(0, Math.Min(180, g.conversation.text.Length))) +
+                    "; en=" + (g.conversation == null ? "none" : g.conversation.textEn.Substring(0, Math.Min(180, g.conversation.textEn.Length))) + "]");
                 g.Close();
             }
             Check(g.Has("relief_rescue_complete") &&
