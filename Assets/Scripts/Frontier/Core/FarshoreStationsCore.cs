@@ -153,8 +153,8 @@ namespace Starfall
                 {
                     if (Has("farshore_relief_" + region))
                     {
-                        textZh += "\n\n本地应急庇护工程已完成。新的避险范围与潮汐控制立即生效。";
-                        textEn += "\n\nThe local civilian refuge is reinforced. Its wider shelter or longer tide control is active."; 
+                        textZh += "\n\n本地应急庇护工程已完成。新的避险范围与潮汐控制立即生效；附近安全时可在站台缓慢恢复生命。";
+                        textEn += "\n\nThis civilian refuge has stronger tide or climate protection. Rest here to recover health slowly while nearby roads are clear."; 
                     }
                     else if (Has("fieldstation_survey_" + region))
                     {

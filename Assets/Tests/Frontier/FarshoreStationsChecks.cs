@@ -5,6 +5,84 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void CivilianReliefActuallyHealsAndProtectsOuterClimate(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_5", "fieldstation_6", "fieldstation_7", "fieldstation_complete",
+                "farshore_relief_5", "farshore_relief_6", "farshore_relief_7", "farshore_relief_complete" })
+                g.save.flags.Add(flag);
+            g.save.frontierEnding = 1;
+            int coins = g.save.coins;
+            for (int region = 5; region <= 7; region++)
+            {
+                g.Enter(region); g.enemies.Clear();
+                WorldObject station = Object(g, "fieldstation" + region);
+                g.save.x = station.x; g.save.y = station.y; g.save.health = 40;
+                for (int frame = 0; frame < 20; frame++) g.Tick(.05f, new Point());
+                Check(g.save.health > 41 && g.save.health < 42 && g.save.coins == coins,
+                    "Each built civilian refuge offers slow actual health recovery without passive currency");
+                float beforeCombat = g.save.health;
+                g.enemies.Add(new Enemy(260 + region, 0, station.x + 1, station.y, 70));
+                g.Tick(.05f, new Point());
+                Check(g.save.health <= beforeCombat + .0001f,
+                    "Nearby combat disables field healing even while standing inside a completed shelter");
+                g.enemies.Clear();
+                g.save.health = 40;
+                g.save.flags.Remove("farshore_relief_" + region);
+                g.Tick(.05f, new Point());
+                Check(g.save.health <= 40.0001f,
+                    "The old station without a civilian upgrade cannot grant field hospital recovery");
+                g.save.flags.Add("farshore_relief_" + region);
+                g.save.health = g.save.maxHealth - .02f;
+                g.Tick(.05f, new Point());
+                Check(g.save.health <= g.save.maxHealth,
+                    "Recovery never exceeds the saved hero's real health maximum");
+            }
+            for (int region = 6; region <= 7; region++)
+            {
+                g.Enter(region); g.enemies.Clear();
+                WorldObject station = Object(g, "fieldstation" + region);
+                Point anchor = new Point(station.x, station.y);
+                Point edge = anchor;
+                bool found = false;
+                Point[] offsets = { new Point(5, 0), new Point(-5, 0),
+                    new Point(0, 5), new Point(0, -5),
+                    new Point(3.5f, 3.5f), new Point(-3.5f, -3.5f),
+                    new Point(3.5f, -3.5f), new Point(-3.5f, 3.5f) };
+                foreach (Point shift in offsets)
+                {
+                    Point sample = anchor + shift;
+                    if (!g.CanStand(sample)) continue;
+                    if (region == 6)
+                    {
+                        bool nearOasis = false;
+                        foreach (WorldObject shade in g.Map.objects)
+                            if (shade.kind == "shade" &&
+                                (new Point(shade.x, shade.y) - sample).Length < 3) nearOasis = true;
+                        if (nearOasis) continue;
+                    }
+                    edge = sample; found = true; break;
+                }
+                Check(found && (edge - anchor).Length > 4.2f &&
+                    (edge - anchor).Length < g.FieldStationRefugeRadius(region),
+                    "The authored farshore map has reachable ground in the newly protected outer band");
+                g.save.x = edge.x; g.save.y = edge.y;
+                g.save.heat = region == 6 ? 50 : 0;
+                g.save.cold = region == 7 ? 50 : 0;
+                g.Tick(.05f, new Point());
+                Check(region == 6 ? g.save.heat < 50 : g.save.cold < 50,
+                    "The full expanded refuge radius changes the live heat/cold simulation");
+                g.save.flags.Remove("farshore_relief_" + region);
+                g.save.heat = region == 6 ? 50 : 0;
+                g.save.cold = region == 7 ? 50 : 0;
+                g.Tick(.05f, new Point());
+                Check(region == 6 ? g.save.heat > 50 : g.save.cold > 50,
+                    "Without the built upgrade, identical outer-band ground remains exposed");
+                g.save.flags.Add("farshore_relief_" + region);
+            }
+        }
+
         public static void FarshoreReliefRoutesLinkExistingInnAndStations(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

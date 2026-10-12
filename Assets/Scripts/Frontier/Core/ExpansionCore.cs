@@ -324,6 +324,15 @@ namespace Starfall
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // Civilian relief posts double as modest field hospitals.  They
+            // work only beyond nearby combat, without erasing the hazards on
+            // the exposed roads or restoring health during an active trial.
+            if (save.room >= 5 && save.room <= 7 &&
+                Has("farshore_relief_" + save.room) && !practicing && !racing &&
+                SafeTravel && save.health > 0 && save.health < save.maxHealth &&
+                NearActiveFieldStation(save.room,
+                    save.room == 5 ? 4.2f : FieldStationRefugeRadius(save.room)))
+                save.health = Math.Min(save.maxHealth, save.health + dt * 1.25f);
             climateTimer -= dt;
             if (climateTimer <= 0) { climateTimer = 1; if (save.heat >= 85 || save.cold >= 90) Hurt(4); }
             if (Dying) return;
@@ -597,7 +606,17 @@ namespace Starfall
             if (!Has("personal_" + id)) choices.Add(C(new[] { "交回弟弟的名册", "帮助修复 · 零件4 星晶4", "交付药草4与密林记录" }[id], new[] { "Return the brother's manifest", "Repair · 4 parts, 4 crystals", "Bring 4 herbs and the forest log" }[id], "personal" + id));
             choices.Add(C("送一份炖汤 · 每日一次", "Share a stew · once per day", "gift" + id));
             choices.Add(C("邀请同行", "Travel together", "join" + id)); choices.Add(C("再见", "Goodbye", "close"));
-            Dialog(o.name, o.en, Has("personal_" + id) ? new[] { "米拉把名册交还给幸存的孩子。她不再等一封回信，而是开始写下一条新航线。", "伊沃给新机器起名叫明天。它没有主人，只记录每个用水人的名字。", "森拆下了钟舌，铸成一块路碑。他仍守着高原，这一次是在路口听人说话。" }[id] : zh[id], Has("personal_" + id) ? new[] { "Mira gives the manifest to the surviving children. She stops waiting for a reply and starts drawing a new route.", "Ivo names the machine Tomorrow. It has no master; it records everyone who shares its water.", "Sen casts the old clapper into a road marker. He still keeps the pass, but now he listens." }[id] : en[id], choices.ToArray());
+            string[] reliefZh = {
+                "\n\n避难浮桥已经建成。现在退潮时的救援窗口更长，受伤的人能在站台歇息，不必只靠最后一艘船。",
+                "\n\n遮阳补给道让更远处也能降温。我终于看到机器为正在赶路的人工作；站台也会照顾伤者。",
+                "\n\n防寒补给棚把暖意送出了旧火盆。暴风雪里的人能在站台恢复体力，再走下一段路。" };
+            string[] reliefEn = {
+                "\n\nThe rescue pontoons extend the safe ebb window. Wounded travelers can recover at the station instead of relying on the last ferry.",
+                "\n\nOur shaded supply lane reaches farther into the desert. The machinery now serves people still on the road; the station can tend their wounds.",
+                "\n\nThe warming depot carries heat beyond the old braziers. Travelers can recover at the station before braving the next snowfield." };
+            string addedZh = Has("farshore_relief_" + (id + 5)) ? reliefZh[id] : "";
+            string addedEn = Has("farshore_relief_" + (id + 5)) ? reliefEn[id] : "";
+            Dialog(o.name, o.en, (Has("personal_" + id) ? new[] { "米拉把名册交还给幸存的孩子。她不再等一封回信，而是开始写下一条新航线。", "伊沃给新机器起名叫明天。它没有主人，只记录每个用水人的名字。", "森拆下了钟舌，铸成一块路碑。他仍守着高原，这一次是在路口听人说话。" }[id] : zh[id]) + addedZh, (Has("personal_" + id) ? new[] { "Mira gives the manifest to the surviving children. She stops waiting for a reply and starts drawing a new route.", "Ivo names the machine Tomorrow. It has no master; it records everyone who shares its water.", "Sen casts the old clapper into a road marker. He still keeps the pass, but now he listens." }[id] : en[id]) + addedEn, choices.ToArray());
         }
         private void ExpansionAltar(WorldObject o)
         {

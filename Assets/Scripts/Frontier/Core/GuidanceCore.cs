@@ -79,7 +79,7 @@ namespace Starfall
                 q.steps.Add(new QuestStep(L("贯通三地平民避难网", "Connect all civilian shelters"), q.complete));
                 q.room = next == 0 ? 5 : next;
                 q.target = ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
-                q.next = q.complete ? L("浮桥、遮阳道和防寒棚已经开放", "Pontoons, shade lane and warming depot are open") :
+                q.next = q.complete ? L("三地站台可缓慢疗伤，并通过炉火旅店星图桌安全往返", "Shelters heal outside combat and link safely to the Hearth Inn chart") :
                     !Has("fieldstation_" + q.room) ? L("先维修本地气象站", "Repair this region's weather station first") :
                     !Has("fieldstation_survey_" + q.room) ? L("先完成本站90秒环境巡测", "Complete this station's 90-second survey first") :
                     !CanEnter(q.room) ? L("先完成前一地区主线", "Complete the preceding region first") :
