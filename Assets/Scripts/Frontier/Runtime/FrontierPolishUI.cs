@@ -70,10 +70,16 @@ namespace Starfall
             {
                 bool desk = o.kind == "surveyDesk";
                 bool found = desk ? Game.Has("survey_complete") : Game.Has("survey_" + o.kind.Substring(6));
+                bool defending = !desk && Game.RoadwardenTrialRoom == Game.save.room;
+                bool defended = !desk && Game.Has("road_trial_" + o.kind.Substring(6));
+                Color accent = defending ? PixelArt.C("#e69d83") : defended ? gold : found ? mint : gold;
                 PropImage(desk ? "bookshelf" : "column", 0, p.x - 27, p.y - 62, 54, 68, found ? muted : Color.white);
                 float pulse = found || Game.save.reducedMotion ? 0 : Mathf.Sin(clock * 2.6f) * .05f;
-                Ring(new Point(o.x, o.y), .36f + pulse, found ? mint : gold, 16);
-                Text(p.x - 46, p.y - 72, 92, 24, desk ? Game.L("归乡星图", "ROAD CHART") : found ? "✓" : o.kind.Substring(6), 12, found ? mint : gold, TextAnchor.MiddleCenter);
+                Ring(new Point(o.x, o.y), .36f + pulse, accent, 16);
+                string label = desk ? Game.L("归乡星图", "ROAD CHART") :
+                    defending ? Game.L("守望 ", "WAVE ") + Game.RoadwardenTrialWave + "/2" :
+                    defended ? Game.L("已守住", "GUARDED") : found ? "✓" : o.kind.Substring(6);
+                Text(p.x - 46, p.y - 72, 92, 24, label, 12, accent, TextAnchor.MiddleCenter);
                 return true;
             }
             if (o.kind == "mentor" || o.kind == "returnscout") { DrawNpc(o.kind, new Point(o.x, o.y)); Text(p.x - 55, p.y - 89, 110, 24, o.kind == "mentor" ? Game.L("训练场", "PRACTICE") : Game.L("已归来", "HOME"), 12, mint, TextAnchor.MiddleCenter); return true; }

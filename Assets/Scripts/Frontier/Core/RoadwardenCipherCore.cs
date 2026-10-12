@@ -99,6 +99,19 @@ namespace Starfall
         // Optional two-wave beacon defense. Completion uses existing save flags.
         // Leaving or loading restarts a drill; trial foes never become world patrols.
         private int roadTrialRoom, roadTrialWave;
+        public int RoadwardenTrialRoom { get { return roadTrialRoom; } }
+        public int RoadwardenTrialWave { get { return roadTrialWave; } }
+        private string RoadwardenVigilInnNote(bool english)
+        {
+            if (Has("road_trial_complete"))
+                return english ? "\n\nAll three beacons are defended. Travelers can follow the wardens' lights again; I will keep their names in the inn ledger."
+                    : "\n\n三座信标都守住了。旅人又能循着巡路灯火归来，我会把守路人的名字记在旅店账簿里。";
+            if (Has("road_trial_1") || Has("road_trial_2") || Has("road_trial_3"))
+                return english ? "\n\nI heard you defended a beacon. Keep the other routes safe too, if you can."
+                    : "\n\n听说你守住了一座信标。如果可以，也请让另外两条归途平安。";
+            return "";
+        }
+
         private static bool IsRoadwardenTrialEnemy(Enemy e)
         { return e != null && e.id >= 81000 && e.id < 81100; }
         private void ResetRoadwardenTrial() { roadTrialRoom = roadTrialWave = 0; }

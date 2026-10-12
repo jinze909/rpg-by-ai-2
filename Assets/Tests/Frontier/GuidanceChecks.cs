@@ -306,6 +306,11 @@ namespace Starfall.Tests
                 g.save.coins == totalCoins + 105 && g.save.shards == totalShards + 9 &&
                 g.save.skillPoints == totalPoints + 1,
                 "All three defenses grant the one-time full-vigil talent reward");
+            g.Enter(9); g.Talk(Object(g, "innGuest"));
+            Check(g.conversation.textEn.Contains("All three beacons are defended") &&
+                g.conversation.textEn.Contains("Coming home with a story"),
+                "The inn acknowledges the vigil while preserving original traveler advice");
+            g.Close();
             g.PrepareSave(); var loaded = new GameCore(data, CloneSave(g.save)); loaded.Start();
             Check(loaded.Has("road_trial_complete") && loaded.GetQuest("vigil").complete &&
                 loaded.save.skillPoints == totalPoints + 1,
