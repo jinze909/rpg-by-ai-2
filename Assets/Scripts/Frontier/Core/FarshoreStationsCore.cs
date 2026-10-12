@@ -7,6 +7,80 @@ namespace Starfall
     // All ownership uses existing save flags; no new serialized state is required.
     public sealed partial class GameCore
     {
+        // Out-and-back environmental field surveys; live progress never enters the save schema.
+        public int fieldSurveyRoom, fieldSurveyPhase;
+        public float fieldSurveyTime;
+        private bool fieldSurveyConditionWarned;
+        private static readonly string[] FieldSurveyLandmarks = { "relay1", "receiver", "bell2" };
+        public Point FieldSurveyTarget(int region)
+        {
+            if (region < 5 || region > 7) return new Point();
+            return ObjectPoint(region, FieldSurveyLandmarks[region - 5], new Point(18, 14));
+        }
+        private void ResetFieldStationSurvey()
+        {
+            fieldSurveyRoom = fieldSurveyPhase = 0; fieldSurveyTime = 0;
+            fieldSurveyConditionWarned = false;
+        }
+        private void TickFieldStationSurvey(float dt)
+        {
+            if (fieldSurveyRoom == 0) return;
+            int region = fieldSurveyRoom;
+            if (save.room != region || Dying || practicing) { ResetFieldStationSurvey(); return; }
+            fieldSurveyTime -= dt;
+            if (fieldSurveyTime <= 0)
+            {
+                ResetFieldStationSurvey(); revision++;
+                Notify("巡测时间已到。观测数据失效，可以从站台重新出发。",
+                    "Survey timed out. Return to the station to try again.");
+                return;
+            }
+            if (fieldSurveyPhase == 1 && (Position - FieldSurveyTarget(region)).Length < 1.4f)
+            {
+                bool readable = region == 5 ? LowTide : region == 6 ? save.heat < 60 : save.cold < 60;
+                if (!readable)
+                {
+                    if (!fieldSurveyConditionWarned)
+                    {
+                        Notify(region == 5 ? "水位过高，等待低潮再记录信号。" :
+                            region == 6 ? "热浪干扰读数，先到阴凉处降温。" :
+                            "寒意干扰读数，先靠近火盆或保暖站。",
+                            region == 5 ? "The marker is submerged. Wait for low tide." :
+                            region == 6 ? "Too much heat for a clear reading. Cool down first." :
+                            "Too cold for a clear reading. Warm up first.");
+                        fieldSurveyConditionWarned = true;
+                    }
+                    return;
+                }
+                fieldSurveyPhase = 2; revision++; sound = "quest";
+                effects.Add(new Effect("discover", FieldSurveyTarget(region), .65f));
+                Notify("远岸信号已记录！在倒计时结束前返回观测站。",
+                    "Field reading secured! Return to the station before time runs out.");
+            }
+            if (fieldSurveyPhase != 2) return;
+            foreach (WorldObject o in Map.objects)
+            {
+                if (o.kind != "fieldstation" + region ||
+                    (Position - new Point(o.x, o.y)).Length >= 1.55f) continue;
+                ResetFieldStationSurvey();
+                if (Has("fieldstation_survey_" + region)) return;
+                Flag("fieldstation_survey_" + region);
+                save.coins += 24; save.shards += 2; AddXp(30);
+                if (Has("fieldstation_survey_5") && Has("fieldstation_survey_6") &&
+                    Has("fieldstation_survey_7") && !Has("fieldstation_survey_complete"))
+                {
+                    Flag("fieldstation_survey_complete"); save.tea += 2;
+                    RecordMoment("三份风暴巡测数据已归档。远岸避风网可以预警下一场风暴。",
+                        "Three field readings archived. The farshore network can forecast the next storm.");
+                    Notify("三地巡测完成！获得24硬币、2碎片、30经验和额外凉茶2。",
+                        "All field surveys complete! +24 coins, +2 shards, +30 XP, +2 bonus teas.");
+                }
+                else Notify("巡测报告已归档！获得24硬币、2碎片、30经验。",
+                    "Field survey archived! +24 coins, +2 shards, +30 XP.");
+                TrackQuest("station_patrol"); revision++; sound = "reward";
+                return;
+            }
+        }
         public bool NearActiveFieldStation(int region, float radius)
         {
             if (save.room != region || !Has("fieldstation_" + region)) return false;
@@ -46,6 +120,22 @@ namespace Starfall
                                 "Travel to " + locationsEn[destination - 5],
                                 "fieldstation_to_" + destination));
                 }
+                if (!Has("fieldstation_survey_" + region))
+                {
+                    if (fieldSurveyRoom == region)
+                    {
+                        textZh += "\n\n巡测进行中：" + (fieldSurveyPhase == 1 ? "前往环境标记" : "返回站台") + "，剩余" + (int)Math.Ceiling(fieldSurveyTime) + "秒。";
+                        textEn += "\n\nSurvey active: " + (fieldSurveyPhase == 1 ? "reach the field marker" : "return to the post") + "; " + (int)Math.Ceiling(fieldSurveyTime) + "s left.";
+                        stationChoices.Add(C("取消本次巡测", "Abandon this survey", "fieldstation_survey_cancel"));
+                    }
+                    else if (fieldSurveyRoom == 0)
+                    {
+                        textZh += "\n\n可选巡测：90秒内抵达区域环境标记、读取数据并返回。雾港需要低潮，沙海/高原需控制暑寒低于60。失败无损失。";
+                        textEn += "\n\nOptional 90s field survey: reach the regional landmark, take a reading and return. Harbor requires low tide; desert/frost require exposure below 60. Failure costs nothing.";
+                        stationChoices.Add(C("开始90秒环境巡测", "Begin 90-second field survey", "fieldstation_survey_start"));
+                    }
+                }
+                else { textZh += "\n\n本站巡测报告已归档。"; textEn += "\n\nThis station's field survey is archived."; }
                 stationChoices.Add(C("离开观测站", "Leave the station", "close"));
                 Dialog(o.name, o.en, textZh, textEn, stationChoices.ToArray());
                 return true;
@@ -65,6 +155,29 @@ namespace Starfall
         }
         private bool ChooseFieldStation(string action)
         {
+            if (action == "fieldstation_survey_cancel")
+            {
+                if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
+                { ResetFieldStationSurvey(); revision++; Notify("已取消巡测，可随时重试。", "Survey abandoned; you may retry."); }
+                return true;
+            }
+            if (action == "fieldstation_survey_start")
+            {
+                int surveyRegion = save.room;
+                if (surveyRegion < 5 || surveyRegion > 7 || fieldSurveyRoom != 0 ||
+                    !Has("fieldstation_" + surveyRegion) || Has("fieldstation_survey_" + surveyRegion) ||
+                    Dying || practicing || racing || !SafeTravel) return true;
+                WorldObject station = null;
+                foreach (WorldObject o in Map.objects)
+                    if (o.kind == "fieldstation" + surveyRegion) { station = o; break; }
+                if (station == null || (Position - new Point(station.x, station.y)).Length > 2.2f) return true;
+                fieldSurveyRoom = surveyRegion; fieldSurveyPhase = 1; fieldSurveyTime = 90;
+                fieldSurveyConditionWarned = false; TrackQuest("station_patrol");
+                revision++; sound = "quest";
+                Notify("巡测开始：前往地图标记并在90秒内返回观测站。",
+                    "Survey started: visit the marked landmark and return within 90 seconds.");
+                return true;
+            }
             if (action.StartsWith("fieldstation_to_"))
             {
                 int destination;

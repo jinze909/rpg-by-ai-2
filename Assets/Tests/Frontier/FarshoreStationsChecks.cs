@@ -4,6 +4,84 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void FarshoreStationSurveysRequireRealOutAndBackTravel(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_5", "fieldstation_6", "fieldstation_7", "fieldstation_complete" })
+                g.save.flags.Add(flag);
+            int coins = g.save.coins, shards = g.save.shards, tea = g.save.tea;
+            for (int region = 5; region <= 7; region++)
+            {
+                g.Enter(region); g.enemies.Clear();
+                WorldObject post = Object(g, "fieldstation" + region);
+                g.save.x = post.x; g.save.y = post.y;
+                Check(g.GetQuest("station_patrol").steps.Count == 4, "Survey journal is available after restoration");
+                Action(g, post.kind, "fieldstation_survey_start");
+                Check(g.fieldSurveyRoom == region && g.fieldSurveyPhase == 1 &&
+                    g.fieldSurveyTime > 89 && g.save.trackedQuest == "station_patrol",
+                    "Each repaired station starts a tracked 90-second local field mission");
+                Point marker = g.FieldSurveyTarget(region);
+                Check(g.CanStand(marker), "Regional survey landmark is on walkable ground");
+                g.save.x = marker.x; g.save.y = marker.y;
+                if (region == 5)
+                {
+                    g.save.totalTime = 27;
+                    g.Tick(.05f, new Point());
+                    Check(g.fieldSurveyPhase == 1, "Harbor reading is blocked at high tide");
+                    g.save.totalTime = 0;
+                }
+                else if (region == 6)
+                {
+                    g.save.heat = 80; g.Tick(.05f, new Point());
+                    Check(g.fieldSurveyPhase == 1, "Heat-distorted desert reading cannot advance");
+                    g.save.heat = 0;
+                }
+                else
+                {
+                    g.save.cold = 80; g.Tick(.05f, new Point());
+                    Check(g.fieldSurveyPhase == 1, "Cold-distorted highland reading cannot advance");
+                    g.save.cold = 0;
+                }
+                g.Tick(.05f, new Point());
+                Check(g.fieldSurveyPhase == 2 && g.GetQuest("station_patrol").room == region &&
+                    (g.GetQuest("station_patrol").target - new Point(post.x, post.y)).Length < .01f,
+                    "Actual landmark contact and safe weather create a return-to-post objective");
+                g.save.x = post.x; g.save.y = post.y;
+                g.Tick(.05f, new Point());
+                Check(g.Has("fieldstation_survey_" + region) && g.fieldSurveyRoom == 0 &&
+                    g.save.coins == coins + 24 * (region - 4) &&
+                    g.save.shards == shards + 2 * (region - 4),
+                    "Returning to the real station archives one regional reading and pays once");
+                g.Talk(post);
+                Check(!Array.Exists(g.conversation.choices, c => c.action == "fieldstation_survey_start"),
+                    "Completed station does not offer farmable repeat rewards");
+                g.Close();
+            }
+            Check(g.Has("fieldstation_survey_complete") && g.GetQuest("station_patrol").complete &&
+                g.save.tea == tea + 2, "All three readings grant exactly one network-wide tea bonus");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
+            Check(restored.GetQuest("station_patrol").complete && restored.fieldSurveyRoom == 0 &&
+                restored.save.coins == g.save.coins && restored.save.tea == g.save.tea,
+                "Survey flags and one-time rewards persist without new save fields");
+
+            var retry = Fresh(data); retry.save.stage = 3;
+            retry.save.flags.Add("exp_intro"); retry.save.flags.Add("fieldstation_5");
+            retry.Enter(5); retry.enemies.Clear();
+            var origin = Object(retry, "fieldstation5");
+            retry.save.x = origin.x; retry.save.y = origin.y;
+            Action(retry, origin.kind, "fieldstation_survey_start");
+            retry.fieldSurveyTime = .01f; retry.Tick(.05f, new Point());
+            Check(retry.fieldSurveyRoom == 0 && !retry.Has("fieldstation_survey_5"),
+                "Timed-out survey clears cleanly without granting progress");
+            Action(retry, origin.kind, "fieldstation_survey_start");
+            retry.Enter(0);
+            Check(retry.fieldSurveyRoom == 0 && !retry.Has("fieldstation_survey_5"),
+                "Leaving the map cancels transient surveys without losing completed reports");
+        }
+
         public static void FarshoreStationNetworkProvidesSafeUnlockAwareTravel(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3;

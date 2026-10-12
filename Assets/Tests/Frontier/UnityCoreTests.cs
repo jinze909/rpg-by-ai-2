@@ -63,6 +63,7 @@ namespace Starfall.Tests
         [Test] public void DeathPosesAndSafeResume() { CoreChecks.DeathPresentationAndResume(Data()); }
         [Test] public void TutorialSaveMigrationAndPagedDialogue() { CoreChecks.TutorialAndPresentationMigration(Data()); }
         [Test] public void RoadsideTravelersHaveTwoRescueRoutes() { CoreChecks.MissingTravelersOfferSupplyAndCombatRescues(Data()); }
+        [Test] public void FarshoreFieldSurveys() { CoreChecks.FarshoreStationSurveysRequireRealOutAndBackTravel(Data()); }
         [Test] public void FarshoreStationTravelIsSafe() { CoreChecks.FarshoreStationNetworkProvidesSafeUnlockAwareTravel(Data()); }
         [Test] public void FarshoreWeatherStationsAreLive() { CoreChecks.FarshoreWeatherStationsChangeActualClimateAndTide(Data()); }
         [Test] public void RoadwardenSignalChartAndSave() { CoreChecks.RoadwardenSignalsUnlockOnePersistentTravelReward(Data()); }

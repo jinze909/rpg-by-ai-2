@@ -104,7 +104,7 @@ namespace Starfall
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
-            climateTimer = 1; stormTimer = 6; ClearFrost();
+            climateTimer = 1; stormTimer = 6; ClearFrost(); ResetFieldStationSurvey();
             combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; dashOrigin = new Point(); dodgeEscapeTime = 0; previousLowTide = LowTide;
         }
         private bool SpawnExpansionRoom()
@@ -327,6 +327,7 @@ namespace Starfall
             climateTimer -= dt;
             if (climateTimer <= 0) { climateTimer = 1; if (save.heat >= 85 || save.cold >= 90) Hurt(4); }
             if (Dying) return;
+            TickFieldStationSurvey(dt);
             if (racing)
             {
                 raceTime += dt;

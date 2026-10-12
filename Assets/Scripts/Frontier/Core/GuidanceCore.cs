@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,38 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+            if (id == "station_patrol")
+            {
+                q.title = L("远岸环境巡测", "Farshore Field Surveys");
+                q.category = L("限时探索", "TIMED EXPLORATION");
+                q.locked = !CanEnter(5) || (!Has("fieldstation_5") && !Has("fieldstation_6") && !Has("fieldstation_7"));
+                q.description = L("在修好的观测站接下90秒巡测：跑到当地标记记录潮汐、热度或寒意，然后及时返回。失败无损失。",
+                    "Start a 90-second survey at a restored station. Read the tide, heat or cold at the landmark, then return before time expires. Retries are free.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool done = Has("fieldstation_survey_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "雾港低潮巡测", "沙海热度巡测", "高原寒意巡测" }[region - 5],
+                        new[] { "Harbor low-tide reading", "Desert heat reading", "Highland cold reading" }[region - 5]), done));
+                    if (!done && next == 0 && Has("fieldstation_" + region)) next = region;
+                }
+                q.complete = Has("fieldstation_survey_complete");
+                q.steps.Add(new QuestStep(L("归档三份巡测数据", "Archive all three readings"), q.complete));
+                q.room = fieldSurveyRoom != 0 ? fieldSurveyRoom : next != 0 ? next : 5;
+                q.target = fieldSurveyRoom != 0 && fieldSurveyPhase == 1 ? FieldSurveyTarget(fieldSurveyRoom) :
+                    ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
+                q.next = q.complete ? L("三地巡测完成，观测报告已归档", "All field surveys archived") :
+                    fieldSurveyRoom != 0 ?
+                        L(fieldSurveyPhase == 1 ? "前往地图标记，读取气象信号" : "返回观测站交付读数",
+                          fieldSurveyPhase == 1 ? "Reach the landmark to take a reading" : "Return to the station to deliver the reading") +
+                        " · " + (int)Math.Ceiling(fieldSurveyTime) + "s" :
+                    next != 0 ? L("前往已修复的站台，接取90秒巡测", "Visit a repaired station to start a 90s survey") :
+                        L("先维修任意远岸观测站", "Restore a farshore station first");
+                q.reward = L("每站24硬币、2碎片、30经验；三站额外凉茶2",
+                    "Each: 24 coins, 2 shards, 30 XP; all three: +2 tea");
+                return q;
+            }
 
             if (id == "stations")
             {
