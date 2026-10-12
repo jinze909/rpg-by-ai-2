@@ -258,6 +258,26 @@ namespace Starfall
             effects.Add(new Effect("discover", civilian, .35f));
             return true;
         }
+        private void DamageReliefCivilianArrow(Projectile shot)
+        {
+            if (!shot.reliefMissionOwned || reliefMissionRoom == 0 ||
+                (reliefMissionWave != 1 && reliefMissionWave != 2) ||
+                save.room != reliefMissionRoom) return;
+            Point civilians = FieldSurveyTarget(reliefMissionRoom);
+            float loss = reliefWardTime > 0 ? 4.95f : 9f;
+            reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);
+            effects.Add(new Effect("projectileImpact", civilians, .28f) {
+                direction = shot.velocity.Normalized, variant = 1, height = shot.height });
+            effects.Add(new Effect("number", civilians, .7f,
+                "-" + (int)Math.Ceiling(loss) + L("安全", " SAFETY")));
+            revision++;
+            if (reliefFollowerSafety <= 0)
+            {
+                ResetReliefMission(); sound = "deny";
+                Notify("流矢击散了被困居民！请在下一次救援中挡住射线。",
+                    "Stray arrows scattered the civilians. Block their flight paths on the next attempt.");
+            }
+        }
         private void DamageReliefCivilian(Enemy attacker)
         {
             if (reliefMissionRoom == 0 || reliefMissionWave < 1 ||

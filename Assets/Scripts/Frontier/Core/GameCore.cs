@@ -512,7 +512,10 @@ namespace Starfall
                         else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position)) Hurt(11, "lunge", e.facing);
                         if (travelerAttacker && e.targetingWayfarer) DamageWayfarer(e);
                         if (reliefMissionRoom != 0 && IsReliefMissionEnemy(e) &&
-                            e.targetingReliefCivilian) DamageReliefCivilian(e);
+                            e.targetingReliefCivilian && e.kind != 1)
+                            DamageReliefCivilian(e);
+                        // Rescue archers only injure civilians where their real
+                        // arrow actually flies. No hitscan at the windup release.
                         e.targetingWayfarer = e.targetingReliefCivilian = false;
                         e.state = 0; e.timer = e.boss ? 2.2f - e.BossPhase * .3f : 1.4f;
                     }
@@ -545,8 +548,8 @@ namespace Starfall
                 // A rescue raider must visibly commit to striking the civilians.
                 // Archers still attack the playable hero; melee and breakers can
                 // target civilians when the hero does not hold the frontline.
-                bool nearCivilian = reliefAttacker && e.kind != 1 &&
-                    (pursuit - e.Position).Length < 2.1f &&
+                bool nearCivilian = reliefAttacker &&
+                    (pursuit - e.Position).Length < (e.kind == 1 ? 6.5f : 2.1f) &&
                     ClearAttackPath(e.Position, pursuit);
                 bool strikeCivilian = nearCivilian &&
                     (!heroInRange || distance > 2.2f);
@@ -618,7 +621,17 @@ namespace Starfall
                         }
                         projectileTargets.Clear();
                     }
-                    else if ((Position - p.position).Length < .38f) { Hurt(p.damage, p.source ?? "shot", p.velocity.Normalized); dead = true; }
+                    else if ((Position - p.position).Length < .38f)
+                    { Hurt(p.damage, p.source ?? "shot", p.velocity.Normalized); dead = true; }
+                    else if (p.reliefMissionOwned && reliefMissionRoom == save.room &&
+                        (reliefMissionWave == 1 || reliefMissionWave == 2) &&
+                        (p.position - FieldSurveyTarget(reliefMissionRoom)).Length < .45f)
+                    {
+                        // A genuine hostile arrow, after sweeping through any
+                        // walls or an intervening hero, reaches the civilians.
+                        DamageReliefCivilianArrow(p);
+                        dead = true;
+                    }
                 }
                 if (dead && projectiles.Remove(p)) effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact", p.position, .28f) { direction = p.velocity.Normalized, variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height });
                 else if (p.life <= 0 && projectiles.Remove(p)) effects.Add(new Effect("projectileFade", p.position, .25f) { direction = p.velocity.Normalized, variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10, height = p.height });
