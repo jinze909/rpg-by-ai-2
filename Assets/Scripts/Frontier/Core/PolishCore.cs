@@ -108,6 +108,7 @@ namespace Starfall
         {
             TickRoadwardenTrial(dt);
             TickWayfarerEncounter();
+            TickReliefMission(dt);
             TickAtlasEcho(dt);
             actionHintTimer = Math.Max(0, actionHintTimer - dt);
             // Permanent quest mutations increment revision; tablet progress is
@@ -365,7 +366,8 @@ namespace Starfall
             {
                 // Temporary trial attackers restart after loading; never save
                 // them as ordinary world patrols.
-                if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e)) continue;
+                if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e) ||
+                    IsReliefMissionEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();

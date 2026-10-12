@@ -96,6 +96,134 @@ namespace Starfall
             return region >= 6 && region <= 7 && Has("farshore_relief_" + region) ? 6.5f : 4.2f;
         }
         public int TidewatchHoldSeconds { get { return Has("farshore_relief_5") ? 90 : 45; } }
+        // A timed, two-wave rescue sortie from each real civilian shelter.
+        // The route and enemies are live combat; replay gives no further rewards.
+        public int reliefMissionRoom, reliefMissionWave;
+        public float reliefMissionTime;
+        private static bool IsReliefMissionEnemy(Enemy e)
+        { return e != null && e.id >= 85000 && e.id < 85100; }
+        private void ResetReliefMission()
+        {
+            enemies.RemoveAll(IsReliefMissionEnemy);
+            projectiles.RemoveAll(p => p.reliefMissionOwned);
+            reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
+        }
+        private bool SpawnReliefMissionWave()
+        {
+            Point landmark = FieldSurveyTarget(reliefMissionRoom);
+            var spots = new List<Point>();
+            for (int radius = 2; radius <= 6 && spots.Count < 2; radius++)
+            for (int dx = -radius; dx <= radius && spots.Count < 2; dx++)
+            for (int dy = -radius; dy <= radius && spots.Count < 2; dy++)
+            {
+                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
+                Point candidate = landmark + new Point(dx, dy);
+                if (!CanStand(candidate) || NavigationPath(candidate).Count == 0 ||
+                    (candidate - landmark).Length > 6.5f ||
+                    (candidate - Position).Length < 2f ||
+                    enemies.Exists(e => (e.Position - candidate).Length < 1.8f) ||
+                    spots.Exists(p => (p - candidate).Length < 3) ) continue;
+                spots.Add(candidate);
+            }
+            if (spots.Count != 2) return false;
+            for (int i = 0; i < 2; i++)
+            {
+                int kind = reliefMissionWave == 1 ? i == 0 ? 0 : 1 : i == 0 ? 2 : 0;
+                var enemy = new Enemy(85000 + (reliefMissionRoom - 5) * 10 +
+                    reliefMissionWave * 2 + i, kind, spots[i].x, spots[i].y,
+                    65 + (reliefMissionRoom - 5) * 18 + (reliefMissionWave - 1) * 32);
+                enemy.timer = .9f + .25f * i;
+                enemies.Add(enemy);
+                effects.Add(new Effect("discover", spots[i], .65f));
+            }
+            revision++; sound = "quest";
+            return true;
+        }
+        private void BeginReliefMission()
+        {
+            int region = save.room;
+            if (region < 5 || region > 7 || reliefMissionRoom != 0 ||
+                !Has("farshore_relief_" + region) || !Has("fieldstation_survey_" + region) ||
+                fieldSurveyRoom != 0 || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
+                atlasEchoRoom != 0 || practicing || Dying || racing || !CanEnter(region)) return;
+            Point post = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
+            if ((Position - post).Length > 2.2f) return;
+            if (!SafeTravel)
+            { Notify("先清理站台附近的巡逻敌人，才能启动救援。", "Clear patrols near the station before starting rescue."); return; }
+            reliefMissionRoom = region; reliefMissionWave = 1; reliefMissionTime = 120;
+            if (!SpawnReliefMissionWave())
+            {
+                ResetReliefMission();
+                Notify("救援路线无法安全布置敌人，稍后可重试。", "Unable to set up a safe rescue route. Retry later.");
+                return;
+            }
+            TrackQuest("relief_rescue");
+            Notify("民用救援开始！120秒内赶往地图标记、击退两波敌人，再返回站台。",
+                "Rescue launched! Reach the marked landmark, defeat two waves and return within 120 seconds.");
+        }
+        private void TickReliefMission(float dt)
+        {
+            if (reliefMissionRoom == 0) return;
+            int region = reliefMissionRoom;
+            if (save.room != region || Dying || practicing)
+            { ResetReliefMission(); return; }
+            reliefMissionTime -= dt;
+            if (reliefMissionTime <= 0)
+            {
+                ResetReliefMission(); revision++;
+                Notify("救援时间已过。未消耗物资，可再次行动。",
+                    "Rescue timed out. No supplies lost; retry freely.");
+                return;
+            }
+            if (enemies.Exists(IsReliefMissionEnemy)) return;
+            if (reliefMissionWave == 1)
+            {
+                projectiles.RemoveAll(p => p.reliefMissionOwned);
+                reliefMissionWave = 2;
+                if (!SpawnReliefMissionWave())
+                {
+                    ResetReliefMission(); revision++;
+                    Notify("道路发生变化，救援取消，可免费重试。",
+                        "The route changed. Rescue canceled; retry for free.");
+                    return;
+                }
+                Notify("第二波来了！重甲破坏者与突袭者正封锁撤离道路！",
+                    "Second wave! An armored breaker and raider block the evacuation road!");
+                return;
+            }
+            if (reliefMissionWave == 2)
+            {
+                reliefMissionWave = 3; revision++; sound = "quest";
+                Point marker = FieldSurveyTarget(region);
+                effects.Add(new Effect("discover", marker, .7f));
+                Notify("掠夺者已击退！带领幸存者在剩余时间内返回避难站。",
+                    "Raiders defeated! Guide the survivors back to the shelter before time expires.");
+            }
+            if (reliefMissionWave != 3) return;
+            Point station = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
+            if ((Position - station).Length >= 1.6f) return;
+            ResetReliefMission(); revision++;
+            if (Has("relief_rescue_" + region))
+            {
+                Notify("救援重演成功！奖励只能首次领取。",
+                    "Rescue replay complete! Rewards are first-clear only.");
+                return;
+            }
+            Flag("relief_rescue_" + region);
+            save.coins += 45; save.shards += 3; AddXp(50);
+            RecordMoment("从第 " + (region - 4) + " 条远岸路线上救回被围困的居民。",
+                "Rescued stranded civilians from farshore route " + (region - 4) + ".");
+            if (Has("relief_rescue_5") && Has("relief_rescue_6") &&
+                Has("relief_rescue_7") && !Has("relief_rescue_complete"))
+            {
+                Flag("relief_rescue_complete"); save.skillPoints++; save.tea += 2;
+                Notify("三地居民全部获救！额外技能点1、凉茶2。",
+                    "Civilians rescued across all three regions! Bonus talent and two teas.");
+            }
+            else Notify("居民平安抵达！45硬币、3碎片、50经验。",
+                "Civilians safe! +45 coins, +3 shards and +50 XP.");
+            TrackQuest("relief_rescue"); sound = "reward";
+        }
         private bool TalkFieldStation(WorldObject o)
         {
             if (!o.kind.StartsWith("fieldstation")) return false;
@@ -170,7 +298,9 @@ namespace Starfall
                         textEn += "\n\nThe covenant funds civilian refuges. Complete this station's 90-second field survey first.";
                     }
                 }
-                if (Has("fieldstation_survey_complete"))
+                if (Has("farshore_relief_" + region) && Has("fieldstation_survey_" + region))
+                    stationChoices.Add(C("平民撤离行动", "Civilian rescue sortie", "fieldstation_rescue_menu"));
+                if (Has("fieldstation_survey_complete") && !Has("farshore_relief_complete"))
                     stationChoices.Add(C("查看远岸气象预报", "View farshore weather forecast", "fieldstation_forecast"));
                 stationChoices.Add(C("离开观测站", "Leave the station", "close"));
                 Dialog(o.name, o.en, textZh, textEn, stationChoices.ToArray());
@@ -223,6 +353,39 @@ namespace Starfall
         }
         private bool ChooseFieldStation(string action)
         {
+            if (action == "fieldstation_rescue_menu")
+            {
+                int currentRoom = save.room;
+                if (currentRoom < 5 || currentRoom > 7 ||
+                    !Has("farshore_relief_" + currentRoom) ||
+                    !Has("fieldstation_survey_" + currentRoom)) return true;
+                Point basePost = ObjectPoint(currentRoom, "fieldstation" + currentRoom, new Point(-100, -100));
+                if ((Position - basePost).Length > 2.2f) return true;
+                var options = new List<Choice>();
+                if (reliefMissionRoom == currentRoom)
+                    options.Add(C("放弃本次撤离", "Abandon this sortie", "fieldstation_rescue_cancel"));
+                else options.Add(C(Has("relief_rescue_" + currentRoom) ? "重演救援（无重复奖励）" : "出发救援（120秒）",
+                    Has("relief_rescue_" + currentRoom) ? "Replay rescue (no rewards)" : "Begin rescue (120 seconds)",
+                    "fieldstation_rescue_start"));
+                if (Has("fieldstation_survey_complete"))
+                    options.Add(C("查看远岸气象预报", "Read weather forecast", "fieldstation_forecast"));
+                options.Add(C("离开", "Leave", "close"));
+                Dialog("远岸避难行动", "Farshore Evacuation",
+                    "已有居民被困在巡测地点附近。前往标记处击退两波真实敌人，再把居民带回站台。若失败或中途离开，可免费重试。" +
+                    (reliefMissionRoom == currentRoom ? "\n\n阶段 " + reliefMissionWave + "/3，剩余 " + (int)Math.Ceiling(reliefMissionTime) + " 秒。" : ""),
+                    "Civilians are stranded near the surveyed landmark. Defeat two real enemy waves, then escort them back to this station. Retries are free." +
+                    (reliefMissionRoom == currentRoom ? "\n\nStage " + reliefMissionWave + "/3, " + (int)Math.Ceiling(reliefMissionTime) + "s remaining." : ""),
+                    options.ToArray());
+                return true;
+            }
+            if (action == "fieldstation_rescue_cancel")
+            {
+                if (reliefMissionRoom != 0 && reliefMissionRoom == save.room)
+                { ResetReliefMission(); revision++; Notify("撤离行动取消，可免费重试。", "Rescue canceled; retry for free."); }
+                return true;
+            }
+            if (action == "fieldstation_rescue_start")
+            { BeginReliefMission(); return true; }
             if (action == "fieldstation_inn")
             {
                 int sourceStation = save.room;

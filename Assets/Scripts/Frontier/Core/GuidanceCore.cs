@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "farshore_relief" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -59,6 +59,39 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+            if (id == "relief_rescue")
+            {
+                q.title = L("远岸居民撤离", "Farshore Civilian Rescue");
+                q.category = L("限时战斗救援", "TIMED RESCUE COMBAT");
+                q.locked = !Has("farshore_relief_5") && !Has("farshore_relief_6") &&
+                    !Has("farshore_relief_7");
+                q.description = L("从建成的民用避难站出发，在120秒内抵达巡测点、击退两波敌人并返回站台。战斗敌人不计主线击杀或普通战利品，失败可免费重试。",
+                    "From a rebuilt shelter, reach the surveyed landmark, defeat two enemy waves and return in 120 seconds. No ordinary loot or story kill farming; retries cost nothing.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool done = Has("relief_rescue_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "救出雾港滩涂居民", "救出沙海行路者", "救出霜钟雪道旅人" }[region - 5],
+                        new[] { "Evacuate Mistport travelers", "Rescue desert wanderers", "Escort Frostchime travelers" }[region - 5]), done));
+                    if (!done && next == 0 && Has("farshore_relief_" + region)) next = region;
+                }
+                q.complete = Has("relief_rescue_complete");
+                q.steps.Add(new QuestStep(L("全三地居民安全抵达", "Bring all civilians home"), q.complete));
+                q.room = reliefMissionRoom != 0 ? reliefMissionRoom : next == 0 ? 5 : next;
+                q.target = reliefMissionRoom != 0 && reliefMissionWave <= 2 ?
+                    FieldSurveyTarget(reliefMissionRoom) :
+                    ObjectPoint(q.room, "fieldstation" + q.room, new Point(12, 12));
+                q.next = q.complete ? L("三地居民已获救，救援可无奖励重演", "Three regions safe; replay with no rewards") :
+                    reliefMissionRoom != 0 ? L(reliefMissionWave == 3 ? "带领居民返回气象站" : "击退巡测地点的袭击者",
+                        reliefMissionWave == 3 ? "Return survivors to the weather station" : "Defeat raiders near the landmark") +
+                        " · " + (int)Math.Ceiling(reliefMissionTime) + "s" :
+                    next == 0 ? L("先建设一处远岸避难站", "Build a farshore civilian shelter") :
+                        L("前往已建成的站台接取居民救援", "Start a rescue at a finished shelter");
+                q.reward = L("每地首次45硬币、3碎片、50经验；三地额外技能点1、凉茶2",
+                    "First clear each: 45 coins, 3 shards, 50 XP; all three: one talent and two teas");
+                return q;
+            }
 
             if (id == "farshore_relief")
             {

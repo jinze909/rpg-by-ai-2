@@ -50,6 +50,16 @@ namespace Starfall
                 Text(p.x - 20, p.y - 44, 40, 35, (Game.raceCheckpoint + 1).ToString(), 23, gold, TextAnchor.MiddleCenter);
                 Box(430, 112, 420, 48, panel); Text(449, 124, 382, 30, Game.L("风旗竞速 ", "WIND RACE ") + Game.raceTime.ToString("0.0") + " / 30s   ·   " + Game.raceCheckpoint + "/5", 17, gold, TextAnchor.MiddleCenter);
             }
+            if (Game.reliefMissionRoom == Game.save.room)
+            {
+                Point rescue = Game.reliefMissionWave <= 2 ? Game.FieldSurveyTarget(Game.save.room) :
+                    Game.FieldSurveyTarget(Game.save.room);
+                Ring(rescue, .55f, Game.reliefMissionWave == 3 ? mint : gold, 20);
+                Point rp = ScreenPoint(rescue);
+                Text(rp.x - 56, rp.y - 65, 112, 24,
+                    Game.reliefMissionWave == 3 ? Game.L("护送返程", "ESCORT HOME") :
+                        Game.L("营救居民", "RESCUE CIVILIANS"), 12, gold, TextAnchor.MiddleCenter);
+            }
             if (Game.save.room == 7 && !Game.save.reducedMotion && Game.save.effectsQuality > 0)
                 for (int i = 0; i < 28; i++) { float x = (i * 91 + clock * 19) % Width, y = (i * 67 + clock * 32) % Height; Box(x, y, 3, 3, new Color(.9f, .96f, 1, .58f)); }
         }
