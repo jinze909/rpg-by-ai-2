@@ -103,6 +103,8 @@ namespace Starfall
         public Point reliefFollowerPosition;
         public float reliefFollowerSafety;
         public bool ReliefEscortActive { get { return reliefMissionRoom != 0 && reliefMissionWave == 3; } }
+        public float ReliefEscortGap { get { return ReliefEscortActive ?
+            (Position - reliefFollowerPosition).Length : 0; } }
         private static bool IsReliefMissionEnemy(Enemy e)
         { return e != null && e.id >= 85000 && e.id < 85100; }
         private void ResetReliefMission()
@@ -211,7 +213,9 @@ namespace Starfall
             if (reliefMissionWave == 2)
             {
                 reliefMissionWave = 3; revision++; sound = "quest";
-                reliefFollowerPosition = FieldSurveyTarget(region);
+                // Authored markers are prop positions, not guaranteed actor feet
+                // on every tide phase. Spawn survivors on real walkable ground.
+                reliefFollowerPosition = SafeActorFoot(FieldSurveyTarget(region));
                 reliefFollowerSafety = 100;
                 Point marker = FieldSurveyTarget(region);
                 effects.Add(new Effect("discover", marker, .7f));
@@ -244,7 +248,12 @@ namespace Starfall
             Point follow = Position - reliefFollowerPosition;
             if (follow.Length > 1.3f)
             {
-                Point advance = DirectionTo(reliefFollowerPosition, Position) * Math.Min(dt * 2.6f, follow.Length - 1.3f);
+                // Follow the route through real collision, never teleport.
+                // A modest catch-up pace reduces frustrating stalls when the
+                // hero runs ahead, without matching a sprint or dodge dash.
+                float walk = follow.Length > 5.5f ? 3.5f : 2.6f;
+                Point advance = DirectionTo(reliefFollowerPosition, Position) *
+                    Math.Min(dt * walk, follow.Length - 1.3f);
                 reliefFollowerPosition = SweepActor(reliefFollowerPosition, advance);
             }
             Point station = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));

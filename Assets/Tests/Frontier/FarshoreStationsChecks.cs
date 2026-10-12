@@ -36,6 +36,52 @@ namespace Starfall.Tests
             game.Tick(.05f, new Point());
         }
 
+        public static void ReliefSurvivorsPhysicallyCompleteAllRegionalReturnRoutes(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "mountain_report", "fieldstation_5", "fieldstation_6",
+                "fieldstation_7", "fieldstation_complete", "fieldstation_survey_5",
+                "fieldstation_survey_6", "fieldstation_survey_7", "farshore_relief_5",
+                "farshore_relief_6", "farshore_relief_7", "farshore_relief_complete" })
+                g.save.flags.Add(flag);
+            g.save.frontierEnding = 3;
+            for (int region = 5; region <= 7; region++)
+            {
+                g.Enter(region); g.enemies.Clear();
+                g.save.totalTime = 0;
+                WorldObject post = Object(g, "fieldstation" + region);
+                g.save.x = post.x; g.save.y = post.y;
+                StartCivilianRescueViaRealDialogue(g, post);
+                Check(g.reliefMissionWave == 0, "Regional escort begins with an actual outbound journey");
+                ReachCivilianRescueMarker(g, region);
+                Check(g.reliefMissionWave == 1, "The field site starts a real ambush before survivors travel");
+                g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+                g.Tick(.05f, new Point());
+                g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+                g.Tick(.05f, new Point());
+                Check(g.ReliefEscortActive && g.CanStand(g.reliefFollowerPosition),
+                    "The rescued civilian is created at a physically walkable actor foot");
+                Point initial = g.reliefFollowerPosition;
+                g.save.x = post.x; g.save.y = post.y;
+                float elapsed = 0;
+                while (g.reliefMissionRoom == region && elapsed < 75)
+                {
+                    g.Tick(.05f, new Point());
+                    elapsed += .05f;
+                    if (g.ReliefEscortActive)
+                        Check(g.CanStand(g.reliefFollowerPosition),
+                            "The civilian follows only valid ground, even as regional collision changes");
+                }
+                Check(g.Has("relief_rescue_" + region) && g.reliefMissionRoom == 0,
+                    "A real survivor walks from the regional landmark to the station within 75s (room " +
+                        region + "; elapsed " + elapsed.ToString("0.0") + "; from " +
+                        initial.x.ToString("0.0") + "," + initial.y.ToString("0.0") +
+                        "; to " + g.reliefFollowerPosition.x.ToString("0.0") + "," +
+                        g.reliefFollowerPosition.y.ToString("0.0") + ")");
+            }
+        }
+
         public static void RescueSurvivorsRequireRealProtectionAndSafeTravel(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
