@@ -252,6 +252,66 @@ namespace Starfall.Tests
             Check(restored.conversation.choices.Length == 1 && restored.save.coins == coins,
                 "Loading cannot duplicate rewards");
         }
+
+        public static void RoadwardenVigilIsRealTwoWaveCombatWithPersistentOneTimeRewards(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            Check(g.GetQuest("vigil").locked, "Vigil is locked until the roadwarden promise is decoded");
+            foreach (string flag in new[] { "survey_1", "survey_2", "survey_3", "survey_complete", "dispatch_complete" })
+                g.save.flags.Add(flag);
+            var hit = typeof(GameCore).GetMethod("Hit", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "The production hit path is available to the regression");
+            int totalCoins = g.save.coins, totalShards = g.save.shards, totalPoints = g.save.skillPoints;
+            for (int region = 1; region <= 3; region++)
+            {
+                g.Enter(region); g.enemies.Clear();
+                var beacon = Object(g, "survey" + region);
+                g.save.x = beacon.x; g.save.y = beacon.y;
+                g.enemies.Add(new Enemy(10000 + region, 0, g.save.x, g.save.y, 100));
+                Action(g, beacon.kind, "road_trial_start_" + region);
+                Check(!g.enemies.Exists(e => e.id >= 81000 && e.id < 81100),
+                    "Cannot start a defense while enemies threaten the beacon");
+                g.enemies.Clear();
+                Action(g, beacon.kind, "road_trial_start_" + region);
+                Check(g.enemies.FindAll(e => e.id >= 81000 && e.id < 81100).Count == 2,
+                    "Each beacon starts with two real reachable combatants");
+                foreach (var enemy in g.enemies)
+                    Check(g.CanStand(enemy.Position) && g.NavigationPath(enemy.Position).Count > 0,
+                        "Trial enemies spawn on reachable walkable terrain");
+                g.PrepareSave();
+                var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
+                Check(!resumed.Has("road_trial_" + region) &&
+                    !resumed.enemies.Exists(e => e.id >= 81000 && e.id < 81100),
+                    "Loading mid-drill restarts cleanly without phantom saved enemies");
+                int kills = g.save.kills[region], coins = g.save.coins, shards = g.save.shards;
+                for (int wave = 1; wave <= 2; wave++)
+                {
+                    var attackers = g.enemies.FindAll(e => e.id >= 81000 && e.id < 81100);
+                    Check(attackers.Count == 2, "Each trial wave has exactly two opponents");
+                    foreach (var enemy in attackers)
+                        hit.Invoke(g, new object[] { enemy, 9999f, false, null, null });
+                    Check(g.save.kills[region] == kills && g.save.coins == coins,
+                        "Trial combat does not farm chapter kills, bounty credit or ordinary coins");
+                    for (int frame = 0; frame < 8; frame++) g.Tick(.05f, new Point());
+                }
+                Check(g.Has("road_trial_" + region) && g.save.coins == coins + 35 &&
+                    g.save.shards == shards + 2 + (region == 3 ? 3 : 0),
+                    "Clearing both waves grants exactly one region reward");
+                g.Talk(beacon);
+                Check(!Array.Exists(g.conversation.choices, c => c.action == "road_trial_start_" + region),
+                    "Completed beacon cannot repeat its reward");
+                g.Close();
+            }
+            Check(g.Has("road_trial_complete") && g.GetQuest("vigil").complete &&
+                g.save.coins == totalCoins + 105 && g.save.shards == totalShards + 9 &&
+                g.save.skillPoints == totalPoints + 1,
+                "All three defenses grant the one-time full-vigil talent reward");
+            g.PrepareSave(); var loaded = new GameCore(data, CloneSave(g.save)); loaded.Start();
+            Check(loaded.Has("road_trial_complete") && loaded.GetQuest("vigil").complete &&
+                loaded.save.skillPoints == totalPoints + 1,
+                "Vigil completion and talent persist in the original save schema");
+        }
+
         public static void NavigationRespectsWorldCollision(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.frontierEnding = 1;

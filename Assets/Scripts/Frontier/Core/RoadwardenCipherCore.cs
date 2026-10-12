@@ -95,6 +95,125 @@ namespace Starfall
             return true;
         }
 
+
+        // Optional two-wave beacon defense. Completion uses existing save flags.
+        // Leaving or loading restarts a drill; trial foes never become world patrols.
+        private int roadTrialRoom, roadTrialWave;
+        private static bool IsRoadwardenTrialEnemy(Enemy e)
+        { return e != null && e.id >= 81000 && e.id < 81100; }
+        private void ResetRoadwardenTrial() { roadTrialRoom = roadTrialWave = 0; }
+        private string RoadwardenTrialHint(int region, bool english)
+        {
+            if (!Has("dispatch_complete")) return "";
+            if (Has("road_trial_" + region))
+                return english ? "\n\nThe beacon defense oath has been fulfilled." : "\n\n这座信标的守路誓约已完成。";
+            if (roadTrialRoom == region)
+                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/2. Defeat the attackers, or abandon the drill here."
+                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/2 波。击败来袭者，或在此放弃试炼。";
+            return english ? "\n\nOptional two-wave defense. Complete all three for a talent point. Leaving or loading restarts a drill."
+                : "\n\n可选双波守路试炼。完成三座信标可获得技能点。离开或读档需重新挑战。";
+        }
+        private bool ChooseRoadwardenTrial(string action)
+        {
+            if (action == "road_trial_abandon")
+            {
+                if (roadTrialRoom != 0)
+                {
+                    enemies.RemoveAll(IsRoadwardenTrialEnemy);
+                    ResetRoadwardenTrial(); revision++;
+                    Notify("守路试炼已放弃。可再次从信标开始。", "Defense drill abandoned. Restart at the beacon.");
+                }
+                return true;
+            }
+            if (!action.StartsWith("road_trial_start_")) return false;
+            int region;
+            if (!int.TryParse(action.Substring(17), out region) || region < 1 || region > 3 ||
+                save.room != region || !Has("dispatch_complete") || !Has("survey_" + region) ||
+                Has("road_trial_" + region) || roadTrialRoom != 0 || practicing || Dying)
+                return true;
+            Point beacon = ObjectPoint(region, "survey" + region, new Point(-100, -100));
+            if ((Position - beacon).Length > 2.1f) return true;
+            if (!SafeTravel)
+            {
+                Notify("先清理信标附近的敌人，再开始守路试炼。", "Clear nearby enemies before beginning the defense drill.");
+                return true;
+            }
+            roadTrialRoom = region; roadTrialWave = 1;
+            if (!SpawnRoadwardenTrialWave())
+            {
+                ResetRoadwardenTrial();
+                Notify("信标周围没有足够的安全战斗空间。", "Not enough reachable space around this beacon for a drill.");
+                return true;
+            }
+            TrackQuest("vigil");
+            Notify("守路试炼开始！第一波：追猎者与射手。", "Defense drill! Wave one: hunter and archer.");
+            return true;
+        }
+        private bool SpawnRoadwardenTrialWave()
+        {
+            Point beacon = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, new Point(-100, -100));
+            var positions = new List<Point>();
+            for (int radius = 3; radius <= 6 && positions.Count < 2; radius++)
+            for (int dx = -radius; dx <= radius && positions.Count < 2; dx++)
+            for (int dy = -radius; dy <= radius && positions.Count < 2; dy++)
+            {
+                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
+                Point candidate = new Point(beacon.x + dx, beacon.y + dy);
+                if (!CanStand(candidate) || (candidate - Position).Length < 2.7f ||
+                    (candidate - beacon).Length > 6.7f ||
+                    enemies.Exists(e => (e.Position - candidate).Length < 2.0f) ||
+                    positions.Exists(p => (p - candidate).Length < 3.5f) ||
+                    NavigationPath(candidate).Count == 0) continue;
+                positions.Add(candidate);
+            }
+            if (positions.Count != 2) return false;
+            for (int slot = 0; slot < 2; slot++)
+            {
+                int kind = roadTrialWave == 1 ? slot : slot == 0 ? 2 : 1;
+                int id = 81000 + roadTrialRoom * 10 + roadTrialWave * 2 + slot;
+                float hp = 55 + roadTrialRoom * 15 + (roadTrialWave - 1) * 30;
+                enemies.Add(new Enemy(id, kind, positions[slot].x, positions[slot].y, hp));
+                effects.Add(new Effect("discover", positions[slot], .65f));
+            }
+            revision++; sound = "quest";
+            return true;
+        }
+        private void TickRoadwardenTrial()
+        {
+            if (roadTrialRoom == 0) return;
+            if (save.room != roadTrialRoom || Dying || practicing) { ResetRoadwardenTrial(); return; }
+            if (enemies.Exists(IsRoadwardenTrialEnemy)) return;
+            if (roadTrialWave == 1)
+            {
+                roadTrialWave = 2;
+                if (!SpawnRoadwardenTrialWave())
+                {
+                    ResetRoadwardenTrial();
+                    Notify("战场已改变，试炼中断；可以再次挑战。", "The arena changed; restart the drill at the beacon.");
+                    return;
+                }
+                Notify("第二波！重甲破阵者与射手，注意攻击前摇。", "Wave two! Armored breaker and archer. Read the wind-up.");
+                return;
+            }
+            int region = roadTrialRoom;
+            ResetRoadwardenTrial();
+            if (Has("road_trial_" + region)) return;
+            Flag("road_trial_" + region);
+            save.coins += 35; save.shards += 2; AddXp(40); revision++;
+            effects.Add(new Effect("discover", Position, .8f)); sound = "reward";
+            RecordMoment("守住第 " + region + " 座巡路信标：获得35硬币、2碎片、40经验。",
+                "Defended road beacon " + region + ": 35 coins, 2 shards, 40 XP.");
+            if (Has("road_trial_1") && Has("road_trial_2") && Has("road_trial_3") && !Has("road_trial_complete"))
+            {
+                Flag("road_trial_complete"); save.skillPoints++; save.shards += 3; revision++;
+                RecordMoment("三座信标的守路誓约完成：额外获得技能点1、碎片3。",
+                    "All three beacon defenses complete: bonus 1 talent point and 3 shards.");
+                Notify("巡路守望完成！额外获得技能点1、碎片3。", "Roadwarden vigilance complete! Bonus: 1 talent point, 3 shards.");
+            }
+            else Notify("信标守住了！获得35硬币、2碎片、40经验。",
+                "Beacon defended! +35 coins, 2 shards, 40 XP.");
+        }
+
         private bool CanDecodeLetter(int id)
         {
             return id >= 6 && id <= 8 && save.room == id - 5 &&

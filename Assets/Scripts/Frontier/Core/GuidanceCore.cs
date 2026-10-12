@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -58,6 +58,34 @@ namespace Starfall
         {
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
+
+
+            if (id == "vigil")
+            {
+                q.title = L("巡路信标守望", "Roadwarden Vigil");
+                q.category = L("战斗挑战", "COMBAT CHALLENGE");
+                q.locked = !Has("dispatch_complete");
+                q.description = L("巡路誓言不只是地图：在密林、遗迹与矿场各守住两波袭击，证明归途仍然安全。",
+                    "The wardens left more than a map. Defend each restored beacon against two waves to keep the homeward road safe.");
+                int next = 0;
+                for (int region = 1; region <= 3; region++)
+                {
+                    bool done = Has("road_trial_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "", "守住苔根信标", "守住潮痕信标", "守住矿灯信标" }[region],
+                        new[] { "", "Defend Mossroot beacon", "Defend Tidemark beacon", "Defend Minelight beacon" }[region]), done));
+                    if (!done && next == 0) next = region;
+                }
+                q.complete = Has("road_trial_complete");
+                q.room = next == 0 ? 9 : next;
+                q.target = ObjectPoint(q.room, next == 0 ? "surveyDesk" : "survey" + next, new Point(15, 14));
+                q.next = q.locked ? L("先解读三封巡路旧信", "Decode the three roadwarden letters first") :
+                    q.complete ? L("三座信标已守住，归乡之路仍然明亮", "All three beacons stand watch over the road") :
+                    roadTrialRoom != 0 ? L("击退第 " + roadTrialWave + "/2 波敌人", "Defeat wave " + roadTrialWave + "/2") :
+                    L("在信标处开始双波守路试炼", "Begin the two-wave defense at the beacon");
+                q.reward = L("每座35硬币、2碎片、40经验；全部完成额外技能点1、碎片3",
+                    "Each: 35 coins, 2 shards, 40 XP; all three: bonus 1 talent point, 3 shards");
+                return q;
+            }
 
             if (id == "dispatches")
             {

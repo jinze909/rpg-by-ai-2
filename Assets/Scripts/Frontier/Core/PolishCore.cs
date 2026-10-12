@@ -68,6 +68,7 @@ namespace Starfall
         }
         private void TickPolish(float dt)
         {
+            TickRoadwardenTrial();
             actionHintTimer = Math.Max(0, actionHintTimer - dt);
             // Permanent quest mutations increment revision; tablet progress is
             // transient. Do not rebuild two language journals every idle frame.
@@ -168,8 +169,11 @@ namespace Starfall
                     RecordMoment("恢复巡路信号 " + signal + "/3：" + o.name + "。", "Recovered road signal " + signal + "/3: " + o.en + ".");
                 }
                 var signalChoices = new List<Choice> { C("记住这条路", "Remember the road", "close") };
-                if (Has("survey_complete")) signalChoices.Add(C("沿巡路信号返回炉火旅店", "Follow the signal back to the Hearth Inn", "survey_home"));
-                Dialog(o.name, o.en, notesZh[signal] + (first ? "\n\n信号已记录：12硬币、1碎片、15经验。到炉火旅店拼合三段路线。" : Has("survey_complete") ? "\n\n归乡星图已连通。附近安全时，可以沿信号返回旅店。" : "\n\n讯息已记录，可在旅店的星图桌查看进度。"), notesEn[signal] + (first ? "\n\nSignal recorded: 12 coins, 1 shard, 15 XP. Assemble all three at the Hearth Inn." : Has("survey_complete") ? "\n\nThe homeward chart is linked. Return to the inn when nearby enemies are clear." : "\n\nSignal already recorded. Check the chart table at the Hearth Inn."), signalChoices.ToArray());
+                if (Has("survey_complete") && roadTrialRoom != signal) signalChoices.Add(C("沿巡路信号返回炉火旅店", "Follow the signal back to the Hearth Inn", "survey_home"));
+                if (roadTrialRoom == signal) signalChoices.Add(C("放弃守路试炼", "Abandon defense drill", "road_trial_abandon"));
+                else if (Has("dispatch_complete") && !Has("road_trial_" + signal))
+                    signalChoices.Add(C("挑战双波守路试炼", "Begin two-wave defense", "road_trial_start_" + signal));
+                Dialog(o.name, o.en, notesZh[signal] + (first ? "\n\n信号已记录：12硬币、1碎片、15经验。到炉火旅店拼合三段路线。" : Has("survey_complete") ? "\n\n归乡星图已连通。附近安全时，可以沿信号返回旅店。" : "\n\n讯息已记录，可在旅店的星图桌查看进度。") + RoadwardenTrialHint(signal, false), notesEn[signal] + (first ? "\n\nSignal recorded: 12 coins, 1 shard, 15 XP. Assemble all three at the Hearth Inn." : Has("survey_complete") ? "\n\nThe homeward chart is linked. Return to the inn when nearby enemies are clear." : "\n\nSignal already recorded. Check the chart table at the Hearth Inn.") + RoadwardenTrialHint(signal, true), signalChoices.ToArray());
                 return true;
             }
             if (o.kind == "mentor") { Dialog(o.name, o.en, "先练习命中，再观察预告并闪避，最后用职业技能完成挑战。训练无伤害，不消耗物资；首次完成获得技能点1、硬币15。", "Hit a dummy, read a telegraph and dodge, then land your class technique. Practice costs no health or supplies. First clear: 1 point and 15 coins.", C("开始练习", "Start practice", "practice"), C("稍后", "Later", "close")); return true; }
@@ -194,11 +198,12 @@ namespace Starfall
         private bool ChoosePolish(string action)
         {
             if (ChooseRoadwardenCipher(action)) return true;
+            if (ChooseRoadwardenTrial(action)) return true;
             if (action == "survey_home" || action.StartsWith("survey_to_"))
             {
                 // A completed chart opens travel between existing, already discovered
                 // landmarks; it never bypasses region progression or nearby combat.
-                if (!Has("survey_complete") || practicing || Dying || !SafeTravel)
+                if (!Has("survey_complete") || roadTrialRoom != 0 || practicing || Dying || !SafeTravel)
                 {
                     Notify("敌人尚未退去，无法稳定巡路信号。先脱离战斗。", "Enemies disrupt the road signal. Leave combat before traveling.");
                     return true;
@@ -265,8 +270,16 @@ namespace Starfall
         private void CaptureWorld()
         {
             save.savedRunes = runeProgress; if (practicing || InAbyss) { save.snapshotRoom = -1; save.worldEnemies = null; return; }
-            save.snapshotRoom = save.room; save.worldEnemies = new EnemyRecord[enemies.Count];
-            for (int i = 0; i < enemies.Count; i++) { var e = enemies[i]; save.worldEnemies[i] = new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp }; }
+            save.snapshotRoom = save.room;
+            var records = new List<EnemyRecord>();
+            foreach (var e in enemies)
+            {
+                // Temporary trial attackers restart after loading; never save
+                // them as ordinary world patrols.
+                if (IsRoadwardenTrialEnemy(e)) continue;
+                records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
+            }
+            save.worldEnemies = records.ToArray();
         }
         private void RestoreWorld()
         {
