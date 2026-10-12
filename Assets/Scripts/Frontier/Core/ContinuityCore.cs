@@ -74,6 +74,9 @@ namespace Starfall
                 // must not add extra travel beyond the authored 0.18 seconds.
                 float dashStep = Math.Min(dt, dashTime);
                 dashTime = Math.Max(0, dashTime - dt);
+                // Avoid a phantom sub-microsecond dash tick from float rounding:
+                // the final visible translation must also finish the dodge.
+                if (dashTime < .00001f) dashTime = 0;
                 Move(dashDirection * dashStep * 15);
             }
             else if (playerHitTime > 0) Move(playerRecoil * dt * recoilSpeed);
