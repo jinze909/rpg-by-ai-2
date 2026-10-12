@@ -42,6 +42,11 @@ namespace Starfall
         }
         private Color HazardWarningColor(Hazard hazard)
         { return hazard.kind == "glass" ? gold : hazard.kind == "bell" ? PixelArt.C("#9bd8f5") : hazard.kind == "root" ? PixelArt.C("#82d9a3") : hazard.kind == "rift" ? PixelArt.C("#b9a1d1") : PixelArt.C("#d59583"); }
+        private void DrawRescueSurvivorActor()
+        {
+            if (!Game.ReliefEscortActive) return;
+            DrawNpc("innGuest", Game.reliefFollowerPosition, 14);
+        }
         private void DrawExpansionWorld()
         {
             if (Game.racing)
@@ -67,11 +72,12 @@ namespace Starfall
             if (Game.ReliefEscortActive)
             {
                 Point escort = Game.reliefFollowerPosition;
-                DrawNpc("innGuest", escort, 14);
+                // Sprite is depth-sorted with the world, not drawn over hero.
                 Ring(escort, .35f, mint, 16);
                 Point escortScreen = ScreenPoint(escort);
-                Text(escortScreen.x - 50, escortScreen.y - 84, 100, 22,
-                    Game.L("获救居民", "SURVIVORS"), 11, mint, TextAnchor.MiddleCenter);
+                if (Game.ReliefEscortGap > 1.3f)
+                    Text(escortScreen.x - 50, escortScreen.y - 84, 100, 22,
+                        Game.L("获救居民", "SURVIVORS"), 11, mint, TextAnchor.MiddleCenter);
                 Color safetyColor = Game.reliefFollowerSafety < 30 ? PixelArt.C("#f27d7d") : mint;
                 Bar(escortScreen.x - 30, escortScreen.y + 10, 60,
                     Game.reliefFollowerSafety / 100f, safetyColor, 6);

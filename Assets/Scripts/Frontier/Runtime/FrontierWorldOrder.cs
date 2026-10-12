@@ -6,7 +6,7 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion }
+        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion, Survivor }
         private struct WorldDrawEntry
         {
             public float depth;
@@ -39,6 +39,12 @@ namespace Starfall
             foreach(FallenActor f in Game.fallen)AddWorldEntry(new WorldDrawEntry{depth=f.actor.y-.02f,kind=WorldDrawKind.Fallen,fallen=f});
             AddWorldEntry(new WorldDrawEntry{depth=Game.save.y+.002f,kind=WorldDrawKind.Player});
             if(Game.save.companion>=0)AddWorldEntry(new WorldDrawEntry{depth=Game.companionPosition.y,kind=WorldDrawKind.Companion});
+            // Keep the moving rescue survivor in the same depth pass as every
+            // hero, NPC, tree and enemy. Painting her as a late HUD overlay
+            // made her appear on top of walls and the golden-haired hero.
+            if(Game.ReliefEscortActive)
+                AddWorldEntry(new WorldDrawEntry{
+                    depth=Game.reliefFollowerPosition.y+.001f,kind=WorldDrawKind.Survivor});
             worldDrawEntries.Sort(worldDepthComparer);
             try
             {
@@ -51,6 +57,7 @@ namespace Starfall
                         case WorldDrawKind.Fallen:DrawFallen(entry.fallen);break;
                         case WorldDrawKind.Player:DrawHero();break;
                         case WorldDrawKind.Companion:DrawCompanionActor();break;
+                        case WorldDrawKind.Survivor:DrawRescueSurvivorActor();break;
                     }
             }
             finally{worldDrawEntries.Clear();}
