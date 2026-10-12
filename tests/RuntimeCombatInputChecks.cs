@@ -295,6 +295,39 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Actual hostile projectile reactions and deaths preserve the visible recovery equipment/facing");
     }
 
+    private static void CombatOpeningsAndPoiseDrawInActualWorld(FrontierRuntime app)
+    {
+        Prepare(app, 0);
+        var game = app.Game;
+        var heavy = new Enemy(88102, 2, 13, 14, 200)
+        { releaseTime = .22f, stagger = 18, timer = 999 };
+        game.enemies.Add(heavy);
+        Point screen = (Point)Call(app, "ScreenPoint", heavy.Position);
+        Event.current.type = EventType.Repaint;
+        GUI.textureCalls.Clear(); Call(app, "OnGUI");
+        int mintRing = GUI.textureCalls.FindAll(t =>
+            Math.Abs(t.color.r - .48f) < .001f &&
+            Math.Abs(t.color.g - 1f) < .001f &&
+            Math.Abs(t.color.b - .79f) < .001f &&
+            Math.Abs(t.color.a - .85f) < .001f).Count;
+        Check(mintRing >= 24, "The live recovery window draws a readable static mint ring");
+        Check(GUI.textureCalls.Exists(t =>
+            Math.Abs(t.rect.x - (screen.x - 16)) < .1f &&
+            Math.Abs(t.rect.y - (screen.y - 106 * .72f + 1)) < .1f &&
+            Math.Abs(t.rect.width - 19.2f) < .1f &&
+            Math.Abs(t.rect.height - 3) < .01f),
+            "The ordinary enemy's 18/30 poise draws a contextual 60% fill");
+        heavy.releaseTime = 0; heavy.stagger = 0;
+        GUI.textureCalls.Clear(); Call(app, "OnGUI");
+        Check(!GUI.textureCalls.Exists(t =>
+            Math.Abs(t.color.r - .48f) < .001f &&
+            Math.Abs(t.color.g - 1f) < .001f &&
+            Math.Abs(t.color.b - .79f) < .001f &&
+            Math.Abs(t.color.a - .85f) < .001f),
+            "Expired openings remove the mint ring instead of leaving a false cue");
+        Console.WriteLine("PASS Real OnGUI draws and retires the opening ring and enemy poise meter (offline)");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -302,7 +335,7 @@ public static class RuntimeCombatInputChecks
         Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, RecoveryWalkingRestoresEquippedDrawing,
-            RecoveryHitAndDeathRetainVisibleEquipment };
+            RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld };
         int failures = 0;
         foreach (var test in cases)
         {
