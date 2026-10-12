@@ -453,7 +453,9 @@ namespace Starfall
                 // Beacon attackers advance on the ward instead of blindly following
                 // the hero. Their normal attacks still target the hero if in range.
                 bool wardAttacker = roadTrialRoom == save.room && IsRoadwardenTrialEnemy(e);
-                Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) : Position;
+                bool travelerAttacker = wayfarerEncounterRoom == save.room && IsWayfarerEnemy(e);
+                Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
+                    travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
@@ -494,18 +496,20 @@ namespace Starfall
                         }
                         else if (e.kind == 1) Fire(e, e.facing, 5);
                         else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position)) Hurt(11, "lunge", e.facing);
+                        if (travelerAttacker && e.targetingWayfarer) DamageWayfarer(e);
+                        e.targetingWayfarer = false;
                         e.state = 0; e.timer = e.boss ? 2.2f - e.BossPhase * .3f : 1.4f;
                     }
                     continue;
                 }
                 // Defense attackers cannot abandon the beacon after knockback
                 // or while navigating around a distant obstruction.
-                if (!wardAttacker && distance > (e.boss ? 18 : 8)) continue;
+                if (!wardAttacker && !travelerAttacker && distance > (e.boss ? 18 : 8)) continue;
                 e.timer -= dt;
-                float desired = wardAttacker ? 1.05f : e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
+                float desired = wardAttacker || travelerAttacker ? 1.05f : e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 Point before = e.Position;
-                if (visible && e.kind == 1 && !e.boss && !wardAttacker && distance < 3 && !practicing) { Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f); e.backpedaling=(back-e.Position).Length>.001f;e.x = back.x; e.y = back.y; }
+                if (visible && e.kind == 1 && !e.boss && !wardAttacker && !travelerAttacker && distance < 3 && !practicing) { Point back = SweepActor(e.Position, delta.Normalized * -dt * 1.6f); e.backpedaling=(back-e.Position).Length>.001f;e.x = back.x; e.y = back.y; }
                 if (distance > desired || !visible)
                 {
                     Point p = e.Position + DirectionTo(e.Position, pursuit) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
@@ -514,9 +518,17 @@ namespace Starfall
                 Point travelled = e.Position - before; e.moving = travelled.Length > .001f;
                 if (e.moving) { e.moveTime += travelled.Length; e.Face(e.backpedaling?Position-e.Position:travelled); }
                 delta = Position - e.Position; distance = delta.Length;
-                if (e.timer <= 0 && distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) && ClearAttackPath(e.Position, Position))
+                bool heroInRange = distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
+                    ClearAttackPath(e.Position, Position);
+                bool nearTraveler = travelerAttacker && (pursuit - e.Position).Length < 2.2f &&
+                    ClearAttackPath(e.Position, pursuit);
+                // Standing in the raider's reach lets the hero draw its attention.
+                // Otherwise the telegraphed strike lands on the vulnerable traveler.
+                bool strikeTraveler = nearTraveler && (!heroInRange || distance > 2.2f);
+                if (e.timer <= 0 && (heroInRange || strikeTraveler))
                 {
-                    e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer; e.target = Position; e.Face(delta);
+                    e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer;
+                    e.targetingWayfarer = strikeTraveler; e.target = strikeTraveler ? pursuit : Position; e.Face(e.target - e.Position);
                     if (e.boss || distance < 6) sound = "windup";
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)

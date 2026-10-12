@@ -75,7 +75,15 @@ namespace Starfall
                 Color accent = done ? mint : active ? PixelArt.C("#f3a57a") : gold;
                 Ring(new Point(o.x, o.y), .38f, accent, 16);
                 Text(p.x - 44, p.y - 91, 88, 24, done ? "✓" :
-                    active ? Game.L("伏击！", "AMBUSH!") : "!", 15, accent, TextAnchor.MiddleCenter);
+                    active ? Game.L("保护！", "DEFEND!") : "!", 15, accent, TextAnchor.MiddleCenter);
+                if (active)
+                {
+                    Color safety = Game.WayfarerIntegrity <= 35 ? PixelArt.C("#f27d7d") : mint;
+                    // Readable beside the actual NPC, without a full-screen HUD.
+                    Bar(p.x - 35, p.y + 11, 70, Game.WayfarerIntegrity / 100f, safety, 6);
+                    Text(p.x - 42, p.y + 17, 84, 18, Game.L("安全 ", "SAFE ") +
+                        (int)Math.Ceiling(Game.WayfarerIntegrity) + "%", 10, safety, TextAnchor.MiddleCenter);
+                }
                 return true;
             }
             if (o.kind.StartsWith("survey"))

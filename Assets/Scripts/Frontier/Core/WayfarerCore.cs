@@ -7,9 +7,13 @@ namespace Starfall
     {
         // Rescue flags persist; abandoned or interrupted ambushes do not.
         private int wayfarerEncounterRoom;
+        private float wayfarerIntegrity;
+        private bool wayfarerWarned;
         public int WayfarerEncounterRoom { get { return wayfarerEncounterRoom; } }
+        public float WayfarerIntegrity { get { return wayfarerIntegrity; } }
         private static bool IsWayfarerEnemy(Enemy e) { return e != null && e.id >= 82000 && e.id < 82100; }
-        private void ResetWayfarerEncounter() { wayfarerEncounterRoom = 0; }
+        private void ResetWayfarerEncounter()
+        { wayfarerEncounterRoom = 0; wayfarerIntegrity = 0; wayfarerWarned = false; }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
         private bool TalkWayfarer(WorldObject o)
         {
@@ -32,8 +36,8 @@ namespace Starfall
             }
             if (wayfarerEncounterRoom == room)
             {
-                Dialog(o.name, o.en, "伏击者就在附近！请击退他们，或者暂时撤离，之后可以重新尝试。",
-                    "The ambushers are here! Defeat them or withdraw and retry later.",
+                Dialog(o.name, o.en, "伏击者正试图袭击旅人！旅人安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。拦截并击退敌人；安全度归零会导致救援失败。",
+                    "Raiders are attacking the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Intercept and defeat them; if safety reaches zero, the rescue fails.",
                     C("继续守护", "Keep defending", "close"),
                     C("撤离战斗", "Withdraw", "wayfarer_abandon"));
                 return true;
@@ -50,7 +54,7 @@ namespace Starfall
             string[] supplyEn = { "", "Give 2 Moonherbs", "Give 2 starcrystals", "Give 2 spare parts" };
             Dialog(o.name, o.en, zh[room], en[room],
                 C(supplyZh[room], supplyEn[room], "wayfarer_supply_" + room),
-                C("击退两名伏击者", "Defeat two ambushers", "wayfarer_defend_" + room),
+                C("守护旅人并击退两名伏击者", "Protect traveler from two raiders", "wayfarer_defend_" + room),
                 C("稍后再说", "Prepare first", "close"));
             return true;
         }
@@ -110,6 +114,8 @@ namespace Starfall
                 return true;
             }
             wayfarerEncounterRoom = room;
+            wayfarerIntegrity = 100;
+            wayfarerWarned = false;
             for (int slot = 0; slot < 2; slot++)
             {
                 var e = new Enemy(82000 + room * 10 + slot, slot == 0 ? 0 : 2,
@@ -119,9 +125,33 @@ namespace Starfall
                 effects.Add(new Effect("discover", positions[slot], .6f));
             }
             TrackQuest("wayfarers"); sound = "quest"; revision++;
-            Notify("伏击者来了！击退两名敌人，帮助旅人重新上路。",
-                "Ambush! Defeat both attackers so the traveler can continue.");
+            Notify("守住旅人安全度！敌人会冲向旅人，拦截并击退他们。",
+                "Protect the traveler! Raiders will rush them; intercept and defeat both.");
             return true;
+        }
+        // A traveler is a real defendable objective, not a passive kill counter.
+        // Raider strikes require both proximity and an unobstructed attack path.
+        private void DamageWayfarer(Enemy attacker)
+        {
+            if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
+                !IsWayfarerEnemy(attacker)) return;
+            Point npc = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
+            if ((attacker.Position - npc).Length > 2.2f || !ClearAttackPath(attacker.Position, npc)) return;
+            wayfarerIntegrity = Math.Max(0, wayfarerIntegrity - (attacker.kind == 2 ? 24 : 18));
+            effects.Add(new Effect("danger", npc, .35f) { radius = .55f });
+            if (wayfarerIntegrity <= 0)
+            {
+                enemies.RemoveAll(IsWayfarerEnemy);
+                ResetWayfarerEncounter(); sound = "hurt"; revision++;
+                Notify("旅人受伤，救援失败。没有损失物资，可以重新守护或改用补给。",
+                    "The traveler was overwhelmed. No supplies lost; retry the defense or donate.");
+            }
+            else if (wayfarerIntegrity <= 35 && !wayfarerWarned)
+            {
+                wayfarerWarned = true;
+                Notify("旅人陷入危险！迅速拦截剩余敌人。",
+                    "Traveler in danger! Intercept the remaining raiders.");
+            }
         }
         private void TickWayfarerEncounter()
         {

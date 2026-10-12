@@ -106,7 +106,7 @@ namespace Starfall.Tests
             fight.save.x = healer.x; fight.save.y = healer.y;
             Action(fight, healer.kind, "wayfarer_defend_1");
             var foes = fight.enemies.FindAll(e => e.id >= 82000 && e.id < 82100);
-            Check(fight.WayfarerEncounterRoom == 1 && foes.Count == 2 &&
+            Check(fight.WayfarerEncounterRoom == 1 && fight.WayfarerIntegrity == 100 && foes.Count == 2 &&
                 foes.TrueForAll(e => e.timer > 0 && e.timer < 2 && fight.CanStand(e.Position)),
                 "A real two-enemy ambush starts on reachable terrain with playable timing");
             fight.PrepareSave(); var resumed = new GameCore(data, CloneSave(fight.save)); resumed.Start();
@@ -131,9 +131,50 @@ namespace Starfall.Tests
             var traveler = Object(retry, "wayfarer1"); retry.save.x = traveler.x; retry.save.y = traveler.y;
             Action(retry, traveler.kind, "wayfarer_defend_1");
             Action(retry, traveler.kind, "wayfarer_abandon");
-            Check(retry.WayfarerEncounterRoom == 0 && !retry.Has("wayfarer_1") &&
+            Check(retry.WayfarerEncounterRoom == 0 && retry.WayfarerIntegrity == 0 && !retry.Has("wayfarer_1") &&
                 !retry.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
                 "Withdrawing removes temporary attackers and leaves the rescue replayable");
+
+            var defend = Fresh(data); defend.save.stage = 3; defend.save.flags.Add("scout_saved");
+            defend.Enter(1); defend.enemies.Clear();
+            var protectedNpc = Object(defend, "wayfarer1");
+            defend.save.x = protectedNpc.x; defend.save.y = protectedNpc.y;
+            Action(defend, protectedNpc.kind, "wayfarer_defend_1");
+            var raiders = defend.enemies.FindAll(e => e.id >= 82000 && e.id < 82100);
+            Check(raiders.Count == 2, "Protected traveler spawns real raiders");
+            // Move the hero out of interception range to exercise the NPC target.
+            bool foundSafe = false;
+            for (int y = 3; y < defend.Map.rows.Length - 3 && !foundSafe; y++)
+            for (int x = 3; x < defend.Map.rows[y].Length - 3 && !foundSafe; x++)
+            {
+                Point far = new Point(x + .5f, y + .5f);
+                if ((far - new Point(protectedNpc.x, protectedNpc.y)).Length < 6 || !defend.CanStand(far)) continue;
+                defend.save.x = far.x; defend.save.y = far.y; foundSafe = true;
+            }
+            Check(foundSafe, "Region offers a safe interception test position");
+            defend.invulnerable = 100;
+            raiders[0].x = protectedNpc.x; raiders[0].y = protectedNpc.y;
+            raiders[0].timer = 0;
+            raiders[1].stun = 100;
+            defend.Tick(.02f, new Point());
+            Check(raiders[0].state == 1 && raiders[0].targetingWayfarer &&
+                (raiders[0].target - new Point(protectedNpc.x, protectedNpc.y)).Length < .01f,
+                "Unintercepted raider visibly winds up toward the traveler");
+            float safe = defend.WayfarerIntegrity;
+            raiders[0].stun = .4f;
+            Advance(defend, .3f);
+            Check(defend.WayfarerIntegrity == safe, "Staggering a raider delays damage to the traveler");
+            Advance(defend, 1.2f);
+            Check(defend.WayfarerIntegrity < safe && defend.WayfarerIntegrity > 0,
+                "A completed, unobstructed attack actually damages the traveler");
+            Advance(defend, 25f);
+            Check(defend.WayfarerEncounterRoom == 0 && defend.WayfarerIntegrity == 0 &&
+                !defend.Has("wayfarer_1") && !defend.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
+                "Traveler defeat removes transient raiders and cannot award rescue progress");
+            defend.save.x = protectedNpc.x; defend.save.y = protectedNpc.y;
+            Action(defend, protectedNpc.kind, "wayfarer_defend_1");
+            Check(defend.WayfarerEncounterRoom == 1 && defend.WayfarerIntegrity == 100,
+                "Failed defense can restart without a permanent penalty or save migration");
         }
 
         public static void RoadwardenSignalsUnlockOnePersistentTravelReward(Campaign data)
