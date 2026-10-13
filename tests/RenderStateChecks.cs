@@ -254,6 +254,26 @@ public static class RenderStateChecks
             "Opened seals must be represented as traversable road");
         Console.WriteLine("PASS live minimap bridge repair and sealed gate collision colors (offline)");
     }
+    static void CourierStatusIsVisibleEvenOutsideFarshore(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        app.Game.save.english=true;
+        // Use the same transient flag activated by the real courier action;
+        // the CoreChecks regression exercises its complete start/cancel path.
+        var field=typeof(GameCore).GetField("courierRoom",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        Check(field!=null,"The active delivery is a genuine core runtime state");
+        field.SetValue(app.Game,0);
+        Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("RELIEF PARCEL")&&
+            c.Contains("CROSS BRIDGE ON FOOT")),
+            "The early outdoor-region HUD renders the parcel's live timed objective");
+        field.SetValue(app.Game,-1);
+        Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains("RELIEF PARCEL")),
+            "Completing or cancelling delivery removes the now-stale HUD prompt");
+        Console.WriteLine("PASS live civilian courier timed status in early-region production HUD (offline)");
+    }
     public static void MapRasterRegression(FrontierRuntime app)
     { WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app); }
 
@@ -270,7 +290,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
