@@ -399,6 +399,8 @@ namespace Starfall
             enemies.Remove(e);
             if (IsRootHarmonyEnemy(e) && !enemies.Exists(IsRootHarmonyEnemy))
                 hazards.RemoveAll(h => h.rootHarmonyOwned);
+            if (IsCommonsRelayEnemy(e) && !enemies.Exists(IsCommonsRelayEnemy))
+                hazards.RemoveAll(h => h.commonsRelayOwned);
             if (IsAtlasEchoEnemy(e))
             {
                 // Killing the echo can happen before TickExpansion processes

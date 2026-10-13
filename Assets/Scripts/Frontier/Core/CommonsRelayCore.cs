@@ -8,7 +8,7 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int commonsRelayRoom, commonsRelayStep;
-        private float commonsRelayTime;
+        private float commonsRelayTime, commonsRelayPulseTime;
         public int CommonsRelayRoom { get { return commonsRelayRoom; } }
         public int CommonsRelayStep { get { return commonsRelayStep; } }
         public float CommonsRelayTime { get { return commonsRelayTime; } }
@@ -24,7 +24,7 @@ namespace Starfall
             effects.RemoveAll(e => e.commonsRelayOwned);
             hazards.RemoveAll(h => h.commonsRelayOwned);
             commonsRelayRoom = commonsRelayStep = 0;
-            commonsRelayTime = 0;
+            commonsRelayTime = commonsRelayPulseTime = 0;
         }
         private void TickCommonsRelayTrial(float dt)
         {
@@ -32,6 +32,33 @@ namespace Starfall
             if (save.room != 4 || Dying || practicing)
             { ResetCommonsRelayTrial(); revision++; return; }
             commonsRelayTime -= dt;
+            // Medical-circuit security fires telegraphed floor-surge pairs.
+            // Normal movement and dodge contact can avoid both warnings.
+            if (commonsRelayStep == 3 && enemies.Exists(IsCommonsRelayEnemy))
+            {
+                commonsRelayPulseTime -= dt;
+                if (commonsRelayPulseTime <= 0)
+                {
+                    Point at = Position;
+                    Point[] exits = { new Point(1.9f,0), new Point(-1.9f,0),
+                        new Point(0,1.9f), new Point(0,-1.9f) };
+                    bool canEscape = false;
+                    foreach (Point direction in exits)
+                        if (CanStand(at + direction) && ClearAttackPath(at, at + direction))
+                        { canEscape = true; break; }
+                    if (canEscape)
+                    {
+                        hazards.Add(new Hazard {position = at, timer=1.25f,
+                            radius=1.08f,damage=15,kind="glass",commonsRelayOwned=true});
+                        Point other = at + new Point(2.25f,0);
+                        if (CanStand(other))
+                            hazards.Add(new Hazard {position=other,timer=1.65f,
+                                radius=1.05f,damage=13,kind="glass",commonsRelayOwned=true});
+                    }
+                    commonsRelayPulseTime = 5.4f;
+                }
+            }
+            else hazards.RemoveAll(h => h.commonsRelayOwned);
             if (commonsRelayTime <= 0)
             {
                 ResetCommonsRelayTrial(); revision++;
@@ -203,7 +230,9 @@ namespace Starfall
                         45 + step * 16));
                 }
                 effects.Add(new Effect("discover", console, .6f));
-                commonsRelayStep = step + 1; revision++; sound = "windup";
+                commonsRelayStep = step + 1;
+                if (commonsRelayStep == 3) commonsRelayPulseTime = 3.2f;
+                revision++; sound = "windup";
                 Notify(step == 1 ? "粮路已接通！击退守卫，前往东侧医护信标。" :
                     "医护线路已恢复！击退第二道守卫，封存东南的撤离灯线。",
                     step == 1 ? "Food circuit restored! Defeat security, then reach the eastern medical console." :

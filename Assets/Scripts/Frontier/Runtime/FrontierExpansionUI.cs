@@ -168,6 +168,42 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if (kind == "commonswitness")
+            {
+                DrawNpc("innGuest", new Point(o.x, o.y), 5);
+                Text(p.x - 35, p.y - 85, 70, 22,
+                    Game.Has("commons_relay_complete") ? "✓" :
+                    Game.Has("boss_4") ? "!" : "·", 18,
+                    Game.Has("commons_relay_complete") ? mint : gold,
+                    TextAnchor.MiddleCenter);
+                return true;
+            }
+            if (kind.StartsWith("commonsrelay"))
+            {
+                int circuit;
+                if (!int.TryParse(kind.Substring("commonsrelay".Length), out circuit) ||
+                    circuit < 1 || circuit > 3) return true;
+                bool done = Game.Has("commons_relay_sealed") ||
+                    Game.CommonsRelayRoom == Game.save.room && Game.CommonsRelayStep > circuit;
+                bool next = !done && Game.Has("commons_relay_started") &&
+                    (Game.CommonsRelayRoom == 0 ? circuit == 1 :
+                        Game.CommonsRelayStep == circuit);
+                Color light = done ? mint : next ? gold : muted;
+                PropImage("column", 0, p.x - 30, p.y - 65, 60, 73,
+                    done || next ? Color.white : muted);
+                Ring(new Point(o.x,o.y),done?.8f:.55f,
+                    new Color(light.r,light.g,light.b,.75f),20);
+                Text(p.x - 55,p.y - 94,110,23,
+                    done ? Game.L("公共线路在线","PUBLIC CIRCUIT") :
+                    next ? Game.L("等待重连","RECONNECT") :
+                           Game.L("封闭通道","LOCKED"),
+                    11,light,TextAnchor.MiddleCenter);
+                if (next && Game.CommonsRelayRoom == Game.save.room)
+                    Text(p.x - 40,p.y - 113,80,22,
+                        Game.CommonsRelayTime.ToString("0") + "s",
+                        12,gold,TextAnchor.MiddleCenter);
+                return true;
+            }
             if (kind == "archiveecho")
             {
                 bool completed = Game.Has("archive_echo_complete"), active = Game.AtlasEchoRoom == Game.save.room;

@@ -67,9 +67,13 @@ namespace Starfall.Tests
             Check(g.Has("commons_relay_sealed") && g.CommonsRelayRoom == 0 &&
                 g.save.coins == coins + 60 && g.save.shards == shards + 3,
                 "Three stages award exactly one secure-circuit bonus");
-            CommonsActivate(g, 3);
-            Check(g.save.coins == coins + 60 && g.save.shards == shards + 3,
-                "Repeated console inspection cannot duplicate rewards");
+            g.save.x = third.x; g.save.y = third.y;
+            g.Talk(third);
+            Check(g.conversation != null &&
+                Array.FindIndex(g.conversation.choices,c=>c.action=="commons_activate_3") < 0 &&
+                g.save.coins == coins + 60 && g.save.shards == shards + 3,
+                "Completed consoles offer no second activation or duplicate reward");
+            g.Close();
             g.Enter(0); g.save.x = 13.5f; g.save.y = 10.5f;
             int talent = g.save.skillPoints;
             Action(g, "commonswitness", "commons_publish");
