@@ -394,6 +394,58 @@ public static class RenderStateChecks
             "Published records visibly change the registry tint");
         Console.WriteLine("PASS physical inquest checkpoint, clinic and watch art, and live guest registry (offline)");
     }
+    static void CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;g.save.english=true;
+        g.save.flags.Add("civic_supply_complete");
+        g.save.flags.Add("civic_supply_clinic_0");
+        g.save.flags.Add("far_shelter_0");
+        g.enemies.Clear();
+        var refuge=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
+        Check(refuge!=null,"An actual public refuge is present on the authored map");
+        g.save.x=refuge.x;g.save.y=refuge.y;g.Talk(refuge);
+        int begin=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="civic_response_start");
+        Check(begin>=0,"Physical refuge offers the live medicine assignment");
+        g.Choose(begin);
+        Check(g.CivicResponseClinicRun&&g.CivicResponseIntegrity==100,
+            "The production hero really picks up a pristine medical crate");
+        Clear();Call(app,"DrawCivicResponsePack");
+        Check(GUI.commands.Exists(c=>c.Contains("MEDICINE 100%"))&&
+            GUI.textureCalls.Count>0,
+            "Existing canonical hero carries a visible medical kit and real condition label");
+        var hurt=typeof(GameCore).GetMethod("Hurt",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        g.invulnerable=0;
+        hurt.Invoke(g,new object[]{20f,"shot",null});
+        Clear();Call(app,"DrawCivicResponsePack");
+        Check(g.CivicResponseIntegrity<100&&
+            GUI.commands.Exists(c=>c.Contains("MEDICINE "))&&
+            !GUI.commands.Exists(c=>c.Contains("MEDICINE 100%")),
+            "The attached kit changes to match authentic post-armor combat damage");
+        Screen.width=1280;Screen.height=800;Draw(app);
+        Check(GUI.commands.Exists(c=>c.Contains("CIVIC SERVICE"))&&
+            GUI.commands.Exists(c=>c.Contains("Live Civic Service Trials")),
+            "Production HUD overrides unrelated pinned quests and shows the real timed delivery");
+        g.hitStop=0;g.save.y+=4;g.Tick(.05f,new Point());
+        Clear();Call(app,"DrawCivicResponsePack");
+        Check(!g.CivicResponseActive&&GUI.commands.Count==0&&
+            GUI.textureCalls.Count==0,
+            "Mission abort removes the attached kit without changing canonical character art");
+        g.save.flags.Remove("civic_supply_clinic_0");
+        g.save.flags.Add("civic_supply_watch_0");
+        g.save.x=refuge.x;g.save.y=refuge.y;
+        g.enemies.Clear();g.Talk(refuge);
+        begin=Array.FindIndex(g.conversation.choices,c=>c.action=="civic_response_start");
+        Check(begin>=0,"The alternative watch vote offers its proper battle action");
+        g.Choose(begin);
+        Clear();Call(app,"DrawCivicResponsePack");
+        Check(g.CivicResponseWatchRun&&g.CivicResponseEnemiesAlive==2&&
+            GUI.commands.Exists(c=>c.Contains("WATCH RAIDERS 2")),
+            "A live defense paints its actual enemy count beside the original hero");
+        Console.WriteLine("PASS real chapter-nine timed HUD, hero-carried medicine durability and lookout danger (offline)");
+    }
     static void RestoresState(FrontierRuntime app)
     {
         Screen.width=1920; Screen.height=1080; Prepare(app);
@@ -407,7 +459,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
