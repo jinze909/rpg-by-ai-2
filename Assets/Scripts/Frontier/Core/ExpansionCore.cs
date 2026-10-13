@@ -340,6 +340,14 @@ namespace Starfall
                 if(CivicSupplyWatch(save.room))
                     save.energy=Math.Min(100,save.energy+dt*(CivicResponseDone(save.room)?6.5f:4.5f));
             }
+            // Signed service records circulate usable basic care among
+            // *all* repaired refuges. No regeneration from a map menu or
+            // from distant buildings; active combat always suspends it.
+            if(Has("civic_response_ledger")&&save.room>=0&&save.room<8&&
+                FarShelterBuilt(save.room)&&!Dying&&!practicing&&!racing&&
+                SafeTravel&&NearKind("farshelter",3.2f)&&
+                save.health>0&&save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*.75f);
             // The first real starstorm changes regional public services.
             // No remote regeneration, no healing under live enemy attack.
             if(HearingOrrinResponsibility!=0 && save.room==4 &&

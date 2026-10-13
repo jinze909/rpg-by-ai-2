@@ -94,7 +94,7 @@ namespace Starfall
                 q.description=L("三地审计公开后，每座居民选择的公共避险棚仍有真正的工作：医疗点需要从避险棚护送药包到北方检查台；守路岗必须真实击退两名袭击者。完成提高服务恢复效率。每地区只能领取一次首次完成奖励。",
                     "After the public inquest, clinics need a real timed medicine walk to the northern checkpoint; lookout stations must defeat two real raiders. Each earned trial improves the region's refuge recovery; rewards are once only.");
                 q.locked=!CivicSupplyComplete;
-                q.complete=CivicResponseDoneCount==3;
+                q.complete=Has("civic_response_ledger");
                 int[] sites={0,3,5};
                 int next=-1;
                 string[] placeZh={"引水渠","赤铁矿场","雾港"};
@@ -106,6 +106,9 @@ namespace Starfall
                         (done==1?" ✓":" · 0/1"),done==1));
                     if(next<0&&done==0&&CanEnter(room))next=room;
                 }
+                q.steps.Add(new QuestStep(L("炉火旅店公开三地应急名册",
+                    "Publish the response ledger at Hearth Inn"),
+                    Has("civic_response_ledger")));
                 if(CivicResponseActive)
                 {
                     q.room=save.room;
@@ -121,20 +124,23 @@ namespace Starfall
                 }
                 else
                 {
-                    q.room=next<0?0:next;
-                    q.target=ObjectPoint(q.room,"farshelter",new Point(112.5f,73.5f));
+                    q.room=next<0?9:next;
+                    q.target=next<0?
+                        ObjectPoint(9,"farrefugerecord",new Point(22.5f,33.5f)):
+                        ObjectPoint(q.room,"farshelter",new Point(112.5f,73.5f));
                     q.next=q.complete?L("三处公共服务已经实地完成","All three civilian services verified"):
                         q.locked?L("先公开第九章的三地救援审计",
                             "First publish the Chapter Nine civic inquest"):
-                        next<0?L("继续主线开放其余地区","Unlock remaining regions"):
+                        next<0?L("三地救援已实地验证，回旅店公开公共应急名册",
+                            "Return to Hearth Inn's guest registry and publish the response ledger"):
                         CivicSupplyClinic(next)?
                             L("到南端避险棚领取医药并步行送到北方检查站",
                                 "Collect medical supplies at southern refuge; walk to checkpoint"):
                             L("在南端避险棚启动守路防卫并击败实际敌人",
                                 "Start the lookout defense and defeat real attackers");
                 }
-                q.reward=L("各地区首次完成：硬币24、碎片1、经验42、当地恢复提升；三地全部完成额外技能点1",
-                    "Per first clear: 24 coins, 1 shard, 42 XP, improved refuge; all three: +1 talent");
+                q.reward=L("每地硬币24、碎片1、经验42、服务升级；三地完成技能点1；名册公开硬币40、碎片2、经验55并解锁八地基础疗养",
+                    "Each region 24 coins, 1 shard, 42 XP, improved service; all three +1 talent; ledger publication +40 coins, 2 shards, 55 XP and basic care in every rebuilt refuge");
                 return q;
             }
 

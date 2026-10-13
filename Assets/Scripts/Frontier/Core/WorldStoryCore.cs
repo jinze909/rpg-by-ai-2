@@ -644,6 +644,22 @@ namespace Starfall
                              watch?"The residents funded a lookout. Its real refuge restores energy when safe.":
                              "No local vote is signed yet. No distant decree can pre-empt it.")+"\n";
                     }
+                    zh+="\n\n【实地服务】"+CivicResponseDoneCount+
+                        "/3 处已经通过真正的医疗护送或现场守路。";
+                    en+="\n\n[Field services] "+CivicResponseDoneCount+
+                        "/3 services have earned certification through real medicine walks or defensive battles.";
+                    for(int ri=0;ri<inquestRooms.Length;ri++)
+                        if(CivicResponseDone(inquestRooms[ri]))
+                        {
+                            zh+="\n"+inquestPlacesZh[ri]+"：实地任务完成，公共疗养或守路服务得到增强。";
+                            en+="\n"+inquestPlacesEn[ri]+
+                                ": physical service verified; the refuge performs its local function more effectively.";
+                        }
+                    if(Has("civic_response_ledger"))
+                    {
+                        zh+="\n\n【应急名册公开】八地已建公共避险棚获得共同分享的安全基础疗养服务。";
+                        en+="\n\n[Response ledger published] Every rebuilt regional refuge now shares basic safe recuperation.";
+                    }
                     zh+=CivicSupplyComplete?
                         "\n【公开审计已签发】三地物资投入与永久服务已逐项归档。旅人可以实际使用这些避险棚。":
                         "\n【审计仍在进行】三地全部签署后，仍须回旅店亲手公布公共账目。";

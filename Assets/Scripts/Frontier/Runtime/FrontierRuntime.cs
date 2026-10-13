@@ -586,8 +586,11 @@ namespace Starfall
                 bool done=kind=="faratlasdesk"?Game.Has("far_refuge_atlas"):
                     Game.Has("far_refuge_guest_record");
                 bool inquest=kind=="farrefugerecord"&&Game.CivicSupplyStarted;
+                bool responsePublished=kind=="farrefugerecord"&&
+                    Game.Has("civic_response_ledger");
                 bool published=inquest&&Game.CivicSupplyComplete;
                 PropImage(kind=="faratlasdesk"?"table":"bookshelf",0,p.x-40,p.y-80,80,86,
+                    responsePublished?new Color(.96f,.79f,.46f):
                     published?new Color(.51f,.98f,.83f):
                     done?new Color(.73f,.9f,.86f):Color.white);
                 if(inquest&&!published)
