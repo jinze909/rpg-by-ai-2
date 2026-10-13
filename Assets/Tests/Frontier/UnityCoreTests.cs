@@ -134,6 +134,7 @@ namespace Starfall.Tests
         [Test] public void TimedCivilianFieldMissionsAreMutuallyExclusive() { CoreChecks.SimultaneousTimedCivilianTasksCannotHideEachOthersObjectives(Data()); }
         [Test] public void FieldMissionsDoNotSkipTheirClockAtInn() { CoreChecks.ActiveFieldMissionsCannotFreeRestOrSkipTheirTimedRuns(Data()); }
         [Test] public void HostilesAndArrowsInterruptInnHealing() { CoreChecks.CombatCannotBeSkippedThroughInnHealing(Data()); }
+        [Test] public void RespecRefundHonorsPersistedPointCap() { CoreChecks.TalentRefundCannotOverflowSavedSkillPoints(Data()); }
         [Test] public void InnRestClearsElapsedCombatTimers() { CoreChecks.InnRestActuallyClearsExpiredCombatCooldowns(Data()); }
         [Test] public void FatalFieldMissionsRecoverAtInn() { CoreChecks.FatalFieldMissionDamageAlwaysRespawnsAtInn(Data()); }
         [Test] public void CivilianFieldMissionsRespectTravelBoundaries() { CoreChecks.CivilianFieldTripsCannotBeSilentlyErasedByTravel(Data()); }

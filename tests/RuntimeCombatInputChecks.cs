@@ -553,6 +553,33 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Max-level talents menu shows XP MAX without inventing prestige levels");
     }
 
+    private static void RespecButtonExplainsSkillPointCap(FrontierRuntime app)
+    {
+        Prepare(app);
+        app.Game.mode="talents";
+        app.Game.save.coins=100;
+        app.Game.save.skillPoints=95;
+        app.Game.save.talents[0]=5;
+        app.Game.save.talents[1]=5;
+        app.Game.save.english=true;
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Event.current.type=EventType.Repaint;
+        Call(app,"OnGUI");
+        var respec=GUI.buttonCalls.Find(c=>Math.Abs(c.rect.y-704)<.01f &&
+            Math.Abs(c.rect.x-279)<.01f);
+        Check(respec!=null&&!respec.enabled,
+            "The real talents screen disables reset when refunded skill points would overflow");
+        Check(GUI.commands.Exists(c=>c.Contains("Refund exceeds 99-point cap")),
+            "The disabled talents reset tells the player how to make the action available");
+        app.Game.save.skillPoints=89;
+        GUI.commands.Clear();GUI.buttonCalls.Clear();
+        Call(app,"OnGUI");
+        respec=GUI.buttonCalls.Find(c=>Math.Abs(c.rect.y-704)<.01f &&
+            Math.Abs(c.rect.x-279)<.01f);
+        Check(respec!=null&&respec.enabled,
+            "The same respec button re-enables when a full refund fits in v2");
+        Console.WriteLine("PASS Actual talents UI blocks overflowing respec and explains the point-cap remedy");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -563,6 +590,7 @@ public static class RuntimeCombatInputChecks
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
             MaxLevelProgressionShowsFinalState,
+            RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
             FishingSuspendsOnFocusLossAndResumesOnReturn,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup };

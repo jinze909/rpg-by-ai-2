@@ -184,7 +184,12 @@ namespace Starfall
             string[] names = { Game.L("锋芒", "Edge"), Game.L("坚韧", "Resolve"), Game.L("轻盈", "Agility") }, icons = { "sword", "shield", "bow" };
             string[] info = { Game.L("每级攻击+3\n暴击率+2.5%", "+3 damage per rank\n+2.5% critical chance"), Game.L("每级生命+12\n受到伤害-3.5%", "+12 health per rank\n-3.5% incoming damage"), Game.L("提高移动速度\n缩短闪避冷却", "Faster movement\nShorter dodge cooldown") };
             for (int i = 0; i < 3; i++) { float x = 279 + i * 318; Card(x, 178, 302, 338); Icon(icons[i], x + 111, 194, 80); Text(x + 23, 288, 256, 40, names[i], 27, gold, TextAnchor.MiddleCenter); Text(x + 23, 350, 256, 76, info[i], 17, muted, TextAnchor.MiddleCenter); for (int n = 0; n < 5; n++) Box(x + 62 + n * 37, 442, 26, 5, n < Game.save.talents[i] ? gold : PixelArt.C("#43566b")); if (Button(x + 18, 475, 266, 29, Game.L("投入1技能点", "Spend 1 point"), false, Game.save.skillPoints > 0 && Game.save.talents[i] < 5)) Game.Learn(i); }
-            if (Button(279, 704, 938, 25, Game.L("重置三项天赋：20硬币，返还全部投入点数", "Reset talents: 20 coins; refunds all invested points"), false, Game.save.coins >= 20 && Game.save.talents[0] + Game.save.talents[1] + Game.save.talents[2] > 0)) Game.ResetTalents();
+            int invested = Game.save.talents[0] + Game.save.talents[1] + Game.save.talents[2];
+            bool refundOverflow = invested > 0 && Game.save.skillPoints > 99 - invested;
+            string respecLabel = refundOverflow ?
+                Game.L("技能点将超出99点上限，请先分配技能点", "Refund exceeds 99-point cap. Spend points first") :
+                Game.L("重置三项天赋：20硬币，返还全部投入点数", "Reset talents: 20 coins; refunds all invested points");
+            if (Button(279, 704, 938, 25, respecLabel, false, Game.CanResetTalents)) Game.ResetTalents();
             Card(279, 540, 938, 150); Text(302, 560, 885, 35, Game.L("战技专精", "Combat technique"), 22, gold); Text(302, 603, 883, 28, Game.L("当前 Q：", "Current Q: ") + SkillName() + "  /  " + Game.L("熟练度等级 ", "Mastery rank ") + Game.MasteryRank(Game.save.weapon), 16, paper);
             bool learned = Game.Has("technique_" + Game.save.profession); if (Button(302, 646, 891, 31, learned ? Game.L("切换为另一种职业战技", "Switch to the other class technique") : Game.L("学习第二战技：等级5、技能点1", "Learn alternate technique: level 5, 1 talent point"), Game.save.technique == 1, learned || Game.save.level >= 5 && Game.save.skillPoints > 0)) Game.LearnTechnique();
         }

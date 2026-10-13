@@ -243,5 +243,34 @@ namespace Starfall.Tests
                 "Clearing combat restores normal rest and cancels obsolete companion spell release");
         }
 
+        public static void TalentRefundCannotOverflowSavedSkillPoints(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.coins=75;
+            g.save.skillPoints=95;
+            g.save.talents[0]=5;g.save.talents[1]=5;
+            g.save.maxHealth=100+g.save.upgrades*20+60+
+                (g.save.profession==0?20:0);
+            g.save.health=g.save.maxHealth;
+            int originalHealth=(int)g.save.health,coins=g.save.coins;
+            Check(!g.CanResetTalents,
+                "UI correctly disables a respec whose ten-point refund would exceed the v2 99-point save limit");
+            g.ResetTalents();
+            Check(g.save.coins==coins&&g.save.skillPoints==95&&
+                g.save.talents[0]==5&&g.save.talents[1]==5&&
+                g.save.health==originalHealth&&g.toast.Contains("99"),
+                "Even a direct respec call must not charge coins, alter stats or discard invested skills on overflow");
+            g.save.skillPoints=89;
+            Check(g.CanResetTalents,"A complete refund exactly to the 99-point cap is allowed");
+            g.ResetTalents();
+            Check(g.save.coins==coins-20&&g.save.skillPoints==99&&
+                g.save.talents[0]==0&&g.save.talents[1]==0&&
+                g.save.health<=g.save.maxHealth,
+                "Valid exact-cap respec refunds every point without truncation");
+            var reloaded=new GameCore(data,g.save);
+            Check(reloaded.save.skillPoints==99&&reloaded.save.talents[0]==0,
+                "Saved v2 progression retains the full refunded total after reloading");
+        }
+
     }
 }

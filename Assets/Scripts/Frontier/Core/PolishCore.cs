@@ -47,9 +47,28 @@ namespace Starfall
         }
         public void SetStyle(int style)
         { if (style < 0 || style > 2 || style > 0 && !StylesUnlocked) return; if (Style != style) CancelAction(); save.weaponStyles[save.weapon] = style; revision++; sound = "equip"; }
+        public bool CanResetTalents
+        {
+            get
+            {
+                int invested = save.talents[0] + save.talents[1] + save.talents[2];
+                return invested > 0 && save.coins >= 20 && save.skillPoints <= 99 - invested;
+            }
+        }
         public void ResetTalents()
         {
-            if (save.coins < 20) return; int points = save.talents[0] + save.talents[1] + save.talents[2]; if (points == 0) return;
+            if (save.coins < 20) return;
+            int points = save.talents[0] + save.talents[1] + save.talents[2];
+            if (points == 0) return;
+            // SaveData v2 intentionally caps unspent skills at 99. A large
+            // respec used to charge 20 coins, refund above 99, and silently
+            // discard the excess when that save was reloaded.
+            if (save.skillPoints > 99 - points)
+            {
+                Notify("可用技能点接近99点上限。先使用部分技能点，再重置天赋。",
+                    "Too many unspent points for a full refund (99 max). Spend some before resetting.");
+                return;
+            }
             save.coins -= 20; save.skillPoints += points; Array.Clear(save.talents, 0, 3);
             save.maxHealth = 100 + save.upgrades * 20 + (save.profession == 0 ? 20 : 0); save.health = Math.Min(save.health, save.maxHealth);
             revision++; RecordMoment("重新分配成长方向：返还 " + points + " 技能点。", "Build reconsidered: refunded " + points + " talent points.");
