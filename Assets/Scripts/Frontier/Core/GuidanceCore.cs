@@ -170,6 +170,20 @@ namespace Starfall
                 }
                 q.complete=next==0;
                 q.locked=!Has("scout_saved");
+                // The chapter actively accepted by the player takes priority
+                // over earlier unfiled accounts. Never navigate a new witness
+                // backward to a quest the player has not begun yet.
+                if(!q.complete)
+                {
+                    int here=save.room;
+                    if(here>=1 && here<=3 && !Has("witness_complete_"+here) &&
+                        Has("witness_started_"+here))next=here;
+                    else
+                        for(int i=3;i>=1;i--)
+                            if(Has("witness_started_"+i) &&
+                                !Has("witness_complete_"+i))
+                            {next=i;break;}
+                }
                 q.room=q.complete?0:next;
                 string kind="witnessnpc"+next;
                 if(!q.complete && Has("witness_started_"+next))

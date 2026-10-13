@@ -281,5 +281,43 @@ namespace Starfall.Tests
                 "Original ending remains intact and reflects real first-three-chapter survivors");
         }
 
+
+        public static void ActiveChapterWitnessGuidanceTracksTheActualCurrentCharacter(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=2;
+            foreach(string f in new[]{"scout_saved","gate_2","gate_3"})
+                g.save.flags.Add(f);
+            g.Enter(2);g.enemies.Clear();
+            WorldObject arin=Object(g,"witnessnpc2"),
+                first=Object(g,"witnesssite12"),second=Object(g,"witnesssite22");
+            g.save.x=arin.x;g.save.y=arin.y;
+            Action(g,arin.kind,"witness_begin_2");
+            QuestGuide quest=g.CurrentGuide;
+            Check(quest.id=="campaign_witness" && quest.room==2 &&
+                (quest.target-new Point(first.x,first.y)).Length<.01f,
+                "Starting Arin's live chapter must navigate to her first site, not an earlier unfinished Moya quest");
+            g.save.flags.Add("witness_read_2");
+            quest=g.CurrentGuide;
+            Check(quest.room==2 &&
+                (quest.target-new Point(second.x,second.y)).Length<.01f,
+                "After authentic field evidence, live guidance points to the physical defense location");
+            g.save.flags.Add("witness_sealed_2");
+            quest=g.CurrentGuide;
+            Check(quest.room==2 &&
+                (quest.target-new Point(arin.x,arin.y)).Length<.01f,
+                "A preserved testimony correctly routes back to the actual living survivor for signature");
+            g.save.flags.Add("witness_complete_2");
+            quest=g.CurrentGuide;
+            Check(quest.room==1 && !quest.complete,
+                "Finishing a middle chapter leaves earlier and later stories available without fabricating completion");
+            g.Enter(3);g.enemies.Clear();
+            g.save.flags.Add("witness_started_3");
+            quest=g.CurrentGuide;
+            Check(quest.room==3 &&
+                quest.next.Contains("第一处原始记录"),
+                "A newly undertaken miner investigation outranks incomplete earlier optional testimony");
+        }
+
     }
 }
