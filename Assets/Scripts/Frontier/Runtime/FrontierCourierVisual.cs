@@ -4,6 +4,27 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
+        private void DrawCivicConduitCoil()
+        {
+            if(!Game.CivicConduitActive)return;
+            Point screen=ScreenPoint(Game.Position);
+            float strength=Game.CivicConduitIntegrity;
+            Color tint=strength<=35?new Color(.98f,.37f,.31f):
+                Game.CivicConduitWindowOpen?new Color(.54f,.95f,.57f):
+                new Color(.49f,.75f,.96f);
+            // One compact carried conductor on the SAME canonical golden-haired
+            // actor. No duplicated player, sprite swapping or animated flicker.
+            PropImage("crystal",0,screen.x+10,screen.y-43,21,22,tint);
+            Bar(screen.x-34,screen.y-59,68,strength/100f,tint,4);
+            Text(screen.x-88,screen.y-88,176,20,
+                Game.L("导体 "+(int)Math.Ceiling(strength)+"% · "+
+                    (int)Math.Ceiling(Game.CivicConduitTimeLeft)+"秒",
+                    "CONDUCTOR "+(int)Math.Ceiling(strength)+"% · "+
+                    (int)Math.Ceiling(Game.CivicConduitTimeLeft)+"s"),
+                12,Game.CivicConduitTimeLeft<18?
+                    new Color(.98f,.38f,.31f):tint,TextAnchor.MiddleCenter);
+        }
+
         private void DrawCivicResponsePack()
         {
             if(!Game.CivicResponseActive)return;
