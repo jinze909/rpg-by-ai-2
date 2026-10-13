@@ -12,13 +12,11 @@ namespace Starfall.Tests
             WorldObject furnace=Object(g,"ironfoundry");
             WorldObject northwest=Object(g,"ironvent1");
             WorldObject east=Object(g,"ironvent2");
-            foreach(WorldObject o in new[]{furnace,northwest,east})
-            {
-                g.save.x=o.x;g.save.y=o.y;
-                Check(g.CanStand(g.Position) && g.Nearest()==o,
-                    "Every authored Ironreach forge object must be grounded and interactable");
-            }
+            // The eastern valve is legitimately behind the original mine
+            // boss gate; do not assert accessibility before that story unlock.
             g.save.x=furnace.x;g.save.y=furnace.y;
+            Check(g.CanStand(g.Position) && g.Nearest()==furnace,
+                "The foundry itself must be reachable before restoring it");
             g.Talk(furnace);
             Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="iron_temper_start")<0,
@@ -26,6 +24,14 @@ namespace Starfall.Tests
             g.Close();
             g.save.stage=3;g.save.level=20;g.save.xp=0;
             g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            for(int i=0;i<3;i++)
+            {
+                WorldObject o=new[]{furnace,northwest,east}[i];
+                g.save.x=o.x;g.save.y=o.y;
+                Check(g.CanStand(g.Position) && g.Nearest()==o,
+                    "All authored forge objects must be accessible after the real boss gate opens: "+o.kind);
+            }
+            g.save.x=furnace.x;g.save.y=furnace.y;
             g.enemies.Clear();g.invulnerable=120;
             int initialCoins=g.save.coins,oldKills=g.save.kills[3];
             Action(g,"ironfoundry","iron_temper_start");
