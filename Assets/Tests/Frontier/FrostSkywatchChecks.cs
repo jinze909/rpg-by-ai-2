@@ -19,6 +19,9 @@ namespace Starfall.Tests
             g.Close();
             g.save.stage=3;g.save.level=12;g.save.xp=0;
             g.save.flags.Add("mountain_report");
+            // Preserve the original farshore chapter gate: Frostchime opens
+            // only after the prior desert report, not from a new side quest.
+            g.save.flags.Add("desert_report");
             g.save.x=yilan.x;g.save.y=yilan.y;
             Action(g,"skywatcher","skywatch_accept");
             Check(g.Has("skywatch_started") && !g.GetQuest("skywatch").locked &&
@@ -162,7 +165,7 @@ namespace Starfall.Tests
         public static void FrostSkywatchHazardsAreDodgeableAndWithdrawalIsSafe(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=12;
-            foreach(string flag in new[]{"mountain_report","skywatch_started",
+            foreach(string flag in new[]{"mountain_report","desert_report","skywatch_started",
                 "skywatch_prism_1","skywatch_prism_2","skywatch_prism_3"})
                 g.save.flags.Add(flag);
             g.Enter(7);g.enemies.Clear();
