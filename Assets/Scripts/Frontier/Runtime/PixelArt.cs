@@ -108,6 +108,31 @@ namespace Starfall
             { Disc(48, 90, 33, 11, timber); Box(23, 87, 50, 6, C("#be9770")); Box(47, 30, 3, 57, cream); for (int y = 0; y < 42; y++) Box(50, 35 + y, 28 - y / 2, 1, C("#d0c0a2")); }
             else if (kind == "ruin")
             { Box(10, 81, 78, 25, C("#606e7b")); Box(15, 75, 17, 31, C("#8c9694")); Box(65, 75, 16, 31, C("#8c9694")); Box(33, 87, 31, 19, C("#314854")); Disc(48, 67, 24, 16, C("#788593")); Disc(48, 67, 14, 12, C("#364b63")); Box(45, 59, 6, 16, C("#89c9c8")); }
+            else if (kind == "cache")
+            {
+                // A real illustrated waterworn cargo chest, rather than the
+                // generic fallback tile; independent of imported sprites.
+                Color plank=C("#836752"), iron=C("#536e73"), edge=C("#c4a37a");
+                Box(19,49,58,51,C("#354751"));
+                Box(22,54,52,43,plank);
+                for(int row=0;row<3;row++)
+                {
+                    int y=57+row*12;
+                    Box(24,y,48,8,C(row==1?"#9b7959":"#765d4d"));
+                    Box(24,y+1,45,2,edge);
+                    Box(25,y+7,47,2,C("#4f443d"));
+                }
+                Box(17,44,62,13,iron);
+                Box(20,39,56,11,plank);
+                Box(22,41,52,2,edge);
+                Box(16,48,7,53,iron);Box(74,48,6,53,iron);
+                Box(18,89,60,6,iron);
+                Box(45,56,8,35,iron);Box(43,69,12,15,edge);
+                Box(46,71,6,10,C("#233d49"));
+                Box(24,53,3,3,edge);Box(68,53,3,3,edge);
+                Box(24,88,3,3,edge);Box(68,88,3,3,edge);
+                Box(34,29,28,9,new Color(.3f,.75f,.81f,.22f));
+            }
             else if (kind == "column" || kind == "obelisk")
             { Box(35, 35, 26, 66, C(kind == "column" ? "#798b96" : "#646078")); Box(30, 31, 36, 8, C("#9aa2a2")); Box(31, 99, 35, 6, C("#8a969b")); Box(41, 48, 3, 40, C("#aec4b4")); Box(51, 57, 6, 12, C("#90cfc7")); }
             else if (kind == "crystal" || kind == "ore")

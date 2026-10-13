@@ -239,5 +239,50 @@ namespace Starfall.Tests
                 "Only the completed quest exposes the bilingual public tide model");
         }
 
+
+        public static void TideboundEnvironmentHudTracksRealTideCyclesAndPublicExtension(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","harbor_report","gate_5"})
+                g.save.flags.Add(flag);
+            g.Enter(5);g.enemies.Clear();
+            WorldObject dock=Object(g,"tidedock");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Check(g.TideSalvageTideHint.Contains("涨潮还有 22s") &&
+                g.LowTide,"The HUD starts from the exact original ebb cycle");
+            Action(g,"tidedock","tide_salvage_start");
+            g.save.english=true;
+            Check(g.Conditions().Contains("SALVAGE 100s") &&
+                g.Conditions().Contains("LOW TIDE") &&
+                g.Conditions().Contains("RISE IN 22s"),
+                "Player sees the live sortie deadline and genuine rise countdown in both languages");
+            g.save.totalTime=23;g.save.tideHeldUntil=0;
+            Check(!g.LowTide && g.Conditions().Contains("HIGH TIDE") &&
+                g.Conditions().Contains("EBB IN 13s"),
+                "Actual flooded terrain produces a truthful ebb countdown");
+            g.save.shards=1;
+            Action(g,"tidedock","tide_salvage_hold");
+            Check(g.LowTide && g.Conditions().Contains("HELD 18s") &&
+                g.save.shards==0,
+                "The paid tide hold immediately changes both physics and the HUD");
+            g.save.totalTime=40.5f;
+            Check(g.Conditions().Contains("HELD 1s"),
+                "Displayed hold time follows the original total-time clock and never renews itself");
+            g.save.totalTime=41.5f;
+            Check(g.LowTide && g.Conditions().Contains("RISE IN") &&
+                !g.Conditions().Contains("HELD"),
+                "After a hold expires, the HUD returns to natural tide prediction");
+            g.save.flags.Add("tide_salvage_complete");
+            Check(g.TidewatchHoldSeconds==60,
+                "Publishing salvage increases the real original station hold by fifteen seconds");
+            g.save.flags.Add("farshore_relief_5");
+            Check(g.TidewatchHoldSeconds==105,
+                "The permanent upgrade composes with a previously upgraded 90-second relief station");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.save.version==2 && loaded.TidewatchHoldSeconds==105,
+                "The compositional tide upgrade survives old v2 save persistence");
+        }
+
     }
 }

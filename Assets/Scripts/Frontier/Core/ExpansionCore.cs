@@ -454,8 +454,9 @@ namespace Starfall
             if(TideSalvageActive && save.room==5)
                 return L("潮滩打捞 ", "SALVAGE ") +
                     (int)Math.Ceiling(TideSalvageTime) + "s · " +
-                    (TideSalvagePhase-1) + "/3 · " +
-                    (LowTide?L("低潮可通行", "LOW TIDE"):L("高潮危险", "HIGH TIDE"));
+                    (TideSalvagePhase-1) + "/3\n" +
+                    (LowTide?L("低潮 ", "LOW TIDE "):L("高潮 ", "HIGH TIDE ")) +
+                    "· " + TideSalvageTideHint;
             if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
                 return L("巡测 ", "SURVEY ") + (int)Math.Ceiling(fieldSurveyTime) + "s · " +
                     (save.room == 5 ? (LowTide ? L("低潮", "LOW TIDE") : L("高潮", "HIGH TIDE")) :
