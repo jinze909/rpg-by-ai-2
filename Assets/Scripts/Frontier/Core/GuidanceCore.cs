@@ -90,8 +90,8 @@ namespace Starfall
             {
                 q.title=L("归乡送达 · 八地居民救援包","Homeward Deliveries · Eight Civilian Parcels");
                 q.category=L("真实步行运输 · 修桥后的生活","ACTUAL WALKING · LIFE AFTER REPAIR");
-                q.description=L("先修好同一地区的桥和远端避险棚，在桥头背上救援包并在95秒内从北向南步行穿过桥面。负重降低速度；传送、离开地区或超时不会虚构运送。到避险棚亲手交接才计数。",
-                    "Repair the local bridge and distant refuge, then carry aid on foot from north to south across the span within 95 seconds. The parcel slows walking; teleports, exits and timeouts do not count. Hand over in person at the shelter.");
+                q.description=L("先修好同一地区的桥和避险棚，在95秒内背包步行过桥。桥南有两名真正出击的劫匪，受击会损坏物资。检查站可消耗零件修补或花30耐力开启护送结界。传送或超时不能代替亲手交付。",
+                    "Repair the bridge and remote shelter, then carry aid on foot across the span within 95 seconds. Two real raiders intercept the southbound route. Enemy hits tear the parcel; the checkpoint can repair it for one spare part or ward it for 30 energy. Teleports cannot substitute for real delivery.");
                 q.locked=!Has("intro");q.complete=FarCourierDeliveredCount==8;
                 int region=-1;
                 for(int i=0;i<8;i++)

@@ -10,6 +10,11 @@ namespace Starfall
             Point screen=ScreenPoint(Game.Position);
             // Small parcel attached to the canonical playable golden-haired
             // protagonist; no second hero, palette replacement or global HUD.
+            if(Game.FarCourierRaidersAlive>0)
+                Text(screen.x-79,screen.y-130,158,19,
+                    Game.L("路上劫匪 ×"+Game.FarCourierRaidersAlive,
+                        "RAIDERS ×"+Game.FarCourierRaidersAlive),
+                    12,new Color(.98f,.43f,.31f),TextAnchor.MiddleCenter);
             float integrity=Game.FarCourierIntegrity;
             Color cargoColor=integrity<=35?new Color(.98f,.38f,.29f):
                 integrity<=65?gold:mint;

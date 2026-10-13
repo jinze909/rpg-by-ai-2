@@ -316,6 +316,16 @@ public static class RenderStateChecks
         Check(g.FarCourierIntegrity<100&&
             GUI.commands.Exists(c=>c.Contains("PARCEL 76%")),
             "Production parcel render updates the physical cargo indicator after an actual hit");
+        // This is triggered by authentic movement through real collision
+        // rather than inserting enemies directly into the renderer.
+        g.hitStop=0;
+        for(int i=0;i<70&&!g.FarCourierCrossed;i++)
+            g.Tick(.05f,new Point(0,1));
+        Check(g.FarCourierCrossed&&g.FarCourierRaidersAlive==2,
+            "Production crossing populates the visible real danger marker");
+        Clear();Call(app,"DrawFarCourierPack");
+        Check(GUI.commands.Exists(s=>s.Contains("RAIDERS")),
+            "Actual carried-parcel world rendering identifies live interception");
         var guard=typeof(GameCore).GetField("courierGuardLeft",
             BindingFlags.Instance|BindingFlags.NonPublic);
         Check(guard!=null,"A real transient convoy ward field exists");

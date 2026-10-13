@@ -17,7 +17,14 @@ namespace Starfall
         private bool IsFarCourierRaider(Enemy foe)
         {return foe!=null&&foe.id>=90100&&foe.id<90116;}
         public int FarCourierRaidersAlive
-        {get{return FarCourierActive?enemies.FindAll(IsFarCourierRaider).Count:0;}}
+        {
+            get
+            {
+                if(!FarCourierActive)return 0;
+                int n=0;foreach(Enemy foe in enemies)if(IsFarCourierRaider(foe))n++;
+                return n;
+            }
+        }
         private void SpawnFarCourierRaiders()
         {
             if(courierRaided||!FarCourierActive)return;
