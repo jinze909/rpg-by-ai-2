@@ -171,5 +171,49 @@ namespace Starfall.Tests
                 !g.Has("triad_complete"),
                 "Preexisting Chapter Four saves are never retroactively locked out of Orrin or given unearned power");
         }
+
+        public static void ThreeCoreAuditCreatesOneRealTacticalOrrinOpeningPerAttempt(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"core_1","core_2","core_3","triad_started",
+                "triad_evidence_1","triad_evidence_2","triad_evidence_3",
+                "triad_defense_clear","triad_sealed","triad_complete"})
+                g.save.flags.Add(flag);
+            g.Enter(4);g.enemies.Clear();
+            WorldObject altar=Object(g,"shrine"),console=Object(g,"triadnexus");
+            g.save.x=altar.x;g.save.y=altar.y;
+            Action(g,"shrine","boss");
+            Enemy orrin=g.enemies.Find(e=>e.boss);
+            Check(orrin!=null && g.TriadBossInterruptReady &&
+                Math.Abs(orrin.maxHp-data.bosses[3].hp*.85f)<.2f,
+                "Real chapter finale begins with genuinely weakened, still-alive Orrin");
+            float before=orrin.hp;
+            g.save.x=console.x;g.save.y=console.y;
+            Check(g.CanStand(g.Position) && g.Nearest()==console &&
+                g.Conditions().Contains("中断屏障"),
+                "Interactable central audit is reachable and HUD advertises actual combat counterplay");
+            g.save.energy=24;
+            Action(g,"triadnexus","triad_boss_interrupt");
+            Check(g.save.energy==24 && g.TriadBossInterruptReady &&
+                orrin.hp==before,"Energy shortage cannot give away the main-boss interrupt");
+            g.save.energy=100;
+            Action(g,"triadnexus","triad_boss_interrupt");
+            Check(g.save.energy==75 && !g.TriadBossInterruptReady &&
+                orrin.stun>=2.3f && orrin.hp==before &&
+                !g.Has("boss_4") && !g.Has("warden_stood_down"),
+                "Actual E/controller interaction spends 25 energy and staggers Orrin, without fake damage or victory");
+            g.Talk(console);
+            Check(g.mode=="world" && g.save.energy==75 &&
+                orrin.hp==before,
+                "One-use interrupt cannot be repeated or recharge while the same boss is alive");
+            g.Enter(0);g.enemies.Clear();
+            g.Enter(4);g.enemies.Clear();
+            g.save.x=altar.x;g.save.y=altar.y;
+            Action(g,"shrine","boss");
+            Check(g.TriadBossInterruptReady &&
+                g.enemies.Exists(e=>e.boss && e.hp>0),
+                "A legitimate new boss attempt restores exactly one interrupt opportunity");
+        }
+
     }
 }

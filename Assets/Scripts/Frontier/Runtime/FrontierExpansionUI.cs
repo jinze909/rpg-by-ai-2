@@ -186,12 +186,14 @@ namespace Starfall
             }
             if(kind=="triadnexus")
             {
-                Color tint=Game.Has("triad_sealed")?mint:
+                Color tint=Game.TriadBossInterruptReady?PixelArt.C("#efc57e"):
+                    Game.Has("triad_sealed")?mint:
                     Game.TriadDefenseActive?PixelArt.C("#d28b86"):gold;
                 PropImage("altar",0,p.x-30,p.y-73,60,80,
                     Game.Has("triad_sealed")?Color.white:muted);
                 Ring(new Point(o.x,o.y),Game.TriadDefenseActive?1.3f:.7f,tint,30);
                 Text(p.x-75,p.y-90,150,20,
+                    Game.TriadBossInterruptReady?Game.L("按E · 中断屏障","E · INTERRUPT SHIELD"):
                     Game.Has("triad_sealed")?Game.L("真相已保全","AUDIT PRESERVED"):
                     Game.TriadDefenseActive?Game.L("保密防卫启动","SECURITY ACTIVE"):
                     Game.L("三核中央审计","THREE-CORE AUDIT"),

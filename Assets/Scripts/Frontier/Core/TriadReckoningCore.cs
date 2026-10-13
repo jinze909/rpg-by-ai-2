@@ -11,6 +11,11 @@ namespace Starfall
         public float TriadTime { get; private set; }
         public bool TriadDefenseActive { get; private set; }
         private float triadSurgeTime;
+        private bool triadBossBreakUsed;
+        public bool TriadBossInterruptReady
+        { get { return save.room==4 && Has("triad_complete") &&
+            !triadBossBreakUsed && !Has("boss_4") &&
+            enemies.Exists(e=>e.boss && e.hp>0); } }
         public bool IsTriadEnemy(Enemy e)
         { return e!=null && e.id==89960; }
         private bool TriadEligible
@@ -27,6 +32,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.triadOwned);
             effects.RemoveAll(e=>e.triadOwned);
             TriadDefenseActive=false;TriadTime=0;triadSurgeTime=0;
+            triadBossBreakUsed=false;
         }
         private bool TalkTriadGuild(WorldObject o)
         {
@@ -77,6 +83,22 @@ namespace Starfall
             }
             if(o.kind=="triadnexus")
             {
+                if(TriadBossInterruptReady)
+                {
+                    Dialog(o.name,o.en,
+                        "三核审计已经成为公开的证据。厄洛正在使用旧屏障，审计台尚有一项合法但早被封存的指令：暂停下一轮护盾供能。需要25耐力，每场决战只能使用一次；它只能制造破绽，不能直接击败统领。",
+                        "The public three-core audit authorizes an emergency shield pause. Orrin is still channeling the old defense. Spend 25 energy to interrupt his next attack and create an opening, once per boss attempt. This cannot defeat him on its own.",
+                        C("执行公开审计 · 中断屏障25耐力",
+                            "Invoke public audit · interrupt shield (25 energy)","triad_boss_interrupt"),
+                        C("继续战斗","Keep fighting","close"));
+                    return true;
+                }
+                if(triadBossBreakUsed && enemies.Exists(e=>e.boss))
+                {
+                    Notify("本场决战已经使用过公开审计中断。继续凭真正的战斗击败厄洛。",
+                        "Public audit interruption already used this attempt. Defeat Orrin through real combat.");
+                    return true;
+                }
                 if(Has("triad_sealed") || Has("triad_complete"))
                 {
                     Dialog(o.name,o.en,
@@ -148,6 +170,30 @@ namespace Starfall
         private bool ChooseTriad(string action)
         {
             if(action=="triad_track"){TrackQuest("triad_reckoning");return true;}
+            if(action=="triad_boss_interrupt")
+            {
+                if(!TriadBossInterruptReady ||
+                    (Position-TriadPoint("triadnexus")).Length>2.2f ||
+                    Dying || practicing)return true;
+                if(save.energy<25)
+                {
+                    Notify("需要25耐力，不能免费中断屏障。",
+                        "25 energy is required; the shield cannot be interrupted for free.");
+                    return true;
+                }
+                Enemy orrin=enemies.Find(e=>e.boss && e.hp>0);
+                if(orrin==null)return true;
+                save.energy-=25;triadBossBreakUsed=true;
+                orrin.stun=Math.Max(orrin.stun,2.35f);
+                orrin.releaseTime=0;orrin.state=0;
+                orrin.timer=Math.Max(orrin.timer,2.1f);
+                effects.Add(new Effect("break",orrin.Position,.72f,
+                    L("审计中断","AUDIT INTERRUPT")));
+                revision++;sound="guard";
+                Notify("审计中断成功！厄洛的下一次护盾攻击被推迟，趁破绽反击。",
+                    "Public audit interrupt succeeded! Orrin's next shield attack is delayed; counter during the opening.");
+                return true;
+            }
             if(action=="triad_accept")
             {
                 if(save.room!=0 || !TriadEligible || Has("triad_started") ||
