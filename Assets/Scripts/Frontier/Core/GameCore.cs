@@ -1148,6 +1148,15 @@ namespace Starfall
                         " You physically tuned three town lamps in the order determined by your original ending; the charter survived, with "+StormBudgetLeft+" units still available for Emberfall emergencies." :
                         " The first-storm charter is not complete, and promises alone cannot calm the live storm.");
             }
+            if(HearingOrrinResponsibility!=0)
+            {
+                zh[ending]+=HearingOrrinResponsibility==1?
+                    "\n\n厄洛最后亲自将两份热汤交给公开医护，让守卫的后勤变成任何人都能使用的避难补给。":
+                    "\n\n厄洛最后亲自交出两份实用零件，让昔日守卫成为公开巡路志愿队。";
+                en[ending]+=HearingOrrinResponsibility==1?
+                    "\n\nOrrin personally handed over two real meals to civilian medics, turning former military logistics into public relief.":
+                    "\n\nOrrin personally transferred two usable parts to volunteer roadwardens, sharing responsibility for future journeys.";
+            }
             if(HearingComplete)
             {
                 zh[ending]+="\n\n第七章的听证不再由厄洛或公会替居民宣布结论。莫芽、阿菱和维恩各自签下不同誓言，三地的现场碑文成为可读的公共记录。"+

@@ -24,6 +24,8 @@ namespace Starfall
         public bool HearingComplete { get { return Has("hearing_complete"); } }
         public int HearingVerdict
         { get { return Has("hearing_public")?1:Has("hearing_reserve")?2:0; } }
+        public int HearingOrrinResponsibility
+        { get { return Has("hearing_orrin_aid")?1:Has("hearing_orrin_patrol")?2:0; } }
         private Point HearingDais
         { get { return ObjectPoint(0,"hearingdais",new Point(-100,-100)); } }
         public bool HearingPlaqueVisible(int region)
@@ -31,10 +33,51 @@ namespace Starfall
         private bool TalkHearing(WorldObject o)
         {
             bool dais=save.room==0 && o.kind=="hearingdais";
+            bool orrin=save.room==4 && o.kind=="shrine" && HearingComplete;
             int region=save.room;
             bool voice=region>=1 && region<=3 && o.kind=="witnessnpc"+region;
             bool plaque=region>=1&&region<=3 && o.kind=="hearingplaque"+region;
-            if(!dais && !voice && !plaque)return false;
+            if(!dais && !voice && !plaque && !orrin)return false;
+            if(orrin)
+            {
+                if(HearingOrrinResponsibility!=0)
+                {
+                    Dialog("厄洛 · 民用责任协议","Orrin · Civilian Responsibility Pact",
+                        HearingOrrinResponsibility==1?
+                            "厄洛：志愿医护已经从堡垒转到城墙外。仓库里原本只为军队保管的两份热汤，如今先交给巡路人，公共避难所也会为每个归来的人留灯。":
+                            "厄洛：堡垒守卫现在轮流守护公共星路。两份零件被交到真正维护机器的居民手里。紧急道路补给站会为巡路者保留体力。",
+                        HearingOrrinResponsibility==1?
+                            "Orrin: Civilian medics have left the citadel wall to help the public shelter. Two real meals from the old military stores are now yours to distribute.":
+                            "Orrin: Our wardens now patrol the shared starroads. I have handed over two genuine spare parts and opened the citadel's reserve energy point.",
+                        C("重读旧民用余量协议","Review the earlier civilian reserve accord","hearing_orrin_review"),
+                        C("继续前行","Continue","close"));
+                    return true;
+                }
+                Dialog("厄洛 · 民用责任协议","Orrin · Civilian Responsibility Pact",
+                    "厄洛：你带回了莫芽、阿菱和维恩亲笔签过的公约。我曾以为守护者只能服从更高的命令，如今明白，守护是要向被保护的人负责。
+
+"+
+                    (HearingVerdict==1?
+                        "你们最终开放公共医疗。堡垒仍存着能给孩子们取暖的热汤，我愿意让医护先去城外帮助真正需要的人。":
+                        "你们最终保留民用应急供能。我愿意派昔日的守卫维护星路，并把真正用得上的零件交出去。")+
+                    "
+
+你可以选择把两份真实补给转给公共医护，或者派出巡路志愿队。两种后续帮助会改变堡垒原地的游戏设施。",
+                    "Orrin: You brought Moya, Arin and Venn's signed decisions. I once believed a protector could only obey orders. Now I understand that protection means answering to those who bear its consequences.
+
+"+
+                    (HearingVerdict==1?
+                        "You opened civic medical access. The citadel still has meals that could warm children, and I can send our medics beyond the wall.":
+                        "You maintained civilian emergency reserves. My former guards can now patrol the shared starroads and release genuine machine parts.")+
+                    "
+
+Choose two actual relief meals and a working public medical refuge, or two tangible repair parts and an active patrol-energy point. Neither option reopens an old military monopoly.",
+                    C("移交医护补给 · 公共避难所","Send medical stores to the public shelter","hearing_orrin_aid"),
+                    C("派遣志愿巡路队 · 公开维修","Send volunteer wardens to public roads","hearing_orrin_patrol"),
+                    C("重读原有余量协定","Review the existing reserve accord","hearing_orrin_review"),
+                    C("稍后决定","Not yet","close"));
+                return true;
+            }
             if(plaque)
             {
                 if(!HearingPlaqueVisible(region))return true;
@@ -121,6 +164,42 @@ namespace Starfall
         }
         private bool ChooseHearing(string action)
         {
+            if(action=="hearing_orrin_review")
+            {
+                if(save.room==4 && HearingComplete &&
+                    (Position-ObjectPoint(4,"shrine",new Point(-100,-100))).Length<2.2f)
+                {
+                    foreach(WorldObject shrine in Map.objects)
+                        if(shrine.kind=="shrine"){TalkStorm(shrine);break;}
+                }
+                return true;
+            }
+            if(action=="hearing_orrin_aid" || action=="hearing_orrin_patrol")
+            {
+                if(!HearingReady || !HearingComplete ||
+                    HearingOrrinResponsibility!=0 || save.room!=4 ||
+                    Dying || practicing ||
+                    (Position-ObjectPoint(4,"shrine",new Point(-100,-100))).Length>2.2f)
+                    return true;
+                bool aid=action=="hearing_orrin_aid";
+                Flag(action);
+                if(aid)save.inventory[6]+=2;
+                else save.inventory[4]+=2;
+                revision++;sound="quest";
+                RecordMoment(aid?
+                    "厄洛兑现战后责任：两份真实热汤交给公共医护，堡垒平民避难所获得长期治疗支持。":
+                    "厄洛兑现战后责任：两份真实零件交给巡路志愿队，堡垒守护者开放持续耐力补给。",
+                    aid?
+                    "Orrin made good on his promise: two real meals reached civilian medics, and the citadel shelter gained public healing support.":
+                    "Orrin made good on his promise: two real repair parts went to volunteer roadwardens, and the citadel opened an emergency energy point.");
+                Notify(aid?
+                    "厄洛已将两份热汤转为公共医护物资。避难所安全时将持续疗养。":
+                    "厄洛已移交两份维修零件。堡垒祭坛成为安全的公用耐力补给点。",
+                    aid?
+                    "Two real meals transferred. Public shelter healing is now available outside combat.":
+                    "Two genuine parts transferred. Citadel shrine energy support now works outside combat.");
+                return true;
+            }
             if(action=="hearing_read")
             {
                 if(HearingComplete)WorldChroniclePage("hearing");

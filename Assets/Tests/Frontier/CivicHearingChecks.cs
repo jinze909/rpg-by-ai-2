@@ -203,5 +203,70 @@ namespace Starfall.Tests
                 !g.conversation.text.Contains("【公开议决已通过】"),
                 "Chronicle displays Moya's actual recorded vote without claiming absent citizens or a fabricated verdict");
         }
+        public static void ChapterSevenOrrinTakesActualPostHearingResponsibilityWithoutOverwritingTheOldAccord(Campaign data)
+        {
+            foreach(bool relief in new[]{true,false})
+            {
+                var g=Fresh(data);g.save.stage=3;g.save.ending=2;
+                foreach(string f in new[]{"afterlight_complete","storm_started",
+                    "storm_complete","storm_orrin_open","hearing_started",
+                    "hearing_complete","hearing_public","boss_4",
+                    "hearing_voice_1_care","hearing_voice_2_watch","hearing_voice_3_care"})
+                    g.save.flags.Add(f);
+                g.Enter(4);g.enemies.Clear();g.invulnerable=100;
+                WorldObject shrine=Object(g,"shrine"),
+                    shelter=Object(g,"blackoutshelter");
+                g.save.x=relief?shelter.x:shrine.x;
+                g.save.y=relief?shelter.y:shrine.y;
+                g.save.health=40;g.save.energy=10;
+                Advance(g,2);
+                float baselineHealth=g.save.health,baselineEnergy=g.save.energy;
+                int firstItem=relief?6:4;
+                int before=g.save.inventory[firstItem];
+                g.save.x=shrine.x;g.save.y=shrine.y;
+                g.Talk(shrine);
+                Check(Array.Exists(g.conversation.choices,c=>c.action=="hearing_orrin_aid") &&
+                    Array.Exists(g.conversation.choices,c=>c.action=="hearing_orrin_patrol") &&
+                    Array.Exists(g.conversation.choices,c=>c.action=="hearing_orrin_review"),
+                    "After authentic public hearing Orrin offers two real responsibilities while leaving his original civilian accord reviewable");
+                g.Close();
+                Action(g,shrine.kind,relief?"hearing_orrin_aid":"hearing_orrin_patrol");
+                Check(g.HearingOrrinResponsibility==(relief?1:2) &&
+                    g.save.inventory[firstItem]==before+2 &&
+                    g.save.ending==2 && g.HearingComplete &&
+                    !g.Has(relief?"hearing_orrin_patrol":"hearing_orrin_aid"),
+                    "Orrin transfers exactly two genuine resources once and does not modify the old ending or prior military reserve decision");
+                g.Talk(shrine);
+                Check(!Array.Exists(g.conversation.choices,c=>
+                    c.action=="hearing_orrin_aid"||c.action=="hearing_orrin_patrol") &&
+                    Array.Exists(g.conversation.choices,c=>c.action=="hearing_orrin_review"),
+                    "Completed civilian responsibility is no longer farmable but old story remains accessible");
+                g.Close();
+                Action(g,shrine.kind,"hearing_orrin_review");
+                Check(g.mode=="dialog" && g.conversation!=null &&
+                    g.conversation.speaker.Contains("厄洛"),
+                    "The original Orrin post-storm agreement remains readable after the new accountability scene");
+                g.Close();
+                g.save.x=relief?shelter.x:shrine.x;
+                g.save.y=relief?shelter.y:shrine.y;
+                g.save.health=40;g.save.energy=10;Advance(g,2);
+                if(relief)
+                    Check(g.save.health>baselineHealth+2.5f,
+                        "The medical-responsibility route actually operates a new public healing refuge in the citadel");
+                else
+                    Check(g.save.energy>baselineEnergy+6f,
+                        "The volunteer-patrol route actually operates a new local public energy station");
+                g.PrepareSave();
+                var again=new GameCore(data,CloneSave(g.save));again.Start();
+                Check(again.save.version==2 && again.HearingOrrinResponsibility==(relief?1:2) &&
+                    again.save.ending==2 && again.Has("storm_orrin_open"),
+                    "Old SaveData v2 keeps the original Orrin accord and the distinct real post-hearing follow-through");
+                g.Epilogue();
+                Check(g.conversation.text.Contains(relief?"两份热汤":"两份实用零件"),
+                    "Existing original ending acknowledges the actual humanitarian or roadwarden follow-through");
+            }
+        }
+
+
     }
 }

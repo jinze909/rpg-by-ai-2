@@ -226,11 +226,19 @@ namespace Starfall
             if(kind=="shrine" && Game.save.room==4 &&
                 Game.StormChapterComplete)
             {
-                Color tint=Game.Has("storm_orrin_open")||Game.Has("storm_orrin_guard")?
+                Color tint=Game.HearingOrrinResponsibility!=0?mint:
+                    Game.HearingComplete?gold:
+                    Game.Has("storm_orrin_open")||Game.Has("storm_orrin_guard")?
                     mint:gold;
                 PropImage("stormlamp",0,p.x-30,p.y-76,60,79,Color.white);
                 Ring(new Point(o.x,o.y),.78f,tint,26);
                 Text(p.x-81,p.y-99,162,22,
+                    Game.HearingOrrinResponsibility==1?
+                        Game.L("厄洛 · 公民医护责任","ORRIN · CIVIC MEDICS"):
+                    Game.HearingOrrinResponsibility==2?
+                        Game.L("厄洛 · 公共巡路责任","ORRIN · PUBLIC ROADWARDENS"):
+                    Game.HearingComplete?
+                        Game.L("厄洛 · 请兑现公约","ORRIN · ANSWER THE CHARTER"):
                     Game.Has("storm_orrin_open")?
                         Game.L("厄洛 · 公共避难之光","ORRIN · OPEN REFUGE"):
                     Game.Has("storm_orrin_guard")?

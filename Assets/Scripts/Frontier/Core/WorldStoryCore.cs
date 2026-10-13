@@ -603,6 +603,19 @@ namespace Starfall
                         (HearingVerdict==1?"public medical lantern":"emergency energy lantern")+
                         " actually operates. Local pledges remain inscribed in their own regions.":
                         "\n[Hearing pending] The guild cannot decide for absent regional voices.";
+                    if(HearingComplete)
+                    {
+                        zh+=HearingOrrinResponsibility==1?
+                            "\n厄洛又将两份实际热汤交给了公共医护，堡垒内原来的避难所开始为所有归来者疗伤。":
+                            HearingOrrinResponsibility==2?
+                            "\n厄洛将两份零件交给志愿巡路队，堡垒旧祭坛开始提供公共耐力补给。":
+                            "\n最后一份责任仍需厄洛本人回应：到星陨堡垒面对他，而不是替他说出承诺。";
+                        en+=HearingOrrinResponsibility==1?
+                            "\nOrrin handed over two tangible meals to civilian medics. The old citadel shelter now actually heals returning travelers.":
+                            HearingOrrinResponsibility==2?
+                            "\nOrrin released two real parts to volunteer roadwardens, and the old shrine now supplies public energy.":
+                            "\nOrrin must personally answer for his share of the charter. The hero cannot sign on his behalf.";
+                    }
                     break;
                 case "afterlight":
                     headingZh="第五章：把余光留给活着的人";
