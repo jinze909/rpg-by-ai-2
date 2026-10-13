@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,58 @@ namespace Starfall
 
 
 
+
+            if(id=="civic_services")
+            {
+                q.title=L("第九章续篇 · 三地公共服务实地考验",
+                    "Chapter Nine Aftermath · Live Civic Service Trials");
+                q.category=L("医疗护送与守路防卫","MEDICAL TRANSPORT & REAL DEFENSE");
+                q.description=L("三地审计公开后，每座居民选择的公共避险棚仍有真正的工作：医疗点需要从避险棚护送药包到北方检查台；守路岗必须真实击退两名袭击者。完成提高服务恢复效率。每地区只能领取一次首次完成奖励。",
+                    "After the public inquest, clinics need a real timed medicine walk to the northern checkpoint; lookout stations must defeat two real raiders. Each earned trial improves the region's refuge recovery; rewards are once only.");
+                q.locked=!CivicSupplyComplete;
+                q.complete=CivicResponseDoneCount==3;
+                int[] sites={0,3,5};
+                int next=-1;
+                string[] placeZh={"引水渠","赤铁矿场","雾港"};
+                string[] placeEn={"Canal","Ironreach","Mistport"};
+                for(int i=0;i<sites.Length;i++)
+                {
+                    int room=sites[i],done=CivicResponseDone(room)?1:0;
+                    q.steps.Add(new QuestStep(L(placeZh[i],placeEn[i])+
+                        (done==1?" ✓":" · 0/1"),done==1));
+                    if(next<0&&done==0&&CanEnter(room))next=room;
+                }
+                if(CivicResponseActive)
+                {
+                    q.room=save.room;
+                    q.target=CivicResponseClinicRun?
+                        ObjectPoint(save.room,"farcheck",new Point(111.5f,61.5f)):
+                        ObjectPoint(save.room,"farshelter",new Point(112.5f,73.5f));
+                    q.next=CivicResponseClinicRun?
+                        L("亲自把药包送到检查台，剩余 "+(int)CivicResponseTimeLeft+" 秒",
+                          "Deliver medicine to checkpoint · "+(int)CivicResponseTimeLeft+"s left"):
+                        CivicResponseEnemiesAlive>0?
+                        L("击败守路岗前两名真实袭击者","Defeat both real lookout raiders"):
+                        L("返回避险棚签署守路记录","Return to refuge and certify defense");
+                }
+                else
+                {
+                    q.room=next<0?0:next;
+                    q.target=ObjectPoint(q.room,"farshelter",new Point(112.5f,73.5f));
+                    q.next=q.complete?L("三处公共服务已经实地完成","All three civilian services verified"):
+                        q.locked?L("先公开第九章的三地救援审计",
+                            "First publish the Chapter Nine civic inquest"):
+                        next<0?L("继续主线开放其余地区","Unlock remaining regions"):
+                        CivicSupplyClinic(next)?
+                            L("到南端避险棚领取医药并步行送到北方检查站",
+                                "Collect medical supplies at southern refuge; walk to checkpoint"):
+                            L("在南端避险棚启动守路防卫并击败实际敌人",
+                                "Start the lookout defense and defeat real attackers");
+                }
+                q.reward=L("各地区首次完成：硬币24、碎片1、经验42、当地恢复提升；三地全部完成额外技能点1",
+                    "Per first clear: 24 coins, 1 shard, 42 XP, improved refuge; all three: +1 talent");
+                return q;
+            }
 
             if(id=="civic_supply")
             {
@@ -1424,6 +1476,7 @@ namespace Starfall
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.
             if(FarCourierActive) return GetQuest("far_couriers").target;
+            if(CivicResponseActive) return GetQuest("civic_services").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return new Point(31, 14);
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;

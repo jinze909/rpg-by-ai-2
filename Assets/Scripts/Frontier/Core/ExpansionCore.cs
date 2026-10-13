@@ -551,6 +551,15 @@ namespace Starfall
             // including in the four early outdoor regions whose conditions
             // panel is normally hidden. Its stages must remain visible even
             // when another journal quest is tracked.
+            if(CivicResponseActive)
+                return L("居民服务行动 · ","CIVIC SERVICE · ")+
+                    (int)Math.Ceiling(CivicResponseTimeLeft)+"s\n"+
+                    (CivicResponseClinicRun?
+                        L("步行把药包送到检查台","CARRY MEDICINE TO CHECKPOINT"):
+                        CivicResponseEnemiesAlive>0?
+                        L("击败袭击者 "+CivicResponseEnemiesAlive+" 名",
+                            "DEFEAT RAIDERS · "+CivicResponseEnemiesAlive+" LEFT"):
+                        L("回避险棚登记胜利","SIGN OFF AT REFUGE"));
             if(FarCourierActive)
                 return L("居民救援包 · ", "RELIEF PARCEL · ") +
                     (int)Math.Ceiling(FarCourierTimeLeft) + "s · " +
