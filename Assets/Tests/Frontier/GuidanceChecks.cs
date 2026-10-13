@@ -74,6 +74,62 @@ namespace Starfall.Tests
             Check(!g.FarCourierDelivered(0),
                 "Merely following a timed waypoint cannot grant a delivery");
         }
+        public static void CourierCargoTakesRealHitsAndCanBeReinforcedOnlyOnce(Campaign data)
+        {
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(hurt!=null,"Real player damage route exists");
+            var g=Fresh(data);g.save.flags.Add("far_bridge_0");
+            g.save.flags.Add("far_shelter_0");g.Enter(0);g.enemies.Clear();
+            var bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            g.save.inventory[4]=2;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive&&g.FarCourierIntegrity==100,
+                "Actual parcel pickup starts a pristine timed delivery");
+            g.invulnerable=0;
+            hurt.Invoke(g,new object[]{20f,"shot",null});
+            float afterHit=g.FarCourierIntegrity;
+            Check(afterHit<100&&afterHit>70,
+                "A real unblocked enemy shot damages carried cargo after armor");
+            hurt.Invoke(g,new object[]{20f,"shot",null});
+            Check(g.FarCourierIntegrity==afterHit,
+                "A repeated strike within invulnerability cannot damage cargo twice");
+            g.invulnerable=0;
+            hurt.Invoke(g,new object[]{20f,"environment",null});
+            Check(g.FarCourierIntegrity==afterHit,
+                "Ambient weather damage cannot silently destroy civilian freight");
+            for(int frame=0;frame<95&&!g.FarCourierCrossed&&g.FarCourierActive;frame++)
+            {g.hitStop=0;g.Tick(.05f,new Point(0,1));}
+            Check(g.FarCourierActive&&g.FarCourierCrossed,
+                "Repaired bridge can be crossed while protecting a damaged parcel");
+            var checkpoint=Object(g,"farcheck");
+            for(int frame=0;frame<110&&g.save.y<checkpoint.y-.8f;frame++)
+                {g.hitStop=0;g.Tick(.05f,new Point(0,1));}
+            Check((g.Position-new Point(checkpoint.x,checkpoint.y)).Length<=2.2f,
+                "The real checkpoint can be reached on foot");
+            int parts=g.save.inventory[4];
+            Action(g,"farcheck","far_courier_patch");
+            Check(g.FarCourierPatched&&g.save.inventory[4]==parts-1&&
+                g.FarCourierIntegrity>afterHit,
+                "The field patch pays exactly one real spare part and restores cargo");
+            float repaired=g.FarCourierIntegrity;
+            g.Close();g.Talk(checkpoint);
+            Check(!Array.Exists(g.conversation.choices,x=>x.action=="far_courier_patch"),
+                "A parcel cannot be reinforced a second time during one run");
+            g.Close();
+            g.invulnerable=0;g.hitStop=0;
+            for(int n=0;n<10&&g.FarCourierActive;n++)
+            {hurt.Invoke(g,new object[]{50f,"shot",null});g.invulnerable=0;g.hitStop=0;}
+            Check(!g.FarCourierActive&&g.FarCourierIntegrity==0&&
+                !g.FarCourierDelivered(0),
+                "Enough authentic enemy hits destroy the parcel without granting delivery rewards");
+            Check(g.save.inventory[4]==parts-1,
+                "Failed trips never refund the one consumed reinforcement material");
+            g.PrepareSave();var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
+            Check(!resumed.FarCourierActive&&resumed.FarCourierIntegrity==0,
+                "Old v2 save slots do not persist damaged or patched cargo");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;

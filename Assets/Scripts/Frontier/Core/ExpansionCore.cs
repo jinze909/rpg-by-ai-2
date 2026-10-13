@@ -540,7 +540,8 @@ namespace Starfall
             // when another journal quest is tracked.
             if(FarCourierActive)
                 return L("居民救援包 · ", "RELIEF PARCEL · ") +
-                    (int)Math.Ceiling(FarCourierTimeLeft) + "s\n" +
+                    (int)Math.Ceiling(FarCourierTimeLeft) + "s · " +
+                    (int)Math.Ceiling(FarCourierIntegrity) + "%\n" +
                     (!FarCourierCrossed ? L("步行过桥", "CROSS BRIDGE ON FOOT") :
                      !FarCourierStamped ? L("检查站核验封条", "VERIFY SEAL AT CHECKPOINT") :
                          L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));

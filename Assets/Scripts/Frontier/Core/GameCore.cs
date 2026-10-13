@@ -547,7 +547,10 @@ namespace Starfall
             playerHitFacing=VisualFacing; playerHitWeapon=AppearanceWeapon;
             Point reaction = incoming ?? VisualFacing * -1;
             if (reaction.Length < .001f) reaction = VisualFacing * -1;
-            save.health -= damage * multiplier * armor; invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
+            float actualDamage=Math.Max(0,damage*multiplier*armor);
+            save.health -= actualDamage;
+            DamageFarCourierCargo(actualDamage,source);
+            invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
             if (!save.reducedMotion) { hitStop = .045f; impactShake = source == "slam" ? .18f : 0; }
             effects.Add(new Effect("hurt", Position, .5f));
             if (save.health <= 0)
