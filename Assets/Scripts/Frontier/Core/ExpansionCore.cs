@@ -555,7 +555,8 @@ namespace Starfall
                 return L("居民服务行动 · ","CIVIC SERVICE · ")+
                     (int)Math.Ceiling(CivicResponseTimeLeft)+"s\n"+
                     (CivicResponseClinicRun?
-                        L("步行把药包送到检查台","CARRY MEDICINE TO CHECKPOINT"):
+                        L("步行送药  "+(int)Math.Ceiling(CivicResponseIntegrity)+"%",
+                          "DELIVER MEDICINE  "+(int)Math.Ceiling(CivicResponseIntegrity)+"%"):
                         CivicResponseEnemiesAlive>0?
                         L("击败袭击者 "+CivicResponseEnemiesAlive+" 名",
                             "DEFEAT RAIDERS · "+CivicResponseEnemiesAlive+" LEFT"):

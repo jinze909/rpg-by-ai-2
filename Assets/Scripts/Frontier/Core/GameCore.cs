@@ -552,6 +552,7 @@ namespace Starfall
             float actualDamage=Math.Max(0,damage*multiplier*armor);
             save.health -= actualDamage;
             DamageFarCourierCargo(actualDamage,source);
+            DamageCivicResponseMedicine(actualDamage,source);
             invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
             if (!save.reducedMotion) { hitStop = .045f; impactShake = source == "slam" ? .18f : 0; }
             effects.Add(new Effect("hurt", Position, .5f));

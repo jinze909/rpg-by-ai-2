@@ -146,7 +146,26 @@ namespace Starfall
         // in-progress state is transient; only earned outcomes enter v2 flags.
         private int civicResponseRoom=-1,civicResponseType;
         private Point civicResponseLast;
-        private float civicResponseElapsed,civicResponseDistance;
+        private float civicResponseElapsed,civicResponseDistance,civicResponseCargo;
+        public float CivicResponseIntegrity
+        {get{return CivicResponseClinicRun?civicResponseCargo:0;}}
+        // Only real post-defense player contact can damage carried medicine;
+        // weather effects, dodged attacks and idle timers do not.
+        private void DamageCivicResponseMedicine(float damage,string source)
+        {
+            if(!CivicResponseClinicRun||source=="environment"||damage<=0)return;
+            civicResponseCargo=Math.Max(0,civicResponseCargo-
+                Math.Max(12,Math.Min(40,damage*1.1f)));
+            if(civicResponseCargo<=0)
+            {
+                ResetCivicResponse();revision++;
+                Notify("真正的敌人攻击打碎了急救药箱，请回避险棚重新领取。",
+                    "A real enemy strike destroyed the medical kit. Recollect it at the refuge.");
+            }
+            else if(civicResponseCargo<=40)
+                Notify("医疗包受损！谨慎闪避，再把剩余药品亲手送到检查站。",
+                    "Medicine damaged! Dodge carefully and deliver the remaining kit to the checkpoint.");
+        }
         private bool civicResponseKillA,civicResponseKillB;
         public bool CivicResponseActive
         {get{return civicResponseRoom==save.room&&!Dying;}}
@@ -178,7 +197,7 @@ namespace Starfall
             effects.RemoveAll(e=>e.civicResponseOwned);
             civicResponseRoom=-1;civicResponseType=0;
             civicResponseLast=new Point();
-            civicResponseElapsed=civicResponseDistance=0;
+            civicResponseElapsed=civicResponseDistance=civicResponseCargo=0;
             civicResponseKillA=civicResponseKillB=false;
         }
         private void OnCivicResponseEnemyDefeated(Enemy e)
@@ -351,6 +370,7 @@ namespace Starfall
                 }
                 civicResponseRoom=save.room;civicResponseType=type;
                 civicResponseLast=Position;civicResponseElapsed=civicResponseDistance=0;
+                civicResponseCargo=type==1?100:0;
                 civicResponseKillA=civicResponseKillB=false;
                 sound="quest";revision++;
                 Notify(type==1?"医药护送开始：75秒内亲自走到北侧居民检查站！":
