@@ -135,8 +135,8 @@ namespace Starfall
             if (tile == '#' || tile == '~' || tile == 'f') return true;
             if ((tile == 'v' || tile == 'w' || tile == 'b') && !Has("seal_" + save.room)) return true;
             if (save.room == 5 && tile == '%' && !LowTide) return true;
-            foreach (Decoration d in Map.decor)
-                if (d.kind == "house" && Math.Abs(x - d.x) < 1.8f && y > d.y - 1.6f && y < d.y - .2f) return true;
+            foreach (Decoration d in StaticHouseColliders())
+                if (Math.Abs(x - d.x) < 1.8f && y > d.y - 1.6f && y < d.y - .2f) return true;
             return GateBarrierActive && InProtectedArena(new Point(x, y));
         }
         private bool Fits(Point p)

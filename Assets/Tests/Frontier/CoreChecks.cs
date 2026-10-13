@@ -361,6 +361,30 @@ namespace Starfall.Tests
                 "Existing rest refresh makes the new site renewable without new save format");
         }
 
+        public static void CachedHouseCollidersRemainCorrectAcrossMapSwitches(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            int tested=0;
+            for(int room=0;room<8;room++)
+            {
+                g.save.room=room;
+                foreach(Decoration d in data.maps[room].decor)
+                    if(d.kind=="house")
+                    {
+                        tested++;
+                        Check(g.Blocked(d.x,d.y-.7f),
+                            "Solid house footprint remains blocked after world-decoration caching");
+                    }
+                foreach(WorldObject o in data.maps[room].objects)
+                    if(o.kind=="trailcircuit")
+                        Check(g.CanStand(new Point(o.x,o.y)),
+                            "Third-ring site remains walkable when switching collision maps");
+            }
+            Check(tested>=4,"World collision regression exercises existing authored houses");
+            g.save.room=0;
+            Check(g.Blocked(7,5.3f),"Returning to town restores its original solid house colliders");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)
