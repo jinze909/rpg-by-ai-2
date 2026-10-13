@@ -177,6 +177,39 @@ namespace Starfall.Tests
             Check(!resumed.FarCourierActive&&resumed.FarCourierGuardLeft==0,
                 "Transient convoy ward never leaks into version-two save slots");
         }
+        public static void CargoProtectionUsesActualDifficultyAndArmor(Campaign data)
+        {
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            float[] healthLoss=new float[3],parcelLoss=new float[3];
+            for(int difficulty=0;difficulty<=2;difficulty++)
+            {
+                var g=Fresh(data);g.save.difficulty=difficulty;
+                g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+                g.Enter(0);g.enemies.Clear();
+                var bridge=Object(g,"farbridge");g.save.x=bridge.x;g.save.y=bridge.y;
+                Action(g,"farbridge","far_courier_start");
+                g.invulnerable=0;
+                float hp=g.save.health;
+                hurt.Invoke(g,new object[]{20f,"shot",null});
+                healthLoss[difficulty]=hp-g.save.health;
+                parcelLoss[difficulty]=100-g.FarCourierIntegrity;
+                Check(g.FarCourierActive&&g.FarCourierIntegrity>0,
+                    "A nonlethal actual strike cannot instantly fabricate cargo failure");
+            }
+            Check(healthLoss[0]<healthLoss[1]&&healthLoss[1]<healthLoss[2]&&
+                parcelLoss[0]<parcelLoss[1]&&parcelLoss[1]<parcelLoss[2],
+                "Easy, Normal and Hard protection must scale actual player and cargo loss");
+            var armored=Fresh(data);armored.save.flags.Add("far_bridge_0");
+            armored.save.flags.Add("far_shelter_0");armored.Enter(0);
+            armored.enemies.Clear();var post=Object(armored,"farbridge");
+            armored.save.x=post.x;armored.save.y=post.y;
+            Action(armored,"farbridge","far_courier_start");
+            armored.guardTime=1;armored.invulnerable=0;
+            hurt.Invoke(armored,new object[]{20f,"shot",null});
+            Check(100-armored.FarCourierIntegrity<parcelLoss[1],
+                "Guarding with the hero's existing real armor reduces parcel impact");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;

@@ -316,6 +316,17 @@ public static class RenderStateChecks
         Check(g.FarCourierIntegrity<100&&
             GUI.commands.Exists(c=>c.Contains("PARCEL 76%")),
             "Production parcel render updates the physical cargo indicator after an actual hit");
+        var guard=typeof(GameCore).GetField("courierGuardLeft",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        Check(guard!=null,"A real transient convoy ward field exists");
+        g.save.reducedMotion=true;guard.SetValue(g,5f);
+        Clear();Call(app,"DrawFarCourierPack");
+        Check(GUI.commands.Exists(c=>c.Contains("WARD 5s")),
+            "Active convoy wards remain visibly indicated even with reduced motion");
+        guard.SetValue(g,0f);
+        Clear();Call(app,"DrawFarCourierPack");
+        Check(!GUI.commands.Exists(c=>c.Contains("WARD ")),
+            "The protective ring and countdown retire at the end of their duration");
         g.save.y+=4;g.Close();g.Tick(.05f,new Point());
         Clear();Call(app,"DrawFarCourierPack");
         Check(!g.FarCourierActive&&GUI.commands.Count==0&&GUI.textureCalls.Count==0,
