@@ -396,6 +396,9 @@ namespace Starfall.Tests
             ActorAction ongoing=g.playerAction;
             Check(ongoing!=null&&ongoing.kind=="attack",
                 "A real sword attack prepares before the equipment click");
+            // Queue Q inside the true recoverable attack window, not the
+            // initial windup outside the game's intentional buffer deadline.
+            for(int i=0;i<4;i++)g.Tick(.05f,new Point());
             int beforeRevision=g.revision, originalWeapon=g.save.weapon;
             g.Skill(new Point(1,0));
             Check(g.skillCooldown==0&&g.playerAction==ongoing,
