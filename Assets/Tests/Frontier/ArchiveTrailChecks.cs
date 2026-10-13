@@ -71,6 +71,49 @@ namespace Starfall.Tests
                 "Atlas quest and its rewards persist through the existing save format");
         }
 
+        public static void StarrootTrialsSupportRealSafeWithdrawal(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            g.save.flags.Add("scout_saved"); g.save.flags.Add("root_harmony_started");
+            g.Enter(2); g.enemies.Clear();
+            g.save.flags.Add("root_harmony_1");
+            WorldObject node = Object(g, "rootcounter2");
+            g.save.x = node.x; g.save.y = node.y;
+            Action(g, node.kind, "root_harmony_tune_2_0");
+            Check(g.RootHarmonyRoom == 2 && g.enemies.FindAll(g.IsRootHarmonyEnemy).Count == 3,
+                "An actual tide-frequency selection awakens live second-region sentinels");
+            g.projectiles.Add(new Projectile {
+                position = g.Position, velocity = new Point(0, 0),
+                source = "shot", visual = "enemyArrow", life = 2, rootHarmonyOwned = true
+            });
+            g.hazards.Add(new Hazard {
+                position = g.Position, timer = 1.3f, radius = 1,
+                damage = 10, kind = "tide", rootHarmonyOwned = true
+            });
+            g.effects.Add(new Effect("danger", g.Position, 1.3f) {
+                radius = 1, rootHarmonyOwned = true
+            });
+            var unrelated = new Effect("discover", g.Position, 2);
+            g.effects.Add(unrelated);
+            g.Talk(node);
+            int abandon = Array.FindIndex(g.conversation.choices, c =>
+                c.action == "root_harmony_abandon_2");
+            Check(abandon >= 0, "Combat dialogue offers a real retreat command");
+            g.Choose(abandon);
+            Check(g.RootHarmonyRoom == 0 &&
+                !g.enemies.Exists(g.IsRootHarmonyEnemy) &&
+                !g.projectiles.Exists(p => p.rootHarmonyOwned) &&
+                !g.hazards.Exists(h => h.rootHarmonyOwned) &&
+                !g.effects.Exists(e => e.rootHarmonyOwned) &&
+                g.effects.Contains(unrelated),
+                "Voluntary retreat retires only temporary trial attacks, not unrelated world effects");
+            Check(!g.Has("root_harmony_2") && g.GetQuest("root_harmony").room == 2,
+                "Retreat neither fabricates a reading nor skips the regional chapter");
+            Action(g, node.kind, "root_harmony_tune_2_0");
+            Check(g.RootHarmonyRoom == 2 && g.enemies.FindAll(g.IsRootHarmonyEnemy).Count == 3,
+                "The same map's physical stone can start a fresh fair challenge after retreat");
+        }
+
         public static void StarrootCombatPulsesWarnAndCanActuallyBeDodged(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
