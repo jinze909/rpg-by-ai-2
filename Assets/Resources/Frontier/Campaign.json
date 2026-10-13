@@ -222,6 +222,14 @@
           "en": "Yilan · Skywatch astronomer",
           "x": 20.5,
           "y": 9.5
+        },
+        {
+          "id": "glasswindkeeper",
+          "name": "米娅 · 沙海风路测绘员",
+          "en": "Mia · Desert Wind Cartographer",
+          "kind": "glasswindkeeper",
+          "x": 24.5,
+          "y": 10.5
         }
       ],
       "decor": [
@@ -2025,6 +2033,30 @@
           "x": 4.5,
           "y": 19.5,
           "lore": 14
+        },
+        {
+          "id": "glasswindrelay1",
+          "name": "北沙风压阀",
+          "en": "Northern Wind Valve",
+          "kind": "glasswindrelay1",
+          "x": 12.5,
+          "y": 6.5
+        },
+        {
+          "id": "glasswindrelay2",
+          "name": "东脊风压阀",
+          "en": "Eastern Ridge Valve",
+          "kind": "glasswindrelay2",
+          "x": 26.5,
+          "y": 10.5
+        },
+        {
+          "id": "glasswindrelay3",
+          "name": "南沙风压阀",
+          "en": "Southern Wind Valve",
+          "kind": "glasswindrelay3",
+          "x": 26.5,
+          "y": 19.5
         }
       ],
       "decor": [

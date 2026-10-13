@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,34 @@ namespace Starfall
             }
 
 
+            if (id == "glasswind")
+            {
+                q.title=L("玻璃风脉","Glasswind Circuit");
+                q.category=L("沙海争夺 · 限时守点","DESERT CONTROL · TIMED DEFENSE");
+                q.locked=!Has("glasswind_started");
+                q.description=L("沙海三座风压阀被旧货运网独占。靠近风圈完成八秒校准，击退两波守卫，再手动封存中继。",
+                    "The old freight network controls three desert wind valves. Hold the capture ring for eight seconds, defeat two security waves, then manually seal each relay.");
+                int next=0;
+                for(int i=1;i<=3;i++)
+                {
+                    bool done=Has("glasswind_"+i);
+                    q.steps.Add(new QuestStep(L("恢复第 "+i+" 座风脉","Restore wind relay "+i),done));
+                    if(!done && next==0)next=i;
+                }
+                q.complete=Has("glasswind_complete");
+                q.steps.Add(new QuestStep(L("向米娅公开风路图","Publish the wind chart with Mia"),q.complete));
+                q.room=q.locked || Has("glasswind_all_sealed")?0:6;
+                q.target=ObjectPoint(q.room,q.room==0?"glasswindkeeper":
+                    "glasswindrelay"+(GlasswindSite>0?GlasswindSite:Math.Max(1,next)),new Point(18,12));
+                q.next=q.complete?L("全部中继已变成公共避暑地","All relays provide public shade"):
+                    q.locked?L("完成沙海调查后找测绘员米娅","Finish the desert report and find Mia"):
+                    Has("glasswind_all_sealed")?L("返回余烬镇公开风路图","Publish the chart in Emberfall"):
+                    GlasswindSite!=0?L("守住风圈击退两波敌人，再按E封存","Hold the ring, defeat both waves and press E to seal"):
+                    L("前往沙海中继站开始守点","Start a desert relay defense");
+                q.reward=L("每站15硬币、1碎片、20经验与避暑圈；最终65硬币、2碎片、1天赋点、70经验",
+                    "Each: 15 coins, 1 shard, 20 XP and shade; final: 65 coins, 2 shards, 1 talent, 70 XP");
+                return q;
+            }
             if (id == "skywatch")
             {
                 q.title=L("霜钟夜空","Frostchime Skywatch");

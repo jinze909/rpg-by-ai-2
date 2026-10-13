@@ -320,7 +320,8 @@ namespace Starfall
             if(Dying||mode!="world")return;
             bool tea = save.teaUntil > save.totalTime;
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
-                !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) && !racing ? 1.3f : -10), 0, 100);
+                !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
+                !GlasswindRefuge && !racing ? 1.3f : -10), 0, 100);
             bool warm = false;
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;

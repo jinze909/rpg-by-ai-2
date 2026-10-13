@@ -168,6 +168,37 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="glasswindkeeper")
+            {
+                DrawNpc("innGuest",new Point(o.x,o.y),9);
+                Text(p.x-30,p.y-85,60,20,
+                    Game.Has("glasswind_complete")?"✓":Game.Has("desert_report")?"!":"·",
+                    17,Game.Has("glasswind_complete")?mint:gold,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind.StartsWith("glasswindrelay"))
+            {
+                int id;
+                if(!int.TryParse(kind.Substring("glasswindrelay".Length),out id) ||
+                    id<1 || id>3) return true;
+                bool done=Game.Has("glasswind_"+id),active=Game.GlasswindSite==id;
+                Color tint=done?mint:active?PixelArt.C("#faaf70"):gold;
+                PropImage("column",0,p.x-29,p.y-67,58,76,done?Color.white:muted);
+                Ring(new Point(o.x,o.y),active?2.55f:done?1f:.62f,tint,32);
+                Text(p.x-61,p.y-89,122,20,
+                    done?Game.L("公共避暑风脉","PUBLIC SHADE"):
+                    active?Game.L("风脉正在校准","RELAY CHARGING"):
+                    Game.L("旧风压中继","WIND RELAY"),
+                    11,tint,TextAnchor.MiddleCenter);
+                if(active)
+                {
+                    Bar(p.x-41,p.y+11,82,Game.GlasswindCharge/8f,tint,7);
+                    Text(p.x-45,p.y-109,90,20,
+                        Game.GlasswindTime.ToString("0")+"s · "+
+                        Game.GlasswindWave+"/2",11,tint,TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
             if(kind=="skywatcher")
             {
                 DrawNpc("innGuest",new Point(o.x,o.y),12);
