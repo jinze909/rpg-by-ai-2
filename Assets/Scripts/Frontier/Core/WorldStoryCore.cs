@@ -40,6 +40,7 @@ namespace Starfall
             if (page == "signal") return Has("survey_complete");
             if (page == "atlas") return Has("archive_complete");
             if (page == "counterpoint") return Has("root_harmony_started");
+            if (page == "commons") return Has("commons_relay_started");
             if (page == "abyss") return save.frontierEnding > 0;
             if (page == "ending") return save.ending > 0;
             return false;
@@ -87,6 +88,8 @@ namespace Starfall
                 if (StoryUnlocked("atlas")) choices.Add(StoryChoice("失落测绘师的记录", "The lost surveyor's atlas", "story_read_atlas"));
                 if (StoryUnlocked("counterpoint"))
                     choices.Add(StoryChoice("星根失谐与三段音纹", "Starroot Counterpoint · three readings", "story_read_counterpoint"));
+                if (StoryUnlocked("commons"))
+                    choices.Add(StoryChoice("公共信标 · 艾拉的证词", "Citadel Commons Relay · Ayla's testimony", "story_read_commons"));
                 if (StoryUnlocked("abyss")) choices.Add(StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
@@ -111,7 +114,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "ruins", "mine", "citadel" };
             if (section == "farshore") return new[] { "harbor", "desert", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "abyss", "ending" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "abyss", "ending" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -263,6 +266,24 @@ namespace Starfall
                     headingZh = "失落测绘师：校准的是归途"; headingEn = "Lost Surveyor: Calibrating the Way Home";
                     zh = "琳拼好林地残图、遗迹刻石与矿场测距仪，发现旧测绘师记录的是撤离坡道而非黄金矿脉。矿场校准台仍保存一具重甲方位回声，按旧守卫协议攻击来者。\n\n战胜回声不是杀死测绘师的幽灵，而是结束一套已经失去使用目的的自动防御，让这些路线重新对活人开放。";
                     en = "Lin joins the woodland chart, tide inscription and mine rangefinder into an atlas of escape routes rather than treasure seams. An armored compass echo remains in a Rediron calibrator.\n\nSilencing that defense is not killing a surveyor's ghost. It is retiring a machine that has forgotten why the route existed.";
+                    break;
+                case "commons":
+                    headingZh = "公共信标：谁有权关掉灯？";
+                    headingEn = "Citadel Commons Relay: Who Can Turn Out the Light?";
+                    zh = "艾拉保管着星陨后无人签收的供给请求。堡垒守卫已败，粮食、医护和撤离灯线却仍按照九年前的封闭权限运行。\n\n" +
+                        (Has("commons_relay_sealed") ?
+                            "你亲自穿过旧守卫重连了三道民用线路。关闭粮道、病房和撤离灯线，不应该再是机器无人问责的决定。\n" :
+                            "三道公共信标仍在旧协议控制下。西侧粮路、东侧医护与东南撤离灯线等待修复。\n") +
+                        (Has("commons_relay_complete") ?
+                            "\n艾拉已经将访问密钥公开保存在城镇。民用供给不再由单人或封闭机器决定。" :
+                            "\n公开授权尚未交给艾拉，最后一份证词仍在等待署名。");
+                    en = "Ayla kept the supply requests nobody acknowledged after the fall. Even after the guardian fell, food, care and evacuation light remained under private permissions from nine years ago.\n\n" +
+                        (Has("commons_relay_sealed") ?
+                            "You crossed real security lines to restore the three civilian circuits. Food routes, treatment and evacuation lamps must no longer be switched off without public accountability.\n" :
+                            "Three public relay stations remain bound by old security: western food routes, eastern medical care and southeastern evacuation lights.\n") +
+                        (Has("commons_relay_complete") ?
+                            "\nAyla published the access key in the town archive, placing civilian supply under public oversight." :
+                            "\nThe final testimony still awaits a public signature from Ayla.");
                     break;
                 case "counterpoint":
                     headingZh = "星根失谐：和声属于谁"; headingEn = "Starroot Counterpoint: Whose Song?";
