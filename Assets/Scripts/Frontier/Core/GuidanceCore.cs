@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -74,6 +74,50 @@ namespace Starfall
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
 
+
+
+            if (id == "roadcharter")
+            {
+                q.title = L("第八章 · 共同行路", "Chapter Eight · Roads for Everyone");
+                q.category = L("主线 · 战后公共道路", "STORY · CIVILIAN ROADS");
+                q.description = L(
+                    "公开听证之后，真正的公共道路必须从居民走过的路径里重新绘制。带回密林、遗迹、矿场三份东部支路证据，再与莉雅决定未来的交通优先级。",
+                    "After the public hearing, public roads must be charted from paths residents actually use. Survey three eastern branches and bring the field evidence to Lyra for a lasting civic choice.");
+                q.locked = !RoadCharterReady;
+                q.complete = RoadCharterComplete;
+                q.steps.Add(new QuestStep(L("与莉雅开启道路实地测绘", "Begin Lyra's road survey"), RoadCharterStarted));
+                for (int region = 1; region <= 3; region++)
+                    q.steps.Add(new QuestStep(L(new[] { "", "核对密林东部路标", "核对沉没遗迹东部路标", "核对矿场东部路标" }[region],
+                        new[] { "", "Verify Thornwood's eastern route", "Verify the Ruins' eastern route", "Verify Ironreach's eastern route" }[region]),
+                        Has("roadcharter_report_" + region)));
+                q.steps.Add(new QuestStep(L("公会公布真实道路公约", "Enact the guild's public road charter"),
+                    RoadCharterComplete));
+                int nextRegion = -1;
+                if (RoadCharterStarted)
+                    for (int region = 1; region <= 3; region++)
+                        if (!Has("roadcharter_report_" + region)) { nextRegion = region; break; }
+                q.room = nextRegion < 0 ? 0 : nextRegion;
+                q.target = nextRegion < 0 ? ObjectPoint(0, "guild", new Point(18, 17)) :
+                    ObjectPoint(nextRegion, "waytrail", new Point(47.5f, 23.5f));
+                // Multiple branch objects share "waytrail"; select the east marker by ID.
+                if (nextRegion > 0)
+                    foreach (WorldObject marker in data.maps[nextRegion].objects)
+                        if (marker.id == "waytrail" + nextRegion + "e")
+                            { q.target = new Point(marker.x, marker.y); break; }
+                q.next = q.locked ? L("先完成第七章听证和厄洛的民用责任协议",
+                    "Finish Chapter Seven and Orrin's civilian responsibility pledge") :
+                    q.complete ? L("旧路公约公开；所有原有结局和地区选择保留",
+                        "Road charter published; previous endings and regional choices remain") :
+                    !RoadCharterStarted ? L("返回余烬镇，与公会莉雅谈第八章",
+                        "Speak to Lyra in Emberfall about Chapter Eight") :
+                    nextRegion > 0 ? L("实地走到东部新支路，阅读原始测绘石碑",
+                        "Explore the eastern annex and read the old survey marker") :
+                        L("三份实地证据齐备；返回公会与莉雅签署公约",
+                            "All three reports collected; return to Lyra to enact the charter");
+                q.reward = L("完成获得45硬币、3碎片、60经验，并选择永久步速或耐力恢复",
+                    "45 coins, 3 shards, 60 XP and a permanent walking-speed or stamina-regeneration benefit");
+                return q;
+            }
 
             if (id == "waytrails")
             {

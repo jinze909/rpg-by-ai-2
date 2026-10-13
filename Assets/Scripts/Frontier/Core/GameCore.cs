@@ -48,7 +48,7 @@ namespace Starfall
         }
         public int Allies { get { int n = 0; for (int i = 1; i <= 3; i++) if (Has("ally_" + i)) n++; return n; } }
         public float Damage { get { return (19 + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
-        public float Speed { get { return 4.5f + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
+        public float Speed { get { return 4.5f + (Has("roadcharter_public") ? .25f : 0) + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
         public bool GateOpen
         {
             get { return save.room == 0 || save.room == 4 || save.room == 8 || save.room == 9 || (save.room == 1 && Has("scout_saved")) || Has("gate_" + save.room); }
@@ -331,7 +331,7 @@ namespace Starfall
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
-                (Has("commons_relay_complete") ? 2 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
+                (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
             TickMovement(dt, movement, explicitAim);
@@ -864,6 +864,9 @@ namespace Starfall
             string[] southEn = { "A southern bearing leads to the inn. Small provisions once guided lost children home.", "A road-warden's note lies beneath the roots: find the scout, then ask why the forest was sealed.", "A line of unnamed people runs along the drowned bridge. With each tide it grew longer than the cargo manifest.", "Workers marked this shed when they voted to stop the machines, refusing to call casualties mere wastage.", "A hidden southern evacuation slope leads away from the citadel: someone led children through the Starfall here.", "An old dock log names a boat that never returned. Every lit lamp kept a place for its crew.", "The shade marker lists the oasis water share, different from the numbers in the depot ledger.", "The fire has gone out, but neatly arranged twigs point toward the nearest inhabited shelter." };
             string[] eastZh = { "渠水绕过镇墙，在石缝里留下更早的测绘线。巡路队标明：真正的归途，必须允许平民使用。", "荆棘从一棵巨树分岔向两条路。这里的根系曾替旅人遮风，并不是天生的路障。", "退潮露出沉在泥下的旧桥钉，说明小孩逃难时所走的桥曾被人为移走过。", "运矿轨道一路伸向城墙，废弃的工人餐牌上却只剩一句“先撤人，再开机”。", "防护墙的边缘刻着两种日期：一份记录星雨，另一份记录城外第一次停电。", "船夫在岩面留下潮位：低潮能行船，高水位必须留下灯与足够的救援木板。", "透光的沙脊仍有九年前的分配刻度。旧秤量过晶石，却没有量过绿洲的需要。", "背风处的一块旧钟锤保持温暖。守路人把它交给所有找不到炉火的旅客。" };
             string[] eastEn = { "Water runs past the town wall. A survey line says the road home must remain open to ordinary families.", "Briar roots divide at an ancient tree. This shelter once protected travelers; it was not born a barricade.", "Old bridge rivets emerge at ebb tide. Someone rerouted the crossing used by escaping children.", "The abandoned mine railway carries a worker's last instruction: evacuate people before restarting machines.", "Two dates are carved outside the shield: the Starfall itself and the first night the outer settlements went dark.", "A ferryman marked two tides here: boats at ebb, warning lamps and rescue planks when the water rises.", "A glass ridge retains the nine-year allocation marks. They counted crystals, not the oasis's need.", "An old bell hammer is still warm on the lee slope, left for travelers unable to reach a brazier." };
+            bool charterEvidence = RecordRoadCharterWaypoint(o);
+            string charterZh = charterEvidence ? "\n\n这份实地测绘已封存到第八章的公开证据，进度 " + RoadCharterReports + "/3。" : "";
+            string charterEn = charterEvidence ? "\n\nRecorded as public Chapter Eight field evidence (" + RoadCharterReports + "/3)." : "";
             string closingZh = save.ending > 0
                 ? "\n\n星核的结局已经写下，但路标仍属于每一位需要它的人。"
                 : "\n\n这条路线没有写进堡垒的正式地图。先记下它，未来也许能让更多人安全归来。";
@@ -875,8 +878,8 @@ namespace Starfall
             string rewardEn = first ? "\n\nFirst survey: +8 coins, +1 shard." +
                 (Has("waytrail_complete") ? " All old routes charted: +1 talent point." : "") : "";
             Dialog(o.name, o.en,
-                (eastern ? eastZh[region] : southZh[region]) + closingZh + rewardZh,
-                (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn,
+                (eastern ? eastZh[region] : southZh[region]) + closingZh + rewardZh + charterZh,
+                (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn + charterEn,
                 C("记入旧路星图", "Record in the road chart", "close"));
             return true;
         }
@@ -920,7 +923,7 @@ namespace Starfall
                     "There is warm stew at the inn, starcrystal in the woods, and more living to do.",
                     C("开始新的远征", "Another expedition", "routes"),
                     C("回顾结局", "Revisit the ending", "epilogue"),
-                    C("再见", "Goodbye", "close")); return; }
+                    C("再见", "Goodbye", "close")); AddRoadCharterGuildChoice(); return; }
                 int next = save.stage + 1;
                 if (save.stage < 3 && Has("core_" + next))
                     Dialog(o.name, o.en, (Has("witness_complete_"+next) ?

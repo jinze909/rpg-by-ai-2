@@ -228,5 +228,97 @@ namespace Starfall.Tests
                 "Waypoint discovery and rewards survive a normal save reload");
         }
 
+        public static void ChapterEightRoadCharterUsesNewMapsAndChangesActualProgression(Campaign data)
+        {
+            var g = new GameCore(data);
+            g.mode = "world";
+            g.save.stage = 3; g.save.ending = 1; g.save.level = 10;
+            WorldObject guild = Array.Find(data.maps[0].objects, o => o.kind == "guild");
+            g.save.x = guild.x; g.save.y = guild.y;
+            g.Talk(guild);
+            Check(Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild") < 0,
+                "Chapter Eight remains locked before the Chapter Seven hearing");
+            g.Close();
+            g.save.flags.Add("hearing_complete");
+            g.save.flags.Add("hearing_orrin_aid");
+            Check(g.RoadCharterReady && !g.RoadCharterStarted, "Signed hearing unlocks the road chapter");
+            g.Talk(guild);
+            int idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild");
+            Check(idx >= 0, "Guild presents a new chapter without removing prior dialogue choices");
+            g.Choose(idx);
+            Check(g.mode == "dialog", "Chapter Eight introduction is playable dialogue");
+            idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_begin");
+            Check(idx >= 0, "Lyra offers real expedition acceptance");
+            g.Choose(idx);
+            Check(g.RoadCharterStarted && g.save.trackedQuest == "roadcharter" &&
+                g.RoadCharterReports == 0, "Starting new main chapter records a trackable objective");
+            int preCoins = g.save.coins, preShards = g.save.shards;
+            for (int room = 1; room <= 3; room++)
+            {
+                WorldObject marker = Array.Find(data.maps[room].objects,
+                    o => o.id == "waytrail" + room + "e");
+                g.save.room = room; g.save.x = marker.x; g.save.y = marker.y;
+                g.mode = "world";
+                g.Talk(marker);
+                Check(g.RoadCharterReports == room &&
+                    g.Has("roadcharter_report_" + room),
+                    "Physical eastern survey advances exactly one regional main-story report");
+                g.Close();
+                g.Talk(marker); g.Close();
+                Check(g.RoadCharterReports == room, "Rereading one marker cannot duplicate evidence");
+            }
+            Check(g.GetQuest("roadcharter").room == 0 &&
+                g.GetQuest("roadcharter").target.x == guild.x,
+                "Three surveyed regions route player back to Lyra");
+            g.save.room = 0; g.save.x = guild.x; g.save.y = guild.y;
+            g.Talk(guild); idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild");
+            Check(idx >= 0, "Guild retains Chapter Eight resolution");
+            g.Choose(idx);
+            float priorSpeed = g.Speed;
+            idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_public");
+            Check(idx >= 0, "Civilian priority is a real player decision");
+            g.Choose(idx);
+            Check(g.RoadCharterComplete && g.Has("roadcharter_public") &&
+                Math.Abs(g.Speed - priorSpeed - .25f) < .001f &&
+                g.save.coins == preCoins + 3 * 8 + 45 &&
+                g.save.shards == preShards + 3 + 3,
+                "Chapter Eight's first ending rewards once and grants a real speed upgrade");
+            SaveData snapshot = g.save;
+            var loaded = new GameCore(data, snapshot);
+            Check(snapshot.version == 2 && loaded.RoadCharterComplete &&
+                loaded.Has("roadcharter_public") && loaded.RoadCharterReports == 3,
+                "Road charter and collected testimony persist without a SaveData migration");
+            g.Talk(guild);
+            idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild");
+            g.Choose(idx); g.Close();
+            Check(g.save.coins == snapshot.coins && g.save.shards == snapshot.shards,
+                "Rereading completed public roads cannot farm the main-story payout");
+
+            var reserve = new GameCore(data);
+            reserve.save.flags.Add("hearing_complete");
+            reserve.save.flags.Add("hearing_orrin_patrol");
+            reserve.save.flags.Add("roadcharter_started");
+            for (int room = 1; room <= 3; room++)
+                reserve.save.flags.Add("roadcharter_report_" + room);
+            reserve.save.stage = 3; reserve.save.ending = 1; reserve.save.level = 10;
+            reserve.save.x = guild.x; reserve.save.y = guild.y;
+            reserve.mode = "world";
+            float speedBefore = reserve.Speed;
+            reserve.Talk(guild);
+            idx = Array.FindIndex(reserve.conversation.choices, c => c.action == "roadcharter_guild");
+            reserve.Choose(idx);
+            idx = Array.FindIndex(reserve.conversation.choices, c => c.action == "roadcharter_reserve");
+            reserve.Choose(idx);
+            Check(reserve.Has("roadcharter_reserve") && reserve.RoadCharterComplete &&
+                Math.Abs(reserve.Speed - speedBefore) < .001f &&
+                reserve.save.version == 2,
+                "Alternative ending grants a distinct choice without quietly changing movement");
+            float startEnergy = 15f;
+            reserve.save.energy = startEnergy;
+            reserve.Tick(.5f, new Point());
+            Check(reserve.save.energy >= startEnergy + 8.5f,
+                "Emergency-road charter adds its real +3 per second stamina regeneration");
+        }
+
     }
 }
