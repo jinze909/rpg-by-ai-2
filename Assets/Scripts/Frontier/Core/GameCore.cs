@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient();
         }
         public void NewGame(int profession)
         {
@@ -201,6 +201,12 @@ namespace Starfall
             if (Dying) return;
             // No world travel while carrying live afterlight charge.
             // The original region, site plan and remote receiver must matter.
+            if(stormTuning)
+            {
+                Notify("公约星灯正在进行实地调谐，必须完成或返回议事台放弃，不能切换地图。",
+                    "Live civic-grid tuning must finish or be canceled at the council before travel.");
+                return;
+            }
             if(afterlightChargeRegion!=0)
             {
                 Notify("余光输送仍在进行。先走到本地区公共接收台，或返回原锚点主动取消。",
@@ -270,6 +276,12 @@ namespace Starfall
         }
         public void ReturnToTown()
         {
+            if(stormTuning)
+            {
+                Notify("公共星灯调谐仍在进行，不能使用快捷回城绕过城市节点。",
+                    "Public lamp tuning is active; finish or cancel before fast travel.");
+                return;
+            }
             if(afterlightChargeRegion!=0)
             {
                 Notify("第五章余光传输中，不能直接快速回城。请到原锚点取消或完成通电。",
@@ -773,6 +785,7 @@ namespace Starfall
         public bool IsObjectPresent(WorldObject o)
         {
             if (o == null) return false;
+            if(o.kind.StartsWith("stormnode")) return Has("storm_started");
             if(o.kind.StartsWith("afterlightwaypoint"))
             {
                 int region;
@@ -1095,6 +1108,17 @@ namespace Starfall
             {
                 zh[ending] += "\n\n密林的莫芽、遗迹的阿菱和矿场的维恩把亲笔署名的证词留给了公会；新的公共档案终于记得谁在修复土地、谁在等候过河、谁应该安全下班。";
                 en[ending] += "\n\nMoya of Thornwood, Arin of the ruins and Venn of Ironreach left signed testimony with the guild. Public records now remember who healed the soil, who waited to cross and who deserved to go home after work.";
+            }
+            if (Has("storm_started"))
+            {
+                zh[ending] += "\n\n第六章的第一场星雨让公共能源第一次经受真实检验：八单位储备已由三地亲自决定分配 "+StormBudgetSpent+" 单位。" +
+                    (Has("storm_complete")?
+                        "余烬镇的三座公共灯站已由你亲自按顺序调谐，公约经受住风暴考验，剩余的 "+StormBudgetLeft+" 单位仍供城镇应急。" :
+                        "真正的公约尚待完成，街道上的星雨不能只凭宣言就平息。");
+                en[ending] += "\n\nThe first starstorm tested civic energy governance: the living regions themselves assigned "+StormBudgetSpent+" out of eight reserve units." +
+                    (Has("storm_complete")?
+                        " You physically tuned three town lamps in the order determined by your original ending; the charter survived, with "+StormBudgetLeft+" units still available for Emberfall emergencies." :
+                        " The first-storm charter is not complete, and promises alone cannot calm the live storm.");
             }
             if (Has("afterlight_started"))
             {

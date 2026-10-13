@@ -150,6 +150,44 @@ namespace Starfall
                         C(i==0?"#83b89c":i==1?"#7aaed4":"#dc9c75"));
                 Box(23,22,53,5,brass);Box(23,96,53,5,brass);
             }
+            else if (kind == "stormrelay")
+            {
+                // Public allocation terminal: shelter and power branches are
+                // visibly separated, against the abandoned military conduits.
+                Color sStone=C("#536975"),sDark=C("#253d4b"),
+                    sBrass=C("#cfaf75"),sLight=C("#f4cf86"),
+                    sRoot=C("#9bccb1");
+                Box(25,71,46,31,sStone);
+                Box(18,93,60,11,sDark);
+                Box(20,66,57,10,sBrass);
+                Box(41,23,15,55,sStone);
+                Disc(48,34,15,16,sDark);
+                Disc(48,34,10,11,sLight);
+                Box(46,48,5,42,sBrass);
+                Box(23,40,16,6,sRoot);Box(20,32,6,28,sRoot);
+                Box(56,40,18,6,sBrass);Box(69,33,6,27,sBrass);
+                for(int i=0;i<3;i++)Disc(30+i*18,84,4,4,
+                    C(i==0?"#a6e0ba":i==1?"#b1d9e5":"#ebad80"));
+                Box(30,100,36,4,sBrass);
+            }
+            else if (kind == "stormlamp")
+            {
+                // Low-power public star lamp: civic copper, not a weapon or
+                // military spotlight. Three rays visible above the glass.
+                Color lampMetal=C("#c4a677"),lampGlow=C("#ffe5ae"),
+                    lampDark=C("#365363"),lampMint=C("#9dd8c4");
+                Box(42,53,13,52,lampDark);
+                Box(36,90,27,15,lampMetal);
+                Box(27,46,44,8,lampMetal);
+                Disc(49,37,16,20,lampGlow);
+                Disc(49,37,10,13,C("#fff5ce"));
+                Box(45,15,8,7,lampMetal);
+                Box(21,28,12,3,lampMint);Box(64,28,12,3,lampMint);
+                Box(45,5,7,10,lampMint);
+                Box(29,93,40,4,lampMint);
+                for(int i=0;i<3;i++)
+                    Disc(34+i*15,99,3,3,C(i==0?"#e7a97e":i==1?"#acd6bd":"#a2c9e3"));
+            }
             else if (kind == "afterlightanchor")
             {
                 // Fractured old-starroot pylons, joined with green civic wiring.

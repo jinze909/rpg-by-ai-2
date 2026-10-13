@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,63 @@ namespace Starfall
             }
 
 
+
+            if(id=="storm_commons")
+            {
+                q.title=L("第六章 · 公约第一夜","Chapter Six · First Night of the Commons");
+                q.category=L("战后主线 · 星雨与公共能源分配",
+                    "POST-FINALE STORY · PUBLIC GRID DURING THE STARSTORM");
+                q.locked=!StormReady;
+                q.complete=Has("storm_complete");
+                q.description=L("战后第一场星雨迫近，八单位公共储备必须供三个地区分配。庇护优先3单位，基础供能2单位，实际使用木材、月光草、星晶和零件。没稳定的地区会受到可闪避的星雨冲击。三地修复后回镇，依你原先的结局顺序亲自走到三座分散的星灯处完成95秒调谐，再回议事台公布公约。各地区的选择会永久影响疗养、耐力与工房制作成本。",
+                    "A real starstorm strikes the restored frontier. Allocate eight civic reserve units among three living districts: shelter-first uses three, essential utilities use two and each consumes actual repair materials. Unstable regions are struck by dodgeable arcs. After every region is stabilized, physically tune three dispersed town lamps in the order determined by your original ending, within 95 seconds. Finish at the council to publish the charter. Shelter, stamina and crafting costs change permanently according to your public decisions.");
+                q.steps.Add(new QuestStep(
+                    L("在公约议事台正式迎接第一场星雨",
+                        "Begin the first starstorm at the public council"),
+                    Has("storm_started")));
+                for(int i=1;i<=3;i++)
+                {
+                    q.steps.Add(new QuestStep(L(
+                        new[]{"密林 · 为受伤根系与行路者分配电力","遗迹 · 决定渡口与避难人群的供能","矿场 · 建立公开的安全工房配额"}[i-1],
+                        new[]{"Thornwood · roots and roads reserve","Ruins · crossing and emergency reserve","Ironreach · safe working reserves"}[i-1]),
+                        StormPolicy(i)!=0));
+                }
+                q.steps.Add(new QuestStep(L("在城镇依次激活三处公共星灯",
+                    "Physically tune three dispersed town public lamps"),Has("storm_tuned")));
+                q.steps.Add(new QuestStep(L("返回议事台公开真正经受星雨检验的公约",
+                    "Return to publish the storm-tested public charter"),q.complete));
+                int target=0;
+                if(!Has("storm_started") || q.complete || StormAllocations>=3)
+                    target=0;
+                else if(save.room>=1&&save.room<=3 && StormPolicy(save.room)==0)
+                    target=save.room;
+                else for(int i=1;i<=3;i++)
+                    if(StormPolicy(i)==0){target=i;break;}
+                q.room=target;
+                if(q.complete || !Has("storm_started") || StormAllocations<3 ||
+                    Has("storm_tuned") || !stormTuning)
+                    q.target=target==0?StormPoint(0,"stormcouncil"):
+                        StormPoint(target,"stormrelay"+target);
+                else
+                    q.target=StormPoint(0,"stormnode"+StormNextNode);
+                q.next=q.complete?L("六章主线结束 · 公开星雨配电公约已经生效",
+                    "Chapter Six complete · The first-storm charter is in effect"):
+                    q.locked?L("先完成第五章的公共设施与居民维护承诺",
+                    "First complete Chapter Five, public facilities and resident stewardship"):
+                    !Has("storm_started")?L("在余烬镇公共议事台召开星雨会议",
+                    "Begin the starstorm council at Emberfall"):
+                    StormAllocations<3?L("前往未稳定地区，分配8单位公共储备中的真实额度",
+                    "Visit an unstable region and allocate part of the real eight-unit civic reserve"):
+                    Has("storm_tuned")?L("三座镇内星灯已调谐，返回议事台公布公约",
+                    "All three town lamps are tuned; return and publish the civic charter"):
+                    stormTuning?L("限时依序操作下一座镇内星灯："+StormOrder(false),
+                    "Physically tune the next lamp in order: "+StormOrder(true)):
+                    L("回议事台启动95秒镇内公共星灯调谐",
+                    "Return to the council and begin 95-second civic lamp tuning");
+                q.reward=L("星雨后的三地永久设施升级；完成后110硬币、3碎片、110经验、1技能点",
+                    "Three permanent post-storm public services; 110 coins, 3 shards, 110 XP and 1 skill point");
+                return q;
+            }
 
             if(id=="afterlight")
             {

@@ -76,6 +76,13 @@ namespace Starfall
                 Bar(screen.x-19,screen.y+9,38,
                     Game.BlackoutFollowerHealth/48f,mint,5);
             }
+            if(Game.StormTuning)
+            {
+                Point pos=ScreenPoint(Game.Position);
+                Text(pos.x-80,pos.y-126,160,20,
+                    Game.L("星灯调谐 ","GRID TUNING ")+Game.StormTuneTime.ToString("0")+"s · "+
+                    Game.StormTuneStep+"/3",12,gold,TextAnchor.MiddleCenter);
+            }
             if(Game.BlackoutActive && !Game.save.reducedMotion)
             {
                 Point p=ScreenPoint(Game.Position);
@@ -185,6 +192,57 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="stormcouncil")
+            {
+                Color tint=Game.StormChapterComplete?mint:
+                    Game.Has("storm_started")?gold:muted;
+                PropImage("witnessledger",0,p.x-30,p.y-70,60,73,Color.white);
+                Ring(new Point(o.x,o.y),Game.StormTuning?1.12f:.74f,tint,27);
+                Text(p.x-78,p.y-91,156,20,
+                    Game.StormChapterComplete?Game.L("星雨公约生效","STORM CHARTER IN EFFECT"):
+                    Game.L("第六章 · 星雨议事","FIRST STORM COUNCIL"),
+                    11,tint,TextAnchor.MiddleCenter);
+                if(Game.Has("storm_started")&&!Game.StormChapterComplete)
+                    Text(p.x-78,p.y-110,156,19,
+                        Game.StormBudgetSpent+"/8 · "+Game.StormAllocations+"/3",
+                        12,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind.StartsWith("stormrelay"))
+            {
+                int region;
+                if(!int.TryParse(kind.Substring("stormrelay".Length),out region)||
+                    region<1||region>3)return true;
+                int policy=Game.StormPolicy(region);
+                Color tint=policy==1?mint:policy==2?PixelArt.C("#b5cce5"):
+                    Game.Has("storm_started")?PixelArt.C("#eaa381"):muted;
+                PropImage("stormrelay",region,p.x-30,p.y-73,60,75,Color.white);
+                Ring(new Point(o.x,o.y),policy!=0?.95f:1.17f,tint,23);
+                Text(p.x-76,p.y-94,152,19,
+                    policy==1?Game.L("公共庇护已通电","SHELTER PROTECTED"):
+                    policy==2?Game.L("公共供能已通电","UTILITIES PROTECTED"):
+                    Game.L("星雨配电未稳定","STORM GRID UNSTABLE"),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind.StartsWith("stormnode"))
+            {
+                int region;
+                if(!int.TryParse(kind.Substring("stormnode".Length),out region)||
+                    region<1||region>3)return true;
+                Color tint=Game.StormChapterComplete||Game.Has("storm_tuned")?mint:
+                    Game.StormTuning&&Game.StormNextNode==region?gold:muted;
+                PropImage("stormlamp",region,p.x-27,p.y-74,54,78,Color.white);
+                Ring(new Point(o.x,o.y),Game.StormTuning&&Game.StormNextNode==region?1.1f:.65f,tint,23);
+                Text(p.x-74,p.y-94,148,20,
+                    Game.StormTuning&&Game.StormNextNode==region?
+                        Game.L("下一个节点 · 按E","NEXT GRID NODE · E"):
+                    Game.StormChapterComplete?
+                        Game.L("公共星灯运行中","CIVIC LAMP ONLINE"):
+                        Game.L("公共星灯","CIVIC LAMP"),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind.StartsWith("afterlightwaypoint"))
             {
                 int region;

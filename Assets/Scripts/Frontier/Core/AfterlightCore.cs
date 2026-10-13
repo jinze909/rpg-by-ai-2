@@ -186,8 +186,8 @@ namespace Starfall
                 }
                 if(outlet && room==3 && AfterlightMode(3)==1)
                 {
-                    descriptionZh+="\n\n真实成本：木材 ×1，星晶 ×2；加工零件 ×2。";
-                    descriptionEn+="\n\nReal cost: 1 timber, 2 starcrystals, gaining 2 machine parts.";
+                    descriptionZh+="\n\n真实成本：木材 ×1，星晶 ×"+(StormPolicy(3)==2?1:2)+"；加工零件 ×2。";
+                    descriptionEn+="\n\nReal cost: 1 timber, "+(StormPolicy(3)==2?1:2)+" starcrystal, gaining 2 machine parts.";
                     options.Add(C("制作可修桥的零件 ×2","Craft 2 repair parts","afterlight_craft"));
                 }
                 if(outlet && Has("afterlight_steward_"+room))
@@ -344,10 +344,10 @@ namespace Starfall
                 if(save.room!=3 || !Has("afterlight_done_3") || AfterlightMode(3)!=1 ||
                     Dying || practicing ||
                     (Position-AfterlightPoint(3,"outlet")).Length>2.2f)return true;
-                if(Spend(1,2,0,0,0))
+                if(Spend(1,StormPolicy(3)==2?1:2,0,0,0))
                 {save.inventory[4]+=2;revision++;sound="reward";
-                    Notify("工房回收成功：木材 -1、星晶 -2，零件 +2。",
-                        "Public recycling: -1 timber, -2 starcrystal, +2 actual machine parts.");}
+                    Notify("工房回收成功：木材 -1、星晶 -"+(StormPolicy(3)==2?1:2)+"，零件 +2。",
+                        "Public recycling: -1 timber, -"+(StormPolicy(3)==2?1:2)+" starcrystal, +2 actual machine parts.");}
                 return true;
             }
             string[] pieces=action.Split('_');

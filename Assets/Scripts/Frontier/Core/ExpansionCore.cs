@@ -327,6 +327,19 @@ namespace Starfall
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // The first real starstorm changes regional public services.
+            // No remote regeneration, no healing under live enemy attack.
+            if(StormShelterNearby && SafeTravel && !practicing && !racing &&
+                save.health>0 && save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*2.1f);
+            if(StormGridNearby && SafeTravel && !practicing && !racing)
+                save.energy=Math.Min(100,save.energy+dt*4.5f);
+            if(StormChapterComplete && save.room==0 && SafeTravel &&
+                !practicing && !racing && save.health>0 &&
+                save.health<save.maxHealth &&
+                NearKind("stormcouncil",3.1f))
+                save.health=Math.Min(save.maxHealth,
+                    save.health+dt*(1.2f+StormBudgetLeft*.35f));
             // A finished reconstruction actually changes what the region
             // can do, without impacting boss combat or distant locations.
             if(AfterlightRefuge(save.room) && !practicing && !racing &&
@@ -392,7 +405,7 @@ namespace Starfall
                     rootHarmonyOwned = h.rootHarmonyOwned,
                     commonsRelayOwned = h.commonsRelayOwned,
                     glasswindOwned = h.glasswindOwned, temperOwned = h.temperOwned,
-                    triadOwned = h.triadOwned });
+                    triadOwned = h.triadOwned, stormOwned = h.stormOwned });
                 if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
                 else TryRewardEscapedWarning(h.position, h.radius);
             }
@@ -463,6 +476,11 @@ namespace Starfall
         }
         public string Conditions()
         {
+            if (StormTuning)
+                return L("公共星灯调谐 ", "CIVIC GRID TUNING ") +
+                    (int)Math.Ceiling(StormTuneTime) + "s · " +
+                    StormTuneStep + "/3  ·  " +
+                    L("剩余公共储备 ", "RESERVE LEFT ") + StormBudgetLeft;
             if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " + L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards;
             // Reuse the existing conditions HUD slot: a timed survey remains legible
             // even if the player temporarily tracks a different journal quest.

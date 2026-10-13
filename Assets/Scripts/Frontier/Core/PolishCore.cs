@@ -130,6 +130,7 @@ namespace Starfall
             TickWitnessDefense(dt);
             TickBlackout(dt);
             TickAfterlight(dt);
+            TickStorm(dt);
             actionHintTimer = Math.Max(0, actionHintTimer - dt);
             // Permanent quest mutations increment revision; tablet progress is
             // transient. Do not rebuild two language journals every idle frame.
@@ -212,6 +213,7 @@ namespace Starfall
             if (TalkTemper(o)) return true;
             if (TalkTriad(o)) return true;
             if (TalkAfterlight(o)) return true;
+            if (TalkStorm(o)) return true;
             if (TalkWitness(o)) return true;
             if (TalkBlackout(o)) return true;
             if (TalkWayfarer(o)) return true;
@@ -301,6 +303,7 @@ namespace Starfall
             if (ChooseWitness(action)) return true;
             if (ChooseBlackout(action)) return true;
             if (ChooseAfterlight(action)) return true;
+            if (ChooseStorm(action)) return true;
             if (action == "farshore_relief_routes")
             {
                 if (save.room != 9 || !Has("farshore_relief_complete")) return true;

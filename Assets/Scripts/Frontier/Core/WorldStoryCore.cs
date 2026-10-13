@@ -51,6 +51,7 @@ namespace Starfall
             if (page == "abyss") return save.frontierEnding > 0;
             if (page == "ending") return save.ending > 0;
             if (page == "afterlight") return Has("afterlight_started") || Has("afterlight_complete");
+            if (page == "storm") return Has("storm_started") || Has("storm_complete");
             return false;
         }
         private void WorldChronicleSection(string section)
@@ -111,6 +112,7 @@ namespace Starfall
                     choices.Add(StoryChoice("霜钟夜空 · 最后一夜的光谱", "Frostchime Skywatch · last night's spectrum", "story_read_skywatch"));
                 if (StoryUnlocked("abyss")) choices.Add(StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss"));
                 if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
+                if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
             else { WorldChronicleMenu(); return; }
@@ -134,7 +136,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -517,6 +519,45 @@ namespace Starfall
                     headingZh = "地脉深渊：星根的伤口"; headingEn = "Root Abyss: A Wound in the Network";
                     zh = "远岸达成治理协定后，居民才允许打开深入星根的旧备用管道。六层遗迹存着祝福、危险和未结算物资。\n\n深入不是为了占有更多力量，而是检验玩家在面对高风险回报时，能否守住已有的互助约定。未能安全带回的东西，不应被记作属于自己的资源。";
                     en = "Only after a farshore covenant can travelers enter the six old reserve conduits beneath the starroot lattice. Boons, danger and unbanked supplies coexist there.\n\nThe descent tests whether the promise of shared care survives the temptation of greater extraction. Nothing is yours until it is brought back safely.";
+                    break;
+                case "storm":
+                    headingZh="第六章：公约第一夜";
+                    headingEn="Chapter Six: First Night of the Commons";
+                    zh="战后第一场星雨到来时，军用调谐网不再自动决定谁能优先点灯。莉雅把仅有的八单位公共储备摆在三地居民面前，让受过星核代价的人自己决定庇护和生产的比例。\n\n"+
+                        "在第一次有真正民用管控的风暴里，庇护优先消耗三单位并加强公共疗养，供能优先仅消耗两单位但可以维持路灯、渡船和矿场工作。每个地区只有亲自通电、支付真实材料才算落实。\n\n";
+                    en="The first storm after the ending could not be governed by an unquestionable military grid. Lyra put eight units of public reserves before three living regions, letting people harmed by the old system choose their own balance between shelter and work.\n\n"+
+                        "Shelter-first uses three reserve units for real nearby healing. Utilities-first uses only two and keeps lamps, ferries and workshops running. Every decision needs actual installation and materials.\n\n";
+                    for(int region=1;region<=3;region++)
+                    {
+                        if(StormPolicy(region)==0)
+                        {
+                            zh+=StormRegionName(region,false)+"：还未真正分配储备，也没有宣称避险完成。\n";
+                            en+=StormRegionName(region,true)+": allocation has not been installed; the storm still threatens the district.\n";
+                        }
+                        else
+                        {
+                            zh+=StormRegionName(region,false)+"："+(StormPolicy(region)==1?
+                                "居民把三单位给庇护灯，修复了真实的疗养区域。":
+                                "居民把两单位给供能线路，保留了工房与巡路功能。")+"\n";
+                            en+=StormRegionName(region,true)+": "+(StormPolicy(region)==1?
+                                "residents spent three units on working public shelter lamps.":
+                                "residents spent two units on continuous civic lights and utilities.")+"\n";
+                        }
+                    }
+                    zh+="\n八单位公共储备已分配："+StormBudgetSpent+
+                        "，余量："+StormBudgetLeft+"；"+
+                        (Has("storm_complete")?
+                            "三座余烬镇星灯已经按照原有结局的能源秩序被真正调谐，第一次星雨的公约已公开。":
+                            Has("storm_tuned")?
+                            "镇内的三个公共灯站已实际调谐，但公约仍需回议事台公开。":
+                            "公约尚未真正经受全部检验，不能提前宣告成功。");
+                    en+="\nPublic reserve allocated: "+StormBudgetSpent+
+                        " of eight; remaining: "+StormBudgetLeft+". "+
+                        (Has("storm_complete")?
+                            "Three actual town lamps were tuned according to the energy order dictated by the original ending. The first-storm charter is public.":
+                            Has("storm_tuned")?
+                            "The town's three public lamps have been physically tuned, but the charter has not yet been published.":
+                            "The final civic-grid test has not been completed; the frontier cannot claim success yet.");
                     break;
                 case "afterlight":
                     headingZh="第五章：把余光留给活着的人";

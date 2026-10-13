@@ -262,6 +262,38 @@
           "en": "Mine Public Starroad",
           "x": 29.5,
           "y": 12.5
+        },
+        {
+          "id": "stormcouncil",
+          "kind": "stormcouncil",
+          "name": "第六章 · 星雨公约议事台",
+          "en": "Chapter Six · First Storm Council",
+          "x": 23.5,
+          "y": 19.5
+        },
+        {
+          "id": "stormnode1",
+          "kind": "stormnode1",
+          "name": "密林线公共星灯",
+          "en": "Grove Public Grid Lamp",
+          "x": 10.5,
+          "y": 18.5
+        },
+        {
+          "id": "stormnode2",
+          "kind": "stormnode2",
+          "name": "河道线公共星灯",
+          "en": "River Public Grid Lamp",
+          "x": 15.5,
+          "y": 6.5
+        },
+        {
+          "id": "stormnode3",
+          "kind": "stormnode3",
+          "name": "矿场线公共星灯",
+          "en": "Mine Public Grid Lamp",
+          "x": 27.5,
+          "y": 11.5
         }
       ],
       "decor": [
@@ -599,6 +631,14 @@
           "en": "Disconnected Public Grove",
           "x": 27.5,
           "y": 17.5
+        },
+        {
+          "id": "stormrelay1",
+          "kind": "stormrelay1",
+          "name": "密林星雨配电台",
+          "en": "Grove Storm Allocation Relay",
+          "x": 25.5,
+          "y": 15.5
         }
       ],
       "decor": [
@@ -958,6 +998,14 @@
           "en": "Public Ferry Receiver",
           "x": 28.5,
           "y": 17.5
+        },
+        {
+          "id": "stormrelay2",
+          "kind": "stormrelay2",
+          "name": "遗迹星雨配电台",
+          "en": "Ruins Storm Allocation Relay",
+          "x": 27.5,
+          "y": 18.5
         }
       ],
       "decor": [
@@ -1333,6 +1381,14 @@
           "en": "Safe Foundry Receiver",
           "x": 27.5,
           "y": 16.5
+        },
+        {
+          "id": "stormrelay3",
+          "kind": "stormrelay3",
+          "name": "矿场星雨配电台",
+          "en": "Mine Storm Allocation Relay",
+          "x": 28.5,
+          "y": 15.5
         }
       ],
       "decor": [
