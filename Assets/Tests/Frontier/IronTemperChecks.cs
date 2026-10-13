@@ -332,5 +332,40 @@ namespace Starfall.Tests
                 "Cooling valve grants a meaningful respite before the next steam attack");
         }
 
+
+        public static void EmberTemperAndSurveyorEchoCannotStealEachOthersBattleState(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("boss_3");
+            g.save.flags.Add("gate_3");g.save.flags.Add("archive_complete");
+            g.Enter(3);g.enemies.Clear();
+            WorldObject echo=Object(g,"archiveecho");
+            WorldObject foundry=Object(g,"ironfoundry");
+            g.save.x=echo.x;g.save.y=echo.y;
+            Action(g,"archiveecho","archive_echo_start");
+            Check(g.AtlasEchoRoom==3 && !g.TemperActive,
+                "Original Surveyor Echo challenge is genuinely live");
+            g.enemies.Clear(); // Isolate the concurrency guard from nearby patrol safety.
+            g.save.x=foundry.x;g.save.y=foundry.y;
+            Action(g,"ironfoundry","iron_temper_start");
+            Check(!g.TemperActive && g.AtlasEchoRoom==3,
+                "The new foundry cannot seize enemy ownership during a live Echo boss");
+            g.save.x=echo.x;g.save.y=echo.y;
+            Action(g,"archiveecho","archive_echo_abandon");
+            Check(g.AtlasEchoRoom==0,"Original Echo resets through its own withdrawal");
+            g.enemies.Clear();g.save.x=foundry.x;g.save.y=foundry.y;
+            Action(g,"ironfoundry","iron_temper_start");
+            Check(g.TemperActive && g.TemperStage==1,
+                "The foundry now launches when the original encounter is fully retired");
+            g.enemies.Clear(); // Isolate the reverse lock from real nearby combat.
+            g.save.x=echo.x;g.save.y=echo.y;
+            Action(g,"archiveecho","archive_echo_start");
+            Check(g.TemperActive && g.AtlasEchoRoom==0,
+                "The original Echo cannot overwrite the active forge battle state");
+            g.save.x=foundry.x;g.save.y=foundry.y;
+            Action(g,"ironfoundry","iron_temper_abort");
+            Check(!g.TemperActive && !g.enemies.Exists(g.IsTemperEnemy),
+                "Stopping the foundry restores the right to begin other mine challenges");
+        }
+
     }
 }

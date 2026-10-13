@@ -65,7 +65,7 @@ namespace Starfall
             }
             if (action != "archive_echo_start") return false;
             if (save.room != 3 || !Has("archive_complete") || Has("archive_echo_complete") ||
-                atlasEchoRoom != 0 || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
+                atlasEchoRoom != 0 || TemperActive || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
                 Dying || practicing || !CanEnter(3)) return true;
             Point marker = ObjectPoint(3, "archiveecho", new Point(-100, -100));
             if ((Position - marker).Length > 2.2f) return true;
