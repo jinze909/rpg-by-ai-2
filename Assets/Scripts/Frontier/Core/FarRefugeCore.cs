@@ -120,6 +120,7 @@ namespace Starfall
 
         private bool TalkFarStation(WorldObject o)
         {
+            if(TalkFarCourier(o))return true;
             if(TalkFarBridge(o))return true;
             if(TalkFarSecrets(o))return true;
             if(o.kind=="faratlasdesk" || o.kind=="farrefugerecord")
@@ -218,6 +219,7 @@ namespace Starfall
         }
         private bool ChooseFarStation(string action)
         {
+            if(ChooseFarCourier(action))return true;
             if(action=="far_bridge_repair")return ChooseFarBridgeRepair();
             if(action=="far_publish")
             {
