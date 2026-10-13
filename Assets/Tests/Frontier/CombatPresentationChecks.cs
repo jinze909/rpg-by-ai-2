@@ -329,5 +329,37 @@ namespace Starfall.Tests
                 g.Enter(1); Check(g.companionAction == null && g.CanStand(g.companionPosition), "Travel cancels a previous companion action and restores safe following");
             }
         }
+        public static void ShortHitStopReleasesUnusedFrameTime(Campaign data)
+        {
+            var reference=Fresh(data);
+            var stopped=Fresh(data);
+            reference.enemies.Clear();stopped.enemies.Clear();
+            reference.save.x=stopped.save.x=12;
+            reference.save.y=stopped.save.y=14;
+            stopped.hitStop=.012f;
+            float before=stopped.save.totalTime;
+            reference.Tick(.038f,new Point(1,0));
+            stopped.Tick(.05f,new Point(1,0));
+            Check(Math.Abs(stopped.save.totalTime-before-.038f)<.0002f&&
+                  Math.Abs(stopped.save.x-reference.save.x)<.001f&&
+                  Math.Abs(stopped.save.y-reference.save.y)<.001f&&stopped.hitStop==0,
+                "A 12ms impact freeze releases the unused 38ms for normal movement and world time");
+            var multi=Fresh(data);
+            reference=Fresh(data);
+            multi.enemies.Clear();reference.enemies.Clear();
+            multi.save.x=reference.save.x=12;multi.save.y=reference.save.y=14;
+            multi.hitStop=.07f;
+            before=multi.save.totalTime;
+            multi.Tick(.05f,new Point(1,0));
+            Check(Math.Abs(multi.save.totalTime-before)<.00001f&&multi.save.x==12&&
+                  Math.Abs(multi.hitStop-.02f)<.00001f,
+                "A longer hit-stop completely freezes its first frame and retains exactly the remainder");
+            multi.Tick(.05f,new Point(1,0));
+            reference.Tick(.03f,new Point(1,0));
+            Check(Math.Abs(multi.save.totalTime-before-.03f)<.0002f&&
+                  Math.Abs(multi.save.x-reference.save.x)<.001f&&multi.hitStop==0,
+                "The next frame uses only the un-frozen 30ms; damage feedback never grants a free slow-motion penalty");
+        }
+
     }
 }

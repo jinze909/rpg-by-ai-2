@@ -370,7 +370,16 @@ namespace Starfall
             toastTime -= dt;
             if (mode == "fish") { fishTime += dt; fishCursor = .5f + .5f * (float)Math.Sin(fishTime * (2.5f + fishHits * .35f)); return; }
             if (mode != "world") return;
-            if (hitStop > 0) { hitStop = Math.Max(0, hitStop - dt); return; }
+            if (hitStop > 0)
+            {
+                // Freeze for the *actual* remaining impact time; a short
+                // 12ms hit-stop in a 50ms frame should not steal the other
+                // 38ms of walking, enemy windups, cooldowns or quest clocks.
+                float frozen = Math.Min(dt, hitStop);
+                hitStop -= frozen;
+                dt -= frozen;
+                if (dt <= .00001f) return;
+            }
             float skillReadyDelay = SkillReadyDelay();
             movementDirection = new Point();
             TickVisuals(dt); if (mode != "world") return; TickGate(dt);
