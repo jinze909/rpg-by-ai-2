@@ -35,6 +35,7 @@ namespace Starfall
             if (page == "mine") return Has("core_3") || Has("boss_3");
             if (page == "citadel") return Has("boss_4");
             if (page == "triad") return Has("triad_started") || Has("triad_complete");
+            if (page == "blackout") return Has("blackout_started") || Has("blackout_complete");
             if (page == "harbor") return Has("harbor_report");
             if (page == "temper") return Has("iron_temper_started") || Has("iron_temper_complete");
             if (page == "tidebound") return Has("tide_salvage_started") || Has("tide_salvage_complete");
@@ -77,6 +78,7 @@ namespace Starfall
                 if (StoryUnlocked("temper"))
                     choices.Add(StoryChoice("余烬回火 · 能停下的炉", "Ember Temper · A Furnace That Can Rest", "story_read_temper"));
                 if (StoryUnlocked("triad")) choices.Add(StoryChoice("第四章 · 三核审计", "Chapter Four · Three-Core Reckoning", "story_read_triad"));
+                if (StoryUnlocked("blackout")) choices.Add(StoryChoice("第四章 · 长夜撤离", "Chapter Four · The Night the Shield Failed", "story_read_blackout"));
                 if (StoryUnlocked("citadel")) choices.Add(StoryChoice("星陨堡垒 · 厄洛的屏障", "Citadel · Orrin's shield", "story_read_citadel"));
             }
             else if (section == "farshore")
@@ -121,14 +123,14 @@ namespace Starfall
         private static string StorySectionForPage(string page)
         {
             if (page == "origin" || page == "roots" || page == "orders" || page == "wardens") return "origins";
-            if (page == "forest" || page == "testimonies" || page == "ruins" || page == "mine" || page == "temper" || page == "triad" || page == "citadel") return "campaign";
+            if (page == "forest" || page == "testimonies" || page == "ruins" || page == "mine" || page == "temper" || page == "triad" || page == "blackout" || page == "citadel") return "campaign";
             if (page == "harbor" || page == "tidebound" || page == "desert" || page == "glasswind" || page == "mountain" || page == "covenant") return "farshore";
             return "after";
         }
         private static string[] StoryPagesForSection(string section)
         {
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
-            if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "citadel" };
+            if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
             return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
         }
@@ -378,6 +380,19 @@ namespace Starfall
                             Has("glasswind_all_sealed")?
                             "\n\nAll relays are secured, but Mia has not yet published the public chart.":
                             "\n\nThe wind circuit remains incomplete.");
+                    break;
+                case "blackout":
+                    headingZh="长夜撤离：墙下的人";headingEn="Blackout Evacuation: Those Beneath the Wall";
+                    zh="星陨堡垒把三枚星核的供给汇进同一面屏障。一天夜里，备用灯线终于无法分担这项负荷，三片街区骤然陷入黑暗。\n\n你不只是在审计台上改一个数字，而是走入街巷，必须亲自带着每位居民从失灵的灯下回到公共避难所。电弧依旧会击倒不幸被困的人；如果你跑得太快，他们也会失去方向。\n\n"+
+                        (Has("blackout_complete")?
+                            "【撤离名单已公布】莱娜、伊恩与奥姆都活着回到了灯下。备用照明证明了比单一护城屏障更温柔、也更复杂的办法已经有人开始践行。\n\n"+
+                            (Has("blackout_peace")?"【厄洛退让】三位证人签名、三位镇民的行动承诺和这份撤离名单，让统领选择停用旧命令而非决斗。":"【决战尚待决定】这份名单不能独自替所有人决定星核归属，但能让厄洛知道承担改变风险的不止他一人。"):
+                            "【名单尚未公开】你亲眼见到了备用灯和逃生街区的风险。尚未完成三人安全交接，不能提前宣称全员获救。");
+                    en="The citadel wired three starcores into one shield. One night, the backup lamps could no longer support the load, leaving three neighborhoods in darkness.\n\nChanging a number at an audit desk was not enough. You had to walk frightened neighbors home one at a time, protecting them from delayed arcs and staying close enough for them to follow.\n\n"+
+                        (Has("blackout_complete")?
+                            "[The roster is public] Lena, Ian and Orme returned to safety. Emergency lamps proved that people could build a more humane alternative to a single wall.\n\n"+
+                            (Has("blackout_peace")?"[Orrin stood down] Three signed testimonies, town allies and this actual evacuation convinced Orrin to retire the old order rather than fight.":"[A confrontation remains] A rescue roster cannot settle the core's fate alone, but shows Orrin he is not alone in bearing risk."):
+                            "[The roster is not published] You saw the dangers to civilians firsthand. Their actual safe return has not yet been proved.");
                     break;
                 case "triad":
                     headingZh="第四章：三核审计";headingEn="Chapter Four: Three-Core Reckoning";

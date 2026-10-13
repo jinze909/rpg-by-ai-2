@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout();
         }
         public void NewGame(int profession)
         {
@@ -202,6 +202,12 @@ namespace Starfall
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
+            if (blackoutActive)
+            {
+                Notify("屏障长夜撤离仍在进行。先把居民送到避难所或明确中止，不能直接换地区。",
+                    "Blackout evacuation is active. Bring your civilians to shelter or abort the mission before traveling.");
+                return;
+            }
             if (witnessDefenseRoom!=0)
             {
                 Notify("本章居民证词正在战斗保全中，请击败守卫或在证据台撤出。",
@@ -256,6 +262,9 @@ namespace Starfall
         }
         public void ReturnToTown()
         {
+            if (blackoutActive)
+            { Notify("堡垒居民仍在撤离中。先回避难所完成或取消救援。",
+                "Citadel evacuation is active. Complete or cancel at the shelter."); return; }
             if (reliefMissionRoom != 0)
             { Notify("正在护送居民，先返回站台或者取消行动。", "You are escorting civilians. Return to the station or cancel the rescue first."); return; }
             if (Dying) return;
@@ -750,6 +759,14 @@ namespace Starfall
         public bool IsObjectPresent(WorldObject o)
         {
             if (o == null) return false;
+            if (o.kind.StartsWith("blackoutcivilian"))
+            {
+                int id;
+                if(int.TryParse(o.kind.Substring("blackoutcivilian".Length),out id) &&
+                    id>=1 && id<=3)
+                    return !Has("blackout_complete") &&
+                        (blackoutFollowing!=id) && !BlackoutCitizenSaved(id);
+            }
             if (o.kind == "returnscout") return Has("scout_saved");
             if (o.kind == "scout") return !Has("scout_saved");
             return true;
@@ -889,6 +906,20 @@ namespace Starfall
                 }
                 if (enemies.Exists(e => e.boss)) { Notify("留意红色攻击预告，闪避后反击。", "Watch the red attack warnings. Dodge, then strike."); return; }
                 BossData b = data.bosses[save.room - 1];
+                if (save.room == 4 && LocalCeasefireEligible)
+                {
+                    Dialog(b.name,b.en,
+                        "厄洛低头看着三份原始星核账、三位居民签署的证词，还有莱娜、伊恩、奥姆刚刚回到灯下的避难名单。你没有要求他让城市在黑暗里等待。
+
+“如果你真的能把三个星核供给接入公共避难所，也说服了镇民共同维护，那么我愿意停止这道旧指令。但决定权必须归还给活着的人。”",
+                        "Orrin reads the original core audit, three signed civilian testimonies, and the emergency roster of Lena, Ian and Orme. You did not ask his children to wait alone in darkness.
+
+“If you can keep the cores serving shared shelters, and the townspeople will maintain them, I can retire this obsolete order. The decision must return to those living with its cost.”",
+                        C("出示撤离名单与同伴承诺 · 民用停战",
+                            "Present evacuation roster and allied support · civilian ceasefire","blackout_ceasefire"),
+                        C("仍然挑战统领","Fight Orrin","boss"),
+                        C("再做准备","Prepare first","close"));return;
+                }
                 if (save.room == 4 && Proofs == 3 && save.frontierEnding == 3)
                 {
                     Dialog(b.name, b.en, "三份原始记录摆在厄洛面前：港口的水位、沙海的调度、高原被封存的名字。你也带来了一个已经开始运行的三方协定。\n\n他不再能说除此之外别无选择。你可以提出让他放下武器，也可以坚持决斗。", "The tide log, allocation ledger and sealed names lie before Orrin. You also bring a working covenant between three regions.\n\nHe can no longer claim there is no alternative. Ask him to stand down, or insist on a duel.", C("用证词与协定说服他", "Present the records and covenant", "parley"), C("仍然挑战统领", "Challenge the warden", "boss"), C("准备一下", "Prepare", "close")); return;
@@ -960,6 +991,7 @@ namespace Starfall
             }
             if (action == "boss")
             {
+                if (blackoutActive) return;
                 if (save.room == 0 || !GateOpen || GateBarrierActive || TriadDefenseActive || enemies.Exists(e => e.boss) || Has("boss_" + save.room)) return;
                 BossData b = data.bosses[save.room - 1];
                 float bossHealth = save.room == 4 && Has("triad_complete") ? b.hp * .85f : b.hp;

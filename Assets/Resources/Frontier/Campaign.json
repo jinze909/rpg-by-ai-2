@@ -1555,6 +1555,38 @@
           "en": "Central Three-Core Audit",
           "x": 18.5,
           "y": 11.5
+        },
+        {
+          "id": "blackoutshelter",
+          "kind": "blackoutshelter",
+          "name": "城墙下的公共避难所",
+          "en": "Citadel Public Shelter",
+          "x": 10.5,
+          "y": 16.5
+        },
+        {
+          "id": "blackoutcivilian1",
+          "kind": "blackoutcivilian1",
+          "name": "莱娜 · 街角母亲",
+          "en": "Lena · Trapped Mother",
+          "x": 9.5,
+          "y": 6.5
+        },
+        {
+          "id": "blackoutcivilian2",
+          "kind": "blackoutcivilian2",
+          "name": "伊恩 · 桥畔孩童",
+          "en": "Ian · Bridge Child",
+          "x": 28.5,
+          "y": 17.5
+        },
+        {
+          "id": "blackoutcivilian3",
+          "kind": "blackoutcivilian3",
+          "name": "奥姆 · 北塔守灯人",
+          "en": "Orme · North Tower Lampkeeper",
+          "x": 26.5,
+          "y": 5.5
         }
       ],
       "decor": [

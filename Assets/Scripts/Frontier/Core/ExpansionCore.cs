@@ -471,6 +471,11 @@ namespace Starfall
                     (save.room == 5 ? (LowTide ? L("低潮", "LOW TIDE") : L("高潮", "HIGH TIDE")) :
                      save.room == 6 ? L("热度 ", "HEAT ") + (int)save.heat + "/100" :
                      L("寒意 ", "COLD ") + (int)save.cold + "/100");
+            if (BlackoutActive && save.room==4)
+                return L("长夜撤离 ", "BLACKOUT EVACUATION ") +
+                    (int)Math.Ceiling(BlackoutTime) + "s · " +
+                    L("获救 ", "SAFE ") + BlackoutCount + "/3" +
+                    (BlackoutFollowing!=0?L(" · 护送中"," · ESCORTING"):"");
             if (witnessDefenseRoom!=0 && save.room==witnessDefenseRoom)
                 return L("居民证词保全 ", "WITNESS DEFENSE ") +
                     (int)Math.Ceiling(witnessDefenseTime) + "s · " +

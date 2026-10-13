@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,45 @@ namespace Starfall
             }
 
 
+
+            if(id=="blackout")
+            {
+                q.title=L("第四章关键事件 · 长夜撤离","Chapter Four · The Night the Shield Failed");
+                q.category=L("主线抉择 · 真实居民护送","MAIN STORY · CIVILIAN EVACUATION");
+                q.locked=!Has("triad_complete");
+                q.complete=Has("blackout_complete");
+                q.room=4;
+                q.description=L("三枚星核把堡垒供能压成一条不可中断的屏障，备用照明故障。亲自在180秒内找到莱娜、伊恩、奥姆，一次护送一人走回公共避难所，避开真实电弧与沿途敌人。完成后，若三位旧章节证人和镇民盟友都支持，你可以凭实际救援方案说服厄洛停战。旧档原有 Boss 战和协定对话仍开放。",
+                    "The single shield feed has blacked out the citadel's civilian lights. Physically escort Lena, Ian and Orme one by one to public shelter within 180 seconds, dodging real arcs and existing enemies. With three signed witnesses and three town allies, your rescue can support a local ceasefire. Original boss and treaty routes remain available.");
+                q.steps.Add(new QuestStep(L("完成三核审计并到堡垒公共避难所","Complete audit and reach the citadel shelter"),
+                    Has("triad_complete") && Has("blackout_started")));
+                for(int i=1;i<=3;i++)q.steps.Add(new QuestStep(
+                    L(new[]{"安全带回莱娜","安全带回伊恩","安全带回奥姆"}[i-1],
+                      new[]{"Escort Lena home","Escort Ian home","Escort Orme home"}[i-1]),
+                    q.complete || BlackoutActive && (blackoutRescued & (1<<(i-1)))!=0));
+                q.steps.Add(new QuestStep(L("公布避难名单","Publish evacuation roster"),q.complete));
+                q.target=BlackoutPoint("blackoutshelter");
+                if(BlackoutActive && blackoutFollowing!=0)
+                    q.target=BlackoutPoint("blackoutshelter");
+                else if(BlackoutActive)
+                {
+                    for(int i=1;i<=3;i++)
+                        if((blackoutRescued&(1<<(i-1)))==0)
+                        {q.target=BlackoutPoint("blackoutcivilian"+i);break;}
+                    if(blackoutRescued==7)q.target=BlackoutPoint("blackoutshelter");
+                }
+                q.next=q.complete?L("救援成功；居民名单可成为民用停战依据","Rescue complete; the roster can support civilian ceasefire"):
+                    q.locked?L("先完成并公开莉雅的第四章三核审计","First complete and publish Lyra's Chapter Four audit"):
+                    BlackoutActive && blackoutFollowing!=0?
+                        L("把正在跟随的居民亲自送到公共避难所","Escort your following civilian to public shelter"):
+                    BlackoutActive && blackoutRescued==7?
+                        L("返回避难所公布三名居民名单","Return to publish the roster at the shelter"):
+                    BlackoutActive?L("找到下一名居民，按E让其跟随","Find the next citizen and press E to escort"):
+                    L("在堡垒西南侧公共避难所启动长夜救援","Begin the evacuation at the citadel's southwest shelter");
+                q.reward=L("80硬币、3碎片、90经验；可获得民用停战剧情路线",
+                    "80 coins, 3 shards, 90 XP; potential civilian ceasefire story route");
+                return q;
+            }
 
             if (id == "campaign_witness")
             {

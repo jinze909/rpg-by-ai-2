@@ -67,6 +67,23 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.BlackoutActive && Game.BlackoutFollowing!=0)
+            {
+                Point pos=Game.BlackoutFollowerPosition,screen=ScreenPoint(pos);
+                DrawNpc("innGuest",pos,Game.BlackoutFollowing+11);
+                Ring(pos,.42f,Game.BlackoutFollowerHealth<18?
+                    PixelArt.C("#e27a78"):mint,18);
+                Bar(screen.x-19,screen.y+9,38,
+                    Game.BlackoutFollowerHealth/48f,mint,5);
+            }
+            if(Game.BlackoutActive && !Game.save.reducedMotion)
+            {
+                Point p=ScreenPoint(Game.Position);
+                Text(p.x-72,p.y-110,144,19,
+                    Game.L("长夜撤离 "+Game.BlackoutTime.ToString("0")+"s",
+                        "BLACKOUT "+Game.BlackoutTime.ToString("0")+"s"),
+                    12,gold,TextAnchor.MiddleCenter);
+            }
             if (Game.racing)
             {
                 Point target = GameCore.RaceRoute[Game.raceCheckpoint]; Ring(target, .65f, gold, 20); Point p = ScreenPoint(target);
@@ -202,6 +219,37 @@ namespace Starfall
                     Text(p.x-48,p.y-108,96,19,
                         Game.WitnessDefenseTime.ToString("0")+"s",
                         12,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind=="blackoutshelter")
+            {
+                Color tint=Game.Has("blackout_complete")?mint:
+                    Game.BlackoutActive?PixelArt.C("#f7c783"):gold;
+                PropImage("ruin",0,p.x-38,p.y-75,76,77,Color.white);
+                Ring(new Point(o.x,o.y),Game.BlackoutActive?1.25f:.75f,tint,28);
+                Text(p.x-76,p.y-98,152,23,
+                    Game.Has("blackout_complete")?Game.L("公开民用避难所","PUBLIC REFUGE"):
+                    Game.L("长夜公共避难所","BLACKOUT SHELTER"),
+                    12,tint,TextAnchor.MiddleCenter);
+                if(Game.BlackoutActive)
+                    Text(p.x-80,p.y-117,160,20,
+                        Game.BlackoutTime.ToString("0")+"s · "+
+                        Game.BlackoutCount+"/3",12,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind.StartsWith("blackoutcivilian"))
+            {
+                int id;
+                if(!int.TryParse(kind.Substring("blackoutcivilian".Length),out id)
+                    || id<1 || id>3)return true;
+                if(!Game.BlackoutCivilianVisible(id))return true;
+                DrawNpc("innGuest",new Point(o.x,o.y),id+11);
+                Color tint=Game.BlackoutActive?gold:muted;
+                Ring(new Point(o.x,o.y),.56f,tint,22);
+                Text(p.x-72,p.y-80,144,20,
+                    Game.L(new[]{"莱娜 · 母亲","伊恩 · 孩子","奥姆 · 守灯人"}[id-1],
+                        new[]{"LENA · MOTHER","IAN · CHILD","ORME · LAMPKEEPER"}[id-1]),
+                    11,tint,TextAnchor.MiddleCenter);
                 return true;
             }
             if(kind.StartsWith("triadmemory"))
