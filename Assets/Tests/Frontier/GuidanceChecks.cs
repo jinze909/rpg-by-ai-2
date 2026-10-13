@@ -1096,6 +1096,31 @@ namespace Starfall.Tests
                 g.save.flags.Count==savedFlags&&g.save.coins==coins,
                 "Chronicle reflects witnessed progress and chosen ending without revealing unknown testimony or granting rewards");
         }
+        public static void ChapterTenOrganicGuardAIWarnsAndActuallyHitsInField(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();
+            var core=Object(g,"lastdirectivecore");
+            g.save.x=core.x;g.save.y=core.y;
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            g.save.maxHealth=2000;g.save.health=2000;
+            float health=g.save.health;
+            bool winding=false,contact=false;
+            for(int i=0;i<230&&!g.Dying;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(g.enemies.Exists(e=>e.id>=90300&&e.id<=90301&&
+                    (e.state==1||e.releaseTime>0)))winding=true;
+                if(g.save.health<health){contact=true;break;}
+            }
+            Check(winding,
+                "Chapter Ten actually runs existing organic hostile windup animations, not fake immediate hits");
+            Check(contact,
+                "At least one unforced enemy AI attack truly contacts the playable hero");
+            Check(!g.LastDirectiveComplete&&g.LastDirectiveWave==1,
+                "Taking real damage does not skip the recorded authentic guardian kills");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
