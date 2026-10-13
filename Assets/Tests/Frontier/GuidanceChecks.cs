@@ -301,6 +301,144 @@ namespace Starfall.Tests
             Check(warned,"Live courier attackers must produce actual combat telegraphs");
             Check(hit,"A production enemy attack must physically reach the player and tear cargo");
         }
+        public static void CivilianSupplyInquestUsesRealGuestbookAndThreeSites(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("exp_intro");g.save.flags.Add("harbor_report");
+            g.save.flags.Add("far_courier_0");g.save.flags.Add("far_courier_3");
+            g.save.flags.Add("far_courier_5");
+            foreach(int room in new[]{0,3,5})
+                g.save.flags.Add("far_shelter_"+room);
+            g.save.inventory[0]=8;g.save.inventory[2]=8;g.save.inventory[4]=8;
+            g.Enter(9);g.enemies.Clear();
+            var guest=Object(g,"farrefugerecord");
+            g.save.x=guest.x;g.save.y=guest.y;
+            int xp=g.save.xp;
+            g.Talk(guest);
+            Check(g.Has("far_refuge_guest_record")&&g.save.xp>xp,
+                "Original first-visit guest registry remains intact");
+            g.Close();
+            Action(g,"farrefugerecord","civic_supply_begin");
+            Check(g.CivicSupplyStarted&&!g.CivicSupplyComplete&&
+                g.save.trackedQuest=="civic_supply",
+                "Authentic published parcel starts a tracked new inquest at the guestbook");
+            var quest=g.GetQuest("civic_supply");
+            Check(!quest.locked&&!quest.complete&&quest.room==0&&
+                (quest.target-new Point(111.5f,61.5f)).Length<.05f,
+                "Living guidance points to the real canal inspection checkpoint");
+            int gear=g.save.inventory[4];
+            int herbs=g.save.inventory[2];
+            g.Enter(0);g.enemies.Clear();
+            var check=Object(g,"farcheck");
+            g.save.x=check.x;g.save.y=check.y;
+            Action(g,"farcheck","civic_supply_clinic");
+            Check(g.CivicSupplyClinic(0)&&!g.CivicSupplyWatch(0)&&
+                g.save.inventory[4]==gear-1&&g.save.inventory[2]==herbs-2,
+                "Canal clinic is a single persistent real-material community decision");
+            Check(g.GetQuest("civic_supply").room==3,
+                "After signing the canal report, tracked inquest moves to Ironreach");
+            g.Talk(check);
+            Check(!Array.Exists(g.conversation.choices,
+                c=>c.action=="civic_supply_watch"||c.action=="civic_supply_clinic"),
+                "Cannot buy the opposite choice or farm service rewards twice");
+            g.Close();
+            g.Enter(3);g.enemies.Clear();
+            check=Object(g,"farcheck");g.save.x=check.x;g.save.y=check.y;
+            int timber=g.save.inventory[0];gear=g.save.inventory[4];
+            Action(g,"farcheck","civic_supply_watch");
+            Check(g.CivicSupplyWatch(3)&&!g.CivicSupplyClinic(3)&&
+                g.save.inventory[0]==timber-2&&g.save.inventory[4]==gear-1,
+                "Ironreach watch spends exactly 2 real timber and 1 spare part");
+            g.Enter(5);g.enemies.Clear();
+            check=Object(g,"farcheck");g.save.x=check.x;g.save.y=check.y;
+            Action(g,"farcheck","civic_supply_clinic");
+            Check(g.CivicSupplyResolvedCount==3&&
+                g.CivicSupplyClinic(5)&&!g.CivicSupplyComplete,
+                "Third physical site completes votes but cannot auto-publish the quest");
+            quest=g.GetQuest("civic_supply");
+            Check(quest.room==9&&!quest.complete&&
+                (quest.target-new Point(guest.x,guest.y)).Length<.05f,
+                "Guidance correctly returns to the physical inn registry for publication");
+            g.Enter(9);g.enemies.Clear();
+            guest=Object(g,"farrefugerecord");g.save.x=guest.x;g.save.y=guest.y;
+            int coins=g.save.coins, shards=g.save.shards, skills=g.save.skillPoints;
+            g.save.level=30;
+            Action(g,"farrefugerecord","civic_supply_publish");
+            Check(g.CivicSupplyComplete&&g.save.coins==coins+48&&
+                g.save.shards==shards+2&&g.save.skillPoints==skills+1&&
+                g.GetQuest("civic_supply").complete,
+                "Public record unlocks complete chapter and rewards exactly once");
+            g.Talk(guest);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="civic_supply_publish"),
+                "No repeatable final commission reward");
+            g.Close();
+            g.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(g.save));reloaded.Start();
+            Check(reloaded.CivicSupplyComplete&&reloaded.CivicSupplyClinic(0)&&
+                reloaded.CivicSupplyWatch(3)&&reloaded.CivicSupplyClinic(5)&&
+                reloaded.save.trackedQuest=="civic_supply",
+                "All three divergent community outcomes survive original SaveData v2 reload");
+        }
+        public static void CivicSupplySpoofingAndLocalServicesRespectRealSafety(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("exp_intro");g.save.flags.Add("harbor_report");
+            g.save.flags.Add("far_courier_0");g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_shelter_3");
+            g.save.flags.Add("far_refuge_guest_record");
+            g.save.inventory[0]=10;g.save.inventory[2]=10;g.save.inventory[4]=10;
+            var choose=typeof(GameCore).GetMethod("ChooseCivicSupply",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Authentic inquest actions are exposed only through dialogue");
+            int herbs=g.save.inventory[2];
+            choose.Invoke(g,new object[]{"civic_supply_clinic"});
+            Check(!g.CivicSupplyClinic(0)&&g.save.inventory[2]==herbs,
+                "Forged choices cannot start a clinic before the registry opens the mission");
+            g.Enter(9);g.enemies.Clear();
+            var guest=Object(g,"farrefugerecord");
+            g.save.x=guest.x;g.save.y=guest.y;
+            Action(g,"farrefugerecord","civic_supply_begin");
+            g.Enter(3);g.enemies.Clear();
+            var post=Object(g,"farcheck");g.save.x=post.x;g.save.y=post.y;
+            choose.Invoke(g,new object[]{"civic_supply_watch"});
+            Check(!g.CivicSupplyWatch(3),
+                "Unverified deliveries cannot be bypassed with a forged civic choice");
+            g.save.flags.Add("far_courier_3");
+            g.save.x=post.x+8;g.save.y=post.y;
+            choose.Invoke(g,new object[]{"civic_supply_watch"});
+            Check(!g.CivicSupplyWatch(3),
+                "Action requires standing beside the actual physical inspection post");
+            g.save.x=post.x;g.save.y=post.y;
+            Action(g,"farcheck","civic_supply_watch");
+            Check(g.CivicSupplyWatch(3),"Real inspected delivery can establish lookout");
+            var shelter=Object(g,"farshelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.save.energy=30;g.Tick(.05f,new Point());
+            float withWatch=g.save.energy-30;
+            g.save.flags.Remove("civic_supply_watch_3");
+            g.save.energy=30;g.Tick(.05f,new Point());
+            float withoutWatch=g.save.energy-30;
+            Check(withWatch>withoutWatch+.15f,
+                "Permanent lookout increases actual safe stamina regeneration at its shelter");
+            g.save.flags.Add("civic_supply_watch_3");
+            g.Enter(0);g.enemies.Clear();
+            post=Object(g,"farcheck");g.save.x=post.x;g.save.y=post.y;
+            Action(g,"farcheck","civic_supply_clinic");
+            shelter=Object(g,"farshelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.save.health=55;g.Tick(.05f,new Point());
+            float withClinic=g.save.health-55;
+            g.save.flags.Remove("civic_supply_clinic_0");
+            g.save.health=55;g.Tick(.05f,new Point());
+            float withoutClinic=g.save.health-55;
+            Check(withClinic>withoutClinic+.06f,
+                "Permanent clinic actually heals only near its own physical shelter");
+            g.save.flags.Add("civic_supply_clinic_0");
+            g.save.x=shelter.x-8;g.save.y=shelter.y;
+            g.save.health=55;g.Tick(.05f,new Point());
+            Check(g.save.health-55<withClinic,
+                "A clinic cannot heal the hero remotely from another route");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
