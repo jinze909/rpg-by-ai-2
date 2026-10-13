@@ -118,8 +118,168 @@ namespace Starfall
             return true;
         }
 
+        // Chapter of civilian oversight unlocked by authentic parcel delivery:
+        // the guest registry is revisited, three delivered regions vote at
+        // their physical inspection posts, and the records return to the inn.
+        // Persistent decisions use only existing SaveData v2 string flags.
+        private static readonly int[] CivicSupplyRegions={0,3,5};
+        public bool CivicSupplyStarted {get{return Has("civic_supply_started");}}
+        public bool CivicSupplyComplete {get{return Has("civic_supply_complete");}}
+        public bool CivicSupplyClinic(int room)
+        {return room>=0&&room<8&&Has("civic_supply_clinic_"+room);}
+        public bool CivicSupplyWatch(int room)
+        {return room>=0&&room<8&&Has("civic_supply_watch_"+room);}
+        public bool CivicSupplyResolved(int room)
+        {return CivicSupplyClinic(room)||CivicSupplyWatch(room);}
+        public int CivicSupplyResolvedCount
+        {
+            get
+            {
+                int n=0;foreach(int room in CivicSupplyRegions)
+                    if(CivicSupplyResolved(room))n++;
+                return n;
+            }
+        }
+        private bool CivicSupplySite(int room)
+        {return Array.IndexOf(CivicSupplyRegions,room)>=0;}
+        private bool TalkCivicSupply(WorldObject o)
+        {
+            if(o.kind=="farrefugerecord" && save.room==9 &&
+                Has("far_refuge_guest_record")&&FarCourierDeliveredCount>0)
+            {
+                if((Position-new Point(o.x,o.y)).Length>2.2f)return true;
+                if(!CivicSupplyStarted)
+                    Dialog(o.name,o.en,
+                        "住客名单末尾多了三封写给普通旅人的求援信：引水渠的医药、赤铁矿场的夜间守望、雾港的临时床位。\n\n新的救援包已经真正抵达，但谁来维护这些地方，还没有答案。请在三地的居民检查台收集选择，最后回旅店公开账目。",
+                        "Three letters were added to the guest registry: medicine for the canal, night watches for Ironreach, and emergency beds at Mistport.\n\nThe first parcel truly arrived, but each community must decide how its refuge is maintained. Ask the residents at three real checkpoints, then publish their decisions here.",
+                        C("接受三地居民审计","Begin the civilian inquest","civic_supply_begin"),
+                        C("稍后再谈","Return later","close"));
+                else
+                {
+                    bool ready=CivicSupplyResolvedCount==3;
+                    Dialog(o.name,o.en,
+                        "三地居民审计已记录 "+CivicSupplyResolvedCount+"/3 份决定。"+(CivicSupplyComplete?
+                            "\n\n公开账目已经送到各地，每处避险棚的维持方式都由实地决定。":
+                            ready?"\n\n证词齐备。现在可以签发公开审计公报。":
+                            "\n\n回到已交付救援包的地区检查站，选择医疗补给或道路守望。"),
+                        "The inquest records "+CivicSupplyResolvedCount+"/3 local decisions."+
+                            (CivicSupplyComplete?
+                            "\n\nThe published accounts preserve each community's chosen refuge service.":
+                            ready?"\n\nAll decisions are recorded. Publish the public inquest report.":
+                            "\n\nVisit each delivered region's checkpoint to choose medical care or route watching."),
+                        C(!CivicSupplyComplete&&ready?"公开三地救援审计":"查看现有记录",
+                            !CivicSupplyComplete&&ready?"Publish inquest":"Review decisions",
+                            !CivicSupplyComplete&&ready?"civic_supply_publish":"close"),
+                        C("继续行路","Continue","close"));
+                }
+                return true;
+            }
+            if(o.kind!="farcheck"||!CivicSupplyStarted||!CivicSupplySite(save.room)||
+                FarCourierActive)return false;
+            if((Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            int room=save.room;
+            if(!FarCourierDelivered(room))
+            {
+                Dialog(o.name,o.en,
+                    "只有真正收到穿桥救援包后，居民才愿意讨论长期维护。请先把本地补给亲手送到避险棚。",
+                    "Residents will only plan long-term services after receiving a real bridge delivery. First bring this region's parcel to its refuge.",
+                    C("继续运送","Keep delivering","close"));
+                return true;
+            }
+            if(CivicSupplyResolved(room))
+            {
+                Dialog(o.name,o.en,
+                    CivicSupplyClinic(room)?
+                        "大家选择先保障受伤者。南边的公共避险棚已经安排志愿医护，安全时可持续恢复生命。":
+                        "大家选择先守护归途。南边的公共避险棚已经安排路标守望，安全时可持续恢复耐力。",
+                    CivicSupplyClinic(room)?
+                        "Local residents chose medical care. Volunteers at the southern refuge restore health while the area is safe.":
+                        "Local residents chose route watching. Scouts at the southern refuge restore energy while the area is safe.",
+                    C("查看签名","Review signatures","close"));
+                return true;
+            }
+            Dialog(o.name,o.en,
+                room==0?"水道边的老人为药草与干净床铺投票，守桥人却担心下一波洪水时无人巡逻。这里没有只靠英雄解决的问题。\n\n请替居民投入一项真实的长期服务。":
+                room==3?"矿工说负伤者需要治疗，夜班的运货队却仍害怕有人在新桥背后伏击。资源只能先修一处。":
+                    "雾港的船医想在避险棚开诊，守望者则希望在雾中建立持续的路灯巡查。由居民留下的名单决定，不能让公会悄悄代选。",
+                room==0?"Canal elders ask for medicines and clean beds; bridgekeepers warn the next flood may arrive without a night patrol. Neither need is a simple heroic victory.\n\nFund one enduring civic service.":
+                room==3?"Miners need treatment for the injured, but the night convoy fears ambush behind the rebuilt crossing. Only one service can be equipped first.":
+                    "Mistport's ship medics propose a field clinic; route watchers want dependable fog patrols. These choices belong to people on the manifest, not a distant guild.",
+                C("建立医疗点 · 药草2 零件1",
+                    "Fund clinic · 2 herbs, 1 part","civic_supply_clinic"),
+                C("设立守路岗 · 木材2 零件1",
+                    "Fund lookout · 2 timber, 1 part","civic_supply_watch"),
+                C("听完再决定","Decide later","close"));
+            return true;
+        }
+        private bool ChooseCivicSupply(string action)
+        {
+            if(!action.StartsWith("civic_supply_"))return false;
+            if(Dying||practicing)return true;
+            if(action=="civic_supply_begin"||action=="civic_supply_publish")
+            {
+                if(save.room!=9||!Has("far_refuge_guest_record")||
+                    FarCourierDeliveredCount==0)return true;
+                WorldObject registry=null;
+                foreach(WorldObject o in Map.objects)if(o.kind=="farrefugerecord")
+                    {registry=o;break;}
+                if(registry==null||(Position-new Point(registry.x,registry.y)).Length>2.2f)
+                    return true;
+                if(action=="civic_supply_begin")
+                {
+                    if(CivicSupplyStarted)return true;
+                    Flag("civic_supply_started");
+                    TrackQuest("civic_supply");sound="quest";revision++;
+                    RecordMoment("炉火旅店里的三封民间来信开启救援物资审计：为每地居民留下一项真正可用的长久服务。",
+                        "Three letters at Hearth Inn begin an independent audit of lasting services in the regions actually receiving relief.");
+                    Notify("三地居民审计开始：走访引水渠、矿场和雾港的实地检查台。",
+                        "Civilian inquest begun: visit the physical checkpoints in Canal, Ironreach and Mistport.");
+                }
+                else
+                {
+                    if(!CivicSupplyStarted||CivicSupplyComplete||
+                        CivicSupplyResolvedCount!=3)return true;
+                    Flag("civic_supply_complete");
+                    save.coins+=48;save.shards+=2;save.skillPoints++;
+                    AddXp(70);sound="reward";revision++;
+                    RecordMoment("三地签署各自的医疗与守路选择。炉火旅店公开了每一笔木材、药草和零件去向，公共避险棚开始真正发挥作用。",
+                        "Three communities sign their own clinic or lookout allocations. Hearth Inn makes every timber, herb and part public, and the refuges serve travelers.");
+                    Notify("居民救援审计完成：硬币 +48、碎片 +2、技能点 +1、经验 +70。",
+                        "Civilian inquest complete: +48 coins, +2 shards, +1 talent, +70 XP.");
+                }
+                return true;
+            }
+            if(action!="civic_supply_clinic"&&action!="civic_supply_watch")return true;
+            int room=save.room;
+            if(!CivicSupplyStarted||CivicSupplyComplete||!CivicSupplySite(room)||
+                !FarCourierDelivered(room)||!FarShelterBuilt(room)||FarCourierActive)return true;
+            WorldObject checkpoint=null;
+            foreach(WorldObject o in Map.objects)if(o.kind=="farcheck"){checkpoint=o;break;}
+            if(checkpoint==null||(Position-new Point(checkpoint.x,checkpoint.y)).Length>2.2f||
+                CivicSupplyResolved(room))return true;
+            if(!SafeTravel)
+            {
+                Notify("先清除居民检查站旁的敌人，才能安全设立服务。",
+                    "Clear hostiles by the civilian checkpoint before funding a permanent service.");
+                return true;
+            }
+            bool clinic=action=="civic_supply_clinic";
+            if(!Spend(clinic?0:2,0,clinic?2:0,0,1))return true;
+            Flag(action+"_"+room);AddXp(22);sound="reward";revision++;
+            RecordMoment("第 "+(room+1)+" 地居民选择优先"+(clinic?"医疗照护":"守路巡查")+
+                "，由亲自运送过补给包的社区签字，而不是远处的命令。",
+                "Region "+(room+1)+" votes for "+(clinic?"medical care":"route watching")+
+                " after receiving the physical relief parcel, rather than a distant order.");
+            Notify(clinic?"医疗服务已设立：避险棚安全时持续恢复生命。":
+                "守路岗已设立：避险棚安全时持续恢复耐力。",
+                clinic?"Clinic funded: safe refuge now restores health over time.":
+                "Lookout funded: safe refuge now restores energy over time.");
+            return true;
+        }
+
         private bool TalkFarStation(WorldObject o)
         {
+            if(TalkCivicSupply(o))return true;
             if(TalkFarCourier(o))return true;
             if(TalkFarBridge(o))return true;
             if(TalkFarSecrets(o))return true;
@@ -235,6 +395,7 @@ namespace Starfall
         }
         private bool ChooseFarStation(string action)
         {
+            if(ChooseCivicSupply(action))return true;
             if(action=="far_courier_charter")
             {
                 if(save.room!=9||Dying||practicing||Has("far_courier_charter")||
