@@ -387,5 +387,47 @@ namespace Starfall.Tests
                 "Dead-player finale delay is retired on respawn, not fired inside the old region");
         }
 
+        public static void EquippingIdenticalWeaponCannotEraseActiveAttack(Campaign data)
+        {
+            var g=Fresh(data);
+            g.enemies.Clear();
+            g.save.energy=100;
+            g.Attack(new Point(1,0));
+            ActorAction ongoing=g.playerAction;
+            Check(ongoing!=null&&ongoing.kind=="attack",
+                "A real sword attack prepares before the equipment click");
+            int beforeRevision=g.revision, originalWeapon=g.save.weapon;
+            g.Skill(new Point(1,0));
+            Check(g.skillCooldown==0&&g.playerAction==ongoing,
+                "A skill requested during a real windup is queued without cancelling the current attack");
+            g.Equip(originalWeapon);
+            Check(g.playerAction==ongoing&&g.revision==beforeRevision&&g.skillCooldown==0,
+                "Re-selecting the same equipped weapon is a true no-op: no revision or interrupted animation");
+            bool released=false, cast=false;
+            for(int i=0;i<22;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(ongoing.released)released=true;
+                if(g.playerAction!=null&&g.playerAction.kind=="skill")cast=true;
+            }
+            Check(released&&cast,
+                "Buffered Q still plays after the real previous attack releases through the same-weapon click");
+            // An actual loadout change still retires the old attack and queued
+            // skill before its contact frame so damage is not duplicated.
+            var changed=Fresh(data);
+            changed.save.flags.Add("weapon_1");
+            changed.save.energy=100;
+            changed.Attack(new Point(1,0));
+            changed.Skill(new Point(1,0));
+            Check(changed.playerAction!=null,
+                "A queued sword attack exists before switching to an unlocked ranged weapon");
+            changed.Equip(1);
+            Check(changed.save.weapon==1&&changed.playerAction==null,
+                "A genuine weapon change still cancels stale actions");
+            for(int i=0;i<20;i++)changed.Tick(.05f,new Point());
+            Check(changed.playerAction==null&&changed.skillCooldown==0,
+                "Cancelled Q from an old weapon profile never fires after swapping equipment");
+        }
+
     }
 }

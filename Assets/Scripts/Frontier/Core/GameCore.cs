@@ -1260,7 +1260,14 @@ namespace Starfall
             save.foodUntil = save.totalTime + 90; revision++; sound = "reward"; Notify("生命 +55，耐力回满，攻击增强 90 秒。", "+55 health, full energy, stronger attacks for 90 seconds.");
         }
         public void Equip(int weapon)
-        { if (weapon >= 0 && weapon <= 2 && (weapon == 0 || Has("weapon_" + weapon))) { CancelAction(); save.weapon = weapon; revision++; } }
+        {
+            if (weapon < 0 || weapon > 2 || (weapon > 0 && !Has("weapon_" + weapon)))
+                return;
+            // Selecting the already-equipped icon must not discard an active
+            // attack animation or the player's buffered Q input.
+            if (save.weapon == weapon) return;
+            CancelAction(); save.weapon = weapon; revision++;
+        }
         public void Learn(int talent)
         {
             if (talent < 0 || talent > 2 || save.skillPoints <= 0 || save.talents[talent] >= 5) return;
