@@ -2584,11 +2584,13 @@ namespace Starfall.Tests
             Check(parcel.FarCourierActive,"Real bridge parcel is active before death");
             int coins=parcel.save.coins;
             parcel.save.health=1;parcel.invulnerable=0;
-            parcel.projectiles.Add(new Projectile{
-                position=parcel.Position, damage=999, source="shot",life=3 });
-            parcel.Tick(.02f,new Point());
-            Check(parcel.Dying&&parcel.FarCourierActive,
-                "Lethal enemy arrow triggers a visible death during the actual cargo run");
+            var applyHurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            applyHurt.Invoke(parcel,new object[]{999f,"shot",null});
+            Check(parcel.Dying,
+                "The production damage transaction triggers a real visible death during cargo transport");
+            Check(parcel.FarCourierActive,
+                "A lethal hit does not first quietly delete the live parcel objective");
             for(int i=0;i<26&&parcel.Dying;i++)parcel.Tick(.05f,new Point());
             Check(!parcel.Dying&&parcel.save.room==0&&
                 Math.Abs(parcel.save.x-data.maps[0].spawnX)<.01f&&
@@ -2611,11 +2613,10 @@ namespace Starfall.Tests
             Check(watch.CivicResponseWatchRun&&watch.CivicResponseEnemiesAlive==2,
                 "Physical civic watch has two real enemies before lethal hit");
             watch.save.health=1;watch.invulnerable=0;
-            watch.projectiles.Add(new Projectile{
-                position=watch.Position,damage=999,source="shot",life=3 });
-            watch.Tick(.02f,new Point());
-            Check(watch.Dying&&watch.CivicResponseActive,
-                "Fatal arrow does not silently award the unfinished watch objective");
+            applyHurt.Invoke(watch,new object[]{999f,"shot",null});
+            Check(watch.Dying,"Authentic lethal damage starts the watch defender's death recovery");
+            Check(watch.CivicResponseActive,
+                "Fatal strike must not silently award the unfinished civic watch objective");
             for(int i=0;i<26&&watch.Dying;i++)watch.Tick(.05f,new Point());
             Check(!watch.Dying&&watch.save.room==0&&
                 !watch.CivicResponseActive&&watch.CivicResponseEnemiesAlive==0&&
