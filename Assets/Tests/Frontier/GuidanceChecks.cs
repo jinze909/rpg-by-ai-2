@@ -2455,7 +2455,7 @@ namespace Starfall.Tests
             g.save.flags.Add("civic_supply_clinic_0");g.save.flags.Add("far_shelter_0");
             g.save.flags.Add("far_bridge_0");g.save.flags.Add("scout_saved");
             g.Enter(0);g.enemies.Clear();
-            var shelter=Object(g,"farshelter"),bridge=Object(g,"farbridge");
+            WorldObject shelter=Object(g,"farshelter"),bridge=Object(g,"farbridge");
             g.save.x=shelter.x;g.save.y=shelter.y;
             Action(g,"farshelter","civic_response_start");
             Check(g.CivicResponseClinicRun&&g.CivicResponseTimeLeft==75,
