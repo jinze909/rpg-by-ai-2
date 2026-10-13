@@ -77,6 +77,19 @@ namespace Starfall.Tests
             Check(g.save.coins==coins && g.save.shards==shards &&
                 !g.Has("skywatch_defeated"),
                 "Starting the fight never pays unearned first-clear rewards");
+            // Save/reload during a live optional boss must not create a
+            // questless 89701 enemy or count a silent first clear.
+            g.PrepareSave();
+            Check(!Array.Exists(g.save.worldEnemies,
+                record=>record!=null && record.id==89701),
+                "A live scripted observatory boss is not serialized as an ordinary world patrol");
+            var interrupted=new GameCore(data,CloneSave(g.save));
+            interrupted.Start();
+            Check(interrupted.SkywatchRoom==0 &&
+                !interrupted.enemies.Exists(interrupted.IsSkywatchEnemy) &&
+                !interrupted.Has("skywatch_defeated") &&
+                !interrupted.Has("boss_7"),
+                "Reload safely resets the unfinished observatory rather than resurrecting a phantom elite");
             // Defeat with the actual golden-haired hero's melee input. This
             // also catches combat-hit integration and anti-farming regressions.
             boss.stun=120;boss.timer=120;
