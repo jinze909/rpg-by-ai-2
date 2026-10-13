@@ -1290,21 +1290,27 @@ namespace Starfall.Tests
             g.hitStop=0;g.invulnerable=0;g.Tick(.05f,new Point());
             arc=g.hazards.Find(h=>h.civicConduitOwned);
             Check(arc!=null,"Repeated live grid arcs are generated");
-            g.save.x=arc.position.x+3.5f;
-            g.save.y=arc.position.y;
+            // Move with the real collision/body integrator before the 1.05s
+            // telegraph expires; a direct position assignment is *correctly*
+            // rejected by the live no-teleport integrity check.
+            for(int i=0;i<18;i++){g.hitStop=0;g.Tick(.05f,new Point(1,0));}
+            Check((g.Position-arc.position).Length>3f&&g.CivicConduitActive,
+                "A true eastbound dodge clears the warned tile without teleporting");
             health=g.save.health;g.hitStop=0;g.invulnerable=0;
             arc.timer=.01f;g.Tick(.05f,new Point());
             Check(g.save.health>=health-1,
-                "An arc missed after a genuine move away from its warned contact area");
+                "A genuinely moved player avoids contact with the marked arc");
             // Test selective clean-up without throwing out unrelated bosses'
             // delayed area warnings.
             var nonOwned=new Hazard{position=g.Position,radius=.5f,timer=10,
                 kind="bell",damage=9};
             g.hazards.Add(nonOwned);
+            for(int i=0;i<18;i++){g.hitStop=0;g.Tick(.05f,new Point(-1,0));}
+            Check((g.Position-new Point(west.x,west.y)).Length<2.2f&&
+                g.CivicConduitActive,"Physical return to the west control desk preserves the active grid");
             pulse.SetValue(g,.01f);g.hitStop=0;g.Tick(.05f,new Point());
             Check(g.hazards.Exists(h=>h.civicConduitOwned),
                 "There is a still live authored grid hazard before abort");
-            g.save.x=west.x;g.save.y=west.y;
             Action(g,"civicconduitmaster","civic_conduit_abort");
             Check(!g.CivicConduitActive&&
                 !g.hazards.Exists(h=>h.civicConduitOwned)&&
