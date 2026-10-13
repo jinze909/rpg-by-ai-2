@@ -266,16 +266,16 @@ namespace Starfall
                     break;
                 case "counterpoint":
                     headingZh = "星根失谐：和声属于谁"; headingEn = "Starroot Counterpoint: Whose Song?";
-                    zh = "听纹师芮记下了九年前的一次失谐：堡垒让每处星根只向中央供能，原本彼此补偿的根、潮与铁再也听不到其他地区。\\n\\n" +
-                        (Has("root_harmony_1") ? "密林第一道根音已重新归档。它记录的不是可开采星晶，而是活土如何让老树与溪流一同复苏。\\n" : "密林根音尚未取回。\\n") +
-                        (Has("root_harmony_2") ? "沉没遗迹的潮音描述失去的退潮时刻：水闸应按活人的需要开启，而不是听从九年前的印章。\\n" : "沉没遗迹潮音仍在沉睡。\\n") +
+                    zh = "听纹师芮记下了九年前的一次失谐：堡垒让每处星根只向中央供能，原本彼此补偿的根、潮与铁再也听不到其他地区。\n\n" +
+                        (Has("root_harmony_1") ? "密林第一道根音已重新归档。它记录的不是可开采星晶，而是活土如何让老树与溪流一同复苏。\n" : "密林根音尚未取回。\n") +
+                        (Has("root_harmony_2") ? "沉没遗迹的潮音描述失去的退潮时刻：水闸应按活人的需要开启，而不是听从九年前的印章。\n" : "沉没遗迹潮音仍在沉睡。\n") +
                         (Has("root_harmony_3") ? "矿场铁音留下停工的节拍：锻造与抽取之间，本该有让人回家的间隙。" : "矿场铁音还未校准。") +
-                        (Has("root_harmony_complete") ? "\\n\\n三道音纹终于被封存为公开读数。和声不是另一种统治工具，它证明了没有一处土地应该永远独奏。" : "");
-                    en = "Rui recovered a nine-year-old dissonance: the citadel ordered every anchor to feed the center. Root, tide and iron, once balanced by listening to one another, could no longer hear distant needs.\\n\\n" +
-                        (Has("root_harmony_1") ? "Thornwood's root reading is archived: living soil repairs roots and streams together.\\n" : "The woodland root reading remains lost.\\n") +
-                        (Has("root_harmony_2") ? "The tide reading remembers when sluices opened for living travelers instead of old guild seals.\\n" : "The drowned tide reading remains silent.\\n") +
+                        (Has("root_harmony_complete") ? "\n\n三道音纹终于被封存为公开读数。和声不是另一种统治工具，它证明了没有一处土地应该永远独奏。" : "");
+                    en = "Rui recovered a nine-year-old dissonance: the citadel ordered every anchor to feed the center. Root, tide and iron, once balanced by listening to one another, could no longer hear distant needs.\n\n" +
+                        (Has("root_harmony_1") ? "Thornwood's root reading is archived: living soil repairs roots and streams together.\n" : "The woodland root reading remains lost.\n") +
+                        (Has("root_harmony_2") ? "The tide reading remembers when sluices opened for living travelers instead of old guild seals.\n" : "The drowned tide reading remains silent.\n") +
                         (Has("root_harmony_3") ? "Ironreach's rhythm preserves the pause between forging and extraction, long enough for miners to go home." : "The mine's iron reading is still uncalibrated.") +
-                        (Has("root_harmony_complete") ? "\\n\\nAll three readings now belong to the public archive. Counterpoint is not another tool of rule: no land should have to sing alone." : "");
+                        (Has("root_harmony_complete") ? "\n\nAll three readings now belong to the public archive. Counterpoint is not another tool of rule: no land should have to sing alone." : "");
                     break;
                 case "abyss":
                     headingZh = "地脉深渊：星根的伤口"; headingEn = "Root Abyss: A Wound in the Network";

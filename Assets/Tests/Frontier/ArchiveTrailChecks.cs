@@ -71,6 +71,55 @@ namespace Starfall.Tests
                 "Atlas quest and its rewards persist through the existing save format");
         }
 
+        public static void NewCounterpointChronicleRevealsOnlyRecoveredMusic(Campaign data)
+        {
+            var g = Fresh(data);
+            WorldObject book = Object(g, "worldchronicle");
+            g.save.x = book.x; g.save.y = book.y;
+            g.Talk(book);
+            int section = Array.FindIndex(g.conversation.choices,
+                c => c.action == "story_section_after");
+            Check(section >= 0, "Existing world chronicle provides the homeward aftermath section");
+            g.Choose(section);
+            Check(!Array.Exists(g.conversation.choices,
+                c => c.action == "story_read_counterpoint"),
+                "The new dissonance story stays sealed before accepting Rui's real quest");
+            g.Close();
+            g.save.flags.Add("root_harmony_started");
+            g.Talk(book); section = Array.FindIndex(g.conversation.choices,
+                c => c.action == "story_section_after"); g.Choose(section);
+            Check(Array.Exists(g.conversation.choices,
+                c => c.action == "story_read_counterpoint"),
+                "Accepting the real quest unlocks its readable chapter without revealing later regions");
+            int page = Array.FindIndex(g.conversation.choices,
+                c => c.action == "story_read_counterpoint");
+            g.Choose(page);
+            Check(g.conversation.text.Contains("密林根音尚未取回") &&
+                !g.conversation.text.Contains("三道音纹终于被封存"),
+                "The journal does not fabricate recovered evidence or the final conclusion");
+            g.Close();
+            g.save.flags.Add("root_harmony_1");
+            g.Talk(book); section = Array.FindIndex(g.conversation.choices,
+                c => c.action == "story_section_after"); g.Choose(section);
+            page = Array.FindIndex(g.conversation.choices,
+                c => c.action == "story_read_counterpoint"); g.Choose(page);
+            Check(g.conversation.text.Contains("密林第一道根音已重新归档") &&
+                g.conversation.text.Contains("沉没遗迹潮音仍在沉睡"),
+                "The new chronicle actually updates with completed regional progress");
+            g.Close();
+            g.save.flags.Add("root_harmony_2");
+            g.save.flags.Add("root_harmony_3");
+            g.save.flags.Add("root_harmony_complete");
+            g.save.english = true;
+            g.Talk(book); section = Array.FindIndex(g.conversation.choices,
+                c => c.action == "story_section_after"); g.Choose(section);
+            page = Array.FindIndex(g.conversation.choices,
+                c => c.action == "story_read_counterpoint"); g.Choose(page);
+            Check(g.conversation.textEn.Contains("All three readings now belong") &&
+                g.conversation.textEn.Contains("\\n") == false,
+                "The bilingual final lore only unlocks after completion and uses proper formatted paragraphs");
+        }
+
         public static void CalibratedStarrootSitesOfferSafePersistentRest(Campaign data)
         {
             var g = Fresh(data);
