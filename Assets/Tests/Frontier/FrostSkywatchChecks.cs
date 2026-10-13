@@ -156,7 +156,9 @@ namespace Starfall.Tests
             g.hazards.Remove(ordinary);g.enemies.Clear();
             Action(g,"skyobservatory","skywatch_start");
             Check(g.SkywatchRoom==7,"The observatory supports a real free retry");
-            g.SkywatchTime=.01f;g.Tick(.05f,new Point());
+            typeof(GameCore).GetProperty("SkywatchTime")
+                .GetSetMethod(true).Invoke(g,new object[]{.01f});
+            g.Tick(.05f,new Point());
             Check(g.SkywatchRoom==0 && !g.Has("skywatch_defeated") &&
                 !g.enemies.Exists(g.IsSkywatchEnemy) &&
                 !g.hazards.Exists(h=>h.skywatchOwned),
