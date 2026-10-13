@@ -227,9 +227,13 @@ namespace Starfall
             {
                 int chapter=Game.save.room;
                 bool filed=Game.Has("witness_complete_"+chapter);
-                Color tint=filed?mint:Game.Has("witness_started_"+chapter)?gold:muted;
+                bool repaired=Game.Has("afterlight_done_"+chapter);
+                bool steward=Game.Has("afterlight_steward_"+chapter);
+                Color tint=steward?mint:repaired?gold:filed?mint:Game.Has("witness_started_"+chapter)?gold:muted;
                 DrawNpc("innGuest",new Point(o.x,o.y),11+chapter);
                 Text(p.x-66,p.y-86,132,20,
+                    repaired?steward?Game.L("维护承诺已署名","STEWARD SIGNED"):
+                        Game.L("维护者待署名","SIGN MAINTENANCE"):
                     filed?Game.L("证词已公开","TESTIMONY FILED"):
                     Game.L(new[]{"受伤根系证人","渡口幸存证人","矿工停机证人"}[chapter-1],
                         new[]{"GROVE WITNESS","CROSSING WITNESS","MINER WITNESS"}[chapter-1]),

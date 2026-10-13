@@ -211,9 +211,9 @@ namespace Starfall
             if (TalkTideSalvage(o)) return true;
             if (TalkTemper(o)) return true;
             if (TalkTriad(o)) return true;
+            if (TalkAfterlight(o)) return true;
             if (TalkWitness(o)) return true;
             if (TalkBlackout(o)) return true;
-            if (TalkAfterlight(o)) return true;
             if (TalkWayfarer(o)) return true;
             if (TalkRoadwardenCipher(o)) return true;
 

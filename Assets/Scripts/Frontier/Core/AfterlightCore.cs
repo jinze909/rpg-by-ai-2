@@ -15,6 +15,10 @@ namespace Starfall
             get { int n=0;for(int i=1;i<=3;i++)if(Has("afterlight_done_"+i))n++;return n; }
         }
         public bool AfterlightComplete { get { return Has("afterlight_complete"); } }
+        public int AfterlightStewards
+        {
+            get { int n=0;for(int i=1;i<=3;i++)if(Has("afterlight_steward_"+i))n++;return n; }
+        }
         public int AfterlightMode(int region)
         { return Has("afterlight_plan_"+region+"_care")?1:Has("afterlight_plan_"+region+"_watch")?2:0; }
         private Point AfterlightPoint(int region,string type)
@@ -59,6 +63,29 @@ namespace Starfall
             string kind=o.kind;
             bool board=kind=="afterlightcouncil";
             int room=save.room;
+            // Reuse the EXISTING living characters of Acts I–III rather than
+            // cloning them as new NPCs or bypassing their signed commitments.
+            if(room>=1&&room<=3 && kind=="witnessnpc"+room &&
+                AfterlightEligible && Has("afterlight_started") &&
+                Has("afterlight_done_"+room) && !Has("afterlight_steward_"+room))
+            {
+                string[] whoZh={"","莫芽 · 密林巡路员","阿菱 · 遗迹渡口幸存者","维恩 · 赤铁矿工"};
+                string[] whoEn={"","Moya · Grove Roadwarden","Arin · Sluice Survivor","Venn · Ironreach Miner"};
+                string[] pledgeZh={"",
+                    "莫芽：我会让受伤的根系与巡路灯的维修计划都公开。以后每棵树能不能恢复生长，由守护森林的人一起讨论，不再由军用货车决定。",
+                    "阿菱：渡口的名单要记下行人、孩子、船夫，还有那些没钱交过桥费的人。这座设施的维护日志我来签。",
+                    "维恩：机器维修应当轮班，过热就停，谁也不许把工人的撤离写成偷懒。我要把这条写入每一次交接清单。"};
+                string[] pledgeEn={"",
+                    "Moya: We will publish repair logs for the wounded roots and road lamps. Those who live with this forest must decide how it heals, not military ore carts.",
+                    "Arin: The crossing ledger must name travelers, children, boatkeepers, even those who cannot pay. I will sign its maintenance record.",
+                    "Venn: Machines require safe shifts. When they overheat, work stops, and evacuation is not laziness. I will put that into every handover."};
+                Dialog(whoZh[room],whoEn[room],
+                    pledgeZh[room]+"\n\n真正可用的公共设施需要有人署名维护。若我签了字，公会可以公开我的责任，而不是只在战后庆典里把我算作一个数字。",
+                    pledgeEn[room]+"\n\nA working public service needs a named steward. If I sign, the guild can publish my responsibilities rather than counting me as another number at the victory ceremony.",
+                    C("请居民亲自签下维护承诺","Have the resident sign stewardship","afterlight_steward_"+room),
+                    C("再考虑一下","Not yet","close"));
+                return true;
+            }
             bool anchor=room>=1&&room<=3&&kind=="afterlightanchor"+room;
             bool outlet=room>=1&&room<=3&&kind=="afterlightoutlet"+room;
             if(!board&&!anchor&&!outlet)return false;
@@ -102,10 +129,12 @@ namespace Starfall
                 }
                 Dialog(o.name,o.en,
                     "莉雅：已经接通 "+AfterlightRestored+"/3 座公共站。每一座都是由居民签名认可、在地图上真正能使用的设施。"+
-                    (AfterlightRestored==3?"\n\n三地全部完成。现在可以正式公布一份有修复计划、有维护者、有用途说明的战后公约。":"\n\n请先到还未修复的地区，再回公会汇报。"),
+                    (AfterlightRestored==3 && AfterlightStewards==3?"\n\n三地设施和三份居民维护签名全部齐备。现在可以正式公布有具体责任人的战后公约。":
+                     AfterlightRestored==3?"\n\n三座设施已修复，但仍有"+(3-AfterlightStewards)+"位地区维护者尚未签字。回到原来的三位证人身边，当面确认维护责任。":"\n\n请先到还未修复的地区，再回公会汇报。"),
                     "Lyra: "+AfterlightRestored+"/3 public sites are operational, signed by local residents and usable in the world."+
-                    (AfterlightRestored==3?"\n\nThe three routes are rebuilt. Publish a real recovery charter naming their purpose and stewards.":"\n\nFinish the remaining regions before returning for publication."),
-                    AfterlightRestored==3?
+                    (AfterlightRestored==3 && AfterlightStewards==3?"\n\nAll three services and three signed local maintenance pledges are ready. Publish the charter now.":
+                     AfterlightRestored==3?"\n\nAll sites work, but "+(3-AfterlightStewards)+" original regional witnesses still need to sign their maintenance obligations. Return to them in person.":"\n\nFinish the remaining regions before returning for publication."),
+                    AfterlightRestored==3 && AfterlightStewards==3?
                         C("公布三地重建公约 · 完成第五章","Publish the three-region charter · Finish Chapter Five","afterlight_publish"):
                         C("追踪战后重建","Track reconstruction","afterlight_track"),
                     C("继续准备","Prepare","close"));
@@ -215,7 +244,7 @@ namespace Starfall
             }
             if(action=="afterlight_publish")
             {
-                if(save.room!=0 || !Has("afterlight_started") || AfterlightRestored!=3 ||
+                if(save.room!=0 || !Has("afterlight_started") || AfterlightRestored!=3 || AfterlightStewards!=3 ||
                     Has("afterlight_complete") ||
                     (Position-ObjectPoint(0,"afterlightcouncil",new Point(-100,-100))).Length>2.2f)return true;
                 Flag("afterlight_complete");
@@ -245,6 +274,21 @@ namespace Starfall
                 save.x=to.x;save.y=to.y;revision++;sound="travel";
                 Notify("公共渡船已抵达对岸。不是公会独占的水路了。",
                     "Public ferry reached the other bank. Passage no longer belongs only to the guild.");
+                return true;
+            }
+            if(action.StartsWith("afterlight_steward_"))
+            {
+                int r;
+                if(!int.TryParse(action.Substring("afterlight_steward_".Length),out r) ||
+                    r<1||r>3 || save.room!=r || !Has("afterlight_started") ||
+                    !Has("afterlight_done_"+r) || Has("afterlight_steward_"+r) ||
+                    (Position-ObjectPoint(r,"witnessnpc"+r,new Point(-100,-100))).Length>2.2f)
+                    return true;
+                Flag("afterlight_steward_"+r);revision++;sound="quest";
+                RecordMoment(AfterlightLocation(r,false)+"的当地居民已签下公共设施的维护责任。",
+                    "Local residents at "+AfterlightLocation(r,true)+" signed responsibility for their working public infrastructure.");
+                Notify("居民维护承诺已签署："+AfterlightStewards+"/3。公约必须由活着的人亲自承担。",
+                    "Resident stewardship signed: "+AfterlightStewards+"/3. A charter needs real people taking responsibility.");
                 return true;
             }
             if(action=="afterlight_craft")

@@ -168,17 +168,22 @@ namespace Starfall
                         L(new[]{"密林 · 恢复活根与安全林道","遗迹 · 让渡口属于活着的人","矿场 · 将安全停机写入机器"}[i-1],
                           new[]{"Thornwood · living roots and safe roads","Ruins · public crossing and water safety","Ironreach · workers' control of machinery"}[i-1]),
                         Has("afterlight_done_"+i)));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"请莫芽签署苗圃或林灯维护责任","请阿菱签署公共渡口维护责任","请维恩签署安全工房维护责任"}[i-1],
+                          new[]{"Moya signs root or lantern stewardship","Arin signs crossing stewardship","Venn signs foundry stewardship"}[i-1]),
+                        Has("afterlight_steward_"+i)));
                 q.steps.Add(new QuestStep(L("返回公会，发布三地重建公约","Publish the three-region civic charter"),q.complete));
                 int next=0;
                 if(AfterlightChargeRegion!=0)next=AfterlightChargeRegion;
                 else if(save.room>=1&&save.room<=3 && Has("afterlight_started") &&
-                    !Has("afterlight_done_"+save.room))next=save.room;
+                    (!Has("afterlight_done_"+save.room)||!Has("afterlight_steward_"+save.room)))next=save.room;
                 else for(int i=1;i<=3;i++)
-                    if(!Has("afterlight_done_"+i)){next=i;break;}
+                    if(!Has("afterlight_done_"+i)||!Has("afterlight_steward_"+i)){next=i;break;}
                 q.room=!Has("afterlight_started")||q.complete||next==0?0:next;
                 string kind=q.room==0?"afterlightcouncil":
                     AfterlightChargeRegion==next?"afterlightoutlet"+next:
-                    AfterlightMode(next)==0?"afterlightanchor"+next:
+                    Has("afterlight_done_"+next) && !Has("afterlight_steward_"+next)?"witnessnpc"+next:
                     "afterlightanchor"+next;
                 q.target=ObjectPoint(q.room,kind,new Point(16,18));
                 q.next=q.complete?L("第五章完成 · 重建公约已公开","Chapter Five complete · Charter published"):
@@ -186,6 +191,8 @@ namespace Starfall
                     !Has("afterlight_started")?L("去公会重建议事台接受战后任务","Accept the reconstruction mission at the guild council"):
                     AfterlightChargeRegion!=0?L("90秒内将稳定余光送到远端公共接收台","Deliver the charge to the distant receiver within 90 seconds"):
                     next==0?L("回公会正式发布三地公约","Publish the public charter back at the guild"):
+                    Has("afterlight_done_"+next) && !Has("afterlight_steward_"+next)?
+                        L("回到当地证人身边，亲自签署设施维护责任","Return to the living witness to sign regional stewardship"):
                     AfterlightMode(next)==0?L("在当地旧锚点选择不可反悔的公共用途","Choose a lasting civic purpose at the regional anchor"):
                     L("到当地锚点启动负载传输","Start the physical transfer at the local anchor");
                 q.reward=L("各地区真实恢复设施功能；章节完结120硬币、4碎片、100经验、1技能点",

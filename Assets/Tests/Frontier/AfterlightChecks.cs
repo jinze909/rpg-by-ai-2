@@ -102,8 +102,17 @@ namespace Starfall.Tests
                 if(room==2)g.save.x=outlet.x;g.save.y=outlet.y;
                 Check(g.AfterlightRestored==room && g.save.coins==heldCoins+20+room*10,
                     "Rereading installed machinery cannot duplicate regional story rewards");
+                WorldObject steward=Object(g,"witnessnpc"+room);
+                QuestGuide pending=g.GetQuest("afterlight");
+                Check(pending.room==room &&
+                    (pending.target-new Point(steward.x,steward.y)).Length<.02f,
+                    "Once repaired, the real chapter-five guidance directs player to the original living regional witness for stewardship");
+                g.save.x=steward.x;g.save.y=steward.y;
+                Action(g,steward.kind,"afterlight_steward_"+room);
+                Check(g.AfterlightStewards==room && g.Has("afterlight_steward_"+room),
+                    "Living original chapter witness must personally sign the specific regional maintenance commitment");
             }
-            Check(g.AfterlightRestored==3 &&
+            Check(g.AfterlightRestored==3 && g.AfterlightStewards==3 &&
                 !g.Has("afterlight_complete"),
                 "Real physical projects are not the same as signing the public charter");
             g.Enter(0);g.enemies.Clear();
@@ -119,7 +128,7 @@ namespace Starfall.Tests
             g.PrepareSave();
             var persisted=new GameCore(data,CloneSave(g.save));persisted.Start();
             Check(persisted.save.version==2 && persisted.AfterlightComplete &&
-                persisted.AfterlightRestored==3 && persisted.save.ending==3,
+                persisted.AfterlightRestored==3 && persisted.AfterlightStewards==3 && persisted.save.ending==3,
                 "All public services, choices and original ending survive version-two save serialization");
             g.Talk(council);
             Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_publish"),
@@ -256,5 +265,50 @@ namespace Starfall.Tests
                 g.conversation.text.Contains("三地居民共建的维护公约"),
                 "Original ending text changes only after all public works and real charter have been published");
         }
+
+        public static void ChapterFiveCharterRequiresThreeRealLivingStewardSignatures(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=1;
+            g.save.flags.Add("afterlight_started");g.save.flags.Add("scout_saved");
+            for(int i=1;i<=3;i++)
+            {
+                g.save.flags.Add("afterlight_done_"+i);
+                g.save.flags.Add("afterlight_plan_"+i+"_care");
+            }
+            WorldObject board=Object(g,"afterlightcouncil");
+            g.save.x=board.x;g.save.y=board.y;
+            g.Talk(board);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_publish") &&
+                g.conversation.text.Contains("尚未签字"),
+                "Building three functioning machines alone cannot claim the final charter without responsible living stewards");
+            g.Close();
+            g.Enter(1);g.enemies.Clear();
+            WorldObject moya=Object(g,"witnessnpc1");
+            g.save.x=24.5f;g.save.y=7.5f;
+            Action(g,moya.kind,"afterlight_steward_1");
+            Check(!g.Has("afterlight_steward_1"),
+                "No proxy or remote forged signatures: original witness must be approached in person");
+            g.save.x=moya.x;g.save.y=moya.y;
+            Action(g,moya.kind,"afterlight_steward_1");
+            Check(g.Has("afterlight_steward_1") &&
+                g.AfterlightStewards==1 && g.AfterlightRestored==3,
+                "The actual first-act witness makes the regional maintenance pact without repeating evidence missions");
+            g.Talk(moya);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_steward_1") &&
+                Array.Exists(g.conversation.choices,c=>c.action=="witness_begin_1"),
+                "After signing stewardship, the original witness and her prior optional story remain available");
+            g.Close();
+            for(int i=2;i<=3;i++)g.save.flags.Add("afterlight_steward_"+i);
+            g.Enter(0);g.enemies.Clear();
+            g.save.x=board.x;g.save.y=board.y;
+            g.Talk(board);
+            Check(Array.Exists(g.conversation.choices,c=>c.action=="afterlight_publish") &&
+                g.AfterlightStewards==3 && !g.AfterlightComplete,
+                "Final charter becomes an actual user-facing action only after all real local signatures");
+            g.Close();
+            Action(g,board.kind,"afterlight_publish");
+            Check(g.AfterlightComplete,"Signed civic reconstruction is an earned main-story closure");
+        }
+
     }
 }
