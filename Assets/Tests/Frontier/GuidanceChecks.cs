@@ -1582,6 +1582,63 @@ namespace Starfall.Tests
             g.Enter(0);
             Check(g.save.room==0,"Player may freely leave after canceling the actual last stage");
         }
+        public static void QualityCivicValvesTrackStableIdsNotCoordinates(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();
+            WorldObject[] slots=new WorldObject[3];
+            foreach(WorldObject o in g.Map.objects)
+                if(o.kind=="civicconduitvalve")
+                {
+                    int slot=g.CivicConduitValveIndex(o);
+                    Check(slot>=0&&slot<=2&&slots[slot]==null,
+                        "Unique authored IDs identify the exact three civic circuit stages");
+                    slots[slot]=o;
+                }
+            for(int i=0;i<3;i++)
+            {
+                Check(slots[i]!=null&&
+                    (g.CivicConduitTarget(i)-new Point(slots[i].x,slots[i].y)).Length<.001f,
+                    "Navigation derives each waypoint from the matching authored object position");
+                float x=slots[i].x,y=slots[i].y;
+                try
+                {
+                    slots[i].x+=.55f;slots[i].y+=.18f;
+                    Check(g.CivicConduitValveIndex(slots[i])==i&&
+                        (g.CivicConduitTarget(i)-new Point(slots[i].x,slots[i].y)).Length<.001f,
+                        "Changing terrain placement never silently reorders stage identity or leaves an old waypoint");
+                }
+                finally{slots[i].x=x;slots[i].y=y;}
+            }
+            var impostor=new WorldObject{id="otherValve",kind="civicconduitvalve",x=104.5f,y=74.5f};
+            Check(g.CivicConduitValveIndex(impostor)==-1,
+                "Unknown field props must not alias legitimate valves by sharing an X position");
+
+            var desk=Object(g,"civicconduitmaster");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            Check(g.CivicConduitActive,"Legitimate circuit started for overlapping interaction test");
+            // Stage-one valve reaches to x=106.7; stage-two reaches back
+            // to x=106.3. Their interaction volumes overlap slightly.
+            for(int i=0;i<210&&g.CivicConduitActive&&g.Position.x<106.4f;i++)
+                g.Tick(.05f,new Point(1,0));
+            Check(g.CivicConduitActive&&g.Position.x>=106.3f&&
+                (g.Position-new Point(slots[0].x,slots[0].y)).Length<2.2f&&
+                (g.Position-new Point(slots[1].x,slots[1].y)).Length<2.2f,
+                "Normal player movement reaches the real 0.4-tile overlapping interaction area");
+            for(int i=0;i<125&&g.CivicConduitActive&&!g.CivicConduitWindowOpen;i++)
+                g.Tick(.05f,new Point());
+            Check(g.CivicConduitActive&&g.CivicConduitWindowOpen,"Real green stability clock opens");
+            g.Talk(slots[0]);
+            Check(Array.Exists(g.conversation.choices,c=>c.action=="civic_conduit_tune"),
+                "Correct valve offers a live physical tune prompt when two ranges overlap");
+            int select=Array.FindIndex(g.conversation.choices,c=>c.action=="civic_conduit_tune");
+            g.Choose(select);
+            Check(g.CivicConduitStage==1,
+                "The correct active-stage valve, not the later iterated nearby valve, receives the interaction");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
