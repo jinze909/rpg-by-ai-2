@@ -14,7 +14,10 @@ namespace Starfall
         private void SpawnRidgeWildlife()
         {
             // Never spawn in the safe starting town, inn or procedural abyss.
-            if(save.room<1||save.room>7)return;
+            if(save.room<1||save.room>7||!RidgeLinked(save.room))return;
+            // Do not extend old boss/clear-all-enemies gate requirements.
+            // Wildlife returns to the outer ring after both waypoints have
+            // been physically surveyed by this save slot.
             for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
             {
                 Point position=RidgeWildlifeSpawns[i];

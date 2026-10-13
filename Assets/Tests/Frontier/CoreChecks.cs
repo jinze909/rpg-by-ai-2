@@ -637,6 +637,16 @@ namespace Starfall.Tests
                 GameCore g=new GameCore(data);
                 g.save.room=room;
                 spawn.Invoke(g,null);
+                int unlinkedFar=0;
+                foreach(Enemy e in g.enemies)if(e.x>=74&&e.y>=60)unlinkedFar++;
+                Check(unlinkedFar==0,
+                    "Original quest rooms retain their pre-expansion enemy requirements");
+                if(room>0)
+                {
+                    g.save.flags.Add("ridge_seen_"+room+"_0");
+                    g.save.flags.Add("ridge_seen_"+room+"_1");
+                    spawn.Invoke(g,null);
+                }
                 int far=0;
                 foreach(Enemy e in g.enemies)
                     if(e.x>=74&&e.y>=60)
