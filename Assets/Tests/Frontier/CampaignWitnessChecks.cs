@@ -206,5 +206,80 @@ namespace Starfall.Tests
                 !g.conversation.text.Contains("阿菱署名："),
                 "Bilingual campaign archive publishes only truly signed chapter witnesses");
         }
+
+        public static void SignedCampaignWitnessesOpenOnlySafeOnSitePublicRefuges(Campaign data)
+        {
+            var g=Fresh(data);
+            for(int region=1;region<=3;region++)
+            {
+                g.save.stage=region-1;
+                if(region==1)g.save.flags.Add("scout_saved");
+                else g.save.flags.Add("gate_"+region);
+                g.Enter(region);g.enemies.Clear();
+                WorldObject marker=Object(g,"witnesssite2"+region);
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.save.health=40;g.invulnerable=50;
+                Advance(g,2);
+                Check(g.save.health==40,
+                    "An unfiled witness cannot secretly create a public healing refuge");
+                g.save.flags.Add("witness_complete_"+region);
+                Advance(g,2);
+                Check(g.save.health>42 && g.save.health<45,
+                    "A genuinely signed chapter story turns its actual field seal into modest out-of-combat recovery");
+                g.save.health=40;
+                g.save.x=marker.x+5f;g.save.y=marker.y;
+                Advance(g,2);
+                Check(g.save.health==40,
+                    "Witness field refuge has real radius limits, never heals the entire map");
+                g.save.x=marker.x;g.save.y=marker.y;
+                Enemy attacker=new Enemy(88123+region,0,marker.x+.7f,marker.y,20);
+                attacker.stun=200;attacker.timer=200;g.enemies.Add(attacker);
+                g.save.health=40;
+                Advance(g,2);
+                Check(g.save.health==40,
+                    "A public story refuge cannot erase combat risk while an enemy contests its location");
+                g.enemies.Clear();
+            }
+        }
+
+        public static void CampaignWitnessSignaturesActuallyChangeLyraAndFinaleSpeech(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject lyra=Object(g,"guild");
+            g.save.x=lyra.x;g.save.y=lyra.y;
+            g.save.flags.Add("core_1");
+            g.Talk(lyra);
+            Check(!g.conversation.text.Contains("莫芽的证词"),
+                "First core delivery must not claim unearned resident testimony");
+            g.Close();
+            g.save.flags.Add("witness_complete_1");
+            g.Talk(lyra);
+            Check(g.conversation.text.Contains("莫芽的证词") &&
+                g.conversation.textEn.Contains("Moya's testimony"),
+                "Lyra acknowledges the first chapter's actual signed account during original core delivery");
+            g.Close();
+            g.save.stage=3;
+            foreach(string f in new[]{"core_2","core_3","witness_complete_2","witness_complete_3"})
+                g.save.flags.Add(f);
+            g.Talk(lyra);
+            Check(g.conversation.text.Contains("三位证人") &&
+                g.conversation.textEn.Contains("signed their original field testimonies"),
+                "The new living witnesses are named when Lyra proposes the true Chapter Four audit");
+            g.Close();
+            g.save.flags.Add("boss_4");
+            g.Enter(4);g.enemies.Clear();
+            WorldObject shrine=Object(g,"shrine");
+            g.save.x=shrine.x;g.save.y=shrine.y;
+            g.Talk(shrine);
+            Check(g.conversation.text.Contains("莫芽、阿菱和维恩") &&
+                g.conversation.textEn.Contains("Moya, Arin and Venn"),
+                "Final confrontation includes the real people found earlier in the game");
+            g.Close();
+            g.save.ending=1;g.Epilogue();
+            Check(g.conversation.text.Contains("密林的莫芽") &&
+                g.conversation.textEn.Contains("Moya of Thornwood"),
+                "Original ending remains intact and reflects real first-three-chapter survivors");
+        }
+
     }
 }

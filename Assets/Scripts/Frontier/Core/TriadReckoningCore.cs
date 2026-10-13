@@ -49,7 +49,9 @@ namespace Starfall
             if(!Has("triad_started"))
             {
                 Dialog(o.name,o.en,
+                    (AllWitnessesFiled ? "莫芽、阿菱、维恩三位证人都已亲笔署名。星核带回的不只是力量，还有三个活着的人的名字。\n\n" : "") +
                     "莉雅：三枚星核送到了这里，我第一次看见完整的支出表。森林失去再生力，遗迹水闸忘记了行人，矿场连停机都不被允许。你不能只拿着三个战利品去说服厄洛。\n\n我发现堡垒还有一座供能审计台和三枚记忆印记。亲自读取它们，找出究竟是谁把居民变成屏障的燃料；那里还有一套仍在执行旧命令的保密卫兵。这会成为第四章的关键证据。旧有的通路不会因此被封闭。",
+                    (AllWitnessesFiled ? "Moya, Arin and Venn signed their original field testimonies. These cores have brought back living names, not just power.\n\n" : "") +
                     "Lyra: Three cores are here, and at last I can read the full ledger. The forest lost renewal, sluices forgot travelers and miners were forbidden to stop. Three trophies cannot persuade Orrin by themselves.\n\nThe citadel holds a power-audit console and three memory seals. Read them to identify who paid for the shield; an obsolete security protocol still guards the records. This investigation ties our first three chapters to the confrontation. Existing routes stay open.",
                     C("开始第四章 · 三核审计","Begin Chapter Four · Three-Core Audit","triad_accept"),
                     C("先准备一下","Prepare first","close"));
@@ -58,7 +60,9 @@ namespace Starfall
             if(Has("triad_sealed"))
             {
                 Dialog(o.name,o.en,
+                    (AllWitnessesFiled ? "来自前三章的三名当事人现在可以与这份账同时作证。守卫的旧逻辑并不承认他们，但我们的公会会。\n\n" : "") +
                     "莉雅：你的三份原始记录揭露了一个危险的事实——旧审计协议只计算屏障输出，却把森林、河道和工人的损失归为零。我要把这些证据公开，让厄洛无法再说他不知道代价。\n\n明白了，现在行动的不再只有你一个人。",
+                    (AllWitnessesFiled ? "Three living witnesses from the first three chapters now stand behind this account, even when the old security machine refuses to count them.\n\n" : "") +
                     "Lyra: Your original readings reveal the flaw: the old audit counted shield output while assigning zero value to forests, rivers and workers. Let us publish this proof so Orrin can no longer claim ignorance.\n\nYou are no longer acting alone.",
                     C("公开三核真相 · 完成审计","Publish the findings · Complete the audit","triad_publish"),
                     C("再考虑一下","Return later","close"));

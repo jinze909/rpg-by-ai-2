@@ -327,6 +327,14 @@ namespace Starfall
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // Signed living testimony turns its physically defended site into
+            // a modest safe refuge, without negating any campaign gate.
+            if (save.room>=1 && save.room<=3 &&
+                Has("witness_complete_"+save.room) &&
+                NearKind("witnesssite2"+save.room,2.65f) &&
+                SafeTravel && save.health>0 && save.health<save.maxHealth &&
+                !practicing && witnessDefenseRoom==0)
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.4f);
             // Civilian relief posts double as modest field hospitals.  They
             // work only beyond nearby combat, without erasing the hazards on
             // the exposed roads or restoring health during an active trial.

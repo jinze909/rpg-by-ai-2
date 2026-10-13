@@ -805,7 +805,11 @@ namespace Starfall
                 if (save.ending > 0) { Dialog(o.name, o.en, "灾变过去了，冒险还没有结束。旅店有热汤，密林里仍有星晶，大家都在等你。", "The crisis is over. The adventure is not. There is warm stew at the inn, starcrystal in the woods, and friends waiting here.", C("开始新的远征", "Another expedition", "routes"), C("回顾结局", "Revisit the ending", "epilogue"), C("再见", "Goodbye", "close")); return; }
                 int next = save.stage + 1;
                 if (save.stage < 3 && Has("core_" + next))
-                    Dialog(o.name, o.en, "星核暂存进公会封库，堡垒却已经催促下一批供能。镇里的井水比昨天更浅。把下一片遗迹中的原始记录带回来吧：我们需要的不只是能源，还要知道失衡始于何处。", "The core is safe in the guild vault, but the citadel is already demanding more power. Our town's wells are lower than yesterday. Bring back the next region's records, not just its core. We must learn where the balance broke.", C("交回星核 · 开启下一章", "Deliver the starcore · next chapter", "deliver"), C("稍后再来", "Later", "close"));
+                    Dialog(o.name, o.en, (Has("witness_complete_"+next) ?
+                        new[]{"","莫芽的证词已经到我手里：森林不是敌人，它失去了本该属于自己的自愈力。\n\n","阿菱记录的渡口孩子不再是货运损失的空白项。\n\n","维恩证明矿工停机是救命，而不是违反配额。\n\n"}[next] : "") +
+                        "星核暂存进公会封库，堡垒却已经催促下一批供能。镇里的井水比昨天更浅。把下一片遗迹中的原始记录带回来吧：我们需要的不只是能源，还要知道失衡始于何处。", (Has("witness_complete_"+next) ?
+                        new[]{"","Moya's testimony is here. The forest was wounded, not our enemy.\n\n","Arin's children at the crossing will no longer be counted as missing freight.\n\n","Venn proves the miners' shutdown was a safety measure, not misconduct.\n\n"}[next] : "") +
+                        "The core is safe in the guild vault, but the citadel is already demanding more power. Our town's wells are lower than yesterday. Bring back the next region's records, not just its core. We must learn where the balance broke.", C("交回星核 · 开启下一章", "Deliver the starcore · next chapter", "deliver"), C("稍后再来", "Later", "close"));
                 else Dialog(o.name, o.en, save.stage == 3 ? "三枚星核已送入堡垒的调谐网。屏障越亮，城外的树林与河道就越虚弱。去见厄洛，问问他究竟在保护谁。\n\n杏、老潮和诺尔能提供药品、食物与共用水泵；远岸的原始证词还可能证明，星核不止有筑墙一种用法。" : "先去荆棘密林，把巡路队的侦察员平安带回来。那里的黑荆巨兽正守着第一处星根伤口；查清原因，再取回星核。按 Tab 查看任务手帐。", save.stage == 3 ? "Three cores now feed the citadel's tuning network. Its shield brightens as rivers and trees beyond the wall weaken. Confront Orrin and ask whom he is protecting.\n\nAn, Old Tide and Noll can offer medicine, food and shared pumps. Original farshore records might prove that walls are not the only use for starcores." : "Start in Thornwood and bring the missing scout home. The Briar Beast guards the first wounded starroot anchor. Find out why, then recover the core. Tab opens your quest journal.", C("查看冒险路线", "Choose a route", "routes"), C("我出发了", "On my way", "close"));
                 return;
             }
@@ -1000,7 +1004,10 @@ namespace Starfall
             List<Choice> choices = new List<Choice> { C("归还星核 · 让大地恢复", "Return the cores · restore the land", "ending1"), C("保留屏障 · 守住堡垒", "Keep the shield · secure the citadel", "ending2") };
             if (Allies == 3) choices.Add(C("重建边境 · 与居民一起改变", "Rebuild the frontier · unite the towns", "ending3"));
             choices.Add(C("先完成镇民的委托", "Finish the town commissions first", "goto0"));
-            Dialog("厄洛 · 星卫统领", "Orrin · Starwarden", (Has("triad_complete") ? "莉雅公开的三核审计摆在两人之间。守护孩子与守护城外的村庄，不能再被假装成彼此无关的数字。\n\n" : "") + "厄洛放下武器。三枚星核曾经调谐星根，让河流、田地与灯火彼此有余地。现在城墙的安全来自城外不断失去的生机。\n\n归还星核能让土地复苏，但危险需要所有人共同承担；保留屏障能守住眼前的人，也要正视外界的代价。" + "\n\n" + (Allies < 3 ? "杏、老潮和诺尔若愿意共同送药、摆渡、修水泵，第三条路也许才会成为现实。你可以先回镇上。" : "杏已准备送药，老潮愿意摆渡补给，诺尔带来了共同维护的水泵。另一条路已经有人愿意亲手开始建设。"), (Has("triad_complete") ? "Lyra’s public three-core audit stands between you. Protecting children inside the wall can no longer erase people beyond it.\n\n" : "") + "Orrin lowers his weapon. Three cores once balanced the roots between rivers, fields and lights. Now the shield's safety is drawn from lives beyond its wall.\n\nReturning the cores may heal the land, though its people must face danger together. Keeping the shield protects those inside but continues to exact a price outside." + "\n\n" + (Allies < 3 ? "With An, Old Tide and Noll on your side, a third path might become practical. You may return to town first." : "An brings medicine, Old Tide brings ferry supplies and Noll has prepared public pumps. The alternative already has people willing to build it."), choices.ToArray());
+            Dialog("厄洛 · 星卫统领", "Orrin · Starwarden",
+                (AllWitnessesFiled ? "莫芽、阿菱和维恩的三份署名证词已摆到厄洛面前。那些活生生的人不再是能量账上看不见的数字。\n\n" : "") +
+                (Has("triad_complete") ? "莉雅公开的三核审计摆在两人之间。守护孩子与守护城外的村庄，不能再被假装成彼此无关的数字。\n\n" : "") + "厄洛放下武器。三枚星核曾经调谐星根，让河流、田地与灯火彼此有余地。现在城墙的安全来自城外不断失去的生机。\n\n归还星核能让土地复苏，但危险需要所有人共同承担；保留屏障能守住眼前的人，也要正视外界的代价。" + "\n\n" + (Allies < 3 ? "杏、老潮和诺尔若愿意共同送药、摆渡、修水泵，第三条路也许才会成为现实。你可以先回镇上。" : "杏已准备送药，老潮愿意摆渡补给，诺尔带来了共同维护的水泵。另一条路已经有人愿意亲手开始建设。"), (AllWitnessesFiled ? "Moya, Arin and Venn signed their own testimony. Their lives can no longer be erased as blank numbers in the energy accounts.\n\n" : "") +
+                (Has("triad_complete") ? "Lyra’s public three-core audit stands between you. Protecting children inside the wall can no longer erase people beyond it.\n\n" : "") + "Orrin lowers his weapon. Three cores once balanced the roots between rivers, fields and lights. Now the shield's safety is drawn from lives beyond its wall.\n\nReturning the cores may heal the land, though its people must face danger together. Keeping the shield protects those inside but continues to exact a price outside." + "\n\n" + (Allies < 3 ? "With An, Old Tide and Noll on your side, a third path might become practical. You may return to town first." : "An brings medicine, Old Tide brings ferry supplies and Noll has prepared public pumps. The alternative already has people willing to build it."), choices.ToArray());
         }
         public void Epilogue()
         {
@@ -1015,6 +1022,11 @@ namespace Starfall
                 string[] farEn = { "", "Meanwhile, shared farshore canals deliver water to formerly neglected fields.", "Farshore navigation lights now run on a recorded rotation shared by all three communities.", "The farshore's open starroads are governed jointly, with public energy accounts." };
                 zh[ending] += "\n\n" + farZh[save.frontierEnding];
                 en[ending] += "\n\n" + farEn[save.frontierEnding];
+            }
+            if (AllWitnessesFiled)
+            {
+                zh[ending] += "\n\n密林的莫芽、遗迹的阿菱和矿场的维恩把亲笔署名的证词留给了公会；新的公共档案终于记得谁在修复土地、谁在等候过河、谁应该安全下班。";
+                en[ending] += "\n\nMoya of Thornwood, Arin of the ruins and Venn of Ironreach left signed testimony with the guild. Public records now remember who healed the soil, who waited to cross and who deserved to go home after work.";
             }
             if (Has("triad_complete"))
             {
