@@ -1015,6 +1015,50 @@ namespace Starfall.Tests
                 "Journal tracks all eight distinct completed parcel runs");
         }
 
+        public static void PublicParcelCharterRequiresEveryGenuineDeliveryAndImprovesShelters(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.save.flags.Add("far_refuge_atlas");
+            g.save.room=9;
+            WorldObject desk=Array.Find(g.Map.objects,o=>o.kind=="faratlasdesk");
+            Check(desk!=null,"Original inn atlas remains an actual interactable desk");
+            g.save.x=desk.x;g.save.y=desk.y;
+            g.Talk(desk);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_charter")<0,
+                "Cannot publish civic supply charter without physical deliveries");
+            g.Close();
+            for(int room=0;room<8;room++)g.save.flags.Add("far_courier_"+room);
+            int coins=g.save.coins;
+            g.Talk(desk);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="far_courier_charter");
+            Check(option>=0,"Completing all deliveries unlocks public filing at the actual inn");
+            g.Choose(option);
+            Check(g.Has("far_courier_charter")&&g.save.coins==coins+65&&
+                g.GetQuest("far_couriers").complete,
+                "Real public filing grants a single permanent network upgrade");
+            GameCore reload=new GameCore(data,g.save);
+            Check(reload.save.version==2&&reload.Has("far_courier_charter"),
+                "Completed charter remains in old SaveData v2 after reload");
+            g.Talk(desk);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_charter")<0&&
+                g.save.coins==coins+65,
+                "Publishing civic accounts twice never duplicates rewards");
+            g.Close();
+            g.save.room=0;g.save.flags.Add("far_shelter_0");
+            WorldObject shelter=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.save.inventory[0]=3;g.save.health=Math.Max(1,g.save.maxHealth-75);
+            g.save.energy=8;g.save.cold=60;
+            g.Talk(shelter);
+            option=Array.FindIndex(g.conversation.choices,c=>c.action=="far_rest");
+            Check(option>=0,"Existing public refuge still offers a repeatable physical rest");
+            g.Choose(option);
+            Check(g.save.energy==100&&g.save.cold==20&&
+                g.save.health>=g.save.maxHealth-20&&g.save.inventory[0]==2,
+                "Charter materially improves real healing and cold relief for the old wood price");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

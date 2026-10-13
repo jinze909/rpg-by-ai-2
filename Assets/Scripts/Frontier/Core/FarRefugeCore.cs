@@ -123,6 +123,18 @@ namespace Starfall
             if(TalkFarCourier(o))return true;
             if(TalkFarBridge(o))return true;
             if(TalkFarSecrets(o))return true;
+            if(o.kind=="faratlasdesk"&&save.room==9&&
+                (Position-new Point(o.x,o.y)).Length<=2.2f&&
+                Has("far_refuge_atlas")&&FarCourierDeliveredCount==8&&
+                !Has("far_courier_charter"))
+            {
+                Dialog(o.name,o.en,
+                    "八地补给包全部由真人越过民用桥送达，居民封条与炉火旅店的八份回执终于一一对应。\n\n这些道路不应只让公会得利。发布公开补给公约后，所有已修建的公共避险棚都将配备更好的草药与御寒用品。",
+                    "Every relief parcel reached the shelters by real foot travel, bearing a community inspector's seal.\n\nPublish the open supply charter so every rebuilt refuge, not just the guild, receives better medical and winter supplies.",
+                    C("公布八地公共补给公约","Publish the eight-region supply charter","far_courier_charter"),
+                    C("稍后再来","Later","close"));
+                return true;
+            }
             if(o.kind=="faratlasdesk" || o.kind=="farrefugerecord")
             {
                 if(save.room!=9||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
@@ -210,15 +222,35 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name,o.en,FarWitnessZh[room]+
-                "\n\n公共避险棚已经建好。远行者可消耗木材 ×1 生火休息，恢复生命 35、全部耐力、减轻寒冷 25。",
+                Has("far_courier_charter")?
+                    "\n\n公开补给公约已生效。消耗木材1休息：生命 +55、耐力全满、寒冷 -40。":
+                    "\n\n公共避险棚已经建好。消耗木材1休息：生命 +35、耐力全满、寒冷 -25。",
                 FarWitnessEn[room]+
-                "\n\nThe shared shelter is open. Spend 1 timber to rest: +35 HP, full stamina and -25 cold.",
+                Has("far_courier_charter")?
+                    "\n\nPublic supply charter: 1 timber gives +55 HP, full stamina and -40 cold.":
+                    "\n\nThe shared shelter is open. Spend 1 timber to rest: +35 HP, full stamina and -25 cold.",
                 C("添柴休息 · 木材 ×1","Rest · 1 timber","far_rest"),
                 C("继续探索","Keep exploring","close"));
             return true;
         }
         private bool ChooseFarStation(string action)
         {
+            if(action=="far_courier_charter")
+            {
+                if(save.room!=9||Dying||practicing||Has("far_courier_charter")||
+                    !Has("far_refuge_atlas")||FarCourierDeliveredCount!=8)return true;
+                WorldObject atlas=null;
+                foreach(WorldObject o in Map.objects)
+                    if(o.kind=="faratlasdesk"){atlas=o;break;}
+                if(atlas==null||(Position-new Point(atlas.x,atlas.y)).Length>2.2f)return true;
+                Flag("far_courier_charter");save.coins+=65;
+                AddXp(75);revision++;sound="reward";
+                RecordMoment("八地居民终于把实物交接、桥梁维护与药材分配写入公开补给公约，避险棚能提供更好的救治。",
+                    "The eight communities publish an open charter matching physical deliveries with bridge stewardship and better refuge care.");
+                Notify("公共补给公约发布：硬币 +65、经验 +75，所有避险棚医疗与御寒提升。",
+                    "Supply charter published: +65 coins, +75 XP. All refuges now heal and warm better.");
+                return true;
+            }
             if(ChooseFarCourier(action))return true;
             if(action=="far_bridge_repair")return ChooseFarBridgeRepair();
             if(action=="far_publish")
@@ -285,10 +317,15 @@ namespace Starfall
                 return true;
             }
             if(!FarShelterBuilt(room)||!Spend(1,0,0,0,0))return true;
-            save.health=Clamp(save.health+35,0,save.maxHealth);
-            save.energy=100;save.cold=Math.Max(0,save.cold-25);
+            save.health=Clamp(save.health+(Has("far_courier_charter")?55:35),0,save.maxHealth);
+            save.energy=100;
+            save.cold=Math.Max(0,save.cold-(Has("far_courier_charter")?40:25));
             revision++;sound="reward";
-            Notify("暖棚休息：生命 +35，耐力全满，寒冷 -25。",
+            Notify(Has("far_courier_charter")?
+                "公共补给棚升级：生命 +55，耐力全满，寒冷 -40。":
+                "暖棚休息：生命 +35，耐力全满，寒冷 -25。",
+                Has("far_courier_charter")?
+                "Upgraded public refuge: +55 HP, full energy, -40 cold.":
                 "Refuge rest: +35 health, full energy and -25 cold.");
             return true;
         }

@@ -118,8 +118,16 @@ namespace Starfall
                         region<0?L("先修好至少一处桥和远端避险棚","Repair a bridge and distant refuge first"):
                         L("到修好的桥头背上居民救援包","Collect a parcel at the rebuilt bridge");
                 }
-                q.reward=L("每地硬币25、碎片1、经验38；八地另加技能点1",
-                    "Per region: +25 coins, +1 shard, +38 XP; all eight: +1 talent");
+                q.steps.Add(new QuestStep(L("在炉火旅店签发公开补给公约","Publish the public supply charter at the Hearth Inn"),
+                    Has("far_courier_charter")));
+                q.complete=Has("far_courier_charter");
+                if(FarCourierDeliveredCount==8&&!Has("far_courier_charter"))
+                {
+                    q.room=9;q.target=new Point(22.5f,36.5f);
+                    q.next=L("前往旅店制图室公开八份补给回执","Publish the signed manifests at the Hearth Inn");
+                }
+                q.reward=L("八次真实送达各得硬币25、碎片1、经验38；八地技能点1；公布公约后全面提升避险棚治疗和御寒",
+                    "Each real delivery: 25 coins, 1 shard, 38 XP; all eight: +1 talent. Publishing the charter upgrades every refuge.");
                 return q;
             }
 
