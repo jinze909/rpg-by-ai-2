@@ -54,6 +54,7 @@ namespace Starfall
             if (page == "storm") return Has("storm_started") || Has("storm_complete");
             if (page == "hearing") return Has("hearing_started") || Has("hearing_complete");
             if (page == "supply_inquest") return CivicSupplyStarted;
+            if (page == "lastdirective") return LastDirectiveStarted;
             return false;
         }
         private void WorldChronicleSection(string section)
@@ -116,6 +117,8 @@ namespace Starfall
                 if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
                 if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
                 if (StoryUnlocked("hearing")) choices.Add(StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing"));
+                if (StoryUnlocked("lastdirective"))
+                    choices.Add(StoryChoice("第十章 · 最后指令", "Chapter Ten · The Last Directive", "story_read_lastdirective"));
                 if (StoryUnlocked("supply_inquest"))
                     choices.Add(StoryChoice("第九章 · 送达之后谁守路",
                         "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest"));
@@ -142,7 +145,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -619,6 +622,39 @@ namespace Starfall
                             HearingOrrinResponsibility==2?
                             "\nOrrin released two real parts to volunteer roadwardens, and the old shrine now supplies public energy.":
                             "\nOrrin must personally answer for his share of the charter. The hero cannot sign on his behalf.";
+                    }
+                    break;
+                case "lastdirective":
+                    headingZh="第十章：最后指令";headingEn="Chapter Ten: The Last Directive";
+                    zh="三地公共应急名册揭开了九年前最后一条无署名的军用指令。矿工首先要求停止过载抽取，摆渡人在指令下达后才发现失联者，巡路队最后为归乡者点燃炉火。\n\n";
+                    en="Three public rescue reports exposed the last unsigned nine-year-old military order. Miners first demanded an overload shutdown, ferrymen then found erased names, and the roadwardens lit a final civilian hearth.\n\n";
+                    string[] reportZh={"矿工停机证词","船工失联名单","巡路队避难炉火"};
+                    string[] reportEn={"Miners' shutdown petition","Ferrymen's missing names","Roadwardens' refuge hearth"};
+                    for(int di=0;di<3;di++)
+                    {
+                        bool witnessed=Has("last_directive_clue_"+di);
+                        zh+=reportZh[di]+"："+(witnessed?"已亲眼验证原始记录。":"尚未到访，编年册不会替你捏造。")+"\n";
+                        en+=reportEn[di]+": "+(witnessed?"Original field record verified.":"Not yet witnessed; no account is invented.")+"\n";
+                    }
+                    if(LastDirectiveChoice==1)
+                    {
+                        zh+="\n新协议让居民共同监督旧机器，并有权质疑保密停机命令。";
+                        en+="\nThe new charter grants public oversight and civilian shutdown appeals.";
+                    }
+                    else if(LastDirectiveChoice==2)
+                    {
+                        zh+="\n新协议把无条件民用紧急庇护写进最终权限。";
+                        en+="\nThe new charter guarantees unconditional public emergency shelter.";
+                    }
+                    else
+                    {
+                        zh+="\n保密终端的两道真实守卫还没有被最终清除。";
+                        en+="\nThe secret terminal's actual guardian defenses have not been completely overcome.";
+                    }
+                    if(LastDirectiveComplete)
+                    {
+                        zh+="\n\n【指令公开】余烬镇所有居民终于能阅读完整条款。";
+                        en+="\n\n[Directive public] Emberfall's residents can now read the whole order.";
                     }
                     break;
                 case "supply_inquest":
