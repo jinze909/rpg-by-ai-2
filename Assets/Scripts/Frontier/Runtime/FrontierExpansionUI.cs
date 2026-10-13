@@ -116,6 +116,15 @@ namespace Starfall
                 Point escort = Game.reliefFollowerPosition;
                 // Sprite is depth-sorted with the world, not drawn over hero.
                 Ring(escort, .35f, mint, 16);
+                if (Game.reliefClimateKitTime > 0)
+                {
+                    Ring(escort, 1.1f, PixelArt.C("#7dc8d4"), 24);
+                    Point weatherHud = ScreenPoint(escort);
+                    Text(weatherHud.x - 45, weatherHud.y - 150, 90, 20,
+                        Game.L("气候防护 ", "SHELTER ") +
+                            Game.reliefClimateKitTime.ToString("0.0") + "s",
+                        11, mint, TextAnchor.MiddleCenter);
+                }
                 if (Game.reliefHurryTime > 0)
                 {
                     Point pace = ScreenPoint(escort);

@@ -125,6 +125,13 @@ namespace Starfall
         public float reliefFollowerWalkDistance;
         public bool reliefFollowerMoving, reliefFollowerFacingLeft;
         public bool reliefFollowerWaiting, reliefMedicalUsed;
+        public float reliefClimateKitTime;
+        private bool reliefClimateKitUsed;
+        public bool ReliefClimateKitAvailable
+        {
+            get { return ReliefEscortActive && !reliefClimateKitUsed &&
+                save.shards >= 1 && !Dying; }
+        }
         public float reliefHurryTime;
         private bool reliefHurryUsed;
         public bool ReliefEscortHurryAvailable
@@ -182,6 +189,7 @@ namespace Starfall
             reliefFollowerFacingLeft = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
             reliefHurryTime = 0; reliefHurryUsed = false;
+            reliefClimateKitTime = 0; reliefClimateKitUsed = false;
         }
         private void CaptureReliefCheckpoint()
         {
@@ -195,7 +203,8 @@ namespace Starfall
                 y = reliefFollowerPosition.y,
                 time = reliefMissionTime, safety = reliefFollowerSafety,
                 waiting = reliefFollowerWaiting, treated = reliefMedicalUsed,
-                escortGuardUsed = reliefWardUsed, hurryUsed = reliefHurryUsed
+                escortGuardUsed = reliefWardUsed, hurryUsed = reliefHurryUsed,
+                climateKitUsed = reliefClimateKitUsed
             };
         }
         private void RestoreReliefCheckpoint(RescueCheckpoint checkpoint)
@@ -233,6 +242,8 @@ namespace Starfall
             reliefMedicalUsed = checkpoint.treated;
             reliefWardUsed = checkpoint.escortGuardUsed;
             reliefHurryUsed = checkpoint.hurryUsed;
+            reliefClimateKitUsed = checkpoint.climateKitUsed;
+            reliefClimateKitTime = 0;
             // The one-time burst stays spent after reload, but cannot be
             // extended by reloading at the end of its original duration.
             reliefHurryTime = 0;
@@ -440,6 +451,8 @@ namespace Starfall
                 reliefWardTime = Math.Max(0, reliefWardTime - dt);
             if (reliefHurryTime > 0)
                 reliefHurryTime = Math.Max(0, reliefHurryTime - dt);
+            if (reliefClimateKitTime > 0)
+                reliefClimateKitTime = Math.Max(0, reliefClimateKitTime - dt);
             if (reliefMissionTime <= 0)
             {
                 ResetReliefMission(); revision++;
@@ -552,6 +565,7 @@ namespace Starfall
                 reliefFollowerFacingLeft = false;
                 reliefFollowerWaiting = reliefMedicalUsed = false;
                 reliefHurryTime = 0; reliefHurryUsed = false;
+                reliefClimateKitTime = 0; reliefClimateKitUsed = false;
                 // Carry battle losses forward; winning does not reset civilians
                 // to full protection for the dangerous walk home.
                 reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + 12);
@@ -599,8 +613,9 @@ namespace Starfall
             // direct raider pressure and cannot exceed the original 100 max.
             if (ReliefSurvivorSheltered(region))
                 reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + dt * 1.4f);
-            else reliefFollowerSafety = Math.Max(0, reliefFollowerSafety -
-                dt * (region == 5 ? 1f : 1.5f));
+            else if (reliefClimateKitTime <= 0)
+                reliefFollowerSafety = Math.Max(0, reliefFollowerSafety -
+                    dt * (region == 5 ? 1f : 1.5f));
             if (reliefFollowerSafety <= 0)
             {
                 ResetReliefMission(); revision++; sound = "deny";
@@ -651,23 +666,26 @@ namespace Starfall
             if (ReliefEscortHurryAvailable)
                 options.Add(C("紧急赶路 · 耐力15",
                     "Hurry to shelter · 15 energy", "relief_hurry"));
+            if (ReliefClimateKitAvailable)
+                options.Add(C("展开临时气候防护 · 星晶碎片1",
+                    "Deploy weather canopy · 1 shard", "relief_climate_kit"));
             options.Add(C("继续前行", "Continue", "close"));
             Dialog("获救居民", "Rescued civilian",
                 (reliefFollowerWaiting ? "我会留在这里，等你清理道路。记得回来接我。" :
                     "我会跟上。请不要走太远，前面还有巡逻队和恶劣天气。") +
                 "\n\n居民安全度 " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
-                    (int)Math.Ceiling(reliefMissionTime) + " 秒剩余。按 E 可让居民等待、继续、敷药、组织护卫或紧急赶路。",
+                    (int)Math.Ceiling(reliefMissionTime) + " 秒剩余。按 E 可等待、敷药、护卫、急行或展开临时气候防护。",
                 (reliefFollowerWaiting ? "I will stay here until you clear the road. Come back for me." :
                     "I'll follow. Don't leave me behind among patrols and harsh weather.") +
                 "\n\nCivilian safety " + (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
-                    (int)Math.Ceiling(reliefMissionTime) + " seconds left. Interact to wait, follow, tend wounds, rally a guard or hurry home.",
+                    (int)Math.Ceiling(reliefMissionTime) + " seconds left. Interact to wait, heal, guard, hurry or deploy a weather canopy.",
                 options.ToArray());
         }
         private bool ChooseRescuedCivilian(string action)
         {
             if (action != "relief_wait" && action != "relief_follow" &&
                 action != "relief_treat" && action != "relief_escort_guard" &&
-                action != "relief_hurry") return false;
+                action != "relief_hurry" && action != "relief_climate_kit") return false;
             if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f)
                 return true;
             if (action == "relief_wait")
@@ -679,6 +697,17 @@ namespace Starfall
             {
                 reliefFollowerWaiting = false;
                 Notify("居民重新跟随你。", "The civilian resumes following you.");
+            }
+            else if (action == "relief_climate_kit")
+            {
+                if (!ReliefClimateKitAvailable) return true;
+                save.shards -= 1; reliefClimateKitUsed = true;
+                reliefClimateKitTime = 14f;
+                effects.Add(new Effect("discover", reliefFollowerPosition, .6f) {
+                    reliefMissionOwned = true });
+                sound = "guard";
+                Notify("已展开临时气候防护：14秒内阻挡极端环境损害，但无法抵挡敌人攻击。",
+                    "Weather canopy deployed: 14 seconds of climate protection, not enemy protection.");
             }
             else if (action == "relief_hurry")
             {

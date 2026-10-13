@@ -33,7 +33,7 @@ namespace Starfall
     {
         public int room;
         public float x, y, time, safety;
-        public bool waiting, treated, escortGuardUsed, hurryUsed;
+        public bool waiting, treated, escortGuardUsed, hurryUsed, climateKitUsed;
     }
     [Serializable] public class SaveData
     {
