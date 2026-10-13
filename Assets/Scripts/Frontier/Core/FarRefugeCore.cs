@@ -142,6 +142,233 @@ namespace Starfall
         }
         private bool CivicSupplySite(int room)
         {return Array.IndexOf(CivicSupplyRegions,room)>=0;}
+        // Region-specific, physically completed service emergencies. All
+        // in-progress state is transient; only earned outcomes enter v2 flags.
+        private int civicResponseRoom=-1,civicResponseType;
+        private Point civicResponseLast;
+        private float civicResponseElapsed,civicResponseDistance;
+        private bool civicResponseKillA,civicResponseKillB;
+        public bool CivicResponseActive
+        {get{return civicResponseRoom==save.room&&!Dying;}}
+        public bool CivicResponseClinicRun
+        {get{return CivicResponseActive&&civicResponseType==1;}}
+        public bool CivicResponseWatchRun
+        {get{return CivicResponseActive&&civicResponseType==2;}}
+        public float CivicResponseTimeLeft
+        {get{return CivicResponseActive?Math.Max(0,75-civicResponseElapsed):0;}}
+        public bool CivicResponseDone(int room)
+        {return CivicSupplySite(room)&&Has("civic_response_done_"+room);}
+        public int CivicResponseDoneCount
+        {
+            get
+            {
+                int n=0;foreach(int room in CivicSupplyRegions)
+                    if(CivicResponseDone(room))n++;
+                return n;
+            }
+        }
+        private bool IsCivicResponseEnemy(Enemy e)
+        {return e!=null&&e.id>=90200&&e.id<90216;}
+        public int CivicResponseEnemiesAlive
+        {get{return CivicResponseActive?enemies.FindAll(IsCivicResponseEnemy).Count:0;}}
+        private void ResetCivicResponse()
+        {
+            enemies.RemoveAll(IsCivicResponseEnemy);
+            projectiles.RemoveAll(p=>p.civicResponseOwned);
+            effects.RemoveAll(e=>e.civicResponseOwned);
+            civicResponseRoom=-1;civicResponseType=0;
+            civicResponseLast=new Point();
+            civicResponseElapsed=civicResponseDistance=0;
+            civicResponseKillA=civicResponseKillB=false;
+        }
+        private void OnCivicResponseEnemyDefeated(Enemy e)
+        {
+            if(!CivicResponseWatchRun||!IsCivicResponseEnemy(e))return;
+            if(e.id==90200+save.room*2)civicResponseKillA=true;
+            if(e.id==90201+save.room*2)civicResponseKillB=true;
+        }
+        private void TickCivicResponse(float dt)
+        {
+            if(civicResponseRoom<0)return;
+            if(civicResponseRoom!=save.room||Dying||practicing)
+            {ResetCivicResponse();return;}
+            Point current=Position;
+            float delta=(current-civicResponseLast).Length;
+            if(!Finite(current.x)||!Finite(current.y)||delta>2.4f)
+            {
+                ResetCivicResponse();revision++;
+                Notify("社区服务队已中断；必须亲自沿道路护送或守卫。",
+                    "Civilian service interrupted: walk or defend the actual site.");
+                return;
+            }
+            civicResponseElapsed+=Math.Max(0,dt);
+            civicResponseDistance+=delta;
+            civicResponseLast=current;
+            if(civicResponseElapsed>=75)
+            {
+                ResetCivicResponse();revision++;
+                Notify("居民服务行动超时；可以重新从避险棚组织队伍。",
+                    "Civilian service timed out; regroup at the real refuge.");
+                return;
+            }
+            if(civicResponseType==2)
+            {
+                int a=90200+save.room*2,b=a+1;
+                bool presentA=enemies.Exists(e=>e.id==a),presentB=enemies.Exists(e=>e.id==b);
+                if((!presentA&&!civicResponseKillA)||(!presentB&&!civicResponseKillB))
+                {
+                    ResetCivicResponse();revision++;
+                    Notify("守路岗的袭击者异常离场，必须重新开始真实守卫战。",
+                        "Lookout attackers vanished without defeat. Restart a real defense.");
+                }
+            }
+        }
+        private void FinishCivicResponse()
+        {
+            if(!CivicResponseActive||CivicResponseDone(save.room))return;
+            int room=save.room;
+            ResetCivicResponse();
+            Flag("civic_response_done_"+room);
+            save.coins+=24;save.shards++;
+            AddXp(42);revision++;sound="reward";
+            if(CivicResponseDoneCount==3&&!Has("civic_response_all"))
+            {Flag("civic_response_all");save.skillPoints++;revision++;}
+            RecordMoment("第 "+(room+1)+" 地居民的"+(CivicSupplyClinic(room)?
+                "医疗护送":"守路实战")+"已由真正行走与战斗完成，并入公开社区服务清册。",
+                "Region "+(room+1)+" completed a real "+(CivicSupplyClinic(room)?
+                "medical field delivery":"route watch defense")+
+                " as a public, accountable civilian service.");
+            Notify("社区服务完成：硬币 +24、碎片 +1、经验 +42。当地服务效能提升！",
+                "Community service complete: +24 coins, +1 shard, +42 XP. Local refuge improved!");
+        }
+        private bool TalkCivicResponse(WorldObject o)
+        {
+            bool shelter=o.kind=="farshelter",checkpoint=o.kind=="farcheck";
+            if(!shelter&&!checkpoint)return false;
+            int room=save.room;
+            if(!CivicSupplySite(room)||!CivicSupplyComplete||
+                !CivicSupplyResolved(room)||!FarShelterBuilt(room)||
+                (Position-new Point(o.x,o.y)).Length>2.2f)return false;
+            if(checkpoint)
+            {
+                if(!CivicResponseClinicRun)return false;
+                bool valid=civicResponseDistance>=9.5f&&civicResponseElapsed<75&&
+                    (Position-civicResponseLast).Length<.65f;
+                Dialog(o.name,o.en,valid?
+                    "医药真正走过了避险棚与检查站之间的山道。病人的姓名与补给数量都在名单上，不会被写成没有人的数字。":
+                    "居民正在等你把医药亲手从南端避险棚送来；不能通过瞬间传送取代真实步行。",
+                    valid?"You physically carried medicine from the southern refuge to the checkpoint. The patients are named in the public registry.":
+                    "Carry the medicine all the way from the refuge on foot. Teleporting cannot substitute for a real journey.",
+                    C(valid?"交接医疗包":"继续沿路护送",
+                        valid?"Deliver medical supplies":"Keep walking",
+                        valid?"civic_response_deliver":"close"),
+                    C("暂时离开","Leave","close"));
+                return true;
+            }
+            if(CivicResponseActive)
+            {
+                bool cleared=CivicResponseWatchRun&&civicResponseKillA&&
+                    civicResponseKillB&&CivicResponseEnemiesAlive==0;
+                Dialog(o.name,o.en,cleared?
+                    "两名袭击者被真正击败了，夜间守路岗终于可以安全把灯交接给下一班居民。":
+                    CivicResponseClinicRun?
+                    "药箱已经出发：75秒内步行向北到居民检查站交付。":
+                    "守路战正在进行。击败两名真实敌人后回到这里确认守卫。",
+                    cleared?"Both authentic attackers were defeated; certify the civilian road watch.":
+                    CivicResponseClinicRun?
+                    "Medical supplies are in transit. Reach the northern checkpoint within 75 seconds on foot.":
+                    "The route defense is active. Defeat both real enemies and return to certify it.",
+                    C(cleared?"签署守卫记录":"检查进度",
+                        cleared?"Certify defense":"Review progress",
+                        cleared?"civic_response_claim":"close"),
+                    C("取消这次行动","Abort this attempt","civic_response_abort"));
+                return true;
+            }
+            if(CivicResponseDone(room))
+            {
+                Dialog(o.name,o.en,"本地居民服务已经真正完成，医疗与守路效能永久提高；不能反复领取委托奖励。",
+                    "This region's public service is complete. The real refuge improvement persists; rewards cannot be farmed.",
+                    C("继续旅行","Continue","close"));return true;
+            }
+            Dialog(o.name,o.en,CivicSupplyClinic(room)?
+                "医疗点已经建成，但有患者还在北面的检查站等待药箱。请背起医药，75秒内沿现有道路真实走到检查站，不能传送。":
+                "守路岗已开放，但桥南有两名袭击者试图抢走夜间物资。请亲自击退他们，再回此地确认守卫。",
+                CivicSupplyClinic(room)?
+                "The clinic is built, but patients at the northern checkpoint still need medicine. Carry it there on foot within 75 seconds.":
+                "The lookout exists, but two raiders threaten the southern supply trail. Defeat both actual attackers, then return to sign the watch ledger.",
+                C(CivicSupplyClinic(room)?"背起医药开始护送":"开始居民守卫战",
+                    CivicSupplyClinic(room)?"Begin medical delivery":"Begin road defense",
+                    "civic_response_start"),
+                C("稍后再来","Later","close"));
+            return true;
+        }
+        private bool ChooseCivicResponse(string action)
+        {
+            if(!action.StartsWith("civic_response_"))return false;
+            if(Dying||practicing||!CivicSupplySite(save.room)||
+                !CivicSupplyComplete||!CivicSupplyResolved(save.room))return true;
+            bool start=action=="civic_response_start",
+                deliver=action=="civic_response_deliver",
+                claim=action=="civic_response_claim",
+                abort=action=="civic_response_abort";
+            if(!start&&!deliver&&!claim&&!abort)return true;
+            WorldObject shelter=null,checkpoint=null;
+            foreach(WorldObject o in Map.objects)
+            {
+                if(o.kind=="farshelter")shelter=o;
+                if(o.kind=="farcheck")checkpoint=o;
+            }
+            if(shelter==null||checkpoint==null)return true;
+            bool nearShelter=(Position-new Point(shelter.x,shelter.y)).Length<=2.2f;
+            bool nearCheck=(Position-new Point(checkpoint.x,checkpoint.y)).Length<=2.2f;
+            if(abort)
+            {
+                if(CivicResponseActive&&nearShelter)
+                {ResetCivicResponse();revision++;Notify("社区行动已经安全取消。","Community run canceled.");}
+                return true;
+            }
+            if(start)
+            {
+                if(CivicResponseActive||CivicResponseDone(save.room)||!nearShelter||
+                    FarCourierActive||!SafeTravel)return true;
+                int type=CivicSupplyClinic(save.room)?1:2;
+                if(type==2)
+                {
+                    Point first=new Point(110.5f,70.5f),
+                        second=new Point(114.5f,69.5f);
+                    if(!CanStand(first)||!CanStand(second))
+                    {
+                        Notify("守路岗附近仍有障碍，无法安全组织真实防卫。",
+                            "Blocked ground prevents real patrol deployment.");return true;
+                    }
+                    int id=90200+save.room*2;
+                    enemies.Add(CreatePlacedEnemy(id,0,first,46+save.room*5));
+                    enemies.Add(CreatePlacedEnemy(id+1,1,second,38+save.room*5));
+                    effects.Add(new Effect("danger",first,.65f){
+                        radius=.75f,civicResponseOwned=true});
+                    effects.Add(new Effect("danger",second,.65f){
+                        radius=.75f,civicResponseOwned=true});
+                }
+                civicResponseRoom=save.room;civicResponseType=type;
+                civicResponseLast=Position;civicResponseElapsed=civicResponseDistance=0;
+                civicResponseKillA=civicResponseKillB=false;
+                sound="quest";revision++;
+                Notify(type==1?"医药护送开始：75秒内亲自走到北侧居民检查站！":
+                    "居民守卫战开始：击败真实的近战劫匪与弓箭手！",
+                    type==1?"Medical delivery started: walk to the northern checkpoint within 75s!":
+                    "Real road defense started: defeat both the raider and archer!");
+                return true;
+            }
+            if(deliver&&CivicResponseClinicRun&&nearCheck&&
+                civicResponseDistance>=9.5f&&civicResponseElapsed<75)
+            {FinishCivicResponse();return true;}
+            if(claim&&CivicResponseWatchRun&&nearShelter&&
+                civicResponseKillA&&civicResponseKillB&&
+                CivicResponseEnemiesAlive==0)
+            {FinishCivicResponse();return true;}
+            return true;
+        }
+
         private bool TalkCivicSupply(WorldObject o)
         {
             if(o.kind=="farrefugerecord" && save.room==9 &&
@@ -279,6 +506,7 @@ namespace Starfall
 
         private bool TalkFarStation(WorldObject o)
         {
+            if(TalkCivicResponse(o))return true;
             if(TalkCivicSupply(o))return true;
             if(TalkFarCourier(o))return true;
             if(TalkFarBridge(o))return true;
@@ -403,6 +631,7 @@ namespace Starfall
         }
         private bool ChooseFarStation(string action)
         {
+            if(ChooseCivicResponse(action))return true;
             if(ChooseCivicSupply(action))return true;
             if(action=="far_courier_charter")
             {
