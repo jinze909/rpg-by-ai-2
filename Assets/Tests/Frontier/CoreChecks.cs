@@ -278,8 +278,8 @@ namespace Starfall.Tests
             for(int room=0;room<8;room++)
             {
                 MapData m=data.maps[room];
-                Check(m.rows.Length==72&&m.rows[0].Length==108,
-                    "Fifth-ring terrain preserves all earlier third-ring sites");
+                Check(m.rows.Length==80&&m.rows[0].Length==120,
+                    "Sixth-ring terrain preserves earlier exploration sites");
                 GameCore g=new GameCore(data);
                 g.save.room=room;g.save.flags.Add("seal_"+room);
                 int width=m.rows[0].Length,height=m.rows.Length;
@@ -394,8 +394,8 @@ namespace Starfall.Tests
             for(int room=0;room<8;room++)
             {
                 MapData m=data.maps[room];
-                Check(m.rows.Length==72&&m.rows[0].Length==108,
-                    "Expanded fifth-ring geometry retains all fourth-ring rescue locations");
+                Check(m.rows.Length==80&&m.rows[0].Length==120,
+                    "Expanded sixth-ring geometry retains existing rescue locations");
                 GameCore g=new GameCore(data);
                 g.save.room=room;
                 g.save.inventory[4]=5;
@@ -696,10 +696,10 @@ namespace Starfall.Tests
             for (int room = 0; room < 8; room++)
             {
                 MapData map = data.maps[room];
-                Check(map.rows.Length == 72 && map.rows[0].Length == 108,
-                    "Outdoor expansion dimensions must be 108x72 in room " + room);
+                Check(map.rows.Length == 80 && map.rows[0].Length == 120,
+                    "Outdoor sixth-ring dimensions must be 120x80 in room " + room);
                 foreach (string row in map.rows)
-                    Check(row.Length == 108, "Every terrain row remains rectangular");
+                    Check(row.Length == 120, "Every terrain row remains rectangular");
                 Check(map.rows[13][17] == '=' && map.rows[14][18] == '=',
                     "Original central campaign road is retained");
                 foreach (WorldObject o in map.objects)
