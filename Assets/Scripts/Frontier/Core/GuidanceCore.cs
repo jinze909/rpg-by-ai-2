@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,41 @@ namespace Starfall
 
 
 
+
+            if(id=="ridge_routes")
+            {
+                q.title=L("高地联络线 · 远端重连","Outer Ridge Links · Survey and Reconnect");
+                q.category=L("开放地图 · 安全捷径","OPEN WORLD · SAFE SHORTCUTS");
+                q.description=L("第五圈的高地与南部河湾各有一座旧地标。必须亲自走到两个端点，联通居民的安全巡路。联通后可在不受追击时消耗耐力往返。",
+                    "The new ridge and southern basin each hold a forgotten marker. Visit both physically to reopen a civilian crossing. Afterward, spend stamina to travel between them outside combat.");
+                q.locked=!Has("intro");q.complete=RidgeLinkedCount==8;
+                int target=-1,side=0;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Drowned Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    bool first=RidgeSeen(i,0),second=RidgeSeen(i,1);
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+
+                        "  "+((first?1:0)+(second?1:0))+"/2",first&&second));
+                    if(target<0&&!RidgeLinked(i)&&CanEnter(i))
+                    {
+                        target=i;side=first?1:0;
+                    }
+                }
+                q.room=target<0?0:target;q.target=new Point(18,15);
+                if(target>=0)
+                {
+                    string idTarget="ridge_route_"+target+"_"+side;
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.id==idTarget){q.target=new Point(o.x,o.y);break;}
+                }
+                q.next=q.complete?L("八处高地联络线全部开通","All eight outer ridge links restored"):
+                    target<0?L("解锁其余地区后继续巡路","Unlock remaining regions"):
+                    L("亲自到访另一端的高地地标","Walk to the next distant ridge marker");
+                q.reward=L("各地奖励硬币20、碎片1、经验42；可使用双端安全捷径；八地技能点+1",
+                    "Per region: 20 coins, 1 shard, 42 XP and fast crossing; all eight: +1 talent");
+                return q;
+            }
 
             if(id=="outer_watch")
             {

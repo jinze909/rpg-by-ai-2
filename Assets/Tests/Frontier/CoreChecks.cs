@@ -560,6 +560,52 @@ namespace Starfall.Tests
                 "Forest and frost maps do not reuse identical material clusters");
         }
 
+        public static void EightRidgeRoutesNeedBothPhysicalLandmarksAndSafeTravel(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                MapData map=data.maps[room];
+                WorldObject east=Array.Find(map.objects,o=>o.id=="ridge_route_"+room+"_0");
+                WorldObject south=Array.Find(map.objects,o=>o.id=="ridge_route_"+room+"_1");
+                Check(east!=null&&south!=null&&g.CanStand(new Point(east.x,east.y))&&
+                    g.CanStand(new Point(south.x,south.y)),
+                    "Fifth ring links use two real standable authored locations");
+                int coins=g.save.coins,shards=g.save.shards;
+                g.save.x=east.x;g.save.y=east.y;
+                g.Talk(east);
+                Check(g.RidgeSeen(room,0)&&!g.RidgeLinked(room),
+                    "Visiting only one marker never unlocks a free crossing");
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel")<0,
+                    "An incomplete survey offers no teleport");
+                g.Close();
+                g.save.x=south.x;g.save.y=south.y;g.Talk(south);
+                Check(g.RidgeLinked(room)&&g.save.coins==coins+20&&
+                    g.save.shards==shards+1,"Second distinct physical visit enables permanent safe shortcut");
+                int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel");
+                Check(choice>=0,"Completed survey offers actionable crossing choice");
+                g.save.energy=36;g.Choose(choice);
+                Check(Math.Abs(g.save.x-east.x)<.01f&&Math.Abs(g.save.y-east.y)<.01f&&
+                    Math.Abs(g.save.energy-24)<.01f,"Crossing moves the actual player and costs real energy");
+                g.Talk(east);choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel");
+                g.save.energy=3;g.Choose(choice);
+                Check(Math.Abs(g.save.x-east.x)<.01f,
+                    "Insufficient energy cannot cross the ridge");
+                g.Talk(east);g.Close();
+                Check(g.save.coins==coins+20,
+                    "Revisiting completed markers never duplicates quest rewards");
+                GameCore saved=new GameCore(data,g.save);
+                Check(saved.save.version==2&&saved.RidgeLinked(room)&&
+                    saved.save.coins==coins+20,
+                    "New ridge progress restores from old SaveData v2");
+            }
+            GameCore all=new GameCore(data);
+            for(int i=0;i<8;i++)
+            {all.save.flags.Add("ridge_seen_"+i+"_0");all.save.flags.Add("ridge_seen_"+i+"_1");}
+            Check(all.RidgeLinkedCount==8&&all.GetQuest("ridge_routes").complete,
+                "All eight distinct ridge paths finish the tracked exploration quest");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

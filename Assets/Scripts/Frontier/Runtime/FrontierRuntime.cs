@@ -468,6 +468,19 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="ridgemarker")
+            {
+                bool read=Game.RidgeSeen(Game.save.room,
+                    o.id.EndsWith("_0")?0:1);
+                bool linked=Game.RidgeLinked(Game.save.room);
+                PropImage("obelisk",0,p.x-34,p.y-84,68,90,
+                    linked?new Color(.63f,.95f,.85f):read?
+                        new Color(.73f,.83f,.91f):Color.white);
+                Ring(new Point(o.x,o.y),.51f,
+                    linked?mint:read?muted:gold,16);
+                if(!read)Diamond(p.x,p.y-78,5,gold);
+                return;
+            }
             if(kind=="outerwatch")
             {
                 bool done=Game.OuterPatrolDone(Game.save.room);
