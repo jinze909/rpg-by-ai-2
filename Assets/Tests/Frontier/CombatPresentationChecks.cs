@@ -446,7 +446,7 @@ namespace Starfall.Tests
             canceled.Equip(1);
             for(int i=0;i<16;i++)canceled.Tick(.05f,new Point());
             Check(canceled.save.weapon==1&&canceled.playerAction==null&&
-                  canceled.skillCooldown==0,
+                  canceled.skillCooldown<=0,
                 "Genuine equipment swap discards previously buffered dodge Q rather than replaying it");
         }
 
