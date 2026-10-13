@@ -39,6 +39,17 @@ namespace Starfall
             terrainPreview=null;previewOwner=null;previewMap=null;
             previewRegion=-1;previewDiscoveryStamp=0;
         }
+        // The strategic map and the live HUD minimap must display the same
+        // passability changes as GameCore.Blocked and the world renderer.
+        private char TerrainPreviewGlyph(MapData map,int region,int x,int y)
+        {
+            char tile=map.rows[y][x];
+            if(tile=='?')return Game.FarBridgeOpen(region)?'=':'#';
+            if(tile=='%'&&!Game.LowTide)return '~';
+            if(tile=='v'||tile=='w'||tile=='b')
+                return Game.Has("seal_"+region)?'=':'#';
+            return tile;
+        }
         private void DrawTerrainPreview(MapData map,int region,bool fog,float x,float y,float scale)
         {
             if(map==null||map.rows==null||map.rows.Length==0)return;
@@ -79,9 +90,8 @@ namespace Starfall
                     string row=map.rows[yy];
                     for(int xx=0;xx<width;xx++)
                     {
-                        char tile=row[xx];
-                        if(tile=='?')tile=Game.FarBridgeOpen(region)?'=':'#';
-                        Color color=tile=='~'||tile=='%'&&!tide?water:
+                        char tile=TerrainPreviewGlyph(map,region,xx,yy);
+                        Color color=tile=='~'?water:
                             tile=='#'?stone:tile=='='?road:ground;
                         if(fog&&!sectorSeen[(yy/6)*sectorsWide+xx/6])
                             color=Color.Lerp(color,ink,.68f);

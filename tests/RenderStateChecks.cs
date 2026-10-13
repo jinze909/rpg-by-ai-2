@@ -212,6 +212,48 @@ public static class RenderStateChecks
         // Cleanup is handled by the normal EndVisualReview / OnDestroy path.
         Console.WriteLine("PASS real 120x80 map raster caching, draw-call reduction and repaired-bridge preview (offline)");
     }
+    static void BridgeAndSealMinimapsMatchPhysicalCollision(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        var map=game.data.maps[0];
+        game.save.flags.Remove("far_bridge_0");
+        game.save.flags.Add("annex_seen_0_18_8");
+        const int x=111,y=52;
+        Check(map.rows[y][x]=='?'&&!game.FarBridgeOpen(0),
+            "The tested physical bridge is genuinely blocked");
+        Check((char)Call(app,"TerrainPreviewGlyph",map,0,x,y)=='#',
+            "The unrepaired bridge is marked as impassable on the map");
+        game.save.x=111;game.save.y=52;
+        Clear();Call(app,"MiniTerrainWindow",1024f,42f);
+        var blocked=GUI.textureCalls.Find(c=>c.rect.x==1159f&&c.rect.y==105f&&
+            c.rect.width==9f&&c.rect.height==9f);
+        Check(blocked!=null,"The physical bridge appears inside the live minimap");
+        Same(blocked.color,PixelArt.C("#566879"),
+            "An unrepaired bridge must be drawn as blocked rock, not walkable grass");
+        game.save.flags.Add("far_bridge_0");
+        Check((char)Call(app,"TerrainPreviewGlyph",map,0,x,y)=='=',
+            "The same crossing becomes road when repaired");
+        Clear();Call(app,"MiniTerrainWindow",1024f,42f);
+        var opened=GUI.textureCalls.Find(c=>c.rect.x==1159f&&c.rect.y==105f&&
+            c.rect.width==9f&&c.rect.height==9f);
+        Check(opened!=null,"The reopened bridge remains inside the live minimap");
+        Same(opened.color,PixelArt.C("#a09877"),
+            "Repaired bridge must be shown as the real walkable road");
+        var gate=game.data.maps[1];int gx=-1,gy=-1;
+        for(int yy=0;yy<gate.rows.Length&&gx<0;yy++)
+            for(int xx=0;xx<gate.rows[yy].Length;xx++)
+                if(gate.rows[yy][xx]=='v'||gate.rows[yy][xx]=='w'||
+                    gate.rows[yy][xx]=='b'){gx=xx;gy=yy;break;}
+        Check(gx>=0,"A real sealed terrain tile exists in the campaign");
+        game.save.flags.Remove("seal_1");
+        Check((char)Call(app,"TerrainPreviewGlyph",gate,1,gx,gy)=='#',
+            "Locked seal tiles must be represented as blocked on the map");
+        game.save.flags.Add("seal_1");
+        Check((char)Call(app,"TerrainPreviewGlyph",gate,1,gx,gy)=='=',
+            "Opened seals must be represented as traversable road");
+        Console.WriteLine("PASS live minimap bridge repair and sealed gate collision colors (offline)");
+    }
     public static void MapRasterRegression(FrontierRuntime app)
     { WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app); }
 
@@ -228,7 +270,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

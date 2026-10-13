@@ -138,8 +138,8 @@ namespace Starfall
             {
                 int x=left+dx,y=top+dy;
                 if(x<0||x>=width||y<0||y>=height)continue;
-                char tile=Game.Map.rows[y][x];
-                Color c=tile=='~'||tile=='%'&&!Game.LowTide?water:
+                char tile=TerrainPreviewGlyph(Game.Map,Game.save.room,x,y);
+                Color c=tile=='~'?water:
                     tile=='#'?stone:tile=='='?road:low;
                 Box(x0+dx*cell,y0+dy*cell,cell,cell,
                     Game.Explored(Game.save.room,x,y)?c:Color.Lerp(c,ink,.68f));
