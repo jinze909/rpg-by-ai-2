@@ -197,9 +197,29 @@ namespace Starfall
             int waypoint = target; while (parents[waypoint] != start) waypoint = parents[waypoint];
             return (new Point(waypoint % width + .5f, waypoint / width + .5f) - from).Normalized;
         }
+        // A carried parcel or live civic response is an actual local objective.
+        // Menus, scripted portals and the home shortcut must not silently
+        // discard its combat actors or timer through ResetTransient().
+        private bool CivilianFieldMissionBlocksTravel()
+        {
+            if (FarCourierActive)
+            {
+                Notify("救援包仍在运送中。请送到避险棚，或回桥头主动放回物资。",
+                    "Parcel in transit: deliver it at the refuge or explicitly return it at the bridge.");
+                return true;
+            }
+            if (CivicResponseActive)
+            {
+                Notify("社区服务行动仍在进行。请完成现场工作，或在原避险棚明确取消。",
+                    "Civilian service is active: finish the local task or explicitly cancel at its refuge.");
+                return true;
+            }
+            return false;
+        }
         public void Enter(int room)
         {
             if (Dying) return;
+            if (CivilianFieldMissionBlocksTravel()) return;
             // A live mission cannot disappear through a menu, portal or warp.
             if(CivicConduitActive)
             {
@@ -290,6 +310,7 @@ namespace Starfall
         }
         public void ReturnToTown()
         {
+            if (CivilianFieldMissionBlocksTravel()) return;
             if(CivicConduitActive||LastDirectiveWave>0)
             {
                 Notify("先完成现场任务，或在原始控制台明确中止，才能快速回城。",

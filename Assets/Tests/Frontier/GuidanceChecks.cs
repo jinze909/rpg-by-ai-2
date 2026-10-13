@@ -2375,5 +2375,78 @@ namespace Starfall.Tests
             g.Enter(5); g.save.totalTime = 24; Check(g.NavigationPath(new Point(25, 19)).Count == 0, "High-tide shoals cannot be crossed"); g.save.totalTime = 0; Check(g.NavigationPath(new Point(25, 19)).Count > 0, "Relay reachable at low tide");
             g.Enter(1); g.save.flags.Remove("scout_saved"); foreach (var p in g.NavigationPath(new Point(29, 8))) Check(!g.Blocked(p.x, p.y), "No guide crosses blocked gates");
         }
+        public static void CivilianFieldTripsCannotBeSilentlyErasedByTravel(Campaign data)
+        {
+            // The real parcel route is a live carried mission, not just a save flag.
+            var parcel=Fresh(data);
+            parcel.save.stage=4;
+            parcel.save.flags.Add("scout_saved");
+            parcel.save.flags.Add("far_bridge_1");
+            parcel.save.flags.Add("far_shelter_1");
+            parcel.Enter(1);parcel.enemies.Clear();
+            Check(parcel.save.room==1,"The actual repaired regional bridge is reachable");
+            var bridge=Object(parcel,"farbridge");
+            parcel.save.x=bridge.x;parcel.save.y=bridge.y;
+            Action(parcel,"farbridge","far_courier_start");
+            Check(parcel.FarCourierActive,"Taking the parcel creates a live physical delivery");
+            float px=parcel.save.x,py=parcel.save.y;
+            int parcelCoins=parcel.save.coins;
+            parcel.Enter(2);parcel.Enter(1);parcel.ReturnToTown();
+            Check(parcel.save.room==1&&parcel.save.x==px&&parcel.save.y==py&&
+                  parcel.FarCourierActive&&parcel.save.coins==parcelCoins,
+                "World portal, same-room reset and home shortcut preserve live parcel and location");
+            Action(parcel,"farbridge","far_courier_cancel");
+            Check(!parcel.FarCourierActive&&!parcel.FarCourierDelivered(1)&&
+                  parcel.save.coins==parcelCoins,
+                "Existing physical bridge cancellation is a fair non-rewarded retry");
+            parcel.ReturnToTown();
+            Check(parcel.save.room==0,"Home travel resumes after explicit parcel cancellation");
+            // The watch trial includes authentic enemies; travel must not delete them.
+            var watch=Fresh(data);watch.save.stage=4;
+            watch.save.flags.Add("exp_intro");watch.save.flags.Add("harbor_report");
+            watch.save.flags.Add("civic_supply_complete");
+            watch.save.flags.Add("civic_supply_watch_3");
+            watch.save.flags.Add("far_shelter_3");
+            watch.Enter(3);watch.enemies.Clear();
+            var shelter=Object(watch,"farshelter");
+            watch.save.x=shelter.x;watch.save.y=shelter.y;
+            Action(watch,"farshelter","civic_response_start");
+            Check(watch.CivicResponseWatchRun&&watch.CivicResponseEnemiesAlive==2,
+                "A real civic lookout dispatches two attackers");
+            int watchCoins=watch.save.coins;
+            watch.Enter(0);watch.Enter(3);watch.ReturnToTown();
+            Check(watch.save.room==3&&watch.CivicResponseWatchRun&&
+                  watch.CivicResponseEnemiesAlive==2&&watch.save.coins==watchCoins,
+                "World portals and home shortcut cannot erase ongoing civic watch attackers");
+            var unrelated=new Projectile{position=watch.Position,life=3,damage=1};
+            watch.projectiles.Add(unrelated);
+            Action(watch,"farshelter","civic_response_abort");
+            Check(!watch.CivicResponseActive&&watch.CivicResponseEnemiesAlive==0&&
+                  watch.projectiles.Contains(unrelated)&&!watch.CivicResponseDone(3)&&
+                  watch.save.coins==watchCoins,
+                "Explicit abort cleans only trial ownership, preserves other combat and denies free rewards");
+            watch.ReturnToTown();
+            Check(watch.save.room==0,"Fast travel works again after watch cancellation");
+            // The clinic is a separate timed cargo flow, not just a combat alias.
+            var clinic=Fresh(data);clinic.save.stage=4;
+            clinic.save.flags.Add("exp_intro");clinic.save.flags.Add("civic_supply_complete");
+            clinic.save.flags.Add("civic_supply_clinic_0");clinic.save.flags.Add("far_shelter_0");
+            clinic.Enter(0);clinic.enemies.Clear();
+            shelter=Object(clinic,"farshelter");
+            clinic.save.x=shelter.x;clinic.save.y=shelter.y;
+            Action(clinic,"farshelter","civic_response_start");
+            Check(clinic.CivicResponseClinicRun&&clinic.CivicResponseIntegrity==100,
+                "A real clinic starts with a 100-point live medical kit");
+            clinic.Enter(3);clinic.ReturnToTown();
+            Check(clinic.save.room==0&&clinic.CivicResponseClinicRun&&
+                  clinic.CivicResponseIntegrity==100&&!clinic.CivicResponseDone(0),
+                "Even in town the live clinic parcel cannot be reset by travel");
+            Action(clinic,"farshelter","civic_response_abort");
+            Check(!clinic.CivicResponseActive&&
+                  !clinic.CivicResponseDone(0),"Clinic has a clear, non-rewarded physical abort");
+            clinic.Enter(3);
+            Check(clinic.save.room==3,"Ordinary travel is untouched once civilian service ends");
+        }
+
     }
 }
