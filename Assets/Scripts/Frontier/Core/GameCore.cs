@@ -302,7 +302,11 @@ namespace Starfall
         private void SpawnRoom()
         {
             enemies.Clear(); enemyId = 0;
-            if (SpawnExpansionRoom()) return;
+            if (SpawnExpansionRoom())
+            {
+                SpawnRidgeWildlife();
+                return;
+            }
             if (save.room == 0) return;
             float[,] locations = { { 11, 12 }, { 15, 17 }, { 21, 15 }, { 24, 6 }, { 9, 7 }, { 30, 16 }, { 23, 19 }, { 14, 9 } };
             for (int i = 0; i < 6 + (save.room > 2 ? 2 : 0); i++)
@@ -310,6 +314,7 @@ namespace Starfall
                 float x = locations[i, 0], y = locations[i, 1];
                 enemies.Add(CreatePlacedEnemy(++enemyId, i % 3, new Point(x, y), 34 + save.room * 9));
             }
+            SpawnRidgeWildlife();
         }
         public void Tick(float dt, Point movement, Point? explicitAim = null)
         {

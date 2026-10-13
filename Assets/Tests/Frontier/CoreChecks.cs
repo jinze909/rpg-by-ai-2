@@ -627,6 +627,34 @@ namespace Starfall.Tests
                 "All eight distinct ridge paths finish the tracked exploration quest");
         }
 
+        public static void FifthRingWildlifeSpawnsAsActualCombatAwayFromQuestMarkers(Campaign data)
+        {
+            var spawn=typeof(GameCore).GetMethod("SpawnRoom",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(spawn!=null,"Use the real room-spawn transaction");
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);
+                g.save.room=room;
+                spawn.Invoke(g,null);
+                int far=0;
+                foreach(Enemy e in g.enemies)
+                    if(e.x>=74&&e.y>=60)
+                    {
+                        far++;
+                        Check(g.CanStand(e.Position),
+                            "New fifth-ring wildlife has physical passable collision");
+                        foreach(WorldObject o in data.maps[room].objects)
+                            Check((e.Position-new Point(o.x,o.y)).Length>=8,
+                                "New wildlife remains away from real interaction points");
+                        Check(e.hp>0&&e.maxHp>0,
+                            "New wildlife consists of actual combat actors with hitpoints");
+                    }
+                if(room==0)Check(far==0,"Original town remains peaceful");
+                else Check(far==3,"All seven dangerous regions gain three remote encounters");
+            }
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)
