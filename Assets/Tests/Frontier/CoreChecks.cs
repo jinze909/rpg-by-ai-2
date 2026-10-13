@@ -914,6 +914,18 @@ namespace Starfall.Tests
             }
         }
 
+        public static void AllEightRepairedBridgesAppearInQuestTracking(Campaign data)
+        {
+            var g=new GameCore(data);
+            Check(Array.IndexOf(GameCore.QuestIds,"far_bridges")>=0,
+                "Real bridge construction has a separate selectable journal quest");
+            Check(!g.GetQuest("far_bridges").complete,
+                "A new save has never repaired any bridge");
+            for(int room=0;room<8;room++)g.save.flags.Add("far_bridge_"+room);
+            Check(g.FarBridgeCount==8&&g.GetQuest("far_bridges").complete,
+                "All eight repaired routes finish the tracked journal");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

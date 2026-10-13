@@ -45,6 +45,7 @@ namespace Starfall
                     for(int xx=0;xx<width;xx++)
                     {
                         char tile=row[xx];
+                        if(tile=='?')tile=Game.FarBridgeOpen(region)?'=':'#';
                         Color color=tile=='~'||tile=='%'&&!tide?water:
                             tile=='#'?stone:tile=='='?road:ground;
                         if(fog&&!Game.Explored(region,xx,yy))

@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,33 @@ namespace Starfall
 
 
 
+
+            if(id=="far_bridges")
+            {
+                q.title=L("八地民用补给桥 · 恢复实际步行近路","Eight Civilian Bridges · Reopen Real Trails");
+                q.category=L("实地建设 · 永久改变地形","FIELD CONSTRUCTION · PERMANENT TERRAIN");
+                q.description=L("在八个第六圈地图的北侧断桥处，消耗木材2与零件1修桥。修复会将原本无法站立的桥面变成真正可行走的地形；之前的绕路仍可用。",
+                    "At each remote sixth-ring crossing, spend 2 timber and 1 spare part. Repair turns genuinely blocked bridge tiles into a permanent walkable shortcut, while preserving the old detour.");
+                q.locked=!Has("intro");q.complete=FarBridgeCount==8;
+                int target=-1;
+                for(int room=0;room<8;room++)
+                {
+                    bool opened=FarBridgeOpen(room);
+                    q.steps.Add(new QuestStep(L(data.maps[room].name,data.maps[room].en),opened));
+                    if(target<0&&!opened&&CanEnter(room))target=room;
+                }
+                q.room=target<0?0:target;q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject station in data.maps[target].objects)
+                        if(station.kind=="farbridge")
+                        {q.target=new Point(station.x,station.y);break;}
+                q.next=q.complete?L("所有民用桥已重新开放","All civilian crossings reopened"):
+                    target<0?L("先解锁其余地区","Unlock the remaining regions"):
+                    L("寻找北侧真实断桥修复点","Find the actual northern repair post");
+                q.reward=L("每桥经验24；修完八桥再获得技能点1，实际缩短路线",
+                    "24 XP per bridge and 1 talent after all eight; shorter walkable routes");
+                return q;
+            }
 
             if(id=="far_refuges")
             {

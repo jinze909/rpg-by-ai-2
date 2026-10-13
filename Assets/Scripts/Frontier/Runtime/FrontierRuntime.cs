@@ -459,7 +459,9 @@ namespace Starfall
             for (int y = minY; y <= maxY; y++) for (int x = minX; x <= maxX; x++)
             {
                 Point p = ScreenPoint(new Point(x, y));
-                char tile = Game.Map.rows[y][x]; if (tile == '%' && !Game.LowTide) tile = '~';
+                char tile = Game.Map.rows[y][x];
+                if(tile=='?')tile=Game.FarBridgeOpen(Game.save.room)?'=':'#';
+                if (tile == '%' && !Game.LowTide) tile = '~';
                 if ((tile == 'v' || tile == 'w' || tile == 'b') && Game.Has("seal_" + Game.save.room)) tile = '=';
                 DrawSurface(x, y, tile, p); DrawAnnexBiomeLayers(x, y, tile, p);
                 DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
@@ -533,6 +535,14 @@ namespace Starfall
                 PropImage(kind=="annexinnarchive"?"bookshelf":"table",0,
                     p.x-43,p.y-79,86,85);
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
+                return;
+            }
+            if(kind=="farbridge")
+            {
+                bool open=Game.FarBridgeOpen(Game.save.room);
+                PropImage(open?"post":"ruin",0,p.x-38,p.y-81,76,86,
+                    open?new Color(.71f,.96f,.79f):Color.white);
+                if(!open)Diamond(p.x,p.y-75,6,gold);
                 return;
             }
             if(kind=="farhidden"||kind=="farlookout")
