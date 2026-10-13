@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,62 @@ namespace Starfall
 
 
 
+
+            if(id=="civic_supply")
+            {
+                q.title=L("第九章 · 居民补给审计","Chapter Nine · The People's Supply Inquest");
+                q.category=L("后日谈 · 分支抉择与持续服务",
+                    "AFTERMATH · COMMUNITY CHOICES");
+                q.description=L(
+                    "真正送达第一份救援包后，重访炉火旅店的居民住客名单。在引水渠、赤铁矿场和雾港的检查台，为已收货的居民选择医疗点或守路岗。材料只能投入其中一项，避险棚的实际恢复能力随选择改变。三地决定完毕后，返回旅店公开账目。",
+                    "After your first authentic parcel delivery, revisit Hearth Inn's guest registry. At the canal, Ironreach and Mistport checkpoints, let communities choose medical care or route watching. Both cost real materials and change their refuge's live recovery. Return to the Inn to publish all three decisions.");
+                q.locked=FarCourierDeliveredCount==0;
+                q.complete=CivicSupplyComplete;
+                q.steps.Add(new QuestStep(L("从旅店居民名单开启审计",
+                    "Open the inquest at the guest registry"),CivicSupplyStarted));
+                string[] regionsZh={"引水渠","赤铁矿场","雾港"};
+                string[] regionsEn={"Canal","Ironreach","Mistport"};
+                int[] sites={0,3,5};
+                int next=-1;
+                for(int i=0;i<sites.Length;i++)
+                {
+                    int room=sites[i];bool done=CivicSupplyResolved(room);
+                    string chosen=done?CivicSupplyClinic(room)?
+                        L(" · 医疗点"," · Clinic"):L(" · 守路岗"," · Lookout"):"";
+                    q.steps.Add(new QuestStep(L(regionsZh[i],regionsEn[i])+chosen,done));
+                    if(next<0&&!done)next=room;
+                }
+                q.steps.Add(new QuestStep(L("返回旅店公开三地共同账目",
+                    "Publish the three-region public accounts"),CivicSupplyComplete));
+                if(!CivicSupplyStarted || next<0)
+                {
+                    q.room=9;
+                    q.target=ObjectPoint(9,"farrefugerecord",new Point(22.5f,33.5f));
+                    q.next=q.complete?L("三地社区继续维持各自选择的救援服务",
+                        "All three communities maintain their chosen refuge services"):
+                        !CivicSupplyStarted?L("重访炉火旅店的居民名单，接取三地审计",
+                            "Revisit Hearth Inn's guest registry to begin"):
+                            L("三地决定齐备，回旅店居民名单签发审计公报",
+                                "Return to the guest registry and publish the inquest");
+                }
+                else
+                {
+                    q.room=next;
+                    q.target=ObjectPoint(next,
+                        FarCourierDelivered(next)?"farcheck":"farbridge",
+                        new Point(111.5f,61.5f));
+                    q.next=!CanEnter(next)?
+                        L("继续主线以开放下一片地区","Advance the story to unlock this region"):
+                        !FarCourierDelivered(next)?
+                        L("先在该地区修桥、送货，再与居民决定公共维护方案",
+                            "Rebuild its bridge, deliver a parcel, then choose local services"):
+                        L("到居民检查站选择医疗或守路，并付出真实材料",
+                            "Choose a clinic or lookout at the checkpoint using real materials");
+                }
+                q.reward=L("三地服务各获独立永久效果；每地经验 +22；公开后硬币48、碎片2、技能点1、经验70",
+                    "Three lasting local service upgrades, +22 XP per site; publication: 48 coins, 2 shards, 1 talent and 70 XP");
+                return q;
+            }
 
             if(id=="far_couriers")
             {

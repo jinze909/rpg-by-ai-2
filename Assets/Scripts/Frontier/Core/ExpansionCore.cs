@@ -327,6 +327,19 @@ namespace Starfall
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // Civilian supply decisions are *physical* services at the
+            // existing southern refuge, not unconditional global stat buffs.
+            // A distant shelter cannot heal the player in an active fight.
+            if(CivicSupplySite(save.room)&&FarShelterBuilt(save.room)&&
+                !Dying&&!practicing&&!racing&&SafeTravel&&
+                NearKind("farshelter",3.2f))
+            {
+                if(CivicSupplyClinic(save.room)&&save.health>0&&
+                    save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.9f);
+                if(CivicSupplyWatch(save.room))
+                    save.energy=Math.Min(100,save.energy+dt*4.5f);
+            }
             // The first real starstorm changes regional public services.
             // No remote regeneration, no healing under live enemy attack.
             if(HearingOrrinResponsibility!=0 && save.room==4 &&
