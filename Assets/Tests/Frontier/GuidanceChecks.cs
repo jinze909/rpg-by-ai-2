@@ -210,6 +210,70 @@ namespace Starfall.Tests
             Check(100-armored.FarCourierIntegrity<parcelLoss[1],
                 "Guarding with the hero's existing real armor reduces parcel impact");
         }
+        public static void RemoteCourierRunTriggersEightRealCleanableRaiderEncounters(Campaign data)
+        {
+            var fire=typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(fire!=null&&hit!=null,"Production bow and attack release exist");
+            for(int room=0;room<8;room++)
+            {
+                var g=Fresh(data);
+                g.save.stage=4;g.save.frontierEnding=1;
+                g.save.flags.Add("scout_saved");g.save.flags.Add("exp_intro");
+                g.save.flags.Add("gate_"+room);
+                g.save.flags.Add("far_bridge_"+room);
+                g.save.flags.Add("far_shelter_"+room);
+                g.Enter(room);g.enemies.Clear();
+                Check(g.save.room==room,"Actual civilian bridge region is available");
+                var bridge=Object(g,"farbridge");
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                Action(g,"farbridge","far_courier_start");
+                Check(g.FarCourierRaidersAlive==0,
+                    "There are no fabricated raiders before walking over the bridge");
+                for(int i=0;i<60&&!g.FarCourierCrossed;i++)g.Tick(.05f,new Point(0,1));
+                Check(g.FarCourierActive&&g.FarCourierCrossed&&g.FarCourierRaidersAlive==2,
+                    "Two live raiders begin only on actual crossing in region "+room);
+                int id=90100+room*2;
+                Enemy melee=g.enemies.Find(e=>e.id==id);
+                Enemy archer=g.enemies.Find(e=>e.id==id+1);
+                Check(melee!=null&&archer!=null&&melee.kind==0&&archer.kind==1&&
+                    melee.hp>0&&archer.hp>0&&g.CanStand(melee.Position)&&g.CanStand(archer.Position),
+                    "Both attacker archetypes spawn on traversable physical terrain");
+                g.PrepareSave();
+                Check(g.save.worldEnemies!=null&&
+                    !Array.Exists(g.save.worldEnemies,e=>e.id==id||e.id==id+1),
+                    "Courier attackers cannot pollute persistent NPC snapshots");
+                var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
+                Check(!resumed.FarCourierActive&&
+                    !resumed.enemies.Exists(e=>e.id==id||e.id==id+1),
+                    "Loading old saves does not restore an unfinished courier raid");
+                fire.Invoke(g,new object[]{archer,new Point(-1,0),5f});
+                Check(g.projectiles.Exists(p=>p.courierOwned),
+                    "Actual archer firing owns a real moving missile");
+                var unrelated=new Projectile{
+                    position=new Point(10.5f,10.5f),velocity=new Point(0,1),
+                    friendly=true,life=3};
+                g.projectiles.Add(unrelated);
+                g.save.level=10;int kills=g.save.kills[room],coins=g.save.coins;
+                int materials=g.save.inventory[1],xp=g.save.xp;
+                hit.Invoke(g,new object[]{melee,9000f,false,null,null});
+                hit.Invoke(g,new object[]{archer,9000f,false,null,null});
+                Check(g.FarCourierRaidersAlive==0&&
+                    g.save.kills[room]==kills&&g.save.coins==coins&&
+                    g.save.inventory[1]==materials&&g.save.xp==xp,
+                    "Courier combat cannot be exploited to farm chapter kills, coins, XP or drops");
+                // Deliberate in-world invalid hop aborts the run, without
+                // destroying ordinary projectiles belonging to other combat.
+                g.hitStop=0;g.save.y+=4;g.Tick(.05f,new Point());
+                Check(!g.FarCourierActive&&
+                    !g.enemies.Exists(e=>e.id==id||e.id==id+1)&&
+                    !g.projectiles.Exists(p=>p.courierOwned)&&
+                    g.projectiles.Contains(unrelated),
+                    "Abort removes only live courier threats and owned arrows");
+            }
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
