@@ -12,7 +12,27 @@ namespace Starfall
         private float courierWalked,courierElapsed;
         private float courierIntegrity;
         private bool courierPatched,courierIntegrityWarning;
-        private bool courierGuardSpent;
+        private bool courierGuardSpent,courierRaided;
+        // Mission-owned IDs use a reserved range, never ordinary spawn IDs.
+        private bool IsFarCourierRaider(Enemy foe)
+        {return foe!=null&&foe.id>=90100&&foe.id<90116;}
+        public int FarCourierRaidersAlive
+        {get{return FarCourierActive?enemies.FindAll(IsFarCourierRaider).Count:0;}}
+        private void SpawnFarCourierRaiders()
+        {
+            if(courierRaided||!FarCourierActive)return;
+            courierRaided=true;
+            Point melee=new Point(111.5f,57.5f),archer=new Point(114.5f,59.5f);
+            if(!CanStand(melee)||!CanStand(archer))return;
+            int id=90100+save.room*2;
+            enemies.Add(CreatePlacedEnemy(id,0,melee,36+save.room*5));
+            enemies.Add(CreatePlacedEnemy(id+1,1,archer,31+save.room*5));
+            effects.Add(new Effect("danger",melee,.6f){radius=.55f,courierOwned=true});
+            effects.Add(new Effect("danger",archer,.6f){radius=.55f,courierOwned=true});
+            revision++;sound="windup";
+            Notify("桥南两名劫匪正在拦截救援包！可战斗或迂回，真正受击会损坏货物。",
+                "Two raiders intercept the parcel south of the bridge! Fight or evade; real hits damage cargo.");
+        }
         private float courierGuardLeft;
         public float FarCourierGuardLeft {get{return FarCourierActive?courierGuardLeft:0;}}
         public float FarCourierIntegrity {get{return FarCourierActive?courierIntegrity:0;}}
@@ -49,7 +69,17 @@ namespace Starfall
         public int FarCourierDeliveredCount
         {get{int n=0;for(int i=0;i<8;i++)if(FarCourierDelivered(i))n++;return n;}}
         private void ResetFarCourier()
-        {courierRoom=-1;courierWalked=courierElapsed=courierIntegrity=courierGuardLeft=0;courierCrossed=courierStamped=courierPatched=courierIntegrityWarning=courierGuardSpent=false;courierLast=new Point();}
+        {
+            // Retire only route-owned hostile actors, arrows and warnings.
+            enemies.RemoveAll(IsFarCourierRaider);
+            projectiles.RemoveAll(shot=>shot.courierOwned);
+            effects.RemoveAll(effect=>effect.courierOwned);
+            courierRoom=-1;courierRaided=false;
+            courierWalked=courierElapsed=courierIntegrity=courierGuardLeft=0;
+            courierCrossed=courierStamped=courierPatched=
+                courierIntegrityWarning=courierGuardSpent=false;
+            courierLast=new Point();
+        }
         private void TickFarCourier(float dt)
         {
             if(courierRoom<0)return;
@@ -66,9 +96,13 @@ namespace Starfall
             }
             courierElapsed+=Math.Max(0,dt);courierWalked+=step;
             courierGuardLeft=Math.Max(0,courierGuardLeft-dt);
-            if(FarBridgeOpen(save.room)&&now.x>=110.25f&&now.x<=112.75f&&
+            if(!courierCrossed&&FarBridgeOpen(save.room)&&
+               now.x>=110.25f&&now.x<=112.75f&&
                now.y>=52.2f&&now.y<=53.9f&&now.y>courierLast.y+.01f)
+            {
                 courierCrossed=true;
+                SpawnFarCourierRaiders();
+            }
             courierLast=now;
             if(courierElapsed>=95)
             {
@@ -128,10 +162,10 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,FarCourierActive?
                     "救援包正在你身上。沿修好的桥面向南步行，并到远端避险棚亲手交货。你也可以把它留在桥头。":
-                    "桥已经重新开放，可以真正向远端避险棚运送物资。领取后95秒内步行穿过新桥；负重会稍微减慢速度，不能使用传送跳过。",
+                    "桥已经重新开放，可以真正向远端避险棚运送物资。领取后95秒内步行穿过新桥；桥南可能遭遇真正的劫匪拦截。负重会稍微减慢速度，不能使用传送跳过。",
                     FarCourierActive?
                     "Carry your relief parcel across the restored bridge to the outer refuge, or leave it safely here.":
-                    "The reopened bridge can finally deliver aid. Carry a real parcel across it to the public refuge within 95 seconds. Weight slows walking and fast travel cannot substitute.",
+                    "The reopened bridge can finally deliver aid. Carry a real parcel across it to the public refuge within 95 seconds. Real raiders intercept the crossing; fight or evade them. Weight slows walking and fast travel cannot substitute.",
                     C(FarCourierActive?"放回物资":"背起救援包",
                         FarCourierActive?"Set parcel down":"Carry relief parcel",
                         FarCourierActive?"far_courier_cancel":"far_courier_start"),
@@ -226,7 +260,7 @@ namespace Starfall
                 courierRoom=room;courierLast=Position;
                 courierWalked=courierElapsed=0;
                 courierIntegrity=100;courierCrossed=courierStamped=false;
-                courierPatched=courierIntegrityWarning=courierGuardSpent=false;
+                courierPatched=courierIntegrityWarning=courierGuardSpent=courierRaided=false;
                 courierGuardLeft=0;
                 revision++;sound="quest";
                 Notify("救援包已背上：95秒内步行过桥并送到避险棚！",
