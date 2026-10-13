@@ -136,6 +136,47 @@ namespace Starfall.Tests
             Check(!resumed.FarCourierActive&&resumed.FarCourierIntegrity==0,
                 "Old v2 save slots do not persist damaged or patched cargo");
         }
+        public static void ConvoyWardCostsEnergyAndOnlyProtectsRealCargo(Campaign data)
+        {
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var g=Fresh(data);g.save.flags.Add("far_bridge_0");
+            g.save.flags.Add("far_shelter_0");g.Enter(0);g.enemies.Clear();
+            var bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            for(int i=0;i<95&&!g.FarCourierCrossed;i++)g.Tick(.05f,new Point(0,1));
+            Check(g.FarCourierActive&&g.FarCourierCrossed,
+                "A real walk over the repaired bridge unlocks convoy defense");
+            var checkpoint=Object(g,"farcheck");
+            for(int i=0;i<110&&g.save.y<checkpoint.y-.8f;i++)g.Tick(.05f,new Point(0,1));
+            Check((g.Position-new Point(checkpoint.x,checkpoint.y)).Length<=2.2f,
+                "The convoy shield is purchased only at the real checkpoint");
+            g.save.energy=60;
+            Action(g,"farcheck","far_courier_guard");
+            Check(g.FarCourierGuardLeft==12&&g.save.energy==30,
+                "The 12-second one-use escort ward costs exactly 30 real energy");
+            g.invulnerable=0;
+            float hp=g.save.health;
+            hurt.Invoke(g,new object[]{20f,"shot",null});
+            float cargoAfterWard=g.FarCourierIntegrity;
+            Check(g.save.health<hp&&cargoAfterWard>85&&cargoAfterWard<100,
+                "Protection lowers cargo impact but does not grant player invulnerability");
+            g.Close();g.Talk(checkpoint);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="far_courier_guard"),
+                "No second convoy ward can be bought in the same run");
+            g.Close();g.hitStop=0;
+            for(int i=0;i<250;i++)g.Tick(.05f,new Point());
+            Check(g.FarCourierActive&&g.FarCourierGuardLeft==0,
+                "A convoy ward really expires before the parcel delivery deadline");
+            g.save.health=g.save.maxHealth;g.invulnerable=0;
+            hurt.Invoke(g,new object[]{20f,"shot",null});
+            Check(cargoAfterWard-g.FarCourierIntegrity>20,
+                "After the ward expires, the same physical hit damages cargo at full strength");
+            g.PrepareSave();var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
+            Check(!resumed.FarCourierActive&&resumed.FarCourierGuardLeft==0,
+                "Transient convoy ward never leaks into version-two save slots");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;

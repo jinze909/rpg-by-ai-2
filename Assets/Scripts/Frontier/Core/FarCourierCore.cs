@@ -12,6 +12,9 @@ namespace Starfall
         private float courierWalked,courierElapsed;
         private float courierIntegrity;
         private bool courierPatched,courierIntegrityWarning;
+        private bool courierGuardSpent;
+        private float courierGuardLeft;
+        public float FarCourierGuardLeft {get{return FarCourierActive?courierGuardLeft:0;}}
         public float FarCourierIntegrity {get{return FarCourierActive?courierIntegrity:0;}}
         public bool FarCourierPatched {get{return FarCourierActive&&courierPatched;}}
         // Called exclusively from real post-armor player damage. Invulnerable
@@ -19,8 +22,11 @@ namespace Starfall
         private void DamageFarCourierCargo(float actualHealthDamage,string source)
         {
             if(!FarCourierActive||source=="environment"||actualHealthDamage<=0)return;
-            courierIntegrity=Math.Max(0,courierIntegrity-
-                Math.Max(12,Math.Min(38,actualHealthDamage*1.2f)));
+            float shock=Math.Max(12,Math.Min(38,actualHealthDamage*1.2f));
+            // A real energy-powered convoy shield protects the *parcel*, not
+            // the hero's health. Real successful hits still hurt the carrier.
+            if(courierGuardLeft>0)shock*=.45f;
+            courierIntegrity=Math.Max(0,courierIntegrity-shock);
             if(courierIntegrity<=0)
             {
                 ResetFarCourier();revision++;
@@ -43,7 +49,7 @@ namespace Starfall
         public int FarCourierDeliveredCount
         {get{int n=0;for(int i=0;i<8;i++)if(FarCourierDelivered(i))n++;return n;}}
         private void ResetFarCourier()
-        {courierRoom=-1;courierWalked=courierElapsed=courierIntegrity=0;courierCrossed=courierStamped=courierPatched=courierIntegrityWarning=false;courierLast=new Point();}
+        {courierRoom=-1;courierWalked=courierElapsed=courierIntegrity=courierGuardLeft=0;courierCrossed=courierStamped=courierPatched=courierIntegrityWarning=courierGuardSpent=false;courierLast=new Point();}
         private void TickFarCourier(float dt)
         {
             if(courierRoom<0)return;
@@ -59,6 +65,7 @@ namespace Starfall
                 return;
             }
             courierElapsed+=Math.Max(0,dt);courierWalked+=step;
+            courierGuardLeft=Math.Max(0,courierGuardLeft-dt);
             if(FarBridgeOpen(save.room)&&now.x>=110.25f&&now.x<=112.75f&&
                now.y>=52.2f&&now.y<=53.9f&&now.y>courierLast.y+.01f)
                 courierCrossed=true;
@@ -83,6 +90,7 @@ namespace Starfall
                 bool eligible=FarCourierActive&&courierCrossed&&!courierStamped;
                 bool patch=FarCourierActive&&courierCrossed&&
                     courierIntegrity<99&&!courierPatched;
+                bool guard=FarCourierActive&&courierCrossed&&!courierGuardSpent;
                 string noticeZh=courierStamped?
                     "居民已经核验救援包封条，可继续送往避险棚。":
                     eligible?"你真实走过了新桥。请让居民查验救援包封条。":
@@ -94,20 +102,26 @@ namespace Starfall
                 {
                     noticeZh+="\\n\\n货物完好度："+(int)Math.Ceiling(courierIntegrity)+
                         "%。敌人真正命中会损坏货物；闪避不会。"+
-                        (patch?"可使用一枚零件加固 +35（每趟限一次）。":"");
+                        (patch?"可使用一枚零件加固 +35（每趟限一次）。":"")+
+                        (guard?"可花费30耐力守护物资12秒（每趟限一次）。":"");
                     noticeEn+="\\n\\nCargo integrity: "+(int)Math.Ceiling(courierIntegrity)+
                         "%. Real enemy hits damage the parcel; dodges do not."+
-                        (patch?" One spare part reinforces +35 once per trip.":"");
+                        (patch?" One spare part reinforces +35 once per trip.":"")+
+                        (guard?" Spend 30 energy to guard the parcel for 12s (once).":"");
                 }
                 Choice seal=C(eligible?"核验封条":"查看记录",
                     eligible?"Inspect cargo seal":"Read the log",
                     eligible?"far_courier_stamp":"close");
-                if(patch)
-                    Dialog(o.name,o.en,noticeZh,noticeEn,seal,
-                        C("加固货物 · 零件1","Reinforce · 1 spare part","far_courier_patch"),
-                        C("继续行路","Keep walking","close"));
-                else Dialog(o.name,o.en,noticeZh,noticeEn,seal,
-                    C("继续行路","Keep walking","close"));
+                Choice patchChoice=C("加固货物 · 零件1","Reinforce · 1 spare part","far_courier_patch");
+                Choice guardChoice=C("护送结界 · 耐力30","Convoy ward · 30 energy","far_courier_guard");
+                Choice leave=C("继续行路","Keep walking","close");
+                if(patch&&guard)Dialog(o.name,o.en,noticeZh,noticeEn,
+                    seal,patchChoice,guardChoice,leave);
+                else if(patch)Dialog(o.name,o.en,noticeZh,noticeEn,
+                    seal,patchChoice,leave);
+                else if(guard)Dialog(o.name,o.en,noticeZh,noticeEn,
+                    seal,guardChoice,leave);
+                else Dialog(o.name,o.en,noticeZh,noticeEn,seal,leave);
                 return true;
             }
             if(bridge)
@@ -142,6 +156,7 @@ namespace Starfall
         {
             if(action!="far_courier_start"&&action!="far_courier_cancel"&&
                 action!="far_courier_stamp"&&action!="far_courier_patch"&&
+                action!="far_courier_guard"&&
                 action!="far_courier_deliver")
                 return false;
             int room=save.room;
@@ -155,6 +170,21 @@ namespace Starfall
             }
             if(bridge==null||shelter==null||checkpoint==null||!FarBridgeOpen(room)||
                 !FarShelterBuilt(room)||FarCourierDelivered(room))return true;
+            if(action=="far_courier_guard")
+            {
+                if(!FarCourierActive||!courierCrossed||courierGuardSpent||
+                    (Position-new Point(checkpoint.x,checkpoint.y)).Length>2.2f)return true;
+                if(save.energy<30)
+                {
+                    Notify("护送结界需要30耐力；休整后仍可再尝试。",
+                        "Convoy ward needs 30 energy. Recover and try again.");return true;
+                }
+                save.energy-=30;courierGuardSpent=true;courierGuardLeft=12;
+                sound="skill";revision++;
+                Notify("救援包结界开启12秒：真实攻击的货物冲击减少55%，主角仍会正常受伤。",
+                    "Parcel ward active for 12s: 55% less cargo impact, but you still take normal damage.");
+                return true;
+            }
             if(action=="far_courier_patch")
             {
                 if(!FarCourierActive||!courierCrossed||courierPatched||
@@ -196,7 +226,8 @@ namespace Starfall
                 courierRoom=room;courierLast=Position;
                 courierWalked=courierElapsed=0;
                 courierIntegrity=100;courierCrossed=courierStamped=false;
-                courierPatched=courierIntegrityWarning=false;
+                courierPatched=courierIntegrityWarning=courierGuardSpent=false;
+                courierGuardLeft=0;
                 revision++;sound="quest";
                 Notify("救援包已背上：95秒内步行过桥并送到避险棚！",
                     "Parcel loaded: cross the bridge on foot and reach the shelter in 95 seconds!");

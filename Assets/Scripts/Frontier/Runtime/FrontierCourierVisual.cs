@@ -19,6 +19,16 @@ namespace Starfall
             // Small depth-sorted field indicator tied to the *same* playable
             // hero, not a second avatar or a permanently obscuring HUD panel.
             Bar(screen.x-31,screen.y-59,62,integrity/100f,cargoColor,4);
+            if(Game.FarCourierGuardLeft>0)
+            {
+                // Static even under reduced motion. The original hero
+                // animation and appearance equipment remain untouched.
+                Ring(Game.Position,.69f,new Color(.46f,.95f,.86f,.67f),18);
+                Text(screen.x-72,screen.y-108,144,20,
+                    Game.L("结界 "+(int)Math.Ceiling(Game.FarCourierGuardLeft)+"秒",
+                        "WARD "+(int)Math.Ceiling(Game.FarCourierGuardLeft)+"s"),
+                    12,mint,TextAnchor.MiddleCenter);
+            }
             Text(screen.x-83,screen.y-86,166,21,
                 Game.L("救援包 "+(int)Math.Ceiling(integrity)+"% · "+
                     (int)Game.FarCourierTimeLeft+"秒",
