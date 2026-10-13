@@ -556,7 +556,8 @@ namespace Starfall
                     control?Game.LastDirectiveChoice>0:
                     Game.Has("last_directive_clue_"+clue);
                 Color tint=Game.LastDirectiveComplete?
-                    new Color(.61f,.96f,.8f):
+                    (Game.LastDirectiveChoice==1?
+                        new Color(.53f,.86f,.99f):new Color(.99f,.82f,.54f)):
                     discovered?new Color(.68f,.86f,.97f):
                     new Color(.98f,.76f,.45f);
                 PropImage(board?"table":control?"obelisk":
