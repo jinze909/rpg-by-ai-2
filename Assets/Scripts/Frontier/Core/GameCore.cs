@@ -133,6 +133,7 @@ namespace Starfall
             if (ty < 2 || tx < 2 || ty >= Map.rows.Length - 2 || tx >= Map.rows[0].Length - 2) return true;
             char tile = Map.rows[ty][tx];
             if (tile == '#' || tile == '~' || tile == 'f') return true;
+            if (tile == '?' && !Has("far_bridge_"+save.room)) return true;
             if ((tile == 'v' || tile == 'w' || tile == 'b') && !Has("seal_" + save.room)) return true;
             if (save.room == 5 && tile == '%' && !LowTide) return true;
             foreach (Decoration d in StaticHouseColliders())

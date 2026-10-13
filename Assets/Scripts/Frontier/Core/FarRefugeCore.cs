@@ -78,8 +78,49 @@ namespace Starfall
                 C("继续探索","Continue exploring","close"));
             return true;
         }
+        public bool FarBridgeOpen(int room){return room>=0&&room<8&&Has("far_bridge_"+room);}
+        public int FarBridgeCount
+        {get{int n=0;for(int i=0;i<8;i++)if(FarBridgeOpen(i))n++;return n;}}
+        private bool TalkFarBridge(WorldObject o)
+        {
+            if(o.kind!="farbridge")return false;
+            int room=save.room;
+            if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            bool repaired=FarBridgeOpen(room);
+            Dialog(o.name,o.en,repaired?
+                "居民已重新铺好山脊桥面。北部气象站到南部避险棚的近路永久开放；原长路仍可走。":
+                "这条居民补给栈桥已断裂。提供木材2与零件1可铺设真正的可通行桥面，缩短长距离绕路。",
+                repaired?"The civilian shortcut from the weather log to the outer refuge is permanently walkable. The old detour remains open.":
+                    "Spend 2 timber and 1 spare part to rebuild the collapsed civilian bridge, opening physical collision tiles and shortening the supply trail.",
+                C(repaired?"检查桥面":"修复 · 木材2、零件1",
+                    repaired?"Inspect bridge":"Repair · 2 timber, 1 part",
+                    repaired?"close":"far_bridge_repair"),
+                C("继续步行","Keep walking","close"));
+            return true;
+        }
+        private bool ChooseFarBridgeRepair()
+        {
+            int room=save.room;
+            if(room<0||room>=8||Dying||practicing||FarBridgeOpen(room))return true;
+            WorldObject bridge=null;
+            foreach(WorldObject item in Map.objects)if(item.kind=="farbridge"){bridge=item;break;}
+            if(bridge==null||(Position-new Point(bridge.x,bridge.y)).Length>2.2f)return true;
+            if(!SafeTravel)
+            {Notify("敌人太近，无法安全铺桥。","Hostiles are too close to repair the crossing.");return true;}
+            if(!Spend(2,0,0,0,1))return true;
+            Flag("far_bridge_"+room);AddXp(24);revision++;sound="reward";
+            RecordMoment("第 "+(room+1)+" 处平民补给桥重新开放，救援物资可以通过真正的山脊近路运往避险棚。",
+                "The civilian bridge in region "+(room+1)+" now physically connects the outer weather trail to the public refuge.");
+            if(FarBridgeCount==8&&!Has("far_bridges_all"))
+            {Flag("far_bridges_all");save.skillPoints++;revision++;}
+            Notify("桥面重新开放！现在可以直接步行通过，经验 +24。",
+                "Crossing reopened! The new physical shortcut is walkable. +24 XP.");
+            return true;
+        }
+
         private bool TalkFarStation(WorldObject o)
         {
+            if(TalkFarBridge(o))return true;
             if(TalkFarSecrets(o))return true;
             if(o.kind=="faratlasdesk" || o.kind=="farrefugerecord")
             {
@@ -177,6 +218,7 @@ namespace Starfall
         }
         private bool ChooseFarStation(string action)
         {
+            if(action=="far_bridge_repair")return ChooseFarBridgeRepair();
             if(action=="far_publish")
             {
                 if(save.room!=9||Dying||practicing||Has("far_refuge_atlas"))return true;

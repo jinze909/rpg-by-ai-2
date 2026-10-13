@@ -862,6 +862,58 @@ namespace Starfall.Tests
                 "Corrupt map dimensions cannot force an infinite texture allocation");
         }
 
+        private static int BridgeDistance(GameCore g,int sx,int sy,int gx,int gy)
+        {
+            int w=g.Map.rows[0].Length,h=g.Map.rows.Length;
+            var distances=new Dictionary<int,int>();var queue=new Queue<int>();
+            int start=sy*w+sx;distances[start]=0;queue.Enqueue(start);
+            int[,] directions={{1,0},{-1,0},{0,1},{0,-1}};
+            while(queue.Count>0)
+            {
+                int current=queue.Dequeue(),x=current%w,y=current/w;
+                if(x==gx&&y==gy)return distances[current];
+                for(int k=0;k<4;k++)
+                {
+                    int xx=x+directions[k,0],yy=y+directions[k,1],at=yy*w+xx;
+                    if(xx<2||yy<2||xx>=w-2||yy>=h-2||distances.ContainsKey(at)||
+                        !g.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                    distances[at]=distances[current]+1;queue.Enqueue(at);
+                }
+            }
+            return -1;
+        }
+        public static void RepairedBridgesOpenRealTerrainAndShortenWalkingDistance(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                var g=new GameCore(data);g.save.room=room;
+                var bridge=Array.Find(g.Map.objects,o=>o.id=="far_bridge_"+room);
+                Check(bridge!=null&&g.CanStand(new Point(bridge.x,bridge.y)),
+                    "All bridge repair posts are physically accessible");
+                Check(g.Blocked(111.5f,52.5f),"Broken spans block actual collision");
+                int longRoute=BridgeDistance(g,111,49,112,73);
+                Check(longRoute>0,"The old long route is not destructively removed");
+                g.save.inventory[0]=5;g.save.inventory[4]=5;g.save.x=bridge.x;g.save.y=bridge.y;
+                g.Talk(bridge);
+                int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="far_bridge_repair");
+                Check(choice>=0,"Bridge has a legitimate material-consuming interaction");
+                g.Choose(choice);
+                Check(g.FarBridgeOpen(room)&&!g.Blocked(111.5f,52.5f)&&
+                    g.save.inventory[0]==3&&g.save.inventory[4]==4,
+                    "One repair consumes the actual resources and unlocks actual terrain");
+                int shortRoute=BridgeDistance(g,111,49,112,73);
+                Check(shortRoute>0&&shortRoute<longRoute/2,
+                    "Repair creates a physically shorter route, not a fake quest reward");
+                g.Talk(bridge);
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_bridge_repair")<0,
+                    "Bridge repair cannot duplicate materials or rewards");
+                var reload=new GameCore(data,g.save);
+                Check(reload.save.version==2&&reload.FarBridgeOpen(room)&&
+                    !reload.Blocked(111.5f,52.5f),
+                    "Permanent bridge terrain state survives legacy save reload");
+            }
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)
