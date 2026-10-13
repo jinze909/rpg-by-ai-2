@@ -278,10 +278,10 @@ namespace Starfall.Tests
             for (int room = 0; room < 8; room++)
             {
                 MapData map = data.maps[room];
-                Check(map.rows.Length == 48 && map.rows[0].Length == 72,
-                    "Outdoor expansion dimensions must be 72x48 in room " + room);
+                Check(map.rows.Length == 56 && map.rows[0].Length == 84,
+                    "Outdoor expansion dimensions must be 84x56 in room " + room);
                 foreach (string row in map.rows)
-                    Check(row.Length == 72, "Every terrain row remains rectangular");
+                    Check(row.Length == 84, "Every terrain row remains rectangular");
                 Check(map.rows[13][17] == '=' && map.rows[14][18] == '=',
                     "Original central campaign road is retained");
                 foreach (WorldObject o in map.objects)
