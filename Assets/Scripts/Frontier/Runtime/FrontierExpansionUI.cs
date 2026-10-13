@@ -168,6 +168,46 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="skywatcher")
+            {
+                DrawNpc("innGuest",new Point(o.x,o.y),12);
+                Text(p.x-30,p.y-86,60,22,Game.Has("skywatch_complete")?"✓":"!",
+                    18,Game.Has("skywatch_complete")?mint:gold,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind.StartsWith("skyprism"))
+            {
+                string id=kind.Substring("skyprism".Length);
+                bool aligned=Game.Has("skywatch_prism_"+id);
+                Color light=aligned?mint:gold;
+                PropImage("altar",0,p.x-29,p.y-57,58,67,
+                    aligned?Color.white:muted);
+                Ring(new Point(o.x,o.y),aligned?.72f:.5f,light,20);
+                Text(p.x-46,p.y-85,92,21,
+                    aligned?Game.L("已校准","ALIGNED"):Game.L("观测棱镜","SKY PRISM"),
+                    11,light,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind=="skyobservatory")
+            {
+                bool active=Game.SkywatchRoom==7;
+                bool sealedSky=Game.Has("skywatch_defeated");
+                Color tint=active?PixelArt.C("#e8b4ff"):sealedSky?mint:gold;
+                PropImage("column",0,p.x-34,p.y-76,68,82,Color.white);
+                Ring(new Point(o.x,o.y),active?.95f:.65f,tint,24);
+                Text(p.x-70,p.y-104,140,23,
+                    active?Game.L("古观星守卫","SKYWATCH GUARDIAN"):
+                    sealedSky?Game.L("守卫已停止","GUARDIAN DISABLED"):
+                    Game.L("古观星台","OBSERVATORY"),12,tint,TextAnchor.MiddleCenter);
+                if(active)
+                {
+                    Enemy boss=Game.enemies.Find(Game.IsSkywatchEnemy);
+                    if(boss!=null) Bar(p.x-43,p.y+12,86,boss.hp/Math.Max(1,boss.maxHp),tint,7);
+                    Text(p.x-43,p.y-124,86,18,Game.SkywatchTime.ToString("0")+"s",
+                        11,tint,TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
             if (kind == "commonswitness")
             {
                 DrawNpc("innGuest", new Point(o.x, o.y), 5);

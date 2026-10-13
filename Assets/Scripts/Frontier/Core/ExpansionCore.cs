@@ -323,6 +323,7 @@ namespace Starfall
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) && !racing ? 1.3f : -10), 0, 100);
             bool warm = false;
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
+            if (SkywatchRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
             // Civilian relief posts double as modest field hospitals.  They

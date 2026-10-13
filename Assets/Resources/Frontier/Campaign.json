@@ -214,6 +214,14 @@
           "en": "Ayla · Keeper of Public Testimony",
           "x": 13.5,
           "y": 10.5
+        },
+        {
+          "id": "skywatcher",
+          "kind": "skywatcher",
+          "name": "伊澜 · 观星师",
+          "en": "Yilan · Skywatch astronomer",
+          "x": 20.5,
+          "y": 9.5
         }
       ],
       "decor": [
@@ -2250,6 +2258,38 @@
           "x": 4.5,
           "y": 19.5,
           "lore": 15
+        },
+        {
+          "id": "skyprism1",
+          "kind": "skyprism1",
+          "name": "北方霜棱镜",
+          "en": "Northern frost prism",
+          "x": 14.5,
+          "y": 5.5
+        },
+        {
+          "id": "skyprism2",
+          "kind": "skyprism2",
+          "name": "东方光棱镜",
+          "en": "Eastern light prism",
+          "x": 25.5,
+          "y": 9.5
+        },
+        {
+          "id": "skyprism3",
+          "kind": "skyprism3",
+          "name": "南方炉火棱镜",
+          "en": "Southern hearth prism",
+          "x": 15.5,
+          "y": 17.5
+        },
+        {
+          "id": "skyobservatory",
+          "kind": "skyobservatory",
+          "name": "寂静观星台",
+          "en": "Silent sky observatory",
+          "x": 27.5,
+          "y": 12.5
         }
       ],
       "decor": [

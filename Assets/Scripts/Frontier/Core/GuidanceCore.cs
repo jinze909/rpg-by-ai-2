@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,38 @@ namespace Starfall
             }
 
 
+            if (id == "skywatch")
+            {
+                q.title=L("霜钟夜空","Frostchime Skywatch");
+                q.category=L("高原观测 · 星象谜题与精英战","HIGHLAND OBSERVATION · PUZZLE AND ELITE");
+                q.locked=!Has("skywatch_started");
+                q.description=L(
+                    "观星师伊澜请你读取北方霜、东方光、南方炉火的三枚古棱镜，再停止仍将暴风雪当作敌袭的自动守卫，把真实天气预报公之于众。",
+                    "Yilan asks you to calibrate the northern frost, eastern light and southern hearth prisms, defeat the obsolete skywatch guardian and publish an honest weather forecast.");
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"北方霜棱镜","东方光棱镜","南方炉火棱镜"}[i-1],
+                            new[]{"North frost prism","East light prism","South hearth prism"}[i-1]),
+                        Has("skywatch_prism_"+i)));
+                q.steps.Add(new QuestStep(L("击败古观星守卫","Defeat the observatory guardian"),
+                    Has("skywatch_defeated")));
+                q.complete=Has("skywatch_complete");
+                q.steps.Add(new QuestStep(L("返回余烬镇公开观测记录","Publish the forecast in Emberfall"),q.complete));
+                int next=1;
+                while(next<=3 && Has("skywatch_prism_"+next))next++;
+                q.room=q.locked || Has("skywatch_defeated")?0:7;
+                q.target=ObjectPoint(q.room,q.room==0?"skywatcher":
+                    next<=3?"skyprism"+next:"skyobservatory",new Point(18,12));
+                q.next=q.complete?L("观星台已对旅人开放避寒穹顶","The observatory now shelters travelers"):
+                    q.locked?L("完成高原记录后在镇里寻找观星师伊澜","Finish the mountain report, then speak to Yilan"):
+                    Has("skywatch_defeated")?L("回镇向伊澜交付真实光谱","Return the spectrum to Yilan"):
+                    next<=3?L("前往下一座棱镜读取地貌线索","Read and tune the next prism"):
+                    SkywatchRoom==7?L("观察冰光预警并击败守卫","Dodge the frost warnings and defeat the guardian"):
+                    L("前往东南的古观星台启动守卫试炼","Activate the southeastern observatory");
+                q.reward=L("首次归档：95硬币、3碎片、1天赋点、100经验；高原避寒穹顶",
+                    "First clear: 95 coins, 3 shards, 1 talent, 100 XP, and a sheltered observatory");
+                return q;
+            }
             if (id == "commons_relay")
             {
                 q.title = L("堡垒公共信标", "Citadel Commons Relay");

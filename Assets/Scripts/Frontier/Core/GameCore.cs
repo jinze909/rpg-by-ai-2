@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch();
         }
         public void NewGame(int profession)
         {
@@ -401,6 +401,8 @@ namespace Starfall
                 hazards.RemoveAll(h => h.rootHarmonyOwned);
             if (IsCommonsRelayEnemy(e) && !enemies.Exists(IsCommonsRelayEnemy))
                 hazards.RemoveAll(h => h.commonsRelayOwned);
+            if (IsSkywatchEnemy(e))
+                hazards.RemoveAll(h => h.skywatchOwned);
             if (IsAtlasEchoEnemy(e))
             {
                 // Killing the echo can happen before TickExpansion processes
@@ -411,7 +413,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }
