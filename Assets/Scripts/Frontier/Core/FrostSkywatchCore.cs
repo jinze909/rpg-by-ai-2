@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace Starfall
 {
     // A distinct Frostchime observatory story: physical sky lenses, a
@@ -152,12 +153,16 @@ namespace Starfall
             }
             if (SkywatchRoom == 7)
             {
+                var commands=new List<Choice>();
+                commands.Add(C("继续战斗","Continue fighting","close"));
+                if (SkywatchGroundingAvailable)
+                    commands.Add(C("手动接地 · 25耐力","Ground the prism · 25 energy",
+                        "skywatch_ground"));
+                commands.Add(C("安全撤出","Withdraw","skywatch_withdraw"));
                 Dialog(o.name,o.en,
-                    "守卫的寒光正在锁定你的脚下。注意落点，绕过危险区域。",
-                    "The guardian's frost beams target your feet. Read the warning circles and move.",
-                    C("继续战斗","Continue fighting","close"),
-                    C("手动接地 · 25耐力","Ground the prism · 25 energy","skywatch_ground"),
-                    C("安全撤出","Withdraw","skywatch_withdraw"));
+                    "守卫的寒光正在锁定你的脚下。注意落点，绕过危险区域。接地需要25点耐力，每场只能使用一次。",
+                    "The guardian's frost beams target your feet. Dodge the warning circles. Grounding costs 25 energy and can be used once per fight.",
+                    commands.ToArray());
                 return true;
             }
             Dialog(o.name,o.en,
