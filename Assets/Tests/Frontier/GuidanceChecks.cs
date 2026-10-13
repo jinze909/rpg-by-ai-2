@@ -484,6 +484,40 @@ namespace Starfall.Tests
                 !g.conversation.text.Contains("尚未签署"),
                 "Published chapter-nine chronicle shows completed choices without pending claims");
         }
+        public static void VotedClinicChangesActualTimberRefugeRestWithoutBreakingCharter(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            var refuge=Object(g,"farshelter");
+            g.save.x=refuge.x;g.save.y=refuge.y;
+            g.save.inventory[0]=6;
+            g.save.flags.Add("civic_supply_clinic_0");
+            g.save.health=20;int wood=g.save.inventory[0];
+            Action(g,"farshelter","far_rest");
+            Check(Math.Abs(g.save.health-70)<.01f&&g.save.inventory[0]==wood-1,
+                "A genuinely funded clinic improves paid base refuge care by 15 health");
+            g.save.flags.Remove("civic_supply_clinic_0");
+            g.save.health=20;wood=g.save.inventory[0];
+            Action(g,"farshelter","far_rest");
+            Check(Math.Abs(g.save.health-55)<.01f&&g.save.inventory[0]==wood-1,
+                "Original unmodified refuge continues its legacy +35 health service");
+            g.save.flags.Add("far_courier_charter");
+            g.save.flags.Add("civic_supply_clinic_0");
+            g.save.health=20;wood=g.save.inventory[0];
+            Action(g,"farshelter","far_rest");
+            Check(Math.Abs(g.save.health-90)<.01f&&g.save.inventory[0]==wood-1,
+                "Existing public charter still stacks with the voted medical service");
+            g.save.flags.Remove("civic_supply_clinic_0");
+            g.save.health=20;wood=g.save.inventory[0];
+            Action(g,"farshelter","far_rest");
+            Check(Math.Abs(g.save.health-75)<.01f&&g.save.inventory[0]==wood-1,
+                "Without a local clinic, upgraded charter retains original +55 HP");
+            g.save.flags.Add("civic_supply_clinic_0");
+            g.Talk(refuge);
+            Check(g.conversation.text.Contains("额外恢复生命 +15")&&
+                g.conversation.textEn.Contains("paid rest adds 15 HP"),
+                "Interactive bilingual shelter dialogue shows the actual service bonus");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
