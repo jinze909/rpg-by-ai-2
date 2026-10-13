@@ -667,7 +667,11 @@ namespace Starfall
                 (CivicSupplyClinic(room)?
                     "\n\n【居民医疗点】安全时持续疗伤；添柴额外恢复生命 +15。":
                  CivicSupplyWatch(room)?
-                    "\n\n【居民守路岗】安全时持续恢复耐力，无需消耗木材。":""),
+                    "\n\n【居民守路岗】安全时持续恢复耐力，无需消耗木材。":"")+
+                (CivicConduitComplete?
+                    LastDirectiveChoice==1?
+                        "\n\n【第十一章公共电网】真实调谐的线路正在安全时额外恢复耐力。":
+                        "\n\n【第十一章公共电网】真实调谐的线路正在安全时额外恢复生命。":""),
                 FarWitnessEn[room]+
                 (Has("far_courier_charter")?
                     "\n\nPublic charter: 1 timber restores +55 HP, full stamina, -40 cold.":
@@ -675,7 +679,11 @@ namespace Starfall
                 (CivicSupplyClinic(room)?
                     "\n\n[Resident clinic] Heal when safe; paid rest adds 15 HP.":
                  CivicSupplyWatch(room)?
-                    "\n\n[Resident lookout] Regenerate energy when safe without timber.":""),
+                    "\n\n[Resident lookout] Regenerate energy when safe without timber.":"")+
+                (CivicConduitComplete?
+                    LastDirectiveChoice==1?
+                        "\n\n[Chapter Eleven public grid] Physically tuned circuits add safe stamina recovery here.":
+                        "\n\n[Chapter Eleven public grid] Physically tuned circuits add safe medical recovery here.":""),
                 C("添柴休息 · 木材 ×1","Rest · 1 timber","far_rest"),
                 C("继续探索","Keep exploring","close"));
             return true;
