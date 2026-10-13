@@ -1360,6 +1360,7 @@ namespace Starfall.Tests
                 for(int room=0;room<8;room++)
                 {
                     g.save.flags.Add("far_shelter_"+room);
+                    g.save.flags.Add("far_dial_"+room);
                     g.Enter(room);g.enemies.Clear();
                     var shelter=Object(g,"farshelter");
                     Check(g.CanStand(new Point(shelter.x,shelter.y)),
