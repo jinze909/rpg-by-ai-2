@@ -426,7 +426,10 @@ namespace Starfall
             effects.Add(new Effect("defeat", e.Position, .5f) { variant = e.boss ? 1 : 0 }); sound = "reward";
             while (save.xp >= save.level * 40 && save.level < 30)
             { save.xp -= save.level * 40; save.level++; save.skillPoints++; save.health = save.maxHealth; Notify("升级！生命回满，获得 1 技能点。按 K 分配。", "Level up! Health restored, +1 skill point. Open K to spend it."); }
-            if (e.boss)
+            // Optional Skywatch's armored elite is NOT a main chapter boss.
+            // Its victory is accounted for by TickSkywatch only, never by
+            // the original regional boss/core or gate progression flags.
+            if (e.boss && !IsSkywatchEnemy(e))
             {
                 Flag("boss_" + save.room); RetireHostileProjectiles();
                 if (save.room == 4) finaleDelay = 1.4f;

@@ -85,15 +85,21 @@ namespace Starfall.Tests
             float originalHp=boss.hp;
             for(int turn=0;turn<45 && g.enemies.Contains(boss);turn++)
             {
+                // Recreate a repeatable range in the real arena. The test
+                // calls the exact player attack API, not private damage hooks;
+                // it suppresses opponent locomotion to isolate hero hits.
+                boss.stun=12; boss.timer=12;
+                g.save.x=boss.x-1.05f;g.save.y=boss.y;
                 g.save.energy=100;
                 g.Attack(new Point(1,0));
-                for(int tick=0;tick<12;tick++) g.Tick(.05f,new Point());
+                for(int tick=0;tick<16;tick++) g.Tick(.05f,new Point());
             }
             Check(boss.hp<originalHp && !g.enemies.Contains(boss),
-                "Real playable melee inputs, not test-only enemy removal, defeat the new elite");
+                "Actual playable melee must finish the elite (hp " +
+                    boss.hp.ToString("0.0") + " of " + originalHp.ToString("0.0") + ")");
             for(int i=0;i<5;i++)g.Tick(.05f,new Point());
             Check(g.Has("skywatch_defeated") && g.SkywatchRoom==0 &&
-                !g.hazards.Exists(h=>h.skywatchOwned) &&
+                !g.Has("boss_7") && !g.hazards.Exists(h=>h.skywatchOwned) &&
                 g.save.coins==coins && g.save.kills[4]==kills,
                 "Combat clear has no normal loot, chapter kill or lingering hazard");
             g.Enter(0);g.save.x=yilan.x;g.save.y=yilan.y;
