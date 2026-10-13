@@ -16,7 +16,7 @@ namespace Starfall
         private GUIStyle textStyle, buttonStyle, disabledButtonStyle;
         private float scale = 1, offsetX, offsetY, clock, saveTimer;
         private int lastRevision = -1, selectedClass;
-        private bool hasSave, replacePrompt, moving, applicationPaused;
+        private bool hasSave, replacePrompt, moving, applicationPaused, applicationFocused = true;
         private Point camera;
         // Authored map textures remain shared; lightweight tile-chunk readiness
         // prewarms nearby terrain before it crosses the viewport edge.
@@ -109,7 +109,7 @@ namespace Starfall
         }
         private void Update()
         {
-            if (Game == null || applicationPaused || VisualReviewActive && VisualReviewPaused) return;
+            if (Game == null || applicationPaused || !applicationFocused || VisualReviewActive && VisualReviewPaused) return;
             // Catch up a bounded stalled frame in <=50 ms simulation slices.
             // A single GameCore.Tick deliberately caps its dt at .05, so
             // passing an entire 120 ms frame silently slows walking, enemy
@@ -195,10 +195,12 @@ namespace Starfall
         private void OnApplicationPause(bool paused) { applicationPaused = paused; if (paused) { if (Game != null) Game.ClearBufferedSkill(); Save(); } }
         private void OnApplicationFocus(bool focused)
         {
+            applicationFocused = focused;
             if (!focused && Game != null)
             {
-                // A keyboard focus loss is just as much an input boundary as
-                // the pause button. Never replay a buffered Q upon returning.
+                // Focus loss freezes interactive non-world modes (such as
+                // fishing) instead of letting their cursor run unseen.
+                // World combat additionally displays the existing pause menu.
                 Game.ClearBufferedSkill();
                 if (Game.mode == "world") { Game.mode = "pause"; Save(); }
             }

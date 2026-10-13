@@ -514,6 +514,30 @@ public static class RuntimeCombatInputChecks
         }
     }
 
+
+    private static void FishingSuspendsOnFocusLossAndResumesOnReturn(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game = app.Game;
+        game.mode = "fish";
+        game.fishTime = 1.25f;
+        game.fishHits = 1;
+        game.fishMisses = 1;
+        float before = game.fishTime;
+        Call(app, "OnApplicationFocus", false);
+        Frames(app, 25);
+        Check(game.mode == "fish" && game.fishTime == before &&
+              game.fishHits == 1 && game.fishMisses == 1,
+            "Losing window focus freezes the live fishing cursor without forfeiting prior catches");
+        Call(app, "OnApplicationFocus", true);
+        Update(app);
+        Check(game.mode == "fish" && game.fishTime > before &&
+              game.fishHits == 1 && game.fishMisses == 1,
+            "Returning to the same window resumes fishing at its saved in-memory phase");
+        game.Close();
+        Console.WriteLine("PASS Fishing freezes off-window and resumes with its catches intact");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -524,6 +548,7 @@ public static class RuntimeCombatInputChecks
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
             TitleSaveManagerNeverOverwritesAnotherJourney,
+            FishingSuspendsOnFocusLossAndResumesOnReturn,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup };
         int failures = 0;
         foreach (var test in cases)
