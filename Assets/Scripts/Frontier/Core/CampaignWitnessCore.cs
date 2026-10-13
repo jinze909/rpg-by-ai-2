@@ -267,7 +267,7 @@ namespace Starfall
                     "Two security guards are live! Defeat them in 65 seconds, dodge delayed impacts.");
                 revision++;sound="quest";return true;
             }
-            if(action=="witness_abort")
+            if(action=="witness_abort_"+region)
             {
                 if(witnessDefenseRoom==region &&
                     (Position-WitnessPoint(region,"site2")).Length<=2.2f)
