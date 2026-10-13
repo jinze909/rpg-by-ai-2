@@ -324,6 +324,25 @@ namespace Starfall
         private bool ChooseCivicResponse(string action)
         {
             if(!action.StartsWith("civic_response_"))return false;
+            if(action=="civic_response_ledger")
+            {
+                if(Dying||practicing||save.room!=9||!CivicSupplyComplete||
+                    CivicResponseDoneCount!=3||Has("civic_response_ledger"))
+                    return true;
+                WorldObject registry=null;
+                foreach(WorldObject o in Map.objects)
+                    if(o.kind=="farrefugerecord"){registry=o;break;}
+                if(registry==null||
+                    (Position-new Point(registry.x,registry.y)).Length>2.2f)return true;
+                Flag("civic_response_ledger");
+                save.coins+=40;save.shards+=2;
+                AddXp(55);revision++;sound="reward";
+                RecordMoment("三处居民服务真正完成后，炉火旅店公开了有签名的医疗与守路应急日志。八地所有已建好的公共避险棚开始分享基础疗养配方。",
+                    "The original guest registry publishes three signed, physically proven clinic and lookout reports. Every rebuilt regional refuge now shares a small safe recuperation service.");
+                Notify("公共应急名册已公开：硬币40、碎片2、经验55；八地避险棚共享基础疗养。",
+                    "Public response ledger published: +40 coins, +2 shards, +55 XP; all regional refuges gain safe recovery.");
+                return true;
+            }
             if(Dying||practicing||!CivicSupplySite(save.room)||
                 !CivicSupplyComplete||!CivicSupplyResolved(save.room))return true;
             bool start=action=="civic_response_start",
@@ -403,6 +422,17 @@ namespace Starfall
                         C("稍后再谈","Return later","close"));
                 else
                 {
+                    if(CivicSupplyComplete&&CivicResponseDoneCount==3&&
+                        !Has("civic_response_ledger"))
+                    {
+                        Dialog(o.name,o.en,
+                            "三封原始求援信终于有了真实结尾：有人背着药箱走完路，也有人在夜间亲自守住了桥。居民把每一份交接、每个击退的袭击者和志愿者的姓名写在同一张新账上。\n\n公开应急名册后，八地已建的公共避险棚都能分享一部分基础疗养经验。",
+                            "All three original letters now have real endings: medicine carried by hand, roads defended under attack, and named local volunteers. The register records each real journey and verified victory.\n\nPublish the response ledger so every rebuilt public refuge can share basic recuperation.",
+                            C("签发公共应急名册","Publish response ledger",
+                                "civic_response_ledger"),
+                            C("以后再来","Later","close"));
+                        return true;
+                    }
                     bool ready=CivicSupplyResolvedCount==3;
                     Dialog(o.name,o.en,
                         "三地居民审计已记录 "+CivicSupplyResolvedCount+"/3 份决定。"+(CivicSupplyComplete?
