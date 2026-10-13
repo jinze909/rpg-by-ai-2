@@ -120,10 +120,16 @@ namespace Starfall.Tests
             g.Close();
             g.invulnerable=0;g.hitStop=0;
             for(int n=0;n<10&&g.FarCourierActive;n++)
-            {hurt.Invoke(g,new object[]{50f,"shot",null});g.invulnerable=0;g.hitStop=0;}
+            {
+                // Restore the hero between real contacts to isolate cargo
+                // failure from the independent existing death mechanic.
+                g.save.health=g.save.maxHealth;
+                hurt.Invoke(g,new object[]{50f,"shot",null});
+                g.invulnerable=0;g.hitStop=0;
+            }
             Check(!g.FarCourierActive&&g.FarCourierIntegrity==0&&
-                !g.FarCourierDelivered(0),
-                "Enough authentic enemy hits destroy the parcel without granting delivery rewards");
+                !g.FarCourierDelivered(0)&&!g.Dying,
+                "Repeated real nonlethal hits destroy the parcel itself, not just its carrier");
             Check(g.save.inventory[4]==parts-1,
                 "Failed trips never refund the one consumed reinforcement material");
             g.PrepareSave();var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();

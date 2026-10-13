@@ -20,7 +20,7 @@ namespace Starfall
         {
             if(!FarCourierActive||source=="environment"||actualHealthDamage<=0)return;
             courierIntegrity=Math.Max(0,courierIntegrity-
-                Math.Max(6,Math.Min(24,actualHealthDamage*.65f)));
+                Math.Max(12,Math.Min(38,actualHealthDamage*1.2f)));
             if(courierIntegrity<=0)
             {
                 ResetFarCourier();revision++;

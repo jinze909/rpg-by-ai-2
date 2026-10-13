@@ -290,6 +290,38 @@ public static class RenderStateChecks
             "The normal pinned objective panel returns after parcel transport ends");
         Console.WriteLine("PASS live civilian courier timed status in early-region production HUD (offline)");
     }
+    static void CourierPackShowsRealPhysicalDamage(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+        g.save.english=true;g.enemies.Clear();
+        var bridge=Array.Find(g.Map.objects,o=>o.kind=="farbridge");
+        Check(bridge!=null,"Authored parcel bridge exists in the real map");
+        g.save.x=bridge.x;g.save.y=bridge.y;
+        g.Talk(bridge);
+        int pickup=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start");
+        Check(pickup>=0,"The actual bridge presents a real package pickup");
+        g.Choose(pickup);
+        Check(g.FarCourierActive&&g.FarCourierIntegrity==100,
+            "Actual pickup equips an undamaged transient cargo pack");
+        Clear();Call(app,"DrawFarCourierPack");
+        Check(GUI.commands.Exists(c=>c.Contains("PARCEL 100%")),
+            "World-space parcel label shows real cargo condition on the canonical hero");
+        var hurt=typeof(GameCore).GetMethod("Hurt",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        g.invulnerable=0;
+        hurt.Invoke(g,new object[]{20f,"shot",null});
+        Clear();Call(app,"DrawFarCourierPack");
+        Check(g.FarCourierIntegrity<100&&
+            GUI.commands.Exists(c=>c.Contains("PARCEL 76%")),
+            "Production parcel render updates the physical cargo indicator after an actual hit");
+        g.save.y+=4;g.Close();g.Tick(.05f,new Point());
+        Clear();Call(app,"DrawFarCourierPack");
+        Check(!g.FarCourierActive&&GUI.commands.Count==0&&GUI.textureCalls.Count==0,
+            "A lost cargo pack and its floating status vanish immediately on route reset");
+        Console.WriteLine("PASS attached civilian cargo durability visuals, actual hit and disappearance (offline)");
+    }
     public static void MapRasterRegression(FrontierRuntime app)
     { WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app); }
 
@@ -306,7 +338,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
