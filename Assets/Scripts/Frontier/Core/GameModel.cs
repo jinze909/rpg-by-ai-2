@@ -127,7 +127,7 @@ namespace Starfall
         public bool friendly, explosive, piercing;
         public bool slowing, technique, blockedAtSpawn;
         // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
-        public bool roadTrialOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, tideSalvageOwned, temperOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned;
+        public bool roadTrialOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, tideSalvageOwned, temperOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned;
         public string source, visual;
         public float age, height = 32, launchHeight = -1, flightHeight = -1;
         public ImpactProfile impact;
@@ -154,7 +154,7 @@ namespace Starfall
         public float timer, radius, damage;
         public string kind;
         // Transient ownership prevents encounter hazards surviving retirement.
-        public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned;
+        public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned, civicConduitOwned;
     }
     public struct LightRay
     {

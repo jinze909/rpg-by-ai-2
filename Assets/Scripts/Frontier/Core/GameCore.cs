@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit();
         }
         public void NewGame(int profession)
         {
@@ -352,6 +352,7 @@ namespace Starfall
             TickFarCourier(dt);
             TickCivicResponse(dt);
             TickLastDirective(dt);
+            TickCivicConduit(dt);
             TickExpansion(dt);
             if (Dying) return;
             TickGuidance(beforeMove);
@@ -555,6 +556,7 @@ namespace Starfall
             save.health -= actualDamage;
             DamageFarCourierCargo(actualDamage,source);
             DamageCivicResponseMedicine(actualDamage,source);
+            DamageCivicConduit(actualDamage,source);
             invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
             if (!save.reducedMotion) { hitStop = .045f; impactShake = source == "slam" ? .18f : 0; }
             effects.Add(new Effect("hurt", Position, .5f));
@@ -915,6 +917,7 @@ namespace Starfall
             if (TalkOuterRescue(o)) return;
             if (TalkOuterPatrol(o)) return;
             if (TalkRidge(o)) return;
+            if (TalkCivicConduit(o)) return;
             if (TalkLastDirective(o)) return;
             if (TalkFarStation(o)) return;
             if (TalkAnnexExploration(o)) return;
@@ -1077,6 +1080,7 @@ namespace Starfall
             if (ChoosePolish(action)) return;
             if (ChooseExpansion(action)) return;
             if (ChooseLastDirective(action)) return;
+            if (ChooseCivicConduit(action)) return;
             if (action == "close") return;
             if (action.StartsWith("goto")) { Enter(int.Parse(action.Substring(4))); return; }
             if (action == "routes") { Talk(data.maps[0].objects[5]); return; }

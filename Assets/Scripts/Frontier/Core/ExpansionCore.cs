@@ -359,6 +359,19 @@ namespace Starfall
                     save.health<save.maxHealth)
                     save.health=Math.Min(save.maxHealth,save.health+dt*2.4f);
             }
+            // The completed public grid routes one persistent, choice-specific
+            // service to every *actually rebuilt* shelter across all regions.
+            // Safe and physical proximity gates prevent remote/under-attack gains.
+            if(CivicConduitComplete&&save.room>=0&&save.room<8&&
+                FarShelterBuilt(save.room)&&!Dying&&!practicing&&!racing&&
+                SafeTravel&&NearKind("farshelter",3.2f))
+            {
+                if(LastDirectiveChoice==1)
+                    save.energy=Math.Min(100,save.energy+dt*2.7f);
+                else if(LastDirectiveChoice==2&&save.health>0&&
+                    save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*.85f);
+            }
             // The first real starstorm changes regional public services.
             // No remote regeneration, no healing under live enemy attack.
             if(HearingOrrinResponsibility!=0 && save.room==4 &&
@@ -476,7 +489,8 @@ namespace Starfall
                     commonsRelayOwned = h.commonsRelayOwned,
                     glasswindOwned = h.glasswindOwned, temperOwned = h.temperOwned,
                     triadOwned = h.triadOwned, stormOwned = h.stormOwned,
-                    lastDirectiveOwned = h.lastDirectiveOwned });
+                    lastDirectiveOwned = h.lastDirectiveOwned,
+                    civicConduitOwned = h.civicConduitOwned });
                 if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
                 else TryRewardEscapedWarning(h.position, h.radius);
             }
