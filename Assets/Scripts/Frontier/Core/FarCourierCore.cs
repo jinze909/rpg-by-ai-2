@@ -8,17 +8,18 @@ namespace Starfall
     {
         private int courierRoom=-1;
         private Point courierLast;
-        private bool courierCrossed;
+        private bool courierCrossed,courierStamped;
         private float courierWalked,courierElapsed;
         public bool FarCourierActive {get{return courierRoom==save.room&&!Dying;}}
         public float FarCourierTimeLeft {get{return FarCourierActive?Math.Max(0,95-courierElapsed):0;}}
         public bool FarCourierCrossed {get{return FarCourierActive&&courierCrossed;}}
+        public bool FarCourierStamped {get{return FarCourierActive&&courierStamped;}}
         public bool FarCourierDelivered(int room)
         {return room>=0&&room<8&&Has("far_courier_"+room);}
         public int FarCourierDeliveredCount
         {get{int n=0;for(int i=0;i<8;i++)if(FarCourierDelivered(i))n++;return n;}}
         private void ResetFarCourier()
-        {courierRoom=-1;courierWalked=courierElapsed=0;courierCrossed=false;courierLast=new Point();}
+        {courierRoom=-1;courierWalked=courierElapsed=0;courierCrossed=courierStamped=false;courierLast=new Point();}
         private void TickFarCourier(float dt)
         {
             if(courierRoom<0)return;
@@ -47,11 +48,28 @@ namespace Starfall
         }
         private bool TalkFarCourier(WorldObject o)
         {
-            bool bridge=o.kind=="farbridge",shelter=o.kind=="farshelter";
-            if(!bridge&&!shelter)return false;
+            bool bridge=o.kind=="farbridge",shelter=o.kind=="farshelter",
+                checkpoint=o.kind=="farcheck";
+            if(!bridge&&!shelter&&!checkpoint)return false;
             int room=save.room;
             if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f||
                !FarBridgeOpen(room)||!FarShelterBuilt(room)||FarCourierDelivered(room))return false;
+            if(checkpoint)
+            {
+                bool eligible=FarCourierActive&&courierCrossed&&!courierStamped;
+                Dialog(o.name,o.en,courierStamped?
+                    "居民已经核验救援包封条，可继续送往避险棚。":
+                    eligible?"你真实走过了新桥。请让居民查验救援包封条。":
+                    "这里核对亲自携带过桥的救援包，单凭交接表不能算送达。",
+                    courierStamped?"This parcel seal is verified. Continue to the refuge.":
+                    eligible?"You crossed the rebuilt bridge with real supplies. Ask locals to inspect the parcel.":
+                    "This checkpoint verifies only physical bridge deliveries, not paper manifests.",
+                    C(eligible?"核验封条":"查看记录",
+                        eligible?"Inspect cargo seal":"Read the log",
+                        eligible?"far_courier_stamp":"close"),
+                    C("继续行路","Keep walking","close"));
+                return true;
+            }
             if(bridge)
             {
                 Dialog(o.name,o.en,FarCourierActive?
@@ -67,14 +85,14 @@ namespace Starfall
                 return true;
             }
             if(!FarCourierActive)return false;
-            bool ready=courierCrossed&&courierWalked>=17&&
+            bool ready=courierCrossed&&courierStamped&&courierWalked>=17&&
                 (Position-courierLast).Length<.65f&&courierElapsed<95;
             Dialog(o.name,o.en,ready?
                 "封条完整！这份物资确实经由居民修好的桥面送达，而不是只在交接簿上写了一个数字。":
-                "救援包仍在，但运送尚未走过桥面。真正从北向南走过新桥，再到这里交付。",
+                "救援包仍在，但需要从北向南经过新桥，并在中途居民检查台核验封条。",
                 ready?
                 "The seal is intact. Your parcel truly crossed the civilian bridge instead of arriving only on a paper manifest.":
-                "The parcel has not yet traveled over the new span. Walk south across the real bridge before delivering.",
+                "You must cross the real bridge on foot AND obtain a seal from the community checkpoint.",
                 C(ready?"亲手交接救援包":"查看运送条件",
                     ready?"Hand over supplies":"Review delivery route","far_courier_deliver"),
                 C("继续步行","Keep walking","close"));
@@ -82,15 +100,30 @@ namespace Starfall
         }
         private bool ChooseFarCourier(string action)
         {
-            if(action!="far_courier_start"&&action!="far_courier_cancel"&&action!="far_courier_deliver")
+            if(action!="far_courier_start"&&action!="far_courier_cancel"&&
+                action!="far_courier_stamp"&&action!="far_courier_deliver")
                 return false;
             int room=save.room;
             if(room<0||room>=8||Dying||practicing)return true;
-            WorldObject bridge=null,shelter=null;
+            WorldObject bridge=null,shelter=null,checkpoint=null;
             foreach(WorldObject obj in Map.objects)
-            {if(obj.kind=="farbridge")bridge=obj;else if(obj.kind=="farshelter")shelter=obj;}
-            if(bridge==null||shelter==null||!FarBridgeOpen(room)||
+            {
+                if(obj.kind=="farbridge")bridge=obj;
+                else if(obj.kind=="farshelter")shelter=obj;
+                else if(obj.kind=="farcheck")checkpoint=obj;
+            }
+            if(bridge==null||shelter==null||checkpoint==null||!FarBridgeOpen(room)||
                 !FarShelterBuilt(room)||FarCourierDelivered(room))return true;
+            if(action=="far_courier_stamp")
+            {
+                if(!FarCourierActive||!courierCrossed||courierStamped||
+                    (Position-new Point(checkpoint.x,checkpoint.y)).Length>2.2f||
+                    (Position-courierLast).Length>.65f)return true;
+                courierStamped=true;revision++;sound="quest";
+                Notify("封条已由居民核验，继续送往避险棚。",
+                    "Parcel seal verified by locals. Continue to the refuge.");
+                return true;
+            }
             if(action=="far_courier_cancel")
             {
                 if(FarCourierActive&&(Position-new Point(bridge.x,bridge.y)).Length<=2.2f)
@@ -103,7 +136,7 @@ namespace Starfall
                 if(!SafeTravel)
                 {Notify("先清除桥边敌人。","Clear nearby hostiles first.");return true;}
                 courierRoom=room;courierLast=Position;
-                courierWalked=courierElapsed=0;courierCrossed=false;
+                courierWalked=courierElapsed=0;courierCrossed=courierStamped=false;
                 revision++;sound="quest";
                 Notify("救援包已背上：95秒内步行过桥并送到避险棚！",
                     "Parcel loaded: cross the bridge on foot and reach the shelter in 95 seconds!");
@@ -112,7 +145,7 @@ namespace Starfall
             if(!FarCourierActive||
                 (Position-new Point(shelter.x,shelter.y)).Length>2.2f||
                 (Position-courierLast).Length>=.65f||
-                !courierCrossed||courierWalked<17||courierElapsed>=95)return true;
+                !courierCrossed||!courierStamped||courierWalked<17||courierElapsed>=95)return true;
             if(!SafeTravel)
             {Notify("避险棚附近仍有敌人。","Hostiles threaten the shelter.");return true;}
             ResetFarCourier();

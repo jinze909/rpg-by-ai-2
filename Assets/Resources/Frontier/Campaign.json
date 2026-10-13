@@ -566,6 +566,14 @@
           "en": "Canal Flood Bridge",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_0",
+          "kind": "farcheck",
+          "name": "渠外封条检查台",
+          "en": "Canal Relief Seal",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
@@ -1849,6 +1857,14 @@
           "en": "Canopy Rope Bridge",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_1",
+          "kind": "farcheck",
+          "name": "林冠护苗核验台",
+          "en": "Canopy Nursery Checkpoint",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
@@ -3160,6 +3176,14 @@
           "en": "Ferry Bridge",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_2",
+          "kind": "farcheck",
+          "name": "渡船防潮交接哨",
+          "en": "Ferry Cargo Seal",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
@@ -4505,6 +4529,14 @@
           "en": "Mine Ridge Span",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_3",
+          "kind": "farcheck",
+          "name": "矿工救援点货站",
+          "en": "Miners' Cargo Check",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
@@ -5781,6 +5813,14 @@
           "en": "Civilian Wall Bridge",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_4",
+          "kind": "farcheck",
+          "name": "平民配给核对哨",
+          "en": "Civilian Ration Check",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
@@ -7102,6 +7142,14 @@
           "en": "Mistport Span",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_5",
+          "kind": "farcheck",
+          "name": "归港防盐检查台",
+          "en": "Harbor Saltproof Seal",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
@@ -8309,6 +8357,14 @@
           "en": "Desert Aqueduct Bridge",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_6",
+          "kind": "farcheck",
+          "name": "绿洲水票核验台",
+          "en": "Oasis Water Check",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
@@ -9504,6 +9560,14 @@
           "en": "Snowridge Bridge",
           "x": 111.5,
           "y": 49.5
+        },
+        {
+          "id": "far_courier_check_7",
+          "kind": "farcheck",
+          "name": "寒地御寒补给哨",
+          "en": "Frostwind Relief Check",
+          "x": 111.5,
+          "y": 61.5
         }
       ],
       "decor": [
