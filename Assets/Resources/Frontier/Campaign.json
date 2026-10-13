@@ -5465,7 +5465,7 @@
       "objects": [
         {"id":"lastDirectiveEvidence0","kind":"lastdirectiveclue0","name":"矿工拒签的停机纸","en":"Miners' Shutdown Petition","x":59.5,"y":67.5},
         {"id":"lastDirectiveEvidence1","kind":"lastdirectiveclue1","name":"船工的失联名单","en":"Ferrymen's Missing Names","x":83.5,"y":59.5},
-        {"id":"lastDirectiveEvidence2","kind":"lastdirectiveclue2","name":"巡路队的最后炉火","en":"Roadwardens' Last Hearth","x":102.5,"y":68.5},
+        {"id":"lastDirectiveEvidence2","kind":"lastdirectiveclue2","name":"巡路队的最后炉火","en":"Roadwardens' Last Hearth","x":106.5,"y":72.5},
         {"id":"lastDirectiveConsole","kind":"lastdirectivecore","name":"堡垒禁令控制台","en":"Citadel Directive Terminal","x":100.5,"y":73.5},
         {
           "id": "home4",
