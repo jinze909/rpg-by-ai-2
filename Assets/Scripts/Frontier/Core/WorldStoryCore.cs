@@ -553,6 +553,14 @@ namespace Starfall
                             Has("storm_tuned")?
                             "镇内的三个公共灯站已实际调谐，但公约仍需回议事台公开。":
                             "公约尚未真正经受全部检验，不能提前宣告成功。");
+                    zh+=Has("storm_orrin_open")?
+                        "\n厄洛亲自开放城市剩余供能，让镇民避难与疗养灯更明亮。":
+                        Has("storm_orrin_guard")?
+                        "\n厄洛亲自将城市余量保留给堡垒的民用备用灯，不再是军事独断。":"";
+                    en+=Has("storm_orrin_open")?
+                        "\nOrrin opened the unused power for the Emberfall public refuge.":
+                        Has("storm_orrin_guard")?
+                        "\nOrrin assigned the remaining supply to civilian backup lights at the Citadel.":"";
                     en+="\nReal meals delivered to storm-affected residents: "+StormReliefCount+"/3. "+
                         (StormReliefAll?"All three living witnesses delivered aid; the public shelter can sustain more late travelers.":"Optional aid never substitutes for a fair regional energy allocation.")+
                         "\nPublic reserve allocated: "+StormBudgetSpent+

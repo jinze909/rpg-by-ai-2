@@ -1117,6 +1117,15 @@ namespace Starfall
                 zh[ending] += "\n\n密林的莫芽、遗迹的阿菱和矿场的维恩把亲笔署名的证词留给了公会；新的公共档案终于记得谁在修复土地、谁在等候过河、谁应该安全下班。";
                 en[ending] += "\n\nMoya of Thornwood, Arin of the ruins and Venn of Ironreach left signed testimony with the guild. Public records now remember who healed the soil, who waited to cross and who deserved to go home after work.";
             }
+            if(Has("storm_orrin_open")||Has("storm_orrin_guard"))
+            {
+                zh[ending] += Has("storm_orrin_open")?
+                    "\n\n厄洛在第一次星雨后公开签署，将剩余公用储备开放给余烬镇的避难疗养网络；城墙的光终于照向城外。":
+                    "\n\n厄洛在第一次星雨后公开签署，将剩余公用储备留作堡垒平民的应急照明，而不再让军方单独掌控灯源。";
+                en[ending] += Has("storm_orrin_open")?
+                    "\n\nAfter the first storm, Orrin signed the unused civic reserve into Emberfall's open refuge network. Light finally reached outside the old walls.":
+                    "\n\nAfter the first storm, Orrin signed the unused reserve into civilian emergency lighting inside the citadel rather than military control.";
+            }
             if (StormReliefAll)
             {
                 zh[ending] += "\n\n在星雨的寒夜，莫芽、阿菱和维恩又将你亲自捐出的三份热汤送给最需要的居民，公用避难所因此能继续照顾后来的旅人。";

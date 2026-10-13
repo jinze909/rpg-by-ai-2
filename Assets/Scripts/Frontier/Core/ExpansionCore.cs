@@ -339,7 +339,8 @@ namespace Starfall
                 save.health<save.maxHealth &&
                 NearKind("stormcouncil",3.1f))
                 save.health=Math.Min(save.maxHealth,
-                    save.health+dt*(1.2f+StormBudgetLeft*.35f+(StormReliefAll?.75f:0f)));
+                    save.health+dt*(1.2f+StormBudgetLeft*.35f+(StormReliefAll?.75f:0f)+
+                        (Has("storm_orrin_open")?StormBudgetLeft*.55f:0f)));
             // A finished reconstruction actually changes what the region
             // can do, without impacting boss combat or distant locations.
             if(AfterlightRefuge(save.room) && !practicing && !racing &&
@@ -350,6 +351,15 @@ namespace Starfall
             if(AfterlightEnergyPost && SafeTravel && !practicing &&
                 NearKind("afterlightoutlet1",3.1f))
                 save.energy=Math.Min(100,save.energy+dt*3.0f);
+            // The defeated former Warden now maintains actual civilian
+            // backup lighting, only if the player entrusted unused reserve to
+            // citadel shelters after the published first-storm charter.
+            if(save.room==4 && Has("storm_orrin_guard") &&
+                SafeTravel && !practicing && !racing &&
+                save.health>0 && save.health<save.maxHealth &&
+                NearKind("blackoutshelter",3.0f))
+                save.health=Math.Min(save.maxHealth,
+                    save.health+dt*(1.1f+StormBudgetLeft*.5f));
             // The blackout roster creates a working, publicly maintained
             // refuge in the Citadel. Combat and an active evacuation suppress
             // this modest healing; a story reward is not a global regen buff.

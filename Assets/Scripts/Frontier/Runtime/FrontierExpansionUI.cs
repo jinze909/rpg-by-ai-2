@@ -192,6 +192,22 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="shrine" && Game.save.room==4 &&
+                Game.StormChapterComplete)
+            {
+                Color tint=Game.Has("storm_orrin_open")||Game.Has("storm_orrin_guard")?
+                    mint:gold;
+                PropImage("stormlamp",0,p.x-30,p.y-76,60,79,Color.white);
+                Ring(new Point(o.x,o.y),.78f,tint,26);
+                Text(p.x-81,p.y-99,162,22,
+                    Game.Has("storm_orrin_open")?
+                        Game.L("厄洛 · 公共避难之光","ORRIN · OPEN REFUGE"):
+                    Game.Has("storm_orrin_guard")?
+                        Game.L("厄洛 · 民用应急灯","ORRIN · CIVILIAN BACKUP"):
+                        Game.L("厄洛 · 余量协议","ORRIN · CIVIC RESERVE"),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="stormcouncil")
             {
                 Color tint=Game.StormChapterComplete?mint:

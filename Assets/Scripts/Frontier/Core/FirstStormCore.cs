@@ -120,6 +120,46 @@ namespace Starfall
                     options.ToArray());
                 return true;
             }
+            // Orrin is no longer a boss after the original ending. Meeting him
+            // again at the real Citadel shrine changes how the remaining civic
+            // reserve is used instead of replaying the old fight.
+            if(kind=="shrine" && save.room==4 && Has("boss_4") &&
+                StormChapterComplete)
+            {
+                string[] zz={"","你归还了星核，我原以为城外会再次陷入黑暗。","你保住了屏障，我也不能再假装城外不在承受它的费用。","你把能源交给共同维护，我终于不必独自替每一户人作决定。"};
+                string[] ee={"","You returned the cores; I feared the outer roads would go dark again.","You kept the shield, but I can no longer deny what the outer communities pay for it.","You put the cores into shared stewardship, so I need not decide the fate of every household alone."};
+                if(Has("storm_orrin_open")||Has("storm_orrin_guard")||
+                    StormBudgetLeft==0)
+                {
+                    Dialog("厄洛 · 战后守望人","Orrin · After the First Storm",
+                        "厄洛："+zz[save.ending]+"\n\n"+
+                        (Has("storm_orrin_open")?
+                            "我已经把剩余公用余量交给余烬镇的开放避难与疗养线路。这盏灯也照向我城墙外的人。":
+                            Has("storm_orrin_guard")?
+                            "我将剩余公用余量保留给堡垒的民用应急照明。这一次不再为战争，而是为那些有可能再次在夜里失去归路的人。":
+                            "公共储备已全部分配给三地，城内已经没有可以擅自重划的额度。我会遵守居民亲自做出的选择。"),
+                        "Orrin: "+ee[save.ending]+"\n\n"+
+                        (Has("storm_orrin_open")?
+                            "I assigned the unspent civic reserve to Emberfall's public refuge lights. Their glow serves people outside my former walls.":
+                            Has("storm_orrin_guard")?
+                            "I assigned the remaining reserve to civilian emergency lamps inside the citadel, no longer as instruments of war.":
+                            "All eight reserve units are allocated to the living regions. I have no hidden surplus to overrule them with."),
+                        C("继续守护这条道路","Keep the road open","close"));return true;
+                }
+                Dialog("厄洛 · 战后守望人","Orrin · After the First Storm",
+                    "厄洛："+zz[save.ending]+"\n\n"+
+                    "我看见三地按自己的规则渡过了第一次星雨。还有 "+StormBudgetLeft+
+                    " 单位公用余量，你可以和我共同决定如何使用。"+
+                    "\n\n将它开放给余烬镇的公共避难所，那里会有更多后来的伤者得到照顾；或留作堡垒居民的应急灯源，让上一次长夜不再发生。两者都不将决定权交还给旧军令。",
+                    "Orrin: "+ee[save.ending]+"\n\n"+
+                    "I saw three living communities endure their first storm on their own terms. "+
+                    StormBudgetLeft+" civic reserve units remain. "+
+                    "We can open them to the public refuge in Emberfall, or reserve them for civilian emergency lights at the citadel so the blackout never repeats. Neither choice returns authority to the old military order.",
+                    C("将剩余余量开放给镇民避难所","Open remaining power to the town refuge","storm_orrin_open"),
+                    C("为堡垒居民保留民用应急照明","Keep civilian backup lamps at the citadel","storm_orrin_guard"),
+                    C("暂不决定","Not yet","close"));
+                return true;
+            }
             if(!council&&!regionNode&&!townNode)return false;
             if(council)
             {
@@ -266,6 +306,23 @@ namespace Starfall
         }
         private bool ChooseStorm(string action)
         {
+            if(action=="storm_orrin_open"||action=="storm_orrin_guard")
+            {
+                if(save.room!=4 || !Has("boss_4") || !StormChapterComplete ||
+                    StormBudgetLeft<=0 || Dying || practicing ||
+                    Has("storm_orrin_open") || Has("storm_orrin_guard") ||
+                    (Position-StormPoint(4,"shrine")).Length>2.2f)return true;
+                Flag(action);revision++;sound="quest";
+                RecordMoment(action=="storm_orrin_open"?
+                    "厄洛与主角将公用余量交给余烬镇开放疗养站。城墙外也可以有灯。":
+                    "厄洛与主角保留了堡垒的民用应急照明。旧屏障不得再借安全的名义独占决策。",
+                    action=="storm_orrin_open"?
+                    "Orrin and the hero directed the surplus civic reserve to Emberfall's open shelter. Light now reaches beyond the old walls.":
+                    "Orrin and the hero kept civilian backup lights in the citadel, without restoring military monopoly.");
+                Notify("厄洛已共同签署新的公共余量用途。真实的医疗灯服务已改变。",
+                    "Orrin signed the remaining civic power into a real new civilian refuge service.");
+                return true;
+            }
             if(action.StartsWith("storm_oldstory_"))
             {
                 int region;

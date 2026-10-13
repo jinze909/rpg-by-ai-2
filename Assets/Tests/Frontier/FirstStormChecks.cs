@@ -268,5 +268,85 @@ namespace Starfall.Tests
                 "Optional humanitarian choices and the original ending persist safely in unchanged SaveData v2");
         }
 
+
+        public static void ChapterSixOrrinDebatesRemainingReserveAndActuallyChangesCivilianShelters(Campaign data)
+        {
+            var town=PreparedStorm(data,1);
+            foreach(string f in new[]{"storm_started","storm_tuned","storm_complete",
+                "storm_region_1_shelter","storm_region_2_grid","storm_region_3_grid"})
+                town.save.flags.Add(f);
+            Check(town.StormBudgetLeft==1 && town.StormChapterComplete,
+                "Orrin's after-storm question uses genuine remaining units from the three real policy choices");
+            town.Enter(4);town.enemies.Clear();town.invulnerable=100;
+            WorldObject shrine=Object(town,"shrine");
+            town.save.x=shrine.x;town.save.y=shrine.y;
+            town.Talk(shrine);
+            Check(Array.Exists(town.conversation.choices,c=>c.action=="storm_orrin_open") &&
+                Array.Exists(town.conversation.choices,c=>c.action=="storm_orrin_guard") &&
+                !Array.Exists(town.conversation.choices,c=>c.action=="boss"),
+                "The former Warden genuinely returns for a peace dialogue, not a revived original boss fight");
+            town.Close();
+            town.save.x=shrine.x-4;town.save.y=shrine.y;
+            Action(town,shrine.kind,"storm_orrin_open");
+            Check(!town.Has("storm_orrin_open"),
+                "Neither the story menu nor a remote action can forge a signed reserve treaty");
+            town.save.x=shrine.x;town.save.y=shrine.y;
+            Action(town,shrine.kind,"storm_orrin_open");
+            Check(town.Has("storm_orrin_open") &&
+                !town.Has("storm_orrin_guard") && town.save.ending==1,
+                "Player can explicitly assign the actual remainder to an open public town refuge without replacing their original ending");
+            town.Talk(shrine);
+            Check(!Array.Exists(town.conversation.choices,c=>c.action=="storm_orrin_guard"),
+                "The post-storm civic power allocation cannot be double-spent or reversed to farm rewards");
+            town.Close();
+            town.Enter(0);town.enemies.Clear();town.invulnerable=100;
+            WorldObject council=Object(town,"stormcouncil");
+            town.save.x=council.x;town.save.y=council.y;
+            town.save.health=40;
+            Advance(town,2);
+            Check(town.save.health>44,
+                "The actually signed open-reserve policy powers measurable public town healing, not just epilogue prose");
+            town.Epilogue();
+            Check(town.conversation.text.Contains("厄洛在第一次星雨后") &&
+                town.conversation.textEn.Contains("Orrin signed"),
+                "Original ending genuinely reflects post-storm Orrin power allocation");
+            town.Close();
+            town.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(town.save));reloaded.Start();
+            Check(reloaded.save.version==2 && reloaded.Has("storm_orrin_open") &&
+                reloaded.StormChapterComplete && reloaded.save.ending==1,
+                "Permanent post-storm diplomacy persists in unchanged original SaveData v2");
+
+            var citadel=PreparedStorm(data,2);
+            foreach(string f in new[]{"storm_started","storm_tuned","storm_complete",
+                "storm_region_1_shelter","storm_region_2_grid","storm_region_3_grid"})
+                citadel.save.flags.Add(f);
+            citadel.Enter(4);citadel.enemies.Clear();
+            shrine=Object(citadel,"shrine");
+            citadel.save.x=shrine.x;citadel.save.y=shrine.y;
+            Action(citadel,shrine.kind,"storm_orrin_guard");
+            Check(citadel.Has("storm_orrin_guard") && !citadel.Has("storm_orrin_open"),
+                "The alternative choice preserves civic backup lighting in the citadel instead of a free duplicate");
+            WorldObject refuge=Object(citadel,"blackoutshelter");
+            citadel.save.x=refuge.x;citadel.save.y=refuge.y;
+            citadel.save.health=40;citadel.invulnerable=100;
+            Advance(citadel,2);
+            Check(citadel.save.health>42 && !citadel.Has("blackout_complete"),
+                "Civilian emergency lamps really heal at the old Citadel refuge even on original endings without optional blackout success");
+
+            var noSurplus=PreparedStorm(data,3);
+            foreach(string f in new[]{"storm_started","storm_tuned","storm_complete",
+                "storm_region_1_shelter","storm_region_2_shelter","storm_region_3_grid"})
+                noSurplus.save.flags.Add(f);
+            Check(noSurplus.StormBudgetLeft==0,"All eight units may be legitimately assigned to the three communities");
+            noSurplus.Enter(4);noSurplus.enemies.Clear();
+            shrine=Object(noSurplus,"shrine");
+            noSurplus.save.x=shrine.x;noSurplus.save.y=shrine.y;
+            noSurplus.Talk(shrine);
+            Check(!Array.Exists(noSurplus.conversation.choices,c=>c.action=="storm_orrin_open") &&
+                !Array.Exists(noSurplus.conversation.choices,c=>c.action=="storm_orrin_guard"),
+                "Zero remaining public reserve cannot be magically signed away by the former Warden");
+        }
+
     }
 }
