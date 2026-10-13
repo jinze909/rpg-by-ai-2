@@ -118,15 +118,15 @@ namespace Starfall
                 if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
                 if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
                 if (StoryUnlocked("hearing")) choices.Add(StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing"));
+                if (StoryUnlocked("supply_inquest"))
+                    choices.Add(StoryChoice("第九章 · 送达之后谁守路",
+                        "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest"));
+                if (StoryUnlocked("lastdirective"))
+                    choices.Add(StoryChoice("第十章 · 最后指令", "Chapter Ten · The Last Directive", "story_read_lastdirective"));
                 if (StoryUnlocked("civicconduit"))
                     choices.Add(StoryChoice("第十一章 · 重接公共电网",
                         "Chapter Eleven · Reconnecting the Public Grid",
                         "story_read_civicconduit"));
-                if (StoryUnlocked("lastdirective"))
-                    choices.Add(StoryChoice("第十章 · 最后指令", "Chapter Ten · The Last Directive", "story_read_lastdirective"));
-                if (StoryUnlocked("supply_inquest"))
-                    choices.Add(StoryChoice("第九章 · 送达之后谁守路",
-                        "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
             else { WorldChronicleMenu(); return; }
