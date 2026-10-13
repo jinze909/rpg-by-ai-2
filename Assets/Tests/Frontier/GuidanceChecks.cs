@@ -956,6 +956,95 @@ namespace Starfall.Tests
                     "The five new story interactables do not suppress original regional wildlife spawns");
             }
         }
+        public static void ChapterTenLastWaveHasDodgeableRealDamageSurgesAndCleansOnlyOwnedHazards(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();
+            var panel=Object(g,"lastdirectivecore");
+            g.save.x=panel.x;g.save.y=panel.y;
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            foreach(int id in new[]{90300,90301})
+            {g.hitStop=0;hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});}
+            g.hitStop=0;g.Tick(.05f,new Point());
+            g.save.energy=100;
+            Action(g,"lastdirectivecore","last_directive_second");
+            Check(g.LastDirectiveWave==3,"Actual verified second wave precedes conduit surges");
+            g.save.maxHealth=2000;g.save.health=2000;g.invulnerable=0;
+            var timer=typeof(GameCore).GetField("directiveSurgeLeft",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(timer!=null,"Conduit surge uses a timed actual combat warning");
+            timer.SetValue(g,.01f);
+            g.hitStop=0;g.Tick(.05f,new Point());
+            var hazard=g.hazards.Find(h=>h.lastDirectiveOwned);
+            Check(hazard!=null&&hazard.timer>0&&hazard.kind=="rift"&&
+                hazard.radius>1.3f&&(hazard.position-g.Position).Length<.2f,
+                "The second combat wave telegraphs a real positioned timed damage zone");
+            float life=g.save.health;g.invulnerable=0;g.hitStop=0;
+            hazard.timer=.01f;g.Tick(.05f,new Point());
+            Check(!g.hazards.Contains(hazard)&&g.save.health<life,
+                "A real unresolved warning deals contact damage at its warned location");
+            Check(g.effects.Exists(e=>e.lastDirectiveOwned),
+                "Contact warning becomes an owned visible impact effect");
+            timer.SetValue(g,.01f);g.hitStop=0;g.invulnerable=0;
+            g.Tick(.05f,new Point());
+            hazard=g.hazards.Find(h=>h.lastDirectiveOwned);
+            Check(hazard!=null,"Final encounter can deliver another readable warning");
+            g.save.x=hazard.position.x+4;
+            g.save.y=hazard.position.y;
+            life=g.save.health;g.hitStop=0;g.invulnerable=0;
+            hazard.timer=.01f;g.Tick(.05f,new Point());
+            Check(!g.hazards.Contains(hazard)&&g.save.health>=life-1,
+                "The player can physically move outside the warning before it resolves");
+            var normal=new Hazard{kind="tide",position=g.Position,
+                radius=.7f,timer=10,damage=10};
+            g.hazards.Add(normal);
+            foreach(int id in new[]{90302,90303,90304})
+            {g.hitStop=0;hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});}
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==4&&
+                !g.hazards.Exists(h=>h.lastDirectiveOwned)&&
+                g.hazards.Contains(normal)&&
+                !g.effects.Exists(e=>e.lastDirectiveOwned),
+                "Actual three-guardian victory retires only chapter-owned hazards/effects");
+        }
+        public static void ChapterTenAlternativeShelterEndingHasRealLocalHealing(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("civic_response_ledger");
+            g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();
+            var console=Object(g,"lastdirectivecore");
+            g.save.x=console.x;g.save.y=console.y;
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            foreach(int id in new[]{90300,90301})
+            {g.hitStop=0;hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});}
+            g.hitStop=0;g.Tick(.05f,new Point());
+            g.save.energy=100;Action(g,"lastdirectivecore","last_directive_second");
+            foreach(int id in new[]{90302,90303,90304})
+            {g.hitStop=0;hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});}
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Action(g,"lastdirectivecore","last_directive_shelter");
+            Check(g.LastDirectiveChoice==2&&!g.LastDirectiveComplete,
+                "Distinct physically earned refuge ending cannot auto-publish a civic charter");
+            g.save.health=45;g.hitStop=0;g.Tick(.05f,new Point());
+            float with=g.save.health-45;
+            g.save.flags.Remove("last_directive_shelter");
+            g.save.health=45;g.hitStop=0;g.Tick(.05f,new Point());
+            float without=g.save.health-45;
+            Check(with>without+.08f,
+                "Emergency refuge has a genuine safety-limited local healing rate at citadel terminal");
+            g.save.flags.Add("last_directive_shelter");
+            g.save.x=console.x-8;g.save.y=console.y;
+            g.save.health=45;g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.save.health-45<with,
+                "The civic refuge benefit is not falsely applied from distant positions");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
