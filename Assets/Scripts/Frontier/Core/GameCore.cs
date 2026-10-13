@@ -1183,6 +1183,11 @@ namespace Starfall
                 companionCooldown = companionAttack = 0;
                 companionAction = null;
                 ClearFrost();
+                // Pausing the simulation for 45 world seconds would otherwise
+                // leave a 3-second arrow or attack flash alive after waking.
+                // Keep genuinely persistent (>45s) scripted effects intact.
+                projectiles.RemoveAll(p => p.life <= 45f);
+                effects.RemoveAll(e => e.life <= 45f);
                 combo = 0; comboTimer = riposteTime = 0;
                 guardTime = playerHitTime = hitStop = 0;
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;

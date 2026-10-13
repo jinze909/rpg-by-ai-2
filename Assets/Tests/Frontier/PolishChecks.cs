@@ -181,6 +181,14 @@ namespace Starfall.Tests
             g.dashCooldown=.4f;
             g.attackCooldown=.3f;
             g.guardTime=.5f;
+            var ordinaryShot=new Projectile { friendly=true,
+                position=g.Position, velocity=new Point(1,0),damage=5,life=3 };
+            var persistentShot=new Projectile { friendly=true,
+                position=g.Position, velocity=new Point(0,1),damage=0,life=90 };
+            g.projectiles.Add(ordinaryShot);
+            g.projectiles.Add(persistentShot);
+            var flash=new Effect("release",g.Position,.25f);
+            g.effects.Add(flash);
             g.Close();
             float before=g.save.totalTime;
             Action(g,"rest","rest");
@@ -188,6 +196,9 @@ namespace Starfall.Tests
                   g.skillCooldown==0&&g.dashCooldown==0&&g.attackCooldown==0&&
                   g.companionCooldown==0&&g.guardTime==0&&g.playerAction==null,
                 "A 45-second bed rest restores skill, companion, dodge and attack readiness");
+            Check(!g.projectiles.Contains(ordinaryShot) &&
+                  g.projectiles.Contains(persistentShot) && !g.effects.Contains(flash),
+                "Time-skipping a 45-second rest expires ordinary flying shots and short-lived effects, not persistent scripted entities");
             g.save.energy=100;
             g.Skill(new Point(1,0));
             Check(g.skillCooldown>0,
