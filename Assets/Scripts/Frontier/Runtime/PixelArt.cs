@@ -172,15 +172,15 @@ namespace Starfall
             {
                 // Constructed public receiver: timber bridge/workbench and
                 // lanterns with a visible power conduit; no imported sprite.
-                Color timber=C("#826954"),panel=C("#617985"),
+                Color plankWood=C("#826954"),panel=C("#617985"),
                     brass=C("#d6bd86"),lantern=C("#f6e1ad"),
                     leaf=C("#8bcaad"),dark=C("#2d4551");
                 Box(15,91,68,16,dark);
                 Box(18,59,62,41,panel);
-                Box(24,63,50,32,timber);
+                Box(24,63,50,32,plankWood);
                 Box(23,66,53,5,brass);
                 Box(21,38,8,57,panel);Box(67,38,8,57,panel);
-                Box(28,44,40,9,timber);
+                Box(28,44,40,9,plankWood);
                 for(int i=0;i<3;i++)
                 {
                     int x=30+i*17;
