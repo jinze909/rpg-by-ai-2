@@ -60,6 +60,19 @@ namespace Starfall
                 Color ground=PixelArt.C(map.color);
                 Color water=PixelArt.C("#315c76"),stone=PixelArt.C("#566879");
                 Color road=PixelArt.C("#a09877");
+                // Fog is stored in 6x6-tile discovery sectors. Resolve
+                // each sector once per rebuild rather than creating thousands
+                // of annex flag strings and repeated list searches per pixel.
+                int sectorsWide=(width+5)/6;
+                bool[] sectorSeen=null;
+                if(fog)
+                {
+                    int sectorsHigh=(height+5)/6;
+                    sectorSeen=new bool[sectorsWide*sectorsHigh];
+                    for(int sy=0;sy<sectorsHigh;sy++)
+                        for(int sx=0;sx<sectorsWide;sx++)
+                            sectorSeen[sy*sectorsWide+sx]=Game.Explored(region,sx*6,sy*6);
+                }
                 Color[] pixels=new Color[width*height];
                 for(int yy=0;yy<height;yy++)
                 {
@@ -70,7 +83,7 @@ namespace Starfall
                         if(tile=='?')tile=Game.FarBridgeOpen(region)?'=':'#';
                         Color color=tile=='~'||tile=='%'&&!tide?water:
                             tile=='#'?stone:tile=='='?road:ground;
-                        if(fog&&!Game.Explored(region,xx,yy))
+                        if(fog&&!sectorSeen[(yy/6)*sectorsWide+xx/6])
                             color=Color.Lerp(color,ink,.68f);
                         // Unity raster origin is bottom-left; map north is GUI top.
                         pixels[(height-1-yy)*width+xx]=color;

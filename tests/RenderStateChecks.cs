@@ -191,6 +191,24 @@ public static class RenderStateChecks
         Check(Math.Abs(shaded.r-visible.r)+Math.Abs(shaded.g-visible.g)+
             Math.Abs(shaded.b-visible.b)>.03f,
             "Discovered sixth-ring sectors actually brighten on the map");
+        // Every pixel must still reflect the exact existing SaveData v2
+        // sector semantics, including the legacy 36x24 discovery bits.
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,false,888f,264f,2f);
+        var allVisible=Get<Texture2D>(app,"terrainPreview");
+        int checkedPixels=0;
+        for(int sy=0;sy<allVisible.height;sy++)
+            for(int sx=0;sx<allVisible.width;sx++)
+            {
+                int n=(allVisible.height-1-sy)*allVisible.width+sx;
+                Color a=revealed.pixels[n],b=allVisible.pixels[n];
+                bool same=Math.Abs(a.r-b.r)+Math.Abs(a.g-b.g)+
+                    Math.Abs(a.b-b.b)<.0001f;
+                Check(same==app.Game.Explored(0,sx,sy),
+                    "Fogged terrain must match saved sector visibility at "+sx+","+sy);
+                checkedPixels++;
+            }
+        Check(checkedPixels==9600,"Raster parity checks every real outdoor-map tile");
         // Cleanup is handled by the normal EndVisualReview / OnDestroy path.
         Console.WriteLine("PASS real 120x80 map raster caching, draw-call reduction and repaired-bridge preview (offline)");
     }
