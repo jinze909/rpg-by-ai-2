@@ -39,6 +39,36 @@ namespace Starfall
         {get {int count=0;for(int i=0;i<8;i++)if(FarShelterBuilt(i))count++;return count;}}
         private bool TalkFarStation(WorldObject o)
         {
+            if(o.kind=="faratlasdesk" || o.kind=="farrefugerecord")
+            {
+                if(save.room!=9||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+                if(o.kind=="farrefugerecord")
+                {
+                    bool first=!Has("far_refuge_guest_record");
+                    if(first){Flag("far_refuge_guest_record");AddXp(10);sound="reward";}
+                    Dialog(o.name,o.en,
+                        "这份旅店住客名单记录了未被计入官方救援数字的老人、矿工和孩子。新的避险棚应为所有走到这里的人敞开。"+
+                        (first?"\\n\\n首次记录：经验 +10。":""),
+                        "This guest list remembers elders, miners and children missing from official relief totals. Every new refuge must remain open to people who actually reach it."+
+                        (first?"\\n\\nFirst reading: +10 XP.":""),
+                        C("记下姓名","Remember their names","close"));
+                    return true;
+                }
+                bool ready=FarShelterCount==8,complete=Has("far_refuge_atlas");
+                Dialog(o.name,o.en,
+                    "炉火旅店的新制图室收集八个地区的气象记录与避险棚实地图。只有全部实地修复后，才能把开放的公共路线印给每一个旅人。"+
+                    "\\n\\n已建成公共避险棚："+FarShelterCount+"/8。"+
+                    (complete?"\\n\\n总图已经公开，旧名字不会再次消失。":ready?
+                        "\\n\\n真实站点全部验证完毕，可以签发公共总图。":"\\n\\n继续前往未完成的远地气象站。"),
+                    "The Hearth Inn's new cartography wing collects weather logs and public refuges from all eight regions. Only verified built shelters can enter the open atlas."+
+                    "\\n\\nRebuilt shelters: "+FarShelterCount+"/8."+
+                    (complete?"\\n\\nThe public atlas is already filed.":ready?
+                        "\\n\\nAll stations verified. The civic chart may now be published.":"\\n\\nExplore the remaining weather shelters."),
+                    C(complete?"重读公共总图":"签发公开避险总图",
+                        complete?"Reread the atlas":"Publish public refuge atlas","far_publish"),
+                    C("继续巡路","Keep exploring","close"));
+                return true;
+            }
             if(o.kind!="farledger"&&o.kind!="farcalibrate"&&o.kind!="farshelter")return false;
             int room=save.room;
             if(room<0||room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
@@ -105,6 +135,26 @@ namespace Starfall
         }
         private bool ChooseFarStation(string action)
         {
+            if(action=="far_publish")
+            {
+                if(save.room!=9||Dying||practicing||Has("far_refuge_atlas"))return true;
+                WorldObject desk=null;
+                foreach(WorldObject item in Map.objects)
+                    if(item.kind=="faratlasdesk"){desk=item;break;}
+                if(desk==null||(Position-new Point(desk.x,desk.y)).Length>2.2f)return true;
+                if(FarShelterCount!=8)
+                {
+                    Notify("仍有避险棚没有被实地修复。","Some remote shelters have yet to be rebuilt.");
+                    return true;
+                }
+                Flag("far_refuge_atlas");save.coins+=80;save.shards+=3;
+                AddXp(50);revision++;sound="reward";
+                RecordMoment("八处公共避险棚的路线已经在炉火旅店发布，连没有登记的住客也能使用。",
+                    "The shared weather atlas now charts eight physical civilian refuges, including for unregistered travelers.");
+                Notify("公共避险总图发布：硬币 +80、碎片 +3、经验 +50。",
+                    "Public refuge atlas published: +80 coins, +3 shards, +50 XP.");
+                return true;
+            }
             if(!action.StartsWith("far_dial_")&&action!="far_build"&&action!="far_rest")
                 return false;
             int room=save.room;

@@ -755,8 +755,51 @@ namespace Starfall.Tests
             }
             GameCore full=new GameCore(data);
             for(int room=0;room<8;room++)full.save.flags.Add("far_shelter_"+room);
-            Check(full.FarShelterCount==8&&full.GetQuest("far_refuges").complete,
-                "The new exploration quest tracks all eight physical restored refuges");
+            Check(full.FarShelterCount==8&&!full.GetQuest("far_refuges").complete,
+                "Eight restored shelters still need real public filing at the Inn");
+            full.save.room=9;
+            MapData inn=data.maps[9];
+            Check(inn.rows.Length==40&&inn.rows[0].Length==60,
+                "Expanded Inn adds a real southern public records wing");
+            var reach=new System.Collections.Generic.HashSet<int>();
+            var queue=new System.Collections.Generic.Queue<int>();
+            int w=inn.rows[0].Length,h=inn.rows.Length;
+            int first=(int)inn.spawnY*w+(int)inn.spawnX;
+            queue.Enqueue(first);reach.Add(first);
+            int[,] dir={{1,0},{-1,0},{0,1},{0,-1}};
+            while(queue.Count>0)
+            {
+                int cell=queue.Dequeue(),x=cell%w,y=cell/w;
+                for(int k=0;k<4;k++)
+                {
+                    int xx=x+dir[k,0],yy=y+dir[k,1],key=yy*w+xx;
+                    if(xx<0||yy<0||xx>=w||yy>=h||reach.Contains(key)||
+                        !full.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                    reach.Add(key);queue.Enqueue(key);
+                }
+            }
+            WorldObject atlas=Array.Find(inn.objects,o=>o.kind=="faratlasdesk");
+            WorldObject guest=Array.Find(inn.objects,o=>o.kind=="farrefugerecord");
+            Check(atlas!=null&&guest!=null&&
+                reach.Contains((int)atlas.y*w+(int)atlas.x)&&
+                reach.Contains((int)guest.y*w+(int)guest.x),
+                "Both Inn annex chambers are physically connected through real collision");
+            full.save.x=atlas.x;full.save.y=atlas.y;
+            int startCoins=full.save.coins;
+            full.Talk(atlas);
+            int publish=Array.FindIndex(full.conversation.choices,c=>c.action=="far_publish");
+            Check(publish>=0,"An actual Inn desk offers civic publication");
+            full.Choose(publish);
+            Check(full.Has("far_refuge_atlas")&&full.GetQuest("far_refuges").complete&&
+                full.save.coins==startCoins+80,
+                "In-person publication finishes quest with authentic once-only reward");
+            GameCore reloaded=new GameCore(data,full.save);
+            Check(reloaded.save.version==2&&reloaded.Has("far_refuge_atlas"),
+                "Public civic atlas persists in legacy save slots");
+            full.Talk(atlas);publish=Array.FindIndex(full.conversation.choices,
+                c=>c.action=="far_publish");
+            full.Choose(publish);
+            Check(full.save.coins==startCoins+80,"Publishing twice cannot farm another grant");
         }
 
         public static void CameraLeadPrewarmsMovementWithoutUnboundedMapScans(Campaign data)

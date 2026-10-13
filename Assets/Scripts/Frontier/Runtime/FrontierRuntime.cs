@@ -522,6 +522,15 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="faratlasdesk"||kind=="farrefugerecord")
+            {
+                bool done=kind=="faratlasdesk"?Game.Has("far_refuge_atlas"):
+                    Game.Has("far_refuge_guest_record");
+                PropImage(kind=="faratlasdesk"?"table":"bookshelf",0,p.x-40,p.y-80,80,86,
+                    done?new Color(.73f,.9f,.86f):Color.white);
+                if(!done)Diamond(p.x,p.y-77,6,gold);
+                return;
+            }
             if(kind=="farledger"||kind=="farcalibrate"||kind=="farshelter")
             {
                 int room=Game.save.room;

@@ -92,7 +92,7 @@ namespace Starfall
                 q.category=L("实地谜题 · 可用营地","FIELD PUZZLES · LIVE SHELTERS");
                 q.description=L("第六圈每片地区有三处真正可到访的站点：读东部气象记录得到符号，在南部校准盘选择正确符号，再消耗木材和零件修复公共避险棚。修好后可反复消耗木材恢复生命、耐力并驱寒。",
                     "Each sixth-ring region has three physical sites. Read the eastern weather record, choose its correct glyph at the southern dial, then spend timber and a spare part to rebuild a public refuge. An open shelter provides repeatable rest.");
-                q.locked=!Has("intro");q.complete=FarShelterCount==8;
+                q.locked=!Has("intro");q.complete=Has("far_refuge_atlas");
                 int next=-1,step=0;
                 string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
                 string[] en={"Canal","Thornwood","Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
@@ -104,17 +104,20 @@ namespace Starfall
                     q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+found+"/3",found==3));
                     if(next<0&&found<3&&CanEnter(i)){next=i;step=found;}
                 }
-                q.room=next<0?0:next;q.target=new Point(18,15);
+                q.steps.Add(new QuestStep(L("回旅店档案室签发公共总图","Publish the civic atlas at the Inn"),
+                    Has("far_refuge_atlas")));
+                q.room=next<0?9:next;q.target=next<0?new Point(22.5f,36.5f):new Point(18,15);
                 if(next>=0)foreach(WorldObject station in data.maps[next].objects)
                     if(station.id=="farsignal_"+next+"_"+step)
                     {q.target=new Point(station.x,station.y);break;}
-                q.next=q.complete?L("八座远端避险棚全部恢复","All eight remote shelters restored"):
-                    next<0?L("解锁新的地区再寻找气象记录","Unlock further regions"):
+                q.next=q.complete?L("八座避险棚与公共总图全部完成","All eight shelters and public atlas complete"):
+                    next<0?L("前往旅店新制图档案室签发公共总图",
+                        "Publish the civic atlas in the expanded Inn archive"):
                     step==0?L("实地寻找最东侧气象手记","Find the eastern weather log"):
                     step==1?L("去南侧校准盘核对记录符号","Match the reading at the southern dial"):
                     L("去最远端建成开放的公共避险棚","Restore the outermost civilian shelter");
-                q.reward=L("每地硬币22、碎片1、经验60与永久可用暖棚；八地再加技能点1",
-                    "Each: 22 coins, 1 shard, 60 XP and a repeatable refuge; eight: +1 talent");
+                q.reward=L("每地硬币22、碎片1、经验60与永久暖棚；八地技能点1，旅店归档再得硬币80、碎片3、经验50",
+                    "Each: 22 coins, 1 shard, 60 XP and refuge; eight: +1 talent. Inn publication: 80 coins, 3 shards, 50 XP.");
                 return q;
             }
 
