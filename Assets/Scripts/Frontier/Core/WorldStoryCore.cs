@@ -39,6 +39,7 @@ namespace Starfall
             if (page == "covenant") return save.frontierEnding > 0;
             if (page == "signal") return Has("survey_complete");
             if (page == "atlas") return Has("archive_complete");
+            if (page == "counterpoint") return Has("root_harmony_started");
             if (page == "abyss") return save.frontierEnding > 0;
             if (page == "ending") return save.ending > 0;
             return false;
@@ -84,6 +85,8 @@ namespace Starfall
                 descriptionEn = "A map, a beacon and an open road can also change the frontier.";
                 if (StoryUnlocked("signal")) choices.Add(StoryChoice("归乡星图与巡路信标", "Homeward chart and beacons", "story_read_signal"));
                 if (StoryUnlocked("atlas")) choices.Add(StoryChoice("失落测绘师的记录", "The lost surveyor's atlas", "story_read_atlas"));
+                if (StoryUnlocked("counterpoint"))
+                    choices.Add(StoryChoice("星根失谐与三段音纹", "Starroot Counterpoint · three readings", "story_read_counterpoint"));
                 if (StoryUnlocked("abyss")) choices.Add(StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
@@ -108,7 +111,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "ruins", "mine", "citadel" };
             if (section == "farshore") return new[] { "harbor", "desert", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "abyss", "ending" };
+            return new[] { "signal", "atlas", "counterpoint", "abyss", "ending" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -260,6 +263,19 @@ namespace Starfall
                     headingZh = "失落测绘师：校准的是归途"; headingEn = "Lost Surveyor: Calibrating the Way Home";
                     zh = "琳拼好林地残图、遗迹刻石与矿场测距仪，发现旧测绘师记录的是撤离坡道而非黄金矿脉。矿场校准台仍保存一具重甲方位回声，按旧守卫协议攻击来者。\n\n战胜回声不是杀死测绘师的幽灵，而是结束一套已经失去使用目的的自动防御，让这些路线重新对活人开放。";
                     en = "Lin joins the woodland chart, tide inscription and mine rangefinder into an atlas of escape routes rather than treasure seams. An armored compass echo remains in a Rediron calibrator.\n\nSilencing that defense is not killing a surveyor's ghost. It is retiring a machine that has forgotten why the route existed.";
+                    break;
+                case "counterpoint":
+                    headingZh = "星根失谐：和声属于谁"; headingEn = "Starroot Counterpoint: Whose Song?";
+                    zh = "听纹师芮记下了九年前的一次失谐：堡垒让每处星根只向中央供能，原本彼此补偿的根、潮与铁再也听不到其他地区。\\n\\n" +
+                        (Has("root_harmony_1") ? "密林第一道根音已重新归档。它记录的不是可开采星晶，而是活土如何让老树与溪流一同复苏。\\n" : "密林根音尚未取回。\\n") +
+                        (Has("root_harmony_2") ? "沉没遗迹的潮音描述失去的退潮时刻：水闸应按活人的需要开启，而不是听从九年前的印章。\\n" : "沉没遗迹潮音仍在沉睡。\\n") +
+                        (Has("root_harmony_3") ? "矿场铁音留下停工的节拍：锻造与抽取之间，本该有让人回家的间隙。" : "矿场铁音还未校准。") +
+                        (Has("root_harmony_complete") ? "\\n\\n三道音纹终于被封存为公开读数。和声不是另一种统治工具，它证明了没有一处土地应该永远独奏。" : "");
+                    en = "Rui recovered a nine-year-old dissonance: the citadel ordered every anchor to feed the center. Root, tide and iron, once balanced by listening to one another, could no longer hear distant needs.\\n\\n" +
+                        (Has("root_harmony_1") ? "Thornwood's root reading is archived: living soil repairs roots and streams together.\\n" : "The woodland root reading remains lost.\\n") +
+                        (Has("root_harmony_2") ? "The tide reading remembers when sluices opened for living travelers instead of old guild seals.\\n" : "The drowned tide reading remains silent.\\n") +
+                        (Has("root_harmony_3") ? "Ironreach's rhythm preserves the pause between forging and extraction, long enough for miners to go home." : "The mine's iron reading is still uncalibrated.") +
+                        (Has("root_harmony_complete") ? "\\n\\nAll three readings now belong to the public archive. Counterpoint is not another tool of rule: no land should have to sing alone." : "");
                     break;
                 case "abyss":
                     headingZh = "地脉深渊：星根的伤口"; headingEn = "Root Abyss: A Wound in the Network";
