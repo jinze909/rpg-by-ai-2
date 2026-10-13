@@ -154,7 +154,7 @@ namespace Starfall
         public float timer, radius, damage;
         public string kind;
         // Transient ownership prevents encounter hazards surviving retirement.
-        public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned;
+        public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned;
     }
     public struct LightRay
     {

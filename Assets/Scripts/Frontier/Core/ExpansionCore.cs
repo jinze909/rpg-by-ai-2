@@ -475,7 +475,8 @@ namespace Starfall
                     rootHarmonyOwned = h.rootHarmonyOwned,
                     commonsRelayOwned = h.commonsRelayOwned,
                     glasswindOwned = h.glasswindOwned, temperOwned = h.temperOwned,
-                    triadOwned = h.triadOwned, stormOwned = h.stormOwned });
+                    triadOwned = h.triadOwned, stormOwned = h.stormOwned,
+                    lastDirectiveOwned = h.lastDirectiveOwned });
                 if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
                 else TryRewardEscapedWarning(h.position, h.radius);
             }

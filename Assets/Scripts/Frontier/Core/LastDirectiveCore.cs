@@ -2,6 +2,7 @@ using System;
 namespace Starfall {
 public sealed partial class GameCore {
     private int directiveRoom=-1, directivePhase, directiveKills;
+    private float directiveSurgeLeft;
     private static readonly Point[] directiveSpawns={new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(106.5f,73.5f)};
     public bool LastDirectiveStarted {get{return Has("last_directive_started");}}
     public bool LastDirectiveComplete {get{return Has("last_directive_complete");}}
@@ -11,7 +12,8 @@ public sealed partial class GameCore {
     public bool LastDirectiveReady {get{return LastDirectiveStarted&&LastDirectiveClues==3;}}
     public int LastDirectiveChoice {get{return Has("last_directive_open")?1:Has("last_directive_shelter")?2:0;}}
     private bool IsLastDirectiveEnemy(Enemy e){return e!=null&&e.id>=90300&&e.id<=90304;}
-    private void ResetLastDirective(){enemies.RemoveAll(IsLastDirectiveEnemy);projectiles.RemoveAll(p=>p.lastDirectiveOwned);effects.RemoveAll(e=>e.lastDirectiveOwned);directiveRoom=-1;directivePhase=directiveKills=0;}
+    private void ResetLastDirective(){enemies.RemoveAll(IsLastDirectiveEnemy);projectiles.RemoveAll(p=>p.lastDirectiveOwned);effects.RemoveAll(e=>e.lastDirectiveOwned);hazards.RemoveAll(h=>h.lastDirectiveOwned);
+        directiveRoom=-1;directivePhase=directiveKills=0;directiveSurgeLeft=0;}
     private void OnLastDirectiveEnemyDefeated(Enemy e){
         if(directiveRoom!=4||save.room!=4||(directivePhase!=1&&directivePhase!=3)||!IsLastDirectiveEnemy(e))return;
         int first=directivePhase==1?90300:90302;int count=directivePhase==1?2:3;
@@ -28,9 +30,28 @@ public sealed partial class GameCore {
             if(!present&&(directiveKills&(1<<i))==0){ResetLastDirective();revision++;Notify("守卫异常离场，真实战斗必须重试。","Guardian vanished without defeat; retry combat.");return;}
             if(present||(directiveKills&(1<<i))==0)clear=false;
         }
-        if(!clear)return;
+        if(!clear)
+        {
+            if(directivePhase==3)
+            {
+                directiveSurgeLeft-=dt;
+                if(directiveSurgeLeft<=0)
+                {
+                    // Same real delayed/collision-checked boss hazard system:
+                    // warnings remain visible and can be dodged before contact.
+                    directiveSurgeLeft=6.1f;
+                    hazards.Add(new Hazard{position=Position,radius=1.45f,
+                        timer=1.15f,damage=18,kind="rift",lastDirectiveOwned=true});
+                    sound="windup";revision++;
+                    Notify("终端发出真实的脉冲落点预警！离开红色圈，或在命中前闪避。",
+                        "Actual terminal surge telegraphed! Leave the warning circle or dodge before impact.");
+                }
+            }
+            return;
+        }
         directivePhase=directivePhase==1?2:4;directiveKills=0;
-        projectiles.RemoveAll(p=>p.lastDirectiveOwned);effects.RemoveAll(e=>e.lastDirectiveOwned);revision++;sound="reward";
+        projectiles.RemoveAll(p=>p.lastDirectiveOwned);effects.RemoveAll(e=>e.lastDirectiveOwned);
+        hazards.RemoveAll(h=>h.lastDirectiveOwned);revision++;sound="reward";
         Notify(directivePhase==2?"第一道保密卫队已击败。在终端以25耐力解除二级封锁。":"三名最终守卫已击败，回控制台决定公共权力归属。",
             directivePhase==2?"First wave defeated. Spend 25 energy at the terminal to lift the second lock.":"All three final guards defeated. Choose public control at the terminal.");
     }
@@ -39,6 +60,7 @@ public sealed partial class GameCore {
         int first=wave==1?0:2,count=wave==1?2:3;
         for(int i=0;i<count;i++)if(!CanStand(directiveSpawns[first+i]))return false;
         directiveRoom=4;directivePhase=wave==1?1:3;directiveKills=0;
+        directiveSurgeLeft=wave==2?2.6f:0;
         for(int i=0;i<count;i++){
             Point p=directiveSpawns[first+i];int kind=wave==1?i:i==2?2:i;
             enemies.Add(CreatePlacedEnemy(90300+first+i,kind,p,wave==1?79+12*i:111+17*i));
