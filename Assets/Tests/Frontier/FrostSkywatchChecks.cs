@@ -307,8 +307,28 @@ namespace Starfall.Tests
             page=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="story_read_skywatch");g.Choose(page);
             Check(g.conversation.text.Contains("永久避寒穹顶") &&
-                g.conversation.textEn.Contains("permanent shelter"),
-                "Only a truly published observatory displays the public weather ending");
+                g.conversation.textEn.Contains("permanent shelter") &&
+                !g.conversation.text.Contains("三座棱镜成为人人可用"),
+                "The public original forecast cannot spoil uncompleted afterglow records");
+            g.Close();g.save.flags.Add("skywatch_afterglow_1");
+            g.Talk(book);section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_after");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_skywatch");g.Choose(page);
+            Check(g.conversation.text.Contains("一部分旅人余辉") &&
+                !g.conversation.text.Contains("三座棱镜成为人人可用") &&
+                g.conversation.textEn.Contains("Some travelers' afterglows"),
+                "Partial post-story evidence appears without claiming an unearned refuge network");
+            g.Close();g.save.flags.Add("skywatch_afterglow_2");
+            g.save.flags.Add("skywatch_afterglow_3");
+            g.save.flags.Add("skywatch_afterglow_complete");
+            g.Talk(book);section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_after");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_skywatch");g.Choose(page);
+            Check(g.conversation.text.Contains("三座棱镜成为人人可用") &&
+                g.conversation.textEn.Contains("Three public warming beacons"),
+                "Only after a genuinely completed archive does the chronicle show the epilogue's full result");
         }
 
         public static void FrostSkywatchHazardsAreDodgeableAndWithdrawalIsSafe(Campaign data)
