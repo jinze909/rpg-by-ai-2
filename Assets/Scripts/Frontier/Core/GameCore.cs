@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial();
         }
         public void NewGame(int profession)
         {
@@ -202,6 +202,12 @@ namespace Starfall
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
+            if (commonsRelayRoom != 0 && room != save.room)
+            {
+                Notify("公共信标正在重连。先完成三段线路或返回控制台结束操作。",
+                    "Commons Relay is live. Complete its three circuits or withdraw at a console before traveling.");
+                return;
+            }
             if (reliefMissionRoom != 0)
             {
                 Notify("正在救援居民。先完成撤离或到避难站明确取消，不能直接切换地区。",
@@ -259,7 +265,8 @@ namespace Starfall
             TickTideTransition(); Point beforeMove = Position;
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
-            save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
+            save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
+                (Has("commons_relay_complete") ? 2 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
             TickMovement(dt, movement, explicitAim);
@@ -401,7 +408,8 @@ namespace Starfall
                 atlasEchoOpenTime = 0;
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
-                IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e);
+                IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
+                IsCommonsRelayEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }

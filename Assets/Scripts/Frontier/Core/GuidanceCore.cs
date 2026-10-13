@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,40 @@ namespace Starfall
             }
 
 
+            if (id == "commons_relay")
+            {
+                q.title = L("堡垒公共信标", "Citadel Commons Relay");
+                q.category = L("后日谈 · 战斗重连", "AFTERMATH · COMBAT RESTORATION");
+                q.locked = !Has("commons_relay_started");
+                q.description = L(
+                    "堡垒旧调度仍把粮路、医护与撤离灯线分作三套封闭权限。跟随证词保管员艾拉调查堡垒，亲自连通三座信标，打退自动防御，再将公开授权交回城镇。",
+                    "The citadel still keeps food, medical care and evacuation lamps behind separate private permissions. Reconnect three real consoles, defeat their obsolete security, then return the public key to Ayla.");
+                for (int i = 1; i <= 3; i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[] { "粮路通道", "医护通道", "撤离灯线" }[i-1],
+                          new[] { "Food routes", "Medical channel", "Evacuation lamps" }[i-1]),
+                        Has("commons_relay_sealed") || commonsRelayRoom == 4 && commonsRelayStep > i));
+                q.complete = Has("commons_relay_complete");
+                q.steps.Add(new QuestStep(L("公开移交通道密钥", "Return the public access key"), q.complete));
+                q.room = q.locked || Has("commons_relay_sealed") ? 0 : 4;
+                int next = commonsRelayRoom == 4 ? Math.Min(3, commonsRelayStep) : 1;
+                q.target = ObjectPoint(q.room, q.room == 0 ? "commonswitness" :
+                    "commonsrelay" + next, new Point(18, 12));
+                q.next = q.complete ? L("民用线路已经开放，守护所有人共享的归路",
+                                          "Civilian circuits remain available to every traveler") :
+                    q.locked ? L("击败堡垒守卫后，找镇里的艾拉查阅公共供给记录",
+                                 "Defeat the citadel guardian, then talk to Ayla in town") :
+                    Has("commons_relay_sealed") ?
+                        L("回余烬镇向艾拉公开移交信标密钥",
+                          "Return to Emberfall and publish the relay key with Ayla") :
+                    commonsRelayRoom != 0 && enemies.Exists(IsCommonsRelayEnemy) ?
+                        L("击退本段信标的自动防御守卫", "Defeat this circuit's active security") :
+                    L("前往堡垒下一个信标，按 E 重新连通",
+                      "Visit the next citadel relay and press E to reconnect it");
+                q.reward = L("线路重连60硬币、3碎片、75经验；归档再获80硬币、1技能点、90经验，永久耐力恢复+2/秒",
+                    "Reconnect: 60 coins, 3 shards and 75 XP; publication: 80 coins, 1 talent, 90 XP and +2 energy/sec permanently");
+                return q;
+            }
             if (id == "root_harmony")
             {
                 q.title = L("星根失谐", "Starroot Counterpoint");

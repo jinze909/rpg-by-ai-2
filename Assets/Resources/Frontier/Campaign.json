@@ -206,6 +206,14 @@
           "en": "Rui · Starroot Listener",
           "x": 22.5,
           "y": 11.5
+        },
+        {
+          "id": "commonswitness0",
+          "kind": "commonswitness",
+          "name": "艾拉 · 堡垒证词保管员",
+          "en": "Ayla · Keeper of Public Testimony",
+          "x": 13.5,
+          "y": 10.5
         }
       ],
       "decor": [
@@ -1379,6 +1387,30 @@
           "x": 21,
           "y": 18,
           "kind": "history9"
+        },
+        {
+          "id": "commonsrelay1",
+          "kind": "commonsrelay1",
+          "name": "公共信标 · 粮路记录",
+          "en": "Commons Relay · Food Routes",
+          "x": 8.5,
+          "y": 8.5
+        },
+        {
+          "id": "commonsrelay2",
+          "kind": "commonsrelay2",
+          "name": "公共信标 · 医疗通道",
+          "en": "Commons Relay · Medical Channel",
+          "x": 26.5,
+          "y": 8.5
+        },
+        {
+          "id": "commonsrelay3",
+          "kind": "commonsrelay3",
+          "name": "公共信标 · 撤离灯线",
+          "en": "Commons Relay · Evacuation Lamps",
+          "x": 26.5,
+          "y": 16.5
         }
       ],
       "decor": [
