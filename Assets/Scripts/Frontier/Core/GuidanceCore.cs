@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -183,6 +183,42 @@ namespace Starfall
                     L("前往东南的古观星台启动守卫试炼","Activate the southeastern observatory");
                 q.reward=L("首次归档：95硬币、3碎片、1天赋点、100经验；高原避寒穹顶",
                     "First clear: 95 coins, 3 shards, 1 talent, 100 XP, and a sheltered observatory");
+                return q;
+            }
+            if (id == "skywatch_afterglow")
+            {
+                q.title=L("三枚余辉","Three Afterglows");
+                q.category=L("战后调查 · 高原避寒网络",
+                    "AFTERMATH · HIGHLAND REFUGE NETWORK");
+                q.locked=!Has("skywatch_complete");
+                q.description=L(
+                    "观星师伊澜公开了气候光谱，但北、东、南三座棱镜仍保存最后的旅人记录。回收后在观星台归档，为夜归者点亮三处避寒信标。",
+                    "After Yilan publishes the spectrum, return to the north, east and south lenses to recover lost travelers' last records. Archive them at the observatory to activate warming beacons.");
+                int next=1;
+                for(int i=1;i<=3;i++)
+                {
+                    bool done=Has("skywatch_afterglow_"+i);
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"北方余辉","东方余辉","南方余辉"}[i-1],
+                            new[]{"Northern afterglow","Eastern afterglow","Southern afterglow"}[i-1]),done));
+                    if(done && next==i)next++;
+                }
+                q.complete=Has("skywatch_afterglow_complete");
+                q.steps.Add(new QuestStep(L("在古观星台公开最终余辉",
+                    "Archive the last afterglows at the observatory"),q.complete));
+                q.room=7;
+                q.target=ObjectPoint(7,next<=3?"skyprism"+next:"skyobservatory",
+                    new Point(25.5f,12.5f));
+                q.next=q.locked?L("先完成霜钟夜空的公开观测委托",
+                        "Publish Yilan's original skywatch spectrum first"):
+                    q.complete?L("三处棱镜已成为永久避寒信标",
+                        "All three lenses are now permanent warming refuges"):
+                    next<=3?L("调查下一枚棱镜中的余辉",
+                        "Recover the next lens afterglow"):
+                        L("回东南古观星台归档三道余辉",
+                          "Archive the three echoes at the southeastern observatory");
+                q.reward=L("一次性：45硬币、2碎片、60经验；三处永久避寒地点",
+                    "One time: 45 coins, 2 shards, 60 XP and three permanent warming sites");
                 return q;
             }
             if (id == "commons_relay")
