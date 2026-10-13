@@ -131,7 +131,7 @@ namespace Starfall
                     {
                         Color glow=d.kind=="crystal"||d.kind=="root" ?
                             new Color(.4f,.8f,.8f,.2f) :
-                            new Color(1,.75f,.4f,Game.Night?.32f:.13f);
+                            new Color(1,.75f,.4f,Game.Night ? .32f : .13f);
                         glow.a*=FadeWorldProp(d.x,d.y);
                         Light(new Point(d.x,d.y-1),d.kind=="lighthouse"?170:105,glow);
                     }
