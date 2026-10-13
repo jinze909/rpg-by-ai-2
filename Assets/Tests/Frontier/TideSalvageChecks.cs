@@ -284,5 +284,44 @@ namespace Starfall.Tests
                 "The compositional tide upgrade survives old v2 save persistence");
         }
 
+
+        public static void TideboundRealShoalsStayReachableAndRisingTideRecoversTheHero(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","harbor_report","gate_5"})
+                g.save.flags.Add(flag);
+            g.Enter(5);g.enemies.Clear();
+            WorldObject dock=Object(g,"tidedock");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Check(g.LowTide && g.CanStand(g.Position),
+                "The original port dock is safe at natural ebb");
+            for(int i=1;i<=3;i++)
+            {
+                WorldObject cache=Object(g,"tidecargo"+i);
+                Check(g.Map.rows[(int)cache.y][(int)cache.x]=='%',
+                    "All three distinct new cargo crates truly occupy original tidal shoal cells");
+                Check(g.NavigationPath(new Point(cache.x,cache.y)).Count>0,
+                    "Each shoal must be reachable from the unchanged harbor path network at low tide");
+            }
+            Action(g,"tidedock","tide_salvage_start");
+            WorldObject west=Object(g,"tidecargo1");
+            g.save.x=west.x;g.save.y=west.y;
+            Point flooded=g.Position;
+            g.save.totalTime=21.99f;g.save.tideHeldUntil=0;
+            g.Tick(.03f,new Point());
+            Check(!g.LowTide && g.CanStand(g.Position) &&
+                (g.Position-flooded).Length>.4f &&
+                g.TideSalvagePhase==1 && g.TideSalvageActive &&
+                !g.Has("tide_salvage_seen_1"),
+                "Real rising-tide collision moves the sole hero to dry footing without claiming or deleting undelivered cargo");
+            // The next natural ebb reopens the identical unchanged shoal;
+            // a washed-back run can continue rather than getting stuck.
+            g.save.totalTime=35.99f;
+            g.Tick(.03f,new Point());
+            Check(g.LowTide && g.CanStand(flooded) &&
+                g.TideSalvagePhase==1,
+                "The real natural tide cycle reopens salvage routes without changing map tiles or resetting the mission");
+        }
+
     }
 }
