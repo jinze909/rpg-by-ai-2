@@ -183,8 +183,15 @@ namespace Starfall
                 PropImage("altar",0,p.x-29,p.y-57,58,67,
                     aligned?Color.white:muted);
                 Ring(new Point(o.x,o.y),aligned?.72f:.5f,light,20);
-                Text(p.x-46,p.y-85,92,21,
-                    aligned?Game.L("已校准","ALIGNED"):Game.L("观测棱镜","SKY PRISM"),
+                if(Game.SkywatchEchoRefuge)
+                    Ring(new Point(o.x,o.y),1.12f,mint,24);
+                string legend=!aligned?Game.L("观测棱镜","SKY PRISM"):
+                    Game.Has("skywatch_afterglow_complete")?
+                        Game.L("永久避寒","WARM REFUGE"):
+                    Game.Has("skywatch_complete") &&
+                        !Game.Has("skywatch_afterglow_"+id)?
+                        Game.L("余辉待收集","AFTERGLOW"):Game.L("已校准","ALIGNED");
+                Text(p.x-53,p.y-85,106,21,legend,
                     11,light,TextAnchor.MiddleCenter);
                 return true;
             }

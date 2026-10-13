@@ -35,6 +35,18 @@ namespace Starfall
                 Has("skywatch_prism_1") && Has("skywatch_prism_2") &&
                 Has("skywatch_prism_3");
         }
+        public bool SkywatchEchoRefuge
+        {
+            get
+            {
+                if(save.room!=7 || !Has("skywatch_afterglow_complete") ||
+                    !SafeTravel || SkywatchRoom!=0) return false;
+                for(int i=1;i<=3;i++)
+                    if((Position-ObjectPoint(7,"skyprism"+i,
+                        new Point(-100,-100))).Length<2.6f) return true;
+                return false;
+            }
+        }
         public bool SkywatchRefuge
         {
             get { return save.room == 7 && Has("skywatch_complete") &&
@@ -103,6 +115,16 @@ namespace Starfall
                 }
                 if (Has("skywatch_prism_"+lens))
                 {
+                    if(Has("skywatch_complete") &&
+                        !Has("skywatch_afterglow_"+lens))
+                    {
+                        Dialog(o.name,o.en,
+                            new[]{"北棱镜还保存着救援者在暴雪中的脚步。","东棱镜揭露误报的星光来自仪器自身。","南棱镜记着守夜者用最后的炉火为旅人引路。"}[lens-1],
+                            new[]{"The northern lens remembers rescuers in the blizzard.","The eastern lens reveals the false skyfall was reflected light.","The southern lens recalls the final fire guiding lost travelers."}[lens-1],
+                            C("收集余辉记录","Recover afterglow","skywatch_afterglow_"+lens),
+                            C("稍后查看","Later","close"));
+                        return true;
+                    }
                     Dialog(o.name,o.en,
                         "这座棱镜已经对准夜空，读数保存在手帐里。",
                         "This prism is aligned; its reading is safely recorded.",
@@ -141,6 +163,28 @@ namespace Starfall
                     "古观星台缺少三枚棱镜的完整光谱。请先依次读取北、东、南的记录。",
                     "The observatory needs all three readings. Align north, east and south first.",
                     C("返回寻找棱镜","Find the prisms","close"));
+                return true;
+            }
+            if(Has("skywatch_complete"))
+            {
+                if(Has("skywatch_afterglow_complete"))
+                {
+                    Dialog(o.name,o.en,
+                        "三道余辉已公开，三座高原棱镜成为永久避寒信标。",
+                        "The afterglows are public; all three prisms now warm travelers.",
+                        C("继续探索","Continue","close"));
+                    return true;
+                }
+                bool all=Has("skywatch_afterglow_1") &&
+                    Has("skywatch_afterglow_2") && Has("skywatch_afterglow_3");
+                Dialog(o.name,o.en,
+                    all?"三道余辉已经回收。归档后让三座棱镜成为永久避寒信标。":
+                        "重新走访北、东、南三座棱镜，回收最后的旅人记录。",
+                    all?"All afterglows recovered. Archive them to restore permanent warming beacons.":
+                        "Revisit the north, east and south lenses for their last traveler records.",
+                    C(all?"归档三道余辉":"稍后回访",
+                        all?"Archive afterglows":"Return later",
+                        all?"skywatch_afterglow_publish":"close"));
                 return true;
             }
             if (Has("skywatch_defeated"))
@@ -229,6 +273,40 @@ namespace Starfall
                     "读数封存！继续寻找下一枚棱镜。",
                     prism==3?"All three aligned! Head to the southeastern observatory.":
                     "Reading secured! Find the next prism.");
+                return true;
+            }
+            if (action.StartsWith("skywatch_afterglow_") &&
+                action != "skywatch_afterglow_publish")
+            {
+                int lens;
+                if(!int.TryParse(action.Substring("skywatch_afterglow_".Length),out lens) ||
+                    lens<1 || lens>3 || save.room!=7 || SkywatchRoom!=0 || Dying ||
+                    !Has("skywatch_complete") || Has("skywatch_afterglow_"+lens) ||
+                    (Position-ObjectPoint(7,"skyprism"+lens,
+                        new Point(-100,-100))).Length>2.2f) return true;
+                Flag("skywatch_afterglow_"+lens); revision++;sound="discover";
+                effects.Add(new Effect("discover",Position,.65f));
+                RecordMoment("霜钟棱镜余辉 "+lens+"/3：找回失散旅人的真实记录。",
+                    "Frostchime afterglow "+lens+"/3: a lost traveler's record recovered.");
+                Notify("余辉记录已回收。调查其他棱镜并返回观星台。",
+                    "Afterglow recovered. Investigate remaining prisms and return.");
+                return true;
+            }
+            if (action == "skywatch_afterglow_publish")
+            {
+                if(save.room!=7 || SkywatchRoom!=0 || Dying ||
+                    !Has("skywatch_complete") || Has("skywatch_afterglow_complete") ||
+                    !Has("skywatch_afterglow_1") || !Has("skywatch_afterglow_2") ||
+                    !Has("skywatch_afterglow_3") ||
+                    (Position-ObjectPoint(7,"skyobservatory",
+                        new Point(-100,-100))).Length>2.2f) return true;
+                Flag("skywatch_afterglow_complete");
+                save.coins+=45;save.shards+=2;AddXp(60);
+                revision++;sound="reward";
+                RecordMoment("三座棱镜成为公开的高原避寒信标。",
+                    "All three prisms became public warming beacons.");
+                Notify("余辉归档！45硬币、2碎片、60经验；三座棱镜永久避寒。",
+                    "Afterglows archived! +45 coins, +2 shards, +60 XP; three permanent warm refuges.");
                 return true;
             }
             if (action == "skywatch_ground")
