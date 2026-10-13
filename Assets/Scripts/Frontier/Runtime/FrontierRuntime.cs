@@ -430,6 +430,15 @@ namespace Starfall
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
             if (DrawPolishObject(o) || DrawExpansionObject(o)) return;
+            if(kind=="annexinnarchive"||kind=="annexinnmessage")
+            {
+                bool complete=kind=="annexinnarchive"?Game.Has("annex_archive_complete"):
+                    Game.Has("annex_inn_letter");
+                PropImage(kind=="annexinnarchive"?"bookshelf":"table",0,
+                    p.x-43,p.y-79,86,85);
+                if(!complete)Diamond(p.x,p.y-74,5,gold);
+                return;
+            }
             if(kind=="annexcache")
             {
                 bool used=Game.Has("annex_cache_"+o.id);

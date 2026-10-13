@@ -178,6 +178,64 @@ namespace Starfall.Tests
             Check(g.save.ending == 2, "Second ending");
         }
 
+
+        public static void ExpandedHearthInnArchiveIsConnectedAndRewardsVerifiedExploration(Campaign data)
+        {
+            MapData inn=data.maps[9];
+            Check(inn.rows.Length==32&&inn.rows[0].Length==48,"Expanded Hearth Inn adds navigable rooms");
+            GameCore game=new GameCore(data);game.save.room=9;
+            var queue=new System.Collections.Generic.Queue<int>();
+            var visited=new System.Collections.Generic.HashSet<int>();
+            int w=inn.rows[0].Length,h=inn.rows.Length;
+            int start=(int)inn.spawnY*w+(int)inn.spawnX;
+            queue.Enqueue(start);visited.Add(start);
+            int[,] offsets={{1,0},{-1,0},{0,1},{0,-1}};
+            while(queue.Count>0)
+            {
+                int cell=queue.Dequeue(),x=cell%w,y=cell/w;
+                for(int d=0;d<4;d++)
+                {
+                    int xx=x+offsets[d,0],yy=y+offsets[d,1],next=yy*w+xx;
+                    if(xx<0||xx>=w||yy<0||yy>=h||visited.Contains(next)||
+                        !game.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                    visited.Add(next);queue.Enqueue(next);
+                }
+            }
+            WorldObject archive=Array.Find(inn.objects,o=>o.kind=="annexinnarchive");
+            WorldObject letter=Array.Find(inn.objects,o=>o.kind=="annexinnmessage");
+            Check(archive!=null&&letter!=null&&visited.Contains((int)archive.y*w+(int)archive.x)&&
+                visited.Contains((int)letter.y*w+(int)letter.x),
+                "Both new inn annex rooms connect to original spawn through real collision");
+            game.save.x=archive.x;game.save.y=archive.y;
+            game.Talk(archive);
+            int idx=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_archive_file");
+            Check(idx>=0,"Inn archive can be filed with a real interactable action");
+            int coins=game.save.coins;game.Choose(idx);
+            Check(!game.Has("annex_archive_complete")&&game.save.coins==coins,
+                "Incomplete outdoor discovery cannot falsely claim the published atlas");
+            for(int room=0;room<8;room++)
+            {
+                game.save.flags.Add("annex_camp_annex_camp_"+room);
+                game.save.flags.Add("annex_vista_annex_vista_"+room);
+                game.save.flags.Add("annex_cache_annex_cache_"+room+"_a");
+                game.save.flags.Add("annex_cache_annex_cache_"+room+"_b");
+            }
+            game.Talk(archive);
+            idx=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_archive_file");
+            game.Choose(idx);
+            Check(game.Has("annex_archive_complete")&&game.save.coins==coins+60&&
+                game.GetQuest("annex_explorer").complete,
+                "Physically filing the complete atlas rewards real resources and finishes the quest");
+            SaveData save=game.save;
+            GameCore loaded=new GameCore(data,save);
+            Check(save.version==2&&loaded.Has("annex_archive_complete"),
+                "Public atlas persists in old save slots");
+            game.Talk(archive);
+            idx=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_archive_file");
+            game.Choose(idx);
+            Check(game.save.coins==save.coins,"Published atlas cannot be farmed by rereading");
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)

@@ -7,6 +7,47 @@ namespace Starfall
         private bool TalkAnnexExploration(WorldObject o)
         {
             string kind=o.kind;
+            if(kind=="annexinnarchive" || kind=="annexinnmessage")
+            {
+                if(save.room!=9 || (Position-new Point(o.x,o.y)).Length>2.2f)return true;
+                if(kind=="annexinnmessage")
+                {
+                    bool first=!Has("annex_inn_letter");
+                    if(first){Flag("annex_inn_letter");AddXp(15);revision++;sound="reward";}
+                    Dialog(o.name,o.en,
+                        "给每一位夜归的人：如果你迷路了，沿着有人点起营火的方向走。道路不是堡垒的财产，也不是公会的财产。它是记得你还要回家的人留下的。"+
+                        (first?"\\n\\n首次读信：经验 +15。":""),
+                        "To every late traveler: when lost, follow the light of a shared campfire. A road belongs neither to a fortress nor a guild; it belongs to those who remember you are coming home."+
+                        (first?"\\n\\nFirst reading: +15 XP.":""),
+                        C("留下这封信","Keep the letter","close"));
+                    return true;
+                }
+                int camps=0,cache=0,vistas=0;
+                for(int region=0;region<8;region++)
+                {
+                    if(Has("annex_camp_annex_camp_"+region))camps++;
+                    if(Has("annex_vista_annex_vista_"+region))vistas++;
+                    if(Has("annex_cache_annex_cache_"+region+"_a"))cache++;
+                    if(Has("annex_cache_annex_cache_"+region+"_b"))cache++;
+                }
+                bool complete=Has("annex_archive_complete");
+                bool ready=camps==8&&vistas==8&&cache==16;
+                Dialog(o.name,o.en,
+                    "这是巡路队留在炉火旅店的真正旅行档案。你的步迹必须是实地走过的，而不是地图上凭空出现的标记。"+
+                    "\\n\\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
+                    (complete?"\\n\\n这份公开地图已经交给所有旅人。":
+                        ready?"\\n\\n每一处地点都被亲自验证。可以公开最后的归乡图。":
+                        "\\n\\n继续探索全部八个户外区域，回来归档旧路。"),
+                    "The Hearth Inn holds the wardens' actual travel record. Every mark must be made by walking, never conjured on a hidden map."+
+                    "\\n\\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
+                    (complete?"\\n\\nYour route chart is now public.":ready?
+                        "\\n\\nAll positions verified. The final homeward chart can be published.":
+                        "\\n\\nExplore all eight outdoor regions and return to publish their chart."),
+                    C(complete?"重读归乡图":"完成归档 · 公共星图",
+                        complete?"Reread the chart":"Publish the public chart","annex_archive_file"),
+                    C("继续旅程","Keep exploring","close"));
+                return true;
+            }
             if(kind!="annexcache"&&kind!="annexcamp"&&kind!="annexvista")return false;
             if(save.room<0||save.room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
             string key=(kind=="annexcache"?"annex_cache_":kind=="annexvista"?"annex_vista_":"annex_camp_")+o.id;
@@ -73,6 +114,33 @@ namespace Starfall
         }
         private bool ChooseAnnexExploration(string action)
         {
+            if(action=="annex_archive_file")
+            {
+                if(save.room!=9||Dying||practicing||Has("annex_archive_complete"))
+                    return true;
+                WorldObject archive=null;
+                foreach(WorldObject o in Map.objects)
+                    if(o.kind=="annexinnarchive"){archive=o;break;}
+                if(archive==null||(Position-new Point(archive.x,archive.y)).Length>2.2f)
+                    return true;
+                for(int region=0;region<8;region++)
+                    if(!Has("annex_camp_annex_camp_"+region)||
+                        !Has("annex_vista_annex_vista_"+region)||
+                        !Has("annex_cache_annex_cache_"+region+"_a")||
+                        !Has("annex_cache_annex_cache_"+region+"_b"))
+                    {
+                        Notify("星图还缺少实际走过的地点。","Some routes have yet to be visited.");
+                        return true;
+                    }
+                Flag("annex_archive_complete");
+                save.coins+=60;save.shards+=3;save.skillPoints++;
+                RecordMoment("八地营地、观景点与补给旧路均已核实。炉火旅店的公开星图不再遗漏任何普通旅人。",
+                    "Eight regions of camps, lookouts and recovered supplies are now public on the Hearth Inn's atlas.");
+                revision++;sound="reward";
+                Notify("归乡图已公开：硬币 +60，碎片 +3，技能点 +1。",
+                    "Public chart complete: +60 coins, +3 shards, +1 talent point.");
+                return true;
+            }
             if(action!="annex_rest")return false;
             if(save.room<0||save.room>7||mode!="world"||Dying||practicing)return true;
             WorldObject camp=null;

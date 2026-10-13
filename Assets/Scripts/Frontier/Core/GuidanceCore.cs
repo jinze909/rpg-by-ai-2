@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -79,6 +79,49 @@ namespace Starfall
 
 
 
+
+            if (id == "annex_explorer")
+            {
+                q.title=L("边境探路者 · 归乡星图","Frontier Pathfinder · Homeward Atlas");
+                q.category=L("探索收集 · 真实足迹","EXPLORATION · LIVING ROUTES");
+                q.locked=!Has("intro");q.complete=Has("annex_archive_complete");
+                q.description=L("走访八个室外地区的新支路，打开遗失补给、登上观景点并造访营火，再去炉火旅店的扩建档案室发布真正的公共星图。",
+                    "Find both supply caches, the outlook and the camp in each of eight outdoor regions. Return to the expanded Hearth Inn archive to publish your living atlas.");
+                int camps=0,caches=0,vistas=0,targetRoom=-1;
+                WorldObject next=null;
+                for(int region=0;region<8;region++)
+                {
+                    string[] ids={"annex_cache_"+region+"_a","annex_cache_"+region+"_b","annex_vista_"+region,"annex_camp_"+region};
+                    for(int j=0;j<4;j++)
+                    {
+                        string kind=j<2?"annex_cache_":j==2?"annex_vista_":"annex_camp_";
+                        if(Has(kind+ids[j]))
+                        {if(j<2)caches++;else if(j==2)vistas++;else camps++;}
+                        else if(targetRoom<0&&CanEnter(region))
+                        {
+                            targetRoom=region;
+                            foreach(WorldObject o in data.maps[region].objects)
+                                if(o.id==ids[j]){next=o;break;}
+                        }
+                    }
+                }
+                q.steps.Add(new QuestStep(L("找到全部营火 ","Visit all camps ")+camps+"/8",camps==8));
+                q.steps.Add(new QuestStep(L("确认所有观景点 ","Survey all lookouts ")+vistas+"/8",vistas==8));
+                q.steps.Add(new QuestStep(L("找回所有补给 ","Recover all caches ")+caches+"/16",caches==16));
+                q.steps.Add(new QuestStep(L("前往旅店公开归乡星图","Publish the atlas at Hearth Inn"),q.complete));
+                q.room=targetRoom<0?9:targetRoom;
+                q.target=next==null?ObjectPoint(9,"annexinnarchive",new Point(18.5f,27.5f)):
+                    new Point(next.x,next.y);
+                q.next=q.complete?L("归乡图已公开；所有地区的旧路均已记录",
+                    "Public atlas complete; old trails are permanently recorded"):
+                    targetRoom<0?L("前往炉火旅店的新档案室，按 E 公开星图",
+                        "Visit the Hearth Inn's new archive and publish the chart"):
+                    L("实地到访新支路里的营火、观景台或隐藏补给",
+                        "Reach the new trail campsite, lookout or hidden supplies");
+                q.reward=L("归档奖励：硬币 +60、碎片 +3、技能点 +1",
+                    "Atlas reward: +60 coins, +3 shards, +1 talent point");
+                return q;
+            }
 
             if (id == "roadcharter")
             {
