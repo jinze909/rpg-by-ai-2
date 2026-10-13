@@ -14,10 +14,12 @@ namespace Starfall
         private void SpawnRidgeWildlife()
         {
             // Never spawn in the safe starting town, inn or procedural abyss.
-            if(save.room<1||save.room>7||!RidgeLinked(save.room))return;
-            // Do not extend old boss/clear-all-enemies gate requirements.
-            // Wildlife returns to the outer ring after both waypoints have
-            // been physically surveyed by this save slot.
+            if(save.room<1||save.room>7||!RidgeLinked(save.room)||
+                !Has("boss_"+save.room))return;
+            // Late-game wildlife never expands the required combat roster
+            // for an unfinished regional guardian or an untouched story gate.
+            // They return only after both ridge bearings AND the original
+            // region guardian have been resolved on this save slot.
             for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
             {
                 Point position=RidgeWildlifeSpawns[i];

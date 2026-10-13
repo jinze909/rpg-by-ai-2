@@ -646,6 +646,12 @@ namespace Starfall.Tests
                     g.save.flags.Add("ridge_seen_"+room+"_0");
                     g.save.flags.Add("ridge_seen_"+room+"_1");
                     spawn.Invoke(g,null);
+                    int early=0;
+                    foreach(Enemy e in g.enemies)if(e.x>=74&&e.y>=60)early++;
+                    Check(early==0,
+                        "Early ridge discovery must never expand uncleared guardian encounters");
+                    g.save.flags.Add("boss_"+room);
+                    spawn.Invoke(g,null);
                 }
                 int far=0;
                 foreach(Enemy e in g.enemies)
