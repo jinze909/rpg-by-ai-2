@@ -326,8 +326,9 @@ namespace Starfall
             if(!action.StartsWith("civic_response_"))return false;
             if(action=="civic_response_ledger")
             {
-                if(Dying||practicing||save.room!=9||!CivicSupplyComplete||
-                    CivicResponseDoneCount!=3||Has("civic_response_ledger"))
+                if(Dying||practicing||save.room!=9||!CivicSupplyStarted||
+                    !CivicSupplyComplete||CivicResponseDoneCount!=3||
+                    Has("civic_response_ledger"))
                     return true;
                 WorldObject registry=null;
                 foreach(WorldObject o in Map.objects)

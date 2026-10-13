@@ -717,6 +717,7 @@ namespace Starfall.Tests
         {
             var g=Fresh(data);g.save.stage=4;g.save.flags.Add("exp_intro");
             g.save.flags.Add("harbor_report");
+            g.save.flags.Add("civic_supply_started");
             g.save.flags.Add("civic_supply_complete");
             g.save.flags.Add("far_refuge_guest_record");
             g.save.flags.Add("far_courier_0");
