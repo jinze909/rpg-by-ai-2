@@ -559,7 +559,9 @@ namespace Starfall.Tests
                 "Medicine actually traverses the mountain road with game movement and collision");
             Check(g.GetQuest("civic_services").target.y==check.y,
                 "The tracked field delivery ends at the true resident checkpoint");
-            g.save.x=check.x; // remain on the same path and within interaction range
+            // Real walking already places the hero within the checkpoint's
+            // interaction radius; changing X after the last Tick would
+            // correctly invalidate the no-teleport handover check.
             int coins=g.save.coins,shards=g.save.shards,skills=g.save.skillPoints;
             Action(g,"farcheck","civic_response_deliver");
             Check(!g.CivicResponseActive&&g.CivicResponseDone(0)&&
@@ -628,12 +630,12 @@ namespace Starfall.Tests
                 g.save.coins==coins+24&&g.projectiles.Contains(ordinary)&&
                 !g.projectiles.Exists(p=>p.civicResponseOwned),
                 "Real claim pays once, selectively retiring arrows but retaining normal projectiles");
-            g.save.energy=30;
+            g.hitStop=0;g.save.energy=30;
             float baseEnergy=g.save.energy;
             g.Tick(.05f,new Point());
             float upgrade=g.save.energy-baseEnergy;
             g.save.flags.Remove("civic_response_done_3");
-            g.save.energy=30;g.Tick(.05f,new Point());
+            g.hitStop=0;g.save.energy=30;g.Tick(.05f,new Point());
             float normal=g.save.energy-30;
             Check(upgrade>normal+.08f,
                 "A fully defended lookout provides genuinely stronger safe local energy restoration");
