@@ -331,7 +331,9 @@ namespace Starfall
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
-                (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
+                (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) +
+                (save.room<8 && (save.x>=36 || save.y>=24) &&
+                    TrailCircuitComplete(save.room) ? 2 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
             TickMovement(dt, movement, explicitAim);
@@ -891,6 +893,7 @@ namespace Starfall
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
             if (TryTalkWaytrail(o)) return;
+            if (TalkTrailCircuit(o)) return;
             if (TalkAnnexExploration(o)) return;
             string kind = o.kind;
             if (kind == "innGuest")

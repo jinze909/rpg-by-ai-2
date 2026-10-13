@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,35 @@ namespace Starfall
 
 
 
+
+            if (id == "trail_circuits")
+            {
+                q.title=L("巡路队 · 八地长路","Roadwardens · Eight Long Routes");
+                q.category=L("开放地图 · 实地探路","EXPLORATION · FIELD ROUTES");
+                q.description=L("八处室外地区各有三个分散的旧路标，必须按编号实际走到。记录失落的公共路线，恢复新支路的耐力补给。",
+                    "Eight outdoor regions each have three separated ancient waymarks. Walk them in order to restore the lost civilian routes and their local stamina support.");
+                int next=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Drowned Ruins","Ironreach","Citadel","Mistport","Glass Desert","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+TrailCircuitProgress(i)+"/3",TrailCircuitComplete(i)));
+                    if(next<0&&!TrailCircuitComplete(i)&&CanEnter(i))next=i;
+                }
+                q.locked=!Has("intro");q.complete=TrailCircuitCount==8;
+                q.room=next<0?0:next;
+                q.target=new Point(18,15);
+                int stage=next<0?3:TrailCircuitProgress(next)+1;
+                if(next>=0)foreach(WorldObject o in data.maps[next].objects)
+                    if(o.id=="trailcircuit_"+next+"_"+stage)
+                    {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("八条实地长路已全部测绘","All eight physical routes surveyed"):
+                    next<0?L("先解锁剩余区域，再补完长路","Unlock the remaining regions"):
+                    L("依照指引前往下一个编号旧路标","Follow the next numbered waymark");
+                q.reward=L("每地硬币 +24、碎片 +2、经验 +35、区域耐力补给；全八地技能点 +1",
+                    "Each: +24 coins, +2 shards, +35 XP, local energy recovery; all eight: +1 talent point");
+                return q;
+            }
 
             if (id == "annex_explorer")
             {

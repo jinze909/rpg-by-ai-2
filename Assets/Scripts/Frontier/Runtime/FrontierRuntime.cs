@@ -451,6 +451,21 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="trailcircuit")
+            {
+                int stage=0;
+                for(int j=1;j<=3;j++)
+                    if(o.id=="trailcircuit_"+Game.save.room+"_"+j)stage=j;
+                int progress=Game.TrailCircuitProgress(Game.save.room);
+                bool read=stage>0&&progress>=stage;
+                PropImage(stage==2?"post":"obelisk",0,p.x-32,p.y-77,64,79,
+                    read?new Color(.6f,.85f,.77f,.85f):Color.white);
+                Ring(new Point(o.x,o.y),.38f,read?mint:
+                    stage==progress+1?gold:muted,12);
+                if(!read)Text(p.x-26,p.y-84,52,20,stage.ToString(),16,
+                    stage==progress+1?gold:muted,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="annexcache")
             {
                 bool used=Game.Has("annex_cache_"+o.id);

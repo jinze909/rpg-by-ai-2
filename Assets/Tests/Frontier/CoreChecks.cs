@@ -273,6 +273,64 @@ namespace Starfall.Tests
                 "All exploration progress remains in v2 save");
         }
 
+        public static void EightCircuitRoutesUseActualWalkingOrderAndPersist(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                MapData m=data.maps[room];
+                Check(m.rows.Length==56&&m.rows[0].Length==84,
+                    "Third-ring authored terrain is 84x56 in every outdoor area");
+                GameCore g=new GameCore(data);
+                g.save.room=room;g.save.flags.Add("seal_"+room);
+                int width=m.rows[0].Length,height=m.rows.Length;
+                var visited=new System.Collections.Generic.HashSet<int>();
+                var queue=new System.Collections.Generic.Queue<int>();
+                int start=(int)m.spawnY*width+(int)m.spawnX;
+                queue.Enqueue(start);visited.Add(start);
+                int[,] dir={{1,0},{-1,0},{0,1},{0,-1}};
+                while(queue.Count>0)
+                {
+                    int at=queue.Dequeue(),x=at%width,y=at/width;
+                    for(int k=0;k<4;k++)
+                    {
+                        int xx=x+dir[k,0],yy=y+dir[k,1],key=yy*width+xx;
+                        if(xx<0||yy<0||xx>=width||yy>=height||visited.Contains(key)||
+                            !g.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                        visited.Add(key);queue.Enqueue(key);
+                    }
+                }
+                WorldObject[] sites=new WorldObject[3];
+                for(int k=1;k<=3;k++)
+                {
+                    sites[k-1]=Array.Find(m.objects,o=>o.id=="trailcircuit_"+room+"_"+k);
+                    Check(sites[k-1]!=null &&
+                        visited.Contains((int)sites[k-1].y*width+(int)sites[k-1].x),
+                        "Real collision and traversal reach every landmark in room "+room);
+                }
+                g.save.x=sites[2].x;g.save.y=sites[2].y;int startCoins=g.save.coins;
+                g.Talk(sites[2]);g.Close();
+                Check(g.TrailCircuitProgress(room)==0,"Third landmark cannot bypass first two");
+                for(int k=0;k<3;k++)
+                {
+                    g.save.x=sites[k].x;g.save.y=sites[k].y;
+                    g.Talk(sites[k]);g.Close();
+                    Check(g.TrailCircuitProgress(room)==k+1,"Each visited stop records real ordered progress");
+                }
+                Check(g.TrailCircuitComplete(room)&&g.save.coins==startCoins+24,
+                    "Third distinct visit grants lasting local route completion");
+                g.Talk(sites[2]);g.Close();
+                Check(g.save.coins==startCoins+24,"Rereading completed circuit cannot farm rewards");
+                GameCore restored=new GameCore(data,g.save);
+                Check(restored.save.version==2&&restored.TrailCircuitComplete(room),
+                    "Existing SaveData v2 reload preserves circuit milestones");
+            }
+            GameCore all=new GameCore(data);
+            for(int r=0;r<8;r++)for(int k=1;k<=3;k++)
+                all.save.flags.Add("trail_circuit_"+r+"_"+k);
+            Check(all.TrailCircuitCount==8&&all.GetQuest("trail_circuits").complete,
+                "Independent eight-area map quest reflects real stage flags");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)
