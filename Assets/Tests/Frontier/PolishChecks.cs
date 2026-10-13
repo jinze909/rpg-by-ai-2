@@ -79,6 +79,26 @@ namespace Starfall.Tests
             var controls = new[] { new FocusControl { id = "left", x = 0, y = 0, w = 100, h = 40, enabled = true }, new FocusControl { id = "disabled", x = 110, y = 0, w = 100, h = 40, enabled = false }, new FocusControl { id = "right", x = 220, y = 0, w = 100, h = 40, enabled = true }, new FocusControl { id = "down", x = 0, y = 60, w = 100, h = 40, enabled = true } };
             n.SetControls(controls); n.Move(new Point(1, 0)); Check(n.focused == "right" && !n.CanActivate("disabled"), "Arrow navigation skips disabled controls"); n.Move(new Point(-1, 0)); n.Move(new Point(0, 1)); Check(n.focused == "down", "Focus follows visual geometry"); n.Cycle(1); Check(n.focused == "left", "Sequential navigation wraps predictably");
             n.Select("right"); n.Scope("map"); n.SetControls(controls); n.Scope("inventory"); n.SetControls(controls); Check(n.focused == "right", "Returning to a menu restores its focus");
+            // Runtime InputScope includes conversation.GetHashCode() and page.
+            // Visiting hundreds of NPCs must neither retain one-use pages
+            // indefinitely nor steal the currently selected inventory action.
+            var cache = (Dictionary<string, string>)typeof(MenuNavigation)
+                .GetField("remembered", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic).GetValue(n);
+            for (int dialog = 0; dialog < 500; dialog++)
+            {
+                n.Scope("dialog/" + dialog + "/0"); n.SetControls(controls);
+                Check(n.focused == "left",
+                    "Each new dialogue starts with fresh focus rather than a previous speaker's choice");
+                n.Select("down");
+                n.Scope("dialog/" + dialog + "/1"); n.SetControls(controls);
+                n.Scope("inventory"); n.SetControls(controls);
+                Check(n.focused == "right",
+                    "NPC dialogue never steals the last selected permanent menu control");
+            }
+            Check(cache.Count <= 3,
+                "One-use conversation identities must not accumulate forever in the focus cache");
+
         }
         public static void SoundFeedbackAndRegionalScores(Campaign data)
         {

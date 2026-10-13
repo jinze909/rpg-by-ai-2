@@ -14,7 +14,19 @@ namespace Starfall
         private readonly Dictionary<string, string> remembered = new Dictionary<string, string>();
         public string scope = "", focused = "";
         public void Scope(string value)
-        { if (scope == value) return; remembered[scope] = focused; scope = value; controls.Clear(); focused = remembered.ContainsKey(value) ? remembered[value] : ""; }
+        {
+            if (scope == value) return;
+            // Conversations carry a fresh runtime object identity in their scope.
+            // Remembering those one-use pages grows forever after NPC dialogue,
+            // and a recycled hash can resurrect focus from an unrelated speaker.
+            // Only durable menus need remembered focus across visits.
+            if (!string.IsNullOrEmpty(scope) &&
+                !scope.StartsWith("dialog/", StringComparison.Ordinal))
+                remembered[scope] = focused;
+            scope = value;
+            controls.Clear();
+            focused = remembered.ContainsKey(value) ? remembered[value] : "";
+        }
         public void SetControls(IEnumerable<FocusControl> values)
         {
             controls.Clear(); foreach (var c in values) if (c.enabled) controls.Add(c);
