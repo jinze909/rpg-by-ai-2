@@ -506,6 +506,59 @@ public static class RenderStateChecks
             "The ending visibly changes the actual public town monument palette");
         Console.WriteLine("PASS Chapter Ten real world testimony, terminal security warning and HUD (offline)");
     }
+    static void ChapterElevenLiveValvePhaseAndFullHUD(FrontierRuntime app)
+    {
+        app.BeginVisualReview(4,1);
+        var g=app.Game;g.enemies.Clear();g.save.english=true;
+        g.save.flags.Add("last_directive_complete");
+        g.save.flags.Add("last_directive_open");
+        g.save.inventory[4]=4;
+        var desk=Array.Find(g.Map.objects,o=>o.kind=="civicconduitmaster");
+        var first=Array.Find(g.Map.objects,o=>o.kind=="civicconduitvalve");
+        Check(desk!=null&&first!=null&&
+            g.CanStand(new Point(first.x,first.y)),
+            "Physically authored public-grid stations occupy real traversable map tiles");
+        g.save.x=desk.x;g.save.y=desk.y;
+        g.Talk(desk);
+        int start=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="civic_conduit_start");
+        Check(start>=0,"Real western grid console offers physical fuse activation");
+        g.Choose(start);
+        Check(g.CivicConduitActive&&g.CivicConduitWindowOpen&&
+            g.CivicConduitIntegrity==100,
+            "A live, undamaged public circuit begins in the first green phase");
+        Clear();Call(app,"DrawObject",first);
+        Check(GUI.textureCalls.Count>0&&
+            GUI.commands.Exists(c=>c.Contains("GREEN")),
+            "The actual first field valve renders an explicit green tune-now instruction");
+        Color green=GUI.textureCalls[0].color;
+        for(int i=0;i<43;i++)g.Tick(.05f,new Point());
+        Check(g.CivicConduitActive&&!g.CivicConduitWindowOpen,
+            "A real elapsed clock closes the stability window without fake input");
+        Clear();Call(app,"DrawObject",first);
+        Check(GUI.commands.Exists(c=>c.Contains("WAIT FOR GREEN")),
+            "Closed physical valve visibly teaches the player to wait for green");
+        Color locked=GUI.textureCalls[0].color;
+        Check(Math.Abs(green.r-locked.r)+Math.Abs(green.g-locked.g)+
+            Math.Abs(green.b-locked.b)>.03f,
+            "The valve's in-world color changes with the actual game clock");
+        Screen.width=1280;Screen.height=800;
+        Draw(app);
+        Check(GUI.commands.Exists(c=>c.Contains("CIVIC GRID"))&&
+            GUI.commands.Exists(c=>c.Contains("Chapter Eleven")),
+            "Original production HUD exposes live chapter timing and correct active objective");
+        g.save.reducedMotion=true;
+        Clear();Call(app,"DrawObject",first);
+        Check(GUI.commands.Exists(c=>c.Contains("WAIT FOR GREEN")),
+            "Reduced-motion mode still clearly shows a static readable phase cue");
+        app.BeginVisualReview(4,1);
+        g=app.Game;g.save.flags.Add("civic_conduit_complete");
+        var done=Array.Find(g.Map.objects,o=>o.kind=="civicconduitvalve");
+        Clear();Call(app,"DrawObject",done);
+        Check(GUI.textureCalls.Count>0,
+            "A completed physical valve remains visible and does not disappear");
+        Console.WriteLine("PASS chapter-eleven live valve phase colors, readable clock cues and original HUD (offline)");
+    }
     static void RestoresState(FrontierRuntime app)
     {
         Screen.width=1920; Screen.height=1080; Prepare(app);
@@ -519,7 +572,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
