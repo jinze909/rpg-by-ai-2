@@ -311,10 +311,12 @@ namespace Starfall
                 Point destination=outbound?AfterlightPoint(region,"outlet"):
                     ObjectPoint(0,"afterlightwaypoint"+region,new Point(-100,-100));
                 if(save.room!=(outbound?0:region) ||
-                    (Position-from).Length>2.2f || !CanStand(destination))
+                    (Position-from).Length>2.2f)
                     return true;
+                // Collision MUST be checked on the destination map after Enter:
+                // CanStand uses the current Map, not the target region's map.
                 Enter(outbound?region:0);
-                if(save.room==(outbound?region:0))
+                if(save.room==(outbound?region:0) && CanStand(destination))
                 {
                     save.x=destination.x;save.y=destination.y;revision++;sound="travel";
                     Notify("公共星灯线路已接通。居民和冒险者都能使用这条新道路。",
