@@ -439,6 +439,51 @@ namespace Starfall.Tests
             Check(g.save.health-55<withClinic,
                 "A clinic cannot heal the hero remotely from another route");
         }
+        public static void CivicInquestChronicleRevealsOnlyEarnedLocalDecisions(Campaign data)
+        {
+            var g=Fresh(data);
+            var unlock=typeof(GameCore).GetMethod("StoryUnlocked",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var chapter=typeof(GameCore).GetMethod("WorldChronicleSection",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(unlock!=null&&chapter!=null,
+                "Chronicle uses existing private spoiler gates and physical chapter menus");
+            Check(!(bool)unlock.Invoke(g,new object[]{"supply_inquest"}),
+                "An unopened civilian inquest cannot leak chapter-nine spoilers");
+            g.save.flags.Add("civic_supply_started");
+            g.save.flags.Add("civic_supply_clinic_0");
+            g.save.flags.Add("civic_supply_watch_3");
+            Check((bool)unlock.Invoke(g,new object[]{"supply_inquest"}),
+                "Opening the guest registry unlocks its written continuation");
+            chapter.Invoke(g,new object[]{"after"});
+            Check(g.mode=="dialog"&&
+                Array.Exists(g.conversation.choices,c=>c.action=="story_read_supply_inquest"),
+                "The real chronicle's Aftermath chapter offers the earned inquest page");
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_supply_inquest");
+            int beforeFlags=g.save.flags.Count, coins=g.save.coins;
+            g.Choose(option);
+            Check(g.mode=="dialog"&&
+                g.conversation.text.Contains("引水渠")&&
+                g.conversation.text.Contains("赤铁矿场")&&
+                g.conversation.text.Contains("雾港")&&
+                g.conversation.text.Contains("尚未签署")&&
+                g.conversation.text.Contains("医疗点")&&
+                g.conversation.text.Contains("守路岗"),
+                "Chapter-nine bilingual narrative records actual distinct outcomes and unfinished votes");
+            Check(g.save.flags.Count==beforeFlags&&g.save.coins==coins,
+                "Reading story consequences cannot silently change flags or grant resources");
+            g.Close();
+            g.save.flags.Add("civic_supply_clinic_5");
+            g.save.flags.Add("civic_supply_complete");
+            chapter.Invoke(g,new object[]{"after"});
+            option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_supply_inquest");
+            g.Choose(option);
+            Check(g.conversation.text.Contains("公开审计已签发")&&
+                !g.conversation.text.Contains("尚未签署"),
+                "Published chapter-nine chronicle shows completed choices without pending claims");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
