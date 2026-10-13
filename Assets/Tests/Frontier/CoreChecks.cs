@@ -315,9 +315,14 @@ namespace Starfall.Tests
                 "Alternative ending grants a distinct choice without quietly changing movement");
             float startEnergy = 15f;
             reserve.save.energy = startEnergy;
-            reserve.Tick(.5f, new Point());
-            Check(reserve.save.energy >= startEnergy + 8.5f,
-                "Emergency-road charter adds its real +3 per second stamina regeneration");
+            // The production simulation deliberately clamps each frame to
+            // 50 ms. Ten ordinary frames, not one artificial 500 ms tick,
+            // must accumulate half a second of real regeneration.
+            for (int frame = 0; frame < 10; frame++)
+                reserve.Tick(.05f, new Point());
+            Check(reserve.save.energy >= startEnergy + 8.4f &&
+                reserve.save.energy < startEnergy + 8.7f,
+                "Emergency-road charter adds +3 per second to real frame-by-frame stamina recovery");
         }
 
     }

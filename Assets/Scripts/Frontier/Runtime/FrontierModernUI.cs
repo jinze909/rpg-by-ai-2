@@ -4,7 +4,7 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, recordsPage;
+        private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, recordsPage, questPage;
         private Conversation lastConversation;
         private readonly string[] menuModes = { "inventory", "loadout", "talents", "companions", "journal", "map", "camp", "bounties", "help" };
         private readonly string[] menuZh = { "冒险背包", "遗物配装", "职业成长", "同行伙伴", "任务手帐", "世界地图", "城镇建设", "公会悬赏", "冒险指南" };
@@ -220,18 +220,32 @@ namespace Starfall
                 return;
             }
             if (journalTab == 2) { for (int i = 0; i < 3; i++) { float y = 229 + i * 100; Card(279, y, 938, 83); Text(303, y + 14, 855, 31, Game.L(GameCore.FactionNames[i], GameCore.FactionNamesEn[i]) + "  " + Game.save.reputation[i] + "/10", 20, gold); Bar(303, y + 59, 888, Game.save.reputation[i] / 10f, mint); } Text(282, 553, 925, 91, Game.L("共同治理条件：三份证词、建设总等级3、两名同伴、三方声望各2。协定影响补给、旅行和同伴指令。", "Shared governance: three reports, three project tiers, two companions, trust 2 with each faction. Covenants affect supplies, travel and commands."), 18, paper); Text(282, 663, 925, 31, Game.L("证词 ", "Reports ") + Game.Proofs + "/3  ·  " + Game.L("建设 ", "Projects ") + Game.ProjectTiers + "/3  ·  " + Game.L("同伴 ", "Companions ") + Game.CompanionCount + "/2", 16, muted); return; }
-            // Fit every quest inside the panel rather than clipping later entries.
+            // A fixed minimum readable row height replaces the shrinking
+            // 35-quest list, whose tiny buttons overlapped each other.
+            const int questsPerPage = 14;
             selectedQuest = (int)GameCore.Clamp(selectedQuest, 0, GameCore.QuestIds.Length - 1);
-            float questPitch = Math.Min(42f, 448f / Math.Max(1, GameCore.QuestIds.Length));
-            for (int i = 0; i < GameCore.QuestIds.Length; i++)
+            int questPages = Math.Max(1, (GameCore.QuestIds.Length + questsPerPage - 1) / questsPerPage);
+            questPage = (int)GameCore.Clamp(questPage, 0, questPages - 1);
+            int firstQuest = questPage * questsPerPage;
+            for (int i = firstQuest; i < Math.Min(GameCore.QuestIds.Length, firstQuest + questsPerPage); i++)
             {
+                float y = 226 + (i - firstQuest) * 29;
                 QuestGuide quest = Game.GetQuest(GameCore.QuestIds[i]);
-                if (Button(279, 226 + i * questPitch, 321, questPitch - 4,
+                if (Button(279, y, 321, 26,
                     (quest.complete ? "✓ " : Game.save.trackedQuest == quest.id ? "◆ " : "") + quest.title, selectedQuest == i))
                     selectedQuest = i;
             }
+            if (Button(279, 644, 84, 32, Game.L("上页", "Prev"), false, questPage > 0))
+            { questPage--; selectedQuest = questPage * questsPerPage; }
+            Text(379, 648, 119, 25, (questPage + 1) + " / " + questPages, 14, muted, TextAnchor.MiddleCenter);
+            if (Button(515, 644, 85, 32, Game.L("下页", "Next"), false, questPage < questPages - 1))
+            { questPage++; selectedQuest = questPage * questsPerPage; }
             QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 464); Text(650, 244, 541, 27, q.category + (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
-            for (int i = 0; i < q.steps.Count; i++) Text(650, 482 + i * 34, 542, 34, (q.steps[i].done ? "✓  " : "○  ") + q.steps[i].text, 15, q.steps[i].done ? mint : paper);
+            float stepPitch = Math.Min(34f, 133f / Math.Max(1, q.steps.Count));
+            for (int i = 0; i < q.steps.Count; i++)
+                Text(650, 482 + i * stepPitch, 542, Math.Min(33f, stepPitch),
+                    (q.steps[i].done ? "✓  " : "○  ") + q.steps[i].text,
+                    15, q.steps[i].done ? mint : paper);
             Text(650, 622, 540, 22, q.reward, 12, gold); if (Button(650, 647, 258, 31, Game.L("追踪任务", "Track quest"), Game.save.trackedQuest == q.id, !q.locked && !q.complete)) Game.TrackQuest(q.id); if (Button(927, 647, 263, 31, Game.L("查看目标地图", "Show destination"), false, !q.locked)) { selectedRegion = q.room; OpenMenu("map"); }
         }
         private void DrawMap()
