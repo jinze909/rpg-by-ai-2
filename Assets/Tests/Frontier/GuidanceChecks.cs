@@ -820,6 +820,141 @@ namespace Starfall.Tests
             Check(!g.CivicResponseDone(0),
                 "Taking real damage during a watch never counts as defeating its attackers");
         }
+        public static void ChapterTenFivePhysicalSitesAndTrueTwoWaveSecurity(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("civic_response_ledger");
+            var board=Object(g,"lastdirectiveboard");
+            Check(g.CanStand(new Point(board.x,board.y)),
+                "The new Emberfall public council is a true walkable map location");
+            g.save.x=board.x;g.save.y=board.y;
+            Action(g,"lastdirectiveboard","last_directive_begin");
+            Check(g.LastDirectiveStarted&&g.save.trackedQuest=="last_directive"&&
+                g.GetQuest("last_directive").room==4,
+                "The new authored Chapter Ten genuinely starts and points to the citadel");
+            g.Enter(4);g.enemies.Clear();
+            for(int i=0;i<3;i++)
+            {
+                var clue=Object(g,"lastdirectiveclue"+i);
+                Check(g.CanStand(new Point(clue.x,clue.y)),
+                    "Every physical testimony occupies traversable Citadel terrain");
+                g.save.x=clue.x;g.save.y=clue.y;g.Talk(clue);
+                Check(g.Has("last_directive_clue_"+i),
+                    "Only genuine physical testimony encounters reveal its own historic order");
+                g.Close();
+            }
+            Check(g.LastDirectiveReady&&g.LastDirectiveClues==3,
+                "Three authentic field accounts are required for the console cipher");
+            var console=Object(g,"lastdirectivecore");
+            Check(g.CanStand(new Point(console.x,console.y)),
+                "The new encounter terminal is on genuine traversable land");
+            g.save.x=console.x;g.save.y=console.y;
+            Action(g,"lastdirectivecore","last_directive_code_2");
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveEnemies==0,
+                "Wrong historical clue ordering never fakes the guardian battle");
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2&&
+                g.enemies.Exists(e=>e.id==90300&&e.kind==0)&&
+                g.enemies.Exists(e=>e.id==90301&&e.kind==1),
+                "Correct in-world cipher activates melee and ranged live security");
+            foreach(var foe in g.enemies)
+                if(foe.id>=90300&&foe.id<=90304)
+                    Check(g.CanStand(foe.Position),"Real guard AI starts on physically walkable ground");
+            g.PrepareSave();
+            Check(!Array.Exists(g.save.worldEnemies,r=>r.id>=90300&&r.id<=90304),
+                "Legacy world enemy snapshot excludes the new temporary guards");
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(!loaded.enemies.Exists(e=>e.id>=90300&&e.id<=90304)&&
+                loaded.LastDirectiveWave==0,
+                "Old SaveData v2 reload preserves testimony but not fake active guardians");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            int coins=g.save.coins,xp=g.save.xp,kills=g.save.kills[4];
+            foreach(int id in new[]{90300,90301})
+            {
+                g.hitStop=0;hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});
+            }
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==2&&g.LastDirectiveEnemies==0&&
+                g.save.coins==coins&&g.save.xp==xp&&g.save.kills[4]==kills,
+                "Only actual defeat of both first-wave AI advances; no ordinary kill farming");
+            g.save.energy=10;
+            Action(g,"lastdirectivecore","last_directive_second");
+            Check(g.LastDirectiveWave==2,"Missing energy blocks the authentic second security lock");
+            g.save.energy=100;
+            Action(g,"lastdirectivecore","last_directive_second");
+            Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&
+                g.save.energy==75&&g.enemies.Exists(e=>e.id==90304&&e.kind==2),
+                "Second security phase consumes 25 real energy and spawns armored AI");
+            foreach(int id in new[]{90302,90303,90304})
+            {
+                g.hitStop=0;
+                hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});
+            }
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==4&&g.LastDirectiveEnemies==0,
+                "Defeating all three actual second-wave guards opens the civic verdict");
+            Action(g,"lastdirectivecore","last_directive_open");
+            Check(g.LastDirectiveChoice==1&&g.LastDirectiveWave==0,
+                "The final live terminal permanently records a distinct public-oversight choice");
+            g.Enter(0);g.enemies.Clear();
+            board=Object(g,"lastdirectiveboard");g.save.x=board.x;g.save.y=board.y;
+            int before=g.save.coins,shards=g.save.shards,talent=g.save.skillPoints;
+            Action(g,"lastdirectiveboard","last_directive_publish");
+            Check(g.LastDirectiveComplete&&g.save.coins==before+95&&
+                g.save.shards==shards+5&&g.save.skillPoints==talent+1,
+                "Returning to the REAL town council publishes a single earned Chapter Ten reward");
+            g.Talk(board);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="last_directive_publish"),
+                "Published final order cannot be claimed repeatedly");
+            g.Close();g.PrepareSave();
+            loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.LastDirectiveComplete&&loaded.LastDirectiveChoice==1&&
+                loaded.LastDirectiveClues==3&&loaded.save.trackedQuest=="last_directive",
+                "Original SaveData v2 reload retains authentic completed story and choice");
+        }
+        public static void ChapterTenCannotForgeCivilianRightsOrLoseOriginalWildlife(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("civic_response_ledger");
+            var choose=typeof(GameCore).GetMethod("ChooseLastDirective",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"last_directive_publish"});
+            Check(!g.LastDirectiveComplete,
+                "A remote forged publication cannot grant Chapter Ten rewards");
+            g.Enter(4);g.enemies.Clear();
+            var terminal=Object(g,"lastdirectivecore");
+            g.save.x=terminal.x;g.save.y=terminal.y;
+            choose.Invoke(g,new object[]{"last_directive_open"});
+            choose.Invoke(g,new object[]{"last_directive_shelter"});
+            choose.Invoke(g,new object[]{"last_directive_code_0"});
+            Check(g.LastDirectiveChoice==0&&g.LastDirectiveEnemies==0,
+                "Both ending options and combat are locked before the genuine field testimony");
+            g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.save.x=terminal.x;g.save.y=terminal.y;
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            var arrow=new Projectile{friendly=true,position=g.Position,velocity=new Point(1,0),life=3};
+            g.projectiles.Add(arrow);
+            // Despawned security is not counted as a legitimate combat victory.
+            g.enemies.RemoveAll(e=>e.id==90300);
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveChoice==0&&
+                !g.enemies.Exists(e=>e.id==90301)&&g.projectiles.Contains(arrow),
+                "Missing guard resets only the optional encounter and preserves normal projectiles");
+            for(int room=1;room<=7;room++)
+            {
+                var other=Fresh(data);other.save.room=room;
+                other.save.flags.Add("boss_"+room);
+                other.save.flags.Add("ridge_seen_"+room+"_0");
+                other.save.flags.Add("ridge_seen_"+room+"_1");
+                var spawn=typeof(GameCore).GetMethod("SpawnRoom",
+                    System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+                spawn.Invoke(other,null);
+                int count=0;foreach(var foe in other.enemies)
+                    if(foe.x>=74&&foe.y>=60)count++;
+                Check(count==3,
+                    "The five new story interactables do not suppress original regional wildlife spawns");
+            }
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
