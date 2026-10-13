@@ -1121,6 +1121,135 @@ namespace Starfall.Tests
             Check(!g.LastDirectiveComplete&&g.LastDirectiveWave==1,
                 "Taking real damage does not skip the recorded authentic guardian kills");
         }
+        public static void ChapterElevenEntireValveCircuitUsesRealTravelAndGreenWindows(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.level=30;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();
+            var master=Object(g,"civicconduitmaster");
+            g.save.x=master.x;g.save.y=master.y;
+            int parts=g.save.inventory[4],coins=g.save.coins,shards=g.save.shards;
+            g.save.trackedQuest="main";
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            Check(g.CivicConduitActive&&g.CivicConduitStage==0&&
+                g.CivicConduitIntegrity==100&&g.save.inventory[4]==parts-1&&
+                g.save.trackedQuest=="civic_conduit",
+                "A real citizen fuse must be paid once at the correct physical console");
+            Check(g.Conditions().Contains("公共电网")&&
+                g.GetQuest("civic_conduit").room==4&&
+                g.NavigationTarget().HasValue,
+                "The official quest, live objective and waypoint are integrated in the original HUD");
+            WorldObject[] valves=new WorldObject[3];
+            foreach(WorldObject o in g.Map.objects)if(o.kind=="civicconduitvalve")
+            {
+                if(o.x<107)valves[0]=o;else if(o.x<112)valves[1]=o;
+                else valves[2]=o;
+            }
+            for(int n=0;n<3;n++)
+            {
+                Check(valves[n]!=null&&g.CanStand(new Point(valves[n].x,valves[n].y)),
+                    "All three phase-locked stations are real passable authored world landmarks");
+                for(int frame=0;frame<190&&g.CivicConduitActive&&
+                    g.Position.x<valves[n].x-.15f;frame++)
+                    g.Tick(.05f,new Point(1,0));
+                Check(g.CivicConduitActive&&
+                    (g.Position-new Point(valves[n].x,valves[n].y)).Length<2.2f,
+                    "Real player body walks the unchanged public Citadel road to the next valve");
+                for(int t=0;t<135&&g.CivicConduitActive&&!g.CivicConduitWindowOpen;t++)
+                    g.Tick(.05f,new Point());
+                Check(g.CivicConduitActive&&g.CivicConduitWindowOpen&&
+                    g.CivicConduitTimeLeft>0,
+                    "Player waits for the physically rendered per-valve green stability window");
+                g.Talk(valves[n]);
+                Check(g.mode=="dialog","The actual world valve responds to touch");
+                int act=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="civic_conduit_tune");
+                Check(act>=0,"Actual stable phase offers a player-operated switch");
+                g.Choose(act);
+                Check(n==2?g.CivicConduitComplete:
+                    g.CivicConduitActive&&g.CivicConduitStage==n+1,
+                    "A correct physical timed switch advances one and only one grid segment");
+            }
+            Check(g.CivicConduitComplete&&!g.CivicConduitActive&&
+                g.save.coins==coins+65&&g.save.shards==shards+2,
+                "Exactly three live, timed, walked valves permanently energize the public network");
+            Check(g.GetQuest("civic_conduit").complete,
+                "The chapter is truly complete in the built-in journal");
+            var choose=typeof(GameCore).GetMethod("ChooseCivicConduit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"civic_conduit_tune"});
+            Check(g.save.coins==coins+65,
+                "No remote or repeat script action can farm an already completed energy grid");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.CivicConduitComplete&&!loaded.CivicConduitActive&&
+                loaded.GetQuest("civic_conduit").complete,
+                "Original SaveData v2 persists a built power grid without transient pulses");
+        }
+        public static void ChapterElevenNoTeleportAndOneTimeFuseAreRealInvariants(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_shelter");
+            g.Enter(4);g.enemies.Clear();
+            var desk=Object(g,"civicconduitmaster");
+            g.save.x=desk.x;g.save.y=desk.y;
+            int parts=g.save.inventory[4];
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            Check(g.CivicConduitActive&&g.save.inventory[4]==parts-1,
+                "The first attempt consumes one actual available fuse part");
+            g.save.x=115.5f;
+            g.Tick(.05f,new Point());
+            Check(!g.CivicConduitActive&&!g.CivicConduitComplete,
+                "Impossible instant travel breaks an actual live electrical circuit");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            Check(g.CivicConduitActive&&g.save.inventory[4]==parts-1,
+                "Retries must never sell or consume a second fuse");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(!loaded.CivicConduitActive&&loaded.CivicConduitStarted&&
+                !loaded.CivicConduitComplete,
+                "Legacy v2 reload removes unfinished live current but retains donated fuse");
+            var choose=typeof(GameCore).GetMethod("ChooseCivicConduit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            g.save.x=115.5f;
+            choose.Invoke(g,new object[]{"civic_conduit_tune"});
+            Check(!g.CivicConduitComplete,
+                "Direct final valve interaction cannot forge walking or phase calibration");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,"civicconduitmaster","civic_conduit_abort");
+            Check(!g.CivicConduitActive&&!g.CivicConduitComplete,
+                "Player may consciously abandon circuit from the actual west console");
+        }
+        public static void ChapterElevenBranchBenefitsOnlyAtRealSafeRegionalRefuges(Campaign data)
+        {
+            foreach(int ending in new[]{1,2})
+            {
+                var g=Fresh(data);g.save.stage=4;
+                g.save.flags.Add("civic_conduit_complete");
+                g.save.flags.Add(ending==1?"last_directive_open":"last_directive_shelter");
+                g.save.flags.Add("far_shelter_1");
+                g.Enter(1);g.enemies.Clear();
+                var site=Object(g,"farshelter");
+                g.save.x=site.x;g.save.y=site.y;
+                g.save.energy=18;g.save.health=38;g.hitStop=0;
+                g.Tick(.05f,new Point());
+                float gain=ending==1?g.save.energy-18:g.save.health-38;
+                g.save.flags.Remove("civic_conduit_complete");
+                g.save.energy=18;g.save.health=38;g.hitStop=0;
+                g.Tick(.05f,new Point());
+                float baseline=ending==1?g.save.energy-18:g.save.health-38;
+                Check(gain>baseline+(ending==1?.1f:.03f),
+                    "The chosen policy unlocks an actually stronger physical shelter service");
+                g.save.flags.Add("civic_conduit_complete");
+                g.save.x=site.x+8;g.save.y=site.y;g.save.health=38;g.save.energy=18;
+                g.hitStop=0;g.Tick(.05f,new Point());
+                float remote=ending==1?g.save.energy-18:g.save.health-38;
+                Check(remote<gain,
+                    "The public power network does not grant either service remotely from a map");
+            }
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
