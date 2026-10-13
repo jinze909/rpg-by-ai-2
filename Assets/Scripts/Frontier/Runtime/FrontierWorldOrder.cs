@@ -95,7 +95,7 @@ namespace Starfall
                         case WorldDrawKind.Object:DrawObject(entry.obj);break;
                         case WorldDrawKind.Enemy:DrawEnemyWithBars(entry.enemy);break;
                         case WorldDrawKind.Fallen:DrawFallen(entry.fallen);break;
-                        case WorldDrawKind.Player:DrawHero();DrawFarCourierPack();break;
+                        case WorldDrawKind.Player:DrawHero();DrawFarCourierPack();DrawCivicResponsePack();break;
                         case WorldDrawKind.Companion:DrawCompanionActor();break;
                         case WorldDrawKind.Survivor:DrawRescueSurvivorActor();break;
                     }

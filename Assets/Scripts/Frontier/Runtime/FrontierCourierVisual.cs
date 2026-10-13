@@ -4,6 +4,43 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
+        private void DrawCivicResponsePack()
+        {
+            if(!Game.CivicResponseActive)return;
+            Point screen=ScreenPoint(Game.Position);
+            if(Game.CivicResponseClinicRun)
+            {
+                float condition=Game.CivicResponseIntegrity;
+                Color health=condition<=35?new Color(.99f,.36f,.38f):
+                    condition<=65?gold:new Color(.49f,.94f,.9f);
+                // Genuine kit carried by the existing golden-haired hero.
+                // World depth, equipment and the canonical sprite stay intact.
+                PropImage("crate",0,screen.x+9,screen.y-45,22,22,
+                    condition<=35?new Color(1f,.54f,.54f,.95f):
+                    new Color(.57f,.92f,.87f,.96f));
+                Bar(screen.x-31,screen.y-60,62,condition/100f,health,4);
+                Text(screen.x-91,screen.y-88,182,21,
+                    Game.L("医疗包 "+(int)Math.Ceiling(condition)+"% · "+
+                        (int)Game.CivicResponseTimeLeft+"秒",
+                        "MEDICINE "+(int)Math.Ceiling(condition)+"% · "+
+                        (int)Game.CivicResponseTimeLeft+"s"),
+                    12,Game.CivicResponseTimeLeft<18?
+                        new Color(.99f,.38f,.34f):health,TextAnchor.MiddleCenter);
+            }
+            else if(Game.CivicResponseWatchRun)
+            {
+                int enemies=Game.CivicResponseEnemiesAlive;
+                Text(screen.x-92,screen.y-105,184,20,
+                    enemies>0?
+                        Game.L("守路敌人 "+enemies+" 名",
+                            "WATCH RAIDERS "+enemies):
+                        Game.L("返回避险棚确认守卫",
+                            "REPORT TO REFUGE"),
+                    12,enemies>0?new Color(.99f,.49f,.35f):mint,
+                    TextAnchor.MiddleCenter);
+            }
+        }
+
         private void DrawFarCourierPack()
         {
             if(!Game.FarCourierActive)return;
