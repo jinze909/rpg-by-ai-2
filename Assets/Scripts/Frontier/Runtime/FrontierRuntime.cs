@@ -194,7 +194,15 @@ namespace Starfall
         }
         private void OnApplicationPause(bool paused) { applicationPaused = paused; if (paused) { if (Game != null) Game.ClearBufferedSkill(); Save(); } }
         private void OnApplicationFocus(bool focused)
-        { if (!focused && Game != null && Game.mode == "world") { Game.mode = "pause"; Save(); } }
+        {
+            if (!focused && Game != null)
+            {
+                // A keyboard focus loss is just as much an input boundary as
+                // the pause button. Never replay a buffered Q upon returning.
+                Game.ClearBufferedSkill();
+                if (Game.mode == "world") { Game.mode = "pause"; Save(); }
+            }
+        }
         private void OnApplicationQuit() { Save(); }
         private void OnDestroy() { ReleaseTerrainPreview(); if (art != null) art.Dispose(); if (audioSystem != null) audioSystem.Dispose(); }
 

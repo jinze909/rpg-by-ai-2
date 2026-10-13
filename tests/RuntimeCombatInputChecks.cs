@@ -158,7 +158,7 @@ public static class RuntimeCombatInputChecks
 
     private static void MenuAndApplicationPauseDiscardIntent(FrontierRuntime app)
     {
-        foreach (string boundary in new[] { "pause", "inventory", "application" })
+        foreach (string boundary in new[] { "pause", "inventory", "application", "focus" })
         {
             Prepare(app); ActorAction attack = StartBowAttack(app); Frames(app, 9);
             Input.keys.Add(KeyCode.Q); Update(app);
@@ -166,6 +166,15 @@ public static class RuntimeCombatInputChecks
             if (boundary == "application")
             {
                 Call(app, "OnApplicationPause", true); Frames(app, 20); Call(app, "OnApplicationPause", false);
+            }
+            else if (boundary == "focus")
+            {
+                Call(app, "OnApplicationFocus", false);
+                Check(app.Game.mode == "pause",
+                    "Real window focus loss pauses the active game");
+                Frames(app, 20);
+                Call(app, "OnApplicationFocus", true);
+                app.Game.Close();
             }
             else
             {
@@ -177,7 +186,7 @@ public static class RuntimeCombatInputChecks
             Check(app.Game.skillCooldown <= 0 && app.Game.playerAction == null && Math.Abs(app.Game.save.energy - 100) < .001f,
                 "A queued technique must not launch or charge energy after returning from " + boundary);
         }
-        Console.WriteLine("PASS Runtime pause, inventory and OnApplicationPause discard pending technique intent");
+        Console.WriteLine("PASS Runtime pause, inventory, application pause and window focus loss discard pending Q intent");
     }
 
     private static readonly Point[] ActorDirections = {
