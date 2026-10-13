@@ -27,6 +27,7 @@ namespace Starfall
         {
             public float warmAt;
             public readonly int[] seeds = new int[TerrainChunkTiles * TerrainChunkTiles];
+            public readonly float[] biome = new float[TerrainChunkTiles * TerrainChunkTiles];
             public readonly bool[] detailOccluded = new bool[TerrainChunkTiles * TerrainChunkTiles];
         }
         private readonly Dictionary<int, PreparedTerrainChunk> preparedTerrainChunks =
@@ -317,6 +318,7 @@ namespace Starfall
                             int offset = localY * TerrainChunkTiles + localX;
                             int seed = TileSeed(x, y, Game.save.room);
                             chunk.seeds[offset] = seed;
+                            chunk.biome[offset] = WorldStreaming.BiomeVariation(x,y,Game.save.room);
                             if (seed % 17 != 0) continue;
                             float footX = x + .35f + seed % 5 * .07f;
                             float footY = y + .65f;
@@ -346,6 +348,14 @@ namespace Starfall
             PreparedTerrainChunk chunk = FindTerrainChunk(x, y);
             return chunk == null ? TileSeed(x, y, Game.save.room) :
                 chunk.seeds[y % TerrainChunkTiles * TerrainChunkTiles + x % TerrainChunkTiles];
+        }
+        private float PreparedBiomeVariation(int x,int y)
+        {
+            PreparedTerrainChunk chunk=FindTerrainChunk(x,y);
+            if(chunk!=null)return chunk.biome[y%TerrainChunkTiles*TerrainChunkTiles+
+                x%TerrainChunkTiles];
+            // Fallback for standalone editor IMGUI paint without Update.
+            return WorldStreaming.BiomeVariation(x,y,Game.save.room);
         }
         private bool GroundDetailOccluded(int x, int y)
         {
@@ -392,6 +402,10 @@ namespace Starfall
         }
         private void DrawWorld()
         {
+            // An interaction may enter another room between Update and the
+            // first IMGUI repaint. Prime the actual viewport BEFORE painting,
+            // so a missing chunk never arrives as an opaque block.
+            PrewarmTerrain();
             worldOverlayRegions.Clear();
             Color ground = PixelArt.C(Game.Map.color);
             Box(0, 0, Width, Height, Color.Lerp(ground, ink, .55f));
@@ -413,7 +427,8 @@ namespace Starfall
                 if (tile == '~' && !Game.save.reducedMotion && Game.save.effectsQuality > 0) Box(p.x + 3 + (x * 5 + clock * 4) % 17, p.y + 12 + y % 5, 8, 1, new Color(.65f, .8f, .85f, .13f));
                 float reveal = TerrainTileOpacity(x, y);
                 if (reveal < .999f)
-                    Box(p.x, p.y, Tile + .5f, Tile + .5f, new Color(fadeBase.r, fadeBase.g, fadeBase.b, 1f - reveal));
+                    Box(p.x, p.y, Tile + .5f, Tile + .5f, new Color(fadeBase.r,fadeBase.g,fadeBase.b,
+                        WorldStreaming.TerrainVeilOpacity(reveal)));
             }
             DrawArenaBoundary();
             // Sort scenery and actors by their ground position, for proper overlap.

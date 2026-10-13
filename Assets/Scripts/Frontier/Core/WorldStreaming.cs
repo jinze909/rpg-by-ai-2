@@ -42,6 +42,13 @@ namespace Starfall
             return Blend(Lattice(gx,gy,room),Lattice(gx+1,gy,room),
                 Lattice(gx,gy+1,room),Lattice(gx+1,gy+1,room),tx,ty);
         }
+        public static float TerrainVeilOpacity(float readiness)
+        {
+            // Never hide already-renderable geometry behind a flat dark tile.
+            // Only a light atmospheric veil fades; geometry stays legible,
+            // even on instantaneous camera jumps or large scene transitions.
+            return .3f*(1f-Smooth01(readiness));
+        }
         public static float EdgeOpacity(float x,float y,float width,float height)
         {
             // An entering prop begins feathering in *outside* the frame.

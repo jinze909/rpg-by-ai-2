@@ -655,6 +655,26 @@ namespace Starfall.Tests
             }
         }
 
+        public static void TerrainVeilNeverCreatesOpaqueLoadingSquares(Campaign data)
+        {
+            Check(WorldStreaming.TerrainVeilOpacity(0)==.3f,
+                "Newly entered world chunks show their actual terrain behind a light atmospheric veil");
+            Check(WorldStreaming.TerrainVeilOpacity(1)==0,
+                "Fully prewarmed terrain draws without an extra mask");
+            float previous=1;
+            for(int i=0;i<=100;i++)
+            {
+                float alpha=WorldStreaming.TerrainVeilOpacity(i/100f);
+                Check(alpha>=0&&alpha<=.3f&&alpha<=previous,
+                    "Chunk transitions never render opaque blank tiles or increase masking over time");
+                previous=alpha;
+            }
+            for(int region=0;region<8;region++)
+                Check(WorldStreaming.BiomeVariation(98,65,region)>=0&&
+                    WorldStreaming.BiomeVariation(98,65,region)<=1,
+                    "Static biome cache receives legal deterministic material values");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

@@ -58,7 +58,7 @@ namespace Starfall
             }
             // Adjacent authored tiles share a continuous gradient, rather
             // than the hard 5x5 material squares of the old static overlay.
-            float biome=WorldStreaming.BiomeVariation(x,y,region);
+            float biome=PreparedBiomeVariation(x,y);
             if(biome<.38f)return;
             float opacity=.04f+.16f*WorldStreaming.Smooth01(
                 (biome-.38f)/.62f);
