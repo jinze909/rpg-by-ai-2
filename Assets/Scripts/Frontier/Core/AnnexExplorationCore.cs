@@ -65,8 +65,10 @@ namespace Starfall
                 {
                     AddXp(12);
                     int cx=(int)o.x/6,cy=(int)o.y/6;
+                    int columns=(Map.rows[0].Length+5)/6;
+                    int rows=(Map.rows.Length+5)/6;
                     for(int x=cx-1;x<=cx+1;x++)for(int y=cy-1;y<=cy+1;y++)
-                        if(x>=0&&x<12&&y>=0&&y<8&&(x*6>=36||y*6>=24))
+                        if(x>=0&&x<columns&&y>=0&&y<rows&&(x*6>=36||y*6>=24))
                             Flag("annex_seen_"+save.room+"_"+x+"_"+y);
                 }
                 else

@@ -535,6 +535,16 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="farhidden"||kind=="farlookout")
+            {
+                bool shown=kind=="farhidden"?Game.Has("far_secret_"+Game.save.room):
+                    Game.Has("far_vista_"+Game.save.room);
+                PropImage(kind=="farhidden"?"barrel":"obelisk",0,
+                    p.x-35,p.y-75,70,82,
+                    shown?new Color(.7f,.85f,.8f,.8f):Color.white);
+                if(!shown)Diamond(p.x,p.y-72,5,gold);
+                return;
+            }
             if(kind=="faratlasdesk"||kind=="farrefugerecord")
             {
                 bool done=kind=="faratlasdesk"?Game.Has("far_refuge_atlas"):

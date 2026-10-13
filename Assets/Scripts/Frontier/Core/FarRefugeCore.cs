@@ -37,8 +37,50 @@ namespace Starfall
         {return room>=0&&room<8&&Has("far_shelter_"+room);}
         public int FarShelterCount
         {get {int count=0;for(int i=0;i<8;i++)if(FarShelterBuilt(i))count++;return count;}}
+        private bool TalkFarSecrets(WorldObject o)
+        {
+            if(o.kind!="farhidden"&&o.kind!="farlookout")return false;
+            int room=save.room;
+            if(room<0||room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            bool vista=o.kind=="farlookout";
+            string flag=(vista?"far_vista_":"far_secret_")+room;
+            bool first=!Has(flag);
+            if(first)
+            {
+                Flag(flag);sound="reward";
+                if(vista)
+                {
+                    AddXp(16);
+                    int cx=(int)o.x/6,cy=(int)o.y/6;
+                    int maxX=(Map.rows[0].Length+5)/6,maxY=(Map.rows.Length+5)/6;
+                    for(int x=Math.Max(0,cx-2);x<=Math.Min(maxX-1,cx+2);x++)
+                        for(int y=Math.Max(0,cy-2);y<=Math.Min(maxY-1,cy+2);y++)
+                            if(x*6>=36||y*6>=24)
+                                Flag("annex_seen_"+room+"_"+x+"_"+y);
+                }
+                else
+                {
+                    save.coins+=9;
+                    save.inventory[room%3]+=2;
+                }
+                revision++;
+            }
+            Dialog(o.name,o.en,vista?
+                    "高处的旧观测站能看见其他人曾走过的路。它记录附近五乘五块地形，而不代替你真正进入还没探索的远处区域。"+
+                    (first?"\\n\\n经验 +16，周边地貌已记载。":"\\n\\n此处地图已经测绘。"):
+                    "遗失的救援物资没有被登记进公会名单。守路者后来把它们藏在了第六圈的死角，留给真正需要的行人。"+
+                    (first?"\\n\\n硬币 +9、材料 +2。":"\\n\\n补给已被取回。"),
+                vista?
+                    "From this high lookout the old wardens could see forgotten local routes. The nearby 5x5 sectors are charted, but the distant wilderness remains yours to walk."+
+                    (first?"\\n\\n+16 XP; surrounding terrain surveyed.":"\\n\\nAlready charted."):
+                    "These lost supplies never entered the guild's official count. Wardens hid them in the far frontier for travelers in need."+
+                    (first?"\\n\\n+9 coins and 2 materials.":"\\n\\nSupplies already recovered."),
+                C("继续探索","Continue exploring","close"));
+            return true;
+        }
         private bool TalkFarStation(WorldObject o)
         {
+            if(TalkFarSecrets(o))return true;
             if(o.kind=="faratlasdesk" || o.kind=="farrefugerecord")
             {
                 if(save.room!=9||(Position-new Point(o.x,o.y)).Length>2.2f)return true;

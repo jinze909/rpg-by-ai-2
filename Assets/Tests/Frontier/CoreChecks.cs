@@ -818,6 +818,36 @@ namespace Starfall.Tests
                 "Bad camera input cannot corrupt streamed terrain bounds");
         }
 
+        public static void SixthRingHiddenSuppliesAndLookoutsActuallyRevealMapSectors(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                var hidden=Array.Find(data.maps[room].objects,o=>o.kind=="farhidden");
+                var vista=Array.Find(data.maps[room].objects,o=>o.kind=="farlookout");
+                Check(hidden!=null&&vista!=null&&
+                    g.CanStand(new Point(hidden.x,hidden.y))&&
+                    g.CanStand(new Point(vista.x,vista.y)),
+                    "Every sixth-ring secret must be physically accessible");
+                Check(!g.Explored(room,83,75)&&!g.Explored(room,115,58),
+                    "Remote viewpoints and hidden cache begin unexplored");
+                g.save.x=vista.x;g.save.y=vista.y;g.Talk(vista);g.Close();
+                Check(g.Explored(room,83,75)&&g.Explored(room,80,70)&&
+                    !g.Explored(room,115,58),
+                    "Real lookout reveals a bounded surrounding region without discovering distant secrets");
+                int coins=g.save.coins,resources=g.save.inventory[room%3];
+                g.save.x=hidden.x;g.save.y=hidden.y;g.Talk(hidden);g.Close();
+                Check(g.save.coins==coins+9&&g.save.inventory[room%3]==resources+2,
+                    "Remote concealed supplies pay actual one-time materials");
+                g.Talk(hidden);g.Close();
+                Check(g.save.coins==coins+9,"Hidden cache cannot duplicate rewards");
+                GameCore loaded=new GameCore(data,g.save);
+                Check(loaded.save.version==2&&loaded.Has("far_secret_"+room)&&
+                    loaded.Has("far_vista_"+room)&&loaded.Explored(room,83,75),
+                    "Hidden sixth-ring exploration survives legacy v2 save reload");
+            }
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

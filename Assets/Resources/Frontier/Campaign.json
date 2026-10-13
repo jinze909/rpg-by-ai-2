@@ -542,6 +542,22 @@
           "en": "Shared Canal Refuge",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_0",
+          "kind": "farhidden",
+          "name": "失落的紧急药箱",
+          "en": "Lost Canal Relief Crate",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_0",
+          "kind": "farlookout",
+          "name": "雨线观景点",
+          "en": "Canal Rain Overlook",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
@@ -1801,6 +1817,22 @@
           "en": "Branchshade Refuge",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_1",
+          "kind": "farhidden",
+          "name": "密林遮蔽储物箱",
+          "en": "Sheltered Forest Supplies",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_1",
+          "kind": "farlookout",
+          "name": "密林枝顶眺台",
+          "en": "Canopy Lookout",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
@@ -3088,6 +3120,22 @@
           "en": "Riverbank Relief Shelter",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_2",
+          "kind": "farhidden",
+          "name": "淹没的渡口箱",
+          "en": "Lost Ferry Supplies",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_2",
+          "kind": "farlookout",
+          "name": "断桥上游望台",
+          "en": "Bridgehead Overlook",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
@@ -4409,6 +4457,22 @@
           "en": "Workers' Rest Shelter",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_3",
+          "kind": "farhidden",
+          "name": "矿工应急箱",
+          "en": "Miners' Rescue Crate",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_3",
+          "kind": "farlookout",
+          "name": "矿脊观测点",
+          "en": "Ore Ridge Outlook",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
@@ -5661,6 +5725,22 @@
           "en": "Public Evacuation Shelter",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_4",
+          "kind": "farhidden",
+          "name": "平民救济箱",
+          "en": "Civilian Aid Cache",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_4",
+          "kind": "farlookout",
+          "name": "堡垒居民眺台",
+          "en": "Civilian Watch Outlook",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
@@ -6958,6 +7038,22 @@
           "en": "Mistbank Rescue Hut",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_5",
+          "kind": "farhidden",
+          "name": "潮汐漂流箱",
+          "en": "Tide-Worn Relief Crate",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_5",
+          "kind": "farlookout",
+          "name": "潮声观景点",
+          "en": "Tidal Cliff Lookout",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
@@ -8141,6 +8237,22 @@
           "en": "Open Water Station",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_6",
+          "kind": "farhidden",
+          "name": "沙海未领水票",
+          "en": "Unclaimed Oasis Supplies",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_6",
+          "kind": "farlookout",
+          "name": "镜砂高地眺台",
+          "en": "Mirage Ridge Vista",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
@@ -9312,6 +9424,22 @@
           "en": "Snowridge Warming Hut",
           "x": 112.5,
           "y": 73.5
+        },
+        {
+          "id": "far_secret_7",
+          "kind": "farhidden",
+          "name": "雪岭取暖补给",
+          "en": "Snowridge Warm Supplies",
+          "x": 116.5,
+          "y": 59.5
+        },
+        {
+          "id": "far_vista_7",
+          "kind": "farlookout",
+          "name": "雪线风铃台",
+          "en": "Snowline Chime Vista",
+          "x": 83.5,
+          "y": 75.5
         }
       ],
       "decor": [
