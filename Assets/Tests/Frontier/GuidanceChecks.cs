@@ -640,6 +640,79 @@ namespace Starfall.Tests
             Check(upgrade>normal+.08f,
                 "A fully defended lookout provides genuinely stronger safe local energy restoration");
         }
+        public static void ClinicMedicineOnlyBreaksOnUnblockedRealDamageAndRestartsClean(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("civic_supply_clinic_0");g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_dial_0");g.Enter(0);g.enemies.Clear();
+            var refuge=Object(g,"farshelter");g.save.x=refuge.x;g.save.y=refuge.y;
+            Action(g,"farshelter","civic_response_start");
+            Check(g.CivicResponseClinicRun&&g.CivicResponseIntegrity==100,
+                "Medical assignment equips a real pristine emergency kit");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            g.invulnerable=0;g.save.health=g.save.maxHealth;
+            hurt.Invoke(g,new object[]{20f,"shot",null});
+            float damaged=g.CivicResponseIntegrity;
+            Check(damaged<100&&damaged>65,
+                "A genuine enemy shot damages medical supplies after existing armor");
+            hurt.Invoke(g,new object[]{20f,"shot",null});
+            Check(g.CivicResponseIntegrity==damaged,
+                "Invulnerable follow-up hits cannot tear the clinic parcel twice");
+            g.invulnerable=0;
+            hurt.Invoke(g,new object[]{15f,"environment",null});
+            Check(g.CivicResponseIntegrity==damaged,
+                "Ambient temperature never arbitrarily destroys civilian medicine");
+            int coins=g.save.coins;
+            for(int n=0;n<12&&g.CivicResponseActive;n++)
+            {
+                g.save.health=g.save.maxHealth;g.invulnerable=0;g.hitStop=0;
+                hurt.Invoke(g,new object[]{45f,"shot",null});
+            }
+            Check(!g.CivicResponseActive&&g.CivicResponseIntegrity==0&&
+                !g.CivicResponseDone(0)&&g.save.coins==coins,
+                "Enough real combat damage destroys supplies without paying an incomplete service");
+            g.save.health=g.save.maxHealth;g.invulnerable=0;
+            Action(g,"farshelter","civic_response_start");
+            Check(g.CivicResponseClinicRun&&g.CivicResponseIntegrity==100,
+                "A destroyed medical package can be genuinely reissued from the same refuge");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(!loaded.CivicResponseActive&&loaded.CivicResponseIntegrity==0,
+                "Existing save schema cannot resurrect unfinished or damaged medical kits");
+        }
+        public static void CivicLookoutAbortAndDespawnNeverForgeSuccess(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("exp_intro");
+            g.save.flags.Add("harbor_report");g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("civic_supply_watch_5");g.save.flags.Add("far_shelter_5");
+            g.Enter(5);g.enemies.Clear();
+            var refuge=Object(g,"farshelter");g.save.x=refuge.x;g.save.y=refuge.y;
+            Action(g,"farshelter","civic_response_start");
+            int id=90210;
+            var archer=g.enemies.Find(e=>e.id==id+1);
+            Check(archer!=null,"Mistport's real watch has a real archer");
+            var fire=typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            fire.Invoke(g,new object[]{archer,new Point(0,1),5f});
+            Check(g.projectiles.Exists(p=>p.civicResponseOwned),
+                "Authentic enemy arrows are correctly owned by the active watch");
+            var unrelated=new Projectile{friendly=true,position=g.Position,
+                velocity=new Point(1,0),life=3};
+            g.projectiles.Add(unrelated);
+            Action(g,"farshelter","civic_response_abort");
+            Check(!g.CivicResponseActive&&!g.CivicResponseDone(5)&&
+                !g.enemies.Exists(e=>e.id==id||e.id==id+1)&&
+                !g.projectiles.Exists(p=>p.civicResponseOwned)&&
+                g.projectiles.Contains(unrelated),
+                "Aborting removes only mission enemies and shots; normal combat shots survive");
+            Action(g,"farshelter","civic_response_start");
+            Check(g.CivicResponseEnemiesAlive==2,"An aborted watch can restart");
+            g.enemies.RemoveAll(e=>e.id==id);
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(!g.CivicResponseActive&&!g.CivicResponseDone(5)&&
+                !g.enemies.Exists(e=>e.id==id+1),
+                "Despawning a live attacker cannot forge a successful defensive kill");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
