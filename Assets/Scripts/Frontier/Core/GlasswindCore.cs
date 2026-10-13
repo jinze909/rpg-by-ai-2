@@ -274,7 +274,18 @@ namespace Starfall
                 GlasswindSite==2 ? new Point(0,3.1f) :
                 new Point(3.1f,0);
             Point second=target+offset;
-            if(CanStand(second) && ClearAttackPath(target,second))
+            // Do not draw the staggered impact across the ONLY reachable
+            // escape, especially in the narrow northern desert corridors.
+            bool openExitAfterOffset=false;
+            foreach(Point step in exits)
+            {
+                Point landing=target+step;
+                if(CanStand(landing) && ClearAttackPath(target,landing) &&
+                    (landing-second).Length>1.07f)
+                {openExitAfterOffset=true;break;}
+            }
+            if(openExitAfterOffset && CanStand(second) &&
+                ClearAttackPath(target,second))
             {
                 hazards.Add(new Hazard { position=second,radius=.85f,
                     timer=GlasswindSite==3?2.05f:1.75f,

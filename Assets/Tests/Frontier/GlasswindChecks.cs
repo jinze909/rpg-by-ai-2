@@ -266,5 +266,46 @@ namespace Starfall.Tests
             }
         }
 
+
+        public static void GlasswindCannotSealTheOnlyReachableDodgeExit(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"harbor_report","desert_report",
+                "gate_6","glasswind_started"})g.save.flags.Add(flag);
+            g.Enter(6);g.enemies.Clear();
+            WorldObject valve=Object(g,"glasswindrelay2");
+            g.save.x=valve.x;g.save.y=valve.y;
+            Action(g,valve.kind,"glasswind_start_2");
+            Check(g.GlasswindSite==2,"Real eastern-valve defense starts");
+            foreach(Enemy foe in g.enemies.FindAll(g.IsGlasswindEnemy))
+            {foe.stun=120;foe.timer=120;}
+            // Desert northwestern wall corridor: a reachable landing exists
+            // below the hero, but the secondary southern pulse would cover it.
+            // Preserve the original map, gate and collision: no fake tiles.
+            g.save.x=3.5f;g.save.y=3.5f;
+            Check(g.CanStand(g.Position),"The narrow testing location is real walkable terrain");
+            Advance(g,2.55f);
+            var warnings=g.hazards.FindAll(h=>h.glasswindOwned);
+            Check(warnings.Count==1 &&
+                (warnings[0].position-g.Position).Length<.1f,
+                "The delayed second blast is omitted if it would close the sole escape");
+            Point[] exits={new Point(2.1f,0),new Point(-2.1f,0),
+                new Point(0,2.1f),new Point(0,-2.1f)};
+            int accessible=0;
+            foreach(Point step in exits)
+                if(g.CanStand(g.Position+step) &&
+                    g.NavigationPath(g.Position+step).Count>0)
+                    accessible++;
+            Check(accessible==1,
+                "The genuine wall topology, not a fabricated safety flag, has a sole exit");
+            // Aborting from the far end is impossible by forged dialogue;
+            // an active relay remains tied to its actual original valve.
+            int before=g.GlasswindSite;
+            g.Talk(valve);
+            Check(g.GlasswindSite==before &&
+                !g.Has("glasswind_2"),
+                "Remote menu inspection cannot silently seal an active relay");
+        }
+
     }
 }
