@@ -840,12 +840,54 @@ namespace Starfall
             if (o == null) { Notify("靠近居民、路牌或发光物，再按 E。", "Approach a resident, sign or glowing object, then press E."); return; }
             TutorialAction(1); Talk(o);
         }
+
+        private bool TryTalkWaytrail(WorldObject o)
+        {
+            if (o.kind != "waytrail") return false;
+            int region = save.room;
+            if (region < 0 || region > 7) return false;
+            bool eastern = o.id.EndsWith("e", StringComparison.Ordinal);
+            string flag = "waytrail_" + o.id;
+            bool first = !Has(flag);
+            if (first)
+            {
+                Flag(flag); save.coins += 8; save.shards += 1; revision++;
+                sound = "reward";
+                bool completed = true;
+                for (int i = 0; i < 8; i++)
+                    if (!Has("waytrail_waytrail" + i + "s") || !Has("waytrail_waytrail" + i + "e"))
+                        completed = false;
+                if (completed && !Has("waytrail_complete"))
+                { Flag("waytrail_complete"); save.skillPoints++; revision++; }
+            }
+            string[] southZh = { "南侧坐标还留着一条朝旅店走的小路。补给不多，但曾足够把迷路的孩子送回镇里。", "树根下藏着巡路人的行程：先找失踪的侦察员，再问为什么林地成了禁区。", "沉桥岸边写着一长串无名者。每次潮水上涨，名单都比货单长。", "工棚旧门上有一道划痕，工人们在这里商量停机，拒绝把伤亡当作损耗。", "堡垒南侧没有城门，只有一条隐蔽的疏散坡道。有人从这里带孩子逃过星雨。", "旧码头的补给栏记着一艘未能返航的船；每一盏亮起的灯都是给它留下的位置。", "遮阴石板背面记录了绿洲水份额。这个数字和仓库的配给账本并不相同。", "雪路旁的余烬已经熄灭，留下的柴枝整齐地指向最近的有人居住的院落。" };
+            string[] southEn = { "A southern bearing leads to the inn. Small provisions once guided lost children home.", "A road-warden's note lies beneath the roots: find the scout, then ask why the forest was sealed.", "A line of unnamed people runs along the drowned bridge. With each tide it grew longer than the cargo manifest.", "Workers marked this shed when they voted to stop the machines, refusing to call casualties mere wastage.", "A hidden southern evacuation slope leads away from the citadel: someone led children through the Starfall here.", "An old dock log names a boat that never returned. Every lit lamp kept a place for its crew.", "The shade marker lists the oasis water share, different from the numbers in the depot ledger.", "The fire has gone out, but neatly arranged twigs point toward the nearest inhabited shelter." };
+            string[] eastZh = { "渠水绕过镇墙，在石缝里留下更早的测绘线。巡路队标明：真正的归途，必须允许平民使用。", "荆棘从一棵巨树分岔向两条路。这里的根系曾替旅人遮风，并不是天生的路障。", "退潮露出沉在泥下的旧桥钉，说明小孩逃难时所走的桥曾被人为移走过。", "运矿轨道一路伸向城墙，废弃的工人餐牌上却只剩一句“先撤人，再开机”。", "防护墙的边缘刻着两种日期：一份记录星雨，另一份记录城外第一次停电。", "船夫在岩面留下潮位：低潮能行船，高水位必须留下灯与足够的救援木板。", "透光的沙脊仍有九年前的分配刻度。旧秤量过晶石，却没有量过绿洲的需要。", "背风处的一块旧钟锤保持温暖。守路人把它交给所有找不到炉火的旅客。" };
+            string[] eastEn = { "Water runs past the town wall. A survey line says the road home must remain open to ordinary families.", "Briar roots divide at an ancient tree. This shelter once protected travelers; it was not born a barricade.", "Old bridge rivets emerge at ebb tide. Someone rerouted the crossing used by escaping children.", "The abandoned mine railway carries a worker's last instruction: evacuate people before restarting machines.", "Two dates are carved outside the shield: the Starfall itself and the first night the outer settlements went dark.", "A ferryman marked two tides here: boats at ebb, warning lamps and rescue planks when the water rises.", "A glass ridge retains the nine-year allocation marks. They counted crystals, not the oasis's need.", "An old bell hammer is still warm on the lee slope, left for travelers unable to reach a brazier." };
+            string closingZh = save.ending > 0
+                ? "\n\n星核的结局已经写下，但路标仍属于每一位需要它的人。"
+                : "\n\n这条路线没有写进堡垒的正式地图。先记下它，未来也许能让更多人安全归来。";
+            string closingEn = save.ending > 0
+                ? "\n\nThe starcores have an ending. This waypoint still belongs to everyone who needs it."
+                : "\n\nThis route is absent from the citadel's official chart. Keep it for those who may yet need a way home.";
+            string rewardZh = first ? "\n\n首次绘图：硬币 +8，碎片 +1。" +
+                (Has("waytrail_complete") ? " 所有旧路已记录：额外技能点 +1。" : "") : "";
+            string rewardEn = first ? "\n\nFirst survey: +8 coins, +1 shard." +
+                (Has("waytrail_complete") ? " All old routes charted: +1 talent point." : "") : "";
+            Dialog(o.name, o.en,
+                (eastern ? eastZh[region] : southZh[region]) + closingZh + rewardZh,
+                (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn,
+                C("记入旧路星图", "Record in the road chart", "close"));
+            return true;
+        }
+
         public void Talk(WorldObject o)
         {
             if (!IsObjectPresent(o)) return;
             if (practicing) { Notify("先完成或结束训练，再与居民交谈。", "Finish or end practice before talking to residents."); return; }
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
+            if (TryTalkWaytrail(o)) return;
             string kind = o.kind;
             if (kind == "innGuest")
             {

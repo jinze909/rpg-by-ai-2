@@ -18,6 +18,11 @@ namespace Starfall
         private int lastRevision = -1, selectedClass;
         private bool hasSave, replacePrompt, moving, applicationPaused;
         private Point camera;
+        // Authored map textures remain shared; lightweight tile-chunk readiness
+        // prewarms nearby terrain before it crosses the viewport edge.
+        private const int TerrainChunkTiles = 6;
+        private readonly Dictionary<int, float> terrainChunkWarmAt = new Dictionary<int, float>();
+        private int terrainStreamingRoom = -1, terrainStreamingFloor = -1;
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
         private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.H,KeyCode.R,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
@@ -53,6 +58,7 @@ namespace Starfall
                 if (font == null) font = Font.CreateDynamicFontFromOSFont(new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Arial" }, 18);
                 audioSystem = new FrontierAudio(gameObject); selectedClass = Game.save.profession;
                 camera = CameraTarget();
+                PrewarmTerrain();
             }
             catch (Exception ex) { bootError = ex.ToString(); Debug.LogError(bootError); }
         }
@@ -101,6 +107,7 @@ namespace Starfall
             Toggle(KeyCode.I, "inventory"); Toggle(KeyCode.Tab, "journal"); Toggle(KeyCode.K, "talents"); Toggle(KeyCode.M, "map");
             Toggle(KeyCode.B, "camp"); Toggle(KeyCode.C, "companions"); Toggle(KeyCode.G, "loadout"); Toggle(KeyCode.N, "bounties"); Toggle(KeyCode.F1, "help");
             FollowCamera(Time.unscaledDeltaTime);
+            PrewarmTerrain();
             audioSystem.Update(Game, moving, Time.unscaledDeltaTime); Game.sound = "";
             saveTimer += Time.unscaledDeltaTime;
             if (Game.Has("intro") && Game.mode != "title" && (saveTimer > 12 || (Game.revision != lastRevision && saveTimer > 2))) Save();
@@ -248,19 +255,68 @@ namespace Starfall
             for (int i = 0; i < segments; i++)
             { double a = i * Math.PI * 2 / segments; Box(s.x + (float)Math.Cos(a) * radius * Tile - 2, s.y + (float)Math.Sin(a) * radius * Tile - 2, 4, 4, color); }
         }
+        private void PrewarmTerrain()
+        {
+            if (Game == null) return;
+            bool firstView = terrainStreamingRoom != Game.save.room ||
+                terrainStreamingFloor != Game.save.abyssFloor;
+            if (firstView)
+            {
+                terrainChunkWarmAt.Clear();
+                terrainStreamingRoom = Game.save.room;
+                terrainStreamingFloor = Game.save.abyssFloor;
+            }
+            Point origin = WorldOrigin;
+            int width = Game.Map.rows[0].Length, height = Game.Map.rows.Length;
+            // Ten tiles of overscan preload the next region long before the
+            // camera reaches its first visible pixel, even at dash speeds.
+            int fromX = Math.Max(0, (int)Math.Floor((-Tile - origin.x) / Tile) - 10);
+            int toX = Math.Min(width - 1, (int)Math.Ceiling((Width + Tile - origin.x) / Tile) + 10);
+            int fromY = Math.Max(0, (int)Math.Floor((-Tile - origin.y) / Tile) - 10);
+            int toY = Math.Min(height - 1, (int)Math.Ceiling((Height + Tile - origin.y) / Tile) + 10);
+            int chunksWide = (width + TerrainChunkTiles - 1) / TerrainChunkTiles;
+            for (int y = fromY / TerrainChunkTiles; y <= toY / TerrainChunkTiles; y++)
+                for (int x = fromX / TerrainChunkTiles; x <= toX / TerrainChunkTiles; x++)
+                {
+                    int key = y * chunksWide + x;
+                    if (!terrainChunkWarmAt.ContainsKey(key))
+                        terrainChunkWarmAt.Add(key, firstView ? clock - 2f : clock);
+                }
+        }
+        private float TerrainTileOpacity(int x, int y)
+        {
+            if (Game.save.reducedMotion || Game.save.effectsQuality == 0) return 1f;
+            int wide = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
+            float at;
+            if (!terrainChunkWarmAt.TryGetValue(y / TerrainChunkTiles * wide + x / TerrainChunkTiles, out at))
+                return 1f; // Safe direct OnGUI capture before the first Update.
+            float delay = TileSeed(x, y, Game.save.room) % 9 * .012f;
+            float phase = Mathf.Clamp01((clock - at - delay) / .42f);
+            return phase * phase * (3 - 2 * phase);
+        }
         private void DrawWorld()
         {
             worldOverlayRegions.Clear();
             Color ground = PixelArt.C(Game.Map.color);
             Box(0, 0, Width, Height, Color.Lerp(ground, ink, .55f));
-            for (int y = 0; y < Game.Map.rows.Length; y++) for (int x = 0; x < Game.Map.rows[y].Length; x++)
+            // Screen-bounded terrain work. The old full-map scan needlessly
+            // visited offscreen cells for every IMGUI pass as maps expanded.
+            Point origin = WorldOrigin;
+            int minX = Math.Max(0, (int)Math.Floor((-Tile - origin.x) / Tile));
+            int maxX = Math.Min(Game.Map.rows[0].Length - 1, (int)Math.Ceiling((Width - origin.x) / Tile));
+            int minY = Math.Max(0, (int)Math.Floor((-Tile - origin.y) / Tile));
+            int maxY = Math.Min(Game.Map.rows.Length - 1, (int)Math.Ceiling((Height - origin.y) / Tile));
+            Color fadeBase = Color.Lerp(ground, ink, .55f);
+            for (int y = minY; y <= maxY; y++) for (int x = minX; x <= maxX; x++)
             {
                 Point p = ScreenPoint(new Point(x, y));
-                if (p.x < -Tile || p.y < -Tile || p.x > Width || p.y > Height) continue;
                 char tile = Game.Map.rows[y][x]; if (tile == '%' && !Game.LowTide) tile = '~';
                 if ((tile == 'v' || tile == 'w' || tile == 'b') && Game.Has("seal_" + Game.save.room)) tile = '=';
                 DrawSurface(x, y, tile, p); DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
                 if (tile == '~' && !Game.save.reducedMotion && Game.save.effectsQuality > 0) Box(p.x + 3 + (x * 5 + clock * 4) % 17, p.y + 12 + y % 5, 8, 1, new Color(.65f, .8f, .85f, .13f));
+                float reveal = TerrainTileOpacity(x, y);
+                if (reveal < .999f)
+                    Box(p.x, p.y, Tile + .5f, Tile + .5f, new Color(fadeBase.r, fadeBase.g, fadeBase.b, 1f - reveal));
             }
             DrawArenaBoundary();
             // Sort scenery and actors by their ground position, for proper overlap.
@@ -298,6 +354,17 @@ namespace Starfall
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
             if (DrawPolishObject(o) || DrawExpansionObject(o)) return;
+            if (kind == "waytrail")
+            {
+                bool recorded = Game.Has("waytrail_" + o.id);
+                PropImage("obelisk", 0, p.x - 31, p.y - 71, 62, 73,
+                    recorded ? new Color(.65f, .87f, .79f, .8f) : Color.white);
+                Ring(new Point(o.x, o.y), .43f, recorded ? mint : gold, 12);
+                Text(p.x - 46, p.y - 83, 92, 21, recorded ? "✓" : "?", 17,
+                    recorded ? mint : gold, TextAnchor.MiddleCenter);
+                return;
+            }
+
             if (kind.StartsWith("portal"))
             {
                 int destination = int.Parse(kind.Substring(6)); bool available = Game.CanEnter(destination);

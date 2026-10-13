@@ -176,5 +176,46 @@ namespace Starfall.Tests
             for (int i = 0; i < g.conversation.choices.Length; i++) if (g.conversation.choices[i].action == "ending2") { g.Choose(i); break; }
             Check(g.save.ending == 2, "Second ending");
         }
+        public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
+        {
+            for (int room = 0; room < 8; room++)
+            {
+                MapData map = data.maps[room];
+                Check(map.rows.Length == 36 && map.rows[0].Length == 54,
+                    "Outdoor expansion dimensions must be 54x36 in room " + room);
+                foreach (string row in map.rows)
+                    Check(row.Length == 54, "Every terrain row remains rectangular");
+                Check(map.rows[13][17] == '=' && map.rows[14][18] == '=',
+                    "Original central campaign road is retained");
+                foreach (WorldObject o in map.objects)
+                    if (o.kind == "waytrail")
+                    {
+                        Check(o.x >= 14 && o.y >= 22,
+                            "New exploration marker stays beyond the old central authored area");
+                        int x = (int)o.x, y = (int)o.y;
+                        Check(map.rows[y][x] != '#' && map.rows[y][x] != '~' &&
+                            map.rows[y][x] != 'f', "Trail marker is not walled into impassable terrain");
+                    }
+                Check(Array.FindAll(map.objects, o => o.kind == "waytrail").Length == 2,
+                    "Each outdoor region gets two distinct readable waypoints");
+            }
+            GameCore game = new GameCore(data);
+            WorldObject landmark = Array.Find(data.maps[0].objects, o => o.id == "waytrail0s");
+            int coins = game.save.coins, shards = game.save.shards;
+            game.Talk(landmark);
+            Check(game.Has("waytrail_waytrail0s") &&
+                game.save.coins == coins + 8 && game.save.shards == shards + 1,
+                "Recording a real waypoint grants a one-time survey reward");
+            game.Close(); game.Talk(landmark);
+            Check(game.save.coins == coins + 8 && game.save.shards == shards + 1,
+                "Rereading a waypoint never duplicates rewards");
+            SaveData stored = game.save;
+            Check(stored.version == 2, "Waypoint flags must not alter SaveData version");
+            GameCore loaded = new GameCore(data, stored);
+            Check(loaded.Has("waytrail_waytrail0s") &&
+                loaded.save.coins == coins + 8 && loaded.save.shards == shards + 1,
+                "Waypoint discovery and rewards survive a normal save reload");
+        }
+
     }
 }
