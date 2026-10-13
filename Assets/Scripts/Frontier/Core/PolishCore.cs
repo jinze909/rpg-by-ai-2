@@ -307,6 +307,7 @@ namespace Starfall
             if (ChooseHearing(action)) return true;
             if (ChooseRoadCharter(action)) return true;
             if (ChooseAnnexExploration(action)) return true;
+            if (ChooseOuterRescue(action)) return true;
             if (ChooseStorm(action)) return true;
             if (action == "farshore_relief_routes")
             {

@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,38 @@ namespace Starfall
 
 
 
+
+            if(id=="outer_rescue")
+            {
+                q.title=L("边境求援灯 · 遗失的信号","Frontier Rescue Lights · Lost Signals");
+                q.category=L("探索支线 · 野外修复","EXPLORATION · FIELD REPAIRS");
+                q.description=L("每片边境的第四圈都有南侧的遇险记录、东部失明的信号灯和救援物资。先调查记录，消耗一枚零件修复信号，再领取未送出的救援箱。",
+                    "The outer fourth ring holds a lost log, a dark eastern relay and a relief cache. Recover the log, repair the relay with one spare part, then retrieve its relief supplies.");
+                q.locked=!Has("intro");q.complete=OuterRescueCount==8;
+                int room=-1,phase=0;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    int stage=OuterCacheRecovered(i)?3:OuterRelayRestored(i)?2:OuterLogFound(i)?1:0;
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+stage+"/3",stage==3));
+                    if(room<0 && stage!=3 && CanEnter(i)){room=i;phase=stage;}
+                }
+                q.room=room<0?0:room;
+                q.target=new Point(18,15);
+                if(room>=0)
+                    foreach(WorldObject point in data.maps[room].objects)
+                        if(point.id=="outer_"+room+"_"+phase)
+                        {q.target=new Point(point.x,point.y);break;}
+                q.next=q.complete?L("八座求援灯与救援箱全部确认","Eight rescue stations restored"):
+                    room<0?L("继续解锁地区后调查余下的旧信号","Unlock the remaining regions to continue"):
+                    phase==0?L("前往南部外环寻找书面证据","Find the southern outer-ring log"):
+                    phase==1?L("抵达东侧信号灯并使用一枚零件","Repair the eastern beacon using one part"):
+                    L("寻找东南救援箱，领取救援物资","Recover the southeastern relief cache");
+                q.reward=L("各地硬币18、材料2、经验22；八地全修复获得额外技能点",
+                    "Each region: 18 coins, 2 materials, 22 XP; all eight: +1 talent point");
+                return q;
+            }
 
             if (id == "trail_circuits")
             {

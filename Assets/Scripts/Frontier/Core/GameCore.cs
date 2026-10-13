@@ -894,6 +894,7 @@ namespace Starfall
             if (TalkExpansion(o)) return;
             if (TryTalkWaytrail(o)) return;
             if (TalkTrailCircuit(o)) return;
+            if (TalkOuterRescue(o)) return;
             if (TalkAnnexExploration(o)) return;
             string kind = o.kind;
             if (kind == "innGuest")

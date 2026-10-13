@@ -389,6 +389,83 @@ namespace Starfall.Tests
             Check(g.Blocked(7,5.3f),"Returning to town restores its original solid house colliders");
         }
 
+        public static void FourthRingRescueSignalsRequireRealSurveyAndParts(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                MapData m=data.maps[room];
+                Check(m.rows.Length==64&&m.rows[0].Length==96,
+                    "Expanded fourth-ring geometry stays 96x64");
+                GameCore g=new GameCore(data);
+                g.save.room=room;
+                g.save.inventory[4]=5;
+                WorldObject[] sites=new WorldObject[3];
+                for(int i=0;i<3;i++)
+                {
+                    int stage=i;
+                    sites[i]=Array.Find(m.objects,o=>o.id=="outer_"+room+"_"+stage);
+                    Check(sites[i]!=null&&g.CanStand(new Point(sites[i].x,sites[i].y)),
+                        "Every fourth-ring rescue object stands on actual accessible terrain");
+                }
+                int width=m.rows[0].Length,height=m.rows.Length;
+                var queue=new System.Collections.Generic.Queue<int>();
+                var seen=new System.Collections.Generic.HashSet<int>();
+                int spawn=(int)m.spawnY*width+(int)m.spawnX;
+                queue.Enqueue(spawn);seen.Add(spawn);
+                int[,] dirs={{1,0},{-1,0},{0,1},{0,-1}};
+                while(queue.Count>0)
+                {
+                    int at=queue.Dequeue(),x=at%width,y=at/width;
+                    for(int direction=0;direction<4;direction++)
+                    {
+                        int xx=x+dirs[direction,0],yy=y+dirs[direction,1];
+                        if(xx<0||yy<0||xx>=width||yy>=height)continue;
+                        int key=yy*width+xx;
+                        if(seen.Contains(key)||!g.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                        seen.Add(key);queue.Enqueue(key);
+                    }
+                }
+                foreach(WorldObject site in sites)
+                    Check(seen.Contains((int)site.y*width+(int)site.x),
+                        "New signal route must be reachable from original spawn using real collision");
+                int coins=g.save.coins,parts=g.save.inventory[4];
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);g.Close();
+                Check(!g.OuterCacheRecovered(room)&&g.save.coins==coins,
+                    "Relief cache cannot be taken before the signal is repaired");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;
+                g.Talk(sites[1]);g.Close();
+                Check(!g.OuterRelayRestored(room)&&g.save.inventory[4]==parts,
+                    "Beacon cannot be repaired without the original field log");
+                g.save.x=sites[0].x;g.save.y=sites[0].y;
+                g.Talk(sites[0]);g.Close();
+                Check(g.OuterLogFound(room),"Reading the southern evidence advances the real quest");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;
+                g.Talk(sites[1]);
+                int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_repair");
+                Check(choice>=0,"Physical repair offers a real material-consuming choice");
+                g.Choose(choice);
+                Check(g.OuterRelayRestored(room)&&g.save.inventory[4]==parts-1,
+                    "One actual spare part is consumed when the physical beacon is repaired");
+                g.Talk(sites[1]);g.Close();
+                Check(g.save.inventory[4]==parts-1,"Replaying a repaired signal cannot double-charge");
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);g.Close();
+                Check(g.OuterCacheRecovered(room)&&g.save.coins==coins+18,
+                    "Final physical relief chest pays the correct one-time reward");
+                g.Talk(sites[2]);g.Close();
+                Check(g.save.coins==coins+18,"Relief chest cannot pay twice");
+                GameCore restored=new GameCore(data,g.save);
+                Check(restored.save.version==2&&restored.OuterLogFound(room)&&
+                    restored.OuterRelayRestored(room)&&restored.OuterCacheRecovered(room),
+                    "All three rescue stages survive a legacy SaveData v2 reload");
+            }
+            GameCore all=new GameCore(data);
+            for(int room=0;room<8;room++)all.save.flags.Add("outer_cache_"+room);
+            Check(all.OuterRescueCount==8&&all.GetQuest("outer_rescue").complete,
+                "The tracked field mission finishes only after eight genuine chests");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

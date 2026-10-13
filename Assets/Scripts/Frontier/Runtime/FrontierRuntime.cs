@@ -452,6 +452,30 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="outerlog"||kind=="outerrelay"||kind=="outercache")
+            {
+                bool recorded=kind=="outerlog"?Game.OuterLogFound(Game.save.room):
+                    kind=="outerrelay"?Game.OuterRelayRestored(Game.save.room):
+                    Game.OuterCacheRecovered(Game.save.room);
+                if(kind=="outerrelay")
+                {
+                    PropImage("lamp",0,p.x-29,p.y-85,58,89,
+                        recorded?new Color(.85f,1f,.69f):new Color(.48f,.58f,.62f));
+                    if(recorded&&!Game.save.reducedMotion&&Game.save.effectsQuality>0)
+                    {
+                        float pulse=.18f+.09f*(1+Mathf.Sin(clock*2.4f));
+                        Ring(new Point(o.x,o.y-1),.8f,new Color(mint.r,mint.g,mint.b,pulse),18);
+                    }
+                }
+                else
+                {
+                    PropImage(kind=="outerlog"?"bookshelf":"barrel",0,
+                        p.x-34,p.y-71,68,76,
+                        recorded?new Color(.68f,.82f,.75f,.82f):Color.white);
+                }
+                if(!recorded)Diamond(p.x,p.y-68,5,gold);
+                return;
+            }
             if(kind=="trailcircuit")
             {
                 int stage=0;
