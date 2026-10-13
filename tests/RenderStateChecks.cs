@@ -279,10 +279,15 @@ public static class RenderStateChecks
         Check(GUI.commands.Exists(c=>c.Contains("RELIEF PARCEL")&&
             c.Contains("CROSS BRIDGE ON FOOT")),
             "The early outdoor-region HUD renders the parcel's live timed objective");
+        Check(GUI.commands.Exists(c=>c.Contains("Homeward Deliveries"))&&
+            GUI.commands.Exists(c=>c.Contains("Cross the real bridge on foot")),
+            "The objective panel follows the timed parcel without changing saved quest tracking");
         field.SetValue(app.Game,-1);
         Clear();Call(app,"OnGUI");
         Check(!GUI.commands.Exists(c=>c.Contains("RELIEF PARCEL")),
             "Completing or cancelling delivery removes the now-stale HUD prompt");
+        Check(!GUI.commands.Exists(c=>c.Contains("Homeward Deliveries")),
+            "The normal pinned objective panel returns after parcel transport ends");
         Console.WriteLine("PASS live civilian courier timed status in early-region production HUD (offline)");
     }
     public static void MapRasterRegression(FrontierRuntime app)
