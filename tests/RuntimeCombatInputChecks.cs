@@ -385,7 +385,7 @@ public static class RuntimeCombatInputChecks
             restored = SaveStore.Read(0, out warning);
             Check(restored != null && restored.coins == 50 && warning == "Recovered backup.",
                 "A null-payload envelope must recover the verified backup, never masquerade as a legacy save.");
-            System.IO.File.WriteAllText(main, "{\\"version\\":2,\\"flags\\":[\\"inventory\\"]}");
+            System.IO.File.WriteAllText(main, "{\"version\":2,\"flags\":[\"inventory\"]}");
             restored = SaveStore.Read(0, out warning);
             Check(restored != null && restored.coins == 50 && warning == "Recovered backup.",
                 "The word inventory inside a string cannot substitute for the required root inventory.");
