@@ -466,6 +466,33 @@ namespace Starfall.Tests
                 "The tracked field mission finishes only after eight genuine chests");
         }
 
+        public static void SmoothTerrainAndPropsRemainContinuousAcrossChunkBorders(Campaign data)
+        {
+            Check(WorldStreaming.Smooth01(-1)==0&&WorldStreaming.Smooth01(2)==1,
+                "Streaming fades clamp safely outside their range");
+            Check(Math.Abs(WorldStreaming.Smooth01(.5f)-.5f)<.0001f,
+                "Chunk readiness uses symmetric smoothstep");
+            for(int i=0;i<100;i++)
+            {
+                float t=i/100f, v=WorldStreaming.Blend(.15f,.3f,.6f,.9f,t,.45f);
+                float u=WorldStreaming.Blend(.15f,.3f,.6f,.9f,t+.0001f,.45f);
+                Check(v>=0&&v<=1&&Math.Abs(u-v)<.001f,
+                    "Chunk blending stays continuous without square block seams");
+            }
+            float old=-1;
+            for(int px=-130;px<=130;px+=5)
+            {
+                float opacity=WorldStreaming.EdgeOpacity(px,360,1280,720);
+                Check(opacity>=0&&opacity<=1&&opacity>=old,
+                    "Scenery gradually fades in on approach without a viewport pop-in");
+                old=opacity;
+            }
+            Check(WorldStreaming.EdgeOpacity(-150,360,1280,720)==0,
+                "Distant scenery is completely transparent beyond its prewarm apron");
+            Check(WorldStreaming.EdgeOpacity(640,360,1280,720)==1,
+                "Center-screen scenery stays fully visible");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

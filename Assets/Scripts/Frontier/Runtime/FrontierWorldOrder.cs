@@ -33,6 +33,14 @@ namespace Starfall
             return screen.x > -horizontalMargin && screen.x < Width + horizontalMargin &&
                 screen.y > -verticalMargin && screen.y < Height + verticalMargin;
         }
+        private float FadeWorldProp(float x,float y)
+        {
+            Point screen=ScreenPoint(new Point(x,y));
+            float edge=WorldStreaming.EdgeOpacity(screen.x,screen.y,Width,Height);
+            int tileX=Math.Max(0,Math.Min(Game.Map.rows[0].Length-1,(int)Math.Floor(x)));
+            int tileY=Math.Max(0,Math.Min(Game.Map.rows.Length-1,(int)Math.Floor(y)));
+            return edge*TerrainTileOpacity(tileX,tileY);
+        }
         private void DrawOrderedWorld()
         {
             // Reuse storage and explicit references. Captured per-actor callbacks
@@ -73,6 +81,13 @@ namespace Starfall
             try
             {
                 foreach(WorldDrawEntry entry in worldDrawEntries)
+                {
+                    // No object blinks into being when its base tile first
+                    // crosses the view. Long/tall sprites soften outside it.
+                    worldActorOpacity=entry.kind==WorldDrawKind.Decoration ?
+                        FadeWorldProp(entry.decoration.x,entry.decoration.y):
+                        entry.kind==WorldDrawKind.Object ?
+                            FadeWorldProp(entry.obj.x,entry.obj.y):1f;
                     switch(entry.kind)
                     {
                         case WorldDrawKind.Decoration:DrawWorldDecoration(entry.decoration);break;
@@ -83,8 +98,9 @@ namespace Starfall
                         case WorldDrawKind.Companion:DrawCompanionActor();break;
                         case WorldDrawKind.Survivor:DrawRescueSurvivorActor();break;
                     }
+                }
             }
-            finally{worldDrawEntries.Clear();}
+            finally{worldActorOpacity=1f;worldDrawEntries.Clear();}
         }
         private void DrawWorldDecoration(Decoration prop)
         {

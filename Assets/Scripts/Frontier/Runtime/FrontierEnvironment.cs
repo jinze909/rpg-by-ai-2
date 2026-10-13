@@ -104,6 +104,7 @@ namespace Starfall
             Color previous = GUI.color;
             try
             {
+                tint.a*=worldActorOpacity;
                 GUI.color = tint;
                 const int strips = 32;
                 for (int i = 0; i < strips; i++)

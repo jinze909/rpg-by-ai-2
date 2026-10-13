@@ -32,6 +32,10 @@ namespace Starfall
         private readonly Dictionary<int, PreparedTerrainChunk> preparedTerrainChunks =
             new Dictionary<int, PreparedTerrainChunk>(128);
         private int terrainStreamingRoom = -1, terrainStreamingFloor = -1;
+        private MapData terrainStreamingMap;
+        // Only world scenery and interactive props are faded. Player, enemies,
+        // their telegraphs, HUD, menus and dialogue remain fully legible.
+        private float worldActorOpacity = 1f;
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
         private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.H,KeyCode.R,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
@@ -195,12 +199,18 @@ namespace Starfall
             GUI.matrix = Matrix4x4.identity; GUI.color = Color.white;
         }
         private void Box(float x, float y, float w, float h, Color color)
-        { if (drawingOutline) return; Color previous = GUI.color; try { GUI.color = color; GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture); } finally { GUI.color = previous; } }
+        {
+            if (drawingOutline) return;
+            Color previous = GUI.color;
+            try { color.a*=worldActorOpacity; GUI.color = color;
+                GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture); }
+            finally { GUI.color = previous; }
+        }
         private void Frame(float x, float y, float w, float h, Color color)
         { Box(x, y, w, 1, color); Box(x, y + h - 1, w, 1, color); Box(x, y, 1, h, color); Box(x + w - 1, y, 1, h, color); }
         private void Text(float x, float y, float w, float h, string text, int size, Color color, TextAnchor anchor = TextAnchor.UpperLeft)
         {
-            textStyle.fontSize = Game != null && Game.save.largeText && size < 20 ? size + 1 : size; textStyle.normal.textColor = color; textStyle.alignment = anchor;
+            textStyle.fontSize = Game != null && Game.save.largeText && size < 20 ? size + 1 : size; color.a*=worldActorOpacity; textStyle.normal.textColor = color; textStyle.alignment = anchor;
             GUI.Label(new Rect(x, y, w, h), text, textStyle);
         }
         private bool Button(float x, float y, float w, float h, string text, bool active = false, bool enabled = true)
@@ -218,7 +228,10 @@ namespace Starfall
             if (click) { focusVisible = false; navigation.Select(id); Game.sound = "ui"; } return enabled && (click || confirm);
         }
         private void Image(Texture2D texture, float x, float y, float w, float h, Color? tint = null)
-        { Color previous = GUI.color; try { GUI.color = tint ?? Color.white; GUI.DrawTexture(new Rect(x, y, w, h), texture); } finally { GUI.color = previous; } }
+        { Color previous = GUI.color; try { Color actual=tint??Color.white;
+                actual.a*=worldActorOpacity; GUI.color=actual;
+                GUI.DrawTexture(new Rect(x,y,w,h),texture); }
+            finally { GUI.color = previous; } }
         private Point WorldOrigin { get { return new Point(Width / 2 - (float)Math.Round(camera.x * Tile) + (float)Math.Round(shakeX), 390 - (float)Math.Round(camera.y * Tile) + (float)Math.Round(shakeY)); } }
         private Point ScreenPoint(Point p)
         { Point origin = WorldOrigin; return origin + new Point((float)Math.Round(p.x * Tile), (float)Math.Round(p.y * Tile)); }
@@ -271,12 +284,14 @@ namespace Starfall
         {
             if (Game == null) return;
             bool firstView = terrainStreamingRoom != Game.save.room ||
-                terrainStreamingFloor != Game.save.abyssFloor;
+                terrainStreamingFloor != Game.save.abyssFloor ||
+                !Object.ReferenceEquals(terrainStreamingMap,Game.Map);
             if (firstView)
             {
                 preparedTerrainChunks.Clear();
                 terrainStreamingRoom = Game.save.room;
                 terrainStreamingFloor = Game.save.abyssFloor;
+                terrainStreamingMap = Game.Map;
             }
             Point origin = WorldOrigin;
             int width = Game.Map.rows[0].Length, height = Game.Map.rows.Length;
@@ -318,7 +333,8 @@ namespace Starfall
         private PreparedTerrainChunk FindTerrainChunk(int x, int y)
         {
             if(terrainStreamingRoom!=Game.save.room||
-                terrainStreamingFloor!=Game.save.abyssFloor)return null;
+                terrainStreamingFloor!=Game.save.abyssFloor||
+                !Object.ReferenceEquals(terrainStreamingMap,Game.Map))return null;
             PreparedTerrainChunk state;
             int wide = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
             preparedTerrainChunks.TryGetValue(y / TerrainChunkTiles * wide +
@@ -350,7 +366,8 @@ namespace Starfall
         private float TerrainChunkOpacity(int cx, int cy)
         {
             if(terrainStreamingRoom!=Game.save.room||
-                terrainStreamingFloor!=Game.save.abyssFloor)return 1f;
+                terrainStreamingFloor!=Game.save.abyssFloor||
+                !Object.ReferenceEquals(terrainStreamingMap,Game.Map))return 1f;
             if (cx < 0 || cy < 0) return 1f;
             int width = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
             int height = (Game.Map.rows.Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
@@ -358,8 +375,7 @@ namespace Starfall
             PreparedTerrainChunk chunk;
             if (!preparedTerrainChunks.TryGetValue(cy * width + cx, out chunk))
                 return 1f; // Render ready rather than leaving missing black squares.
-            float progress = Mathf.Clamp01((clock - chunk.warmAt) / .45f);
-            return progress * progress * (3 - 2 * progress);
+            return WorldStreaming.Smooth01((clock-chunk.warmAt)/.45f);
         }
         private float TerrainTileOpacity(int x, int y)
         {
@@ -369,10 +385,10 @@ namespace Starfall
             float fx = (x + .5f) / TerrainChunkTiles - .5f;
             float fy = (y + .5f) / TerrainChunkTiles - .5f;
             int cx = (int)Math.Floor(fx), cy = (int)Math.Floor(fy);
-            float tx = Mathf.Clamp01(fx - cx), ty = Mathf.Clamp01(fy - cy);
-            float a = Mathf.Lerp(TerrainChunkOpacity(cx, cy), TerrainChunkOpacity(cx + 1, cy), tx);
-            float b = Mathf.Lerp(TerrainChunkOpacity(cx, cy + 1), TerrainChunkOpacity(cx + 1, cy + 1), tx);
-            return Mathf.Lerp(a, b, ty);
+            return WorldStreaming.Blend(
+                TerrainChunkOpacity(cx,cy), TerrainChunkOpacity(cx+1,cy),
+                TerrainChunkOpacity(cx,cy+1), TerrainChunkOpacity(cx+1,cy+1),
+                fx-cx,fy-cy);
         }
         private void DrawWorld()
         {

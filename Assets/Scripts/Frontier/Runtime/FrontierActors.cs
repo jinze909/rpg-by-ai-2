@@ -48,7 +48,7 @@ namespace Starfall
             try
             {
                 if (angle != 0) GUI.matrix = GuiGeometry.RotateInCanvas(matrix, rect, angle);
-                GUI.color = color;
+                color.a*=worldActorOpacity; GUI.color = color;
                 GUI.DrawTextureWithTexCoords(rect, sheet, new Rect((index % columns + (flip ? 1 : 0)) / (float)columns, 1 - (index / columns + 1) / (float)rows, (flip ? -1 : 1) / (float)columns, 1f / rows));
             }
             finally { GUI.color = previousColor; GUI.matrix = matrix; }

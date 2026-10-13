@@ -115,7 +115,8 @@ namespace Starfall
             int id = kind == "tree" ? 0 : kind == "house" ? (variant == 1 ? 2 : 1) : kind == "ruin" ? 3 : kind == "lamp" ? 4 : kind == "palm" ? 5 : kind == "snowpine" ? 6 : kind == "lighthouse" ? 7 : -1;
             if (worldProps == null || id < 0) { Image(art.Prop(kind, variant), x, y, w, h, tint); return; }
             float side = Math.Min(w, h); Color previous = GUI.color;
-            try { GUI.color = tint ?? Color.white; GUI.DrawTextureWithTexCoords(new Rect(x + (w - side) / 2, y + h - side, side, side), worldProps, new Rect(id % 4 / 4f, id < 4 ? .5f : 0, .25f, .5f)); }
+            try { Color actual=tint??Color.white;actual.a*=worldActorOpacity;
+                GUI.color=actual; GUI.DrawTextureWithTexCoords(new Rect(x + (w - side) / 2, y + h - side, side, side), worldProps, new Rect(id % 4 / 4f, id < 4 ? .5f : 0, .25f, .5f)); }
             finally { GUI.color = previous; }
         }
         private void Light(Point world, float size, Color c) { Point p = ScreenPoint(world); Image(art.Glow(), p.x - size / 2, p.y - size / 2, size, size, c); }
@@ -124,8 +125,26 @@ namespace Starfall
             Color ambient = Game.save.room == 6 ? new Color(.7f, .48f, .2f, .035f) : Game.save.room == 7 ? new Color(.36f, .55f, .75f, .06f) : Game.save.room == 8 ? new Color(.13f, .18f, .35f, .15f) : Game.Night ? new Color(.06f, .1f, .26f, .24f) : new Color(.7f, .77f, .49f, .025f); Box(0, 0, Width, Height, ambient);
             if (Game.save.effectsQuality > 0)
             {
-                foreach (var d in Game.Map.decor) if (d.kind == "lamp" || d.kind == "lighthouse" || d.kind == "crystal" || d.kind == "root" || d.kind == "fire") Light(new Point(d.x, d.y - 1), d.kind == "lighthouse" ? 170 : 105, d.kind == "crystal" || d.kind == "root" ? new Color(.4f, .8f, .8f, .2f) : new Color(1, .75f, .4f, Game.Night ? .32f : .13f));
-                foreach (var o in Game.Map.objects) if (o.kind == "campfire" || o.kind == "brazier" && Game.Has("warm_" + o.id)) Light(new Point(o.x, o.y - .3f), 130, new Color(1, .6f, .28f, .25f));
+                foreach (var d in Game.Map.decor)
+                    if ((d.kind=="lamp"||d.kind=="lighthouse"||d.kind=="crystal"||
+                         d.kind=="root"||d.kind=="fire") && WorldDrawable(d.x,d.y,180,180))
+                    {
+                        Color glow=d.kind=="crystal"||d.kind=="root" ?
+                            new Color(.4f,.8f,.8f,.2f) :
+                            new Color(1,.75f,.4f,Game.Night?.32f:.13f);
+                        glow.a*=FadeWorldProp(d.x,d.y);
+                        Light(new Point(d.x,d.y-1),d.kind=="lighthouse"?170:105,glow);
+                    }
+                foreach (var o in Game.Map.objects)
+                {
+                    bool warm=o.kind=="campfire"||o.kind=="brazier"&&Game.Has("warm_"+o.id);
+                    bool signal=o.kind=="outerrelay"&&Game.OuterRelayRestored(Game.save.room);
+                    if(!(warm||signal)||!WorldDrawable(o.x,o.y,180,180))continue;
+                    Color c=signal?new Color(.55f,.94f,.75f,.27f):
+                        new Color(1,.6f,.28f,.25f);
+                    c.a*=FadeWorldProp(o.x,o.y);
+                    Light(new Point(o.x,o.y-.3f),signal?145:130,c);
+                }
                 if (Game.save.room == 5 && Game.save.effectsQuality == 2) for (int i = 0; i < 4; i++) Box(0, 150 + i * 116, Width, 24, new Color(.8f, .9f, .9f, .025f));
                 for (int i = 0; i < 10; i++) { float alpha = (10 - i) * .0025f; Box(i * 4, i * 4, Width - i * 8, 4, new Color(.02f, .04f, .08f, alpha)); Box(i * 4, Height - i * 4 - 4, Width - i * 8, 4, new Color(.02f, .04f, .08f, alpha)); }
             }
