@@ -275,6 +275,32 @@ namespace Starfall.Tests
                     "Abort removes only live courier threats and owned arrows");
             }
         }
+        public static void CourierRaidersActuallyWindUpAndCanTearCargoDuringPlay(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            var bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            for(int i=0;i<65&&!g.FarCourierCrossed;i++)
+                g.Tick(.05f,new Point(0,1));
+            Check(g.FarCourierRaidersAlive==2,
+                "Only traversing the actual bridge starts this battle");
+            bool warned=false,hit=false;float health=g.save.health;
+            for(int i=0;i<200&&g.FarCourierActive;i++)
+            {
+                // Approach real contact range, then stand and let ordinary
+                // enemy AI choose windups / arrows / collision on its own.
+                g.Tick(.05f,i<20?new Point(0,1):new Point());
+                if(g.enemies.Exists(e=>e.id>=90100&&e.id<90116&&e.state==1))
+                    warned=true;
+                if(g.FarCourierIntegrity<99&&g.save.health<health)
+                    {hit=true;break;}
+            }
+            Check(warned,"Live courier attackers must produce actual combat telegraphs");
+            Check(hit,"A production enemy attack must physically reach the player and tear cargo");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
