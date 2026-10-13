@@ -2418,7 +2418,7 @@ namespace Starfall.Tests
             Check(watch.save.room==3&&watch.CivicResponseWatchRun&&
                   watch.CivicResponseEnemiesAlive==2&&watch.save.coins==watchCoins,
                 "World portals and home shortcut cannot erase ongoing civic watch attackers");
-            var unrelated=new Projectile{position=watch.Position,life=3,damage=1};
+            var unrelated=new Projectile{position=watch.Position,life=3,damage=1,friendly=true};
             watch.projectiles.Add(unrelated);
             Action(watch,"farshelter","civic_response_abort");
             Check(!watch.CivicResponseActive&&watch.CivicResponseEnemiesAlive==0&&
