@@ -36,6 +36,44 @@ namespace Starfall.Tests
                 !resumed.Conditions().Contains("RELIEF PARCEL"),
                 "Reopening old saves cannot restore a phantom courier timer");
         }
+        public static void TimedParcelNavigationOverridesOldQuestsWithoutChangingTracking(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            g.save.trackedQuest="main";g.save.showGuidance=true;
+            WorldObject bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Point? normal=g.NavigationTarget();
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"The real bridge interaction starts a timed parcel");
+            Point? crossing=g.NavigationTarget();
+            Check(crossing.HasValue&&
+                (crossing.Value-new Point(111.5f,53.5f)).Length<.01f,
+                "An active timed parcel guides toward the actual traversable bridge");
+            Check(g.save.trackedQuest=="main",
+                "Urgent transport guidance must not overwrite the player's chosen quest");
+            // Walk across the actual repaired collision tiles with the game's
+            // own tick and movement code; a mere instant coordinate change
+            // must not qualify as crossing the bridge.
+            for(int frame=0;frame<36&&!g.FarCourierCrossed&&g.FarCourierActive;frame++)
+                g.Tick(.05f,new Point(0,1));
+            Check(g.FarCourierCrossed,
+                "Walking south on the repaired bridge records a real parcel crossing");
+            Point? checkpoint=g.NavigationTarget();
+            Check(checkpoint.HasValue&&
+                (checkpoint.Value-new Point(111.5f,61.5f)).Length<.01f,
+                "After crossing, guidance changes to the physical seal checkpoint");
+            // A teleport during delivery loses the parcel and immediately
+            // restores the original unrelated navigation, without changing
+            // story state or granting any package reward.
+            g.save.y+=4f;g.Tick(.05f,new Point());
+            Check(!g.FarCourierActive&&g.save.trackedQuest=="main"&&
+                g.NavigationTarget().HasValue==normal.HasValue,
+                "Losing the cargo restores ordinary tracking without a phantom objective");
+            Check(!g.FarCourierDelivered(0),
+                "Merely following a timed waypoint cannot grant a delivery");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;

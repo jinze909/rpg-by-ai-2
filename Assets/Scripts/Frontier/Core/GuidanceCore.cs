@@ -1364,6 +1364,10 @@ namespace Starfall
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
+            // While actually carrying civilian aid, the live crossing, seal
+            // check and shelter must outrank an unrelated pinned quest. The
+            // player's original tracked quest is never modified.
+            if(FarCourierActive) return GetQuest("far_couriers").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return new Point(31, 14);
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
