@@ -12,13 +12,13 @@ namespace Starfall
                 if(save.room!=9 || (Position-new Point(o.x,o.y)).Length>2.2f)return true;
                 if(kind=="annexinnmessage")
                 {
-                    bool first=!Has("annex_inn_letter");
-                    if(first){Flag("annex_inn_letter");AddXp(15);revision++;sound="reward";}
+                    bool firstLetter=!Has("annex_inn_letter");
+                    if(firstLetter){Flag("annex_inn_letter");AddXp(15);revision++;sound="reward";}
                     Dialog(o.name,o.en,
                         "给每一位夜归的人：如果你迷路了，沿着有人点起营火的方向走。道路不是堡垒的财产，也不是公会的财产。它是记得你还要回家的人留下的。"+
-                        (first?"\\n\\n首次读信：经验 +15。":""),
+                        (firstLetter?"\\n\\n首次读信：经验 +15。":""),
                         "To every late traveler: when lost, follow the light of a shared campfire. A road belongs neither to a fortress nor a guild; it belongs to those who remember you are coming home."+
-                        (first?"\\n\\nFirst reading: +15 XP.":""),
+                        (firstLetter?"\\n\\nFirst reading: +15 XP.":""),
                         C("留下这封信","Keep the letter","close"));
                     return true;
                 }
