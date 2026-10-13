@@ -2448,5 +2448,71 @@ namespace Starfall.Tests
             Check(clinic.save.room==3,"Ordinary travel is untouched once civilian service ends");
         }
 
+        public static void SimultaneousTimedCivilianTasksCannotHideEachOthersObjectives(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("exp_intro");g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("civic_supply_clinic_0");g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_bridge_0");g.save.flags.Add("scout_saved");
+            g.Enter(0);g.enemies.Clear();
+            var shelter=Object(g,"farshelter"),bridge=Object(g,"farbridge");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_start");
+            Check(g.CivicResponseClinicRun&&g.CivicResponseTimeLeft==75,
+                "First real time-limited clinic service launches normally");
+            // Exercise the production pickup dialogue while another timed
+            // service is live, before any movement can mutate either run.
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.CivicResponseClinicRun&&!g.FarCourierActive&&
+                  !g.CivicResponseDone(0),
+                "Bridge pickup cannot hide a live clinic timer behind a second courier objective");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_abort");
+            Check(!g.CivicResponseActive,"Real clinic service retains its physical abort");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"Parcel route can start after an explicit clinic abort");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_start");
+            Check(g.FarCourierActive&&!g.CivicResponseActive,
+                "The opposite civic-service entry cannot overlap an existing parcel");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_cancel");
+            Check(!g.FarCourierActive,"Original parcel cancel remains playable");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_start");
+            Check(g.CivicResponseClinicRun,"Clinic can be restarted after parcel cancellation");
+            // Region five hosts both the tide-manifest activity and civic
+            // service/bridge: the same exclusivity must hold at its dock.
+            var shore=Fresh(data);shore.save.stage=4;
+            shore.save.flags.Add("exp_intro");shore.save.flags.Add("harbor_report");
+            shore.save.flags.Add("civic_supply_complete");
+            shore.save.flags.Add("civic_supply_clinic_5");
+            shore.save.flags.Add("far_shelter_5");
+            shore.save.flags.Add("far_bridge_5");
+            shore.Enter(5);shore.enemies.Clear();
+            var dock=Object(shore,"tidedock");
+            shore.save.x=dock.x;shore.save.y=dock.y;
+            var tideChoice=typeof(GameCore).GetMethod("ChooseTideSalvage",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var courierChoice=typeof(GameCore).GetMethod("ChooseFarCourier",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            tideChoice.Invoke(shore,new object[]{"tide_salvage_start"});
+            Check(shore.TideSalvageActive,"Authentic harbor dock can start real tide salvage");
+            var origin=Object(shore,"farbridge");
+            shore.save.x=origin.x;shore.save.y=origin.y;
+            courierChoice.Invoke(shore,new object[]{"far_courier_start"});
+            Check(shore.TideSalvageActive&&!shore.FarCourierActive,
+                "Tide salvage rejects a competing real parcel pickup");
+            shore.save.x=Object(shore,"farshelter").x;
+            shore.save.y=Object(shore,"farshelter").y;
+            var civicChoice=typeof(GameCore).GetMethod("ChooseCivicResponse",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            civicChoice.Invoke(shore,new object[]{"civic_response_start"});
+            Check(shore.TideSalvageActive&&!shore.CivicResponseActive,
+                "Tide salvage also rejects a competing civilian field run");
+        }
+
     }
 }

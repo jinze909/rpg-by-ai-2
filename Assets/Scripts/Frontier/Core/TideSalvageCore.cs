@@ -166,6 +166,12 @@ namespace Starfall
             }
             if(action=="tide_salvage_start")
             {
+                if(FarCourierActive||CivicResponseActive)
+                {
+                    Notify("救援包或居民服务仍在进行。先完成或明确放弃，才能开始潮滩打捞。",
+                        "Finish or explicitly cancel your parcel or civilian service before launching tide salvage.");
+                    return true;
+                }
                 if(save.room!=5 || !Has("harbor_report") ||
                     Has("tide_salvage_complete") || TideSalvageActive ||
                     Dying || practicing || racing || fieldSurveyRoom!=0 || reliefMissionRoom!=0 ||

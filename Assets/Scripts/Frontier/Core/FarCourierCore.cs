@@ -262,6 +262,12 @@ namespace Starfall
             if(action=="far_courier_start")
             {
                 if(FarCourierActive||(Position-new Point(bridge.x,bridge.y)).Length>2.2f)return true;
+                if(CivicResponseActive||TideSalvageActive)
+                {
+                    Notify("当前还有居民服务或潮滩打捞行动。先完成或明确取消，再领取救援包。",
+                        "Finish or explicitly cancel the active civilian service or tide salvage before carrying another parcel.");
+                    return true;
+                }
                 if(!SafeTravel)
                 {Notify("先清除桥边敌人。","Clear nearby hostiles first.");return true;}
                 courierRoom=room;courierLast=Position;

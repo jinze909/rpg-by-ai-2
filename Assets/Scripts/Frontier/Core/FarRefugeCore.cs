@@ -368,8 +368,14 @@ namespace Starfall
             }
             if(start)
             {
-                if(CivicResponseActive||CivicResponseDone(save.room)||!nearShelter||
-                    FarCourierActive||!SafeTravel)return true;
+                if(CivicResponseActive||CivicResponseDone(save.room)||!nearShelter)return true;
+                if(FarCourierActive||TideSalvageActive)
+                {
+                    Notify("先完成或取消当前救援包与潮滩打捞任务，再开启居民服务。",
+                        "Complete or cancel your parcel or tide salvage before starting civilian service.");
+                    return true;
+                }
+                if(!SafeTravel)return true;
                 int type=CivicSupplyClinic(save.room)?1:2;
                 if(type==2)
                 {
