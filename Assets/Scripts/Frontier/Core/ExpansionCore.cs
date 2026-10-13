@@ -561,6 +561,15 @@ namespace Starfall
         }
         public string Conditions()
         {
+            if(CivicConduitActive)
+                return L("公共电网 · ","CIVIC GRID · ")+
+                    (int)Math.Ceiling(CivicConduitTimeLeft)+"s · "+
+                    (int)Math.Ceiling(CivicConduitIntegrity)+"%
+"+
+                    L("阀门 ","VALVE ")+(CivicConduitStage+1)+"/3 · "+
+                    (CivicConduitWindowOpen?
+                        L("绿色稳定 · 现在操作","GREEN PHASE · TUNE NOW"):
+                        L("闭锁 · 等待绿色窗口","LOCKED · WAIT FOR GREEN"));
             if(LastDirectiveWave==1||LastDirectiveWave==3)
                 return L("最后指令 · 保密卫队","LAST DIRECTIVE · SECURITY")+
                     "\n"+L("击败实体守卫 ","REAL GUARDIANS LEFT ")+LastDirectiveEnemies;

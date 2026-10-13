@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,53 @@ namespace Starfall
 
 
 
+
+            if(id=="civic_conduit")
+            {
+                q.title=L("第十一章 · 公共电网调谐","Chapter Eleven · The Civic Conduit");
+                q.category=L("战后电路 · 行走、相位与避让","POSTWAR GRID · MOVEMENT, TIMING & DODGING");
+                q.description=L("最后一道军令公开后，在堡垒南部真路捐献一枚零件，带着临时导体，80秒内依次走访三个阀门。每个阀门只在自己的绿色稳定窗口开放；旧网格会定期释放真实的延迟电弧。完成后，八地建好的避险棚获得与你在第十章所选民用政策对应的服务。",
+                    "After publishing the Last Directive, donate one fuse part at the western citadel desk, then physically walk east and time three distinct green valve windows within 80s. Dodge real telegraphed grid arcs. All rebuilt refuges gain a persistent service based on your Chapter Ten policy.");
+                q.locked=!LastDirectiveComplete;
+                q.complete=CivicConduitComplete;
+                q.steps.Add(new QuestStep(L("在西端控制台捐献熔断器并开始调谐",
+                    "Donate a fuse at the western terminal and begin the run"),CivicConduitStarted));
+                for(int i=0;i<3;i++)
+                {
+                    bool done=CivicConduitComplete || CivicConduitActive&&CivicConduitStage>i;
+                    q.steps.Add(new QuestStep(L("实地调谐第 "+(i+1)+" 处稳定阀门",
+                        "Physically tune valve "+(i+1)),done));
+                }
+                if(CivicConduitActive)
+                {
+                    string kind=CivicConduitStage==0?"civicConduitValve1":
+                        CivicConduitStage==1?"civicConduitValve2":"civicConduitValve3";
+                    string objId=CivicConduitStage==0?"civicConduitValve1":
+                        CivicConduitStage==1?"civicConduitValve2":"civicConduitValve3";
+                    q.room=4;
+                    q.target=new Point(CivicConduitStage==0?104.5f:
+                        CivicConduitStage==1?108.5f:115.5f,74.5f);
+                    q.next=L("第 "+(CivicConduitStage+1)+"/3 阀门 · "+
+                        (CivicConduitWindowOpen?"绿色窗口！":"等待相位变绿")+" · "+
+                        (int)Math.Ceiling(CivicConduitTimeLeft)+"秒",
+                        "Valve "+(CivicConduitStage+1)+"/3 · "+
+                        (CivicConduitWindowOpen?"GREEN NOW":"Wait for green")+
+                        " · "+(int)Math.Ceiling(CivicConduitTimeLeft)+"s");
+                }
+                else
+                {
+                    q.room=4;q.target=ObjectPoint(4,"civicconduitmaster",new Point(95.5f,74.5f));
+                    q.next=q.complete?L("三处开关已经校准，各地公共供能持续生效",
+                        "Three valves are tuned; the public network now supports regional refuges"):
+                        q.locked?L("先完成第十章的公开民用决议",
+                            "Publish Chapter Ten's civic decision first"):
+                        L("前往堡垒南侧西端熔断台，真实启动电网",
+                            "Go to the western citadel fuse desk to energize the grid");
+                }
+                q.reward=L("熔断器一枚仅首次消耗；真正完成后硬币65、碎片2、经验95；八地修复避险棚新增永久民用服务",
+                    "Fuse charged only once; first clear 65 coins, 2 shards, 95 XP, and a lasting new service at every rebuilt regional refuge");
+                return q;
+            }
 
             if(id=="last_directive")
             {
@@ -1534,6 +1581,7 @@ namespace Starfall
             // player's original tracked quest is never modified.
             if(FarCourierActive) return GetQuest("far_couriers").target;
             if(CivicResponseActive) return GetQuest("civic_services").target;
+            if(CivicConduitActive) return GetQuest("civic_conduit").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return new Point(31, 14);
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
