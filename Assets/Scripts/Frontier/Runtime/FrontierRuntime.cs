@@ -549,9 +549,17 @@ namespace Starfall
             if(kind=="farcheck")
             {
                 bool verified=Game.FarCourierStamped;
-                PropImage("post",0,p.x-32,p.y-76,64,79,
-                    verified?new Color(.65f,.93f,.78f):Color.white);
-                if(Game.FarCourierActive&&!verified)
+                bool clinic=Game.CivicSupplyClinic(Game.save.room);
+                bool watch=Game.CivicSupplyWatch(Game.save.room);
+                Color care=new Color(.46f,.94f,.88f);
+                Color shade=clinic?care:watch?new Color(1f,.75f,.39f):
+                    verified?new Color(.65f,.93f,.78f):Color.white;
+                PropImage("post",0,p.x-32,p.y-76,64,79,shade);
+                if(clinic||watch)
+                    Ring(new Point(o.x,o.y),.56f,shade,16);
+                else if(Game.FarCourierActive&&!verified ||
+                    Game.CivicSupplyStarted&&Game.FarCourierDelivered(Game.save.room)&&
+                    (Game.save.room==0||Game.save.room==3||Game.save.room==5))
                     Diamond(p.x,p.y-71,6,gold);
                 return;
             }
@@ -577,9 +585,14 @@ namespace Starfall
             {
                 bool done=kind=="faratlasdesk"?Game.Has("far_refuge_atlas"):
                     Game.Has("far_refuge_guest_record");
+                bool inquest=kind=="farrefugerecord"&&Game.CivicSupplyStarted;
+                bool published=inquest&&Game.CivicSupplyComplete;
                 PropImage(kind=="faratlasdesk"?"table":"bookshelf",0,p.x-40,p.y-80,80,86,
+                    published?new Color(.51f,.98f,.83f):
                     done?new Color(.73f,.9f,.86f):Color.white);
-                if(!done)Diamond(p.x,p.y-77,6,gold);
+                if(inquest&&!published)
+                    Diamond(p.x,p.y-77,6,new Color(.48f,.91f,1f));
+                else if(!done)Diamond(p.x,p.y-77,6,gold);
                 return;
             }
             if(kind=="farledger"||kind=="farcalibrate"||kind=="farshelter")
@@ -589,9 +602,15 @@ namespace Starfall
                     kind=="farcalibrate"?Game.FarDialReady(room):Game.FarShelterBuilt(room);
                 string prop=kind=="farledger"?"bookshelf":
                     kind=="farcalibrate"?"obelisk":ready?"fire":"ruin";
-                PropImage(prop,0,p.x-38,p.y-83,76,88,
-                    ready?new Color(.74f,.96f,.82f):Color.white);
-                Ring(new Point(o.x,o.y),.49f,ready?mint:gold,14);
+                bool clinic=kind=="farshelter"&&Game.CivicSupplyClinic(room);
+                bool watch=kind=="farshelter"&&Game.CivicSupplyWatch(room);
+                Color upkeep=clinic?new Color(.47f,.98f,.9f):
+                    watch?new Color(1f,.78f,.43f):ready?new Color(.74f,.96f,.82f):Color.white;
+                PropImage(prop,0,p.x-38,p.y-83,76,88,upkeep);
+                Ring(new Point(o.x,o.y),.49f,
+                    clinic||watch?upkeep:ready?mint:gold,14);
+                if(clinic||watch)
+                    Diamond(p.x,p.y-85,4,upkeep);
                 if(!ready)Diamond(p.x,p.y-79,6,gold);
                 return;
             }
