@@ -519,6 +519,125 @@ namespace Starfall.Tests
                 g.conversation.textEn.Contains("paid rest adds 15 HP"),
                 "Interactive bilingual shelter dialogue shows the actual service bonus");
         }
+        public static void ChapterNineClinicFieldRunRequiresActualFootTravelAndSavesEarnedUpgrade(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("exp_intro");
+            g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("civic_supply_clinic_0");g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_dial_0");g.save.flags.Add("far_courier_0");
+            g.save.trackedQuest="main";
+            g.Enter(0);g.enemies.Clear();g.save.level=30;
+            var shelter=Object(g,"farshelter");
+            var check=Object(g,"farcheck");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_start");
+            Check(g.CivicResponseActive&&g.CivicResponseClinicRun&&
+                !g.CivicResponseWatchRun&&g.CivicResponseTimeLeft==75,
+                "Real southern refuge starts a 75s carrying mission rather than instant payment");
+            Check(g.Conditions().Contains("居民服务行动")&&
+                g.GetQuest("civic_services").room==0&&
+                (g.NavigationTarget().Value-new Point(check.x,check.y)).Length<.01f&&
+                g.save.trackedQuest=="main",
+                "Timed delivery overrides guidance and announces its real northward destination without overwriting pinned quest");
+            // A direct teleport to the endpoint cannot forge walked distance.
+            g.save.x=check.x;g.save.y=check.y;
+            var choose=typeof(GameCore).GetMethod("ChooseCivicResponse",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"civic_response_deliver"});
+            Check(!g.CivicResponseDone(0),
+                "Nearby coordinates without genuine travel cannot complete medicine delivery");
+            g.Tick(.05f,new Point());
+            Check(!g.CivicResponseActive,
+                "Teleporting between the two actual medical sites aborts the carrying mission");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_start");
+            for(int i=0;i<210&&g.CivicResponseActive&&
+                g.Position.y>check.y+1.15f;i++)
+                g.Tick(.05f,new Point(0,-1));
+            Check(g.CivicResponseActive&&g.Position.y<check.y+1.3f&&
+                g.CivicResponseTimeLeft>0,
+                "Medicine actually traverses the mountain road with game movement and collision");
+            Check(g.GetQuest("civic_services").target.y==check.y,
+                "The tracked field delivery ends at the true resident checkpoint");
+            g.save.x=check.x; // remain on the same path and within interaction range
+            int coins=g.save.coins,shards=g.save.shards,skills=g.save.skillPoints;
+            Action(g,"farcheck","civic_response_deliver");
+            Check(!g.CivicResponseActive&&g.CivicResponseDone(0)&&
+                g.save.coins==coins+24&&g.save.shards==shards+1&&
+                g.save.skillPoints==skills,
+                "Physical handover grants only the one-time local medical upgrade and reward");
+            Check(!g.GetQuest("civic_services").complete,
+                "Completing one region does not silently complete the three-region public service campaign");
+            choose.Invoke(g,new object[]{"civic_response_deliver"});
+            Check(g.save.coins==coins+24,
+                "Repeating the handover cannot farm the clinic's one-time reward");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.CivicResponseDone(0)&&!restored.CivicResponseActive&&
+                restored.save.trackedQuest=="main",
+                "Old v2 saves preserve verified service but never resurrect transient medicine");
+        }
+        public static void ChapterNineWatchDefenseNeedsTwoRealKillsAndDoesNotPolluteLootOrSave(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("exp_intro");
+            g.save.flags.Add("civic_supply_complete");g.save.flags.Add("harbor_report");
+            g.save.flags.Add("civic_supply_watch_3");g.save.flags.Add("far_shelter_3");
+            g.Enter(3);g.enemies.Clear();g.save.level=30;
+            var shelter=Object(g,"farshelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_start");
+            int baseId=90206;
+            var a=g.enemies.Find(e=>e.id==baseId);
+            var b=g.enemies.Find(e=>e.id==baseId+1);
+            Check(g.CivicResponseWatchRun&&g.CivicResponseEnemiesAlive==2&&
+                a!=null&&b!=null&&a.kind==0&&b.kind==1&&
+                g.CanStand(a.Position)&&g.CanStand(b.Position),
+                "A genuine local watch deploys melee and bow enemies on traversable authored terrain");
+            Check(g.Conditions().Contains("袭击者")&&
+                g.GetQuest("civic_services").target.y==shelter.y,
+                "Live lookout UI reports the authentic remaining enemies and in-world return point");
+            g.PrepareSave();
+            Check(!Array.Exists(g.save.worldEnemies,r=>r.id==baseId||r.id==baseId+1),
+                "Temporary defense actors are never serialized as ordinary enemy patrols");
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(!restored.CivicResponseActive&&
+                !restored.enemies.Exists(e=>e.id==baseId||e.id==baseId+1),
+                "Legacy world snapshots can never resurrect in-progress civic defense");
+            var fire=typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            fire.Invoke(g,new object[]{b,new Point(0,1),5f});
+            Check(g.projectiles.Exists(p=>p.civicResponseOwned),
+                "Real security archer spawns a moving mission-owned arrow");
+            int originalKills=g.save.kills[3],coins=g.save.coins,
+                xp=g.save.xp,parts=g.save.inventory[1];
+            var ordinary=new Projectile{friendly=true,position=g.Position,
+                velocity=new Point(1,0),life=3};
+            g.projectiles.Add(ordinary);
+            hit.Invoke(g,new object[]{a,9000f,false,null,null});
+            Check(g.CivicResponseEnemiesAlive==1&&!g.CivicResponseDone(3),
+                "One authentic combat kill cannot certify a two-attacker watch");
+            hit.Invoke(g,new object[]{b,9000f,false,null,null});
+            Check(g.CivicResponseEnemiesAlive==0&&!g.CivicResponseDone(3)&&
+                g.save.kills[3]==originalKills&&g.save.coins==coins&&
+                g.save.xp==xp&&g.save.inventory[1]==parts,
+                "Only actual second combat death clears the watch, with no farming of old kill, coin, XP, or parts");
+            Action(g,"farshelter","civic_response_claim");
+            Check(g.CivicResponseDone(3)&&!g.CivicResponseActive&&
+                g.save.coins==coins+24&&g.projectiles.Contains(ordinary)&&
+                !g.projectiles.Exists(p=>p.civicResponseOwned),
+                "Real claim pays once, selectively retiring arrows but retaining normal projectiles");
+            g.save.energy=30;
+            float baseEnergy=g.save.energy;
+            g.Tick(.05f,new Point());
+            float upgrade=g.save.energy-baseEnergy;
+            g.save.flags.Remove("civic_response_done_3");
+            g.save.energy=30;g.Tick(.05f,new Point());
+            float normal=g.save.energy-30;
+            Check(upgrade>normal+.08f,
+                "A fully defended lookout provides genuinely stronger safe local energy restoration");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
