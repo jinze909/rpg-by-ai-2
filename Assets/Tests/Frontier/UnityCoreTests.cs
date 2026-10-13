@@ -109,6 +109,8 @@ namespace Starfall.Tests
         [Test] public void CitadelCommonsSentinelsNeedRealPlayerCombat() { CoreChecks.CitadelCommonsSentinelsRequireRealPlayerCombatAndCannotFarm(Data()); }
         [Test] public void CitadelCommonsSecurityUsesDodgeableSurges() { CoreChecks.CitadelCommonsFloorSurgesWarnDodgeAndCleanUp(Data()); }
         [Test] public void CitadelCommonsStoryRevealsOnlyTrueEvidence() { CoreChecks.CitadelCommonsChronicleRevealsTrueProgress(Data()); }
+        [Test] public void FrostSkywatchIsFullNewHighlandStory() { CoreChecks.FrostSkywatchIsPlayableOrderedMysteryWithRealBoss(Data()); }
+        [Test] public void FrostSkywatchHasDodgeableWarningsAndSafeRetries() { CoreChecks.FrostSkywatchHazardsAreDodgeableAndWithdrawalIsSafe(Data()); }
         [Test] public void CitadelCommonsStagesAndPublicRelease() { CoreChecks.CitadelCommonsThreeStageCombatAndPublicKey(Data()); }
         [Test] public void CitadelCommonsRequiresMainGuardianAndSupportsWithdrawal() { CoreChecks.CitadelCommonsStoryLocksAndWithdrawal(Data()); }
         [Test] public void StarrootCounterpointHasNewRegionsAndActualFights() { CoreChecks.StarrootCounterpointIsNewPlayableCrossRegionStory(Data()); }
