@@ -176,6 +176,12 @@ namespace Starfall
                 Flag("iron_temper_vent_seen_"+index);
                 TemperStage++;
                 TemperPressure=Math.Max(8,TemperPressure-29);
+                // Player-operated cooling is genuine tactical counterplay:
+                // it cancels only this forge's live pressure tells, allows a
+                // short breathing window and leaves unrelated hazards intact.
+                hazards.RemoveAll(h=>h.temperOwned);
+                effects.RemoveAll(e=>e.temperOwned);
+                temperPulseTime=Math.Max(temperPulseTime,2.8f);
                 effects.Add(new Effect("discover",Position,.65f));
                 revision++;sound="guard";
                 Notify(index==1?"西北支管泄压，守卫从东边增援！":

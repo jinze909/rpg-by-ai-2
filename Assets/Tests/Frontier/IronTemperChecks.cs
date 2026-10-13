@@ -265,5 +265,72 @@ namespace Starfall.Tests
                 "Only finished combat reveals the bilingual public temper recipe");
         }
 
+
+        public static void EmberTemperSteamBlastActuallyHurtsAndRealMovementEscapes(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            g.Enter(3);g.enemies.Clear();
+            WorldObject foundry=Object(g,"ironfoundry");
+            g.save.x=foundry.x;g.save.y=foundry.y;
+            Action(g,"ironfoundry","iron_temper_start");
+            // Isolate the actual pressure hazards from unrelated sword combat.
+            g.enemies.RemoveAll(g.IsTemperEnemy);
+            g.invulnerable=0;g.save.health=120;g.save.maxHealth=120;
+            Advance(g,5.1f);
+            Check(g.save.health<120,
+                "Stationary player takes real health damage from delayed foundry steam");
+            float recovered=g.save.health;
+            g.invulnerable=0;
+            g.save.x=foundry.x;g.save.y=foundry.y;
+            Advance(g,2.4f);
+            Check(g.hazards.Exists(h=>h.temperOwned && h.timer>0),
+                "A second live impact warning actually forms at the player's current footprint");
+            for(int frame=0;frame<27;frame++)
+                g.Tick(.02f,new Point(1,0));
+            Check((g.Position-new Point(foundry.x,foundry.y)).Length>1.5f,
+                "Canonical player can actually walk clear of the live steam impact");
+            g.invulnerable=0;
+            float afterMove=g.save.health;
+            Advance(g,1.4f);
+            Check(g.save.health==afterMove && g.TemperActive,
+                "Correctly walking away from the warning avoids the second blast without aborting the trial");
+        }
+
+        public static void EmberTemperManualVentingCancelsOnlyOwnedSteamAndCreatesARealOpening(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            g.Enter(3);g.enemies.Clear();
+            WorldObject foundry=Object(g,"ironfoundry");
+            WorldObject valve=Object(g,"ironvent1");
+            g.save.x=foundry.x;g.save.y=foundry.y;
+            Action(g,"ironfoundry","iron_temper_start");
+            foreach(Enemy foe in g.enemies.FindAll(g.IsTemperEnemy))
+            {
+                foe.stun=200;foe.timer=200;
+            }
+            g.invulnerable=200;
+            Advance(g,3.65f);
+            Check(g.hazards.Exists(h=>h.temperOwned),
+                "Steam warning must actually exist before a live vent can cancel it");
+            Hazard other=new Hazard{position=new Point(20,11),
+                timer=15,radius=.7f,damage=3,kind="root"};
+            g.hazards.Add(other);
+            var unrelated=new Effect("discover",new Point(19,11),50);
+            g.effects.Add(unrelated);
+            g.enemies.RemoveAll(g.IsTemperEnemy); // Isolated test of vent cleanup.
+            g.save.x=valve.x;g.save.y=valve.y;
+            float oldPressure=g.TemperPressure;
+            Action(g,"ironvent1","iron_temper_vent_1");
+            Check(g.TemperStage==2 && g.TemperPressure<oldPressure &&
+                !g.hazards.Exists(h=>h.temperOwned) &&
+                g.hazards.Contains(other) && g.effects.Contains(unrelated),
+                "Physical valve reduces real pressure and clears only forge-owned warnings");
+            Advance(g,2.2f);
+            Check(g.TemperActive && !g.hazards.Exists(h=>h.temperOwned),
+                "Cooling valve grants a meaningful respite before the next steam attack");
+        }
+
     }
 }
