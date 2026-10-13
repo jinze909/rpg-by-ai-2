@@ -699,6 +699,8 @@ namespace Starfall
             if (kind == "expAltar") { ExpansionAltar(o); return true; }
             if (kind == "council") { CouncilConversation(); return true; }
             if (kind.StartsWith("history")) { ReadHistory(int.Parse(kind.Substring(7))); return true; }
+            if (kind=="abyssFarSurvey"||kind=="abyssFarCache"||kind=="abyssFarEcho")
+            { TalkAbyssFarGallery(o); return true; }
             if (kind == "abyssCache" || kind == "abyssSurvey")
             { TalkAbyssAnnex(o); return true; }
             if (kind == "abyssEntry") { OpenAbyssEntrance(); return true; }
@@ -978,8 +980,8 @@ namespace Starfall
         private void GenerateAbyss()
         {
             var random = new System.Random(save.abyssSeed + save.abyssFloor * 919);
-            char[][] rows = new char[36][];
-            for (int y = 0; y < 36; y++) { rows[y] = new string('#', 54).ToCharArray(); }
+            char[][] rows = new char[44][];
+            for (int y = 0; y < 44; y++) { rows[y] = new string('#', 66).ToCharArray(); }
             int[,] rooms = { { 3, 4, 8, 16 }, { 13, 3, 9, 18 }, { 25, 4, 8, 16 } };
             for (int i = 0; i < 3; i++) for (int y = rooms[i, 1]; y < rooms[i, 1] + rooms[i, 3]; y++) for (int x = rooms[i, 0]; x < rooms[i, 0] + rooms[i, 2]; x++) rows[y][x] = '.';
             for (int y = 13; y <= 15; y++) for (int x = 2; x < 34; x++) rows[y][x] = '=';
@@ -1009,19 +1011,49 @@ namespace Starfall
             }
             rows[28][12] = rows[29][12] = '.';
             rows[27][47] = rows[28][47] = rows[29][47] = '.';
-            string[] strings = new string[36];
-            for (int y = 0; y < 36; y++) strings[y] = new string(rows[y]);
+            // New sixth-ring-scale branches on the *outside* of the exact
+            // old 54x36 procedural footprint. Keep old seeded RNG draws and
+            // floor enemy/boss/gate coordinates unchanged for v2 save replay.
+            for(int y=7;y<=40;y++)
+                for(int x=56;x<=62;x++)rows[y][x]='.';
+            for(int y=37;y<=40;y++)
+                for(int x=14;x<=62;x++)rows[y][x]='.';
+            for(int y=28;y<=30;y++)
+                for(int x=49;x<=61;x++)rows[y][x]='=';
+            for(int y=29;y<=39;y++)
+                for(int x=58;x<=60;x++)rows[y][x]='=';
+            for(int y=31;y<=39;y++)
+                for(int x=18;x<=22;x++)rows[y][x]='=';
+            for(int y=38;y<=40;y++)
+                for(int x=14;x<=62;x++)rows[y][x]='=';
+            for(int y=9;y<=12;y++)
+                for(int x=57;x<=61;x++)rows[y][x]='=';
+            // Layered side chambers without narrowing any mandatory path.
+            for(int y=8;y<=15;y++)
+                for(int x=63;x<=64;x++)
+                    if((y+save.abyssFloor)%4==0)rows[y][x]='.';
+            string[] strings = new string[44];
+            for (int y = 0; y < 44; y++) strings[y] = new string(rows[y]);
             abyssMap = new MapData { id = 8, name = "地脉深渊 · 第" + save.abyssFloor + "层", en = "ROOT ABYSS · FLOOR " + save.abyssFloor, color = save.abyssFloor % 2 == 0 ? "#4f576c" : "#425b5c", subtitle = "越深入，越要决定带什么回来。", suben = "Every descent asks what you will carry home.", spawnX = 5, spawnY = 14, rows = strings,
                 objects = new[] { new WorldObject { id = "abyssExit", kind = "abyssExit", name = "放弃本层收益，返回", en = "Leave unbanked loot", x = 3, y = 14 }, new WorldObject { id = "abyssGate", kind = "abyssGate", name = "地脉门 · 祝福与结算", en = "Root gate · boons and banking", x = 31, y = 14 },
                     new WorldObject { id = "abyssSideSurvey", kind = "abyssSurvey", name = "地脉旧拓片", en = "Root Warden's Lost Rubbing", x = 12.5f, y = 28.5f },
-                    new WorldObject { id = "abyssSideCache", kind = "abyssCache", name = "深层遗落物资", en = "Forgotten Deep Supplies", x = 47.5f, y = 28.5f } },
+                    new WorldObject { id = "abyssSideCache", kind = "abyssCache", name = "深层遗落物资", en = "Forgotten Deep Supplies", x = 47.5f, y = 28.5f },
+                    new WorldObject { id = "abyssFarSurvey", kind = "abyssFarSurvey", name = "地脉下层残碑", en = "Deep Root Testimony", x = 20.5f, y = 39.5f },
+                    new WorldObject { id = "abyssFarCache", kind = "abyssFarCache", name = "洞底失落补给", en = "Lower Gallery Supplies", x = 60.5f, y = 39.5f },
+                    new WorldObject { id = "abyssFarEcho", kind = "abyssFarEcho", name = "地脉回声石", en = "Starroot Echo Stone", x = 60.5f, y = 11.5f } },
                 decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 },
                     new Decoration { kind = "crystal", x = 40, y = 9 },
                     new Decoration { kind = "ruin", x = 48, y = 15 },
                     new Decoration { kind = "root", x = 40, y = 24 },
                     new Decoration { kind = "obelisk", x = 22, y = 26 },
                     new Decoration { kind = "crystal", x = 8, y = 31 },
-                    new Decoration { kind = "root", x = 35, y = 30 } } };
+                    new Decoration { kind = "root", x = 35, y = 30 },
+                    new Decoration { kind = "crystal", x = 16, y = 40 },
+                    new Decoration { kind = "root", x = 33, y = 39 },
+                    new Decoration { kind = "obelisk", x = 51, y = 40 },
+                    new Decoration { kind = "crystal", x = 63, y = 20 },
+                    new Decoration { kind = "root", x = 61, y = 26 },
+                    new Decoration { kind = "ruin", x = 63, y = 34 } } };
         }
         private void TalkAbyssAnnex(WorldObject o)
         {

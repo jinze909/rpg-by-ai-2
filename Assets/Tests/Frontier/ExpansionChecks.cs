@@ -323,7 +323,7 @@ namespace Starfall.Tests
             GameCore g=new GameCore(data);
             g.save.frontierEnding=1;
             g.StartAbyss(0);
-            Check(g.InAbyss&&g.Map.rows.Length==36&&g.Map.rows[0].Length==54,
+            Check(g.InAbyss&&g.Map.rows.Length==44&&g.Map.rows[0].Length==66,
                 "Every newly generated abyss floor has expanded playable galleries");
             WorldObject cache=null,survey=null;
             foreach(WorldObject o in g.Map.objects)
@@ -354,13 +354,55 @@ namespace Starfall.Tests
             g.Close();
             GameCore reloaded=new GameCore(data,g.save);
             Check(reloaded.InAbyss&&reloaded.save.version==2&&
-                reloaded.Map.rows.Length==36&&reloaded.Map.rows[0].Length==54&&
+                reloaded.Map.rows.Length==44&&reloaded.Map.rows[0].Length==66&&
                 reloaded.Has("abyss_annex_cache_1")&&
                 reloaded.Explored(8,cache.x,cache.y)&&reloaded.save.runCoins==g.save.runCoins,
                 "Legacy v2 mid-expedition save restores expanded geometry and pending loot");
             reloaded.StartAbyss(1);
             Check(reloaded.save.runCoins==g.save.runCoins,
                 "Cannot restart another expedition while already in the abyss");
+        }
+
+        public static void ExpandedLowerAbyssGalleriesHaveRealBandedLootAndSafeV2Reload(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.save.frontierEnding=1;g.StartAbyss(0);
+            Check(g.InAbyss&&g.Map.rows.Length==44&&g.Map.rows[0].Length==66,
+                "Procedural abyss expands to 66x44 without moving its original boss route");
+            var cells=Reachable(g);int width=g.Map.rows[0].Length;
+            WorldObject survey=Array.Find(g.Map.objects,o=>o.kind=="abyssFarSurvey");
+            WorldObject cache=Array.Find(g.Map.objects,o=>o.kind=="abyssFarCache");
+            WorldObject echo=Array.Find(g.Map.objects,o=>o.kind=="abyssFarEcho");
+            Check(survey!=null&&cache!=null&&echo!=null,
+                "Abyss has three actual new optional lower-gallery interactions");
+            foreach(WorldObject point in new[]{survey,cache,echo})
+                Check(cells.Contains((int)point.y*width+(int)point.x)&&
+                    g.CanStand(new Point(point.x,point.y)),
+                    "Real abyss collisions allow the hero to reach every new gallery");
+            int coins=g.save.coins,shards=g.save.shards,oldXP=g.save.runXp;
+            g.save.x=echo.x;g.save.y=echo.y;g.Talk(echo);g.Close();
+            Check(g.save.runXp==oldXP&&
+                !g.Has("abyss_annex_far_echo_1"),
+                "Echo cannot be opened without actually finding lower testimony");
+            g.save.x=survey.x;g.save.y=survey.y;g.Talk(survey);g.Close();
+            Check(g.save.runXp==oldXP+25&&
+                g.Has("abyss_annex_far_survey_1"),"Physical testimony grants pending XP");
+            g.Talk(survey);g.Close();
+            Check(g.save.runXp==oldXP+25,"Reading the same tablet never duplicates loot");
+            g.save.x=cache.x;g.save.y=cache.y;g.Talk(cache);g.Close();
+            Check(g.save.runCoins>=30&&g.save.runShards>=1&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Lower gallery supplies follow existing unbanked expedition rules");
+            g.save.x=echo.x;g.save.y=echo.y;g.Talk(echo);g.Close();
+            Check(g.save.runXp==oldXP+45,"Echo grants pending XP only after prior physical survey");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,g.save);
+            Check(restored.InAbyss&&restored.save.version==2&&
+                restored.Map.rows.Length==44&&restored.Map.rows[0].Length==66&&
+                restored.Has("abyss_annex_far_survey_1")&&
+                restored.Has("abyss_annex_far_echo_1")&&
+                restored.save.runXp==oldXP+45,
+                "Mid-floor old-format save restores new gallery geometry and pending loot");
         }
 
         public static void AbyssExpeditions(Campaign data)

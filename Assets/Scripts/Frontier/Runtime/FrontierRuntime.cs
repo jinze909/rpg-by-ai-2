@@ -505,6 +505,19 @@ namespace Starfall
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
             if (DrawPolishObject(o) || DrawExpansionObject(o)) return;
+            if(kind=="abyssFarSurvey"||kind=="abyssFarCache"||kind=="abyssFarEcho")
+            {
+                bool survey=kind=="abyssFarSurvey";
+                bool cache=kind=="abyssFarCache";
+                string flag="abyss_annex_far_"+(survey?"survey_":cache?"cache_":"echo_")+
+                    Game.save.abyssFloor;
+                bool recorded=Game.Has(flag);
+                PropImage(survey?"obelisk":cache?"barrel":"crystal",0,
+                    p.x-36,p.y-77,72,84,recorded?
+                        new Color(.66f,.88f,.82f,.8f):Color.white);
+                if(!recorded)Diamond(p.x,p.y-73,6,gold);
+                return;
+            }
             if(kind=="abyssCache"||kind=="abyssSurvey")
             {
                 bool found=Game.Has("abyss_annex_"+(kind=="abyssCache"?"cache_":"survey_")+Game.save.abyssFloor);
