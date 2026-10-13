@@ -104,6 +104,8 @@ namespace Starfall.Tests
         [Test] public void CounterpointCombatPulsesAreTelegraphedAndDodgeable() { CoreChecks.StarrootCombatPulsesWarnAndCanActuallyBeDodged(Data()); }
         [Test] public void NewCounterpointChronicleTracksActualFindings() { CoreChecks.NewCounterpointChronicleRevealsOnlyRecoveredMusic(Data()); }
         [Test] public void SealedStarrootNodesProvideSafeLocalRest() { CoreChecks.CalibratedStarrootSitesOfferSafePersistentRest(Data()); }
+        [Test] public void CitadelCommonsStagesAndPublicRelease() { CoreChecks.CitadelCommonsThreeStageCombatAndPublicKey(Data()); }
+        [Test] public void CitadelCommonsRequiresMainGuardianAndSupportsWithdrawal() { CoreChecks.CitadelCommonsStoryLocksAndWithdrawal(Data()); }
         [Test] public void StarrootCounterpointHasNewRegionsAndActualFights() { CoreChecks.StarrootCounterpointIsNewPlayableCrossRegionStory(Data()); }
         [Test] public void LostSurveyorAtlasIsPlayable() { CoreChecks.LostSurveyorAtlasHasRealSequenceAndOneTimeRewards(Data()); }
         [Test] public void FarshoreWeatherStationsAreLive() { CoreChecks.FarshoreWeatherStationsChangeActualClimateAndTide(Data()); }
