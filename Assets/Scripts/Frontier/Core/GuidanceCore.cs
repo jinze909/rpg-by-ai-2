@@ -35,8 +35,12 @@ namespace Starfall
         {
             save.tutorialDistance = Math.Min(4, save.tutorialDistance + (Position - before).Length);
             if (save.tutorialDistance >= 3) TutorialAction(0); if (save.room == 1) TutorialAction(7);
-            int bit = 1 << Sector(save.x, save.y);
-            if ((save.explored[save.room] & bit) == 0) { save.explored[save.room] |= bit; revision++; }
+            // Legacy sectors track the original 36x24 area only.
+            if (save.x < 36 && save.y < 24)
+            {
+                int bit = 1 << Sector(save.x, save.y);
+                if ((save.explored[save.room] & bit) == 0) { save.explored[save.room] |= bit; revision++; }
+            }
             // Preserve all legacy 36x24 fog bits. Annex discoveries use the
             // existing string flags instead of widening the SaveData v2 schema.
             if (save.room < 8 && (save.x >= 36 || save.y >= 24))

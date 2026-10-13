@@ -177,15 +177,53 @@ namespace Starfall.Tests
             for (int i = 0; i < g.conversation.choices.Length; i++) if (g.conversation.choices[i].action == "ending2") { g.Choose(i); break; }
             Check(g.save.ending == 2, "Second ending");
         }
+
+        public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
+        {
+            for(int region=0;region<8;region++)
+            {
+                MapData m=data.maps[region];
+                GameCore g=new GameCore(data);g.save.room=region;
+                g.save.flags.Add("gate_"+region);
+                Check(!g.InProtectedArena(new Point(65,9)), "Boss arena must remain at its original x-coordinate");
+                int count=0;foreach(WorldObject o in m.objects)
+                    if(o.kind=="annexcache"||o.kind=="annexcamp"||o.kind=="annexvista")
+                    {count++;Check(g.CanStand(new Point(o.x,o.y)), "New site must occupy real walkable tile: "+o.id);}
+                Check(count==4,"Two caches, one camp, one vista per outdoor map");
+            }
+            GameCore game=new GameCore(data);
+            WorldObject cache=Array.Find(data.maps[0].objects,o=>o.id=="annex_cache_0_a");
+            game.save.x=cache.x;game.save.y=cache.y;
+            int coins=game.save.coins;
+            game.Talk(cache);Check(game.save.coins==coins+7 && game.Has("annex_cache_"+cache.id),"Looting physical cache grants once");
+            game.Close();game.Talk(cache);game.Close();
+            Check(game.save.coins==coins+7,"Cache cannot duplicate real loot");
+            WorldObject vista=Array.Find(data.maps[0].objects,o=>o.id=="annex_vista_0");
+            game.save.x=vista.x;game.save.y=vista.y;game.Talk(vista);game.Close();
+            Check(game.Has("annex_vista_"+vista.id)&&game.Explored(0,65,40),"Lookout records its nearby 6x6 fog cells");
+            WorldObject camp=Array.Find(data.maps[0].objects,o=>o.id=="annex_camp_0");
+            game.save.x=camp.x;game.save.y=camp.y;game.Talk(camp);
+            int choice=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_rest");
+            Check(choice>=0,"Real camp offers rest interaction");
+            int wood=game.save.inventory[0];
+            game.save.health=30;game.save.energy=8;
+            game.Choose(choice);
+            Check(game.save.inventory[0]==wood-1&&game.save.health==70&&game.save.energy==100,
+                "Camp consumes actual timber, restores HP and energy");
+            GameCore reload=new GameCore(data,game.save);
+            Check(reload.save.version==2&&reload.Has("annex_camp_"+camp.id)&&reload.Has("annex_cache_"+cache.id)&&reload.Has("annex_vista_"+vista.id),
+                "All exploration progress remains in v2 save");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)
             {
                 MapData map = data.maps[room];
-                Check(map.rows.Length == 36 && map.rows[0].Length == 54,
-                    "Outdoor expansion dimensions must be 54x36 in room " + room);
+                Check(map.rows.Length == 48 && map.rows[0].Length == 72,
+                    "Outdoor expansion dimensions must be 72x48 in room " + room);
                 foreach (string row in map.rows)
-                    Check(row.Length == 54, "Every terrain row remains rectangular");
+                    Check(row.Length == 72, "Every terrain row remains rectangular");
                 Check(map.rows[13][17] == '=' && map.rows[14][18] == '=',
                     "Original central campaign road is retained");
                 foreach (WorldObject o in map.objects)

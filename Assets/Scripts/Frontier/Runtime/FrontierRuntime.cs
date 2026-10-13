@@ -354,6 +354,26 @@ namespace Starfall
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
             if (DrawPolishObject(o) || DrawExpansionObject(o)) return;
+            if(kind=="annexcache")
+            {
+                bool used=Game.Has("annex_cache_"+o.id);
+                PropImage("barrel",0,p.x-27,p.y-52,54,56,used?new Color(.57f,.67f,.65f,.7f):Color.white);
+                if(!used)Diamond(p.x,p.y-43,5,gold);
+                return;
+            }
+            if(kind=="annexcamp")
+            {
+                PropImage("fire",0,p.x-38,p.y-70,76,78);
+                Ring(new Point(o.x,o.y),.45f,Game.SafeTravel?mint:muted,12);
+                return;
+            }
+            if(kind=="annexvista")
+            {
+                bool seen=Game.Has("annex_vista_"+o.id);
+                PropImage("obelisk",0,p.x-33,p.y-76,66,80,seen?new Color(.74f,.91f,.84f):Color.white);
+                if(!seen)Diamond(p.x,p.y-75,5,gold);
+                return;
+            }
             if (kind == "waytrail")
             {
                 bool recorded = Game.Has("waytrail_" + o.id);

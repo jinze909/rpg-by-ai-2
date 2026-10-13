@@ -77,7 +77,7 @@ namespace Starfall
             if (!Game.GateBarrierActive) return;
             float opacity = !Game.GateOpen ? 1 : Math.Max(.12f, Game.gateOpeningTime / .55f);
             for (int y = 2; y < 14; y++) DrawBarrierCell(26, y, opacity);
-            for (int x = 27; x < Game.Map.rows[0].Length - 2; x++) DrawBarrierCell(x, 13, opacity);
+            for (int x = 27; x < 34; x++) DrawBarrierCell(x, 13, opacity);
         }
         private void DrawBarrierCell(int x, int y, float opacity)
         {

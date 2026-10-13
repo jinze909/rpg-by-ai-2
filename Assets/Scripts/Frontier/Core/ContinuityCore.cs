@@ -120,7 +120,7 @@ namespace Starfall
         public bool HasArenaBoundary { get { return save.room == 1 || save.room == 2 || save.room == 3 || save.room == 5 || save.room == 6 || save.room == 7; } }
         public bool GateBarrierActive { get { return HasArenaBoundary && (!GateOpen || gateOpeningTime > 0); } }
         public bool InProtectedArena(Point p)
-        { return HasArenaBoundary && p.x >= 26 && p.x < Map.rows[0].Length - 2 && p.y >= 2 && p.y < 14; }
+        { return HasArenaBoundary && p.x >= 26 && p.x < 34 && p.y >= 2 && p.y < 14; }
         private void TickGate(float dt) { if (gateOpeningTime > 0) gateOpeningTime = Math.Max(0, gateOpeningTime - dt); }
 
         // Ground-space origin plus a fixed draw height. Both release sparks and
