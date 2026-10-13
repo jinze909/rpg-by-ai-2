@@ -117,9 +117,9 @@ namespace Starfall.Tests
                 g.GetQuest("main").complete && g.save.ending==3,
                 "The full, manually published reconstruction charter rewards exactly once and never changes the player's original ending");
             g.PrepareSave();
-            reload=new GameCore(data,CloneSave(g.save));reload.Start();
-            Check(reload.save.version==2 && reload.AfterlightComplete &&
-                reload.AfterlightRestored==3 && reload.save.ending==3,
+            var persisted=new GameCore(data,CloneSave(g.save));persisted.Start();
+            Check(persisted.save.version==2 && persisted.AfterlightComplete &&
+                persisted.AfterlightRestored==3 && persisted.save.ending==3,
                 "All public services, choices and original ending survive version-two save serialization");
             g.Talk(council);
             Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_publish"),
