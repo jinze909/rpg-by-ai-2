@@ -346,6 +346,54 @@ public static class RenderStateChecks
     public static void MapRasterRegression(FrontierRuntime app)
     { WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app); }
 
+    static void PublicRefugeChoicesHaveRealWorldVisualFeedback(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        GameCore g=app.Game;g.save.flags.Add("far_shelter_0");
+        var shelter=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
+        var checkpoint=Array.Find(g.Map.objects,o=>o.kind=="farcheck");
+        Check(shelter!=null&&checkpoint!=null,
+            "Existing map contains both a physical public refuge and inspection post");
+        Clear();Call(app,"DrawObject",shelter);
+        Check(GUI.textureCalls.Count>0,"The original public refuge is actually rendered");
+        Color basic=GUI.textureCalls[0].color;
+        g.save.flags.Add("civic_supply_clinic_0");
+        Clear();Call(app,"DrawObject",shelter);
+        Check(GUI.textureCalls.Count>0,
+            "A resident-funded clinic keeps its original shelter art");
+        Color clinic=GUI.textureCalls[0].color;
+        Check(Math.Abs(clinic.r-basic.r)+Math.Abs(clinic.g-basic.g)+
+            Math.Abs(clinic.b-basic.b)>.03f,
+            "Funded clinic has a distinct visible in-world medical tint");
+        g.save.flags.Remove("civic_supply_clinic_0");
+        g.save.flags.Add("civic_supply_watch_0");
+        Clear();Call(app,"DrawObject",shelter);
+        Color watch=GUI.textureCalls[0].color;
+        Check(Math.Abs(watch.r-clinic.r)+Math.Abs(watch.g-clinic.g)+
+            Math.Abs(watch.b-clinic.b)>.03f,
+            "The alternative lookout keeps distinct amber world art");
+        Clear();Call(app,"DrawObject",checkpoint);
+        Check(GUI.textureCalls.Count>0,
+            "The same route's civilian checkpoint remains a real rendered object");
+        g.save.flags.Remove("civic_supply_watch_0");
+        g.save.flags.Add("civic_supply_started");
+        g.save.flags.Add("far_courier_0");
+        Clear();Call(app,"DrawObject",checkpoint);
+        Check(GUI.textureCalls.Count>0,
+            "Pending inquest uses the original physically inspectable route post");
+        app.BeginVisualReview(9,1);g=app.Game;
+        var guest=Array.Find(g.Map.objects,o=>o.kind=="farrefugerecord");
+        Check(guest!=null,"Guest registry is placed in the real Hearth Inn");
+        g.save.flags.Add("civic_supply_started");
+        Clear();Call(app,"DrawObject",guest);
+        Check(GUI.textureCalls.Count>0,
+            "Active public inquest highlights the actual guest registry");
+        g.save.flags.Add("civic_supply_complete");
+        Clear();Call(app,"DrawObject",guest);
+        Check(GUI.textureCalls.Count>0,
+            "Published records visibly change the registry tint");
+        Console.WriteLine("PASS physical inquest checkpoint, clinic and watch art, and live guest registry (offline)");
+    }
     static void RestoresState(FrontierRuntime app)
     {
         Screen.width=1920; Screen.height=1080; Prepare(app);
@@ -359,7 +407,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
