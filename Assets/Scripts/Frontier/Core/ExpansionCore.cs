@@ -339,7 +339,7 @@ namespace Starfall
                 save.health<save.maxHealth &&
                 NearKind("stormcouncil",3.1f))
                 save.health=Math.Min(save.maxHealth,
-                    save.health+dt*(1.2f+StormBudgetLeft*.35f));
+                    save.health+dt*(1.2f+StormBudgetLeft*.35f+(StormReliefAll?.75f:0f)));
             // A finished reconstruction actually changes what the region
             // can do, without impacting boss combat or distant locations.
             if(AfterlightRefuge(save.room) && !practicing && !racing &&

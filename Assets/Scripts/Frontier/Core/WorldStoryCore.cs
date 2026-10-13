@@ -544,14 +544,18 @@ namespace Starfall
                                 "residents spent two units on continuous civic lights and utilities.")+"\n";
                         }
                     }
-                    zh+="\n八单位公共储备已分配："+StormBudgetSpent+
+                    zh+="\n已送达居民的星雨热汤救助："+StormReliefCount+"/3。"+
+                        (StormReliefAll?"三位见证人的真实援助让镇上避难设施可以帮助更多后来者。":"这些捐赠是自愿救助，不替代地区配电。")+
+                        "\n八单位公共储备已分配："+StormBudgetSpent+
                         "，余量："+StormBudgetLeft+"；"+
                         (Has("storm_complete")?
                             "三座余烬镇星灯已经按照原有结局的能源秩序被真正调谐，第一次星雨的公约已公开。":
                             Has("storm_tuned")?
                             "镇内的三个公共灯站已实际调谐，但公约仍需回议事台公开。":
                             "公约尚未真正经受全部检验，不能提前宣告成功。");
-                    en+="\nPublic reserve allocated: "+StormBudgetSpent+
+                    en+="\nReal meals delivered to storm-affected residents: "+StormReliefCount+"/3. "+
+                        (StormReliefAll?"All three living witnesses delivered aid; the public shelter can sustain more late travelers.":"Optional aid never substitutes for a fair regional energy allocation.")+
+                        "\nPublic reserve allocated: "+StormBudgetSpent+
                         " of eight; remaining: "+StormBudgetLeft+". "+
                         (Has("storm_complete")?
                             "Three actual town lamps were tuned according to the energy order dictated by the original ending. The first-storm charter is public.":

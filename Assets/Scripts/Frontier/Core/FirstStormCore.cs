@@ -23,6 +23,9 @@ namespace Starfall
             get { int n=0;for(int i=1;i<=3;i++)n+=StormPolicy(i)==1?3:StormPolicy(i)==2?2:0;return n; }
         }
         public int StormBudgetLeft { get { return 8-StormBudgetSpent; } }
+        public int StormReliefCount
+        { get { int n=0;for(int i=1;i<=3;i++)if(Has("storm_relief_"+i))n++;return n; } }
+        public bool StormReliefAll { get { return StormReliefCount==3; } }
         public int StormPolicy(int region)
         {
             if(region<1 || region>3)return 0;
@@ -76,6 +79,47 @@ namespace Starfall
                 townNode=int.TryParse(kind.Substring("stormnode".Length),out site)&&
                     site>=1&&site<=3&&save.room==0;
             }
+            // Original named residents return to the story. The older witness
+            // investigation must remain reachable through its own action.
+            if(save.room>=1&&save.room<=3 &&
+                kind=="witnessnpc"+save.room && Has("storm_started") &&
+                StormPolicy(save.room)!=0)
+            {
+                int region=save.room;
+                bool shelter=StormPolicy(region)==1;
+                string[] zhS={"",
+                    "莫芽：我们让受伤的根系休养，但夜间巡路灯暂时少了光。保护活着的森林值得付出一点不便。",
+                    "阿菱：孩子们在安全河岸休息，渡船夜间不得不减速。没有货运许可证的人终于也有灯了。",
+                    "维恩：矿机及时停下，工友可以先躲避星雨。今天的产量少了，但没人该用生命换配额。"};
+                string[] enS={"",
+                    "Moya: Our wounded roots can rest, though fewer road lamps stay lit. The living forest is worth a slower night.",
+                    "Arin: Children shelter on the riverbank while ferries run more slowly. Even those without freight permits have a lamp.",
+                    "Venn: The machines stopped safely and workers sought refuge. Output is lower, but nobody should pay a quota with their life."};
+                string[] zhG={"",
+                    "莫芽：星灯让行路者平安穿林，但受伤的根系还需要有人照料。亮着的道路不能代替森林。",
+                    "阿菱：渡口继续运药、运人。我们保住了船路，可不能忘记在寒夜里需要热汤的孩子。",
+                    "维恩：公共工房继续运作，节省了珍贵星晶。但过热时停机的权利依然不能撤销。"};
+                string[] enG={"",
+                    "Moya: Lamps light the road, but the wounded roots still need tending. A lit road cannot replace a living forest.",
+                    "Arin: Ferries still carry medicine and travelers, but we must remember the cold children who need hot food.",
+                    "Venn: Our public workshop saves precious starcrystal, but no one may revoke the right to stop an overheating machine."};
+                var options=new List<Choice>();
+                if(!Has("storm_relief_"+region))
+                    options.Add(C("捐出热汤1份帮助星雨受灾者",
+                        "Donate one stew to storm-affected residents","storm_relief_"+region));
+                options.Add(C("继续此前的居民证词",
+                    "Continue the earlier resident testimony","storm_oldstory_"+region));
+                options.Add(C("继续旅行","Travel on","close"));
+                Dialog(o.name,o.en,
+                    (shelter?zhS[region]:zhG[region])+
+                    (Has("storm_relief_"+region)?"\n\n你捐出的热汤已经送到了真正需要的人手里。":
+                        "\n\n如果愿意，可将背包中真实的一份热汤送给今晚受寒的居民。"),
+                    (shelter?enS[region]:enG[region])+
+                    (Has("storm_relief_"+region)?"\n\nYour donated stew reached the people who needed it.":
+                        "\n\nIf you wish, donate one real stew from your inventory to neighbors suffering tonight."),
+                    options.ToArray());
+                return true;
+            }
             if(!council&&!regionNode&&!townNode)return false;
             if(council)
             {
@@ -89,9 +133,14 @@ namespace Starfall
                 if(StormChapterComplete)
                 {
                     Dialog(o.name,o.en,
-                        "莉雅：我们撑过了第一次没有军用独断命令的星雨。有人优先照顾庇护所，有人选择让工房不停运转；每一笔储备分配都公开了，而且每个地区亲自承担了后果。",
-                        "Lyra: We endured our first storm without an unquestionable military order. Some towns prioritized shelters; others kept essential work powered. Every allocation is public, and its cost is shared.",
-                        C("阅读公约记录","Read the public record","close"));return true;
+                        "莉雅：我们撑过了第一次没有军用独断命令的星雨。有人优先照顾庇护所，有人选择让工房不停运转；每一笔储备分配都公开了，而且每个地区亲自承担了后果。"+
+                        (StormReliefAll?"莫芽、阿菱和维恩也已将你捐出的三份热汤送给受寒的居民。":"")+
+                        " 公共道路将记住能源与互助。",
+                        "Lyra: We endured our first storm without an unquestionable military order. Some towns prioritized shelters; others kept essential work powered. Every allocation is public, and its cost is shared."+
+                        (StormReliefAll?" Moya, Arin and Venn also distributed all three hot meals you donated to people left in the cold.":"")+ 
+                        " The public roads will remember both our power and our care.",
+                        C("阅读本章编年册","Read Chapter Six chronicle","storm_read"),
+                        C("继续探索","Continue exploring","close"));return true;
                 }
                 if(!Has("storm_started"))
                 {
@@ -217,6 +266,44 @@ namespace Starfall
         }
         private bool ChooseStorm(string action)
         {
+            if(action.StartsWith("storm_oldstory_"))
+            {
+                int region;
+                if(!int.TryParse(action.Substring("storm_oldstory_".Length),out region) ||
+                    region<1||region>3 || save.room!=region ||
+                    StormPolicy(region)==0)return true;
+                foreach(WorldObject resident in Map.objects)
+                    if(resident.kind=="witnessnpc"+region)
+                    {TalkWitness(resident);break;}
+                return true;
+            }
+            if(action.StartsWith("storm_relief_"))
+            {
+                int region;
+                if(!int.TryParse(action.Substring("storm_relief_".Length),out region) ||
+                    region<1||region>3 || save.room!=region ||
+                    StormPolicy(region)==0 || Has("storm_relief_"+region) ||
+                    (Position-StormPoint(region,"witnessnpc"+region)).Length>2.2f)
+                    return true;
+                if(save.inventory==null || save.inventory.Length<=6 || save.inventory[6]<=0)
+                {
+                    Notify("没有热汤。回余烬镇旅店补充后再来。",
+                        "No stew remains. Cook or buy a meal in Emberfall before returning.");
+                    return true;
+                }
+                save.inventory[6]--;
+                Flag("storm_relief_"+region);AddXp(12);revision++;sound="reward";
+                RecordMoment(StormRegionName(region,false)+"的居民实际收到了星雨中的热汤。这份救助不取代公共配电。",
+                    "Neighbors at "+StormRegionName(region,true)+" actually received hot stew during the storm; it never substitutes for a fair grid.");
+                Notify("星雨救助 "+StormReliefCount+"/3 完成；真实热汤 -1，经验 +12。",
+                    "Storm relief "+StormReliefCount+"/3; -1 real stew, +12 XP.");
+                return true;
+            }
+            if(action=="storm_read")
+            {
+                if(Has("storm_started"))WorldChroniclePage("storm");
+                return true;
+            }
             if(action=="storm_track")
             { TrackQuest("storm_commons");return true; }
             if(action=="storm_begin")

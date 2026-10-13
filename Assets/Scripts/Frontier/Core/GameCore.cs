@@ -854,10 +854,18 @@ namespace Starfall
             {
                 if (TalkTriadGuild(o)) return;
                 if (save.ending > 0) { Dialog(o.name, o.en,
+                    (Has("storm_complete")?
+                        "莉雅：第一场星雨终于证明了一个事实：三个地区真的可以自己决定如何分配公共电力。我已经把庇护与生产的选择、每座星灯的调谐顺序和剩余储备全部公开。" +
+                        (StormReliefAll?"三位原来的证人还把你捐出的热汤送到了受寒的居民手中。":"") + "\n\n" :
+                        Has("storm_started")?"莉雅：星雨还没有结束。三片地区的选择不由城墙自动替代；请到公约议事台确认每一笔公共储备。\n\n":"") +
                     (Has("afterlight_complete") ?
                     "莉雅：你没有让终章变成另一本落满灰尘的历史书。三地公共站点已经接通，普通人可以使用它们，也知道谁来维护。\n\n" :
                     "莉雅：厄洛的决定过去了，村庄仍然需要真正的公共道路。公会南侧设立了余光重建议事台；把星根设施接回居民身边吧。\n\n") +
                     "冒险尚未结束。旅店有热汤，密林里仍有星晶，大家都在等你。",
+                    (Has("storm_complete")?
+                        "Lyra: The first storm proved three living regions can choose how to distribute public power. The shelter and utility allocations, physical lamp sequence and remaining reserve are all on the public record." +
+                        (StormReliefAll?" The original three witnesses also delivered your hot meals to neighbors suffering in the cold.":"") + "\n\n" :
+                        Has("storm_started")?"Lyra: The starstorm is not over. The citadel cannot decide each region's power needs by decree. Inspect the civic allocations at the council.\n\n":"") +
                     (Has("afterlight_complete") ?
                     "Lyra: You did not let the ending become another dusty history book. All three public sites now work, and ordinary people know who maintains them.\n\n" :
                     "Lyra: Orrin's decision is behind us, but villages still need real public routes. Find the afterlight reconstruction council south of the guild and rebuild those civic sites.\n\n") +
@@ -1108,6 +1116,11 @@ namespace Starfall
             {
                 zh[ending] += "\n\n密林的莫芽、遗迹的阿菱和矿场的维恩把亲笔署名的证词留给了公会；新的公共档案终于记得谁在修复土地、谁在等候过河、谁应该安全下班。";
                 en[ending] += "\n\nMoya of Thornwood, Arin of the ruins and Venn of Ironreach left signed testimony with the guild. Public records now remember who healed the soil, who waited to cross and who deserved to go home after work.";
+            }
+            if (StormReliefAll)
+            {
+                zh[ending] += "\n\n在星雨的寒夜，莫芽、阿菱和维恩又将你亲自捐出的三份热汤送给最需要的居民，公用避难所因此能继续照顾后来的旅人。";
+                en[ending] += "\n\nDuring the freezing storm, Moya, Arin and Venn delivered all three real meals you donated. The public shelter can now care for travelers who arrive after the emergency.";
             }
             if (Has("storm_started"))
             {

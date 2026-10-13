@@ -300,9 +300,13 @@ namespace Starfall
                 bool filed=Game.Has("witness_complete_"+chapter);
                 bool repaired=Game.Has("afterlight_done_"+chapter);
                 bool steward=Game.Has("afterlight_steward_"+chapter);
+                bool stormActive=Game.Has("storm_started")&&Game.StormPolicy(chapter)!=0;
+                bool helped=Game.Has("storm_relief_"+chapter);
                 Color tint=steward?mint:repaired?gold:filed?mint:Game.Has("witness_started_"+chapter)?gold:muted;
                 DrawNpc("innGuest",new Point(o.x,o.y),11+chapter);
                 Text(p.x-66,p.y-86,132,20,
+                    stormActive?helped?Game.L("星雨热汤已送达","STORM RELIEF DELIVERED"):
+                        Game.L("邻居需要热汤","NEIGHBORS NEED STEW"):
                     repaired?steward?Game.L("维护承诺已署名","STEWARD SIGNED"):
                         Game.L("维护者待署名","SIGN MAINTENANCE"):
                     filed?Game.L("证词已公开","TESTIMONY FILED"):

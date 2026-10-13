@@ -206,5 +206,67 @@ namespace Starfall.Tests
                 g.StormAllocations==3 && !g.Has("storm_tuned"),
                 "Player can safely abandon a tuning attempt at the council without losing installed regional works");
         }
+
+        public static void ChapterSixOriginalWitnessesDeliverRealMealsWithoutBlockingOldStories(Campaign data)
+        {
+            var g=PreparedStorm(data,3);
+            foreach(string f in new[]{"storm_started","scout_saved","gate_2","gate_3"})
+                g.save.flags.Add(f);
+            for(int i=1;i<=3;i++)g.save.flags.Add("storm_region_"+i+"_grid");
+            int oldXp=g.save.xp;
+            for(int region=1;region<=3;region++)
+            {
+                g.Enter(region);g.enemies.Clear();
+                WorldObject witness=Object(g,"witnessnpc"+region);
+                g.save.x=witness.x;g.save.y=witness.y;
+                g.save.inventory[6]=0;
+                Action(g,witness.kind,"storm_relief_"+region);
+                Check(!g.Has("storm_relief_"+region) &&
+                    g.StormReliefCount==region-1,
+                    "Real civilian aid cannot occur without an actual purchased or cooked stew");
+                g.save.inventory[6]=1;
+                Action(g,witness.kind,"storm_relief_"+region);
+                Check(g.Has("storm_relief_"+region) &&
+                    g.save.inventory[6]==0 && g.StormReliefCount==region,
+                    "Each named witness distributes exactly one genuinely consumed hot meal");
+                g.Talk(witness);
+                Check(Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="storm_relief_"+region)<0 &&
+                    Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="storm_oldstory_"+region)>=0,
+                    "A completed local relief action neither repeats its reward nor hides older witness testimony");
+                int oldStory=Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="storm_oldstory_"+region);
+                g.Choose(oldStory);
+                Check(g.mode=="dialog" &&
+                    (Array.FindIndex(g.conversation.choices,c=>
+                        c.action=="witness_begin_"+region)>=0 ||
+                     Array.FindIndex(g.conversation.choices,c=>
+                        c.action=="witness_track")>=0),
+                    "Original Acts I–III story conversations remain genuinely interactable after new chapter relief");
+                g.Close();
+            }
+            Check(g.StormReliefAll && g.StormReliefCount==3,
+                "All three region-specific civic relief deliveries can be earned independently");
+            g.save.flags.Add("storm_tuned");g.save.flags.Add("storm_complete");
+            g.Enter(0);g.enemies.Clear();
+            var council=Object(g,"stormcouncil");
+            g.save.x=council.x;g.save.y=council.y;
+            g.save.health=40;
+            Advance(g,2);
+            Check(g.save.health>44,
+                "Three actually delivered meals make the permanent town public refuge measurably stronger");
+            g.Epilogue();
+            Check(g.conversation.text.Contains("三份热汤") &&
+                g.conversation.textEn.Contains("three real meals"),
+                "Earned post-storm humanitarian aid appears in the original ending's living aftermath");
+            g.Close();
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.save.version==2 && loaded.StormReliefAll &&
+                loaded.StormChapterComplete && loaded.save.ending==3,
+                "Optional humanitarian choices and the original ending persist safely in unchanged SaveData v2");
+        }
+
     }
 }
