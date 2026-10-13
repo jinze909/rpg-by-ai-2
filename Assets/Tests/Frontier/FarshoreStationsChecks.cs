@@ -647,6 +647,46 @@ namespace Starfall.Tests
             }
         }
 
+        public static void ActiveCivilianRescuesCannotBeLostThroughPortals(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            Check(g.reliefMissionRoom == 6 && g.reliefMissionWave == 0,
+                "The rescue can be started through the actual station conversation");
+            g.Enter(0);
+            Check(g.save.room == 6 && g.reliefMissionRoom == 6 &&
+                g.reliefMissionWave == 0,
+                "Portals and scripted Enter calls cannot silently erase an outbound rescue");
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive, "Both original ambush waves lead to active escort");
+            Point original = g.reliefFollowerPosition;
+            g.Enter(5);
+            g.ReturnToTown();
+            Check(g.save.room == 6 && g.ReliefEscortActive &&
+                (g.reliefFollowerPosition - original).Length < .001f,
+                "All travel entry points preserve an active escort and the real survivor position");
+            g.PrepareSave();
+            Check(g.save.rescueCheckpoint != null,
+                "Blocked travel preserves the active mission's valid save checkpoint");
+            g.save.x = post.x; g.save.y = post.y;
+            Action(g, post.kind, "fieldstation_rescue_cancel");
+            Check(g.reliefMissionRoom == 0,
+                "Explicit cancellation at the constructed station remains available");
+            g.Enter(0);
+            Check(g.save.room == 0 && g.save.rescueCheckpoint == null,
+                "A completed cancellation restores normal portal travel without stale checkpoints");
+        }
+
         public static void MistportEscortCheckpointRecoversOnlyFloodedFooting(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

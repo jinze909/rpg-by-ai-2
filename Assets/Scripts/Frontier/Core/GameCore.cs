@@ -199,6 +199,15 @@ namespace Starfall
         public void Enter(int room)
         {
             if (Dying) return;
+            // Portal objects, map routes, scripted choices and travel menus
+            // all reach this method. Preserve an active rescue instead of
+            // silently erasing its civilian on ResetTransient().
+            if (reliefMissionRoom != 0)
+            {
+                Notify("正在救援居民。先完成撤离或到避难站明确取消，不能直接切换地区。",
+                    "Rescue in progress. Finish the evacuation or cancel it at the station before traveling.");
+                return;
+            }
             if (practicing) EndPractice();
             if (room < 0 || room >= data.maps.Length) return;
             if (!CanEnter(room)) { Notify(RouteHint(room, false), RouteHint(room, true)); Close(); return; }
