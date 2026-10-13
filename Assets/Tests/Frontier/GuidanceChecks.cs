@@ -2589,8 +2589,8 @@ namespace Starfall.Tests
             applyHurt.Invoke(parcel,new object[]{999f,"shot",null});
             Check(parcel.Dying,
                 "The production damage transaction triggers a real visible death during cargo transport");
-            Check(parcel.FarCourierActive,
-                "A lethal hit does not first quietly delete the live parcel objective");
+            Check(!parcel.FarCourierDelivered(1),
+                "A lethal hit does not award successful parcel delivery during the death pose");
             for(int i=0;i<26&&parcel.Dying;i++)parcel.Tick(.05f,new Point());
             Check(!parcel.Dying&&parcel.save.room==0&&
                 Math.Abs(parcel.save.x-data.maps[0].spawnX)<.01f&&
@@ -2615,8 +2615,8 @@ namespace Starfall.Tests
             watch.save.health=1;watch.invulnerable=0;
             applyHurt.Invoke(watch,new object[]{999f,"shot",null});
             Check(watch.Dying,"Authentic lethal damage starts the watch defender's death recovery");
-            Check(watch.CivicResponseActive,
-                "Fatal strike must not silently award the unfinished civic watch objective");
+            Check(!watch.CivicResponseDone(3),
+                "Fatal strike must not grant completion credit during the death pose");
             for(int i=0;i<26&&watch.Dying;i++)watch.Tick(.05f,new Point());
             Check(!watch.Dying&&watch.save.room==0&&
                 !watch.CivicResponseActive&&watch.CivicResponseEnemiesAlive==0&&
