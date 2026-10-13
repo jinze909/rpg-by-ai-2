@@ -22,24 +22,24 @@ namespace Starfall
                 Text(299, y + 46, 548, 26, description, 15, paper);
                 DateTime time; string stamp = s != null && DateTime.TryParse(s.savedAtUtc, out time) ? time.ToLocalTime().ToString("yyyy/MM/dd HH:mm") : "—";
                 Text(299, y + 79, 548, 20, stamp + (s != null && slotWarnings[i] != null ? Game.L(" · 将恢复备份", " · backup recovery") : ""), 12, muted);
-                if (Button(869, y + 23, 144, 55, Game.L("保存到这里", "Save here"), false, slot >= 0 && Game.Has("intro"))) { confirmationSlot = slot; if (SaveStore.Exists(slot)) saveConfirmation = "write"; else WriteSlot(slot); }
+                if (Button(869, y + 23, 144, 55, Game.L("保存到这里", "Save here"), false, slot >= 0 && settingsParent != "title" && Game.Has("intro"))) { confirmationSlot = slot; if (SaveStore.Exists(slot)) saveConfirmation = "write"; else WriteSlot(slot); }
                 if (Button(1029, y + 23, 161, 55, Game.L("读取旅程", "Load journey"), false, s != null)) { confirmationSlot = slot; saveConfirmation = "read"; }
             }
             if (saveConfirmation != null)
             {
                 drawingModal = true; drawnControls.Clear(); Dim(); Card(365, 275, 550, 244); Text(390, 294, 500, 43, Game.L(saveConfirmation == "write" ? "覆盖这个手动存档？" : "读取这个旅程？", saveConfirmation == "write" ? "Replace this manual save?" : "Load this journey?"), 25, gold);
-                Text(390, 354, 500, 65, Game.L(saveConfirmation == "write" ? "其他存档保持独立，旧版本将保留为备份。" : "当前旅程会先自动保存，然后读取所选进度。", saveConfirmation == "write" ? "Other slots stay independent. The previous version becomes a backup." : "Your current journey will autosave before the selected progress loads."), 18, paper);
+                Text(390, 354, 500, 65, Game.L(saveConfirmation == "write" ? "其他存档保持独立，旧版本将保留为备份。" : settingsParent == "title" ? "从此旅程开始游戏；自动存档与其他位置不受影响。" : "当前旅程会先自动保存，然后读取所选进度。", saveConfirmation == "write" ? "Other slots stay independent. The previous version becomes a backup." : settingsParent == "title" ? "Start this journey; your autosave and other slots stay unchanged." : "Your current journey will autosave before the selected progress loads."), 18, paper);
                 if (Button(390, 441, 242, 49, Game.L("确认", "Confirm"), true)) { string action = saveConfirmation; saveConfirmation = null; if (action == "write") WriteSlot(confirmationSlot); else LoadSlot(confirmationSlot); }
                 if (Button(649, 441, 241, 49, Game.L("取消", "Cancel"))) saveConfirmation = null;
             }
         }
         private void WriteSlot(int slot)
-        { if (VisualReviewActive) { Game.Notify("视觉测试场不会写入存档。", "The visual review lab does not write saves."); return; } Game.PrepareSave(); bool ok = SaveStore.Write(Game.save, slot); RefreshSlots(); Game.Notify(ok ? "手动存档完成。" : "保存失败，旧存档仍保留。", ok ? "Manual save complete." : "Save failed; the previous save is retained."); Game.sound = ok ? "save" : "deny"; }
+        { if (settingsParent == "title") { Game.Notify("请先进入游戏，才能保存到手动存档。", "Start playing before writing a manual save."); return; } if (VisualReviewActive) { Game.Notify("视觉测试场不会写入存档。", "The visual review lab does not write saves."); return; } Game.PrepareSave(); bool ok = SaveStore.Write(Game.save, slot); RefreshSlots(); Game.Notify(ok ? "手动存档完成。" : "保存失败，旧存档仍保留。", ok ? "Manual save complete." : "Save failed; the previous save is retained."); Game.sound = ok ? "save" : "deny"; }
         private void LoadSlot(int slot)
         {
             if (VisualReviewActive) { Game.Notify("请先退出视觉测试场。", "Exit the visual review lab first."); return; }
             string warning; SaveData saved = SaveStore.Read(slot, out warning); if (saved == null) { Game.Notify("无法读取这个存档。", "This save cannot be read."); return; }
-            if (Game.Has("intro") && !Save()) { Game.Notify("当前旅程保存失败，读取已取消。", "Current journey could not save; loading canceled."); return; }
+            if (settingsParent != "title" && Game.Has("intro") && !Save()) { Game.Notify("当前旅程保存失败，读取已取消。", "Current journey could not save; loading canceled."); return; }
             Game.Load(saved); Game.Start(); camera = CameraTarget(); dialogParent = null; settingsParent = "world"; resumeBrief = Game.GuidanceHint(); resumeTime = 8; Game.sound = "travel";
             if (warning != null) Game.Notify("已恢复备份进度。", "Backup progress recovered.");
         }

@@ -458,6 +458,61 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Bounded substeps preserve low-FPS movement, timers, catch-up cap, and invalid-delta safety");
     }
 
+
+    private static void TitleSaveManagerNeverOverwritesAnotherJourney(FrontierRuntime original)
+    {
+        string previous = Application.persistentDataPath;
+        string folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+            "starfall-title-slots-" + Guid.NewGuid().ToString("N"));
+        FrontierRuntime app = null;
+        Application.persistentDataPath = folder;
+        try
+        {
+            System.IO.Directory.CreateDirectory(folder);
+            var autosave = new SaveData { coins = 91 };
+            autosave.flags.Add("intro");
+            var manual = new SaveData { coins = 17 };
+            manual.flags.Add("intro");
+            Check(SaveStore.Write(autosave) && SaveStore.Write(manual, 0),
+                "Test creates real isolated autosave and manual slot");
+            app = new FrontierRuntime();
+            Call(app, "Awake");
+            Check(app.Game != null && app.Game.save.coins == 91,
+                "Title reads the authentic preexisting autosave without starting it");
+            app.Game.mode = "saves";
+            Set(app, "settingsParent", "title");
+            GUI.buttonCalls.Clear();
+            Call(app, "DrawSaves");
+            var manualButton = GUI.buttonCalls.Find(c =>
+                Math.Abs(c.rect.x - 869) < .01f && Math.Abs(c.rect.y - 326) < .01f);
+            Check(manualButton != null && !manualButton.enabled,
+                "The title save manager visibly disables manual writes for all users");
+            Call(app, "WriteSlot", 0);
+            string warning;
+            Check(SaveStore.Read(0, out warning).coins == 17,
+                "Even an unexpected title save callback cannot overwrite the manual slot");
+            Call(app, "LoadSlot", 0);
+            Check(app.Game.mode == "world" && app.Game.save.coins == 17,
+                "Title load starts the selected real manual journey");
+            Check(SaveStore.Read(out warning).coins == 91,
+                "Loading from title does not first overwrite the independent autosave");
+            // Mid-game switch retains the documented insurance autosave.
+            app.Game.save.coins = 48;
+            app.Game.mode = "saves";
+            Set(app, "settingsParent", "world");
+            Call(app, "LoadSlot", 0);
+            Check(app.Game.save.coins == 17 && SaveStore.Read(out warning).coins == 48,
+                "In-game load still autosaves current progress before switching slots");
+            Console.WriteLine("PASS Title slots are read-only; title loads preserve autosave, in-game loads insure current progress");
+        }
+        finally
+        {
+            if (app != null) Call(app, "OnDestroy");
+            Application.persistentDataPath = previous;
+            if (System.IO.Directory.Exists(folder)) System.IO.Directory.Delete(folder, true);
+        }
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -467,6 +522,7 @@ public static class RuntimeCombatInputChecks
             ReleasedTechniqueDrawsContactFrame, RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
+            TitleSaveManagerNeverOverwritesAnotherJourney,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup };
         int failures = 0;
         foreach (var test in cases)
