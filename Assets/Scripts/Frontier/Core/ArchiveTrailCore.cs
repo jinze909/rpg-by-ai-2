@@ -142,13 +142,16 @@ namespace Starfall
         // Persistent flags are only written once a physical trial is cleared.
         public int RootHarmonyRoom { get; private set; }
         public float RootHarmonyTime { get; private set; }
+        private float rootHarmonyPulseTime;
         public bool IsRootHarmonyEnemy(Enemy e)
         { return e != null && e.id >= 88000 && e.id < 88100; }
         private void ResetRootHarmonyTrial()
         {
             enemies.RemoveAll(IsRootHarmonyEnemy);
             projectiles.RemoveAll(p => p.rootHarmonyOwned);
+            hazards.RemoveAll(h => h.rootHarmonyOwned);
             RootHarmonyRoom = 0; RootHarmonyTime = 0;
+            rootHarmonyPulseTime = 0;
         }
         public bool RootHarmonyRestoring
         {
@@ -174,6 +177,39 @@ namespace Starfall
             if (save.room != RootHarmonyRoom || Dying || practicing)
             { ResetRootHarmonyTrial(); return; }
             RootHarmonyTime -= dt;
+            if (enemies.Exists(IsRootHarmonyEnemy))
+            {
+                rootHarmonyPulseTime -= dt;
+                if (rootHarmonyPulseTime <= 0)
+                {
+                    // Each listening stone has a different hostile pulse
+                    // rhythm. It targets the player's actual current feet
+                    // with an ordinary world-space delayed hazard, never a
+                    // scripted instant hit or opaque screen overlay.
+                    Point[] cardinal = { new Point(1, 0), new Point(-1, 0),
+                        new Point(0, 1), new Point(0, -1) };
+                    bool escapable = false;
+                    foreach (Point direction in cardinal)
+                    {
+                        Point escape = Position + direction * 1.7f;
+                        if (CanStand(escape) && ClearAttackPath(Position, escape))
+                        { escapable = true; break; }
+                    }
+                    if (escapable)
+                        hazards.Add(new Hazard {
+                            position = Position,
+                            radius = RootHarmonyRoom == 3 ? 1.45f : 1.15f,
+                            damage = RootHarmonyRoom == 3 ? 16f : 10f + RootHarmonyRoom,
+                            timer = RootHarmonyRoom == 1 ? 1.2f : 1.4f,
+                            kind = RootHarmonyRoom == 2 ? "tide" : "rift",
+                            rootHarmonyOwned = true
+                        });
+                    rootHarmonyPulseTime = RootHarmonyRoom == 1 ? 6.2f :
+                        RootHarmonyRoom == 2 ? 5.7f : 5f;
+                }
+            }
+            else
+                hazards.RemoveAll(h => h.rootHarmonyOwned);
             if (RootHarmonyTime <= 0)
             {
                 ResetRootHarmonyTrial(); revision++;
@@ -341,6 +377,7 @@ namespace Starfall
                     return true;
                 }
                 RootHarmonyRoom = room; RootHarmonyTime = 40;
+                rootHarmonyPulseTime = 2.5f;
                 for (int i = 0; i < 3; i++)
                 {
                     Point spawn = site + new Point(i == 0 ? -3 : i == 1 ? 3 : 0,

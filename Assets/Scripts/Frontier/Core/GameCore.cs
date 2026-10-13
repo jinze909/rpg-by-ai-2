@@ -390,6 +390,8 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
             enemies.Remove(e);
+            if (IsRootHarmonyEnemy(e) && !enemies.Exists(IsRootHarmonyEnemy))
+                hazards.RemoveAll(h => h.rootHarmonyOwned);
             if (IsAtlasEchoEnemy(e))
             {
                 // Killing the echo can happen before TickExpansion processes
