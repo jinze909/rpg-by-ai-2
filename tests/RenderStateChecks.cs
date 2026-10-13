@@ -164,6 +164,9 @@ public static class RenderStateChecks
             "Actual repaired bridge changes raster color from blocked rock to path");
         Console.WriteLine("PASS real 120x80 map raster caching, draw-call reduction and repaired-bridge preview (offline)");
     }
+    public static void MapRasterRegression(FrontierRuntime app)
+    { WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app); }
+
     static void RestoresState(FrontierRuntime app)
     {
         Screen.width=1920; Screen.height=1080; Prepare(app);

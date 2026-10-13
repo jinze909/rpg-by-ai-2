@@ -335,7 +335,8 @@ public static class RuntimeCombatInputChecks
         Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, RecoveryWalkingRestoresEquippedDrawing,
-            RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld };
+            RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
+            RenderStateChecks.MapRasterRegression };
         int failures = 0;
         foreach (var test in cases)
         {
