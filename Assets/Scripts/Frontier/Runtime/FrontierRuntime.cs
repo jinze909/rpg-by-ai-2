@@ -392,7 +392,8 @@ namespace Starfall
                 Point p = ScreenPoint(new Point(x, y));
                 char tile = Game.Map.rows[y][x]; if (tile == '%' && !Game.LowTide) tile = '~';
                 if ((tile == 'v' || tile == 'w' || tile == 'b') && Game.Has("seal_" + Game.save.room)) tile = '=';
-                DrawSurface(x, y, tile, p); DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
+                DrawSurface(x, y, tile, p); DrawAnnexBiomeLayers(x, y, tile, p);
+                DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
                 if (tile == '~' && !Game.save.reducedMotion && Game.save.effectsQuality > 0) Box(p.x + 3 + (x * 5 + clock * 4) % 17, p.y + 12 + y % 5, 8, 1, new Color(.65f, .8f, .85f, .13f));
                 float reveal = TerrainTileOpacity(x, y);
                 if (reveal < .999f)

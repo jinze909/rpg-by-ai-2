@@ -34,6 +34,53 @@ namespace Starfall
                 if (y + 1 < Game.Map.rows.Length && Game.Map.rows[y + 1][x] == '.') Box(p.x, p.y + Tile - 2, Tile, 2, new Color(.17f, .22f, .15f, .28f));
             }
         }
+        // Hand-authored regions now carry subtle clusters of moss, gravel,
+        // salt, snow and wind-worn sediment across the NEW atlas only. These
+        // overlays never alter tile collisions or original campaign artwork.
+        // A coarse deterministic field gives continuous 5-tile patches rather
+        // than noisy single-tile polygons that resemble loading pop-in.
+        private void DrawAnnexBiomeLayers(int x, int y, char tile, Point p)
+        {
+            int region=Game.save.room;
+            if(region<0||region>7||(x<36&&y<24))return;
+            if(tile=='#'||tile=='f'||tile=='v'||tile=='w'||tile=='b')return;
+            int patch=TileSeed(x/5,y/5,region),individual=PreparedTileSeed(x,y);
+            if(tile=='~'||tile=='%')
+            {
+                // A deterministic waterline shimmer is optional animation,
+                // without any changing collision or procedural tile creation.
+                if(individual%6!=0)return;
+                float wave=Game.save.reducedMotion||Game.save.effectsQuality==0?0:
+                    (float)Math.Sin(clock*1.4f+(patch%17)*.42f)*2;
+                Box(p.x+7,p.y+Tile*.54f+wave,Tile*.43f,1.5f,
+                    new Color(.75f,.87f,.93f,.15f));
+                return;
+            }
+            if(patch%9>=4)return;
+            float edgeX=1f-Math.Abs(x%5-2)/3f;
+            float edgeY=1f-Math.Abs(y%5-2)/3f;
+            float opacity=.065f+.08f*Mathf.Max(0,edgeX*edgeY);
+            Color earth=region==0?new Color(.35f,.37f,.19f,opacity):
+                region==1?new Color(.13f,.32f,.19f,opacity):
+                region==2?new Color(.35f,.45f,.47f,opacity):
+                region==3?new Color(.48f,.23f,.17f,opacity):
+                region==4?new Color(.45f,.44f,.38f,opacity):
+                region==5?new Color(.18f,.38f,.45f,opacity):
+                region==6?new Color(.64f,.43f,.20f,opacity):
+                new Color(.72f,.84f,.93f,opacity);
+            Box(p.x+2,p.y+2,Tile-4,Tile-4,earth);
+            if(individual%11==0)
+            {
+                Color vein=region==7?new Color(.87f,.94f,1f,.22f):
+                    region==6?new Color(.47f,.30f,.12f,.24f):
+                    region==1?new Color(.24f,.42f,.17f,.23f):
+                    new Color(.66f,.65f,.52f,.17f);
+                Box(p.x+5+individual%8,p.y+Tile*.67f,Tile*.25f,1.5f,vein);
+                if(tile=='=')
+                    Box(p.x+Tile*.54f,p.y+Tile*.3f,Tile*.19f,1f,vein);
+            }
+        }
+
         private void DrawGroundDetail(int x, int y, char tile, Point p)
         {
             if (detailSheet == null || Game.save.room == 9 || tile != '.' && tile != '%') return;
