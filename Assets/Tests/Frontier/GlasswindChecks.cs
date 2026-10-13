@@ -16,6 +16,9 @@ namespace Starfall.Tests
             g.Close();
             g.save.stage=3;g.save.level=20;g.save.xp=0;
             g.save.flags.Add("harbor_report");g.save.flags.Add("desert_report");
+            // Original desert story physically opens the protected eastern gate.
+            // A fabricated late-game fixture must not leave that barrier closed.
+            g.save.flags.Add("gate_6");
             Action(g,"glasswindkeeper","glasswind_accept");
             Check(g.Has("glasswind_started") && g.save.trackedQuest=="glasswind",
                 "The physical NPC starts the actual tracked quest");
