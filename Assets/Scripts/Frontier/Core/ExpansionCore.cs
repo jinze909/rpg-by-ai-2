@@ -35,7 +35,23 @@ namespace Starfall
         public int Proofs { get { return (Has("harbor_report") ? 1 : 0) + (Has("desert_report") ? 1 : 0) + (Has("mountain_report") ? 1 : 0); } }
         public int ProjectTiers { get { return save.projects[0] + save.projects[1] + save.projects[2]; } }
         public int CompanionCount { get { int n = 0; for (int i = 0; i < 3; i++) if (Has("companion_" + i)) n++; return n; } }
-        public bool SafeTravel { get { return !enemies.Exists(e => (e.Position - Position).Length < (save.frontierEnding == 2 ? 4 : 6)); } }
+        public bool SafeTravel
+        {
+            get
+            {
+                // This hot-path guard is queried by travel UI and many field
+                // interactions. Avoid a capturing predicate and repeated sqrt.
+                float dangerRadius = save.frontierEnding == 2 ? 4f : 6f;
+                float rangeSquared = dangerRadius * dangerRadius;
+                float x = save.x, y = save.y;
+                foreach (Enemy foe in enemies)
+                {
+                    float dx = foe.x - x, dy = foe.y - y;
+                    if (dx * dx + dy * dy < rangeSquared) return false;
+                }
+                return true;
+            }
+        }
         public int MasteryRank(int weapon) { return weapon < 0 || weapon > 2 ? 0 : Math.Min(5, save.mastery[weapon] / 20); }
         public bool Relic(int id) { return save.relics[0] == id || save.relics[1] == id; }
         public bool CanEnter(int room)

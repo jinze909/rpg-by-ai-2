@@ -106,5 +106,49 @@ namespace Starfall.Tests
             foreach (int room in new[] { 0, 1, 5, 6, 7, 8 }) { var music = AudioSynthesis.Music(AudioSynthesis.Theme(room, false)); Check(music.Length == AudioSynthesis.Rate * 16 && Math.Abs(music[0]) < .01f && Math.Abs(music[music.Length - 1]) < .01f, "Regional music fades cleanly at loop boundaries"); }
             var g = Fresh(data); g.sounds.Clear(); g.sound = "hit"; g.sound = "quest"; Check(g.sounds.Count == 2 && g.sounds.Dequeue() == "hit", "Multiple events in one frame retain their audio cues");
         }
+        public static void TravelClearanceAndCivicEnemyHudUseExactRealDistances(Campaign data)
+        {
+            var g=Fresh(data);
+            g.enemies.Clear();g.save.x=12;g.save.y=12;
+            var foe=new Enemy(454,0,17.999f,12,25);
+            g.enemies.Add(foe);
+            Check(!g.SafeTravel,"An enemy just inside the normal six-tile safety range blocks travel");
+            foe.x=18;
+            Check(g.SafeTravel,"An enemy exactly at the six-tile limit permits travel");
+            foe.x=17;foe.y=15;
+            Check(!g.SafeTravel,"Diagonal enemies use actual two-axis distance, not a box");
+            foe.x=17;foe.y=16;
+            Check(g.SafeTravel,"Out-of-range diagonal enemies do not block travel");
+            g.save.frontierEnding=2;
+            foe.x=15.999f;foe.y=12;
+            Check(!g.SafeTravel,"The established four-tile ending still uses the smaller warning range");
+            foe.x=16;
+            Check(g.SafeTravel,"Four-tile range retains its exact exclusive boundary");
+            g.enemies.Clear();
+            Check(g.SafeTravel,"A cleared battlefield restores ordinary safe travel");
+            var watch=Fresh(data);watch.save.stage=4;
+            watch.save.flags.Add("exp_intro");
+            watch.save.flags.Add("civic_supply_complete");
+            watch.save.flags.Add("harbor_report");
+            watch.save.flags.Add("civic_supply_watch_3");
+            watch.save.flags.Add("far_shelter_3");
+            watch.Enter(3);watch.enemies.Clear();
+            var refuge=Object(watch,"farshelter");
+            watch.save.x=refuge.x;watch.save.y=refuge.y;
+            Action(watch,"farshelter","civic_response_start");
+            Check(watch.CivicResponseEnemiesAlive==2,
+                "Actual live road-watch correctly counts both mission attackers");
+            var unrelated=new Enemy(455,0,refuge.x+20,refuge.y,20);
+            watch.enemies.Add(unrelated);
+            Check(watch.CivicResponseEnemiesAlive==2,
+                "Unrelated regional patrols cannot inflate the transient objective HUD");
+            watch.enemies.RemoveAll(e=>e.id==90206);
+            Check(watch.CivicResponseEnemiesAlive==1,
+                "Mission count changes immediately when a real watch actor retires");
+            watch.enemies.Clear();
+            Check(watch.CivicResponseEnemiesAlive==0,
+                "Zero surviving mission attackers shows zero without a stale display cache");
+        }
+
     }
 }

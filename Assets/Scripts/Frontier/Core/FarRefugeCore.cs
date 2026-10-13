@@ -189,7 +189,17 @@ namespace Starfall
         private bool IsCivicResponseEnemy(Enemy e)
         {return e!=null&&e.id>=90200&&e.id<90216;}
         public int CivicResponseEnemiesAlive
-        {get{return CivicResponseActive?enemies.FindAll(IsCivicResponseEnemy).Count:0;}}
+        {
+            get
+            {
+                if(!CivicResponseActive)return 0;
+                // Rendered HUD + journal can query this every frame.
+                // Count directly rather than allocating a filtered List.
+                int count=0;
+                foreach(Enemy foe in enemies)if(IsCivicResponseEnemy(foe))count++;
+                return count;
+            }
+        }
         private void ResetCivicResponse()
         {
             enemies.RemoveAll(IsCivicResponseEnemy);
