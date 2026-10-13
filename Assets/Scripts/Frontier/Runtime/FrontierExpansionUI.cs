@@ -41,7 +41,7 @@ namespace Starfall
             }
         }
         private Color HazardWarningColor(Hazard hazard)
-        { return hazard.kind == "glass" ? gold : hazard.kind == "bell" ? PixelArt.C("#9bd8f5") : hazard.kind == "root" ? PixelArt.C("#82d9a3") : hazard.kind == "rift" ? PixelArt.C("#b9a1d1") : PixelArt.C("#d59583"); }
+        { return hazard.glasswindOwned ? PixelArt.C("#ffb76c") : hazard.kind == "glass" ? gold : hazard.kind == "bell" ? PixelArt.C("#9bd8f5") : hazard.kind == "root" ? PixelArt.C("#82d9a3") : hazard.kind == "rift" ? PixelArt.C("#b9a1d1") : PixelArt.C("#d59583"); }
         private void DrawRescueSurvivorActor()
         {
             if (!Game.ReliefCivilianVisible) return;

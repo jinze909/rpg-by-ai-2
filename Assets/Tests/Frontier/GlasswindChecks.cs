@@ -186,5 +186,85 @@ namespace Starfall.Tests
                 "Only real final publication reveals the bilingual epilogue");
         }
 
+
+        public static void GlasswindPressureWarningsAreRealAndSafelyRetired(Campaign data)
+        {
+            for(int site=1;site<=3;site++)
+            {
+                var g=Fresh(data);
+                g.save.stage=3;g.save.level=16;
+                foreach(string flag in new[]{"harbor_report","desert_report",
+                    "gate_6","glasswind_started"}) g.save.flags.Add(flag);
+                g.Enter(6);g.enemies.Clear();
+                WorldObject valve=Object(g,"glasswindrelay"+site);
+                g.save.x=valve.x;g.save.y=valve.y;
+                Action(g,valve.kind,"glasswind_start_"+site);
+                Check(g.GlasswindSite==site,"Only the selected valve begins an active encounter");
+                foreach(Enemy e in g.enemies.FindAll(g.IsGlasswindEnemy))
+                {e.stun=120;e.timer=120;}
+                g.invulnerable=0;g.save.heat=0;
+                int oldHp=(int)g.save.health;
+                var normalHazard=new Hazard{position=new Point(18,4),
+                    radius=.5f,timer=20,damage=1,kind="rift"};
+                var normalEffect=new Effect("discover",new Point(18,4),20);
+                g.hazards.Add(normalHazard);g.effects.Add(normalEffect);
+                Advance(g,2.55f);
+                var gusts=g.hazards.FindAll(h=>h.glasswindOwned);
+                Check(gusts.Count==2,
+                    "Every wind valve produces actual paired, tagged telegraph contacts");
+                Hazard primary=gusts.Find(h=>(h.position-g.Position).Length<.1f);
+                Check(primary!=null && primary.timer>.9f &&
+                    primary.radius<1.2f && primary.damage>=11,
+                    "First pressure strike warns the live player location before damage");
+                Hazard second=gusts.Find(h=>h!=primary);
+                Check(second!=null && second.timer>primary.timer &&
+                    (second.position-primary.position).Length>2.8f,
+                    "The companion blast is physically separate and delayed");
+                if(site==1) Check(second.position.x>primary.position.x+2.8f,
+                    "Northern relay alternates along its first eastward crosswind");
+                if(site==2) Check(second.position.y>primary.position.y+2.9f,
+                    "Eastern ridge sends the delayed pressure down its lee side");
+                if(site==3) Check(second.position.x>primary.position.x+2.9f &&
+                    second.timer>1.9f,
+                    "Southern dunes release a distinctly later lateral contact");
+                Point[] exits={new Point(2.1f,0),new Point(-2.1f,0),
+                    new Point(0,2.1f),new Point(0,-2.1f)};
+                bool safe=false;
+                Point exit=g.Position;
+                foreach(Point step in exits)
+                    if(g.CanStand(g.Position+step) &&
+                        g.NavigationPath(g.Position+step).Count>0 &&
+                        (g.Position+step-second.position).Length>second.radius+.2f)
+                    {exit=g.Position+step;safe=true;break;}
+                Check(safe,
+                    "An accessible safe direction must remain despite staggered blasts");
+                if(site==1)
+                {
+                    Advance(g,1.38f);
+                    Check(g.save.health<oldHp,
+                        "Ignoring the real world warning takes actual HP damage");
+                    Check(g.effects.Exists(e=>e.glasswindOwned),
+                        "The released blast has an owned production impact effect");
+                }
+                else
+                {
+                    g.save.x=exit.x;g.save.y=exit.y;
+                    Advance(g,1.38f);
+                    Check(g.save.health==oldHp,
+                        "Leaving the telegraph before release avoids genuine damage");
+                }
+                g.save.x=valve.x;g.save.y=valve.y;
+                Action(g,valve.kind,"glasswind_withdraw");
+                Check(g.GlasswindSite==0 &&
+                    !g.hazards.Exists(h=>h.glasswindOwned) &&
+                    !g.effects.Exists(e=>e.glasswindOwned) &&
+                    !g.enemies.Exists(g.IsGlasswindEnemy) &&
+                    g.hazards.Contains(normalHazard) &&
+                    g.effects.Contains(normalEffect) &&
+                    !g.Has("glasswind_"+site),
+                    "Withdrawal removes only encounter-owned foes, warnings and impacts");
+            }
+        }
+
     }
 }

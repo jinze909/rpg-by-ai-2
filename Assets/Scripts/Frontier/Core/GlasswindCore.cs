@@ -11,6 +11,8 @@ namespace Starfall
         public int GlasswindWave { get; private set; }
         public float GlasswindTime { get; private set; }
         public float GlasswindCharge { get; private set; }
+        private float glasswindSurgeTimer;
+        private int glasswindSurgeCycle;
 
         public bool IsGlasswindEnemy(Enemy e)
         { return e != null && e.id >= 89810 && e.id < 89900; }
@@ -33,6 +35,9 @@ namespace Starfall
         private void ResetGlasswind()
         {
             enemies.RemoveAll(IsGlasswindEnemy);
+            hazards.RemoveAll(h => h.glasswindOwned);
+            effects.RemoveAll(e => e.glasswindOwned);
+            glasswindSurgeTimer=0;glasswindSurgeCycle=0;
             GlasswindSite=GlasswindWave=0;
             GlasswindTime=GlasswindCharge=0;
         }
@@ -99,8 +104,8 @@ namespace Starfall
                         C("稍后","Later","close"));
                 else
                     Dialog(o.name,o.en,
-                        "靠近风圈会积累校准，远离会缓慢衰减。四秒时出现第二波，守满八秒并清除全部守卫才能封存。超时或撤退可免费重试。",
-                        "The ring charges nearby and slowly drains at a distance. Reinforcements arrive halfway through. Hold eight seconds and defeat every guard to seal. Retries cost nothing.",
+                        "靠近风圈会积累校准，远离会缓慢衰减。四秒时出现第二波。每座风阀都有延迟风压落点，闪到圈外再回去守点。守满八秒并清除全部守卫才能封存。超时或撤退可免费重试。",
+                        "The ring charges nearby and slowly drains at a distance. Reinforcements arrive halfway through. Each relay warns of delayed pressure blasts: dodge clear and return to the ring. Hold eight seconds and defeat every guard to seal. Retries cost nothing.",
                         C("追踪风脉委托","Track the relays","glasswind_track"),
                         C("明白了","Understood","close"));
                 return true;
@@ -147,8 +152,8 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name,o.en,
-                "启动后限时95秒：在风圈内累计八秒，并击退两波守卫。必须回到阀门手动封存。无战利品刷取，失败可重试。",
-                "You have 95 seconds to hold the ring for eight seconds and defeat two security waves. Return to the valve to seal. No farmable loot; retries are free.",
+                "启动后限时95秒：在风圈内累计八秒，躲避延迟风压圈，并击退两波守卫。最后手动封存；失败可重试。",
+                "You have 95 seconds to hold the ring for eight seconds, dodge delayed pressure circles, and defeat two waves. Return to seal it. No farmable loot; retries are free.",
                 C("开始守点","Start capture","glasswind_start_"+site),
                 C("暂不开始","Not yet","close"));
             return true;
@@ -182,6 +187,7 @@ namespace Starfall
                     practicing || racing || !SafeTravel ||
                     (Position-GlasswindPoint(site)).Length>2.2f)return true;
                 GlasswindSite=site;GlasswindTime=95;GlasswindCharge=0;
+                glasswindSurgeTimer=2.5f;glasswindSurgeCycle=0;
                 if(!SpawnGlasswindWave(1))
                 {
                     ResetGlasswind();
@@ -245,6 +251,38 @@ namespace Starfall
             return false;
         }
 
+
+        // Local warning pressure is transient and combat-facing. Every
+        // contact center must have a real unobstructed two-unit escape route.
+        private void PulseGlasswind()
+        {
+            Point target=Position;
+            Point[] exits={new Point(2.1f,0),new Point(-2.1f,0),
+                new Point(0,2.1f),new Point(0,-2.1f)};
+            bool escape=false;
+            foreach(Point step in exits)
+                if(CanStand(target+step) && ClearAttackPath(target,target+step))
+                {escape=true;break;}
+            if(!escape || !CanStand(target))return;
+            hazards.Add(new Hazard { position=target, radius=.96f,
+                timer=1.35f,damage=GlasswindWave==2?17:11,
+                kind="glass",glasswindOwned=true });
+            // North: alternating crosswind; east: lee-side wave;
+            // south: later delayed dune pulse. Keep at least one safe exit.
+            Point offset=GlasswindSite==1 ?
+                new Point(glasswindSurgeCycle%2==0?2.9f:-2.9f,0) :
+                GlasswindSite==2 ? new Point(0,3.1f) :
+                new Point(3.1f,0);
+            Point second=target+offset;
+            if(CanStand(second) && ClearAttackPath(target,second))
+            {
+                hazards.Add(new Hazard { position=second,radius=.85f,
+                    timer=GlasswindSite==3?2.05f:1.75f,
+                    damage=GlasswindWave==2?14:9,
+                    kind="glass",glasswindOwned=true });
+            }
+            sound="windup";
+        }
         private void TickGlasswind(float dt)
         {
             if(GlasswindSite==0)return;
@@ -257,6 +295,13 @@ namespace Starfall
                 Notify("风阀超时重置，可免费重试。",
                     "Capture timed out. Retry the relay for free.");
                 return;
+            }
+            glasswindSurgeTimer-=dt;
+            if(glasswindSurgeTimer<=0 && enemies.Exists(IsGlasswindEnemy))
+            {
+                PulseGlasswind();
+                glasswindSurgeCycle++;
+                glasswindSurgeTimer=GlasswindWave==2?4.15f:5.6f;
             }
             Point station=GlasswindPoint(GlasswindSite);
             float range=(Position-station).Length;

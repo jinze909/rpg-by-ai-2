@@ -144,7 +144,7 @@ namespace Starfall
         public int variant;
         // Only encounter-owned warnings retire when an optional rescue ends.
         // Ordinary combat effects are preserved.
-        public bool reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned;
+        public bool reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned;
         public Effect(string kind, Point position, float life, string text = "")
         { this.kind = kind; this.position = position; this.life = maxLife = life; this.text = text; }
     }
@@ -154,7 +154,7 @@ namespace Starfall
         public float timer, radius, damage;
         public string kind;
         // Transient ownership prevents encounter hazards surviving retirement.
-        public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned;
+        public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned;
     }
     public struct LightRay
     {
