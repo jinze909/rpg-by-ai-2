@@ -318,7 +318,12 @@ namespace Starfall
                             "\n\n古观星守卫已经停止攻击旅人。" : "") +
                         (Has("skywatch_complete") ?
                             "\n伊澜把气候光谱公开交给所有居民。观星台旁留下永久避寒穹顶；预报不再只为堡垒服务。" :
-                            "\n\n原始光谱尚未向镇民公开。");
+                            "\n\n原始光谱尚未向镇民公开。") +
+                        (Has("skywatch_afterglow_complete") ?
+                            "\n\n旅人们又找回了北方救援足迹、东方折射误报与南方守夜的余辉。三座棱镜成为人人可用的永久避寒信标。" :
+                            Has("skywatch_afterglow_1") || Has("skywatch_afterglow_2") ||
+                            Has("skywatch_afterglow_3") ?
+                            "\n\n一部分旅人余辉已经回收，其余记录还在霜钟高原等待。" : "");
                     en = "Yilan found a weather record hidden inside the observatory. The skyfall alarm did more than malfunction: it treated travelers' distress signals as background noise and preserved only the forecast wanted by the citadel.\n\n" +
                         (Has("skywatch_prism_1") ?
                             "The northern lens remembers freezing rain before the lights appeared.\n" :
@@ -333,7 +338,12 @@ namespace Starfall
                             "\n\nThe ancient skywatch guardian no longer attacks travelers." : "") +
                         (Has("skywatch_complete") ?
                             "\nYilan published the forecast for everyone. A permanent shelter now surrounds the observatory; weather information no longer serves only the citadel." :
-                            "\n\nThe original spectrum has not yet been released to the town.");
+                            "\n\nThe original spectrum has not yet been released to the town.") +
+                        (Has("skywatch_afterglow_complete") ?
+                            "\n\nThe three last traveler records reveal northern rescuers, eastern false light, and the southern night watch. Three public warming beacons now shelter all who cross the highlands." :
+                            Has("skywatch_afterglow_1") || Has("skywatch_afterglow_2") ||
+                            Has("skywatch_afterglow_3") ?
+                            "\n\nSome travelers' afterglows have been recovered. More records remain in Frostchime." : "");
                     break;
                 case "abyss":
                     headingZh = "地脉深渊：星根的伤口"; headingEn = "Root Abyss: A Wound in the Network";
