@@ -977,10 +977,22 @@ namespace Starfall.Tests
                 g.Talk(bridge);
                 choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start");
                 g.Choose(choose);
-                for(int step=0;step<170&&g.save.y<73.2f;step++)
+                for(int step=0;step<100&&g.save.y<61.35f;step++)
                     g.Tick(.045f,new Point(0,1));
                 Check(g.FarCourierActive&&g.FarCourierCrossed,
                     "Engine ticks record actual southbound contact with rebuilt bridge tiles");
+                WorldObject post=Array.Find(g.Map.objects,o=>o.kind=="farcheck");
+                Check(post!=null&&g.CanStand(new Point(post.x,post.y))&&
+                    (g.Position-new Point(post.x,post.y)).Length<2.2f,
+                    "Intermediate cargo inspection is a reachable real-world station");
+                g.Talk(post);
+                int seal=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="far_courier_stamp");
+                Check(seal>=0,"Checkpoint offers a genuine physical seal action");
+                g.Choose(seal);
+                Check(g.FarCourierStamped,"Civilian inspector actually stamps the carried cargo");
+                for(int step=0;step<110&&g.save.y<73.2f;step++)
+                    g.Tick(.045f,new Point(0,1));
                 Check((g.Position-new Point(shelter.x,shelter.y)).Length<2.2f,
                     "Normal real movement reaches the distant shelter before timeout");
                 g.Talk(shelter);

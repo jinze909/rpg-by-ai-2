@@ -546,6 +546,15 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="farcheck")
+            {
+                bool verified=Game.FarCourierStamped;
+                PropImage("post",0,p.x-32,p.y-76,64,79,
+                    verified?new Color(.65f,.93f,.78f):Color.white);
+                if(Game.FarCourierActive&&!verified)
+                    Diamond(p.x,p.y-71,6,gold);
+                return;
+            }
             if(kind=="farbridge")
             {
                 bool open=Game.FarBridgeOpen(Game.save.room);
