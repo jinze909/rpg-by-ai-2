@@ -950,7 +950,7 @@ namespace Starfall
             }
             if (action == "boss")
             {
-                if (save.room == 0 || !GateOpen || GateBarrierActive || enemies.Exists(e => e.boss) || Has("boss_" + save.room)) return;
+                if (save.room == 0 || !GateOpen || GateBarrierActive || TriadDefenseActive || enemies.Exists(e => e.boss) || Has("boss_" + save.room)) return;
                 BossData b = data.bosses[save.room - 1];
                 float bossHealth = save.room == 4 && Has("triad_complete") ? b.hp * .85f : b.hp;
                 enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), bossHealth, true));

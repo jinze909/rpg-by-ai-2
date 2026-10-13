@@ -21,8 +21,8 @@ namespace Starfall.Tests
             g.Close();
             Action(g,"guild","triad_accept");
             Check(g.Has("triad_started") && g.TriadEvidence==0 &&
-                g.CurrentGuide.id=="main" &&
-                g.CurrentGuide.next.Contains("三核审计") &&
+                g.CurrentGuide.id=="triad_reckoning" &&
+                g.CurrentGuide.next.Contains("堡垒") &&
                 !g.Has("boss_4"),
                 "Main journal points to the new playable bridge without granting boss or ending flags");
             g.Enter(4);g.enemies.Clear();g.invulnerable=300;

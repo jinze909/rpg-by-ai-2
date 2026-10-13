@@ -147,12 +147,12 @@ namespace Starfall
         }
         private bool ChooseTriad(string action)
         {
-            if(action=="triad_track"){TrackQuest("main");return true;}
+            if(action=="triad_track"){TrackQuest("triad_reckoning");return true;}
             if(action=="triad_accept")
             {
                 if(save.room!=0 || !TriadEligible || Has("triad_started") ||
                     Has("boss_4") || (Position-ObjectPoint(0,"guild",new Point(-100,-100))).Length>2.2f)return true;
-                Flag("triad_started");TrackQuest("main");revision++;sound="quest";
+                Flag("triad_started");TrackQuest("triad_reckoning");revision++;sound="quest";
                 RecordMoment("第四章开启：莉雅发现三枚星核被改写成一条屏障供能账，要求亲自前往堡垒核查。",
                     "Chapter Four investigation: Lyra finds three starcores were rewired to one shield and asks for direct proof.");
                 Notify("第四章关键调查开启：前往堡垒读取三枚星核记忆。",

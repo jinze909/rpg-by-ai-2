@@ -685,7 +685,7 @@ namespace Starfall
             if (action == "journal") { mode = "journal"; return true; }
             if (action == "parley")
             {
-                if (save.room != 4 || Proofs != 3 || save.frontierEnding != 3 || Has("boss_4")) return true;
+                if (save.room != 4 || Proofs != 3 || save.frontierEnding != 3 || Has("boss_4") || TriadDefenseActive) return true;
                 enemies.Clear(); projectiles.Clear(); hazards.Clear(); Flag("boss_4"); Flag("warden_stood_down"); save.coins += 70; AddXp(80); FinalConversation(); revision++; return true;
             }
             if (action.StartsWith("pledge"))

@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "iron_temper", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "iron_temper", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,46 @@ namespace Starfall
             }
 
 
+
+            if (id == "triad_reckoning")
+            {
+                q.title=L("主线第四章 · 三核审计","Chapter Four · Three-Core Reckoning");
+                q.category=L("星陨主线 · 关键剧情事件","MAIN STORY · KEY EVENT");
+                q.locked=!TriadEligible;
+                q.description=L("莉雅要求查明三枚星核改供堡垒屏障前的用途。进入星陨堡垒核对三份实地记录，击败中央保密守卫，亲手保全审计，然后把真相带回公会。此事改变厄洛的最终战，但不会锁死旧档。",
+                    "Lyra asks you to reconstruct the original uses of the three cores before the citadel rewired them. Recover three physical ledgers in the citadel, defeat actual audit security, preserve the log, then publish it with the guild. It affects Orrin, without locking older saves.");
+                q.steps.Add(new QuestStep(L("到公会接受莉雅的第四章调查",
+                    "Accept Lyra's Chapter Four investigation"),Has("triad_started")));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(L(new[]{"森林再生记录","遗迹水位记录","矿工作业记录"}[i-1],
+                        new[]{"Forest renewal","Ruins tide passages","Mine rest protocol"}[i-1]),
+                        Has("triad_evidence_"+i)));
+                q.steps.Add(new QuestStep(L("击败保密卫兵并保全日志",
+                    "Defeat the guard and preserve the audit"),Has("triad_sealed")));
+                q.complete=Has("triad_complete");
+                q.steps.Add(new QuestStep(L("将审计结果公开交给莉雅",
+                    "Publish the audit with Lyra"),q.complete));
+                q.room=q.locked || !Has("triad_started") || Has("triad_sealed")?0:4;
+                string kind=TriadEvidence<3?
+                    !Has("triad_evidence_1")?"triadmemory1":
+                    !Has("triad_evidence_2")?"triadmemory2":"triadmemory3":"triadnexus";
+                q.target=ObjectPoint(q.room,q.room==0?"guild":kind,new Point(18,11));
+                q.next=q.complete?L("公开的星核支出将改变厄洛的决战",
+                    "The public ledger changes Orrin's confrontation"):
+                    q.locked?L("先取回三枚原始星核并交给莉雅",
+                        "First deliver three original starcores to Lyra"):
+                    !Has("triad_started")?L("去余烬镇公会找莉雅接受调查",
+                        "Visit Lyra at the Emberfall guild"):
+                    TriadEvidence<3?L("到堡垒读取下一份原始供能账",
+                        "Read the next original supply ledger in the citadel"):
+                    !Has("triad_sealed")?L("挑战中央审计守卫，保全日志",
+                        "Defeat central audit security and preserve the log"):
+                    L("将保全的三核证据送回公会",
+                        "Deliver the three-core evidence to the guild");
+                q.reward=L("一次性55硬币、2碎片、65经验；堡垒统领生命降低15%",
+                    "One-time 55 coins, 2 shards, 65 XP; Orrin's HP reduced 15%");
+                return q;
+            }
 
             if (id == "iron_temper")
             {
@@ -668,28 +708,8 @@ namespace Starfall
                     "Defeat audit security and preserve records"),Has("triad_sealed")));
                 q.steps.Insert(5,new QuestStep(L("返回莉雅身边，公开三核真相",
                     "Publish the three-core truth with Lyra"),Has("triad_complete")));
-                if(!Has("triad_complete"))
-                {
-                    q.next=!Has("triad_started")?
-                        L("找莉雅开启第四章的三核审计","Meet Lyra for the Chapter Four audit"):
-                        TriadEvidence<3?
-                        L("在堡垒读取三份星核原始记录，核对正确用途",
-                            "Read three original core records in the citadel and restore their purpose"):
-                        !Has("triad_sealed")?
-                        L("前往中央审计台，击败真实保密卫兵后保全日志",
-                            "At the central audit desk, defeat security and preserve the log"):
-                        L("返回余烬镇交给莉雅，公开屏障支出",
-                            "Return to Lyra and publish the shield's real cost");
-                    q.room=!Has("triad_started") || Has("triad_sealed")?0:4;
-                    string kind=TriadEvidence<3?
-                        (!Has("triad_evidence_1")?"triadmemory1":
-                         !Has("triad_evidence_2")?"triadmemory2":"triadmemory3"):
-                        "triadnexus";
-                    q.target=q.room==0?ObjectPoint(0,"guild",new Point(18,17)):
-                        ObjectPoint(4,kind,new Point(18.5f,11.5f));
-                    q.description+=L("\n\n第四章关键事件：亲自审计三枚星核的旧用途，解除安全协议并向莉雅公开证据。为了兼容已经抵达结局的旧存档，此调查不重新封锁厄洛。",
-                        "\n\nChapter Four key event: reconstruct three core purposes, defeat obsolete audit security and publish the real cost. Existing saves are not locked out of Orrin.");
-                }
+                q.description+=L("\\n\\n第四章加入三核审计：莉雅将在公会提供一条可以主动追踪、会改变最终对峙的主线调查。旧存档仍可直接完成原有决战。",
+                    "\\n\\nChapter Four now includes Lyra's three-core audit, a tracked campaign investigation that changes the confrontation. Existing saves retain the original finale route.");
             }
             if (q.complete) { q.room = 0; q.target = new Point(10, 11); q.next = L("故事已完成，自由探索边境", "Story complete; explore the frontier freely"); } return q;
         }
