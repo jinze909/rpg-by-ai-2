@@ -150,6 +150,42 @@ namespace Starfall
                         C(i==0?"#83b89c":i==1?"#7aaed4":"#dc9c75"));
                 Box(23,22,53,5,brass);Box(23,96,53,5,brass);
             }
+            else if (kind == "hearingdais")
+            {
+                // Three independent banners gather at one publicly lit dais.
+                Color dStone=C("#516875"),dShadow=C("#344b59"),
+                    dGold=C("#d1af78"),dPaper=C("#e9d7b0");
+                Box(18,70,62,35,dShadow);
+                Box(23,61,52,40,dStone);
+                Box(22,53,54,10,dGold);
+                Box(30,41,38,21,dPaper);
+                for(int i=0;i<3;i++)
+                {
+                    int bx=21+i*27;
+                    Box(bx,16,5,42,dGold);
+                    Box(bx-6,20,17,22,C(i==0?"#7daf98":i==1?"#80aacc":"#d4a17e"));
+                    Box(bx-4,24,13,4,dPaper);
+                }
+                Box(29,72,40,3,dGold);
+                for(int j=0;j<3;j++)Box(37,80+j*5,24-j*3,2,dPaper);
+                Disc(49,60,7,5,C("#f7dea5"));
+                Box(24,98,51,4,dGold);
+            }
+            else if (kind == "hearingplaque")
+            {
+                // Inscribed regional oath, green copper thread and fixed base.
+                Color pStone=C("#57717b"),pEdge=C("#c7ac78"),
+                    pSheet=C("#e2cca0"),pInk=C("#52606a"),pThread=C("#80c6a4");
+                Box(25,69,48,34,pStone);
+                Box(18,91,62,11,C("#344e5b"));
+                Box(31,26,36,57,pEdge);
+                Box(34,29,30,50,pSheet);
+                for(int i=0;i<5;i++)Box(40,39+i*8,20-(i%2)*4,2,pInk);
+                Box(45,13,7,21,pThread);
+                Disc(48,22,9,10,pThread);
+                Box(26,87,46,5,pEdge);
+                Disc(48,82,7,6,C("#f0d5a5"));
+            }
             else if (kind == "stormrelay")
             {
                 // Public allocation terminal: shelter and power branches are

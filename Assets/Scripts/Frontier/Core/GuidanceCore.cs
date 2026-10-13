@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,56 @@ namespace Starfall
             }
 
 
+
+            if(id=="hearing")
+            {
+                q.title=L("第七章 · 众人的晨钟","Chapter Seven · The People's Dawn");
+                q.category=L("战后主线 · 公开听证与独立公民誓言",
+                    "POST-FINALE MAIN STORY · PUBLIC HEARING");
+                q.locked=!HearingReady;
+                q.complete=HearingComplete;
+                q.description=L("星雨、公开重建和厄洛的民用余量协议已经完成，但居民没有放弃自己说话的权利。在镇内公开听证台接下新章，分别去密林、遗迹与矿场，让莫芽、阿菱、维恩亲自选择各地区公共服务重点。三位签名后回镇作出真正的医疗开放或紧急储备取舍，获得会在现场产生效果的公共设施。已有证词、救助与旧结局不会被重新覆盖。",
+                    "After the first storm, open reconstruction and Orrin's civilian accord, the three living witnesses deserve independent voices. Start the hearing in Emberfall, return physically to Moya, Arin and Venn for their own choices, and publish either open medical access or emergency energy reserves. New regional public services actually function; older stories and endings remain intact.");
+                q.steps.Add(new QuestStep(L("接受余烬镇公开听证","Open the Emberfall public hearing"),
+                    Has("hearing_started")));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"由莫芽决定林道的未来","由阿菱决定渡口的未来","由维恩决定矿机的未来"}[i-1],
+                          new[]{"Moya chooses the grove's future","Arin chooses the public crossing","Venn chooses workers' safety"}[i-1]),
+                        HearingVoice(i)!=0));
+                q.steps.Add(new QuestStep(L("公布公民公约并启用永久设施",
+                    "Publish a civic verdict and bring public services online"),
+                    HearingComplete));
+                q.room=0;q.target=ObjectPoint(0,"hearingdais",new Point(10.5f,7.5f));
+                q.next=HearingComplete?
+                    L("第七章完成：三地誓言和公民公约已经生效","Chapter Seven complete: regional oaths and civic verdict are live"):
+                    !HearingReady?
+                    L("先完成第六章并在堡垒与厄洛签署民用余量协议",
+                        "Finish Chapter Six and Orrin's civilian reserve accord"):
+                    !Has("hearing_started")?
+                    L("去余烬镇东北方公开听证台接取主线",
+                        "Start the public hearing at the Emberfall dais"):
+                    HearingSignatures==3?
+                    L("返回余烬镇，公布医疗开放或公用储备公约",
+                        "Return to choose open access or emergency reserve"):
+                    L("亲自访问未签字的地区居民","Visit an unsigned regional resident in person");
+                if(Has("hearing_started") && HearingSignatures<3)
+                {
+                    int next=0;
+                    if(save.room>=1&&save.room<=3 && HearingVoice(save.room)==0)
+                        next=save.room;
+                    else for(int i=1;i<=3;i++)
+                        if(HearingVoice(i)==0){next=i;break;}
+                    if(next!=0)
+                    {
+                        q.room=next;
+                        q.target=ObjectPoint(next,"witnessnpc"+next,new Point(12,14));
+                    }
+                }
+                q.reward=L("85硬币、2碎片、100经验；各地区永久服务与镇内医疗或应急耐力站",
+                    "85 coins, 2 shards, 100 XP; real regional services and a civic health or energy lantern");
+                return q;
+            }
 
             if(id=="storm_commons")
             {

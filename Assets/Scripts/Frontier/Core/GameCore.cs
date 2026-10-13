@@ -786,6 +786,12 @@ namespace Starfall
         {
             if (o == null) return false;
             if(o.kind.StartsWith("stormnode")) return Has("storm_started");
+            if(o.kind.StartsWith("hearingplaque"))
+            {
+                int region;
+                return int.TryParse(o.kind.Substring("hearingplaque".Length),out region) &&
+                    HearingPlaqueVisible(region);
+            }
             if(o.kind.StartsWith("afterlightwaypoint"))
             {
                 int region;
@@ -1141,6 +1147,15 @@ namespace Starfall
                     (Has("storm_complete")?
                         " You physically tuned three town lamps in the order determined by your original ending; the charter survived, with "+StormBudgetLeft+" units still available for Emberfall emergencies." :
                         " The first-storm charter is not complete, and promises alone cannot calm the live storm.");
+            }
+            if(HearingComplete)
+            {
+                zh[ending]+="\n\n第七章的听证不再由厄洛或公会替居民宣布结论。莫芽、阿菱和维恩各自签下不同誓言，三地的现场碑文成为可读的公共记录。"+
+                    (HearingVerdict==1?"你最终选择开放公民医疗服务；余烬镇新设的公共医护灯真的开始照顾受伤者。":
+                        "你最终选择由民众保有应急能源；余烬镇公民耐力灯为下一次救援保存体力。");
+                en[ending]+="\n\nChapter Seven did not allow Orrin or the guild to vote for others. Moya, Arin and Venn signed independent regional oaths; their words remain visible at the original worksites. "+
+                    (HearingVerdict==1?"You ratified open civic medical access; Emberfall's public healing lantern actually operates.":
+                        "You ratified publicly held emergency reserves; Emberfall's civic energy lantern supports future rescue crews.");
             }
             if (Has("afterlight_started"))
             {

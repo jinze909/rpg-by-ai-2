@@ -192,6 +192,37 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="hearingdais")
+            {
+                Color tint=Game.HearingComplete?mint:
+                    Game.Has("hearing_started")?gold:muted;
+                PropImage("hearingdais",Game.HearingVerdict,p.x-37,p.y-82,74,90,
+                    Game.HearingComplete?Color.white:muted);
+                Ring(new Point(o.x,o.y),Game.HearingComplete?.95f:.7f,tint,28);
+                Text(p.x-82,p.y-107,164,21,
+                    Game.HearingComplete?Game.L("公民公约已公布","CIVIC VERDICT RATIFIED"):
+                    Game.L("第七章 · 公开听证","CHAPTER SEVEN · HEARING"),
+                    11,tint,TextAnchor.MiddleCenter);
+                if(Game.Has("hearing_started") && !Game.HearingComplete)
+                    Text(p.x-61,p.y-126,122,20,
+                        Game.HearingSignatures+"/3 "+Game.L("署名","SIGNED"),
+                        12,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind.StartsWith("hearingplaque"))
+            {
+                int region;
+                if(!int.TryParse(kind.Substring("hearingplaque".Length),out region) ||
+                    region<1 || region>3)return true;
+                Color tint=Game.HearingVoice(region)==1?mint:gold;
+                PropImage("hearingplaque",region,p.x-28,p.y-71,56,76,Color.white);
+                Ring(new Point(o.x,o.y),.82f,tint,23);
+                Text(p.x-80,p.y-92,160,20,
+                    Game.L(new[]{"莫芽 · 活根誓言","阿菱 · 河岸誓言","维恩 · 工房誓言"}[region-1],
+                        new[]{"MOYA · ROOT OATH","ARIN · RIVER OATH","VENN · FOUNDRY OATH"}[region-1]),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="shrine" && Game.save.room==4 &&
                 Game.StormChapterComplete)
             {

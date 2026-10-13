@@ -52,6 +52,7 @@ namespace Starfall
             if (page == "ending") return save.ending > 0;
             if (page == "afterlight") return Has("afterlight_started") || Has("afterlight_complete");
             if (page == "storm") return Has("storm_started") || Has("storm_complete");
+            if (page == "hearing") return Has("hearing_started") || Has("hearing_complete");
             return false;
         }
         private void WorldChronicleSection(string section)
@@ -113,6 +114,7 @@ namespace Starfall
                 if (StoryUnlocked("abyss")) choices.Add(StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss"));
                 if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
                 if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
+                if (StoryUnlocked("hearing")) choices.Add(StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
             else { WorldChronicleMenu(); return; }
@@ -136,7 +138,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -570,6 +572,37 @@ namespace Starfall
                             Has("storm_tuned")?
                             "The town's three public lamps have been physically tuned, but the charter has not yet been published.":
                             "The final civic-grid test has not been completed; the frontier cannot claim success yet.");
+                    break;
+                case "hearing":
+                    headingZh="第七章：众人的晨钟";
+                    headingEn="Chapter Seven: The People's Dawn";
+                    zh="第一场星雨、三地公开设施与厄洛的民用余量协定没有让所有矛盾自动消失。莫芽还记得受伤的根，阿菱想起等候渡口的孩子，维恩仍然害怕下一次不允许停机的命令。\n\n"+
+                        "莉雅在余烬镇召开听证：每个地区的居民自己选择一项优先承诺，而不是由单一统领、主角或者军用账本替他们投票。\n\n";
+                    en="The first storm, three public works and Orrin's civilian accord did not eliminate disagreement. Moya remembers wounded roots, Arin remembers children denied crossing, and Venn remembers machines no worker could stop.\n\n"+
+                        "Lyra convenes a hearing in Emberfall: each region's resident chooses an independent public obligation rather than being represented by military ledgers or even by the hero.\n\n";
+                    for(int ri=1;ri<=3;ri++)
+                    {
+                        string[] peopleZh={"","莫芽","阿菱","维恩"};
+                        string[] peopleEn={"","Moya","Arin","Venn"};
+                        int opinion=HearingVoice(ri);
+                        zh+=peopleZh[ri]+"："+
+                            (opinion==0?"尚未亲自签署第七章的区域选择。":
+                             opinion==1?new[]{"","活根疗养优先。","公共渡口对所有居民开放。","让工人自主维修与回收。"}[ri]:
+                             new[]{"","夜间公共巡路灯优先。","河岸防洪庇护优先。","紧急停机与冷却优先。"}[ri])+"\n";
+                        en+=peopleEn[ri]+": "+
+                            (opinion==0?"Has not yet signed a Chapter Seven regional vote.":
+                             opinion==1?new[]{"","Living-root care takes priority.","The crossing stays open to every traveler.","Workers control repairs and recycling."}[ri]:
+                             new[]{"","Public night-road lamps take priority.","Public flood refuge takes priority.","Emergency shutdown protection takes priority."}[ri])+"\n";
+                    }
+                    zh+=HearingComplete?
+                        "\n【公开议决已通过】三地居民独立署名，余烬镇的"+(HearingVerdict==1?"公共医疗灯":"公用应急耐力灯")+
+                        "已真正运作。新誓言刻在三地现场，不会因为冒险者离开就消失。":
+                        "\n【听证尚未结束】公民誓言不齐备时，公会不会替缺席者决定公约。";
+                    en+=HearingComplete?
+                        "\n[Public verdict ratified] All three residents signed, and Emberfall's "+
+                        (HearingVerdict==1?"public medical lantern":"emergency energy lantern")+
+                        " actually operates. Local pledges remain inscribed in their own regions.":
+                        "\n[Hearing pending] The guild cannot decide for absent regional voices.";
                     break;
                 case "afterlight":
                     headingZh="第五章：把余光留给活着的人";

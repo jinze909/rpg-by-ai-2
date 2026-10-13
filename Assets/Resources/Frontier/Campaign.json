@@ -294,6 +294,14 @@
           "en": "Mine Public Grid Lamp",
           "x": 27.5,
           "y": 11.5
+        },
+        {
+          "id": "hearingdais",
+          "kind": "hearingdais",
+          "name": "余烬镇公开听证台",
+          "en": "Emberfall Public Hearing Dais",
+          "x": 10.5,
+          "y": 7.5
         }
       ],
       "decor": [
@@ -638,6 +646,14 @@
           "name": "密林星雨配电台",
           "en": "Grove Storm Allocation Relay",
           "x": 25.5,
+          "y": 15.5
+        },
+        {
+          "id": "hearingplaque1",
+          "kind": "hearingplaque1",
+          "name": "莫芽的根系公共誓言",
+          "en": "Moya's Living Root Oath",
+          "x": 8.5,
           "y": 15.5
         }
       ],
@@ -1006,6 +1022,14 @@
           "en": "Ruins Storm Allocation Relay",
           "x": 27.5,
           "y": 18.5
+        },
+        {
+          "id": "hearingplaque2",
+          "kind": "hearingplaque2",
+          "name": "阿菱的公共渡口誓言",
+          "en": "Arin's Crossing Oath",
+          "x": 7.5,
+          "y": 6.5
         }
       ],
       "decor": [
@@ -1389,6 +1413,14 @@
           "en": "Mine Storm Allocation Relay",
           "x": 28.5,
           "y": 15.5
+        },
+        {
+          "id": "hearingplaque3",
+          "kind": "hearingplaque3",
+          "name": "维恩的安全工坊誓言",
+          "en": "Venn's Safety Oath",
+          "x": 10.5,
+          "y": 12.5
         }
       ],
       "decor": [

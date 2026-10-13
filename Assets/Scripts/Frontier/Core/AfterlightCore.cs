@@ -345,9 +345,9 @@ namespace Starfall
                     Dying || practicing ||
                     (Position-AfterlightPoint(3,"outlet")).Length>2.2f)return true;
                 if(Spend(1,StormPolicy(3)==2?1:2,0,0,0))
-                {save.inventory[4]+=2;revision++;sound="reward";
-                    Notify("工房回收成功：木材 -1、星晶 -"+(StormPolicy(3)==2?1:2)+"，零件 +2。",
-                        "Public recycling: -1 timber, -"+(StormPolicy(3)==2?1:2)+" starcrystal, +2 actual machine parts.");}
+                {save.inventory[4]+=2+(HearingComplete && HearingVoice(3)==1?1:0);revision++;sound="reward";
+                    Notify("工房回收成功：木材 -1、星晶 -"+(StormPolicy(3)==2?1:2)+"，零件 +"+(HearingComplete && HearingVoice(3)==1?"3":"2")+"。",
+                        "Public recycling: -1 timber, -"+(StormPolicy(3)==2?1:2)+" starcrystal, +"+(HearingComplete && HearingVoice(3)==1?"3":"2")+" actual machine parts.");}
                 return true;
             }
             string[] pieces=action.Split('_');

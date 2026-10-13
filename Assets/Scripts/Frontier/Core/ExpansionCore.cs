@@ -329,6 +329,23 @@ namespace Starfall
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
             // The first real starstorm changes regional public services.
             // No remote regeneration, no healing under live enemy attack.
+            if(HearingComplete && save.room>=1 && save.room<=3 &&
+                !Dying && !practicing && !racing && SafeTravel &&
+                NearKind("hearingplaque"+save.room,3.0f))
+            {
+                if(HearingHealthSite && save.health>0 && save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.55f);
+                if(HearingEnergySite)
+                    save.energy=Math.Min(100,save.energy+dt*3.8f);
+            }
+            if(HearingComplete && save.room==0 && !Dying &&
+                !practicing && SafeTravel && NearKind("hearingdais",3.1f))
+            {
+                if(HearingVerdict==1 && save.health>0 && save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.9f);
+                if(HearingVerdict==2)
+                    save.energy=Math.Min(100,save.energy+dt*5.2f);
+            }
             if(StormShelterNearby && SafeTravel && !practicing && !racing &&
                 save.health>0 && save.health<save.maxHealth)
                 save.health=Math.Min(save.maxHealth,save.health+dt*2.1f);

@@ -213,6 +213,7 @@ namespace Starfall
             if (TalkTemper(o)) return true;
             if (TalkTriad(o)) return true;
             if (TalkAfterlight(o)) return true;
+            if (TalkHearing(o)) return true;
             if (TalkStorm(o)) return true;
             if (TalkWitness(o)) return true;
             if (TalkBlackout(o)) return true;
@@ -303,6 +304,7 @@ namespace Starfall
             if (ChooseWitness(action)) return true;
             if (ChooseBlackout(action)) return true;
             if (ChooseAfterlight(action)) return true;
+            if (ChooseHearing(action)) return true;
             if (ChooseStorm(action)) return true;
             if (action == "farshore_relief_routes")
             {
