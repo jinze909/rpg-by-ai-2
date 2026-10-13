@@ -151,6 +151,12 @@ public static class RenderStateChecks
         Check(object.ReferenceEquals(first,Get<Texture2D>(app,"terrainPreview"))&&
             GUI.textureCalls.Count==1,
             "Repeated GUI painting reuses the same cached map texture");
+        // Unrelated combat/story updates must not rebuild an expensive map.
+        app.Game.revision++;
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,false,888f,264f,2f);
+        Check(object.ReferenceEquals(first,Get<Texture2D>(app,"terrainPreview")),
+            "Unrelated gameplay revisions preserve the existing cached map raster");
         app.Game.save.flags.Add("far_bridge_0");
         app.Game.revision++;
         Clear();

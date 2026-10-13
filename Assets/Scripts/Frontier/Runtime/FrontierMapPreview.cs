@@ -10,13 +10,34 @@ namespace Starfall
         private Texture2D terrainPreview;
         private GameCore previewOwner;
         private MapData previewMap;
-        private int previewRegion=-1,previewRevision=-1;
+        private int previewRegion=-1,previewDiscoveryStamp;
         private bool previewFog,previewLowTide;
+        // Hash only the fog state belonging to this map, not Game.revision.
+        // Combat, movement and HUD updates must not rebuild a 120x80 texture.
+        private int PreviewDiscoveryStamp(int region,bool fog)
+        {
+            int code=Game.FarBridgeOpen(region)?41:17;
+            if(!fog)return code;
+            string prefix=region==8?
+                "abyss_annex_seen_"+Game.save.abyssSeed+"_"+Game.save.abyssFloor+"_":
+                "annex_seen_"+region+"_";
+            unchecked
+            {
+                code=code*31+Game.save.explored[region];
+                // Commutative: changes to flag-list ordering are not changes
+                // to the actual explored terrain.
+                int seen=0;
+                foreach(string flag in Game.save.flags)
+                    if(flag!=null&&flag.StartsWith(prefix,StringComparison.Ordinal))
+                        seen^=flag.GetHashCode();
+                return code*31+seen;
+            }
+        }
         private void ReleaseTerrainPreview()
         {
             if(terrainPreview!=null)UnityEngine.Object.Destroy(terrainPreview);
             terrainPreview=null;previewOwner=null;previewMap=null;
-            previewRegion=previewRevision=-1;
+            previewRegion=-1;previewDiscoveryStamp=0;
         }
         private void DrawTerrainPreview(MapData map,int region,bool fog,float x,float y,float scale)
         {
@@ -24,10 +45,11 @@ namespace Starfall
             int width=map.rows[0].Length,height=map.rows.Length;
             if(width<=0||height<=0||scale<=0)return;
             bool tide=Game.LowTide;
+            int discoveryStamp=PreviewDiscoveryStamp(region,fog);
             if(terrainPreview==null||!object.ReferenceEquals(previewMap,map)||
                 !object.ReferenceEquals(previewOwner,Game)||
                 previewRegion!=region||previewFog!=fog||
-                previewRevision!=Game.revision||
+                previewDiscoveryStamp!=discoveryStamp||
                 previewLowTide!=tide)
             {
                 ReleaseTerrainPreview();
@@ -57,7 +79,7 @@ namespace Starfall
                 terrainPreview.SetPixels(pixels);
                 terrainPreview.Apply(false,false);
                 previewOwner=Game;previewMap=map;previewRegion=region;
-                previewFog=fog;previewRevision=Game.revision;
+                previewFog=fog;previewDiscoveryStamp=discoveryStamp;
                 previewLowTide=tide;
             }
             Image(terrainPreview,x,y,width*scale,height*scale);
