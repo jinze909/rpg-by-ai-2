@@ -446,6 +446,54 @@ public static class RenderStateChecks
             "A live defense paints its actual enemy count beside the original hero");
         Console.WriteLine("PASS real chapter-nine timed HUD, hero-carried medicine durability and lookout danger (offline)");
     }
+    static void ChapterTenVisualSitesAndSecurityHUD(FrontierRuntime app)
+    {
+        app.BeginVisualReview(4,1);
+        var game=app.Game;
+        game.save.flags.Add("last_directive_started");
+        game.save.english=true;
+        var testimony=Array.Find(game.Map.objects,o=>o.kind=="lastdirectiveclue0");
+        var control=Array.Find(game.Map.objects,o=>o.kind=="lastdirectivecore");
+        Check(testimony!=null&&control!=null,
+            "Four physically authored citadel testimony/console objects are present");
+        Clear();Call(app,"DrawObject",testimony);
+        Check(GUI.textureCalls.Count>0,
+            "Original in-world painter renders the first new story artifact");
+        Color unknown=GUI.textureCalls[0].color;
+        game.save.flags.Add("last_directive_clue_0");
+        Clear();Call(app,"DrawObject",testimony);
+        Color known=GUI.textureCalls[0].color;
+        Check(Math.Abs(unknown.r-known.r)+Math.Abs(unknown.g-known.g)+
+            Math.Abs(unknown.b-known.b)>.02f,
+            "Investigated clue changes its in-world tint, not just abstract quest text");
+        game.save.flags.Add("last_directive_clue_1");
+        game.save.flags.Add("last_directive_clue_2");
+        game.enemies.Clear();
+        game.save.x=control.x;game.save.y=control.y;
+        game.Talk(control);
+        int answer=Array.FindIndex(game.conversation.choices,
+            c=>c.action=="last_directive_code_0");
+        Check(answer>=0,"Actual physical console presents the history-based cipher");
+        game.Choose(answer);
+        Check(game.LastDirectiveWave==1&&game.LastDirectiveEnemies==2,
+            "Correct in-world cipher spawns two live enemy AI units");
+        Clear();Call(app,"DrawObject",control);
+        Check(GUI.commands.Exists(c=>c.Contains("GUARDIANS 2")),
+            "The physically rendered terminal warns of the exact live guardian count");
+        Screen.width=1280;Screen.height=800;
+        Draw(app);
+        Check(GUI.commands.Exists(c=>c.Contains("LAST DIRECTIVE"))&&
+            GUI.commands.Exists(c=>c.Contains("Chapter Ten")),
+            "Live Chapter Ten security fights appear in original timed conditions panel and quest HUD");
+        app.BeginVisualReview(0,1);
+        game=app.Game;
+        var council=Array.Find(game.Map.objects,o=>o.kind=="lastdirectiveboard");
+        Check(council!=null,"Emberfall gained a physically placed public decision desk");
+        Clear();Call(app,"DrawObject",council);
+        Check(GUI.textureCalls.Count>0,
+            "New town council is rendered in the real world scene");
+        Console.WriteLine("PASS Chapter Ten real world testimony, terminal security warning and HUD (offline)");
+    }
     static void RestoresState(FrontierRuntime app)
     {
         Screen.width=1920; Screen.height=1080; Prepare(app);
@@ -459,7 +507,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
