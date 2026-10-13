@@ -22,6 +22,9 @@ namespace Starfall.Tests
             // Preserve the original farshore chapter gate: Frostchime opens
             // only after the prior desert report, not from a new side quest.
             g.save.flags.Add("desert_report");
+            // The protected east-side arena opens only after the original
+            // highland chime gate, independently of this optional story.
+            g.save.flags.Add("gate_7");
             g.save.x=yilan.x;g.save.y=yilan.y;
             Action(g,"skywatcher","skywatch_accept");
             Check(g.Has("skywatch_started") && !g.GetQuest("skywatch").locked &&
@@ -166,7 +169,7 @@ namespace Starfall.Tests
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=12;
             foreach(string flag in new[]{"mountain_report","desert_report","skywatch_started",
-                "skywatch_prism_1","skywatch_prism_2","skywatch_prism_3"})
+                "skywatch_prism_1","skywatch_prism_2","skywatch_prism_3","gate_7"})
                 g.save.flags.Add(flag);
             g.Enter(7);g.enemies.Clear();
             WorldObject altar=Object(g,"skyobservatory");
