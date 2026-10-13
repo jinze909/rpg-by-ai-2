@@ -482,7 +482,8 @@ public static class RuntimeCombatInputChecks
             app.Game.mode = "saves";
             Set(app, "settingsParent", "title");
             GUI.buttonCalls.Clear();
-            Call(app, "DrawSaves");
+            Event.current.type = EventType.Repaint;
+            Call(app, "OnGUI"); // Style initialization and control scoping happen here.
             var manualButton = GUI.buttonCalls.Find(c =>
                 Math.Abs(c.rect.x - 869) < .01f && Math.Abs(c.rect.y - 326) < .01f);
             Check(manualButton != null && !manualButton.enabled,
