@@ -148,7 +148,7 @@ public static class RenderStateChecks
         var blocked=first.pixels[(first.height-1-y)*first.width+x];
         Clear();
         Call(app,"DrawTerrainPreview",map,0,false,888f,264f,2f);
-        Check(Object.ReferenceEquals(first,Get<Texture2D>(app,"terrainPreview"))&&
+        Check(object.ReferenceEquals(first,Get<Texture2D>(app,"terrainPreview"))&&
             GUI.textureCalls.Count==1,
             "Repeated GUI painting reuses the same cached map texture");
         app.Game.save.flags.Add("far_bridge_0");
@@ -157,7 +157,7 @@ public static class RenderStateChecks
         Call(app,"DrawTerrainPreview",map,0,false,888f,264f,2f);
         var opened=Get<Texture2D>(app,"terrainPreview");
         var road=opened.pixels[(opened.height-1-y)*opened.width+x];
-        Check(!Object.ReferenceEquals(first,opened)&&first.destroyed,
+        Check(!object.ReferenceEquals(first,opened)&&first.destroyed,
             "Construction invalidates and disposes the old menu-map raster");
         Check(Math.Abs(blocked.r-road.r)+Math.Abs(blocked.g-road.g)+
             Math.Abs(blocked.b-road.b)>.01f,
