@@ -49,6 +49,14 @@ namespace Starfall
             // even on instantaneous camera jumps or large scene transitions.
             return .3f*(1f-Smooth01(readiness));
         }
+        public static int PredictPrewarmLead(float cameraTargetDelta)
+        {
+            // A bounded extra eight tiles in the direction of travel;
+            // unbounded teleports must not prebuild the entire world.
+            if(float.IsNaN(cameraTargetDelta)||float.IsInfinity(cameraTargetDelta))
+                return 0;
+            return (int)Math.Max(-8,Math.Min(8,Math.Round(cameraTargetDelta*1.5f)));
+        }
         public static float EdgeOpacity(float x,float y,float width,float height)
         {
             // An entering prop begins feathering in *outside* the frame.

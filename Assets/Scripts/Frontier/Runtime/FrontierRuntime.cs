@@ -32,6 +32,36 @@ namespace Starfall
         }
         private readonly Dictionary<int, PreparedTerrainChunk> preparedTerrainChunks =
             new Dictionary<int, PreparedTerrainChunk>(128);
+        // Chunk-specific nearby object bins. A 120x80 map may contain
+        // hundreds of props but tile preparation only scans local neighbors.
+        private readonly Dictionary<int, List<WorldObject>> terrainOccluderBins =
+            new Dictionary<int, List<WorldObject>>(160);
+        private static readonly List<WorldObject> emptyTerrainOccluders = new List<WorldObject>(0);
+        private void IndexTerrainOccluders(MapData map)
+        {
+            terrainOccluderBins.Clear();
+            int chunksWide=(map.rows[0].Length+TerrainChunkTiles-1)/TerrainChunkTiles;
+            int chunksHigh=(map.rows.Length+TerrainChunkTiles-1)/TerrainChunkTiles;
+            foreach(WorldObject item in map.objects)
+            {
+                int centerX=(int)Math.Floor(item.x/TerrainChunkTiles);
+                int centerY=(int)Math.Floor(item.y/TerrainChunkTiles);
+                // A 1.4 tile object-clearance radius can only overlap
+                // the owning 6x6 chunk and its immediate neighbors.
+                for(int cy=Math.Max(0,centerY-1);cy<=Math.Min(chunksHigh-1,centerY+1);cy++)
+                    for(int cx=Math.Max(0,centerX-1);cx<=Math.Min(chunksWide-1,centerX+1);cx++)
+                    {
+                        int key=cy*chunksWide+cx;
+                        List<WorldObject> candidates;
+                        if(!terrainOccluderBins.TryGetValue(key,out candidates))
+                        {
+                            candidates=new List<WorldObject>(8);
+                            terrainOccluderBins.Add(key,candidates);
+                        }
+                        candidates.Add(item);
+                    }
+            }
+        }
         private int terrainStreamingRoom = -1, terrainStreamingFloor = -1;
         private MapData terrainStreamingMap;
         // Only world scenery and interactive props are faded. Player, enemies,
@@ -290,6 +320,7 @@ namespace Starfall
             if (firstView)
             {
                 preparedTerrainChunks.Clear();
+                IndexTerrainOccluders(Game.Map);
                 terrainStreamingRoom = Game.save.room;
                 terrainStreamingFloor = Game.save.abyssFloor;
                 terrainStreamingMap = Game.Map;
@@ -297,10 +328,15 @@ namespace Starfall
             Point origin = WorldOrigin;
             int width = Game.Map.rows[0].Length, height = Game.Map.rows.Length;
             const int preloadTiles = 12;
-            int left = Math.Max(0, (int)Math.Floor((-Tile - origin.x) / Tile) - preloadTiles);
-            int right = Math.Min(width - 1, (int)Math.Ceiling((Width + Tile - origin.x) / Tile) + preloadTiles);
-            int top = Math.Max(0, (int)Math.Floor((-Tile - origin.y) / Tile) - preloadTiles);
-            int bottom = Math.Min(height - 1, (int)Math.Ceiling((Height + Tile - origin.y) / Tile) + preloadTiles);
+            // Prewarm the side the camera is moving *toward*, not just a
+            // symmetric strip around its delayed follow position.
+            Point target=CameraTarget();
+            int leadX=WorldStreaming.PredictPrewarmLead(target.x-camera.x);
+            int leadY=WorldStreaming.PredictPrewarmLead(target.y-camera.y);
+            int left = Math.Max(0, (int)Math.Floor((-Tile - origin.x) / Tile) - preloadTiles + Math.Min(0,leadX));
+            int right = Math.Min(width - 1, (int)Math.Ceiling((Width + Tile - origin.x) / Tile) + preloadTiles + Math.Max(0,leadX));
+            int top = Math.Max(0, (int)Math.Floor((-Tile - origin.y) / Tile) - preloadTiles + Math.Min(0,leadY));
+            int bottom = Math.Min(height - 1, (int)Math.Ceiling((Height - origin.y) / Tile) + preloadTiles + Math.Max(0,leadY));
             int chunksWide = (width + TerrainChunkTiles - 1) / TerrainChunkTiles;
             for (int cy = top / TerrainChunkTiles; cy <= bottom / TerrainChunkTiles; cy++)
                 for (int cx = left / TerrainChunkTiles; cx <= right / TerrainChunkTiles; cx++)
@@ -309,6 +345,9 @@ namespace Starfall
                     if (preparedTerrainChunks.ContainsKey(key)) continue;
                     PreparedTerrainChunk chunk = new PreparedTerrainChunk();
                     chunk.warmAt = firstView ? clock - 2f : clock;
+                    List<WorldObject> closeObjects;
+                    if(!terrainOccluderBins.TryGetValue(key,out closeObjects))
+                        closeObjects=emptyTerrainOccluders;
                     for (int localY = 0; localY < TerrainChunkTiles; localY++)
                         for (int localX = 0; localX < TerrainChunkTiles; localX++)
                         {
@@ -322,7 +361,7 @@ namespace Starfall
                             if (seed % 17 != 0) continue;
                             float footX = x + .35f + seed % 5 * .07f;
                             float footY = y + .65f;
-                            foreach (WorldObject item in Game.Map.objects)
+                            foreach (WorldObject item in closeObjects)
                             {
                                 float dx = footX - item.x, dy = footY - item.y;
                                 if (dx * dx + dy * dy < 1.96f)

@@ -759,6 +759,22 @@ namespace Starfall.Tests
                 "The new exploration quest tracks all eight physical restored refuges");
         }
 
+        public static void CameraLeadPrewarmsMovementWithoutUnboundedMapScans(Campaign data)
+        {
+            Check(WorldStreaming.PredictPrewarmLead(0)==0,
+                "Still camera requests no unneeded directional prewarm");
+            Check(WorldStreaming.PredictPrewarmLead(3)==4,
+                "Following camera prepares forward chunks before arrival");
+            Check(WorldStreaming.PredictPrewarmLead(-4)==-6,
+                "Backward movement prepares the trailing viewport side");
+            Check(WorldStreaming.PredictPrewarmLead(1000)==8&&
+                WorldStreaming.PredictPrewarmLead(-1000)==-8,
+                "Teleport or huge map never launches unbounded preloading");
+            Check(WorldStreaming.PredictPrewarmLead(float.NaN)==0&&
+                WorldStreaming.PredictPrewarmLead(float.PositiveInfinity)==0,
+                "Bad camera input cannot corrupt streamed terrain bounds");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)
