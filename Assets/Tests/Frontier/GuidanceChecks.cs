@@ -1045,6 +1045,57 @@ namespace Starfall.Tests
             Check(g.save.health-45<with,
                 "The civic refuge benefit is not falsely applied from distant positions");
         }
+        public static void ChapterTenPublicOversightActuallyRestoresSafeEnergyAndGuestDialogue(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("last_directive_open");
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("civic_response_ledger");
+            var council=Object(g,"lastdirectiveboard");
+            g.save.x=council.x;g.save.y=council.y;g.enemies.Clear();
+            g.save.energy=20;g.hitStop=0;g.Tick(.05f,new Point());
+            float with=g.save.energy-20;
+            g.save.flags.Remove("last_directive_open");
+            g.save.energy=20;g.hitStop=0;g.Tick(.05f,new Point());
+            float without=g.save.energy-20;
+            Check(with>without+.16f,
+                "The public oversight choice creates a real, safety-limited town energy effect");
+            g.save.flags.Add("last_directive_open");
+            g.save.x=council.x+9;g.save.y=council.y;
+            g.save.energy=20;g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.save.energy-20<with,
+                "The public energy benefit cannot activate remotely across Emberfall");
+            g.Enter(9);g.enemies.Clear();
+            var guest=Object(g,"innGuest");g.save.x=guest.x;g.save.y=guest.y;
+            g.Talk(guest);
+            Check(g.conversation.text.Contains("旅人可以质疑过载命令")&&
+                g.conversation.textEn.Contains("challenge an overload order"),
+                "The original living inn guest acknowledges the player's public-oversight ending in both languages");
+            g.Close();
+            g.save.flags.Remove("last_directive_open");
+            g.save.flags.Add("last_directive_shelter");
+            g.Talk(guest);
+            Check(g.conversation.text.Contains("无条件的紧急庇护")&&
+                g.conversation.textEn.Contains("unconditional emergency refuge"),
+                "The alternative emergency-shelter ending has different meaningful NPC dialogue");
+            g.Close();
+            var chronicle=typeof(GameCore).GetMethod("StoryUnlocked",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var chapter=typeof(GameCore).GetMethod("WorldChronicleSection",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            g.save.flags.Add("last_directive_started");
+            g.save.flags.Add("last_directive_clue_0");
+            chapter.Invoke(g,new object[]{"after"});
+            Check((bool)chronicle.Invoke(g,new object[]{"lastdirective"})&&
+                Array.Exists(g.conversation.choices,c=>c.action=="story_read_lastdirective"),
+                "Chapter Ten appears inside the original read-only chronicle only when unlocked");
+            int select=Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_lastdirective");
+            int savedFlags=g.save.flags.Count,coins=g.save.coins;
+            g.Choose(select);
+            Check(g.conversation.text.Contains("尚未到访")&&
+                g.conversation.text.Contains("无条件民用紧急庇护")&&
+                g.save.flags.Count==savedFlags&&g.save.coins==coins,
+                "Chronicle reflects witnessed progress and chosen ending without revealing unknown testimony or granting rewards");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
