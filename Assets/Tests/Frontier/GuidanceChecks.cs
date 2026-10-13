@@ -222,11 +222,12 @@ namespace Starfall.Tests
                 var g=Fresh(data);
                 g.save.stage=4;g.save.frontierEnding=1;
                 g.save.flags.Add("scout_saved");g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");g.save.flags.Add("desert_report");
                 g.save.flags.Add("gate_"+room);
                 g.save.flags.Add("far_bridge_"+room);
                 g.save.flags.Add("far_shelter_"+room);
                 g.Enter(room);g.enemies.Clear();
-                Check(g.save.room==room,"Actual civilian bridge region is available");
+                Check(g.save.room==room,"Actual civilian bridge region is available: "+room);
                 var bridge=Object(g,"farbridge");
                 g.save.x=bridge.x;g.save.y=bridge.y;
                 Action(g,"farbridge","far_courier_start");
