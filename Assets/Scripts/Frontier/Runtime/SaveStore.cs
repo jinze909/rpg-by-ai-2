@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
@@ -26,14 +27,42 @@ namespace Starfall
         public static SaveData Read(out string warning) { return Read(-1, out warning); }
         public static SaveData Read(int slot, out string warning)
         {
-            warning = null; string main = PathFor(slot);
-            foreach (string path in new[] { main, main + ".bak", main + ".tmp" })
+            warning = null;
+            string main = PathFor(slot);
+            // A validated primary save always wins, even if a stale temporary file remains.
+            if (File.Exists(main))
             {
-                if (!File.Exists(path)) continue;
-                try { SaveData value = Decode(File.ReadAllText(path)); if (path != main) warning = "Recovered " + (path.EndsWith(".bak") ? "backup" : "interrupted save") + "."; return value; }
+                try { return Decode(File.ReadAllText(main)); }
                 catch (Exception ex) { warning = "Cannot read save: " + ex.Message; }
             }
-            return null;
+            // A crash can leave a COMPLETE .tmp newer than the last .bak.
+            // Inspect both verified copies rather than rolling back merely due to suffix order.
+            SaveData newest = null;
+            DateTime newestTime = DateTime.MinValue;
+            string recoveredFrom = null;
+            foreach (string path in new[] { main + ".tmp", main + ".bak" })
+            {
+                if (!File.Exists(path)) continue;
+                try
+                {
+                    SaveData candidate = Decode(File.ReadAllText(path));
+                    DateTime savedTime;
+                    if (!DateTime.TryParse(candidate.savedAtUtc, CultureInfo.InvariantCulture,
+                        DateTimeStyles.RoundtripKind, out savedTime))
+                        savedTime = File.GetLastWriteTimeUtc(path); // Old v1 saves may lack a timestamp.
+                    else savedTime = savedTime.ToUniversalTime();
+                    if (newest == null || savedTime > newestTime)
+                    {
+                        newest = candidate;
+                        newestTime = savedTime;
+                        recoveredFrom = path;
+                    }
+                }
+                catch (Exception ex) { if (warning == null) warning = "Cannot read save: " + ex.Message; }
+            }
+            if (newest != null)
+                warning = "Recovered " + (recoveredFrom.EndsWith(".tmp") ? "interrupted save" : "backup") + ".";
+            return newest;
         }
         public static bool Exists(int slot) { string path = PathFor(slot); return File.Exists(path) || File.Exists(path + ".bak") || File.Exists(path + ".tmp"); }
         public static bool Write(SaveData value) { return Write(value, -1); }

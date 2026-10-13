@@ -328,6 +328,63 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Real OnGUI draws and retires the opening ring and enemy poise meter (offline)");
     }
 
+
+    // Real disk I/O through production SaveStore, exercising both crash recovery candidates.
+    private static void SaveRecoveryUsesNewestVerifiedCopy(FrontierRuntime app)
+    {
+        string previousPath = Application.persistentDataPath;
+        string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "starfall-recovery-" + Guid.NewGuid().ToString("N"));
+        Application.persistentDataPath = directory;
+        try
+        {
+            System.IO.Directory.CreateDirectory(directory);
+            string main = SaveStore.PathFor(0);
+            Action<string, int, string> put = (path, coins, timestamp) =>
+            {
+                var state = new SaveData { coins = coins, savedAtUtc = timestamp };
+                string payload = JsonUtility.ToJson(state);
+                string checksum;
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                    checksum = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(payload))).Replace("-", "");
+                System.IO.File.WriteAllText(path, JsonUtility.ToJson(new SaveEnvelope { payload = payload, checksum = checksum }));
+            };
+            put(main, 10, "2026-01-01T00:00:00.0000000Z");
+            put(main + ".bak", 20, "2026-01-02T00:00:00.0000000Z");
+            put(main + ".tmp", 30, "2026-01-03T00:00:00.0000000Z");
+            string warning;
+            SaveData restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 10 && warning == null,
+                "A valid primary save must win over newer recovery artifacts.");
+            System.IO.File.WriteAllText(main, "{corrupt");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 30 && warning == "Recovered interrupted save.",
+                "A newer, checksum-valid interrupted write must outrank an older valid backup.");
+            put(main + ".bak", 40, "2026-01-04T00:00:00.0000000Z");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 40 && warning == "Recovered backup.",
+                "An older stale temp must not roll back a newer verified backup.");
+            System.IO.File.WriteAllText(main + ".bak", "{corrupt");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 30 && warning == "Recovered interrupted save.",
+                "A broken backup must not hide a still-verifiable interrupted save.");
+            System.IO.File.WriteAllText(main + ".tmp", "{corrupt");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored == null && warning != null,
+                "A damaged primary and two damaged recovery files must not manufacture a save.");
+            put(main + ".bak", 50, "2026-01-05T00:00:00.0000000Z");
+            System.IO.File.Delete(main + ".tmp");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 50 && warning == "Recovered backup.",
+                "Existing backup-only recovery remains backward compatible.");
+            Console.WriteLine("PASS Real SaveStore I/O: primary priority, newest valid crash copy, stale tmp, corrupt artifacts and backup-only recovery");
+        }
+        finally
+        {
+            Application.persistentDataPath = previousPath;
+            if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, true);
+        }
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -336,7 +393,7 @@ public static class RuntimeCombatInputChecks
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
-            RenderStateChecks.MapRasterRegression };
+            RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy };
         int failures = 0;
         foreach (var test in cases)
         {
