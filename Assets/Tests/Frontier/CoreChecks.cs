@@ -331,6 +331,36 @@ namespace Starfall.Tests
                 "Independent eight-area map quest reflects real stage flags");
         }
 
+        public static void ThirdRingResourcePocketsUseRealRenewableHarvesting(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore region=new GameCore(data);
+                region.save.room=room;
+                int count=0;
+                foreach(WorldObject o in data.maps[room].objects)
+                    if(o.id.StartsWith("trail_forager_"+room+"_"))
+                    {
+                        count++;
+                        Check(region.CanStand(new Point(o.x,o.y)),
+                            "Every new gatherable site remains on actual playable terrain");
+                    }
+                Check(count==3,"Each of eight third-ring maps gets three actual field resources");
+            }
+            GameCore g=new GameCore(data);
+            WorldObject node=Array.Find(data.maps[0].objects,o=>o.id=="trail_forager_0_0");
+            int herbs=g.save.inventory[2];
+            g.save.x=node.x;g.save.y=node.y;g.Talk(node);
+            Check(g.Has("node_"+node.id)&&g.save.inventory[2]==herbs+3,
+                "New outdoor node yields actual resource through existing gathering code");
+            g.Talk(node);
+            Check(g.save.inventory[2]==herbs+3,"Second gather cannot duplicate resource");
+            g.save.flags.RemoveAll(flag=>flag.StartsWith("node_"));
+            g.Talk(node);
+            Check(g.save.inventory[2]==herbs+6,
+                "Existing rest refresh makes the new site renewable without new save format");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

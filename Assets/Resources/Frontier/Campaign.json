@@ -422,6 +422,30 @@
           "en": "Canal Circuit",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_0_0",
+          "kind": "herb",
+          "name": "渠边苔草 · 1",
+          "en": "Canal Moss · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_0_1",
+          "kind": "wood",
+          "name": "渠边苔草 · 2",
+          "en": "Canal Moss · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_0_2",
+          "kind": "herb",
+          "name": "渠边苔草 · 3",
+          "en": "Canal Moss · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
@@ -1195,6 +1219,30 @@
           "en": "Thornwood Safe Trail",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_1_0",
+          "kind": "herb",
+          "name": "林下补给 · 1",
+          "en": "Forest Trail Materials · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_1_1",
+          "kind": "wood",
+          "name": "林下补给 · 2",
+          "en": "Forest Trail Materials · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_1_2",
+          "kind": "herb",
+          "name": "林下补给 · 3",
+          "en": "Forest Trail Materials · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
@@ -2002,6 +2050,30 @@
           "en": "Drowned Crossing",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_2_0",
+          "kind": "wood",
+          "name": "退潮漂流木 · 1",
+          "en": "Ebb-Tide Timber · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_2_1",
+          "kind": "herb",
+          "name": "退潮漂流木 · 2",
+          "en": "Ebb-Tide Timber · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_2_2",
+          "kind": "wood",
+          "name": "退潮漂流木 · 3",
+          "en": "Ebb-Tide Timber · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
@@ -2831,6 +2903,30 @@
           "en": "Miner Safety Trail",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_3_0",
+          "kind": "ore",
+          "name": "矿口余料 · 1",
+          "en": "Mine Worksite Scrap · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_3_1",
+          "kind": "wood",
+          "name": "矿口余料 · 2",
+          "en": "Mine Worksite Scrap · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_3_2",
+          "kind": "ore",
+          "name": "矿口余料 · 3",
+          "en": "Mine Worksite Scrap · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
@@ -3597,6 +3693,30 @@
           "en": "Citadel Public Ring",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_4_0",
+          "kind": "wood",
+          "name": "外环应急件 · 1",
+          "en": "Outer Ring Supplies · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_4_1",
+          "kind": "ore",
+          "name": "外环应急件 · 2",
+          "en": "Outer Ring Supplies · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_4_2",
+          "kind": "herb",
+          "name": "外环应急件 · 3",
+          "en": "Outer Ring Supplies · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
@@ -4414,6 +4534,30 @@
           "en": "Mistport Homebound Way",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_5_0",
+          "kind": "wood",
+          "name": "潮汐漂流箱 · 1",
+          "en": "Tidal Driftwood · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_5_1",
+          "kind": "herb",
+          "name": "潮汐漂流箱 · 2",
+          "en": "Tidal Driftwood · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_5_2",
+          "kind": "wood",
+          "name": "潮汐漂流箱 · 3",
+          "en": "Tidal Driftwood · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
@@ -5111,6 +5255,30 @@
           "en": "Desert Water Path",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_6_0",
+          "kind": "ore",
+          "name": "沙坡星晶 · 1",
+          "en": "Glasswind Crystals · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_6_1",
+          "kind": "herb",
+          "name": "沙坡星晶 · 2",
+          "en": "Glasswind Crystals · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_6_2",
+          "kind": "ore",
+          "name": "沙坡星晶 · 3",
+          "en": "Glasswind Crystals · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
@@ -5814,6 +5982,30 @@
           "en": "Frostchime Homeward",
           "x": 78.5,
           "y": 48.5
+        },
+        {
+          "id": "trail_forager_7_0",
+          "kind": "herb",
+          "name": "背风药草 · 1",
+          "en": "Frostcliff Herbs · 1",
+          "x": 75.5,
+          "y": 20.5
+        },
+        {
+          "id": "trail_forager_7_1",
+          "kind": "wood",
+          "name": "背风药草 · 2",
+          "en": "Frostcliff Herbs · 2",
+          "x": 57.5,
+          "y": 50.5
+        },
+        {
+          "id": "trail_forager_7_2",
+          "kind": "herb",
+          "name": "背风药草 · 3",
+          "en": "Frostcliff Herbs · 3",
+          "x": 27.5,
+          "y": 50.5
         }
       ],
       "decor": [
