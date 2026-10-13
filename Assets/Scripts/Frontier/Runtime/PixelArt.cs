@@ -150,6 +150,35 @@ namespace Starfall
                         C(i==0?"#83b89c":i==1?"#7aaed4":"#dc9c75"));
                 Box(23,22,53,5,brass);Box(23,96,53,5,brass);
             }
+            else if (kind == "blackoutrefuge")
+            {
+                // Three emergency lamps and shared sleeping cots under a
+                // repaired canopy. Deliberately distinct from boss altar/ruins.
+                Color brass=C("#d6b87d"),wood=C("#776557"),
+                    cloth=C("#7e9fac"),roof=C("#4a6373"),
+                    glow=C("#f8da94"),dark=C("#2e4554");
+                Box(10,86,78,20,dark);
+                Box(15,78,68,24,wood);
+                Box(7,40,82,11,roof);
+                Box(12,29,71,18,cloth);
+                for(int i=0;i<3;i++)
+                {
+                    int x=22+i*27;
+                    Box(x,39,4,47,wood);
+                    Box(x-5,40,14,4,brass);
+                    Disc(x+2,50,7,9,glow);
+                    Box(x+1,45,3,13,C("#fff1c1"));
+                }
+                Box(23,70,50,19,C("#465b65"));
+                Box(27,73,19,9,C("#c9d4bf"));
+                Box(50,73,19,9,C("#c9d4bf"));
+                Box(25,88,48,4,brass);
+                Box(43,17,11,13,glow);
+                Box(46,12,5,21,C("#ffe9b9"));
+                Box(36,20,26,5,brass);
+                for(int i=0;i<3;i++)
+                    Disc(25+i*23,92,4,4,C(i==0?"#86c7ac":i==1?"#9ac9d6":"#eab88b"));
+            }
             else if (kind == "foundry")
             {
                 // Riveted industrial iron furnace with a distinctive active firebox.

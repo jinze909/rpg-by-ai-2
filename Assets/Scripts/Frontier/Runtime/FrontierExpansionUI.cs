@@ -225,7 +225,7 @@ namespace Starfall
             {
                 Color tint=Game.Has("blackout_complete")?mint:
                     Game.BlackoutActive?PixelArt.C("#f7c783"):gold;
-                PropImage("ruin",0,p.x-38,p.y-75,76,77,Color.white);
+                PropImage("blackoutrefuge",0,p.x-38,p.y-75,76,77,Color.white);
                 Ring(new Point(o.x,o.y),Game.BlackoutActive?1.25f:.75f,tint,28);
                 Text(p.x-76,p.y-98,152,23,
                     Game.Has("blackout_complete")?Game.L("公开民用避难所","PUBLIC REFUGE"):

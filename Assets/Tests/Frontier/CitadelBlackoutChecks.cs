@@ -169,5 +169,83 @@ namespace Starfall.Tests
                 !g.hazards.Exists(h=>h.blackoutOwned),
                 "Timed failure cleans only owned hazards/effects and cannot affect original world objects");
         }
+
+        public static void BlackoutArcReallyHurtsFollowerAndMovingAwayDodgesIt(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("triad_complete");g.Enter(4);g.enemies.Clear();
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                lena=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=lena.x;g.save.y=lena.y;
+            Action(g,lena.kind,"blackout_pick_1");
+            g.invulnerable=100;
+            Advance(g,5.15f);
+            Check(g.BlackoutActive && g.BlackoutFollowerHealth==34,
+                "A real stationary escorted mother loses 14 safety HP when the delayed shield surge detonates");
+            int money=g.save.coins;
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.Talk(shelter);
+            Check(g.mode=="dialog" &&
+                Array.Exists(g.conversation.choices,c=>c.action=="blackout_abort") &&
+                !Array.Exists(g.conversation.choices,c=>c.action=="blackout_deliver_1"),
+                "Shelter offers an explicit safe abort when civilian is stranded behind, never remote delivery");
+            g.Close();
+            Action(g,shelter.kind,"blackout_abort");
+            Check(!g.BlackoutActive && g.save.coins==money &&
+                !g.Has("blackout_complete") &&
+                !g.hazards.Exists(h=>h.blackoutOwned),
+                "Canceled escort cleans only owned hazards without inventing rescues or losing saved campaign progress");
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=lena.x;g.save.y=lena.y;
+            Action(g,lena.kind,"blackout_pick_1");
+            g.invulnerable=100;
+            Advance(g,3.65f);
+            Check(g.hazards.Exists(h=>h.blackoutOwned),
+                "A second genuine attempt marks a warning the hero can move out of");
+            for(int i=0;i<75;i++)
+                g.Tick(.02f,new Point(1,0));
+            Check(g.BlackoutActive && g.BlackoutFollowerHealth==48 &&
+                (g.BlackoutFollowerPosition-new Point(lena.x,lena.y)).Length>1.3f,
+                "Moving both hero and real follower away from the marked ground prevents any scripted civilian damage");
+        }
+
+        public static void FinishedBlackoutBuildsARealNonCombatShelterAndEpilogue(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("triad_complete");g.Enter(4);g.enemies.Clear();
+            WorldObject shelter=Object(g,"blackoutshelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.save.health=40;g.invulnerable=50;
+            Advance(g,2);
+            Check(g.save.health==40,
+                "No healing is provided by an unaudited or incomplete evacuation");
+            g.save.flags.Add("blackout_complete");
+            Advance(g,2);
+            Check(g.save.health>42 && g.save.health<44,
+                "Real finished campaign evacuation creates modest local health support");
+            g.save.health=40;
+            g.save.x=shelter.x+5;g.save.y=shelter.y;
+            Advance(g,2);
+            Check(g.save.health==40,"Public refuge is local, never a whole-map regeneration boost");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            var foe=new Enemy(84444,0,shelter.x+.7f,shelter.y,50);
+            foe.stun=100;foe.timer=100;g.enemies.Add(foe);g.save.health=40;
+            Advance(g,2);
+            Check(g.save.health==40,"Contested public shelter never heals during active combat");
+            g.enemies.Clear();
+            g.save.ending=2;g.Epilogue();
+            Check(g.conversation.text.Contains("莱娜、伊恩和奥姆") &&
+                g.conversation.textEn.Contains("Lena, Ian and Orme"),
+                "Existing ending dialogue preserves actual names of civilians saved during the blackout");
+            g.Close();
+            g.save.flags.Add("blackout_peace");
+            g.Epilogue();
+            Check(g.conversation.text.Contains("主动放下武器") &&
+                g.conversation.textEn.Contains("stood down"),
+                "Earned civilian ceasefire also changes the original ending's actual historical account");
+        }
+
     }
 }

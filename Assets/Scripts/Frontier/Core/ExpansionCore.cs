@@ -327,6 +327,14 @@ namespace Starfall
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // The blackout roster creates a working, publicly maintained
+            // refuge in the Citadel. Combat and an active evacuation suppress
+            // this modest healing; a story reward is not a global regen buff.
+            if(save.room==4 && Has("blackout_complete") &&
+                !BlackoutActive && SafeTravel && !practicing &&
+                NearKind("blackoutshelter",3.0f) &&
+                save.health>0 && save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.5f);
             // Signed living testimony turns its physically defended site into
             // a modest safe refuge, without negating any campaign gate.
             if (save.room>=1 && save.room<=3 &&

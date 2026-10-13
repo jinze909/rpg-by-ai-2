@@ -1033,8 +1033,16 @@ namespace Starfall
             if (Allies == 3) choices.Add(C("重建边境 · 与居民一起改变", "Rebuild the frontier · unite the towns", "ending3"));
             choices.Add(C("先完成镇民的委托", "Finish the town commissions first", "goto0"));
             Dialog("厄洛 · 星卫统领", "Orrin · Starwarden",
+                (Has("blackout_complete") ?
+                    (Has("blackout_peace") ?
+                        "厄洛没有被击倒。他看到莱娜、伊恩和奥姆安全回到灯下的名单，主动解除了旧屏障的军用指令。\n\n" :
+                        "莱娜、伊恩和奥姆在那一夜被你亲自带回避难所。厄洛如今知道，还有人愿意亲手让旧城安然过渡。\n\n") : "") +
                 (AllWitnessesFiled ? "莫芽、阿菱和维恩的三份署名证词已摆到厄洛面前。那些活生生的人不再是能量账上看不见的数字。\n\n" : "") +
-                (Has("triad_complete") ? "莉雅公开的三核审计摆在两人之间。守护孩子与守护城外的村庄，不能再被假装成彼此无关的数字。\n\n" : "") + "厄洛放下武器。三枚星核曾经调谐星根，让河流、田地与灯火彼此有余地。现在城墙的安全来自城外不断失去的生机。\n\n归还星核能让土地复苏，但危险需要所有人共同承担；保留屏障能守住眼前的人，也要正视外界的代价。" + "\n\n" + (Allies < 3 ? "杏、老潮和诺尔若愿意共同送药、摆渡、修水泵，第三条路也许才会成为现实。你可以先回镇上。" : "杏已准备送药，老潮愿意摆渡补给，诺尔带来了共同维护的水泵。另一条路已经有人愿意亲手开始建设。"), (AllWitnessesFiled ? "Moya, Arin and Venn signed their own testimony. Their lives can no longer be erased as blank numbers in the energy accounts.\n\n" : "") +
+                (Has("triad_complete") ? "莉雅公开的三核审计摆在两人之间。守护孩子与守护城外的村庄，不能再被假装成彼此无关的数字。\n\n" : "") + "厄洛放下武器。三枚星核曾经调谐星根，让河流、田地与灯火彼此有余地。现在城墙的安全来自城外不断失去的生机。\n\n归还星核能让土地复苏，但危险需要所有人共同承担；保留屏障能守住眼前的人，也要正视外界的代价。" + "\n\n" + (Allies < 3 ? "杏、老潮和诺尔若愿意共同送药、摆渡、修水泵，第三条路也许才会成为现实。你可以先回镇上。" : "杏已准备送药，老潮愿意摆渡补给，诺尔带来了共同维护的水泵。另一条路已经有人愿意亲手开始建设。"), (Has("blackout_complete") ?
+                    (Has("blackout_peace") ?
+                        "Orrin was not struck down. He saw Lena, Ian and Orme safe on the evacuation roster and retired the obsolete shield command himself.\n\n" :
+                        "You led Lena, Ian and Orme home during the blackout. Orrin knows someone else is willing to carry the risk of a safer transition.\n\n") : "") +
+                (AllWitnessesFiled ? "Moya, Arin and Venn signed their own testimony. Their lives can no longer be erased as blank numbers in the energy accounts.\n\n" : "") +
                 (Has("triad_complete") ? "Lyra’s public three-core audit stands between you. Protecting children inside the wall can no longer erase people beyond it.\n\n" : "") + "Orrin lowers his weapon. Three cores once balanced the roots between rivers, fields and lights. Now the shield's safety is drawn from lives beyond its wall.\n\nReturning the cores may heal the land, though its people must face danger together. Keeping the shield protects those inside but continues to exact a price outside." + "\n\n" + (Allies < 3 ? "With An, Old Tide and Noll on your side, a third path might become practical. You may return to town first." : "An brings medicine, Old Tide brings ferry supplies and Noll has prepared public pumps. The alternative already has people willing to build it."), choices.ToArray());
         }
         public void Epilogue()
@@ -1055,6 +1063,13 @@ namespace Starfall
             {
                 zh[ending] += "\n\n密林的莫芽、遗迹的阿菱和矿场的维恩把亲笔署名的证词留给了公会；新的公共档案终于记得谁在修复土地、谁在等候过河、谁应该安全下班。";
                 en[ending] += "\n\nMoya of Thornwood, Arin of the ruins and Venn of Ironreach left signed testimony with the guild. Public records now remember who healed the soil, who waited to cross and who deserved to go home after work.";
+            }
+            if (Has("blackout_complete"))
+            {
+                zh[ending] += "\n\n那场长夜不再只是一份电力事故报告：莱娜、伊恩和奥姆的避难名单仍挂在堡垒的公共灯下。" +
+                    (Has("blackout_peace") ? "厄洛因为亲眼看见可行的撤离和镇民承诺而主动放下武器，不必让另一个孩子在决斗里失去亲人。" : "不论经历了战斗还是谈判，居民的生命都先得到了保障。");
+                en[ending] += "\n\nThe blackout is no longer just a power-failure statistic. Lena, Ian and Orme's names remain on the public shelter roster." +
+                    (Has("blackout_peace") ? " Orrin saw a workable evacuation backed by actual residents and stood down without another family losing someone in a duel." : " Whatever followed, the civilians were brought to safety before anyone chose the cores' fate.");
             }
             if (Has("triad_complete"))
             {
