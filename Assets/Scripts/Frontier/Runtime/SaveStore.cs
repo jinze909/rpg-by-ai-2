@@ -14,12 +14,54 @@ namespace Starfall
         { if (slot < -1 || slot > 2) throw new ArgumentOutOfRangeException("slot"); return Path.Combine(Application.persistentDataPath, slot < 0 ? "starfall-v1.json" : "starfall-slot-" + (slot + 1) + ".json"); }
         private static string Checksum(string text)
         { using (var hash = SHA256.Create()) return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", ""); }
+        // Detect only root-level property names, not words in a journal entry,
+        // quest flag, or an unrelated nested object.
+        private static bool RootField(string json, string field)
+        {
+            int nesting = 0, start = -1;
+            bool quoted = false, escaped = false;
+            for (int i = 0; i < json.Length; i++)
+            {
+                char c = json[i];
+                if (quoted)
+                {
+                    if (escaped) { escaped = false; continue; }
+                    if (c == '\\') { escaped = true; continue; }
+                    if (c != '"') continue;
+                    if (nesting == 1 && i - start == field.Length &&
+                        string.CompareOrdinal(json, start, field, 0, field.Length) == 0)
+                    {
+                        int next = i + 1;
+                        while (next < json.Length && char.IsWhiteSpace(json[next])) next++;
+                        if (next < json.Length && json[next] == ':') return true;
+                    }
+                    quoted = false;
+                }
+                else if (c == '"') { quoted = true; start = i + 1; }
+                else if (c == '{' || c == '[') nesting++;
+                else if (c == '}' || c == ']') nesting--;
+            }
+            return false;
+        }
         private static SaveData Decode(string json)
         {
             if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("{")) throw new InvalidDataException("Invalid save JSON.");
-            SaveEnvelope envelope = JsonUtility.FromJson<SaveEnvelope>(json);
-            if (envelope != null && envelope.payload != null)
-            { if (envelope.format != 1 || envelope.checksum != Checksum(envelope.payload)) throw new InvalidDataException("Save checksum mismatch."); json = envelope.payload; }
+            // A broken/truncated envelope must NEVER be interpreted as an old
+            // unwrapped SaveData (JsonUtility can populate default fields).
+            if (RootField(json, "payload") || RootField(json, "checksum") || RootField(json, "format"))
+            {
+                SaveEnvelope envelope = JsonUtility.FromJson<SaveEnvelope>(json);
+                if (envelope == null || !RootField(json, "payload") ||
+                    !RootField(json, "checksum") || envelope.payload == null ||
+                    envelope.format != 1 || envelope.checksum != Checksum(envelope.payload))
+                    throw new InvalidDataException("Save checksum mismatch.");
+                json = envelope.payload;
+            }
+            // Both historical unwrapped v1/v2 files and present-day envelopes
+            // require these original top-level fields. Reject a plausible
+            // default character synthesized from a partial JSON object.
+            if (!RootField(json, "version") || !RootField(json, "inventory"))
+                throw new InvalidDataException("Missing save schema fields.");
             SaveData value = JsonUtility.FromJson<SaveData>(json);
             if (value == null || (value.version != 1 && value.version != 2) || value.inventory == null || value.inventory.Length != 8) throw new InvalidDataException("Invalid save schema.");
             return value;

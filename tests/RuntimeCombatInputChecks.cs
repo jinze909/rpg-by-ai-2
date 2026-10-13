@@ -376,7 +376,30 @@ public static class RuntimeCombatInputChecks
             restored = SaveStore.Read(0, out warning);
             Check(restored != null && restored.coins == 50 && warning == "Recovered backup.",
                 "Existing backup-only recovery remains backward compatible.");
-            Console.WriteLine("PASS Real SaveStore I/O: primary priority, newest valid crash copy, stale tmp, corrupt artifacts and backup-only recovery");
+            System.IO.File.WriteAllText(main, "{}");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 50 && warning == "Recovered backup.",
+                "A structurally empty JSON object cannot silently become a fresh default character.");
+            System.IO.File.WriteAllText(main, JsonUtility.ToJson(
+                new SaveEnvelope { payload = null, checksum = "invalid" }));
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 50 && warning == "Recovered backup.",
+                "A null-payload envelope must recover the verified backup, never masquerade as a legacy save.");
+            System.IO.File.WriteAllText(main, "{\\"version\\":2,\\"flags\\":[\\"inventory\\"]}");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 50 && warning == "Recovered backup.",
+                "The word inventory inside a string cannot substitute for the required root inventory.");
+            System.IO.File.WriteAllText(main, JsonUtility.ToJson(
+                new SaveData { version = 1, coins = 77 }));
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 77 && restored.version == 1 && warning == null,
+                "Unwrapped original v1 saves remain readable without migration or extra metadata.");
+            System.IO.File.WriteAllText(main, JsonUtility.ToJson(
+                new SaveData { version = 2, coins = 88 }));
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 88 && restored.version == 2 && warning == null,
+                "Unwrapped original v2 saves also remain readable.");
+            Console.WriteLine("PASS Real SaveStore I/O: crash recovery, schema rejection, truncated envelope, and original v1/v2 compatibility");
         }
         finally
         {
