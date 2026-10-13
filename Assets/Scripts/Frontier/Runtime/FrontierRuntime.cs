@@ -546,6 +546,31 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="lastdirectiveboard"||kind=="lastdirectivecore"||
+                kind.StartsWith("lastdirectiveclue"))
+            {
+                bool board=kind=="lastdirectiveboard",control=kind=="lastdirectivecore";
+                int clue=control||board?-1:
+                    int.Parse(kind.Substring("lastdirectiveclue".Length));
+                bool discovered=board?Game.LastDirectiveStarted:
+                    control?Game.LastDirectiveChoice>0:
+                    Game.Has("last_directive_clue_"+clue);
+                Color tint=Game.LastDirectiveComplete?
+                    new Color(.61f,.96f,.8f):
+                    discovered?new Color(.68f,.86f,.97f):
+                    new Color(.98f,.76f,.45f);
+                PropImage(board?"table":control?"obelisk":
+                    clue==2?"fire":clue==1?"bookshelf":"post",
+                    0,p.x-38,p.y-86,76,90,tint);
+                Ring(new Point(o.x,o.y),.56f,tint,16);
+                if(!discovered)Diamond(p.x,p.y-82,6,gold);
+                if(control&&Game.LastDirectiveEnemies>0)
+                    Text(p.x-78,p.y-111,156,20,
+                        Game.L("保密卫兵 "+Game.LastDirectiveEnemies,
+                            "GUARDIANS "+Game.LastDirectiveEnemies),
+                        12,new Color(.97f,.4f,.32f),TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="farcheck")
             {
                 bool verified=Game.FarCourierStamped;
