@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,38 @@ namespace Starfall
 
 
 
+
+            if(id=="outer_watch")
+            {
+                q.title=L("八地守望 · 救援物资保卫战","Eight Relief Watches · Secure the Supplies");
+                q.category=L("开放地图 · 真实战斗","EXPLORATION · FIELD COMBAT");
+                q.description=L("找回第四圈的救援箱后，在附近的哨岗主动开始防卫。击退实际出现的两只敌人，保护运往居民避难所的物资。离开或战败不会消耗未完成的挑战。",
+                    "After recovering a fourth-ring relief chest, choose to defend its nearby watchpost. Defeat two actual enemies. Leaving or losing cancels that attempt without destroying earlier progress.");
+                q.locked=OuterRescueCount==0;
+                q.complete=OuterPatrolWins==8;
+                int target=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int room=0;room<8;room++)
+                {
+                    q.steps.Add(new QuestStep(L(zh[room],en[room])+
+                        (OuterPatrolDone(room)?" ✓":" · 0/1"),OuterPatrolDone(room)));
+                    if(target<0&&!OuterPatrolDone(room)&&
+                        OuterCacheRecovered(room)&&CanEnter(room))target=room;
+                }
+                q.room=target<0?0:target;
+                q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.kind=="outerwatch")
+                        {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("全部八处救援岗已守住","All eight relief outposts defended"):
+                    target<0?L("先找回至少一处外环救援箱","Recover an outer-ring rescue chest first"):
+                    L("走到救援岗主动发起防卫","Reach the watchpost and start the defense");
+                q.reward=L("每岗硬币 +14、碎片 +1、经验 +28；八岗全守住再得1技能点",
+                    "Each defense: +14 coins, +1 shard, +28 XP; all eight: +1 talent point");
+                return q;
+            }
 
             if(id=="outer_rescue")
             {

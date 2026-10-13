@@ -478,6 +478,14 @@
           "en": "Canal Relief Chest",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_0",
+          "kind": "outerwatch",
+          "name": "水渠应急守望点",
+          "en": "Canal Rescue Watch",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [
@@ -1415,6 +1423,14 @@
           "en": "Warden Field Supplies",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_1",
+          "kind": "outerwatch",
+          "name": "密林庇护岗",
+          "en": "Thornwood Shelter Guard",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [
@@ -2380,6 +2396,14 @@
           "en": "Ferry Relief Chest",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_2",
+          "kind": "outerwatch",
+          "name": "旧桥避险哨",
+          "en": "Crossing Watch",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [
@@ -3379,6 +3403,14 @@
           "en": "Mine Rescue Chest",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_3",
+          "kind": "outerwatch",
+          "name": "矿道停机岗",
+          "en": "Miners' Safety Watch",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [
@@ -4309,6 +4341,14 @@
           "en": "Outer-Wall Medical Cache",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_4",
+          "kind": "outerwatch",
+          "name": "外墙公共防线",
+          "en": "Civilian Outer Watch",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [
@@ -5284,6 +5324,14 @@
           "en": "Storm Rescue Chest",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_5",
+          "kind": "outerwatch",
+          "name": "港湾救援前哨",
+          "en": "Mistport Relief Watch",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [
@@ -6151,6 +6199,14 @@
           "en": "Oasis Supply Chest",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_6",
+          "kind": "outerwatch",
+          "name": "绿洲护水岗",
+          "en": "Oasis Water Guard",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [
@@ -7018,6 +7074,14 @@
           "en": "Warm Shelter Chest",
           "x": 90.5,
           "y": 52.5
+        },
+        {
+          "id": "outer_watch_7",
+          "kind": "outerwatch",
+          "name": "霜钟暖棚哨",
+          "en": "Frostchime Shelter Watch",
+          "x": 90.5,
+          "y": 40.5
         }
       ],
       "decor": [

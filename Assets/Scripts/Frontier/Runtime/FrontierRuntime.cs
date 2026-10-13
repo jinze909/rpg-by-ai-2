@@ -468,6 +468,17 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="outerwatch")
+            {
+                bool done=Game.OuterPatrolDone(Game.save.room);
+                PropImage("post",0,p.x-34,p.y-80,68,83,
+                    done?new Color(.68f,.93f,.78f):Color.white);
+                Ring(new Point(o.x,o.y),.43f,done?mint:
+                    Game.OuterPatrolActive?new Color(1,.4f,.34f):gold,14);
+                if(!done)Diamond(p.x,p.y-79,5,
+                    Game.OuterPatrolActive?new Color(1,.4f,.34f):gold);
+                return;
+            }
             if(kind=="outerlog"||kind=="outerrelay"||kind=="outercache")
             {
                 bool recorded=kind=="outerlog"?Game.OuterLogFound(Game.save.room):

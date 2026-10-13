@@ -493,6 +493,50 @@ namespace Starfall.Tests
                 "Center-screen scenery stays fully visible");
         }
 
+        public static void OutdoorRescueWatchStartsRealCombatAndOnlyRewardsRealWins(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                MapData map=data.maps[room];
+                WorldObject o=Array.Find(map.objects,x=>x.id=="outer_watch_"+room);
+                GameCore g=new GameCore(data);g.save.room=room;
+                Check(o!=null&&g.CanStand(new Point(o.x,o.y)),
+                    "Every optional watchpost must be on a walkable physical tile");
+                g.save.x=o.x;g.save.y=o.y;
+                g.enemies.Clear();
+                g.Talk(o);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start")<0,
+                    "Outpost cannot be started without first retrieving the relief supplies");
+                g.Close();
+                g.save.flags.Add("outer_cache_"+room);
+                int coins=g.save.coins;
+                g.Talk(o);
+                int start=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start");
+                Check(start>=0,"Completed exploration unlocks the voluntary real combat choice");
+                g.Choose(start);
+                Check(g.OuterPatrolActive&&g.enemies.Count==2&&
+                    !g.OuterPatrolDone(room),"Defense uses actual two spawned enemies, not a text-only battle");
+                int id0=g.enemies[0].id,id1=g.enemies[1].id;
+                Check(id0!=id1&&g.enemies[0].hp>0&&g.enemies[1].hp>0,
+                    "Distinct attackers spawn with real combat health");
+                g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolDone(room)&&g.save.coins==coins,
+                    "Unbeaten enemies cannot award any defense completion");
+                g.enemies.Clear();g.Tick(.02f,new Point());
+                Check(g.OuterPatrolDone(room)&&g.save.coins==coins+14,
+                    "Only defeating both enemies completes the field defense");
+                GameCore reload=new GameCore(data,g.save);
+                Check(reload.save.version==2&&reload.OuterPatrolDone(room),
+                    "Defended watchposts persist with original v2 flags");
+                g.Talk(o);
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start")<0,
+                    "Completed post remains readable, never starts a duplicating fight");
+                g.Close();
+                Check(g.save.coins==coins+14,"Repeating a defended post cannot farm rewards");
+            }
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

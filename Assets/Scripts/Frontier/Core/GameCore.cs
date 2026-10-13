@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol();
         }
         public void NewGame(int profession)
         {
@@ -342,6 +342,7 @@ namespace Starfall
             TickBufferedSkill(dt, skillReadyDelay);
             UpdateEnemies(dt); if (Dying) return;
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
+            TickOuterPatrol();
             TickExpansion(dt);
             if (Dying) return;
             TickGuidance(beforeMove);
@@ -895,6 +896,7 @@ namespace Starfall
             if (TryTalkWaytrail(o)) return;
             if (TalkTrailCircuit(o)) return;
             if (TalkOuterRescue(o)) return;
+            if (TalkOuterPatrol(o)) return;
             if (TalkAnnexExploration(o)) return;
             string kind = o.kind;
             if (kind == "innGuest")
