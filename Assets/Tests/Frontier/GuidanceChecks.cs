@@ -2514,5 +2514,62 @@ namespace Starfall.Tests
                 "Tide salvage also rejects a competing civilian field run");
         }
 
+
+        public static void ActiveFieldMissionsCannotFreeRestOrSkipTheirTimedRuns(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=4;
+            g.save.flags.Add("far_bridge_0");
+            g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            var bridge=Object(g,"farbridge");
+            var inn=Object(g,"rest");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"Existing physical parcel run is live");
+            float time=g.save.totalTime;
+            g.save.health=22;g.save.energy=11;
+            g.Talk(inn);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rest")<0,
+                "Inn dialogue cannot advertise a free rest while carrying civilian cargo");
+            g.Close();
+            g.conversation=new Conversation("旅店","Inn","休息","Rest",
+                new Choice("休息","Rest","rest"));g.mode="dialog";
+            g.Choose(0);
+            Check(g.FarCourierActive&&g.save.totalTime==time&&
+                g.save.health==22&&g.save.energy==11,
+                "Stale or forged rest action cannot skip the real cargo timer or heal during delivery");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_cancel");
+            g.save.health=22;g.save.energy=11;
+            Action(g,"rest","rest");
+            Check(!g.FarCourierActive&&g.save.totalTime==time+45&&
+                g.save.health==g.save.maxHealth&&g.save.energy==100,
+                "Explicit parcel cancellation restores the ordinary paid-time 45-second inn rest");
+            var clinic=Fresh(data);clinic.save.stage=4;
+            clinic.save.flags.Add("exp_intro");
+            clinic.save.flags.Add("civic_supply_complete");
+            clinic.save.flags.Add("civic_supply_clinic_0");
+            clinic.save.flags.Add("far_shelter_0");
+            clinic.Enter(0);clinic.enemies.Clear();
+            var shelter=Object(clinic,"farshelter");
+            clinic.save.x=shelter.x;clinic.save.y=shelter.y;
+            Action(clinic,"farshelter","civic_response_start");
+            Check(clinic.CivicResponseClinicRun,"Actual clinic creates a timed medical delivery");
+            time=clinic.save.totalTime;
+            clinic.save.health=36;
+            clinic.Talk(Object(clinic,"rest"));
+            Check(clinic.mode=="dialog"&&Array.FindIndex(clinic.conversation.choices,
+                c=>c.action=="rest")<0&&clinic.CivicResponseClinicRun,
+                "Active medical deliveries cannot use the inn to reset health or bypass their 75-second clock");
+            clinic.Close();
+            clinic.save.x=shelter.x;clinic.save.y=shelter.y;
+            Action(clinic,"farshelter","civic_response_abort");
+            Action(clinic,"rest","rest");
+            Check(clinic.save.totalTime==time+45&&clinic.save.health==clinic.save.maxHealth,
+                "Clinic abort restores access to the exact original inn rest economy");
+        }
+
     }
 }

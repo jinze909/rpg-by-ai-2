@@ -1031,7 +1031,20 @@ namespace Starfall
                 else Dialog(o.name, o.en, save.stage == 3 ? "三枚星核已送入堡垒的调谐网。屏障越亮，城外的树林与河道就越虚弱。去见厄洛，问问他究竟在保护谁。\n\n杏、老潮和诺尔能提供药品、食物与共用水泵；远岸的原始证词还可能证明，星核不止有筑墙一种用法。" : "先去荆棘密林，把巡路队的侦察员平安带回来。那里的黑荆巨兽正守着第一处星根伤口；查清原因，再取回星核。按 Tab 查看任务手帐。", save.stage == 3 ? "Three cores now feed the citadel's tuning network. Its shield brightens as rivers and trees beyond the wall weaken. Confront Orrin and ask whom he is protecting.\n\nAn, Old Tide and Noll can offer medicine, food and shared pumps. Original farshore records might prove that walls are not the only use for starcores." : "Start in Thornwood and bring the missing scout home. The Briar Beast guards the first wounded starroot anchor. Find out why, then recover the core. Tab opens your quest journal.", C("查看冒险路线", "Choose a route", "routes"), C("我出发了", "On my way", "close"));
                 return;
             }
-            if (kind == "rest") { Dialog(o.name, o.en, "旅店的炉火永远为冒险者留着。休息推进 45 秒，回复生命与耐力，田里的作物也会继续长大。", "The inn keeps a fire for travelers. Rest for 45 seconds to restore health and energy; crops keep growing.", C("休息", "Rest", "rest"), C("继续冒险", "Keep adventuring", "close")); return; }
+            if (kind == "rest")
+            {
+                // Completing an actual timed escort must not allow a free
+                // 45-second world jump without advancing the mission clock.
+                if (FieldWorkPreventsRest)
+                {
+                    Dialog(o.name, o.en,
+                        "仍有现场救援、调谐或运送行动进行中。先完成或到原处主动取消，再来炉火旁休息。",
+                        "A field rescue, circuit or delivery is still active. Finish it or explicitly abort at its original station before resting.",
+                        C("继续现场行动", "Return to field duty", "close"));
+                    return;
+                }
+                Dialog(o.name, o.en, "旅店的炉火永远为冒险者留着。休息推进 45 秒，回复生命与耐力，田里的作物也会继续长大。", "The inn keeps a fire for travelers. Rest for 45 seconds to restore health and energy; crops keep growing.", C("休息", "Rest", "rest"), C("继续冒险", "Keep adventuring", "close")); return;
+            }
             if (kind == "garden")
             {
                 List<Choice> list = new List<Choice>();
@@ -1131,6 +1144,12 @@ namespace Starfall
             if (save.coins < coins) { Notify("硬币还不够。", "Not enough coins."); return false; }
             for (int i = 0; i < 5; i++) save.inventory[i] -= costs[i]; save.coins -= coins; revision++; return true;
         }
+        private bool FieldWorkPreventsRest
+        {
+            get { return FarCourierActive || CivicResponseActive || stormTuning ||
+                afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
+                TideSalvageActive || LastDirectiveWave > 0 || CivicConduitActive; }
+        }
         public void Choose(int index)
         {
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
@@ -1145,6 +1164,12 @@ namespace Starfall
             if (action == "routes") { Talk(data.maps[0].objects[5]); return; }
             if (action == "rest")
             {
+                if (FieldWorkPreventsRest)
+                {
+                    Notify("先完成或明确取消正在进行的现场任务，才能安全休息。",
+                        "Finish or explicitly cancel the active field mission before resting.");
+                    return;
+                }
                 save.health = save.maxHealth; save.energy = 100; save.totalTime += 45;
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
             }
