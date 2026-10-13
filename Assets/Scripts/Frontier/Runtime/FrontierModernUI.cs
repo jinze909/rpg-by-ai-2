@@ -242,8 +242,24 @@ namespace Starfall
             Card(866, 178, 351, 510); MapData m = Game.data.maps[selectedRegion]; Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
             if (selectedRegion == Game.save.room) MiniTerrain(888, 264, 8.4f); else { for (int y = 0; y < m.rows.Length; y++) for (int x = 0; x < m.rows[y].Length; x++) { char t = m.rows[y][x]; Box(888 + x * 8.4f, 264 + y * 8.4f, 8.4f, 8.4f, t == '~' ? PixelArt.C("#365f78") : t == '#' ? PixelArt.C("#586d79") : t == '=' ? PixelArt.C("#aaa17e") : PixelArt.C(m.color)); } QuestGuide q = Game.CurrentGuide; if (q.room == selectedRegion && !q.complete) Box(888 + q.target.x * 8.4f - 3, 264 + q.target.y * 8.4f - 3, 7, 7, gold); }
             Text(888, 492, 306, 101, Game.CanEnter(selectedRegion) ? Game.L(m.subtitle, m.suben) : Game.RouteHint(selectedRegion, Game.save.english), 16, muted);
-            if (Button(888, 616, 306, 47, selectedRegion == Game.save.room ? Game.L("返回本地区", "Return to region") : Game.L("快速旅行", "Fast travel"), true, selectedRegion == Game.save.room || Game.CanEnter(selectedRegion) && Game.SafeTravel)) { if (selectedRegion == Game.save.room) Game.Close(); else { Game.Enter(selectedRegion); camera = CameraTarget(); } }
-            Text(282, 657, 554, 45, Game.SafeTravel ? Game.L("选择地区查看路线与目标。", "Select a region to inspect its route and target.") : Game.L("附近有敌人，快速旅行暂不可用。", "Enemies nearby; fast travel unavailable."), 14, muted);
+            bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
+            if (Button(888, 616, 306, 47,
+                selectedRegion == Game.save.room ? Game.L("返回本地区", "Return to region") :
+                    rescueTravelLock ? Game.L("救援中无法旅行", "Rescue in progress") :
+                        Game.L("快速旅行", "Fast travel"),
+                true, selectedRegion == Game.save.room ||
+                    !rescueTravelLock && Game.CanEnter(selectedRegion) && Game.SafeTravel))
+            {
+                if (selectedRegion == Game.save.room) Game.Close();
+                else { Game.Enter(selectedRegion); camera = CameraTarget(); }
+            }
+            Text(282, 657, 554, 45,
+                Game.reliefMissionRoom != 0 ?
+                    Game.L("先完成居民撤离或到站台明确取消，再前往其他地区。",
+                        "Finish or explicitly cancel the rescue at its station before leaving the region.") :
+                    Game.SafeTravel ? Game.L("选择地区查看路线与目标。", "Select a region to inspect its route and target.") :
+                        Game.L("附近有敌人，快速旅行暂不可用。", "Enemies nearby; fast travel unavailable."),
+                14, muted);
         }
         private void DrawDialogue()
         {
