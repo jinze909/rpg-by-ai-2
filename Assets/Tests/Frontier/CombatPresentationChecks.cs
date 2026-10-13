@@ -399,41 +399,55 @@ namespace Starfall.Tests
             g.Attack(new Point(1,0));
             ActorAction ongoing=g.playerAction;
             Check(ongoing!=null&&ongoing.kind=="attack",
-                "A real sword attack prepares before the equipment click");
-            // The tested buffered-Q window begins shortly before the
-            // actual contact frame, while the sword is still preparing.
-            Advance(g,ongoing.contact-.04f);
+                "An authentic sword attack starts its visible windup");
             int beforeRevision=g.revision, originalWeapon=g.save.weapon;
-            g.Skill(new Point(1,0));
-            Check(g.skillCooldown==0&&g.playerAction==ongoing,
-                "A skill requested during a real windup is queued without cancelling the current attack");
             g.Equip(originalWeapon);
-            Check(g.playerAction==ongoing&&g.revision==beforeRevision&&g.skillCooldown==0,
-                "Re-selecting the same equipped weapon is a true no-op: no revision or interrupted animation");
-            bool released=false, cast=false;
-            for(int i=0;i<22;i++)
+            Check(g.playerAction==ongoing&&g.revision==beforeRevision,
+                "Re-selecting the same equipped weapon preserves the prepared attack and does not dirty the save");
+            for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            Check(ongoing.released,
+                "Real attack contact still completes after same-weapon selection");
+            // Dash offers a deterministic real input-buffer window independent
+            // of weapon windup frame boundaries.
+            var queued=Fresh(data);
+            queued.save.energy=100;queued.enemies.Clear();
+            queued.Dash(new Point(1,0));
+            queued.Skill(new Point(0,1));
+            Check(queued.playerAction==null&&queued.skillCooldown==0&&queued.dashTime>0,
+                "A real dodge buffers Q without starting or paying for its skill yet");
+            int queuedRevision=queued.revision;
+            queued.Equip(queued.save.weapon);
+            Check(queued.revision==queuedRevision&&queued.skillCooldown==0,
+                "Same-weapon selection preserves buffered Q through the dodge");
+            bool cast=false;
+            for(int i=0;i<16;i++)
             {
-                g.Tick(.05f,new Point());
-                if(ongoing.released)released=true;
-                if(g.playerAction!=null&&g.playerAction.kind=="skill")cast=true;
+                queued.Tick(.05f,new Point());
+                if(queued.playerAction!=null&&queued.playerAction.kind=="skill")
+                    cast=true;
             }
-            Check(released&&cast,
-                "Buffered Q still plays after the real previous attack releases through the same-weapon click");
-            // An actual loadout change still retires the old attack and queued
-            // skill before its contact frame so damage is not duplicated.
+            Check(cast&&queued.skillCooldown>0,
+                "The queued class technique still executes exactly once after the real dodge");
+            // An actual loadout change must continue to cancel both old
+            // windups and buffered intent; it is not an idempotent click.
             var changed=Fresh(data);
             changed.save.flags.Add("weapon_1");
             changed.save.energy=100;
             changed.Attack(new Point(1,0));
-            changed.Skill(new Point(1,0));
-            Check(changed.playerAction!=null,
-                "A queued sword attack exists before switching to an unlocked ranged weapon");
+            Check(changed.playerAction!=null,"Old loadout has an attack in preparation");
             changed.Equip(1);
             Check(changed.save.weapon==1&&changed.playerAction==null,
-                "A genuine weapon change still cancels stale actions");
-            for(int i=0;i<20;i++)changed.Tick(.05f,new Point());
-            Check(changed.playerAction==null&&changed.skillCooldown==0,
-                "Cancelled Q from an old weapon profile never fires after swapping equipment");
+                "Genuine weapon swap retires the old sword windup");
+            var canceled=Fresh(data);
+            canceled.save.flags.Add("weapon_1");
+            canceled.save.energy=100;
+            canceled.Dash(new Point(1,0));
+            canceled.Skill(new Point(0,1));
+            canceled.Equip(1);
+            for(int i=0;i<16;i++)canceled.Tick(.05f,new Point());
+            Check(canceled.save.weapon==1&&canceled.playerAction==null&&
+                  canceled.skillCooldown==0,
+                "Genuine equipment swap discards previously buffered dodge Q rather than replaying it");
         }
 
     }
