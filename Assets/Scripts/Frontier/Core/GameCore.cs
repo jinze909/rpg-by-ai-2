@@ -200,6 +200,19 @@ namespace Starfall
         public void Enter(int room)
         {
             if (Dying) return;
+            // A live mission cannot disappear through a menu, portal or warp.
+            if(CivicConduitActive)
+            {
+                Notify("导体仍在堡垒南路通电！完成阀门或回西端控制台明确中止。",
+                    "Conductor active: finish the valves or explicitly abort at the western desk before travel.");
+                return;
+            }
+            if(LastDirectiveWave>0)
+            {
+                Notify("堡垒保密终端正在实战或结算，请完成行动或亲自回终端撤销。",
+                    "Citadel security remains active. Finish or withdraw at its terminal before travel.");
+                return;
+            }
             // No world travel while carrying live afterlight charge.
             // The original region, site plan and remote receiver must matter.
             if(stormTuning)
@@ -277,6 +290,12 @@ namespace Starfall
         }
         public void ReturnToTown()
         {
+            if(CivicConduitActive||LastDirectiveWave>0)
+            {
+                Notify("先完成现场任务，或在原始控制台明确中止，才能快速回城。",
+                    "Finish or explicitly abort the live Citadel mission at its physical terminal before fast travel.");
+                return;
+            }
             if(stormTuning)
             {
                 Notify("公共星灯调谐仍在进行，不能使用快捷回城绕过城市节点。",

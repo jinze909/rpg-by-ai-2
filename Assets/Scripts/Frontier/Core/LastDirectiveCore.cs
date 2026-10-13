@@ -108,18 +108,25 @@ public sealed partial class GameCore {
                 Dialog(o.name,o.en,"终端要求三份实地取得的原始证词，不能凭猜测解除。","The terminal requires three original field records.",C("继续探索","Explore","close"));return true;
             }
             if(directivePhase==1||directivePhase==3){
-                Dialog(o.name,o.en,"真正的守卫正在战斗，必须亲手将其击败。","Physical security units must be defeated in real combat.",C("战斗","Fight","close"));return true;
+                Dialog(o.name,o.en,
+                    "守卫正在真实战斗。若需要撤退，在这个原始终端明确撤销本轮即可，已取得的证词仍保留。",
+                    "Authentic security units are attacking. Withdraw only here at the original terminal; earned evidence stays recorded.",
+                    C("返回战斗","Return to fight","close"),
+                    C("撤销本轮守卫战","Withdraw from defense","last_directive_abort"));return true;
             }
             if(directivePhase==2){
                 Dialog(o.name,o.en,"第一道锁已破。投入25耐力释放最后一道封锁，随后迎战三名真正的敌人。","First lock disabled. Spend 25 energy to release the final three-guardian defense.",
-                    C("投入25耐力解锁","Unlock · 25 energy","last_directive_second"),C("准备","Prepare","close"));return true;
+                    C("投入25耐力解锁","Unlock · 25 energy","last_directive_second"),
+                    C("撤销并保留证词","Withdraw, keep testimony","last_directive_abort"),
+                    C("准备","Prepare","close"));return true;
             }
             if(directivePhase==4){
                 Dialog(o.name,o.en,"最后一行写着：任何被强迫付出代价的居民，都有权要求重议。你要把停机权交给公开的巡路网络，还是让紧急庇护成为无条件的责任？",
                     "The missing final line says anyone forced to pay may demand review. Will you return oversight to public wardens or guarantee unconditional emergency shelter?",
                     C("公开巡路与停机权","Public oversight","last_directive_open"),
                     C("紧急救难优先","Emergency shelter first","last_directive_shelter"),
-                    C("继续考虑","Decide later","close"));return true;
+                    C("继续考虑","Decide later","close"),
+                    C("撤销本轮并保留证词","Abandon round, keep evidence","last_directive_abort"));return true;
             }
             Dialog(o.name,o.en,"矿工最先要求停机。随后摆渡工带回失联者的名字，最后是巡路队在夜里点燃归乡的炉火。请选择历史发生的顺序。",
                 "First came the miners' shutdown petition, then the ferrymen's missing names, and last the roadwardens' refuge hearth. Choose the historical order.",
@@ -144,6 +151,16 @@ public sealed partial class GameCore {
         }
         bool atBoard=save.room==0&&board!=null&&(Position-new Point(board.x,board.y)).Length<=2.2f;
         bool atCore=save.room==4&&core!=null&&(Position-new Point(core.x,core.y)).Length<=2.2f;
+        if(action=="last_directive_abort")
+        {
+            if(atCore&&directiveRoom==4&&directivePhase>=1&&directivePhase<=4)
+            {
+                ResetLastDirective();revision++;
+                Notify("守卫战已安全撤销，三份真实证词仍保留，可以重新挑战。",
+                    "Security run canceled. Three authentic testimony records remain available for retry.");
+            }
+            return true;
+        }
         if(action=="last_directive_track"){if(atBoard&&LastDirectiveStarted)TrackQuest("last_directive");return true;}
         if(action=="last_directive_begin"){
             if(!atBoard||!Has("civic_response_ledger")||LastDirectiveStarted)return true;

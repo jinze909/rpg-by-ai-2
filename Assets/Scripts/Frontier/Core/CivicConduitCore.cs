@@ -150,13 +150,21 @@ namespace Starfall
                 (open?"当前阀门稳定！":"当前阀门处于高压闭锁期。")+
                 "\n导体完好度："+(int)Math.Ceiling(conduitIntegrity)+
                 "%，剩余 "+(int)Math.Ceiling(CivicConduitTimeLeft)+
-                " 秒。\n"+(open?"请在绿色窗口结束前确认。":"等待脉冲相位再次变绿；可边移动躲避真正落点。"),
+                " 秒。\n"+
+                (open?"绿色窗口剩余 ":"下个绿色窗口还有 ")+
+                CivicConduitWindowRemaining.ToString("0.0")+" 秒。"+
+                (open?"请在相位结束前确认。":"关闭面板后时间才会继续，记得躲避电弧。"),
                 (open?"Valve stable now!":"Valve pressure locked!")+
                 "\nConductor: "+(int)Math.Ceiling(conduitIntegrity)+
                 "%; "+(int)Math.Ceiling(CivicConduitTimeLeft)+
-                " seconds left.\n"+(open?"Commit before the green window ends.":"Wait for the next green phase while dodging real impacts."),
-                C("执行实际调谐","Tune physical valve","civic_conduit_tune"),
-                C("稍后再试","Later","close"));
+                " seconds left.\n"+
+                (open?"Green phase remaining: ":"Next green phase in ")+
+                CivicConduitWindowRemaining.ToString("0.0")+"s. "+
+                (open?"Confirm while stable.":"Close dialogue to resume the clock; dodge the arcs."),
+                C(open?"执行实际调谐":"关闭面板并等待绿色周期",
+                    open?"Tune now":"Close panel and wait for green",
+                    open?"civic_conduit_tune":"close"),
+                C("暂时离开","Leave","close"));
             return true;
         }
         private bool ChooseCivicConduit(string action)
