@@ -851,6 +851,17 @@ namespace Starfall.Tests
             }
         }
 
+        public static void MapPreviewScalesToRealDynamicFloorAndRegionDimensions(Campaign data)
+        {
+            Check(Math.Abs(WorldStreaming.PreviewScale(120,80,306,207)-2.55f)<.001f,
+                "Large sixth-ring map fits its world-map preview panel");
+            Check(Math.Abs(WorldStreaming.PreviewScale(66,44,306,207)-
+                (306f/66f))<.001f,
+                "Runtime 66x44 abyss floor uses its real dimensions instead of old stub");
+            Check(WorldStreaming.PreviewScale(0,44,306,207)==0,
+                "Corrupt map dimensions cannot force an infinite texture allocation");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

@@ -179,7 +179,7 @@ namespace Starfall
         private void OnApplicationFocus(bool focused)
         { if (!focused && Game != null && Game.mode == "world") { Game.mode = "pause"; Save(); } }
         private void OnApplicationQuit() { Save(); }
-        private void OnDestroy() { if (art != null) art.Dispose(); if (audioSystem != null) audioSystem.Dispose(); }
+        private void OnDestroy() { ReleaseTerrainPreview(); if (art != null) art.Dispose(); if (audioSystem != null) audioSystem.Dispose(); }
 
         private void OnGUI()
         {

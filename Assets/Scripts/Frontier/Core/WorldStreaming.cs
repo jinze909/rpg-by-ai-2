@@ -42,6 +42,11 @@ namespace Starfall
             return Blend(Lattice(gx,gy,room),Lattice(gx+1,gy,room),
                 Lattice(gx,gy+1,room),Lattice(gx+1,gy+1,room),tx,ty);
         }
+        public static float PreviewScale(int width,int height,float maxWidth,float maxHeight)
+        {
+            if(width<=0||height<=0||maxWidth<=0||maxHeight<=0)return 0f;
+            return Math.Min(maxWidth/width,maxHeight/height);
+        }
         public static float TerrainVeilOpacity(float readiness)
         {
             // Never hide already-renderable geometry behind a flat dark tile.

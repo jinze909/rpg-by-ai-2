@@ -160,7 +160,7 @@ namespace Starfall
         }
         private void MiniTerrain(float x0, float y0, float size)
         {
-            for (int y = 0; y < Game.Map.rows.Length; y++) for (int x = 0; x < Game.Map.rows[y].Length; x++) { char t = Game.Map.rows[y][x]; Color c = t == '~' || t == '%' && !Game.LowTide ? PixelArt.C("#315c76") : t == '#' ? PixelArt.C("#566879") : t == '=' ? PixelArt.C("#a09877") : PixelArt.C(Game.Map.color); Box(x0 + x * size, y0 + y * size, size, size, Game.Explored(Game.save.room, x, y) ? c : Color.Lerp(c, ink, .68f)); }
+            DrawTerrainPreview(Game.Map,Game.save.room,true,x0,y0,size);
             foreach (var o in Game.Map.objects) if (Game.IsObjectPresent(o) && (o.kind.StartsWith("portal") || Game.Explored(Game.save.room, o.x, o.y))) Box(x0 + o.x * size - 1, y0 + o.y * size - 1, 3, 3, o.kind.StartsWith("portal") ? mint : gold);
             Point? goal = Game.NavigationTarget(); if (goal.HasValue && Game.save.showGuidance) { Box(x0 + goal.Value.x * size - 3, y0 + goal.Value.y * size - 3, 7, 7, gold); Box(x0 + goal.Value.x * size - 1, y0 + goal.Value.y * size - 1, 3, 3, ink); } Box(x0 + Game.save.x * size - 2, y0 + Game.save.y * size - 2, 5, 5, paper);
         }
@@ -288,19 +288,15 @@ namespace Starfall
             Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("世界路线与本地地图 · 金色为任务目标，白色为你的位置", "World routes and local terrain · gold: objective · ivory: you")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i)) selectedRegion = i; }
             if (Game.save.room == 9 && Button(279, 657, 555, 31, Game.L("查看当前位置：炉火旅店", "Current room: Hearth Inn"), selectedRegion == 9)) selectedRegion = 9;
-            Card(866, 178, 351, 510); MapData m = Game.data.maps[selectedRegion]; Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
-            float terrainScale = Mathf.Min(306f / m.rows[0].Length, 207f / m.rows.Length);
+            Card(866, 178, 351, 510);
+            // The Abyss uses a seeded runtime map, NOT the old 36x24 atlas stub.
+            MapData m = selectedRegion==Game.save.room?Game.Map:Game.data.maps[selectedRegion];
+            Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
+            float terrainScale = WorldStreaming.PreviewScale(m.rows[0].Length,m.rows.Length,306,207);
             if (selectedRegion == Game.save.room) MiniTerrain(888, 264, terrainScale);
             else
             {
-                for (int y = 0; y < m.rows.Length; y++)
-                    for (int x = 0; x < m.rows[y].Length; x++)
-                    {
-                        char t = m.rows[y][x];
-                        Box(888 + x * terrainScale, 264 + y * terrainScale, terrainScale, terrainScale,
-                            t == '~' ? PixelArt.C("#365f78") : t == '#' ? PixelArt.C("#586d79") :
-                            t == '=' ? PixelArt.C("#aaa17e") : PixelArt.C(m.color));
-                    }
+                DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
                 QuestGuide q = Game.CurrentGuide;
                 if (q.room == selectedRegion && !q.complete)
                     Box(888 + q.target.x * terrainScale - 3,
