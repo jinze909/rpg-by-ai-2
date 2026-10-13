@@ -160,7 +160,10 @@ namespace Starfall
             playerHitTime = Math.Max(0, playerHitTime - dt); playerFlash = Math.Max(0, playerFlash - dt);
             impactShake = Math.Max(0, impactShake - dt);
             for(int i=fallen.Count-1;i>=0;i--){FallenActor body=fallen[i];body.life-=dt;if(body.life<=0)fallen.RemoveAt(i);}
-            if (finaleDelay > 0 && mode == "world")
+            // A late boss-death animation can coincide with the delayed
+            // ending prompt. Never open dialogue during a death pose: doing so
+            // stops the world-only recovery clock and strands the player dead.
+            if (finaleDelay > 0 && mode == "world" && !Dying)
             { finaleDelay -= dt; if (finaleDelay <= 0 && save.room == 4 && Has("boss_4")) FinalConversation(); }
         }
         private void BeginDeath()

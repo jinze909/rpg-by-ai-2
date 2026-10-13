@@ -361,5 +361,31 @@ namespace Starfall.Tests
                 "The next frame uses only the un-frozen 30ms; damage feedback never grants a free slow-motion penalty");
         }
 
+
+        public static void BossFinaleCannotInterruptDeathRecovery(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;
+            g.Enter(4);g.enemies.Clear();
+            g.save.flags.Add("boss_4");
+            var delay=typeof(GameCore).GetField("finaleDelay",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+            delay.SetValue(g,.025f);
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+            g.save.health=1;g.invulnerable=0;
+            hurt.Invoke(g,new object[]{999f,"shot",null});
+            Check(g.Dying && g.mode=="world",
+                "Real lethal damage enters the death state with a pending final-boss epilogue");
+            g.Tick(.05f,new Point());
+            Check(g.Dying && g.mode=="world" && (float)delay.GetValue(g)>.001f,
+                "Boss finale must not open dialogue while the death clock is active");
+            for(int i=0;i<28&&g.Dying;i++)g.Tick(.05f,new Point());
+            Check(!g.Dying&&g.save.room==0&&g.mode=="world"&&g.save.health>0,
+                "The player always reaches a safe town respawn even when the epilogue delay was pending");
+            Check((float)delay.GetValue(g)==0,
+                "Dead-player finale delay is retired on respawn, not fired inside the old region");
+        }
+
     }
 }
