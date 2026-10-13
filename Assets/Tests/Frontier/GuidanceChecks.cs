@@ -1519,6 +1519,68 @@ namespace Starfall.Tests
                 "Only the actual green phase now shows an actionable tune button");
             g.Close();
         }
+        public static void QualityCitadelAbortAtBothIntermissionsPreservesSaveAndRewardIntegrity(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();
+            var terminal=Object(g,"lastdirectivecore");
+            g.save.x=terminal.x;g.save.y=terminal.y;
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            foreach(int id in new[]{90300,90301})
+            {
+                g.hitStop=0;
+                hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});
+            }
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==2,"First real wave must be defeated before the intermission");
+            int coins=g.save.coins,energy=g.save.energy;
+            g.ReturnToTown();
+            Check(g.save.room==4&&g.LastDirectiveWave==2,
+                "Chapter Ten cannot silently skip the intermission via fast travel");
+            g.Talk(terminal);
+            Check(Array.Exists(g.conversation.choices,c=>c.action=="last_directive_abort"),
+                "Intermission offers an accessible explicit withdrawal action");
+            g.Close();
+            Action(g,"lastdirectivecore","last_directive_abort");
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveEnemies==0&&
+                g.save.coins==coins&&g.save.energy==energy&&
+                g.LastDirectiveClues==3,
+                "Real withdrawal retains evidence/resources, cannot forge a staged reward");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.LastDirectiveClues==3&&restored.LastDirectiveWave==0,
+                "Older SaveData v2 reload never restores an aborted security intermission");
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            foreach(int id in new[]{90300,90301})
+            {
+                g.hitStop=0;
+                hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});
+            }
+            g.hitStop=0;g.Tick(.05f,new Point());
+            g.save.energy=100;
+            Action(g,"lastdirectivecore","last_directive_second");
+            foreach(int id in new[]{90302,90303,90304})
+            {
+                g.hitStop=0;
+                hit.Invoke(g,new object[]{g.enemies.Find(e=>e.id==id),10000f,false,null,null});
+            }
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==4&&g.LastDirectiveChoice==0,
+                "Final post-guardian civic verdict awaits the player's actual choice");
+            g.Enter(0);
+            Check(g.save.room==4&&g.LastDirectiveWave==4,
+                "Map warp cannot erase the final postcombat choice without user intent");
+            Action(g,"lastdirectivecore","last_directive_abort");
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveChoice==0&&
+                !g.LastDirectiveComplete,
+                "Deliberate abandonment of an unsigned verdict neither grants nor chooses a political outcome");
+            g.Enter(0);
+            Check(g.save.room==0,"Player may freely leave after canceling the actual last stage");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
