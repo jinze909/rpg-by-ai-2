@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge();
         }
         public void NewGame(int profession)
         {
@@ -199,6 +199,14 @@ namespace Starfall
         public void Enter(int room)
         {
             if (Dying) return;
+            // No world travel while carrying live afterlight charge.
+            // The original region, site plan and remote receiver must matter.
+            if(afterlightChargeRegion!=0)
+            {
+                Notify("余光输送仍在进行。先走到本地区公共接收台，或返回原锚点主动取消。",
+                    "Afterlight transfer is active. Reach the real receiver or return to the source to cancel before traveling.");
+                return;
+            }
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
@@ -262,6 +270,12 @@ namespace Starfall
         }
         public void ReturnToTown()
         {
+            if(afterlightChargeRegion!=0)
+            {
+                Notify("第五章余光传输中，不能直接快速回城。请到原锚点取消或完成通电。",
+                    "A public afterlight charge is in transit. Finish at the receiver or cancel at the original anchor.");
+                return;
+            }
             if (blackoutActive)
             { Notify("堡垒居民仍在撤离中。先回避难所完成或取消救援。",
                 "Citadel evacuation is active. Complete or cancel at the shelter."); return; }
