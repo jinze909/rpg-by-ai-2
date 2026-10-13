@@ -54,24 +54,16 @@ namespace Starfall
                     return true;
                 }
                 Dialog("厄洛 · 民用责任协议","Orrin · Civilian Responsibility Pact",
-                    "厄洛：你带回了莫芽、阿菱和维恩亲笔签过的公约。我曾以为守护者只能服从更高的命令，如今明白，守护是要向被保护的人负责。
-
-"+
+                    "厄洛：你带回了莫芽、阿菱和维恩亲笔签过的公约。我曾以为守护者只能服从更高的命令，如今明白，守护是要向被保护的人负责。\n\n"+
                     (HearingVerdict==1?
                         "你们最终开放公共医疗。堡垒仍存着能给孩子们取暖的热汤，我愿意让医护先去城外帮助真正需要的人。":
                         "你们最终保留民用应急供能。我愿意派昔日的守卫维护星路，并把真正用得上的零件交出去。")+
-                    "
-
-你可以选择把两份真实补给转给公共医护，或者派出巡路志愿队。两种后续帮助会改变堡垒原地的游戏设施。",
-                    "Orrin: You brought Moya, Arin and Venn's signed decisions. I once believed a protector could only obey orders. Now I understand that protection means answering to those who bear its consequences.
-
-"+
+                    "\n\n你可以选择把两份真实补给转给公共医护，或者派出巡路志愿队。两种后续帮助会改变堡垒原地的游戏设施。",
+                    "Orrin: You brought Moya, Arin and Venn's signed decisions. I once believed a protector could only obey orders. Now I understand that protection means answering to those who bear its consequences.\n\n"+
                     (HearingVerdict==1?
                         "You opened civic medical access. The citadel still has meals that could warm children, and I can send our medics beyond the wall.":
                         "You maintained civilian emergency reserves. My former guards can now patrol the shared starroads and release genuine machine parts.")+
-                    "
-
-Choose two actual relief meals and a working public medical refuge, or two tangible repair parts and an active patrol-energy point. Neither option reopens an old military monopoly.",
+                    "\n\nChoose two actual relief meals and a working public medical refuge, or two tangible repair parts and an active patrol-energy point. Neither option reopens an old military monopoly.",
                     C("移交医护补给 · 公共避难所","Send medical stores to the public shelter","hearing_orrin_aid"),
                     C("派遣志愿巡路队 · 公开维修","Send volunteer wardens to public roads","hearing_orrin_patrol"),
                     C("重读原有余量协定","Review the existing reserve accord","hearing_orrin_review"),
