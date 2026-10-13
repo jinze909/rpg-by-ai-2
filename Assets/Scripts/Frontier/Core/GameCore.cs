@@ -202,7 +202,7 @@ namespace Starfall
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
-            if (commonsRelayRoom != 0 && room != save.room)
+            if (commonsRelayRoom != 0)
             {
                 Notify("公共信标正在重连。先完成三段线路或返回控制台结束操作。",
                     "Commons Relay is live. Complete its three circuits or withdraw at a console before traveling.");

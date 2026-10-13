@@ -231,6 +231,10 @@ namespace Starfall.Tests
             g.Enter(0);
             Check(g.save.room == 4 && g.CommonsRelayRoom == 4,
                 "Travel cannot silently discard an active citadel confrontation");
+            g.Enter(4);
+            Check(g.save.room == 4 && g.CommonsRelayRoom == 4 &&
+                g.enemies.Exists(g.IsCommonsRelayEnemy),
+                "Re-entering the same map cannot reset its live wave to avoid security");
             WorldObject second = Object(g,"commonsrelay2");
             g.save.x = second.x;g.save.y=second.y;
             Action(g,"commonsrelay2","commons_withdraw");
