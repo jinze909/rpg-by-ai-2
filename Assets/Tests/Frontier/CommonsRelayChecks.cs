@@ -86,6 +86,42 @@ namespace Starfall.Tests
             Check(Array.FindIndex(g.conversation.choices,c=>c.action=="commons_publish") < 0,
                 "The public key cannot be published for another reward");
         }
+        public static void CitadelCommonsPermanentEnergyNetworkPersistsWithoutNewSaveFields(Campaign data)
+        {
+            var before=Fresh(data);
+            var completed=Fresh(data);
+            before.save.energy=40;completed.save.energy=40;
+            completed.save.flags.Add("commons_relay_complete");
+            before.Tick(.05f,new Point());completed.Tick(.05f,new Point());
+            Check(Math.Abs(completed.save.energy-before.save.energy-.1f)<.001f,
+                "The new public circuit actually accelerates energy regeneration by two per second");
+            completed.PrepareSave();
+            var loaded=new GameCore(data,completed.save);loaded.Start();
+            Check(loaded.Has("commons_relay_complete"),
+                "Existing version-two flag saves retain the public citizen-network reward");
+            float begin=loaded.save.energy;
+            loaded.Tick(.05f,new Point());
+            Check(loaded.save.energy>begin+.75f,
+                "The permanent live energy boost still applies after loading the same old-schema slot");
+        }
+        public static void CitadelCommonsTimedSecurityCannotGrantFreeCompletion(Campaign data)
+        {
+            var g=CommonsReady(data);
+            CommonsActivate(g,1);
+            g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            int coins=g.save.coins,shards=g.save.shards;
+            for(int i=0;i<2210 && g.CommonsRelayRoom!=0;i++)g.Tick(.05f,new Point());
+            Check(g.CommonsRelayRoom==0 && !g.enemies.Exists(g.IsCommonsRelayEnemy) &&
+                g.Has("commons_relay_started") &&
+                !g.Has("commons_relay_sealed") &&
+                g.save.coins==coins && g.save.shards==shards,
+                "Actually expiring the timed defense never fabricates success or loses accepted story");
+            CommonsActivate(g,1);
+            Check(g.CommonsRelayRoom==4 &&
+                g.enemies.FindAll(g.IsCommonsRelayEnemy).Count==2,
+                "After a genuine time expiry the physical first wave can be retried from its console");
+        }
+
         public static void CitadelCommonsSentinelsRequireRealPlayerCombatAndCannotFarm(Campaign data)
         {
             var g = CommonsReady(data);
