@@ -340,6 +340,12 @@ namespace Starfall
         {
             dt = Finite(dt) ? Clamp(dt, 0, .05f) : 0;
             if (dt <= 0) return;
+            // Defensive input boundary: malformed controller/aim events must
+            // never poison persistent coordinates with NaN or infinities.
+            if(!Finite(movement.x)||!Finite(movement.y))movement=new Point();
+            if(explicitAim.HasValue&&
+                (!Finite(explicitAim.Value.x)||!Finite(explicitAim.Value.y)))
+                explicitAim=null;
             toastTime -= dt;
             if (mode == "fish") { fishTime += dt; fishCursor = .5f + .5f * (float)Math.Sin(fishTime * (2.5f + fishHits * .35f)); return; }
             if (mode != "world") return;
@@ -379,6 +385,8 @@ namespace Starfall
         }
         public void Dash(Point direction)
         {
+            if(!Finite(direction.x)||!Finite(direction.y))
+                direction=new Point();
             float cost = Relic(2) ? 25 : 20;
             if (mode != "world" || Dying) return;
             if (dashCooldown > 0 || save.energy < cost) { ActionUnavailable(dashCooldown, cost); return; }
@@ -395,6 +403,8 @@ namespace Starfall
         }
         public void Attack(Point direction)
         {
+            if(!Finite(direction.x)||!Finite(direction.y))
+                direction=new Point();
             if (mode != "world" || Dying || ActionTransitionBlocked || attackCooldown > 0 || bufferedSkill != null) return;
             SetAim(direction);
             WeaponProfile profile = Profile(save.weapon, Style);
