@@ -132,6 +132,38 @@ public static class RenderStateChecks
         Check(!float.IsNaN(minimized.x)&&!float.IsInfinity(minimized.x)&&!float.IsNaN(minimized.y)&&!float.IsInfinity(minimized.y),"A minimized zero-size viewport cannot create invalid aim coordinates");
         Console.WriteLine("PASS " + cases + " viewport/heading combinations, real effect and projectile anchors, trail directions and mouse inversion (offline 2D affine checks)");
     }
+    static void WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var map=app.Game.data.maps[0];
+        const int x=111,y=52;
+        Check(map.rows[y][x]=='?', "Bridge geometry must exist in authored map");
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,false,888f,264f,2f);
+        var first=Get<Texture2D>(app,"terrainPreview");
+        Check(first!=null&&first.width==120&&first.height==80,
+            "Large sixth-ring terrain is actually rasterized at the correct size");
+        Check(GUI.textureCalls.Count==1,
+            "Large map menu renders its backdrop in one image, not 9600 per-cell calls");
+        var blocked=first.pixels[(first.height-1-y)*first.width+x];
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,false,888f,264f,2f);
+        Check(Object.ReferenceEquals(first,Get<Texture2D>(app,"terrainPreview"))&&
+            GUI.textureCalls.Count==1,
+            "Repeated GUI painting reuses the same cached map texture");
+        app.Game.save.flags.Add("far_bridge_0");
+        app.Game.revision++;
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,false,888f,264f,2f);
+        var opened=Get<Texture2D>(app,"terrainPreview");
+        var road=opened.pixels[(opened.height-1-y)*opened.width+x];
+        Check(!Object.ReferenceEquals(first,opened)&&first.destroyed,
+            "Construction invalidates and disposes the old menu-map raster");
+        Check(Math.Abs(blocked.r-road.r)+Math.Abs(blocked.g-road.g)+
+            Math.Abs(blocked.b-road.b)>.01f,
+            "Actual repaired bridge changes raster color from blocked rock to path");
+        Console.WriteLine("PASS real 120x80 map raster caching, draw-call reduction and repaired-bridge preview (offline)");
+    }
     static void RestoresState(FrontierRuntime app)
     {
         Screen.width=1920; Screen.height=1080; Prepare(app);
@@ -145,7 +177,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
