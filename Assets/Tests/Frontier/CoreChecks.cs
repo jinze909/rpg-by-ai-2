@@ -691,6 +691,74 @@ namespace Starfall.Tests
                     "Static biome cache receives legal deterministic material values");
         }
 
+        public static void SixthRingWeatherDialUnlocksRealSheltersAndPreservesSaveV2(Campaign data)
+        {
+            int[] answers={1,2,0,2,1,0,1,2};
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                MapData m=data.maps[room];
+                WorldObject[] sites=new WorldObject[3];
+                for(int i=0;i<3;i++)
+                {
+                    int stage=i;
+                    sites[i]=Array.Find(m.objects,o=>o.id=="farsignal_"+room+"_"+stage);
+                    Check(sites[i]!=null&&g.CanStand(new Point(sites[i].x,sites[i].y)),
+                        "All new sixth-ring weather sites occupy actual passable map tiles");
+                }
+                g.save.inventory[0]=5;g.save.inventory[4]=5;
+                int coins=g.save.coins;
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);g.Close();
+                Check(!g.FarShelterBuilt(room),"Untuned refuge cannot be rebuilt");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;g.Talk(sites[1]);g.Close();
+                Check(!g.FarDialReady(room),"An unread log forbids calibration");
+                g.save.x=sites[0].x;g.save.y=sites[0].y;
+                g.Talk(sites[0]);g.Close();
+                Check(g.FarLogFound(room),"Real east field log unlocks clue");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;
+                g.Talk(sites[1]);
+                int wrong=(answers[room]+1)%3;
+                int idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_dial_"+wrong);
+                Check(idx>=0,"Real three-choice puzzle displays incorrect options");
+                g.Choose(idx);
+                Check(!g.FarDialReady(room),"Incorrect observation cannot unlock shared refuge");
+                g.Talk(sites[1]);
+                idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_dial_"+answers[room]);
+                Check(idx>=0,"Real field log's answer exists among the choices");
+                g.Choose(idx);
+                Check(g.FarDialReady(room),"Correct local glyph genuinely calibrates the dial");
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);
+                idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_build");
+                Check(idx>=0,"Calibrated shelter offers actual build action");
+                g.Choose(idx);
+                Check(g.FarShelterBuilt(room)&&g.save.inventory[0]==4&&
+                    g.save.inventory[4]==4&&g.save.coins==coins+22,
+                    "Building refuge consumes real materials and pays once");
+                g.save.health=Math.Max(1,g.save.maxHealth-50);g.save.energy=4;g.save.cold=40;
+                g.Talk(sites[2]);
+                idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_rest");
+                Check(idx>=0,"Completed real shelter offers reusable warmth");
+                g.Choose(idx);
+                Check(g.save.inventory[0]==3&&g.save.energy==100&&
+                    g.save.cold==15&&g.save.health>g.save.maxHealth-50,
+                    "Timber-fed warm shelter restores real player stats");
+                GameCore loaded=new GameCore(data,g.save);
+                Check(loaded.save.version==2&&loaded.FarShelterBuilt(room)&&
+                    loaded.save.coins==coins+22,
+                    "Old save v2 persists the actual field puzzle and construction");
+                loaded.save.x=sites[2].x;loaded.save.y=sites[2].y;
+                loaded.Talk(sites[2]);
+                Check(Array.FindIndex(loaded.conversation.choices,c=>c.action=="far_build")<0,
+                    "Reading a restored shelter cannot farm the one-time build reward");
+            }
+            GameCore full=new GameCore(data);
+            for(int room=0;room<8;room++)full.save.flags.Add("far_shelter_"+room);
+            Check(full.FarShelterCount==8&&full.GetQuest("far_refuges").complete,
+                "The new exploration quest tracks all eight physical restored refuges");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

@@ -483,6 +483,19 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="farledger"||kind=="farcalibrate"||kind=="farshelter")
+            {
+                int room=Game.save.room;
+                bool ready=kind=="farledger"?Game.FarLogFound(room):
+                    kind=="farcalibrate"?Game.FarDialReady(room):Game.FarShelterBuilt(room);
+                string prop=kind=="farledger"?"bookshelf":
+                    kind=="farcalibrate"?"obelisk":ready?"fire":"ruin";
+                PropImage(prop,0,p.x-38,p.y-83,76,88,
+                    ready?new Color(.74f,.96f,.82f):Color.white);
+                Ring(new Point(o.x,o.y),.49f,ready?mint:gold,14);
+                if(!ready)Diamond(p.x,p.y-79,6,gold);
+                return;
+            }
             if(kind=="ridgemarker")
             {
                 bool read=Game.RidgeSeen(Game.save.room,

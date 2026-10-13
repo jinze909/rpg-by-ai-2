@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,38 @@ namespace Starfall
 
 
 
+
+            if(id=="far_refuges")
+            {
+                q.title=L("远地气象与共用避险棚","Far Weather Logs · Shared Refuges");
+                q.category=L("实地谜题 · 可用营地","FIELD PUZZLES · LIVE SHELTERS");
+                q.description=L("第六圈每片地区有三处真正可到访的站点：读东部气象记录得到符号，在南部校准盘选择正确符号，再消耗木材和零件修复公共避险棚。修好后可反复消耗木材恢复生命、耐力并驱寒。",
+                    "Each sixth-ring region has three physical sites. Read the eastern weather record, choose its correct glyph at the southern dial, then spend timber and a spare part to rebuild a public refuge. An open shelter provides repeatable rest.");
+                q.locked=!Has("intro");q.complete=FarShelterCount==8;
+                int next=-1,step=0;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    int found=FarLogFound(i)?1:0;
+                    if(FarDialReady(i))found++;
+                    if(FarShelterBuilt(i))found++;
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+found+"/3",found==3));
+                    if(next<0&&found<3&&CanEnter(i)){next=i;step=found;}
+                }
+                q.room=next<0?0:next;q.target=new Point(18,15);
+                if(next>=0)foreach(WorldObject station in data.maps[next].objects)
+                    if(station.id=="farsignal_"+next+"_"+step)
+                    {q.target=new Point(station.x,station.y);break;}
+                q.next=q.complete?L("八座远端避险棚全部恢复","All eight remote shelters restored"):
+                    next<0?L("解锁新的地区再寻找气象记录","Unlock further regions"):
+                    step==0?L("实地寻找最东侧气象手记","Find the eastern weather log"):
+                    step==1?L("去南侧校准盘核对记录符号","Match the reading at the southern dial"):
+                    L("去最远端建成开放的公共避险棚","Restore the outermost civilian shelter");
+                q.reward=L("每地硬币22、碎片1、经验60与永久可用暖棚；八地再加技能点1",
+                    "Each: 22 coins, 1 shard, 60 XP and a repeatable refuge; eight: +1 talent");
+                return q;
+            }
 
             if(id=="ridge_routes")
             {
