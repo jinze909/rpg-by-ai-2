@@ -36,7 +36,8 @@ namespace Starfall
         private float FadeWorldProp(float x,float y)
         {
             Point screen=ScreenPoint(new Point(x,y));
-            float edge=WorldStreaming.EdgeOpacity(screen.x,screen.y,Width,Height);
+            float edge=Game.save.reducedMotion||Game.save.effectsQuality==0 ?
+                1f:WorldStreaming.EdgeOpacity(screen.x,screen.y,Width,Height);
             int tileX=Math.Max(0,Math.Min(Game.Map.rows[0].Length-1,(int)Math.Floor(x)));
             int tileY=Math.Max(0,Math.Min(Game.Map.rows.Length-1,(int)Math.Floor(y)));
             return edge*TerrainTileOpacity(tileX,tileY);

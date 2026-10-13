@@ -56,10 +56,12 @@ namespace Starfall
                     new Color(.75f,.87f,.93f,.15f));
                 return;
             }
-            if(patch%9>=4)return;
-            float edgeX=1f-Math.Abs(x%5-2)/3f;
-            float edgeY=1f-Math.Abs(y%5-2)/3f;
-            float opacity=.065f+.08f*Mathf.Max(0,edgeX*edgeY);
+            // Adjacent authored tiles share a continuous gradient, rather
+            // than the hard 5x5 material squares of the old static overlay.
+            float biome=WorldStreaming.BiomeVariation(x,y,region);
+            if(biome<.38f)return;
+            float opacity=.04f+.16f*WorldStreaming.Smooth01(
+                (biome-.38f)/.62f);
             Color earth=region==0?new Color(.35f,.37f,.19f,opacity):
                 region==1?new Color(.13f,.32f,.19f,opacity):
                 region==2?new Color(.35f,.45f,.47f,opacity):

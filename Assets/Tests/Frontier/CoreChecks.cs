@@ -537,6 +537,29 @@ namespace Starfall.Tests
             }
         }
 
+        public static void ContinuousBiomeNoiseAvoidsSquareMaterialBoundaries(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                float first=WorldStreaming.BiomeVariation(44,56,room);
+                Check(first>=0&&first<=1&&
+                    first==WorldStreaming.BiomeVariation(44,56,room),
+                    "Biome tint is deterministic for a given saved map coordinate");
+                for(int y=48;y<60;y++)
+                    for(int x=69;x<89;x++)
+                    {
+                        float a=WorldStreaming.BiomeVariation(x,y,room);
+                        float b=WorldStreaming.BiomeVariation(x+1,y,room);
+                        float c=WorldStreaming.BiomeVariation(x,y+1,room);
+                        Check(a>=0&&a<=1&&Math.Abs(a-b)<.3f&&Math.Abs(a-c)<.3f,
+                            "Adjacent material tints blend gradually rather than popping at eight-tile edges");
+                    }
+            }
+            Check(Math.Abs(WorldStreaming.BiomeVariation(54,52,1)-
+                WorldStreaming.BiomeVariation(54,52,7))>.0001f,
+                "Forest and frost maps do not reuse identical material clusters");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

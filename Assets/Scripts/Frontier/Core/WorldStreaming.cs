@@ -22,6 +22,26 @@ namespace Starfall
             float bottom=southwest+(southeast-southwest)*x;
             return top+(bottom-top)*y;
         }
+        private static float Lattice(int x,int y,int room)
+        {
+            // Stable integer hash: no Unity.Random state or frame-time seeds.
+            unchecked
+            {
+                uint v=(uint)(x*73856093^y*19349663^(room+1)*83492791);
+                v^=v>>13;
+                v*=1274126177u;
+                return (v&65535u)/65535f;
+            }
+        }
+        public static float BiomeVariation(int x,int y,int room)
+        {
+            // Smooth 8x8-tile value noise, continuous at every lattice edge.
+            const float cell=8f;
+            int gx=(int)Math.Floor(x/cell),gy=(int)Math.Floor(y/cell);
+            float tx=x/cell-gx,ty=y/cell-gy;
+            return Blend(Lattice(gx,gy,room),Lattice(gx+1,gy,room),
+                Lattice(gx,gy+1,room),Lattice(gx+1,gy+1,room),tx,ty);
+        }
         public static float EdgeOpacity(float x,float y,float width,float height)
         {
             // An entering prop begins feathering in *outside* the frame.
