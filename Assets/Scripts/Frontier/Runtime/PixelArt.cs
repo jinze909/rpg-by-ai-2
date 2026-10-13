@@ -150,6 +150,49 @@ namespace Starfall
                         C(i==0?"#83b89c":i==1?"#7aaed4":"#dc9c75"));
                 Box(23,22,53,5,brass);Box(23,96,53,5,brass);
             }
+            else if (kind == "afterlightanchor")
+            {
+                // Fractured old-starroot pylons, joined with green civic wiring.
+                Color stone=C("#637781"),shade=C("#304754"),metal=C("#bbad7e"),
+                    light=C("#9fe4c2"),dark=C("#405e66");
+                Box(30,64,36,40,stone);Box(23,88,50,18,shade);
+                Box(40,20,18,71,dark);Box(44,12,9,76,metal);
+                Disc(48,35,16,17,shade);Disc(48,35,11,12,light);
+                Box(47,48,4,39,light);
+                for(int i=0;i<3;i++)
+                {
+                    int x=22+i*27;
+                    Disc(x,83,7,4,metal);
+                    Box(x-2,77,4,17,light);
+                    Disc(x,75,6,7,C(i==0?"#93cba7":i==1?"#91c4de":"#e6b891"));
+                }
+                Box(23,95,50,4,metal);
+            }
+            else if (kind == "afterlightoutlet")
+            {
+                // Constructed public receiver: timber bridge/workbench and
+                // lanterns with a visible power conduit; no imported sprite.
+                Color timber=C("#826954"),panel=C("#617985"),
+                    brass=C("#d6bd86"),lantern=C("#f6e1ad"),
+                    leaf=C("#8bcaad"),dark=C("#2d4551");
+                Box(15,91,68,16,dark);
+                Box(18,59,62,41,panel);
+                Box(24,63,50,32,timber);
+                Box(23,66,53,5,brass);
+                Box(21,38,8,57,panel);Box(67,38,8,57,panel);
+                Box(28,44,40,9,timber);
+                for(int i=0;i<3;i++)
+                {
+                    int x=30+i*17;
+                    Disc(x,27,9,12,lantern);
+                    Box(x-4,22,9,11,brass);
+                    Box(x-2,26,5,7,lantern);
+                    Box(x-1,38,3,20,leaf);
+                }
+                Box(42,73,12,14,C("#2e4e59"));
+                Disc(48,78,5,5,leaf);
+                Box(21,96,54,4,brass);
+            }
             else if (kind == "blackoutrefuge")
             {
                 // Three emergency lamps and shared sleeping cots under a

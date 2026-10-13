@@ -327,6 +327,16 @@ namespace Starfall
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // A finished reconstruction actually changes what the region
+            // can do, without impacting boss combat or distant locations.
+            if(AfterlightRefuge(save.room) && !practicing && !racing &&
+                SafeTravel && !Dying && save.health>0 &&
+                save.health<save.maxHealth &&
+                NearKind("afterlightoutlet"+save.room,3.1f))
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.7f);
+            if(AfterlightEnergyPost && SafeTravel && !practicing &&
+                NearKind("afterlightoutlet1",3.1f))
+                save.energy=Math.Min(100,save.energy+dt*3.0f);
             // The blackout roster creates a working, publicly maintained
             // refuge in the Citadel. Combat and an active evacuation suppress
             // this modest healing; a story reward is not a global regen buff.

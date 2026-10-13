@@ -819,7 +819,18 @@ namespace Starfall
             if (kind == "guild")
             {
                 if (TalkTriadGuild(o)) return;
-                if (save.ending > 0) { Dialog(o.name, o.en, "灾变过去了，冒险还没有结束。旅店有热汤，密林里仍有星晶，大家都在等你。", "The crisis is over. The adventure is not. There is warm stew at the inn, starcrystal in the woods, and friends waiting here.", C("开始新的远征", "Another expedition", "routes"), C("回顾结局", "Revisit the ending", "epilogue"), C("再见", "Goodbye", "close")); return; }
+                if (save.ending > 0) { Dialog(o.name, o.en,
+                    (Has("afterlight_complete") ?
+                    "莉雅：你没有让终章变成另一本落满灰尘的历史书。三地公共站点已经接通，普通人可以使用它们，也知道谁来维护。\n\n" :
+                    "莉雅：厄洛的决定过去了，村庄仍然需要真正的公共道路。公会南侧设立了余光重建议事台；把星根设施接回居民身边吧。\n\n") +
+                    "冒险尚未结束。旅店有热汤，密林里仍有星晶，大家都在等你。",
+                    (Has("afterlight_complete") ?
+                    "Lyra: You did not let the ending become another dusty history book. All three public sites now work, and ordinary people know who maintains them.\n\n" :
+                    "Lyra: Orrin's decision is behind us, but villages still need real public routes. Find the afterlight reconstruction council south of the guild and rebuild those civic sites.\n\n") +
+                    "There is warm stew at the inn, starcrystal in the woods, and more living to do.",
+                    C("开始新的远征", "Another expedition", "routes"),
+                    C("回顾结局", "Revisit the ending", "epilogue"),
+                    C("再见", "Goodbye", "close")); return; }
                 int next = save.stage + 1;
                 if (save.stage < 3 && Has("core_" + next))
                     Dialog(o.name, o.en, (Has("witness_complete_"+next) ?
@@ -1063,6 +1074,15 @@ namespace Starfall
             {
                 zh[ending] += "\n\n密林的莫芽、遗迹的阿菱和矿场的维恩把亲笔署名的证词留给了公会；新的公共档案终于记得谁在修复土地、谁在等候过河、谁应该安全下班。";
                 en[ending] += "\n\nMoya of Thornwood, Arin of the ruins and Venn of Ironreach left signed testimony with the guild. Public records now remember who healed the soil, who waited to cross and who deserved to go home after work.";
+            }
+            if (Has("afterlight_started"))
+            {
+                zh[ending] += "\n\n余光重建已经启动，三地已有 "+AfterlightRestored+"/3 座公共站恢复运行。" +
+                    (Has("afterlight_complete") ? "公会公布了三地居民共建的维护公约；你的结局真正改变了接下来的生活。" :
+                        "原来的结局依然有效，但重建不是瞬间完成的神迹。");
+                en[ending] += "\n\nAfterlight reconstruction has begun: "+AfterlightRestored+"/3 regional public sites now operate." +
+                    (Has("afterlight_complete") ? " The guild published the residents' own charter for maintaining them; your ending now changes daily life." :
+                        " The original ending stands, but lasting repair is not an overnight miracle.");
             }
             if (Has("blackout_complete"))
             {

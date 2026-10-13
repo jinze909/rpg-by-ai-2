@@ -50,6 +50,7 @@ namespace Starfall
             if (page == "glasswind") return Has("glasswind_started");
             if (page == "abyss") return save.frontierEnding > 0;
             if (page == "ending") return save.ending > 0;
+            if (page == "afterlight") return Has("afterlight_started") || Has("afterlight_complete");
             return false;
         }
         private void WorldChronicleSection(string section)
@@ -109,6 +110,7 @@ namespace Starfall
                 if (StoryUnlocked("skywatch"))
                     choices.Add(StoryChoice("霜钟夜空 · 最后一夜的光谱", "Frostchime Skywatch · last night's spectrum", "story_read_skywatch"));
                 if (StoryUnlocked("abyss")) choices.Add(StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss"));
+                if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
             else { WorldChronicleMenu(); return; }
@@ -132,7 +134,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -515,6 +517,39 @@ namespace Starfall
                     headingZh = "地脉深渊：星根的伤口"; headingEn = "Root Abyss: A Wound in the Network";
                     zh = "远岸达成治理协定后，居民才允许打开深入星根的旧备用管道。六层遗迹存着祝福、危险和未结算物资。\n\n深入不是为了占有更多力量，而是检验玩家在面对高风险回报时，能否守住已有的互助约定。未能安全带回的东西，不应被记作属于自己的资源。";
                     en = "Only after a farshore covenant can travelers enter the six old reserve conduits beneath the starroot lattice. Boons, danger and unbanked supplies coexist there.\n\nThe descent tests whether the promise of shared care survives the temptation of greater extraction. Nothing is yours until it is brought back safely.";
+                    break;
+                case "afterlight":
+                    headingZh="第五章：把余光留给活着的人";
+                    headingEn="Chapter Five: Afterlight Belongs to the Living";
+                    zh="星核的最终去向已由你决定。但决定只是开始：真正的道路需要接通、维护、记录用途。莉雅与三地居民开始重新校准那些被军用旧命令遗忘的星根锚点。\n\n"+
+                        (Has("afterlight_started")?
+                        "你在公会接受了居民共治的三地重建计划：在原锚点选择用途，实际把稳定负载带往远端接收台，使用真实材料完成每次修复。\n\n":
+                        "战后公共工程尚未正式开工。\n\n");
+                    en="You decided where the starcores belong, but the decision did not reconnect a single broken road. Lyra and the people of three regions are rebuilding the forgotten public infrastructure.\n\n"+
+                        (Has("afterlight_started")?
+                        "You accepted the public reconstruction project. Each region requires an explicit civic choice, a real timed transfer from its anchor to a distant receiver, and genuine repair materials.\n\n":
+                        "The public reconstruction works have not started.\n\n");
+                    for(int ri=1;ri<=3;ri++)
+                    {
+                        if(!Has("afterlight_done_"+ri))
+                        {
+                            zh+=new[]{"","荆棘密林：疗养根系与巡路灯仍未接通。","沉没遗迹：公共渡口与救援河岸仍未接通。","赤铁矿场：安全工房与停机保护仍未接通。"}[ri]+"\n";
+                            en+=new[]{"","Thornwood: root care and road lamps are not reconnected.","Ruins: public passage and river shelter are not reconnected.","Ironreach: safe workbench and cooling safeguards are not reconnected."}[ri]+"\n";
+                        }
+                        else
+                        {
+                            zh+=AfterlightLocation(ri,false)+"："+
+                                AfterlightOutcomeZh(ri)+"\n";
+                            en+=AfterlightLocation(ri,true)+": "+
+                                AfterlightOutcomeEn(ri)+"\n";
+                        }
+                    }
+                    zh+=Has("afterlight_complete")?
+                        "\n【重建公约已发布】三处设施拥有亲自署名的维护者。旧军用地图终于被一份活着的人可以使用的地图取代。":
+                        "\n【公约尚未发布】哪怕三处站点已经接通，也要返回公会公开维护责任。";
+                    en+=Has("afterlight_complete")?
+                        "\n[Charter published] Three useful public services now have named local stewards. Old military maps have given way to routes ordinary people can actually use.":
+                        "\n[Charter pending] Once all three sites work, return to the guild to publish responsibility for their upkeep.";
                     break;
                 case "ending":
                     headingZh = "你决定的边境"; headingEn = "The Frontier You Chose";

@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,45 @@ namespace Starfall
             }
 
 
+
+            if(id=="afterlight")
+            {
+                q.title=L("第五章 · 余光重建","Chapter Five · Afterlight Reconstruction");
+                q.category=L("战后主线 · 三地公共设施","POST-FINALE MAIN STORY · THREE PUBLIC SITES");
+                q.locked=save.ending==0;
+                q.complete=Has("afterlight_complete");
+                q.description=L("星核结局已经落定，却不是每条回家路都恢复了。与莉雅商议，在荆棘密林、沉没遗迹与赤铁矿场分别校准旧锚点，自主决定如何服务居民，然后在90秒内把负载亲自送至另一个场景物件，真正消耗木材、药草或星晶与零件后建立永久公共设施。三地完成后返回公会公开战后公约。原有结局、Boss、远岸功能全部保留。",
+                    "The core ending has been decided, but damaged roads remain. Choose civic designs with Lyra, calibrate source anchors in Thornwood, Drowned Ruins and Ironreach, then personally carry live charges to distant receivers within 90 seconds. Genuine repair materials fund three useful permanent regional services. Publish a final public recovery charter without replacing the existing ending, boss or farshore routes.");
+                q.steps.Add(new QuestStep(L("到余烬镇公会加入重建议事","Join the Emberfall reconstruction council"),Has("afterlight_started")));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"密林 · 恢复活根与安全林道","遗迹 · 让渡口属于活着的人","矿场 · 将安全停机写入机器"}[i-1],
+                          new[]{"Thornwood · living roots and safe roads","Ruins · public crossing and water safety","Ironreach · workers' control of machinery"}[i-1]),
+                        Has("afterlight_done_"+i)));
+                q.steps.Add(new QuestStep(L("返回公会，发布三地重建公约","Publish the three-region civic charter"),q.complete));
+                int next=0;
+                if(AfterlightChargeRegion!=0)next=AfterlightChargeRegion;
+                else if(save.room>=1&&save.room<=3 && Has("afterlight_started") &&
+                    !Has("afterlight_done_"+save.room))next=save.room;
+                else for(int i=1;i<=3;i++)
+                    if(!Has("afterlight_done_"+i)){next=i;break;}
+                q.room=!Has("afterlight_started")||q.complete||next==0?0:next;
+                string kind=q.room==0?"afterlightcouncil":
+                    AfterlightChargeRegion==next?"afterlightoutlet"+next:
+                    AfterlightMode(next)==0?"afterlightanchor"+next:
+                    "afterlightanchor"+next;
+                q.target=ObjectPoint(q.room,kind,new Point(16,18));
+                q.next=q.complete?L("第五章完成 · 重建公约已公开","Chapter Five complete · Charter published"):
+                    q.locked?L("先完成厄洛的星核主线结局","Finish the original starcore ending first"):
+                    !Has("afterlight_started")?L("去公会重建议事台接受战后任务","Accept the reconstruction mission at the guild council"):
+                    AfterlightChargeRegion!=0?L("90秒内将稳定余光送到远端公共接收台","Deliver the charge to the distant receiver within 90 seconds"):
+                    next==0?L("回公会正式发布三地公约","Publish the public charter back at the guild"):
+                    AfterlightMode(next)==0?L("在当地旧锚点选择不可反悔的公共用途","Choose a lasting civic purpose at the regional anchor"):
+                    L("到当地锚点启动负载传输","Start the physical transfer at the local anchor");
+                q.reward=L("各地区真实恢复设施功能；章节完结120硬币、4碎片、100经验、1技能点",
+                    "Three functional public sites; final reward 120 coins, 4 shards, 100 XP and one skill point");
+                return q;
+            }
 
             if(id=="blackout")
             {

@@ -185,6 +185,44 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="afterlightcouncil")
+            {
+                Color tint=Game.Has("afterlight_complete")?mint:
+                    Game.Has("afterlight_started")?gold:muted;
+                PropImage("witnessledger",0,p.x-31,p.y-67,62,72,Color.white);
+                Ring(new Point(o.x,o.y),Game.Has("afterlight_complete")?.95f:.65f,tint,27);
+                Text(p.x-78,p.y-90,156,22,
+                    Game.Has("afterlight_complete")?Game.L("三地重建公约","RECONSTRUCTION CHARTER"):
+                    Game.L("战后重建议事台","AFTERLIGHT COUNCIL"),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind=="afterlightanchor"+Game.save.room ||
+                kind=="afterlightoutlet"+Game.save.room)
+            {
+                int region=Game.save.room;
+                bool anchor=kind=="afterlightanchor"+region;
+                bool complete=Game.Has("afterlight_done_"+region);
+                bool active=Game.AfterlightChargeRegion==region;
+                Color tint=complete?mint:active?PixelArt.C("#f1d39a"):
+                    Game.AfterlightMode(region)!=0?gold:muted;
+                PropImage(anchor?"afterlightanchor":"afterlightoutlet",region,
+                    p.x-32,p.y-78,64,83,complete?Color.white:muted);
+                Ring(new Point(o.x,o.y),complete?.9f:active?1.2f:.62f,tint,22);
+                Text(p.x-79,p.y-104,158,22,
+                    complete?Game.L(anchor?"公共原始锚点":"公共设施运转中",
+                        anchor?"CIVIC ROOT ANCHOR":"PUBLIC SERVICE ONLINE"):
+                    active?Game.L(anchor?"余光输送中":"稳定负载待接通",
+                        anchor?"TRANSFER ACTIVE":"CHARGE ARRIVING"):
+                    Game.L(anchor?"旧星根供能锚点":"断开的公共接收台",
+                        anchor?"OLD STARROOT ANCHOR":"CIVIC RECEIVER"),
+                    11,tint,TextAnchor.MiddleCenter);
+                if(active)
+                    Text(p.x-47,p.y-122,94,19,
+                        Game.AfterlightChargeLeft.ToString("0")+"s",
+                        12,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="witnessnpc"+Game.save.room)
             {
                 int chapter=Game.save.room;

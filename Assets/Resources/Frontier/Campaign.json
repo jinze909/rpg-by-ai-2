@@ -230,6 +230,14 @@
           "kind": "glasswindkeeper",
           "x": 24.5,
           "y": 10.5
+        },
+        {
+          "id": "afterlightcouncil",
+          "kind": "afterlightcouncil",
+          "name": "第五章 · 余光重建议事台",
+          "en": "Chapter Five · Afterlight Council",
+          "x": 16.5,
+          "y": 19.5
         }
       ],
       "decor": [
@@ -551,6 +559,22 @@
           "kind": "witnesssite21",
           "name": "旧林道保全点",
           "en": "Old Forest Evidence Seal"
+        },
+        {
+          "id": "afterlightanchor1",
+          "kind": "afterlightanchor1",
+          "name": "密林旧星根锚点",
+          "en": "Thornwood Old Root Anchor",
+          "x": 24.5,
+          "y": 7.5
+        },
+        {
+          "id": "afterlightoutlet1",
+          "kind": "afterlightoutlet1",
+          "name": "断线的公共苗圃",
+          "en": "Disconnected Public Grove",
+          "x": 27.5,
+          "y": 17.5
         }
       ],
       "decor": [
@@ -894,6 +918,22 @@
           "kind": "witnesssite22",
           "name": "被封锁的渡口名单",
           "en": "Sealed Crossing Manifest"
+        },
+        {
+          "id": "afterlightanchor2",
+          "kind": "afterlightanchor2",
+          "name": "遗迹旧水闸分流盘",
+          "en": "Ruins Old Sluice Switch",
+          "x": 15.5,
+          "y": 7.5
+        },
+        {
+          "id": "afterlightoutlet2",
+          "kind": "afterlightoutlet2",
+          "name": "公共渡口接收台",
+          "en": "Public Ferry Receiver",
+          "x": 28.5,
+          "y": 17.5
         }
       ],
       "decor": [
@@ -1253,6 +1293,22 @@
           "kind": "witnesssite23",
           "name": "被抹去的工时表",
           "en": "Erased Shift Ledger"
+        },
+        {
+          "id": "afterlightanchor3",
+          "kind": "afterlightanchor3",
+          "name": "矿场旧负载控制台",
+          "en": "Mine Old Load Controller",
+          "x": 14.5,
+          "y": 8.5
+        },
+        {
+          "id": "afterlightoutlet3",
+          "kind": "afterlightoutlet3",
+          "name": "安全回收工房接收端",
+          "en": "Safe Foundry Receiver",
+          "x": 27.5,
+          "y": 16.5
         }
       ],
       "decor": [
