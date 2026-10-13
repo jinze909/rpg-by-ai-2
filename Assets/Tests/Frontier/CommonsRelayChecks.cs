@@ -86,6 +86,95 @@ namespace Starfall.Tests
             Check(Array.FindIndex(g.conversation.choices,c=>c.action=="commons_publish") < 0,
                 "The public key cannot be published for another reward");
         }
+        public static void CitadelCommonsFloorSurgesWarnDodgeAndCleanUp(Campaign data)
+        {
+            var g = CommonsReady(data);
+            CommonsActivate(g,1); g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            CommonsActivate(g,2);
+            Check(g.CommonsRelayStep == 3 && g.enemies.Exists(g.IsCommonsRelayEnemy),
+                "Medical-line reconnection enters the unique second-floor security phase");
+            // Remove random contact distractions: retain a genuine sentry but
+            // keep it stunned while the separate telegraphed floor system runs.
+            foreach (Enemy e in g.enemies)
+            { e.stun = 12; e.timer = 100; e.state = 0; }
+            g.invulnerable = 12;
+            Point target = g.Position;
+            for (int i=0;i<70;i++) g.Tick(.05f,new Point());
+            Check(g.hazards.Exists(x => x.commonsRelayOwned && x.timer > 0 &&
+                (x.position - target).Length < .5f),
+                "The medical relay creates a visible delayed hazard on the player's real feet");
+            Hazard warning = g.hazards.Find(x => x.commonsRelayOwned);
+            Check(warning != null && warning.radius > 1 && warning.timer > 0,
+                "The surge remains avoidable before the normal collision release");
+            Point[] directions = { new Point(-2.6f,0),new Point(0,2.6f),
+                new Point(0,-2.6f),new Point(2.6f,0) };
+            bool escaped = false;
+            foreach (Point d in directions)
+            {
+                Point away=target+d;
+                if (!g.CanStand(away)) continue;
+                bool outside = true;
+                foreach (Hazard hz in g.hazards)
+                    if (hz.commonsRelayOwned && (hz.position-away).Length < hz.radius+.15f)
+                        outside=false;
+                if (!outside)continue;
+                g.save.x=away.x;g.save.y=away.y;escaped=true;break;
+            }
+            Check(escaped,"The actual citadel terrain offers a reachable escape from the double surge");
+            float health=g.save.health;g.invulnerable=0;
+            for(int i=0;i<38;i++)g.Tick(.05f,new Point());
+            Check(g.save.health >= health-.01f,
+                "Escaping the warned footprint avoids live hazard damage without fake invulnerability");
+            g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            g.Tick(.05f,new Point());
+            Check(!g.hazards.Exists(x=>x.commonsRelayOwned),
+                "Defeating the last defender retires pending circuit hazards immediately");
+            var ordinary = new Hazard { position=g.Position, timer=4,
+                radius=.5f, damage=1, kind="rift" };
+            g.hazards.Add(ordinary);
+            CommonsActivate(g,3);
+            Check(g.CommonsRelayRoom==0 && g.hazards.Contains(ordinary),
+                "Sealing the public circuit preserves all unrelated world hazard state");
+        }
+
+        public static void CitadelCommonsChronicleRevealsTrueProgress(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject chronicle=Object(g,"worldchronicle");
+            g.Talk(chronicle);
+            int section=Array.FindIndex(g.conversation.choices,c=>c.action=="story_section_after");
+            Check(section>=0,"Frontier Chronicle offers its original aftermath chapter");
+            g.Choose(section);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_commons")<0,
+                "Ayla's testimony remains hidden until the player actually accepts the commission");
+            g.Close();
+            g.save.flags.Add("commons_relay_started");
+            g.Talk(chronicle);
+            section=Array.FindIndex(g.conversation.choices,c=>c.action=="story_section_after");
+            g.Choose(section);
+            int page=Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_commons");
+            Check(page>=0,"Accepting the new quest publishes a readable bilingual story chapter");
+            g.Choose(page);
+            Check(g.conversation.text.Contains("三道公共信标仍在") &&
+                !g.conversation.text.Contains("艾拉已经将访问密钥公开"),
+                "Reading never invents security victories or public oversight before real gameplay");
+            g.Close();
+            g.save.flags.Add("commons_relay_sealed"); g.save.english=true;
+            g.Talk(chronicle);section=Array.FindIndex(g.conversation.choices,c=>c.action=="story_section_after");
+            g.Choose(section);page=Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_commons");
+            g.Choose(page);
+            Check(g.conversation.textEn.Contains("You crossed real security lines") &&
+                g.conversation.textEn.Contains("awaits a public signature"),
+                "Recovered circuits update the English page without fabricating Ayla's final handoff");
+            g.Close();
+            g.save.flags.Add("commons_relay_complete");
+            g.Talk(chronicle);section=Array.FindIndex(g.conversation.choices,c=>c.action=="story_section_after");
+            g.Choose(section);page=Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_commons");
+            g.Choose(page);
+            Check(g.conversation.textEn.Contains("published the access key"),
+                "Ayla's true public record only appears after the last physical town conversation");
+        }
+
         public static void CitadelCommonsStoryLocksAndWithdrawal(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3;
