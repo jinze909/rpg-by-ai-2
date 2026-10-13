@@ -74,6 +74,7 @@ namespace Starfall.Tests
         [Test] public void CivilianStrikeTimingAndBodyguardCollision() { CoreChecks.CivilianDefenseStrikesMatchReleaseAndBodyguardPosition(Data()); }
         [Test] public void RescueRaiderAITargetsActualCivilians() { CoreChecks.RescueRaiderAIActuallyProtectsCivilians(Data()); }
         [Test] public void CiviliansTraverseEntireReturnPaths() { CoreChecks.ReliefSurvivorsPhysicallyCompleteAllRegionalReturnRoutes(Data()); }
+        [Test] public void RescueWeatherCanopyPreventsRealClimateDamage() { CoreChecks.EscortCanopyProtectsFromRealClimateAndStaysSpent(Data()); }
         [Test] public void RescuePortalsNeverAbandonLiveEscort() { CoreChecks.ActiveCivilianRescuesCannotBeLostThroughPortals(Data()); }
         [Test] public void MistportEscortResumeHandlesHighTide() { CoreChecks.MistportEscortCheckpointRecoversOnlyFloodedFooting(Data()); }
         [Test] public void EscortHurryCreatesRealSpeedAndSurvivesSave() { CoreChecks.CivilianEscortHurryAddsRealSpeedAndCannotFarmReload(Data()); }

@@ -756,6 +756,70 @@ namespace Starfall.Tests
                 "A wall or arbitrary blocked map coordinate cannot exploit shore recovery");
         }
 
+        public static void EscortCanopyProtectsFromRealClimateAndStaysSpent(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            g.enemies.RemoveAll(e => e.id >= 85000 && e.id < 85100);
+            g.Tick(.05f, new Point());
+            Check(g.ReliefEscortActive, "Real rescue waves lead to a live climate-exposed escort");
+            g.save.shards = 2;
+            Point citizen = g.reliefFollowerPosition;
+            g.save.x = citizen.x; g.save.y = citizen.y;
+            ChooseRescueCivilianOption(g, "relief_climate_kit");
+            Check(g.reliefClimateKitTime > 13.5f && !g.ReliefClimateKitAvailable &&
+                g.save.shards == 1,
+                "An actual world interaction spends one shard for fourteen seconds of weather protection");
+            g.Interact();
+            Check(!Array.Exists(g.conversation.choices,
+                c => c.action == "relief_climate_kit"),
+                "The same escort cannot redeploy a second free weather kit");
+            g.Close();
+            // Compare the same actual exposed map footing with and without
+            // protection. Keep player away and survivor waiting to avoid movement.
+            Point exposed = new Point(); bool found = false;
+            for (int y = 3; y < g.Map.rows.Length - 3 && !found; y++)
+            for (int x = 3; x < g.Map.rows[y].Length - 3 && !found; x++)
+            {
+                Point p = new Point(x + .5f, y + .5f);
+                if (!g.CanStand(p) ||
+                    (p - new Point(post.x, post.y)).Length < 8f) continue;
+                bool shade = false;
+                foreach (WorldObject o in g.Map.objects)
+                    if (o.kind == "shade" &&
+                        (p - new Point(o.x, o.y)).Length < 4f) shade = true;
+                if (shade) continue;
+                exposed = p; found = true;
+            }
+            Check(found, "Actual desert terrain contains an exposed rescue route outside shelter and shade");
+            g.enemies.Clear(); g.reliefFollowerWaiting = true;
+            g.reliefFollowerPosition = exposed; g.reliefFollowerSafety = 70;
+            g.save.x = post.x; g.save.y = post.y;
+            g.Tick(.05f, new Point());
+            Check(Math.Abs(g.reliefFollowerSafety - 70f) < .001f,
+                "Active canopy blocks actual desert exposure without changing civilian safety or granting healing");
+            g.reliefClimateKitTime = 0; g.Tick(.05f, new Point());
+            Check(g.reliefFollowerSafety < 70f,
+                "The same real desert footing resumes harmful weather after protection expires");
+            g.PrepareSave();
+            Check(g.save.rescueCheckpoint != null &&
+                g.save.rescueCheckpoint.climateKitUsed && g.save.shards == 1,
+                "The optional save checkpoint stores the spent weather kit and paid shard cost");
+            var reload = new GameCore(data, g.save); reload.Start();
+            Check(reload.ReliefEscortActive && !reload.ReliefClimateKitAvailable &&
+                reload.reliefClimateKitTime == 0 && reload.save.shards == 1,
+                "Reload cannot refresh a used weather shield or refund its resource");
+        }
+
         public static void CivilianEscortHurryAddsRealSpeedAndCannotFarmReload(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
