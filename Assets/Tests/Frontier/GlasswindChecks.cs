@@ -101,8 +101,11 @@ namespace Starfall.Tests
                 Check(g.GlasswindRefuge,"Sealed valves offer genuine local heat protection");
                 g.save.heat=50;Advance(g,1);
                 Check(g.save.heat<50,"Heat falls under a restored valve in the real climate tick");
-                Action(g,valve.kind,"glasswind_seal");
-                Check(g.save.coins==coins+15,"Already sealed sites cannot pay repeatedly");
+                g.Talk(valve);
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="glasswind_seal")<0 &&
+                    g.save.coins==coins+15,
+                    "The completed valve removes its reward action instead of paying twice");
+                g.Close();
             }
             Check(g.Has("glasswind_all_sealed") && !g.Has("glasswind_complete") &&
                 g.save.coins==initialCoins+45,
@@ -115,8 +118,11 @@ namespace Starfall.Tests
                 g.save.coins==finalCoins+65 && g.save.shards==finalShards+2 &&
                 g.save.skillPoints==finalTalent+1,
                 "Public handoff grants the final resources and one talent exactly once");
-            Action(g,"glasswindkeeper","glasswind_publish");
-            Check(g.save.coins==finalCoins+65,"The completed commission never double pays");
+            g.Talk(mia);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="glasswind_publish")<0 &&
+                g.save.coins==finalCoins+65,
+                "Mia withdraws the one-time publication action after completion");
+            g.Close();
             g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
             Check(loaded.save.version==2 && loaded.Has("glasswind_complete") &&
