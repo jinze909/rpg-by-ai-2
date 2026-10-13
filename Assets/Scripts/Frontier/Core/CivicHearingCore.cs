@@ -38,9 +38,9 @@ namespace Starfall
             if(plaque)
             {
                 if(!HearingPlaqueVisible(region))return true;
-                string[] zh={"","密林的新誓言","遗迹的新誓言","矿场的新誓言"};
-                string[] en={"","Thornwood's Public Oath","The Ruins' Public Oath","Ironreach's Public Oath"};
-                Dialog(zh[region],en[region],
+                string[] plaqueZh={"","密林的新誓言","遗迹的新誓言","矿场的新誓言"};
+                string[] plaqueEn={"","Thornwood's Public Oath","The Ruins' Public Oath","Ironreach's Public Oath"};
+                Dialog(plaqueZh[region],plaqueEn[region],
                     (HearingVoice(region)==1?
                         new[]{"","莫芽要求根系疗养优先，让树林能够自己选择下一次生长。","阿菱要求渡口永远记得没有许可证的旅人。","维恩要求矿工有权自己维修和关闭机器。"}[region]:
                         new[]{"","莫芽让夜路灯为迟归的人留一点光，也保留树林修复的余量。","阿菱要求渡口的应急河岸能容纳下次涨潮的家庭。","维恩要求任何生产开始前都先检查停机装置。"}[region])+
