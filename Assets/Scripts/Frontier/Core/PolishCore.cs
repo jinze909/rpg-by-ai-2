@@ -380,7 +380,7 @@ namespace Starfall
                 // Temporary trial attackers restart after loading; never save
                 // them as ordinary world patrols.
                 if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e) ||
-                    IsReliefMissionEnemy(e)) continue;
+                    IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();
@@ -391,7 +391,8 @@ namespace Starfall
             enemies.Clear(); var ids = new HashSet<int>();
             foreach (var r in save.worldEnemies)
             {
-                if (r == null || r.id < 1 || r.id > 99999 || !ids.Add(r.id) || !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0 || r.boss && Has("boss_" + save.room)) continue;
+                if (r == null || r.id < 1 || r.id > 99999 ||
+                    (r.id >= 88000 && r.id < 88100) || !ids.Add(r.id) || !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0 || r.boss && Has("boss_" + save.room)) continue;
                 Point p = SafeActorFoot(new Point(r.x, r.y));
                 var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, Clamp(r.maxHp, 1, 5000), r.boss); e.hp = Clamp(r.hp, .1f, e.maxHp); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);
             }
