@@ -168,6 +168,30 @@ public static class RenderStateChecks
         Check(Math.Abs(blocked.r-road.r)+Math.Abs(blocked.g-road.g)+
             Math.Abs(blocked.b-road.b)>.01f,
             "Actual repaired bridge changes raster color from blocked rock to path");
+        // Fogged current-map previews have a different dependency set:
+        // only its own discoveries must invalidate, not unrelated dialogue.
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,true,888f,264f,2f);
+        var hidden=Get<Texture2D>(app,"terrainPreview");
+        const int fogX=110,fogY=68;
+        var shaded=hidden.pixels[(hidden.height-1-fogY)*hidden.width+fogX];
+        app.Game.save.flags.Add("totally_unrelated_story_note");
+        app.Game.revision++;
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,true,888f,264f,2f);
+        Check(object.ReferenceEquals(hidden,Get<Texture2D>(app,"terrainPreview")),
+            "New story or combat flags cannot regenerate fogged world-map textures");
+        app.Game.save.flags.Add("annex_seen_0_18_11");
+        Clear();
+        Call(app,"DrawTerrainPreview",map,0,true,888f,264f,2f);
+        var revealed=Get<Texture2D>(app,"terrainPreview");
+        var visible=revealed.pixels[(revealed.height-1-fogY)*revealed.width+fogX];
+        Check(!object.ReferenceEquals(hidden,revealed)&&hidden.destroyed,
+            "Real nearby exploration triggers a fresh cached fog image");
+        Check(Math.Abs(shaded.r-visible.r)+Math.Abs(shaded.g-visible.g)+
+            Math.Abs(shaded.b-visible.b)>.03f,
+            "Discovered sixth-ring sectors actually brighten on the map");
+        // Cleanup is handled by the normal EndVisualReview / OnDestroy path.
         Console.WriteLine("PASS real 120x80 map raster caching, draw-call reduction and repaired-bridge preview (offline)");
     }
     public static void MapRasterRegression(FrontierRuntime app)
