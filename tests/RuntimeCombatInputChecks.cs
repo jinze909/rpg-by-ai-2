@@ -408,6 +408,47 @@ public static class RuntimeCombatInputChecks
         }
     }
 
+
+    private static void StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game = app.Game;
+        float startTime = game.save.totalTime;
+        float startX = game.save.x;
+        Time.unscaledDeltaTime = .18f;
+        Input.axes["Horizontal"] = 1;
+        Update(app);
+        Check(Math.Abs(game.save.totalTime - startTime - .18f) < .0002f,
+            "One slow 180ms render frame advances actual game time by four bounded simulation slices");
+        float lowFpsX = game.save.x;
+        Check(lowFpsX > startX + game.Speed * .13f,
+            "Slow frame does not artificially halve real-distance movement");
+        Prepare(app);
+        game = app.Game;
+        startX = game.save.x;
+        foreach (float dt in new[] { .05f, .05f, .05f, .03f })
+            game.Tick(dt, new Point(1, 0));
+        Check(Math.Abs((game.save.x - startX) - (lowFpsX - 12f)) < .001f,
+            "Slow frame matches four ordinary GameCore movement ticks on the original map");
+        Prepare(app);
+        game = app.Game;
+        startTime = game.save.totalTime;
+        Time.unscaledDeltaTime = 3f;
+        Input.axes["Horizontal"] = 0;
+        Update(app);
+        Check(Math.Abs(game.save.totalTime - startTime - .20f) < .0002f,
+            "A multi-second OS stall is capped to four updates, not hundreds of catch-up actions");
+        foreach(float invalid in new[]{float.NaN,float.PositiveInfinity,-1f})
+        {
+            startTime=game.save.totalTime;
+            Time.unscaledDeltaTime=invalid;
+            Update(app);
+            Check(game.save.totalTime==startTime,
+                "Corrupted or negative external delta cannot poison world time");
+        }
+        Console.WriteLine("PASS Bounded substeps preserve low-FPS movement, timers, catch-up cap, and invalid-delta safety");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -416,7 +457,8 @@ public static class RuntimeCombatInputChecks
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
-            RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy };
+            RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
+            StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup };
         int failures = 0;
         foreach (var test in cases)
         {

@@ -110,7 +110,15 @@ namespace Starfall
         private void Update()
         {
             if (Game == null || applicationPaused || VisualReviewActive && VisualReviewPaused) return;
-            clock += Time.unscaledDeltaTime; Resize();
+            // Catch up a bounded stalled frame in <=50 ms simulation slices.
+            // A single GameCore.Tick deliberately caps its dt at .05, so
+            // passing an entire 120 ms frame silently slows walking, enemy
+            // attacks, timed quests and cooldowns below 20 FPS.
+            float frameDelta = Time.unscaledDeltaTime;
+            if (float.IsNaN(frameDelta) || float.IsInfinity(frameDelta) || frameDelta < 0)
+                frameDelta = 0;
+            frameDelta = Math.Min(frameDelta, .20f); // cap severe stalls; avoid runaway catch-up
+            clock += frameDelta; Resize();
             Point movement = new Point(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical") * -1);
             moving = movement.Length > .1f;
             bool beganInWorld = Game.mode == "world";
@@ -123,7 +131,15 @@ namespace Starfall
             if (pointerMoved || Input.GetMouseButton(0)||keyboardMove||keyboardAction) controllerUsed = false;
             lastPointer = pointer; pointerSeen = true;
             for (int i = 0; i < 8; i++) if (PadDown(i)) controllerUsed = true;
-            Game.Tick(Time.unscaledDeltaTime, movement, InputAim()); UpdatePresentation(Time.unscaledDeltaTime); UpdateMenuInput(Time.unscaledDeltaTime);
+            Point frameAim = InputAim() ?? Game.aim;
+            float timeLeft = frameDelta;
+            while (timeLeft > .00001f)
+            {
+                float step = Math.Min(.05f, timeLeft);
+                Game.Tick(step, movement, frameAim);
+                timeLeft -= step;
+            }
+            UpdatePresentation(frameDelta); UpdateMenuInput(frameDelta);
             if (Game.mode == "world" && beganInWorld)
             {
                 Point mouse = MouseVirtual();
@@ -151,10 +167,10 @@ namespace Starfall
             }
             Toggle(KeyCode.I, "inventory"); Toggle(KeyCode.Tab, "journal"); Toggle(KeyCode.K, "talents"); Toggle(KeyCode.M, "map");
             Toggle(KeyCode.B, "camp"); Toggle(KeyCode.C, "companions"); Toggle(KeyCode.G, "loadout"); Toggle(KeyCode.N, "bounties"); Toggle(KeyCode.F1, "help");
-            FollowCamera(Time.unscaledDeltaTime);
+            FollowCamera(frameDelta);
             PrewarmTerrain();
-            audioSystem.Update(Game, moving, Time.unscaledDeltaTime); Game.sound = "";
-            saveTimer += Time.unscaledDeltaTime;
+            audioSystem.Update(Game, moving, frameDelta); Game.sound = "";
+            saveTimer += frameDelta;
             if (Game.Has("intro") && Game.mode != "title" && (saveTimer > 12 || (Game.revision != lastRevision && saveTimer > 2))) Save();
         }
         private void Toggle(KeyCode key, string mode)
