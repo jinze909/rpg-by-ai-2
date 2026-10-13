@@ -64,6 +64,7 @@ namespace Starfall
         }
         private int terrainStreamingRoom = -1, terrainStreamingFloor = -1;
         private MapData terrainStreamingMap;
+        private bool cameraSkippedTerrain;
         // Only world scenery and interactive props are faded. Player, enemies,
         // their telegraphs, HUD, menus and dialogue remain fully legible.
         private float worldActorOpacity = 1f;
@@ -298,9 +299,16 @@ namespace Starfall
         }
         private void FollowCamera(float dt)
         {
-            if(Game.mode!="world")return;
+            if(Game.mode!="world"){cameraSkippedTerrain=false;return;}
+            Point before=camera;
             float follow=Game.save.reducedMotion?1:1-Mathf.Exp(-Math.Max(0,dt)*12);
-            Point target=CameraTarget();camera=new Point(Mathf.Lerp(camera.x,target.x,follow),Mathf.Lerp(camera.y,target.y,follow));
+            Point target=CameraTarget();
+            camera=new Point(Mathf.Lerp(camera.x,target.x,follow),
+                Mathf.Lerp(camera.y,target.y,follow));
+            // A long ridge shortcut, fast-travel jump or accessibility snap
+            // must never reveal an empty mid-screen tile waiting for a fade.
+            cameraSkippedTerrain=Game.save.reducedMotion||
+                WorldStreaming.LargeCameraJump(camera.x-before.x,camera.y-before.y);
         }
         private void Ring(Point p, float radius, Color color, int segments = 32)
         {
@@ -344,7 +352,7 @@ namespace Starfall
                     int key = cy * chunksWide + cx;
                     if (preparedTerrainChunks.ContainsKey(key)) continue;
                     PreparedTerrainChunk chunk = new PreparedTerrainChunk();
-                    chunk.warmAt = firstView ? clock - 2f : clock;
+                    chunk.warmAt = firstView || cameraSkippedTerrain ? clock-2f : clock;
                     List<WorldObject> closeObjects;
                     if(!terrainOccluderBins.TryGetValue(key,out closeObjects))
                         closeObjects=emptyTerrainOccluders;
@@ -370,6 +378,7 @@ namespace Starfall
                         }
                     preparedTerrainChunks.Add(key, chunk);
                 }
+            cameraSkippedTerrain=false;
         }
         private PreparedTerrainChunk FindTerrainChunk(int x, int y)
         {

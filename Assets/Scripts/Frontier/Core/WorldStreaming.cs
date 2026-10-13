@@ -42,6 +42,15 @@ namespace Starfall
             return Blend(Lattice(gx,gy,room),Lattice(gx+1,gy,room),
                 Lattice(gx,gy+1,room),Lattice(gx+1,gy+1,room),tx,ty);
         }
+        public static bool LargeCameraJump(float tilesX,float tilesY)
+        {
+            if(float.IsNaN(tilesX)||float.IsNaN(tilesY)||
+               float.IsInfinity(tilesX)||float.IsInfinity(tilesY))return false;
+            // Normal walking never exceeds this between two frames.
+            // Fast travel and abrupt camera shifts do, so prime everything
+            // visible immediately instead of fading missing actors on arrival.
+            return tilesX*tilesX+tilesY*tilesY>=64f;
+        }
         public static float PreviewScale(int width,int height,float maxWidth,float maxHeight)
         {
             if(width<=0||height<=0||maxWidth<=0||maxHeight<=0)return 0f;

@@ -931,6 +931,18 @@ namespace Starfall.Tests
                 "All eight repaired routes finish the tracked journal");
         }
 
+        public static void InstantTravelPreparesVisibleWorldWithoutColdChunkPopin(Campaign data)
+        {
+            Check(!WorldStreaming.LargeCameraJump(1,2),
+                "Ordinary walking still uses softened chunk transitions");
+            Check(WorldStreaming.LargeCameraJump(20,0)&&
+                WorldStreaming.LargeCameraJump(-12,-6),
+                "Cross-map and ridge jumps immediately prime visible props");
+            Check(!WorldStreaming.LargeCameraJump(float.NaN,0)&&
+                !WorldStreaming.LargeCameraJump(float.PositiveInfinity,2),
+                "Bad camera state never triggers unbounded terrain work");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)
