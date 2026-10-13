@@ -182,7 +182,7 @@ namespace Starfall.Tests
         public static void ExpandedHearthInnArchiveIsConnectedAndRewardsVerifiedExploration(Campaign data)
         {
             MapData inn=data.maps[9];
-            Check(inn.rows.Length==32&&inn.rows[0].Length==48,"Expanded Hearth Inn adds navigable rooms");
+            Check(inn.rows.Length==40&&inn.rows[0].Length==60,"Expanded Hearth Inn preserves rooms while adding public archive wings");
             GameCore game=new GameCore(data);game.save.room=9;
             var queue=new System.Collections.Generic.Queue<int>();
             var visited=new System.Collections.Generic.HashSet<int>();
