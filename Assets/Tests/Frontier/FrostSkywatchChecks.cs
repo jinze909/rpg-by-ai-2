@@ -192,6 +192,79 @@ namespace Starfall.Tests
                 "A new legitimate attempt may buy one new grounding, without paying rewards");
         }
 
+        public static void AfterglowExpeditionHasRealFieldVisitsRewardsAndWarming(Campaign data)
+        {
+            var g=Fresh(data);
+            Check(g.GetQuest("skywatch_afterglow").locked,
+                "The new aftermath is not visible before the public weather report");
+            g.save.stage=3;g.save.level=12;
+            foreach(string flag in new[]{"mountain_report","desert_report","gate_7",
+                "skywatch_started","skywatch_prism_1","skywatch_prism_2",
+                "skywatch_prism_3","skywatch_defeated","skywatch_complete"})
+                g.save.flags.Add(flag);
+            Check(!g.GetQuest("skywatch_afterglow").locked &&
+                !g.GetQuest("skywatch_afterglow").complete,
+                "Publishing the original skywatch opens a distinct playable aftermath");
+            g.Enter(7);g.enemies.Clear();
+            WorldObject altar=Object(g,"skyobservatory");
+            int coins=g.save.coins,shards=g.save.shards;
+            g.save.x=altar.x;g.save.y=altar.y;
+            g.Talk(altar);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="skywatch_afterglow_publish")<0,
+                "Players must actually investigate three distant lenses before archival rewards");
+            g.Close();
+            for(int i=1;i<=3;i++)
+            {
+                WorldObject lens=Object(g,"skyprism"+i);
+                g.save.x=lens.x;g.save.y=lens.y;
+                Check(g.CanStand(g.Position) && g.Nearest()==lens,
+                    "New afterglow evidence lives at a real walkable Frostchime lens");
+                Action(g,"skyprism"+i,"skywatch_afterglow_"+i);
+                Check(g.Has("skywatch_afterglow_"+i) &&
+                    g.save.coins==coins && g.save.shards==shards,
+                    "The record is persistent but does not mint premature resources");
+                g.Talk(lens);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="skywatch_afterglow_"+i)<0,
+                    "A recovered afterglow cannot be collected or farmed twice");
+                g.Close();
+            }
+            Check(g.GetQuest("skywatch_afterglow").steps.Count==4 &&
+                !g.GetQuest("skywatch_afterglow").complete,
+                "Three real recovered field clues leave one actual archive objective");
+            g.save.x=altar.x;g.save.y=altar.y;
+            Action(g,"skyobservatory","skywatch_afterglow_publish");
+            Check(g.Has("skywatch_afterglow_complete") &&
+                g.GetQuest("skywatch_afterglow").complete &&
+                g.save.coins==coins+45 && g.save.shards==shards+2,
+                "The final observatory archive grants one earned reward, not three farmable pickups");
+            g.Close();
+            for(int i=1;i<=3;i++)
+            {
+                WorldObject lens=Object(g,"skyprism"+i);
+                g.save.x=lens.x;g.save.y=lens.y;
+                g.enemies.Clear();
+                Check(g.SkywatchEchoRefuge,
+                    "Every restored lens is a live permanent cold refuge on actual map geometry");
+                g.save.cold=40;
+                g.Tick(.05f,new Point());
+                Check(g.save.cold<40,
+                    "The completed post-story network actually warms players, not merely displays a ring");
+            }
+            g.save.x=altar.x;g.save.y=altar.y;
+            g.Talk(altar);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="skywatch_afterglow_publish")<0,
+                "A completed public archive cannot pay its final reward again");
+            g.Close();g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.Has("skywatch_afterglow_complete") &&
+                loaded.GetQuest("skywatch_afterglow").complete &&
+                loaded.save.coins==g.save.coins,
+                "Old-version save/restore preserves the afterglow expedition and reward exactly");
+        }
+
         public static void FrostSkywatchChronicleOnlyRevealsObservedEvidence(Campaign data)
         {
             var g=Fresh(data);

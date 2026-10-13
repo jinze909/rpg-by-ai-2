@@ -109,6 +109,7 @@ namespace Starfall.Tests
         [Test] public void CitadelCommonsSentinelsNeedRealPlayerCombat() { CoreChecks.CitadelCommonsSentinelsRequireRealPlayerCombatAndCannotFarm(Data()); }
         [Test] public void CitadelCommonsSecurityUsesDodgeableSurges() { CoreChecks.CitadelCommonsFloorSurgesWarnDodgeAndCleanUp(Data()); }
         [Test] public void CitadelCommonsStoryRevealsOnlyTrueEvidence() { CoreChecks.CitadelCommonsChronicleRevealsTrueProgress(Data()); }
+        [Test] public void AfterglowExpeditionUnlocksPermanentHighlandRefuges() { CoreChecks.AfterglowExpeditionHasRealFieldVisitsRewardsAndWarming(Data()); }
         [Test] public void SkywatchPrismGroundingIsPlayableAndFinite() { CoreChecks.FrostSkywatchPrismGroundingCreatesRealOneUseBossOpening(Data()); }
         [Test] public void FrostSkywatchChronicleRevealsTrueObservations() { CoreChecks.FrostSkywatchChronicleOnlyRevealsObservedEvidence(Data()); }
         [Test] public void FrostSkywatchIsFullNewHighlandStory() { CoreChecks.FrostSkywatchIsPlayableOrderedMysteryWithRealBoss(Data()); }
