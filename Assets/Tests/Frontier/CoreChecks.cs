@@ -1011,8 +1011,8 @@ namespace Starfall.Tests
             }
             GameCore all=new GameCore(data);
             for(int i=0;i<8;i++)all.save.flags.Add("far_courier_"+i);
-            Check(all.GetQuest("far_couriers").complete&&all.FarCourierDeliveredCount==8,
-                "Journal tracks all eight distinct completed parcel runs");
+            Check(!all.GetQuest("far_couriers").complete&&all.FarCourierDeliveredCount==8,
+                "Eight delivered parcels still require formal publication at the existing Inn");
         }
 
         public static void PublicParcelCharterRequiresEveryGenuineDeliveryAndImprovesShelters(Campaign data)
@@ -1046,6 +1046,7 @@ namespace Starfall.Tests
                 "Publishing civic accounts twice never duplicates rewards");
             g.Close();
             g.save.room=0;g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_dial_0"); // a shelter cannot be built without its earlier real calibration
             WorldObject shelter=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
             g.save.x=shelter.x;g.save.y=shelter.y;
             g.save.inventory[0]=3;g.save.health=Math.Max(1,g.save.maxHealth-75);
