@@ -699,6 +699,8 @@ namespace Starfall
             if (kind == "expAltar") { ExpansionAltar(o); return true; }
             if (kind == "council") { CouncilConversation(); return true; }
             if (kind.StartsWith("history")) { ReadHistory(int.Parse(kind.Substring(7))); return true; }
+            if (kind == "abyssCache" || kind == "abyssSurvey")
+            { TalkAbyssAnnex(o); return true; }
             if (kind == "abyssEntry") { OpenAbyssEntrance(); return true; }
             if (kind == "abyssExit") { AbyssExitConversation(); return true; }
             if (kind == "abyssGate") { AbyssGateConversation(); return true; }
@@ -969,22 +971,84 @@ namespace Starfall
             if (Dying || !CanEnter(8) || InAbyss || risk < 0 || risk > 2) return;
             save.abyssFloor = 1; save.abyssRisk = risk; save.abyssSeed = (int)(Random() * 1000000) + 137;
             save.abyssEnemies = null; save.abyssSnapshotFloor = 0;
-            save.runCoins = save.runShards = save.runXp = 0; Array.Clear(save.boons, 0, 3); save.flags.RemoveAll(f => f.StartsWith("abyss_clear_") || f == "boss_8");
+            save.runCoins = save.runShards = save.runXp = 0; Array.Clear(save.boons, 0, 3); save.flags.RemoveAll(f => f.StartsWith("abyss_clear_") ||
+                f.StartsWith("abyss_annex_") || f == "boss_8");
             save.room = 8; GenerateAbyss(); save.x = 5; save.y = 14; ResetTransient(); SpawnRoom(); mode = "world"; revision++;
         }
         private void GenerateAbyss()
         {
             var random = new System.Random(save.abyssSeed + save.abyssFloor * 919);
-            char[][] rows = new char[24][];
-            for (int y = 0; y < 24; y++) { rows[y] = new string('#', 36).ToCharArray(); }
+            char[][] rows = new char[36][];
+            for (int y = 0; y < 36; y++) { rows[y] = new string('#', 54).ToCharArray(); }
             int[,] rooms = { { 3, 4, 8, 16 }, { 13, 3, 9, 18 }, { 25, 4, 8, 16 } };
             for (int i = 0; i < 3; i++) for (int y = rooms[i, 1]; y < rooms[i, 1] + rooms[i, 3]; y++) for (int x = rooms[i, 0]; x < rooms[i, 0] + rooms[i, 2]; x++) rows[y][x] = '.';
             for (int y = 13; y <= 15; y++) for (int x = 2; x < 34; x++) rows[y][x] = '=';
             for (int i = 0; i < 9; i++) { int x = random.Next(13, 22), y = random.Next(4, 20); if (y < 12 || y > 16) rows[y][x] = '#'; }
-            string[] strings = new string[24]; for (int y = 0; y < 24; y++) strings[y] = new string(rows[y]);
+            // The legacy 36x24 boss route retains its exact seeded shape.
+            // Add two annexes and broad accessible connectors outside it.
+            // Old coordinates, boss, enemy snapshots, exit and reward gate
+            // are deliberately unchanged for already-active v2 expeditions.
+            for (int y = 25; y <= 32; y++)
+                for (int x = 7; x <= 24; x++) rows[y][x] = '.';
+            for (int y = 5; y <= 32; y++)
+                for (int x = 37; x <= 50; x++) rows[y][x] = '.';
+            for (int y = 13; y <= 15; y++)
+                for (int x = 32; x <= 44; x++) rows[y][x] = '=';
+            for (int y = 15; y <= 29; y++)
+                for (int x = 43; x <= 45; x++) rows[y][x] = '=';
+            for (int y = 28; y <= 30; y++)
+                for (int x = 16; x <= 44; x++) rows[y][x] = '=';
+            for (int y = 19; y <= 29; y++)
+                for (int x = 14; x <= 16; x++) rows[y][x] = '=';
+            // Seeded side-cave shapes, never placed across either mandatory
+            // connecting corridor or the original battle walkways.
+            for (int i = 0; i < 13; i++)
+            {
+                int x = random.Next(38, 50), y = random.Next(5, 12);
+                if ((x + y) % 3 == 0) rows[y][x] = '#';
+            }
+            rows[28][12] = rows[29][12] = '.';
+            rows[27][47] = rows[28][47] = rows[29][47] = '.';
+            string[] strings = new string[36];
+            for (int y = 0; y < 36; y++) strings[y] = new string(rows[y]);
             abyssMap = new MapData { id = 8, name = "地脉深渊 · 第" + save.abyssFloor + "层", en = "ROOT ABYSS · FLOOR " + save.abyssFloor, color = save.abyssFloor % 2 == 0 ? "#4f576c" : "#425b5c", subtitle = "越深入，越要决定带什么回来。", suben = "Every descent asks what you will carry home.", spawnX = 5, spawnY = 14, rows = strings,
-                objects = new[] { new WorldObject { id = "abyssExit", kind = "abyssExit", name = "放弃本层收益，返回", en = "Leave unbanked loot", x = 3, y = 14 }, new WorldObject { id = "abyssGate", kind = "abyssGate", name = "地脉门 · 祝福与结算", en = "Root gate · boons and banking", x = 31, y = 14 } },
-                decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 } } };
+                objects = new[] { new WorldObject { id = "abyssExit", kind = "abyssExit", name = "放弃本层收益，返回", en = "Leave unbanked loot", x = 3, y = 14 }, new WorldObject { id = "abyssGate", kind = "abyssGate", name = "地脉门 · 祝福与结算", en = "Root gate · boons and banking", x = 31, y = 14 },
+                    new WorldObject { id = "abyssSideSurvey", kind = "abyssSurvey", name = "地脉旧拓片", en = "Root Warden's Lost Rubbing", x = 12.5f, y = 28.5f },
+                    new WorldObject { id = "abyssSideCache", kind = "abyssCache", name = "深层遗落物资", en = "Forgotten Deep Supplies", x = 47.5f, y = 28.5f } },
+                decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 },
+                    new Decoration { kind = "crystal", x = 40, y = 9 },
+                    new Decoration { kind = "ruin", x = 48, y = 15 },
+                    new Decoration { kind = "root", x = 40, y = 24 },
+                    new Decoration { kind = "obelisk", x = 22, y = 26 },
+                    new Decoration { kind = "crystal", x = 8, y = 31 },
+                    new Decoration { kind = "root", x = 35, y = 30 } } };
+        }
+        private void TalkAbyssAnnex(WorldObject o)
+        {
+            if (!InAbyss || Dying || practicing ||
+                (Position - new Point(o.x, o.y)).Length > 2.2f) return;
+            bool cache = o.kind == "abyssCache";
+            string flag = "abyss_annex_" + (cache ? "cache_" : "survey_") + save.abyssFloor;
+            bool first = !Has(flag);
+            if (first)
+            {
+                Flag(flag);
+                if (cache) { save.runCoins += 18; save.runShards += 2; }
+                else save.runXp += 15;
+                revision++; sound = "reward";
+            }
+            Dialog(o.name, o.en,
+                cache ?
+                    "巡路人的补给被冲进第二条地脉岔道。它并没有变成你的永久战利品；只有抵达东侧地脉门并结算，才真正能把物资带回来。" +
+                        (first ? "\\n\\n本层待结算：硬币 +18、碎片 +2。" : "\\n\\n这批补给已经登记。") :
+                    "旧石板记下矿工、船夫和巡路人怎样在星陨之后尝试共享能源。原来洞穴的旧路不止一条。" +
+                        (first ? "\\n\\n本层待结算经验 +15。" : "\\n\\n拓片已在你的临时记录里。"),
+                cache ?
+                    "A warden's field supplies drifted into a new starroot gallery. These are unbanked rewards until you settle the floor at the east gate." +
+                        (first ? "\\n\\nUnbanked: +18 coins, +2 shards." : "\\n\\nAlready recorded.") :
+                    "The rubbing traces how miners, ferrymen and wardens once shared light. The old abyss had more than one road." +
+                        (first ? "\\n\\nUnbanked XP +15." : "\\n\\nRubbing already recorded."),
+                C("收进本层记录", "Keep in floor journal", "close"));
         }
         private void AbyssGateConversation()
         {

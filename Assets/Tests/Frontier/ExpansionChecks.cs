@@ -317,6 +317,46 @@ namespace Starfall.Tests
         { foreach (WorldObject o in g.Map.objects) if (o.kind == "wood" || o.kind == "ore" || o.kind == "herb") g.Talk(o); }
         public static void DistantCampaign(Campaign data)
         { for (int i = 0; i < 3; i++) ShoreRun(data, i, i + 1, i + 1); }
+
+        public static void ExpandedRootAbyssHasRealDetoursAndUnbankedRewards(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.save.frontierEnding=1;
+            g.StartAbyss(0);
+            Check(g.InAbyss&&g.Map.rows.Length==36&&g.Map.rows[0].Length==54,
+                "Every newly generated abyss floor has expanded playable galleries");
+            WorldObject cache=null,survey=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.kind=="abyssCache")cache=o;
+                if(o.kind=="abyssSurvey")survey=o;
+            }
+            Check(cache!=null&&survey!=null&&g.CanStand(new Point(cache.x,cache.y))&&
+                g.CanStand(new Point(survey.x,survey.y)),
+                "Both real annex points are reachable standable world objects");
+            int startCoins=g.save.coins,startShards=g.save.shards;
+            g.save.x=survey.x;g.save.y=survey.y;
+            int startRunXp=g.save.runXp;g.Talk(survey);
+            Check(g.save.runXp==startRunXp+15,"Survey awards unbanked experience only");
+            g.Close();g.Talk(survey);g.Close();
+            Check(g.save.runXp==startRunXp+15,"Abyss survey cannot mint XP twice");
+            g.save.x=cache.x;g.save.y=cache.y;
+            int runCoins=g.save.runCoins,runShards=g.save.runShards;
+            g.Talk(cache);
+            Check(g.save.runCoins==runCoins+18&&g.save.runShards==runShards+2&&
+                g.save.coins==startCoins&&g.save.shards==startShards,
+                "New cache follows the actual expedition banking rules");
+            g.Close();
+            GameCore reloaded=new GameCore(data,g.save);
+            Check(reloaded.InAbyss&&reloaded.save.version==2&&
+                reloaded.Map.rows.Length==36&&reloaded.Map.rows[0].Length==54&&
+                reloaded.Has("abyss_annex_cache_1")&&reloaded.save.runCoins==g.save.runCoins,
+                "Legacy v2 mid-expedition save restores expanded geometry and pending loot");
+            reloaded.StartAbyss(1);
+            Check(reloaded.save.runCoins==g.save.runCoins,
+                "Cannot restart another expedition while already in the abyss");
+        }
+
         public static void AbyssExpeditions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
