@@ -205,6 +205,11 @@ namespace Starfall.Tests
             Check(!g.GetQuest("skywatch_afterglow").locked &&
                 !g.GetQuest("skywatch_afterglow").complete,
                 "Publishing the original skywatch opens a distinct playable aftermath");
+            WorldObject yilan=Object(g,"skywatcher");
+            g.save.x=yilan.x;g.save.y=yilan.y;
+            Action(g,"skywatcher","skywatch_afterglow_track");
+            Check(g.save.trackedQuest=="skywatch_afterglow",
+                "The original astronomer introduces and tracks the new expedition through real dialogue");
             g.Enter(7);g.enemies.Clear();
             WorldObject altar=Object(g,"skyobservatory");
             int coins=g.save.coins,shards=g.save.shards;
