@@ -713,6 +713,80 @@ namespace Starfall.Tests
                 !g.enemies.Exists(e=>e.id==id+1),
                 "Despawning a live attacker cannot forge a successful defensive kill");
         }
+        public static void ThreeCompletedFieldServicesPublishRealNetworkRecovery(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("exp_intro");
+            g.save.flags.Add("harbor_report");
+            g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("far_refuge_guest_record");
+            g.save.flags.Add("far_courier_0");
+            g.save.flags.Add("civic_supply_clinic_0");
+            g.save.flags.Add("civic_supply_watch_3");
+            g.save.flags.Add("civic_supply_clinic_5");
+            g.save.flags.Add("far_shelter_5");
+            g.save.flags.Add("civic_response_done_0");
+            g.save.flags.Add("civic_response_done_3");
+            g.save.level=30;
+            g.Enter(5);g.enemies.Clear();
+            var refuge=Object(g,"farshelter");
+            var check=Object(g,"farcheck");
+            g.save.x=refuge.x;g.save.y=refuge.y;
+            Action(g,"farshelter","civic_response_start");
+            for(int i=0;i<210&&g.CivicResponseActive&&
+                g.Position.y>check.y+1.15f;i++)
+                g.Tick(.05f,new Point(0,-1));
+            Check(g.CivicResponseClinicRun&&g.Position.y<check.y+1.3f,
+                "Third district must still physically deliver its medical supplies");
+            int talent=g.save.skillPoints,coins=g.save.coins,shards=g.save.shards;
+            Action(g,"farcheck","civic_response_deliver");
+            Check(g.CivicResponseDoneCount==3&&
+                g.Has("civic_response_all")&&g.save.skillPoints==talent+1&&
+                g.save.coins==coins+24&&g.save.shards==shards+1,
+                "The three authentic service completions grant precisely one all-region talent");
+            Check(!g.GetQuest("civic_services").complete&&
+                g.GetQuest("civic_services").room==9,
+                "After three field victories players must still publish the real guest ledger");
+            g.Enter(9);g.enemies.Clear();
+            var guest=Object(g,"farrefugerecord");
+            g.save.x=guest.x;g.save.y=guest.y;
+            g.Talk(guest);
+            Check(Array.Exists(g.conversation.choices,
+                c=>c.action=="civic_response_ledger"),
+                "Hearth Inn's true registry offers publishing only after three completed trials");
+            int ledgerCoins=g.save.coins,ledgerShards=g.save.shards;
+            Action(g,"farrefugerecord","civic_response_ledger");
+            Check(g.Has("civic_response_ledger")&&
+                g.GetQuest("civic_services").complete&&
+                g.save.coins==ledgerCoins+40&&g.save.shards==ledgerShards+2,
+                "Publication is a physical, separate, one-time reward with permanent world consequences");
+            g.Talk(guest);
+            Check(!Array.Exists(g.conversation.choices,
+                c=>c.action=="civic_response_ledger"),
+                "Published response ledger cannot be rewarded twice");
+            g.Close();g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.GetQuest("civic_services").complete&&
+                loaded.Has("civic_response_ledger")&&loaded.CivicResponseDoneCount==3,
+                "Entire chapter-nine field-service epilogue survives original SaveData v2 reload");
+            g.save.flags.Add("far_shelter_1");
+            g.Enter(1);g.enemies.Clear();
+            refuge=Object(g,"farshelter");
+            g.save.x=refuge.x;g.save.y=refuge.y;
+            g.save.health=40;
+            g.save.flags.Remove("civic_response_ledger");g.hitStop=0;
+            g.Tick(.05f,new Point());
+            float baseline=g.save.health-40;
+            g.save.flags.Add("civic_response_ledger");
+            g.save.health=40;g.hitStop=0;
+            g.Tick(.05f,new Point());
+            float upgraded=g.save.health-40;
+            Check(upgraded>baseline+.025f,
+                "The published report genuinely heals at all rebuilt refuges, not only three named clinics");
+            g.save.x=refuge.x+9;g.save.y=refuge.y;
+            g.save.health=40;g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.save.health-40<upgraded,
+                "Shared care cannot remotely heal a traveler far away from a physical refuge");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
