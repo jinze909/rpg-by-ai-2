@@ -909,12 +909,8 @@ namespace Starfall
                 if (save.room == 4 && LocalCeasefireEligible)
                 {
                     Dialog(b.name,b.en,
-                        "厄洛低头看着三份原始星核账、三位居民签署的证词，还有莱娜、伊恩、奥姆刚刚回到灯下的避难名单。你没有要求他让城市在黑暗里等待。
-
-“如果你真的能把三个星核供给接入公共避难所，也说服了镇民共同维护，那么我愿意停止这道旧指令。但决定权必须归还给活着的人。”",
-                        "Orrin reads the original core audit, three signed civilian testimonies, and the emergency roster of Lena, Ian and Orme. You did not ask his children to wait alone in darkness.
-
-“If you can keep the cores serving shared shelters, and the townspeople will maintain them, I can retire this obsolete order. The decision must return to those living with its cost.”",
+                        "厄洛低头看着三份原始星核账、三位居民签署的证词，还有莱娜、伊恩、奥姆刚刚回到灯下的避难名单。你没有要求他让城市在黑暗里等待。\n\n“如果你真的能把三个星核供给接入公共避难所，也说服了镇民共同维护，那么我愿意停止这道旧指令。但决定权必须归还给活着的人。”",
+                        "Orrin reads the original core audit, three signed civilian testimonies, and the emergency roster of Lena, Ian and Orme. You did not ask his children to wait alone in darkness.\n\n“If you can keep the cores serving shared shelters, and the townspeople will maintain them, I can retire this obsolete order. The decision must return to those living with its cost.”",
                         C("出示撤离名单与同伴承诺 · 民用停战",
                             "Present evacuation roster and allied support · civilian ceasefire","blackout_ceasefire"),
                         C("仍然挑战统领","Fight Orrin","boss"),

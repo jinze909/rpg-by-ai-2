@@ -38,7 +38,7 @@ namespace Starfall
         private bool BlackoutCitizenSaved(int id)
         { return (blackoutRescued & (1<<(id-1)))!=0; }
         public bool BlackoutCivilianVisible(int id)
-        { return save.room==4 && !BlackoutCitizenSaved(id) && blackoutFollowing!=id; }
+        { return save.room==4 && !Has("blackout_complete") && !BlackoutCitizenSaved(id) && blackoutFollowing!=id; }
         private bool TalkBlackout(WorldObject o)
         {
             bool shelter=o.kind=="blackoutshelter";
@@ -73,15 +73,18 @@ namespace Starfall
                     int id=blackoutFollowing;
                     if((blackoutFollowerPosition-Position).Length>2.3f)
                     {
-                        Notify("居民还没跟上！回去接应后再交给避难所。",
-                            "Your civilian is too far behind. Rejoin them before delivering to shelter.");
-                        return true;
+                        Dialog(o.name,o.en,
+                            "居民落在了屏障闪电里，必须回头接应才能交接；也可以从这里取消本轮撤离并重试。",
+                            "Your civilian is still in danger. Go back and lead them here, or cancel this attempt and retry.",
+                            C("返回接应居民","Go back for the civilian","close"),
+                            C("放弃本轮并重试","Abort attempt and retry","blackout_abort"));return true;
                     }
                     Dialog(o.name,o.en,
                         "居民已走到备用灯下。登记姓名，交由避难所照顾；然后出发寻找其余失联者。",
                         "The civilian reached the emergency lamps. Register their name at the shelter before searching for the others.",
                         C("安全交接这名居民","Safely hand over civilian","blackout_deliver_"+id),
-                        C("继续同行","Keep escorting","close"));return true;
+                        C("继续同行","Keep escorting","close"),
+                        C("放弃本轮救援","Abort this attempt","blackout_abort"));return true;
                 }
                 if(blackoutRescued==7)
                 {
