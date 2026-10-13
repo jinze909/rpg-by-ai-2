@@ -194,5 +194,43 @@ namespace Starfall.Tests
                 "The same skill can be used normally after the player has rested");
         }
 
+        public static void CombatCannotBeSkippedThroughInnHealing(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.x=18;g.save.y=15;
+            var inn=Object(g,"rest");
+            g.save.health=18;g.save.energy=11;
+            float time=g.save.totalTime;
+            var near=new Enemy(9119,0,g.save.x+1,g.save.y,40);
+            g.enemies.Add(near);
+            g.Talk(inn);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rest")<0,
+                "Inn menu refuses to advertise free healing while enemies are within the safe-travel radius");
+            g.Close();
+            g.conversation=new Conversation("旅店","Inn","休息","Rest",
+                new Choice("休息","Rest","rest"));g.mode="dialog";g.Choose(0);
+            Check(g.save.health==18&&g.save.energy==11&&g.save.totalTime==time,
+                "A stale rest command cannot heal during combat or skip world time");
+            g.enemies.Clear();
+            var arrow=new Projectile{position=g.Position+new Point(1,0),
+                velocity=new Point(-5,0),friendly=false,damage=10,life=2};
+            g.projectiles.Add(arrow);
+            g.Talk(inn);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rest")<0,
+                "An incoming hostile arrow is also a real rest interruption");
+            g.Close();
+            g.projectiles.Clear();
+            g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);
+            g.save.energy=100;g.CommandCompanion();
+            Check(g.companionAction!=null,"A real companion cast is awaiting release");
+            Action(g,"rest","rest");
+            Check(g.save.totalTime==time+45&&g.save.health==g.save.maxHealth&&
+                  g.save.energy==100&&g.companionAction==null,
+                "Clearing combat restores normal rest and cancels obsolete companion spell release");
+        }
+
     }
 }

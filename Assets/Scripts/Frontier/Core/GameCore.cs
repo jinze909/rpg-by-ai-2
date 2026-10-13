@@ -1035,11 +1035,15 @@ namespace Starfall
             {
                 // Completing an actual timed escort must not allow a free
                 // 45-second world jump without advancing the mission clock.
-                if (FieldWorkPreventsRest)
+                if (FieldWorkPreventsRest || !SafeTravel)
                 {
                     Dialog(o.name, o.en,
-                        "仍有现场救援、调谐或运送行动进行中。先完成或到原处主动取消，再来炉火旁休息。",
-                        "A field rescue, circuit or delivery is still active. Finish it or explicitly abort at its original station before resting.",
+                        FieldWorkPreventsRest ?
+                            "仍有现场救援、调谐或运送行动进行中。先完成或到原处主动取消，再来炉火旁休息。" :
+                            "敌人或攻击仍在附近！确认周围安全后，才可以安心休息。",
+                        FieldWorkPreventsRest ?
+                            "A field rescue, circuit or delivery is active. Finish or abort it at the station before resting." :
+                            "Hostiles or incoming attacks are too close. Clear the area before resting.",
                         C("继续现场行动", "Return to field duty", "close"));
                     return;
                 }
@@ -1164,10 +1168,10 @@ namespace Starfall
             if (action == "routes") { Talk(data.maps[0].objects[5]); return; }
             if (action == "rest")
             {
-                if (FieldWorkPreventsRest)
+                if (FieldWorkPreventsRest || !SafeTravel)
                 {
-                    Notify("先完成或明确取消正在进行的现场任务，才能安全休息。",
-                        "Finish or explicitly cancel the active field mission before resting.");
+                    Notify("请先完成现场任务并清除周围敌人或攻击，再安全休息。",
+                        "Finish active fieldwork and clear nearby threats before resting.");
                     return;
                 }
                 save.health = save.maxHealth; save.energy = 100; save.totalTime += 45;
@@ -1177,6 +1181,8 @@ namespace Starfall
                 CancelAction();
                 attackCooldown = dashCooldown = skillCooldown = dashTime = 0;
                 companionCooldown = companionAttack = 0;
+                companionAction = null;
+                ClearFrost();
                 combo = 0; comboTimer = riposteTime = 0;
                 guardTime = playerHitTime = hitStop = 0;
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
