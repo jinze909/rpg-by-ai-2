@@ -318,7 +318,7 @@
         {
           "id": "waytrail0s",
           "name": "南方遗失的坐标",
-          "en": "余烬镇外的水渠 · Southern trace",
+          "en": "Southern canal bearing · EMBERFALL",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
@@ -793,7 +793,7 @@
         {
           "id": "waytrail1s",
           "name": "树根下的手记",
-          "en": "密林苔岩小径 · Southern trace",
+          "en": "Rootbound survey note · THORNWOOD",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
@@ -1290,7 +1290,7 @@
         {
           "id": "waytrail2s",
           "name": "沉桥旁的刻度",
-          "en": "潮没的侧岸 · Southern trace",
+          "en": "Drowned bridge tally · DROWNED RUINS",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
@@ -1803,7 +1803,7 @@
         {
           "id": "waytrail3s",
           "name": "井道旁的休工令",
-          "en": "矿渣旧运道 · Southern trace",
+          "en": "Miners' safety marker · IRONREACH",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
@@ -2259,7 +2259,7 @@
         {
           "id": "waytrail4s",
           "name": "旧避难路线",
-          "en": "堡垒外环步道 · Southern trace",
+          "en": "Hidden evacuation slope · STARFALL CITADEL",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
@@ -2772,7 +2772,7 @@
         {
           "id": "waytrail5s",
           "name": "礁间补给记录",
-          "en": "雾港避潮栈道 · Southern trace",
+          "en": "Lost supply register · MISTPORT",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
@@ -3165,7 +3165,7 @@
         {
           "id": "waytrail6s",
           "name": "遮阴路引",
-          "en": "沙海玻璃丘 · Southern trace",
+          "en": "Oasis shade direction · GLASS DESERT",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
@@ -3552,7 +3552,7 @@
         {
           "id": "waytrail7s",
           "name": "余温路标",
-          "en": "霜钟背风山径 · Southern trace",
+          "en": "Last warm trail sign · FROSTCHIME",
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5

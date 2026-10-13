@@ -85,22 +85,23 @@ namespace Starfall.Tests
             {
                 g.save.stage = 3; g.save.flags.Add("seal_" + room); g.Enter(room);
                 var queue = new Queue<int>(); var seen = new HashSet<int>();
-                int start = (int)g.save.y * 36 + (int)g.save.x; queue.Enqueue(start); seen.Add(start);
+                int width = g.Map.rows[0].Length, height = g.Map.rows.Length;
+                int start = (int)g.save.y * width + (int)g.save.x; queue.Enqueue(start); seen.Add(start);
                 while (queue.Count > 0)
                 {
-                    int cell = queue.Dequeue(), x = cell % 36, y = cell / 36;
+                    int cell = queue.Dequeue(), x = cell % width, y = cell / width;
                     int[,] offsets = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
                     for (int i = 0; i < 4; i++)
                     {
-                        int xx = x + offsets[i, 0], yy = y + offsets[i, 1], next = yy * 36 + xx;
-                        if (xx < 0 || xx >= 36 || yy < 0 || yy >= 24 || g.Blocked(xx + .5f, yy + .5f) || seen.Contains(next)) continue;
+                        int xx = x + offsets[i, 0], yy = y + offsets[i, 1], next = yy * width + xx;
+                        if (xx < 0 || xx >= width || yy < 0 || yy >= height || g.Blocked(xx + .5f, yy + .5f) || seen.Contains(next)) continue;
                         seen.Add(next); queue.Enqueue(next);
                     }
                 }
                 foreach (var o in g.Map.objects)
                 {
                     bool reachable = false;
-                    foreach (int cell in seen) if ((new Point(cell % 36 + .5f, cell / 36 + .5f) - new Point(o.x, o.y)).Length < 1.7f) { reachable = true; break; }
+                    foreach (int cell in seen) if ((new Point(cell % width + .5f, cell / width + .5f) - new Point(o.x, o.y)).Length < 1.7f) { reachable = true; break; }
                     Check(reachable, "Unreachable object in room " + room + ": " + o.id);
                 }
             }
@@ -211,7 +212,17 @@ namespace Starfall.Tests
                 "Rereading a waypoint never duplicates rewards");
             SaveData stored = game.save;
             Check(stored.version == 2, "Waypoint flags must not alter SaveData version");
+            // Annex fog has independent 6x6 flags; legacy 24-bit interior
+            // exploration remains unchanged after the world expands.
+            game.Close();
+            game.save.x = 14.5f; game.save.y = 30.5f;
+            Check(!game.Explored(0, 14, 30), "Unknown annex stays fogged before walking there");
+            game.Tick(.02f, new Point());
+            Check(game.Explored(0, 14, 30) && !game.Explored(0, 47, 23),
+                "Visiting one annex must not reveal the distant eastern branch");
             GameCore loaded = new GameCore(data, stored);
+            Check(loaded.Explored(0, 14, 30) && !loaded.Explored(0, 47, 23),
+                "Annex exploration persists in existing save string flags");
             Check(loaded.Has("waytrail_waytrail0s") &&
                 loaded.save.coins == coins + 8 && loaded.save.shards == shards + 1,
                 "Waypoint discovery and rewards survive a normal save reload");

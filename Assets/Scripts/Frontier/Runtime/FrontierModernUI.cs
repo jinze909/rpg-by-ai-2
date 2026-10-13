@@ -122,7 +122,7 @@ namespace Starfall
             if(cooldown>0) Bar(x+4,y+h-3,w-8,1-cooldown/Math.Max(.01f,duration),gold,2);
             if(hit) act();
         }
-        private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrain(1024, 42, 6); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
+        private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrain(1024, 42, Mathf.Min(216f / Game.Map.rows[0].Length, 135f / Game.Map.rows.Length)); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
         private void MiniTerrain(float x0, float y0, float size)
         {
             for (int y = 0; y < Game.Map.rows.Length; y++) for (int x = 0; x < Game.Map.rows[y].Length; x++) { char t = Game.Map.rows[y][x]; Color c = t == '~' || t == '%' && !Game.LowTide ? PixelArt.C("#315c76") : t == '#' ? PixelArt.C("#566879") : t == '=' ? PixelArt.C("#a09877") : PixelArt.C(Game.Map.color); Box(x0 + x * size, y0 + y * size, size, size, Game.Explored(Game.save.room, x, y) ? c : Color.Lerp(c, ink, .68f)); }
@@ -240,7 +240,23 @@ namespace Starfall
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i)) selectedRegion = i; }
             if (Game.save.room == 9 && Button(279, 657, 555, 31, Game.L("查看当前位置：炉火旅店", "Current room: Hearth Inn"), selectedRegion == 9)) selectedRegion = 9;
             Card(866, 178, 351, 510); MapData m = Game.data.maps[selectedRegion]; Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
-            if (selectedRegion == Game.save.room) MiniTerrain(888, 264, 8.4f); else { for (int y = 0; y < m.rows.Length; y++) for (int x = 0; x < m.rows[y].Length; x++) { char t = m.rows[y][x]; Box(888 + x * 8.4f, 264 + y * 8.4f, 8.4f, 8.4f, t == '~' ? PixelArt.C("#365f78") : t == '#' ? PixelArt.C("#586d79") : t == '=' ? PixelArt.C("#aaa17e") : PixelArt.C(m.color)); } QuestGuide q = Game.CurrentGuide; if (q.room == selectedRegion && !q.complete) Box(888 + q.target.x * 8.4f - 3, 264 + q.target.y * 8.4f - 3, 7, 7, gold); }
+            float terrainScale = Mathf.Min(306f / m.rows[0].Length, 207f / m.rows.Length);
+            if (selectedRegion == Game.save.room) MiniTerrain(888, 264, terrainScale);
+            else
+            {
+                for (int y = 0; y < m.rows.Length; y++)
+                    for (int x = 0; x < m.rows[y].Length; x++)
+                    {
+                        char t = m.rows[y][x];
+                        Box(888 + x * terrainScale, 264 + y * terrainScale, terrainScale, terrainScale,
+                            t == '~' ? PixelArt.C("#365f78") : t == '#' ? PixelArt.C("#586d79") :
+                            t == '=' ? PixelArt.C("#aaa17e") : PixelArt.C(m.color));
+                    }
+                QuestGuide q = Game.CurrentGuide;
+                if (q.room == selectedRegion && !q.complete)
+                    Box(888 + q.target.x * terrainScale - 3,
+                        264 + q.target.y * terrainScale - 3, 7, 7, gold);
+            }
             Text(888, 492, 306, 101, Game.CanEnter(selectedRegion) ? Game.L(m.subtitle, m.suben) : Game.RouteHint(selectedRegion, Game.save.english), 16, muted);
             bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
             if (Button(888, 616, 306, 47,

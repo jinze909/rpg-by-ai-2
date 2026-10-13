@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -37,9 +37,23 @@ namespace Starfall
             if (save.tutorialDistance >= 3) TutorialAction(0); if (save.room == 1) TutorialAction(7);
             int bit = 1 << Sector(save.x, save.y);
             if ((save.explored[save.room] & bit) == 0) { save.explored[save.room] |= bit; revision++; }
+            // Preserve all legacy 36x24 fog bits. Annex discoveries use the
+            // existing string flags instead of widening the SaveData v2 schema.
+            if (save.room < 8 && (save.x >= 36 || save.y >= 24))
+            {
+                string key = AnnexSectorKey(save.room, save.x, save.y);
+                if (!Has(key)) { save.flags.Add(key); revision++; }
+            }
         }
         private static int Sector(float x, float y) { return (int)Clamp(x / 6, 0, 5) + (int)Clamp(y / 6, 0, 3) * 6; }
-        public bool Explored(int room, float x, float y) { return (save.explored[room] & (1 << Sector(x, y))) != 0; }
+        private static string AnnexSectorKey(int room, float x, float y)
+        { return "annex_seen_" + room + "_" + (int)Math.Floor(x / 6) + "_" + (int)Math.Floor(y / 6); }
+        public bool Explored(int room, float x, float y)
+        {
+            if (room >= 0 && room < 8 && (x >= 36 || y >= 24))
+                return Has(AnnexSectorKey(room, x, y));
+            return (save.explored[room] & (1 << Sector(x, y))) != 0;
+        }
         public void TrackQuest(string id)
         { if (Array.IndexOf(QuestIds, id) < 0 || GetQuest(id).locked) return; save.trackedQuest = id; save.frontierFocus = id == "shore"; TutorialAction(2); revision++; }
         private Point ObjectPoint(int room, string kind, Point fallback)
@@ -59,6 +73,53 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
 
+
+
+            if (id == "waytrails")
+            {
+                q.title = L("巡路队的十六道回声", "Sixteen Echoes of the Roadwardens");
+                q.category = L("探索地图 · 旧路", "EXPLORATION · OLD ROADS");
+                q.description = L(
+                    "每片室外区域有南部与东部两处旧路石碑。寻找路标、读懂留下的证词；所有发现会保存在原有的旅行记录中。",
+                    "Every outdoor region hides one southern trace and one eastern lookout. Discover the roadwardens' testimony; each survey is kept in your existing travel record.");
+                q.complete = Has("waytrail_complete");
+                q.locked = !Has("intro");
+                int inner = 0, outer = 0, destination = -1;
+                WorldObject nextMarker = null;
+                for (int room = 0; room < 8; room++)
+                {
+                    string suffix = "";
+                    for (int branch = 0; branch < 2; branch++)
+                    {
+                        string mark = "waytrail" + room + (branch == 0 ? "s" : "e");
+                        if (Has("waytrail_" + mark))
+                        {
+                            if (room < 4) inner++; else outer++;
+                        }
+                        else if (destination < 0 && CanEnter(room))
+                        {
+                            destination = room;
+                            foreach (WorldObject o in data.maps[room].objects)
+                                if (o.id == mark) { nextMarker = o; break; }
+                        }
+                    }
+                }
+                q.steps.Add(new QuestStep(L("近境路标 ", "Inner routes ") + inner + "/8", inner == 8));
+                q.steps.Add(new QuestStep(L("远岸路标 ", "Farshore routes ") + outer + "/8", outer == 8));
+                q.steps.Add(new QuestStep(L("修复十六道坐标", "Restore all sixteen bearings"), q.complete));
+                q.room = destination < 0 ? 0 : destination;
+                q.target = nextMarker == null ? new Point(14.5f, 31.5f)
+                    : new Point(nextMarker.x, nextMarker.y);
+                q.next = q.complete ? L("十六道旧路均已记录；可返回任何石碑重读",
+                    "All sixteen routes charted; revisit any marker to reread") :
+                    destination < 0 ? L("完成前置地区的调查，解锁余下路线",
+                        "Complete earlier regional stories to unlock the remaining routes") :
+                    L("前往新支路，调查尚未记录的旧路石碑",
+                        "Explore a new branch and read its uncharted waypoint");
+                q.reward = L("每处首次发现：8硬币、1碎片；全16处再得1技能点",
+                    "Each first discovery: 8 coins, 1 shard; all 16: +1 talent point");
+                return q;
+            }
 
             if (id == "relief_rescue")
             {
