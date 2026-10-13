@@ -168,6 +168,42 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="ironfoundry")
+            {
+                bool done=Game.Has("iron_temper_complete");
+                Color tint=done?mint:Game.TemperActive?PixelArt.C("#e3a66b"):gold;
+                PropImage("lighthouse",0,p.x-32,p.y-70,64,77,done?Color.white:muted);
+                Ring(new Point(o.x,o.y),Game.TemperActive?1.1f:.6f,tint,22);
+                Text(p.x-70,p.y-91,140,22,done?
+                    Game.L("公共回火工房","PUBLIC FOUNDRY"):
+                    Game.L("旧矿场锻炉","OLD FOUNDRY"),
+                    12,tint,TextAnchor.MiddleCenter);
+                if(Game.TemperActive)
+                {
+                    Bar(p.x-42,p.y+10,84,Game.TemperPressure/95f,tint,7);
+                    Text(p.x-70,p.y-112,140,19,
+                        Game.TemperTime.ToString("0")+"s · "+
+                        Game.TemperPressure.ToString("0")+"/95",11,tint,
+                        TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
+            if(kind=="ironvent1" || kind=="ironvent2")
+            {
+                int stage=kind=="ironvent1"?1:2;
+                bool done=Game.Has("iron_temper_complete") ||
+                    Game.TemperActive && Game.TemperStage>stage;
+                bool next=Game.TemperActive && Game.TemperStage==stage;
+                Color tint=done?mint:next?PixelArt.C("#f3ad75"):muted;
+                PropImage("post",0,p.x-25,p.y-59,50,65,done?Color.white:muted);
+                Ring(new Point(o.x,o.y),next?.85f:.42f,tint,20);
+                Text(p.x-67,p.y-79,134,20,
+                    done?Game.L("管线已降温","PRESSURE RELEASED"):
+                    next?Game.L("击败守卫，手动泄压","CLEAR GUARDS · VENT"):
+                    Game.L("封锁的散热管","LOCKED COOLANT"),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="glasswindkeeper")
             {
                 DrawNpc("innGuest",new Point(o.x,o.y),9);

@@ -125,6 +125,7 @@ namespace Starfall
             TickSkywatch(dt);
             TickGlasswind(dt);
             TickTideSalvage(dt);
+            TickTemper(dt);
             actionHintTimer = Math.Max(0, actionHintTimer - dt);
             // Permanent quest mutations increment revision; tablet progress is
             // transient. Do not rebuild two language journals every idle frame.
@@ -204,6 +205,7 @@ namespace Starfall
             if (TalkSkywatch(o)) return true;
             if (TalkGlasswind(o)) return true;
             if (TalkTideSalvage(o)) return true;
+            if (TalkTemper(o)) return true;
             if (TalkWayfarer(o)) return true;
             if (TalkRoadwardenCipher(o)) return true;
 
@@ -286,6 +288,7 @@ namespace Starfall
             if (ChooseSkywatch(action)) return true;
             if (ChooseGlasswind(action)) return true;
             if (ChooseTideSalvage(action)) return true;
+            if (ChooseTemper(action)) return true;
             if (action == "farshore_relief_routes")
             {
                 if (save.room != 9 || !Has("farshore_relief_complete")) return true;
@@ -393,7 +396,7 @@ namespace Starfall
                 // them as ordinary world patrols.
                 if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e) ||
                     IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e)) continue;
+                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();
@@ -410,6 +413,7 @@ namespace Starfall
                     r.id == 83001 || r.id == 89701 ||
                     (r.id >= 89810 && r.id < 89900) ||
                     (r.id >= 89920 && r.id < 89930) ||
+                    (r.id >= 89940 && r.id < 89950) ||
                     !ids.Add(r.id) || !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0 || r.boss && Has("boss_" + save.room)) continue;
                 Point p = SafeActorFoot(new Point(r.x, r.y));
                 var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, Clamp(r.maxHp, 1, 5000), r.boss); e.hp = Clamp(r.hp, .1f, e.maxHp); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);

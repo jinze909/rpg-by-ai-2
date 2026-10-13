@@ -1157,6 +1157,30 @@
           "en": "Ironreach vibration hub",
           "x": 24.5,
           "y": 16.5
+        },
+        {
+          "id": "ironfoundry",
+          "kind": "ironfoundry",
+          "name": "赤铁回火工房",
+          "en": "Ironreach Temper Foundry",
+          "x": 20.5,
+          "y": 16.5
+        },
+        {
+          "id": "ironvent1",
+          "kind": "ironvent1",
+          "name": "西北泄压阀",
+          "en": "Northwest Pressure Valve",
+          "x": 12.5,
+          "y": 8.5
+        },
+        {
+          "id": "ironvent2",
+          "kind": "ironvent2",
+          "name": "东侧散热阀",
+          "en": "Eastern Cooling Valve",
+          "x": 27.5,
+          "y": 10.5
         }
       ],
       "decor": [

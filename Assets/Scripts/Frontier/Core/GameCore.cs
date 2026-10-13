@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper();
         }
         public void NewGame(int profession)
         {
@@ -202,6 +202,12 @@ namespace Starfall
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
+            if (TemperActive)
+            {
+                Notify("工房仍在过热运行。先返回锻炉结束或安全停机。",
+                    "The foundry is still active. Finish or safely shut it down at the furnace before traveling.");
+                return;
+            }
             if (TideSalvageActive)
             {
                 Notify("打捞行动还在进行，先回码头交付或放弃货物。",
@@ -425,7 +431,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }
@@ -652,7 +658,7 @@ namespace Starfall
         private void Fire(Enemy e, Point dir, float speed)
         { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
-                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -668,7 +674,7 @@ namespace Starfall
                 { projectiles.Remove(p); effects.Add(new Effect("projectileFade", p.position, .25f) {
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned,
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned }); continue; }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
                 bool dead = p.blockedAtSpawn || ShotBlocked(p,p.position); float impactRadius = 0;
@@ -716,13 +722,13 @@ namespace Starfall
                     effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
                         variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
-                        reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned,
+                        reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned });
                 else if (p.life <= 0 && projectiles.Remove(p))
                     effects.Add(new Effect("projectileFade", p.position, .25f) {
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned,
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned });
             }
             tickingProjectiles.Clear();
@@ -808,7 +814,7 @@ namespace Starfall
             }
             if (kind == "forge")
             {
-                List<Choice> list = new List<Choice> { C("强化装备 · 木3 晶2 零件2", "Upgrade · 3 timber / 2 crystal / 2 parts", "upgrade"), C("制作猎弓 · 木4 零件2", "Craft bow · 4 timber / 2 parts", "bow"), C("制作星火杖 · 晶4 零件3", "Craft staff · 4 crystal / 3 parts", "staff") };
+                List<Choice> list = new List<Choice> { C("强化装备 · 木"+TemperUpgradeTimber+" 晶"+TemperUpgradeCrystal+" 零件"+TemperUpgradeParts, "Upgrade · "+TemperUpgradeTimber+" timber / "+TemperUpgradeCrystal+" crystal / "+TemperUpgradeParts+" parts", "upgrade"), C("制作猎弓 · 木4 零件2", "Craft bow · 4 timber / 2 parts", "bow"), C("制作星火杖 · 晶4 零件3", "Craft staff · 4 crystal / 3 parts", "staff") };
                 if (!Has("ally_3")) list.Add(C("支线：交付零件 ×5", "Commission: deliver 5 parts", "ally3"));
                 list.Add(C("再见", "Goodbye", "close"));
                 Dialog(o.name, o.en, "短剑快，猎弓远，法杖能让星火在敌人间爆开。强化装备提升生命与攻击。\n\n我还需要五个零件修好镇里的水泵。堡垒里有那么多机器，小镇却没有一口能用的井。", "Swords are quick, bows reach far, and staves burst starfire between enemies. Upgrades improve health and damage.\n\nI also need five parts to repair our water pump. So many machines in the citadel, and no working well in town.", list.ToArray()); return;
@@ -914,7 +920,7 @@ namespace Starfall
             if (action == "upgrade")
             {
                 if (save.upgrades >= 5) { Notify("装备已经满级。", "Your equipment is fully upgraded."); return; }
-                if (Spend(3, 2, 0, 0, 2)) { save.upgrades++; save.maxHealth += 20; save.health = save.maxHealth; Notify("强化：最大生命 +20，攻击 +4。", "Upgraded: +20 maximum health, +4 damage."); sound = "reward"; }
+                if (Spend(TemperUpgradeTimber, TemperUpgradeCrystal, 0, 0, TemperUpgradeParts)) { save.upgrades++; save.maxHealth += 20; save.health = save.maxHealth; Notify("强化：最大生命 +20，攻击 +4。", "Upgraded: +20 maximum health, +4 damage."); sound = "reward"; }
             }
             if (action == "bow" || action == "staff")
             {

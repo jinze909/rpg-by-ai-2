@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "iron_temper", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -152,6 +152,42 @@ namespace Starfall
                 return q;
             }
 
+
+
+            if (id == "iron_temper")
+            {
+                q.title=L("余烬回火","Ember Temper");
+                q.category=L("矿场高温管线 · 真实战斗与压力控制",
+                    "FOUNDRY PRESSURE · LIVE COMBAT & VENTS");
+                q.locked=!Has("boss_3");
+                q.description=L("矿场的军用锻炉将矿工锁在永不停止的热压循环中。击退真实守卫，在110秒与95压力上限内打开西北及东侧两座泄压阀，躲避延迟蒸汽冲击，战胜重装监工，返回主炉公开回火配方。",
+                    "The military furnace trapped miners in an endless pressure cycle. Clear real enemy waves, open both vents below 95 pressure in 110 seconds, dodge delayed steam bursts, defeat the armored overseer, then return to publish the temper recipe.");
+                q.steps.Add(new QuestStep(L("排除锻炉首批守卫，打开西北阀",
+                    "Defeat guards and release northwest vent"),
+                    Has("iron_temper_complete") || TemperStage>=2));
+                q.steps.Add(new QuestStep(L("击退增援，打开东侧泄压阀",
+                    "Defeat reinforcements and open east vent"),
+                    Has("iron_temper_complete") || TemperStage>=3));
+                q.complete=Has("iron_temper_complete");
+                q.steps.Add(new QuestStep(L("击败重装监工并向工房交付配方",
+                    "Defeat armored overseer and publish the recipe"),q.complete));
+                q.room=3;
+                q.target=TemperPoint(TemperStage==1?"ironvent1":TemperStage==2?
+                    "ironvent2":"ironfoundry");
+                q.next=q.complete?L("公共回火技术已传给诺尔，强化材料永久减少",
+                    "Noll now uses the cheaper public temper recipe"):
+                    q.locked?L("先击败矿场原来的星核守卫",
+                    "Defeat the original Ironreach starcore guardian first"):
+                    !TemperActive?L("到赤铁矿场旧工房启动回火",
+                    "Begin the operation at Ironreach's old foundry"):
+                    TemperStage==3?L("击退重装监工，返回工房结束军用指令",
+                    "Defeat the armored overseer; return to the foundry"):
+                    L("击败守卫后操作下一处泄压阀，注意热压与范围预告",
+                    "Clear guards, operate the next vent and dodge pressure warnings");
+                q.reward=L("首次完成75硬币、3碎片、1天赋点、85经验；锻造升级永久减耗",
+                    "First clear: 75 coins, 3 shards, 1 talent, 85 XP and permanent upgrade-material savings");
+                return q;
+            }
 
             if (id == "glasswind")
             {
