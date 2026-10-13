@@ -202,6 +202,12 @@ namespace Starfall.Tests
                     Check(g.reliefFollowerSafety > 80,
                         "Original desert shade remains meaningful to the rescue, not just the hero");
                 }
+                // Finish this trial before moving to another real region.
+                // Active civilian evacuations cannot disappear through portals.
+                g.reliefMissionTime = .01f;
+                g.Tick(.05f, new Point());
+                Check(g.reliefMissionRoom == 0,
+                    "Regional weather trial exits through the normal rescue timeout");
             }
         }
 
@@ -679,7 +685,13 @@ namespace Starfall.Tests
             Check(g.save.rescueCheckpoint != null,
                 "Blocked travel preserves the active mission's valid save checkpoint");
             g.save.x = post.x; g.save.y = post.y;
-            Action(g, post.kind, "fieldstation_rescue_cancel");
+            Action(g, post.kind, "fieldstation_rescue_menu");
+            Check(g.conversation != null,
+                "The actual rescue station opens its active-sortie submenu");
+            int cancel = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "fieldstation_rescue_cancel");
+            Check(cancel >= 0, "An active sortie offers an explicit cancel choice");
+            g.Choose(cancel);
             Check(g.reliefMissionRoom == 0,
                 "Explicit cancellation at the constructed station remains available");
             g.Enter(0);
