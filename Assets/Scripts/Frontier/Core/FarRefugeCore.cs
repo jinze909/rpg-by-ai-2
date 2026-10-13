@@ -222,13 +222,13 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name,o.en,FarWitnessZh[room]+
-                Has("far_courier_charter")?
+                (Has("far_courier_charter")?
                     "\n\n公开补给公约已生效。消耗木材1休息：生命 +55、耐力全满、寒冷 -40。":
-                    "\n\n公共避险棚已经建好。消耗木材1休息：生命 +35、耐力全满、寒冷 -25。",
+                    "\n\n公共避险棚已经建好。消耗木材1休息：生命 +35、耐力全满、寒冷 -25。"),
                 FarWitnessEn[room]+
-                Has("far_courier_charter")?
+                (Has("far_courier_charter")?
                     "\n\nPublic supply charter: 1 timber gives +55 HP, full stamina and -40 cold.":
-                    "\n\nThe shared shelter is open. Spend 1 timber to rest: +35 HP, full stamina and -25 cold.",
+                    "\n\nThe shared shelter is open. Spend 1 timber to rest: +35 HP, full stamina and -25 cold."),
                 C("添柴休息 · 木材 ×1","Rest · 1 timber","far_rest"),
                 C("继续探索","Keep exploring","close"));
             return true;
