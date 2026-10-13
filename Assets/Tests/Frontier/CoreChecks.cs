@@ -943,6 +943,66 @@ namespace Starfall.Tests
                 "Bad camera state never triggers unbounded terrain work");
         }
 
+        public static void BridgeParcelNeedsRealTravelAndOnlyRewardsDelivery(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                WorldObject bridge=Array.Find(g.Map.objects,o=>o.kind=="farbridge");
+                WorldObject shelter=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
+                Check(bridge!=null&&shelter!=null,
+                    "Courier actually uses existing physical bridge and refuge");
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                g.Talk(bridge);
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start")<0,
+                    "Unbuilt bridge or shelter cannot create supply rewards");
+                g.Close();g.save.flags.Add("far_bridge_"+room);
+                g.save.flags.Add("far_shelter_"+room);
+                int coins=g.save.coins,shards=g.save.shards;
+                float unloadedSpeed=g.Speed;
+                g.Talk(bridge);
+                int choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start");
+                Check(choose>=0,"Repaired bridge offers a physical parcel trip");
+                g.Choose(choose);
+                Check(g.FarCourierActive&&g.Speed<unloadedSpeed,
+                    "A real carried parcel visibly affects character speed");
+                g.save.x=shelter.x;g.save.y=shelter.y;
+                g.Talk(shelter);g.Close();
+                Check(!g.FarCourierDelivered(room)&&g.save.coins==coins,
+                    "Teleporting to the shelter cannot fake the foot journey");
+                g.Tick(.02f,new Point());
+                Check(!g.FarCourierActive&&!g.FarCourierDelivered(room),
+                    "Long position jump invalidates transient cargo");
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                g.Talk(bridge);
+                choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start");
+                g.Choose(choose);
+                for(int step=0;step<170&&g.save.y<73.2f;step++)
+                    g.Tick(.045f,new Point(0,1));
+                Check(g.FarCourierActive&&g.FarCourierCrossed,
+                    "Engine ticks record actual southbound contact with rebuilt bridge tiles");
+                Check((g.Position-new Point(shelter.x,shelter.y)).Length<2.2f,
+                    "Normal real movement reaches the distant shelter before timeout");
+                g.Talk(shelter);
+                choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_deliver");
+                Check(choose>=0,"Actual refuge dialogue offers parcel delivery");
+                g.Choose(choose);
+                Check(g.FarCourierDelivered(room)&&!g.FarCourierActive&&
+                    g.save.coins==coins+25&&g.save.shards==shards+1,
+                    "Only legitimate foot delivery grants one real permanent reward");
+                GameCore reload=new GameCore(data,g.save);
+                Check(reload.save.version==2&&reload.FarCourierDelivered(room)&&
+                    !reload.FarCourierActive,
+                    "Old save v2 restores delivery only, never an invented held parcel");
+                g.Talk(shelter);g.Close();
+                Check(g.save.coins==coins+25,"Parcel delivery rewards cannot repeat");
+            }
+            GameCore all=new GameCore(data);
+            for(int i=0;i<8;i++)all.save.flags.Add("far_courier_"+i);
+            Check(all.GetQuest("far_couriers").complete&&all.FarCourierDeliveredCount==8,
+                "Journal tracks all eight distinct completed parcel runs");
+        }
+
         public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
         {
             for (int room = 0; room < 8; room++)

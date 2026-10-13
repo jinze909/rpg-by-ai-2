@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,40 @@ namespace Starfall
 
 
 
+
+            if(id=="far_couriers")
+            {
+                q.title=L("归乡送达 · 八地居民救援包","Homeward Deliveries · Eight Civilian Parcels");
+                q.category=L("真实步行运输 · 修桥后的生活","ACTUAL WALKING · LIFE AFTER REPAIR");
+                q.description=L("先修好同一地区的桥和远端避险棚，在桥头背上救援包并在95秒内从北向南步行穿过桥面。负重降低速度；传送、离开地区或超时不会虚构运送。到避险棚亲手交接才计数。",
+                    "Repair the local bridge and distant refuge, then carry aid on foot from north to south across the span within 95 seconds. The parcel slows walking; teleports, exits and timeouts do not count. Hand over in person at the shelter.");
+                q.locked=!Has("intro");q.complete=FarCourierDeliveredCount==8;
+                int region=-1;
+                for(int i=0;i<8;i++)
+                {
+                    bool done=FarCourierDelivered(i);
+                    q.steps.Add(new QuestStep(L(data.maps[i].name,data.maps[i].en),done));
+                    if(region<0&&!done&&CanEnter(i)&&FarBridgeOpen(i)&&FarShelterBuilt(i))region=i;
+                }
+                if(FarCourierActive)
+                {
+                    q.room=save.room;q.target=new Point(112.5f,73.5f);
+                    foreach(WorldObject obj in Map.objects)
+                        if(obj.kind=="farshelter"){q.target=new Point(obj.x,obj.y);break;}
+                    q.next=L("负重运送：穿过桥面到避险棚（还剩"+(int)FarCourierTimeLeft+"秒）",
+                        "Carry the parcel across the bridge ("+(int)FarCourierTimeLeft+"s remaining)");
+                }
+                else
+                {
+                    q.room=region<0?0:region;q.target=new Point(111.5f,49.5f);
+                    q.next=q.complete?L("八地全部实地送达","All eight parcels delivered on foot"):
+                        region<0?L("先修好至少一处桥和远端避险棚","Repair a bridge and distant refuge first"):
+                        L("到修好的桥头背上居民救援包","Collect a parcel at the rebuilt bridge");
+                }
+                q.reward=L("每地硬币25、碎片1、经验38；八地另加技能点1",
+                    "Per region: +25 coins, +1 shard, +38 XP; all eight: +1 talent");
+                return q;
+            }
 
             if(id=="far_bridges")
             {
