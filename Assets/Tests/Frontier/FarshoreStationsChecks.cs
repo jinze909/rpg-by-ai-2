@@ -424,6 +424,47 @@ namespace Starfall.Tests
                 "Ordinary world projectiles cannot accidentally drain civilian rescue safety");
         }
 
+        public static void FieldRallyInteractionTargetsRealCivilianFoot(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            foreach (string flag in new[] { "intro", "exp_intro", "harbor_report",
+                "desert_report", "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_6" }) g.save.flags.Add(flag);
+            g.save.frontierEnding = 2; g.Enter(6); g.enemies.Clear();
+            WorldObject post = Object(g, "fieldstation6");
+            g.save.x = post.x; g.save.y = post.y;
+            StartCivilianRescueViaRealDialogue(g, post);
+            ReachCivilianRescueMarker(g, 6);
+            Check(g.reliefMissionWave == 1 && g.ReliefFieldGuardAvailable,
+                "The live field rescue enters the genuine first combat wave");
+            Point rawMarker = g.FieldSurveyTarget(6);
+            Point actual = new Point(); bool found = false;
+            for (int y = 3; y < g.Map.rows.Length - 3 && !found; y++)
+            for (int x = 3; x < g.Map.rows[y].Length - 3 && !found; x++)
+            {
+                Point possible = new Point(x + .5f, y + .5f);
+                if (!g.CanStand(possible) ||
+                    (possible - rawMarker).Length <= 2.3f ||
+                    (possible - rawMarker).Length > 4.5f) continue;
+                actual = possible; found = true;
+            }
+            Check(found, "Authored desert map has collision-valid civilian footing away from the prop marker");
+            // The marker is scenery; interaction must follow the same
+            // physical civilian position as arrow and melee damage.
+            g.reliefFollowerPosition = actual;
+            g.save.x = actual.x; g.save.y = actual.y;
+            g.Interact();
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices, c => c.action == "relief_field_guard"),
+                "E addresses the visible civilian even when the map marker is not within interaction range");
+            int choice = Array.FindIndex(g.conversation.choices,
+                c => c.action == "relief_field_guard");
+            float previousEnergy = g.save.energy;
+            g.Choose(choice);
+            Check(g.reliefWardTime > 7.5f && g.save.energy == previousEnergy - 20,
+                "The real civilian receives a tactical guard through world interaction");
+        }
+
         public static void EmergencyCivilianRallyUsesLiveEnergyAndOncePerWave(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

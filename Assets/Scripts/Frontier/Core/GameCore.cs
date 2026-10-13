@@ -721,7 +721,7 @@ namespace Starfall
             WorldObject o = Nearest();
             if (reliefMissionRoom == save.room &&
                 (reliefMissionWave == 1 || reliefMissionWave == 2) &&
-                (Position - FieldSurveyTarget(reliefMissionRoom)).Length < 1.7f)
+                (Position - reliefFollowerPosition).Length < 1.7f)
             { TalkReliefFieldGuard(); return; }
             if (ReliefEscortActive &&
                 (Position - reliefFollowerPosition).Length < 1.7f &&

@@ -70,6 +70,7 @@ namespace Starfall.Tests
         [Test] public void CivilianArchersKeepActualFiringDistance() { CoreChecks.CivilianRescueArcherUsesReadableRealStandoff(Data()); }
         [Test] public void RescueSafetyWarningsAndDifficultyScaling() { CoreChecks.RescueThreatDifficultyAndOneShotWarnings(Data()); }
         [Test] public void RescueArrowsRequirePhysicalFlightAndInterception() { CoreChecks.RescueArrowsUseActualFlightAndCanBeBodyBlocked(Data()); }
+        [Test] public void RescueRallyUsesVisibleCivilianNotMapProp() { CoreChecks.FieldRallyInteractionTargetsRealCivilianFoot(Data()); }
         [Test] public void EmergencyRescueRallyIsTacticalAndFinite() { CoreChecks.EmergencyCivilianRallyUsesLiveEnergyAndOncePerWave(Data()); }
         [Test] public void CivilianStrikeTimingAndBodyguardCollision() { CoreChecks.CivilianDefenseStrikesMatchReleaseAndBodyguardPosition(Data()); }
         [Test] public void RescueRaiderAITargetsActualCivilians() { CoreChecks.RescueRaiderAIActuallyProtectsCivilians(Data()); }
