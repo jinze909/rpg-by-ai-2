@@ -86,6 +86,40 @@ namespace Starfall.Tests
             Check(Array.FindIndex(g.conversation.choices,c=>c.action=="commons_publish") < 0,
                 "The public key cannot be published for another reward");
         }
+        public static void CitadelCommonsSentinelsRequireRealPlayerCombatAndCannotFarm(Campaign data)
+        {
+            var g = CommonsReady(data);
+            CommonsActivate(g,1);
+            Enemy sentinel=g.enemies.Find(g.IsCommonsRelayEnemy);
+            Check(sentinel != null,"The new episode spawns a real attackable world enemy");
+            g.enemies.RemoveAll(e=>e!=sentinel);
+            int coins=g.save.coins,xp=g.save.xp,kills=g.save.kills[4];
+            int[] inventory=(int[])g.save.inventory.Clone();
+            // An actual hero melee hit must damage this challenge enemy,
+            // then kill it through the same Contact/Hit pipeline as normal AI.
+            sentinel.stun=10;sentinel.timer=10;
+            g.save.x=sentinel.x-1.05f;g.save.y=sentinel.y;
+            g.invulnerable=12;
+            float initialHP=sentinel.hp;
+            for(int turn=0;turn<12 && g.enemies.Contains(sentinel);turn++)
+            {
+                g.save.energy=100;
+                g.Attack(new Point(1,0));
+                for(int frame=0;frame<12;frame++)g.Tick(.05f,new Point());
+            }
+            Check(sentinel.hp<initialHP && !g.enemies.Contains(sentinel),
+                "Real main-character sword attacks defeat the scripted sentinel, not test-only enemy deletion");
+            Check(g.save.coins==coins && g.save.xp==xp && g.save.kills[4]==kills,
+                "New defense sentinels never farm normal boss rewards, XP, bounty kills or story gates");
+            for(int i=0;i<inventory.Length;i++)
+                Check(g.save.inventory[i]==inventory[i],
+                    "Scripted sentinels cannot mint ordinary inventory loot");
+            g.save.x=Object(g,"commonsrelay2").x;g.save.y=Object(g,"commonsrelay2").y;
+            CommonsActivate(g,2);
+            Check(g.enemies.FindAll(g.IsCommonsRelayEnemy).Count==3,
+                "Winning via physical melee opens the true second-stage defensive wave");
+        }
+
         public static void CitadelCommonsFloorSurgesWarnDodgeAndCleanUp(Campaign data)
         {
             var g = CommonsReady(data);
