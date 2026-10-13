@@ -3,6 +3,39 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void CivilianCourierHasVisibleTimedObjectiveInEveryRegion(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("far_bridge_0");
+            g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"The real bridge conversation starts parcel transport");
+            g.save.english=true;
+            Check(g.Conditions().Contains("RELIEF PARCEL")&&
+                g.Conditions().Contains("CROSS BRIDGE ON FOOT")&&
+                g.Conditions().Contains("95s"),
+                "Untracked deliveries expose a visible timed English route objective");
+            g.save.english=false;
+            Check(g.Conditions().Contains("居民救援包")&&
+                g.Conditions().Contains("步行过桥"),
+                "Real-time parcel condition is also fully localized");
+            g.save.english=true;
+            g.save.y=53.0f;
+            // A teleport cannot be used to bypass the actual bridge crossing.
+            g.Tick(.05f,new Point());
+            Check(!g.FarCourierActive,
+                "Parcel jumps still fail instead of masquerading as foot travel");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"Delivery may restart after a lost parcel");
+            var saved=CloneSave(g.save);g.PrepareSave();
+            var resumed=new GameCore(data,saved);resumed.Start();
+            Check(!resumed.FarCourierActive&&
+                !resumed.Conditions().Contains("RELIEF PARCEL"),
+                "Reopening old saves cannot restore a phantom courier timer");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;

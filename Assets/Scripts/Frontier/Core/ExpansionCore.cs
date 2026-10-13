@@ -534,6 +534,16 @@ namespace Starfall
                         (reliefMissionWave >= 1 && reliefMissionWave <= 2 ?
                             " · " + L("安全 ", "SAFE ") +
                                 (int)Math.Ceiling(reliefFollowerSafety) + "%" : ""));
+            // A carried civilian parcel is a real 95-second world objective,
+            // including in the four early outdoor regions whose conditions
+            // panel is normally hidden. Its stages must remain visible even
+            // when another journal quest is tracked.
+            if(FarCourierActive)
+                return L("居民救援包 · ", "RELIEF PARCEL · ") +
+                    (int)Math.Ceiling(FarCourierTimeLeft) + "s\\n" +
+                    (!FarCourierCrossed ? L("步行过桥", "CROSS BRIDGE ON FOOT") :
+                     !FarCourierStamped ? L("检查站核验封条", "VERIFY SEAL AT CHECKPOINT") :
+                         L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));
             if(TideSalvageActive && save.room==5)
                 return L("潮滩打捞 ", "SALVAGE ") +
                     (int)Math.Ceiling(TideSalvageTime) + "s · " +
