@@ -100,6 +100,7 @@ namespace Starfall.Tests
         [Test] public void WorldChronicleRespectsPlayerDiscovery() { CoreChecks.WorldChronicleRespectsChapterProgressAndRealInteractions(Data()); }
         [Test] public void CampaignAndCouncilEpiloguesMatchWorldLore() { CoreChecks.IndependentEndingsAndCampaignLoreRemainConsistent(Data()); }
         [Test] public void SurveyorEchoHasLiveTimedCombat() { CoreChecks.SurveyorEchoCombatHasWarningsAndSafeRewards(Data()); }
+        [Test] public void CounterpointCombatPulsesAreTelegraphedAndDodgeable() { CoreChecks.StarrootCombatPulsesWarnAndCanActuallyBeDodged(Data()); }
         [Test] public void NewCounterpointChronicleTracksActualFindings() { CoreChecks.NewCounterpointChronicleRevealsOnlyRecoveredMusic(Data()); }
         [Test] public void SealedStarrootNodesProvideSafeLocalRest() { CoreChecks.CalibratedStarrootSitesOfferSafePersistentRest(Data()); }
         [Test] public void StarrootCounterpointHasNewRegionsAndActualFights() { CoreChecks.StarrootCounterpointIsNewPlayableCrossRegionStory(Data()); }

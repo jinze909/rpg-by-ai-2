@@ -71,6 +71,56 @@ namespace Starfall.Tests
                 "Atlas quest and its rewards persist through the existing save format");
         }
 
+        public static void StarrootCombatPulsesWarnAndCanActuallyBeDodged(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            g.save.flags.Add("scout_saved");
+            g.save.flags.Add("root_harmony_started");
+            g.Enter(1); g.enemies.Clear();
+            WorldObject stone = Object(g, "rootcounter1");
+            g.save.x = stone.x; g.save.y = stone.y;
+            Action(g, stone.kind, "root_harmony_tune_1_2");
+            Check(g.RootHarmonyRoom == 1 &&
+                g.enemies.FindAll(g.IsRootHarmonyEnemy).Count == 3,
+                "Only a correct physical tuning starts actual sentinel combat");
+            foreach (Enemy sentinel in g.enemies)
+                if (g.IsRootHarmonyEnemy(sentinel)) sentinel.stun = 60f;
+            g.invulnerable = 0;
+            for (int i = 0; i < 85 && !g.hazards.Exists(z => z.rootHarmonyOwned); i++)
+                g.Tick(.05f, new Point());
+            Hazard warning = g.hazards.Find(z => z.rootHarmonyOwned);
+            Check(warning != null && warning.timer > .9f &&
+                (warning.position - g.Position).Length < .001f,
+                "Live sentinel trial creates a real delayed world-space warning at the hero's feet");
+            float hp = g.save.health;
+            // Running to an authored safe spawn before the contact pulse must
+            // avoid damage without bypassing collision or changing the timer.
+            g.save.x = g.Map.spawnX; g.save.y = g.Map.spawnY;
+            Check(g.CanStand(g.Position) && (g.Position - warning.position).Length > warning.radius + 1,
+                "A safe map foothold exists outside the visible pulse");
+            for (int i = 0; i < 33; i++) g.Tick(.05f, new Point());
+            Check(!g.hazards.Contains(warning) && Math.Abs(hp - g.save.health) < .001f,
+                "Dodging the genuine delayed contact avoids its damage");
+            // The periodic second warning should still be able to hurt if the
+            // player refuses to leave the marked footprint.
+            g.save.x = stone.x; g.save.y = stone.y;
+            for (int i = 0; i < 160 && !g.hazards.Exists(z => z.rootHarmonyOwned); i++)
+                g.Tick(.05f, new Point());
+            Hazard contact = g.hazards.Find(z => z.rootHarmonyOwned);
+            Check(contact != null && contact.timer > .9f,
+                "The challenge repeats timed physical dissonance while sentinels survive");
+            hp = g.save.health;
+            for (int i = 0; i < 35; i++) g.Tick(.05f, new Point());
+            Check(g.save.health < hp - 10f,
+                "Ignoring the actual warning applies real player combat damage");
+            g.Enter(0);
+            Check(g.RootHarmonyRoom == 0 &&
+                !g.hazards.Exists(z => z.rootHarmonyOwned) &&
+                !g.enemies.Exists(g.IsRootHarmonyEnemy) &&
+                !g.Has("root_harmony_1"),
+                "Leaving the trial retires temporary hazards and enemies without awarding progress");
+        }
+
         public static void NewCounterpointChronicleRevealsOnlyRecoveredMusic(Campaign data)
         {
             var g = Fresh(data);
