@@ -53,6 +53,7 @@ namespace Starfall
             if (page == "afterlight") return Has("afterlight_started") || Has("afterlight_complete");
             if (page == "storm") return Has("storm_started") || Has("storm_complete");
             if (page == "hearing") return Has("hearing_started") || Has("hearing_complete");
+            if (page == "supply_inquest") return CivicSupplyStarted;
             return false;
         }
         private void WorldChronicleSection(string section)
@@ -115,6 +116,9 @@ namespace Starfall
                 if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
                 if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
                 if (StoryUnlocked("hearing")) choices.Add(StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing"));
+                if (StoryUnlocked("supply_inquest"))
+                    choices.Add(StoryChoice("第九章 · 送达之后谁守路",
+                        "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
             else { WorldChronicleMenu(); return; }
@@ -138,7 +142,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -616,6 +620,36 @@ namespace Starfall
                             "\nOrrin released two real parts to volunteer roadwardens, and the old shrine now supplies public energy.":
                             "\nOrrin must personally answer for his share of the charter. The hero cannot sign on his behalf.";
                     }
+                    break;
+                case "supply_inquest":
+                    headingZh="第九章：送达之后，谁来守路";
+                    headingEn="Chapter Nine: Who Keeps the Routes Open";
+                    zh="第一份居民救援包真的穿过了修好的桥面，而不是凭空出现在账本里。然而货物抵达只是开始。炉火旅店的客人提出了一个所有城墙都回避的问题：受伤的人明天由谁照料？天黑后的道路又由谁巡视？\n\n"+
+                       "居民审计记录了三处地方的实地选择。药草和木材都要真实投入，公会不能代替仍在路上的人投票。\n\n";
+                    en="The first civilian parcel crossed a real rebuilt bridge instead of appearing only in a ledger. But a delivery is a beginning, not an enduring service. Hearth Inn's guests ask whom the walls have ignored: who cares for the injured tomorrow, and who patrols the road after dark?\n\n"+
+                       "Three communities record their independent decisions. Medicines and timber are real contributions, not abstract numbers.\n\n";
+                    int[] inquestRooms={0,3,5};
+                    string[] inquestPlacesZh={"引水渠","赤铁矿场","雾港"};
+                    string[] inquestPlacesEn={"Canal","Ironreach","Mistport"};
+                    for(int qi=0;qi<inquestRooms.Length;qi++)
+                    {
+                        int site=inquestRooms[qi];
+                        bool clinic=CivicSupplyClinic(site),watch=CivicSupplyWatch(site);
+                        zh+=inquestPlacesZh[qi]+"："+
+                            (clinic?"居民投票成立医疗点，安全时在避险棚为旅人持续疗伤。":
+                             watch?"居民投票成立守路岗，安全时在避险棚为旅人持续恢复耐力。":
+                             "居民尚未签署长期服务的选择；尚不能替他们预先宣布结果。")+"\n";
+                        en+=inquestPlacesEn[qi]+": "+
+                            (clinic?"The residents funded a clinic. Its real refuge restores health when safe.":
+                             watch?"The residents funded a lookout. Its real refuge restores energy when safe.":
+                             "No local vote is signed yet. No distant decree can pre-empt it.")+"\n";
+                    }
+                    zh+=CivicSupplyComplete?
+                        "\n【公开审计已签发】三地物资投入与永久服务已逐项归档。旅人可以实际使用这些避险棚。":
+                        "\n【审计仍在进行】三地全部签署后，仍须回旅店亲手公布公共账目。";
+                    en+=CivicSupplyComplete?
+                        "\n[Public audit published] All three material contributions and enduring refuge services are recorded and operational.":
+                        "\n[Audit in progress] Return to the Inn after all three regions sign; publication is not automatic.";
                     break;
                 case "afterlight":
                     headingZh="第五章：把余光留给活着的人";
