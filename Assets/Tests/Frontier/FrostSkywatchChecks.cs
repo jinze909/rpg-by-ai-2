@@ -125,6 +125,60 @@ namespace Starfall.Tests
             Check(loaded.save.cold<40,
                 "Refuge changes actual Frostchime cold exposure, not only the icon");
         }
+        public static void FrostSkywatchPrismGroundingCreatesRealOneUseBossOpening(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=12;
+            foreach(string flag in new[]{"mountain_report","desert_report",
+                "gate_7","skywatch_started","skywatch_prism_1",
+                "skywatch_prism_2","skywatch_prism_3"})
+                g.save.flags.Add(flag);
+            g.Enter(7);g.enemies.Clear();
+            WorldObject altar=Object(g,"skyobservatory");
+            g.save.x=altar.x;g.save.y=altar.y;
+            Check(g.CanStand(g.Position) && g.Nearest()==altar,
+                "The grounding action belongs to a reachable authored observatory");
+            Action(g,"skyobservatory","skywatch_start");
+            Enemy guardian=g.enemies.Find(g.IsSkywatchEnemy);
+            Check(g.SkywatchRoom==7 && guardian!=null && g.SkywatchGroundingAvailable,
+                "The real live guardian enables one affordable tactical action");
+            int originalEnergy=(int)g.save.energy;
+            float originalHp=guardian.hp;
+            var unrelated=new Hazard { position=g.Position,
+                timer=5,radius=.5f,kind="rift",damage=2 };
+            g.hazards.Add(unrelated);
+            g.hazards.Add(new Hazard { position=g.Position,
+                timer=1.1f,radius=1f,kind="glass",damage=14,skywatchOwned=true });
+            Action(g,"skyobservatory","skywatch_ground");
+            Check(g.SkywatchGroundingTime>7.9f &&
+                !g.SkywatchGroundingAvailable &&
+                g.save.energy==originalEnergy-25 &&
+                guardian.stun>=1.8f && guardian.hp==originalHp,
+                "A real paid grounding interrupts rather than secretly killing the boss");
+            Check(!g.hazards.Exists(h=>h.skywatchOwned) &&
+                g.hazards.Contains(unrelated),
+                "The countermeasure clears only the guardian's current frost hazards");
+            g.Talk(altar);
+            Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="skywatch_ground")<0,
+                "Once used, the action is removed from the actual dialogue");
+            g.Close();
+            g.hazards.Remove(unrelated);
+            for(int i=0;i<20;i++)g.Tick(.05f,new Point());
+            Check(g.SkywatchRoom==7 && g.SkywatchGroundingTime>6.8f &&
+                g.hazards.Find(h=>h.skywatchOwned)==null &&
+                g.enemies.Contains(guardian),
+                "Grounding grants a bounded and genuinely playable quiet period");
+            g.save.x=altar.x;g.save.y=altar.y;
+            Action(g,"skyobservatory","skywatch_withdraw");
+            Check(g.SkywatchRoom==0 && g.SkywatchGroundingTime==0 &&
+                !g.Has("skywatch_defeated"),
+                "Withdrawal cannot turn a temporary stun into a victory");
+            g.enemies.Clear();g.save.energy=100;
+            Action(g,"skyobservatory","skywatch_start");
+            Check(g.SkywatchRoom==7 && g.SkywatchGroundingAvailable,
+                "A new legitimate attempt may buy one new grounding, without paying rewards");
+        }
+
         public static void FrostSkywatchChronicleOnlyRevealsObservedEvidence(Campaign data)
         {
             var g=Fresh(data);
