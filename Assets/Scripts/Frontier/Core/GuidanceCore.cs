@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,57 @@ namespace Starfall
 
 
 
+
+            if(id=="last_directive")
+            {
+                q.title=L("第十章 · 最后指令","Chapter Ten · The Last Directive");
+                q.category=L("主线余波 · 原始证词、破译与守卫战",
+                    "STORY AFTERMATH · TESTIMONY, CIPHER & COMBAT");
+                q.description=L("三地公共服务名册公开后，在余烬镇接到最后一道未署名的军用指令调查。亲自前往堡垒外围寻找矿工、船工和巡路队的原始证词，依真实时间顺序解除封锁，击败两波实体守卫，选定居民权利，再回城公布。现有主线与结局不会被覆盖。",
+                    "After publishing the regional service ledger, investigate an unsigned citadel order. Read three genuine clues across the far citadel, solve their historical sequence, defeat two real guardian waves, choose civic rights, then publish the final order in town. Original endings remain intact.");
+                q.locked=!Has("civic_response_ledger");
+                q.complete=LastDirectiveComplete;
+                q.steps.Add(new QuestStep(L("到余烬镇居民议事台开启调查",
+                    "Open the inquiry at Emberfall's public council"),LastDirectiveStarted));
+                string[] clueZh={"矿工的停机请求","船工的失联名单","巡路队的最后炉火"};
+                string[] clueEn={"Miners' shutdown petition","Ferrymen's lost names","Roadwardens' last hearth"};
+                for(int i=0;i<3;i++)
+                    q.steps.Add(new QuestStep(L(clueZh[i],clueEn[i]),
+                        Has("last_directive_clue_"+i)));
+                q.steps.Add(new QuestStep(L("破解终端并击退两道实体封锁",
+                    "Decode the terminal and defeat both real security waves"),
+                    LastDirectiveChoice>0));
+                q.steps.Add(new QuestStep(L("向余烬镇公开最后指令",
+                    "Publish the final order in Emberfall"),LastDirectiveComplete));
+                if(!LastDirectiveStarted||LastDirectiveChoice>0)
+                {
+                    q.room=0;q.target=ObjectPoint(0,"lastdirectiveboard",new Point(19.5f,15.5f));
+                    q.next=q.complete?L("最后指令已经公开；永久民用权限持续有效",
+                        "Last directive published; permanent civilian rights are active"):
+                        !LastDirectiveStarted?L("在余烬镇居民议事台接取调查",
+                            "Begin the inquiry at Emberfall's public council"):
+                            L("返回议事台把新权限公开给所有居民",
+                                "Return to the public council and publish the new rights");
+                }
+                else
+                {
+                    q.room=4;
+                    int next=0;while(next<3&&Has("last_directive_clue_"+next))next++;
+                    string obj=next<3?"lastdirectiveclue"+next:"lastdirectivecore";
+                    q.target=ObjectPoint(4,obj,new Point(100.5f,73.5f));
+                    q.next=next<3?L("亲自访问下一处堡垒外环证词","Reach the next physical citadel testimony"):
+                        LastDirectiveWave==1||LastDirectiveWave==3?
+                            L("击败守卫，实际战斗不可跳过","Defeat real guardians in combat"):
+                        LastDirectiveWave==2?L("回终端投入25耐力开启二级封锁",
+                            "At the terminal spend 25 energy to release the second lock"):
+                        LastDirectiveWave==4?L("在终端确定最后一道公共权利",
+                            "Choose lasting public rights at the terminal"):
+                            L("根据证词时间顺序破解终端","Decode the terminal from the historical testimony");
+                }
+                q.reward=L("原始证词各经验14；最终公开硬币95、碎片5、技能点1、经验140，选择永久监督恢复耐力或避难疗伤",
+                    "Each testimony +14 XP; publication +95 coins, 5 shards, 1 talent, 140 XP, plus a lasting choice between public energy or emergency healing");
+                return q;
+            }
 
             if(id=="civic_services")
             {

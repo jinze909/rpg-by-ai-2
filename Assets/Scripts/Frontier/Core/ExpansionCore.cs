@@ -546,6 +546,9 @@ namespace Starfall
         }
         public string Conditions()
         {
+            if(LastDirectiveWave==1||LastDirectiveWave==3)
+                return L("最后指令 · 保密卫队","LAST DIRECTIVE · SECURITY")+
+                    "\n"+L("击败实体守卫 ","REAL GUARDIANS LEFT ")+LastDirectiveEnemies;
             if (StormTuning)
                 return L("公共星灯调谐 ", "CIVIC GRID TUNING ") +
                     (int)Math.Ceiling(StormTuneTime) + "s · " +
