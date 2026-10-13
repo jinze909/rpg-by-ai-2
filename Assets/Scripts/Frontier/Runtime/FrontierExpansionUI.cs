@@ -205,6 +205,18 @@ namespace Starfall
                     if(boss!=null) Bar(p.x-43,p.y+12,86,boss.hp/Math.Max(1,boss.maxHp),tint,7);
                     Text(p.x-43,p.y-124,86,18,Game.SkywatchTime.ToString("0")+"s",
                         11,tint,TextAnchor.MiddleCenter);
+                    if (Game.SkywatchGroundingTime>0)
+                    {
+                        Ring(new Point(o.x,o.y),1.2f,mint,24);
+                        Text(p.x-63,p.y-143,126,17,
+                            Game.L("接地 ", "GROUNDED ") +
+                                Game.SkywatchGroundingTime.ToString("0.0")+"s",
+                            10,mint,TextAnchor.MiddleCenter);
+                    }
+                    else if (Game.SkywatchGroundingAvailable)
+                        Text(p.x-70,p.y-143,140,18,
+                            Game.L("E · 棱镜接地", "E · Ground prism"),
+                            10,gold,TextAnchor.MiddleCenter);
                 }
                 return true;
             }

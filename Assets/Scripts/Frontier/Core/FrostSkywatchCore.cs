@@ -11,6 +11,13 @@ namespace Starfall
         public float SkywatchTime { get; private set; }
         private float skywatchPulseTime;
         private int skywatchPulseCycle;
+        private bool skywatchGroundingUsed;
+        public float SkywatchGroundingTime { get; private set; }
+        public bool SkywatchGroundingAvailable
+        {
+            get { return SkywatchRoom == 7 && !skywatchGroundingUsed &&
+                save.energy >= 25 && !Dying && enemies.Exists(IsSkywatchEnemy); }
+        }
         public bool IsSkywatchEnemy(Enemy enemy)
         { return enemy != null && enemy.id == 89701; }
         private void ResetSkywatch()
@@ -19,6 +26,7 @@ namespace Starfall
             hazards.RemoveAll(h => h.skywatchOwned);
             SkywatchRoom = 0; SkywatchTime = 0;
             skywatchPulseTime = 0; skywatchPulseCycle = 0;
+            skywatchGroundingUsed = false; SkywatchGroundingTime = 0;
         }
         private bool SkywatchReady()
         {
@@ -148,6 +156,7 @@ namespace Starfall
                     "守卫的寒光正在锁定你的脚下。注意落点，绕过危险区域。",
                     "The guardian's frost beams target your feet. Read the warning circles and move.",
                     C("继续战斗","Continue fighting","close"),
+                    C("手动接地 · 25耐力","Ground the prism · 25 energy","skywatch_ground"),
                     C("安全撤出","Withdraw","skywatch_withdraw"));
                 return true;
             }
@@ -217,6 +226,27 @@ namespace Starfall
                     "Reading secured! Find the next prism.");
                 return true;
             }
+            if (action == "skywatch_ground")
+            {
+                if (!SkywatchGroundingAvailable || save.room != 7 ||
+                    (Position - ObjectPoint(7, "skyobservatory",
+                        new Point(-100, -100))).Length > 2.2f) return true;
+                Enemy guardian = enemies.Find(IsSkywatchEnemy);
+                if (guardian == null || guardian.hp <= 0) return true;
+                save.energy -= 25;
+                skywatchGroundingUsed = true;
+                SkywatchGroundingTime = 8f;
+                skywatchPulseTime = Math.Max(skywatchPulseTime, 8f);
+                hazards.RemoveAll(h => h.skywatchOwned);
+                guardian.stun = Math.Max(guardian.stun, 1.8f);
+                guardian.state = 0; guardian.releaseTime = 0;
+                sound = "guard"; revision++;
+                effects.Add(new Effect("discover",
+                    ObjectPoint(7,"skyobservatory",Position),.7f));
+                Notify("棱镜接地！守卫暂时被打断，冰光预警清除8秒。你仍需亲自击败守卫。",
+                    "Prism grounded! Guardian interrupted and frost strikes suppressed for 8 seconds. You must still defeat it.");
+                return true;
+            }
             if (action == "skywatch_withdraw")
             {
                 if (save.room==7 && SkywatchRoom==7)
@@ -240,6 +270,7 @@ namespace Starfall
                 { Notify("观星台附近没有可用的守卫空间。","No valid guardian arena is available."); return true; }
                 SkywatchRoom=7; SkywatchTime=85;
                 skywatchPulseTime=2.6f; skywatchPulseCycle=0;
+                skywatchGroundingUsed=false; SkywatchGroundingTime=0;
                 Enemy guardian=new Enemy(89701,2,spawn.x,spawn.y,240,true);
                 guardian.timer=1.05f; enemies.Add(guardian);
                 TrackQuest("skywatch"); sound="windup"; revision++;
@@ -283,6 +314,8 @@ namespace Starfall
                 return;
             }
             SkywatchTime-=dt;
+            if (SkywatchGroundingTime>0)
+                SkywatchGroundingTime=Math.Max(0,SkywatchGroundingTime-dt);
             if (SkywatchTime<=0)
             {
                 ResetSkywatch(); revision++;
