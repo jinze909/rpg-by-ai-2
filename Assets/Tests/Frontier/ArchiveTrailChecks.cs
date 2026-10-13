@@ -139,8 +139,12 @@ namespace Starfall.Tests
                         !restarted.Has("root_harmony_1") &&
                         !restarted.enemies.Exists(restarted.IsRootHarmonyEnemy),
                         "Loading during battle can retry but cannot skip or duplicate special enemies");
-                    g.RootHarmonyTime = .01f;
-                    g.Tick(.05f, new Point());
+                    // Expire the encounter through real world ticks; do
+                    // not expose a public setter for quest timers just for tests.
+                    foreach (Enemy sentinel in g.enemies)
+                        if (g.IsRootHarmonyEnemy(sentinel)) sentinel.stun = 60f;
+                    for (int frame = 0; frame < 810 && g.RootHarmonyRoom != 0; frame++)
+                        g.Tick(.05f, new Point());
                     Check(g.RootHarmonyRoom == 0 &&
                         !g.enemies.Exists(g.IsRootHarmonyEnemy) &&
                         !g.Has("root_harmony_1"),
