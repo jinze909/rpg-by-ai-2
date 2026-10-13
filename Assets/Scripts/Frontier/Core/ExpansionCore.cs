@@ -336,9 +336,9 @@ namespace Starfall
             {
                 if(CivicSupplyClinic(save.room)&&save.health>0&&
                     save.health<save.maxHealth)
-                    save.health=Math.Min(save.maxHealth,save.health+dt*1.9f);
+                    save.health=Math.Min(save.maxHealth,save.health+dt*(CivicResponseDone(save.room)?2.8f:1.9f));
                 if(CivicSupplyWatch(save.room))
-                    save.energy=Math.Min(100,save.energy+dt*4.5f);
+                    save.energy=Math.Min(100,save.energy+dt*(CivicResponseDone(save.room)?6.5f:4.5f));
             }
             // The first real starstorm changes regional public services.
             // No remote regeneration, no healing under live enemy attack.

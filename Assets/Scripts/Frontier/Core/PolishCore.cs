@@ -419,7 +419,7 @@ namespace Starfall
                 // them as ordinary world patrols.
                 if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e) ||
                     IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsFarCourierRaider(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e)) continue;
+                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();
@@ -440,6 +440,7 @@ namespace Starfall
                     r.id == 89960 ||
                     (r.id >= 89972 && r.id <= 89977) ||
                     (r.id >= 90100 && r.id < 90116) ||
+                    (r.id >= 90200 && r.id < 90216) ||
                     !ids.Add(r.id) || !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0 || r.boss && Has("boss_" + save.room)) continue;
                 Point p = SafeActorFoot(new Point(r.x, r.y));
                 var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, Clamp(r.maxHp, 1, 5000), r.boss); e.hp = Clamp(r.hp, .1f, e.maxHp); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);
