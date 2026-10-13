@@ -492,6 +492,18 @@ public static class RenderStateChecks
         Clear();Call(app,"DrawObject",council);
         Check(GUI.textureCalls.Count>0,
             "New town council is rendered in the real world scene");
+        game.save.flags.Add("last_directive_complete");
+        game.save.flags.Add("last_directive_open");
+        Clear();Call(app,"DrawObject",council);
+        Color publicChoice=GUI.textureCalls[0].color;
+        game.save.flags.Remove("last_directive_open");
+        game.save.flags.Add("last_directive_shelter");
+        Clear();Call(app,"DrawObject",council);
+        Color shelterChoice=GUI.textureCalls[0].color;
+        Check(Math.Abs(publicChoice.r-shelterChoice.r)+
+            Math.Abs(publicChoice.g-shelterChoice.g)+
+            Math.Abs(publicChoice.b-shelterChoice.b)>.04f,
+            "The ending visibly changes the actual public town monument palette");
         Console.WriteLine("PASS Chapter Ten real world testimony, terminal security warning and HUD (offline)");
     }
     static void RestoresState(FrontierRuntime app)
