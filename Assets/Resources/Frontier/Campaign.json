@@ -527,6 +527,30 @@
           "en": "Thornwood broken resonance",
           "x": 20.5,
           "y": 12.5
+        },
+        {
+          "id": "witnessnpc1",
+          "x": 11.5,
+          "y": 15.5,
+          "kind": "witnessnpc1",
+          "name": "密林巡路员 · 莫芽",
+          "en": "Moya · Grove Roadwarden"
+        },
+        {
+          "id": "witnesssite11",
+          "x": 14.5,
+          "y": 16.5,
+          "kind": "witnesssite11",
+          "name": "受伤根系记录",
+          "en": "Wounded Root Ledger"
+        },
+        {
+          "id": "witnesssite21",
+          "x": 19.5,
+          "y": 10.5,
+          "kind": "witnesssite21",
+          "name": "旧林道保全点",
+          "en": "Old Forest Evidence Seal"
         }
       ],
       "decor": [
@@ -846,6 +870,30 @@
           "en": "Drowned Ruins tide column",
           "x": 20.5,
           "y": 12.5
+        },
+        {
+          "id": "witnessnpc2",
+          "x": 7.5,
+          "y": 10.5,
+          "kind": "witnessnpc2",
+          "name": "渡口幸存者 · 阿菱",
+          "en": "Arin · Sluice Survivor"
+        },
+        {
+          "id": "witnesssite12",
+          "x": 14.5,
+          "y": 11.5,
+          "kind": "witnesssite12",
+          "name": "公共水闸旧章程",
+          "en": "Public Sluice Charter"
+        },
+        {
+          "id": "witnesssite22",
+          "x": 21.5,
+          "y": 11.5,
+          "kind": "witnesssite22",
+          "name": "被封锁的渡口名单",
+          "en": "Sealed Crossing Manifest"
         }
       ],
       "decor": [
@@ -1181,6 +1229,30 @@
           "en": "Eastern Cooling Valve",
           "x": 27.5,
           "y": 10.5
+        },
+        {
+          "id": "witnessnpc3",
+          "x": 11.5,
+          "y": 16.5,
+          "kind": "witnessnpc3",
+          "name": "矿工 · 维恩",
+          "en": "Venn · Ironreach Miner"
+        },
+        {
+          "id": "witnesssite13",
+          "x": 14.5,
+          "y": 16.5,
+          "kind": "witnesssite13",
+          "name": "矿机过热停工规则",
+          "en": "Overheat Rest Protocol"
+        },
+        {
+          "id": "witnesssite23",
+          "x": 25.5,
+          "y": 16.5,
+          "kind": "witnesssite23",
+          "name": "被抹去的工时表",
+          "en": "Erased Shift Ledger"
         }
       ],
       "decor": [

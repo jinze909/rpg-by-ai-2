@@ -29,6 +29,7 @@ namespace Starfall
         {
             if (page == "origin" || page == "roots" || page == "orders") return true;
             if (page == "wardens") return Has("scout_saved");
+            if (page == "testimonies") return Has("witness_started_1") || Has("witness_started_2") || Has("witness_started_3");
             if (page == "forest") return Has("core_1") || Has("boss_1");
             if (page == "ruins") return Has("core_2") || Has("boss_2");
             if (page == "mine") return Has("core_3") || Has("boss_3");
@@ -69,6 +70,7 @@ namespace Starfall
                 titleZh = "星核四章"; titleEn = "The Four Starcores";
                 descriptionZh = "从一位失踪侦察员开始，追查森林、河水和矿机被抽走的供给。只能阅读已经走到的真相。";
                 descriptionEn = "The investigation begins with a missing scout. Accounts appear as their truths are discovered.";
+                if (StoryUnlocked("testimonies")) choices.Add(StoryChoice("前三章 · 未被计入的证人", "Three Chapters · The Uncounted Witnesses", "story_read_testimonies"));
                 if (StoryUnlocked("forest")) choices.Add(StoryChoice("荆棘密林 · 被割断的根", "Thornwood · severed roots", "story_read_forest"));
                 if (StoryUnlocked("ruins")) choices.Add(StoryChoice("沉没遗迹 · 被改写的闸", "Ruins · rewritten sluice", "story_read_ruins"));
                 if (StoryUnlocked("mine")) choices.Add(StoryChoice("赤铁矿场 · 不停的机器", "Ironreach · the tireless machine", "story_read_mine"));
@@ -119,14 +121,14 @@ namespace Starfall
         private static string StorySectionForPage(string page)
         {
             if (page == "origin" || page == "roots" || page == "orders" || page == "wardens") return "origins";
-            if (page == "forest" || page == "ruins" || page == "mine" || page == "temper" || page == "triad" || page == "citadel") return "campaign";
+            if (page == "forest" || page == "testimonies" || page == "ruins" || page == "mine" || page == "temper" || page == "triad" || page == "citadel") return "campaign";
             if (page == "harbor" || page == "tidebound" || page == "desert" || page == "glasswind" || page == "mountain" || page == "covenant") return "farshore";
             return "after";
         }
         private static string[] StoryPagesForSection(string section)
         {
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
-            if (section == "campaign") return new[] { "forest", "ruins", "mine", "temper", "triad", "citadel" };
+            if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
             return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
         }
@@ -230,6 +232,38 @@ namespace Starfall
                     headingZh = "巡路队最后的信"; headingEn = "The Wardens' Last Letters";
                     zh = "巡路员曾替公会测绘矿脉，后来发现地图上只许画堡垒的货路，不许画村庄的逃生路。有人在旧信、信标和地图里藏下另一套路线：药送给需要的人，船留给无钱渡河的人，机器应该由活着的人决定用途。\n\n他们失踪了，路线却留着。救回侦察员后，你第一次知道这封信并非只为莉雅而写。";
                     en = "The wardens mapped ore for the guild until they found that escape routes to villages had been left out. They hid another network in letters, beacons and charts: medicine for those in need, passage for those without coins, and machines answerable to living people.\n\nThe patrol disappeared, but the routes survived. The rescued scout reveals that the letter was meant for more than Lyra.";
+                    break;
+                case "testimonies":
+                    headingZh="未被计入的人：三位活着的证人";
+                    headingEn="The Uncounted: Three Living Witnesses";
+                    zh="堡垒的三枚星核供能账里只有输出，没有根系伤痕、渡口等待的孩子和矿工应当结束工作的一刻。三位当事人愿意署名，但你必须亲自恢复真实用途、解除封锁守卫，才能把证据送给莉雅。\n\n"+
+                        (Has("witness_complete_1")?
+                            "莫芽署名：森林本来能用星核余量修补断裂根系。你亲手帮它恢复自愈。\n":
+                            Has("witness_read_1")?"受伤根系的用途已核实，莫芽尚未署名。\n":
+                            "密林里的莫芽仍等你查证根系的真实用途。\n")+
+                        (Has("witness_complete_2")?
+                            "阿菱署名：日月潮水闸原本向所有旅人开放，渡口不该被货运许可证垄断。\n":
+                            Has("witness_read_2")?"公共渡口旧章程已找回，阿菱尚未署名。\n":
+                            "遗迹里的阿菱仍等你找回公共渡口记录。\n")+
+                        (Has("witness_complete_3")?
+                            "维恩署名：过热的矿机必须允许停工和撤离，不应将其写成怠工。\n":
+                            Has("witness_read_3")?"矿机休息条款已恢复，维恩尚未署名。\n":
+                            "矿场里的维恩仍等你证明矿工的停工权。\n")+
+                        (AllWitnessesFiled?"\n三个签名汇成不可删除的公开证据，并能帮助你破解第四章的堡垒保密审计。":"\n证据尚未全部保全；机器不能替活着的人签字。");
+                    en="The three starcore accounts recorded shield output, not the roots it wounded, children waiting beyond the sluice, or miners who needed to rest. Each resident can sign only after you restore the physical record and beat the guards trying to erase it.\n\n"+
+                        (Has("witness_complete_1")?
+                            "Moya signed: the forest once used spare energy to heal wounded roots.\n":
+                            Has("witness_read_1")?"The roots' purpose is verified, but Moya has not signed.\n":
+                            "Moya still awaits the truthful forest reading.\n")+
+                        (Has("witness_complete_2")?
+                            "Arin signed: the tidal tablets gave public passage to all travelers, not just freight license holders.\n":
+                            Has("witness_read_2")?"The public crossing charter is found, but Arin has not signed.\n":
+                            "Arin still awaits the public crossing account.\n")+
+                        (Has("witness_complete_3")?
+                            "Venn signed: an overheated mine must let its workers shut machines down and leave.\n":
+                            Has("witness_read_3")?"Workers' rest protocol was recovered, but Venn has not signed.\n":
+                            "Venn still seeks the miners' heat-evacuation rule.\n")+
+                        (AllWitnessesFiled?"\nThree living signatures now accompany Lyra's Chapter Four audit and weaken the guardian's security.":"\nThese accounts are incomplete. Machines cannot sign for the living.");
                     break;
                 case "forest":
                     headingZh = "荆棘密林：森林在守护什么"; headingEn = "Thornwood: What the Forest Defends";
@@ -353,6 +387,7 @@ namespace Starfall
                         (Has("triad_evidence_3")?"你找回了矿场作业账：过热时必须允许矿工撤离。\n":"矿场停机印记仍在堡垒待查。\n")+
                         (Has("triad_defense_clear")?"旧保密卫兵已在实际交战后停止执行封锁。\n":"中央审计台仍受保密卫兵控制。\n")+
                         (Has("triad_sealed")?"三份原始日志已在中央审计台保全。\n":"原始日志尚未完成保全。\n")+
+                        (AllWitnessesFiled?"\n三位证人亲笔署名的记录削弱了旧保密卫兵，也让居民的名字不再被抹除。":"")+
                         (Has("triad_complete")?"\n莉雅将这份账目公之于众。三枚星核的故事终于合成一段完整的证据，而非三个供能战利品；厄洛必须亲自回答它揭露的代价。":"\n调查仍未公开。完成证据链后，亲自把审计交给莉雅。");
                     en="The three starcores of forest, ruins and mine were never fuel trophies. They governed renewal, the time travelers had to cross a river, and the right of miners to leave overheating machinery. Lyra suspects the shield's ledger simply valued all three at zero.\n\n"+
                         (Has("triad_evidence_1")?"You recovered the forest renewal account: roots and living soil once received the spare energy.\n":"The forest supply seal remains unread.\n")+
@@ -360,6 +395,7 @@ namespace Starfall
                         (Has("triad_evidence_3")?"The mine account recognizes evacuation when machines overheat.\n":"The miners' rest seal remains unread.\n")+
                         (Has("triad_defense_clear")?"The obsolete security guardian was defeated in real combat.\n":"The central audit remains under armed security.\n")+
                         (Has("triad_sealed")?"The original audit was preserved at the central console.\n":"The original central record remains unsecured.\n")+
+                        (AllWitnessesFiled?"\nThree living witness signatures weaken the audit guards and can no longer be erased from public records.":"")+
                         (Has("triad_complete")?"\nLyra published the complete evidence. Three chapters become one record of the real cost of the shield, and Orrin must answer for it.":"\nThese findings remain unpublished. Preserve the ledger and carry it to Lyra.");
                     break;
                 case "temper":

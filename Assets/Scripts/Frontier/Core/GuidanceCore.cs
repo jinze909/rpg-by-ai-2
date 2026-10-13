@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "iron_temper", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -153,6 +153,49 @@ namespace Starfall
             }
 
 
+
+            if (id == "campaign_witness")
+            {
+                q.title=L("主线证词 · 未被计入的人","Main Story · The Uncounted Witnesses");
+                q.category=L("前三章关键人物与实战","ACT I–III · LIVING TESTIMONY");
+                q.description=L("三位居民亲自见证旧星核命令的损失。密林的疗养根系、遗迹的公共渡口与矿场的过热停机记录都被当成损耗。每章先正确恢复现场记录，再保护另一处证据免受真实守卫封锁，返回证人签署。这些证词会实质帮助第四章的三核审计。旧章节与旧存档的原有进度仍有效。",
+                    "Three living witnesses document what obsolete starcore orders erased: healing roots, public sluices and miners' emergency shutdown. Restore a first field record, physically defeat security at the second site, then return to its witness for a signed account. All three make Chapter Four's audit fight easier. Original campaign gates remain intact.");
+                int next=0;
+                for(int i=1;i<=3;i++)
+                {
+                    bool complete=Has("witness_complete_"+i);
+                    q.steps.Add(new QuestStep(L(new[]{"莫芽 · 密林里的根","阿菱 · 沉没遗迹的渡口","维恩 · 矿场的停机"}[i-1],
+                        new[]{"Moya · injured grove roots","Arin · a public river crossing","Venn · workers' right to stop"}[i-1]),complete));
+                    if(!complete && next==0)next=i;
+                }
+                q.complete=next==0;
+                q.locked=!Has("scout_saved");
+                q.room=q.complete?0:next;
+                string kind="witnessnpc"+next;
+                if(!q.complete && Has("witness_started_"+next))
+                    kind=Has("witness_sealed_"+next)?"witnessnpc"+next:
+                        !Has("witness_read_"+next)?"witnesssite1"+next:
+                        "witnesssite2"+next;
+                q.target=q.complete?ObjectPoint(0,"guild",new Point(18,17)):
+                    ObjectPoint(next,kind,new Point(11,12));
+                q.next=q.complete?L("三位证人均已署名；第四章审计卫兵防卫减弱",
+                        "All witnesses signed; Chapter Four's audit guardian is weakened"):
+                    q.locked?L("先救出荆棘密林的失踪侦察员",
+                        "First rescue the missing Thornwood scout"):
+                    !WitnessEligible(next)?L("先开启下一章的原有故事道路与机关",
+                        "First open the next chapter's original story gate"):
+                    !Has("witness_started_"+next)?L("在本地区找到活着的证人",
+                        "Find the living witness in this region"):
+                    !Has("witness_read_"+next)?L("调查第一处原始记录并恢复它的用途",
+                        "Read the first site and restore its true purpose"):
+                    !Has("witness_sealed_"+next)?L("击退第二处现场封锁守卫并保全证据",
+                        "Defeat the guards and preserve the second site"):
+                    L("返回证人身边亲自签署记录",
+                        "Return for the witness's signed testimony");
+                q.reward=L("每章一次性硬币25/35/45、碎片1、经验25/30/35；三章可削弱第四章审计守卫",
+                    "Per chapter: 25/35/45 coins, 1 shard, 25/30/35 XP; all three weaken Chapter Four audit security");
+                return q;
+            }
 
             if (id == "triad_reckoning")
             {
@@ -685,6 +728,10 @@ namespace Starfall
             int chapter = save.stage + 1; q.room = chapter; q.target = new Point(29, 8);
             bool gateOpen = chapter == 4 || chapter == 1 && Has("scout_saved") || Has("gate_" + chapter);
             q.steps.Add(new QuestStep(L(chapter == 1 ? "解救侦察员" : chapter == 2 ? "破解遗迹石碑" : chapter == 3 ? "修复矿场升降机" : "抵达统领所在祭坛", chapter == 1 ? "Rescue the scout" : chapter == 2 ? "Solve the tablets" : chapter == 3 ? "Repair the elevator" : "Reach the warden's altar"), gateOpen));
+            if(chapter<=3)
+                q.steps.Add(new QuestStep(L("可选：留下本章居民的真实证词",
+                    "Optional: obtain living testimony this chapter"),
+                    Has("witness_complete_"+chapter)));
             q.steps.Add(new QuestStep(L("击败守护者或达成和平解决", "Defeat the guardian or negotiate peace"), Has("boss_" + chapter)));
             q.steps.Add(new QuestStep(L(chapter == 4 ? "决定边境的未来" : "回收星核并交回公会", chapter == 4 ? "Choose the frontier's future" : "Recover the core and deliver to the guild"), q.complete));
             if (!gateOpen)

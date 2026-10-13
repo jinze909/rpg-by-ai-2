@@ -463,6 +463,10 @@ namespace Starfall
                     (save.room == 5 ? (LowTide ? L("低潮", "LOW TIDE") : L("高潮", "HIGH TIDE")) :
                      save.room == 6 ? L("热度 ", "HEAT ") + (int)save.heat + "/100" :
                      L("寒意 ", "COLD ") + (int)save.cold + "/100");
+            if (witnessDefenseRoom!=0 && save.room==witnessDefenseRoom)
+                return L("居民证词保全 ", "WITNESS DEFENSE ") +
+                    (int)Math.Ceiling(witnessDefenseTime) + "s · " +
+                    L("击败两名封锁卫兵","DEFEAT TWO SECURITY GUARDS");
             if (TriadBossInterruptReady && save.room==4)
                 return L("三核证据已公开 · 中央审计台可按E中断屏障（25耐力）",
                     "THREE-CORE AUDIT · press E at central console to interrupt shield (25 EN)");

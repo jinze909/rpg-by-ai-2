@@ -168,6 +168,42 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="witnessnpc"+Game.save.room)
+            {
+                int chapter=Game.save.room;
+                bool filed=Game.Has("witness_complete_"+chapter);
+                Color tint=filed?mint:Game.Has("witness_started_"+chapter)?gold:muted;
+                DrawNpc("innGuest",new Point(o.x,o.y),11+chapter);
+                Text(p.x-66,p.y-86,132,20,
+                    filed?Game.L("证词已公开","TESTIMONY FILED"):
+                    Game.L(new[]{"受伤根系证人","渡口幸存证人","矿工停机证人"}[chapter-1],
+                        new[]{"GROVE WITNESS","CROSSING WITNESS","MINER WITNESS"}[chapter-1]),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind=="witnesssite1"+Game.save.room ||
+                kind=="witnesssite2"+Game.save.room)
+            {
+                int chapter=Game.save.room;
+                bool second=kind=="witnesssite2"+chapter;
+                bool done=second?Game.Has("witness_sealed_"+chapter):
+                    Game.Has("witness_read_"+chapter);
+                bool active=Game.WitnessDefenseRoom==chapter && second;
+                Color tint=done?mint:active?PixelArt.C("#dd9678"):gold;
+                PropImage("witnessledger",chapter,p.x-28,p.y-65,56,68,done?Color.white:muted);
+                Ring(new Point(o.x,o.y),active?1f:.55f,tint,24);
+                Text(p.x-70,p.y-88,140,20,
+                    done?Game.L("原始证据已保全","RECORD PRESERVED"):
+                    active?Game.L("击退封锁卫兵","DEFEAT SECURITY"):
+                    second?Game.L("现场保全印记","FIELD PRESERVATION"):
+                    Game.L("证人原始记录","WITNESS LEDGER"),
+                    11,tint,TextAnchor.MiddleCenter);
+                if(active)
+                    Text(p.x-48,p.y-108,96,19,
+                        Game.WitnessDefenseTime.ToString("0")+"s",
+                        12,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind.StartsWith("triadmemory"))
             {
                 int site;

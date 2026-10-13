@@ -133,6 +133,23 @@ namespace Starfall
                 Box(24,88,3,3,edge);Box(68,88,3,3,edge);
                 Box(34,29,28,9,new Color(.3f,.75f,.81f,.22f));
             }
+            else if (kind == "witnessledger")
+            {
+                // An actual public ledger bound with thread, brass corners and
+                // three colored provenance seals; independent of asset imports.
+                Color leather=C("#68534c"),page=C("#e6d2a6"),
+                    brass=C("#bd9b65"),ink=C("#4b5860");
+                Box(20,27,58,77,C("#304653"));
+                Box(23,24,53,76,leather);
+                Box(29,31,42,60,page);
+                for(int j=0;j<6;j++)
+                    Box(35,40+j*7,31-j%3*3,2,ink);
+                Box(26,25,6,67,brass);Box(25,29,4,4,ink);
+                for(int i=0;i<3;i++)
+                    Disc(44+i*10,86,4,4,
+                        C(i==0?"#83b89c":i==1?"#7aaed4":"#dc9c75"));
+                Box(23,22,53,5,brass);Box(23,96,53,5,brass);
+            }
             else if (kind == "foundry")
             {
                 // Riveted industrial iron furnace with a distinctive active firebox.

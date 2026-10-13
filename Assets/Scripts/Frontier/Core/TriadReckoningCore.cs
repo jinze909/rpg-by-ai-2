@@ -245,7 +245,7 @@ namespace Starfall
                 Point foe=new Point(21.5f,11.5f);
                 if(!CanStand(foe) || !ClearAttackPath(Position,foe) ||
                     NavigationPath(foe).Count==0)return true;
-                Enemy guardian=new Enemy(89960,2,foe.x,foe.y,210);
+                Enemy guardian=new Enemy(89960,2,foe.x,foe.y,AllWitnessesFiled?165:210);
                 guardian.timer=.9f;
                 enemies.Add(guardian);
                 TriadDefenseActive=true;TriadTime=85;triadSurgeTime=3.2f;
