@@ -71,6 +71,55 @@ namespace Starfall.Tests
                 "Atlas quest and its rewards persist through the existing save format");
         }
 
+        public static void CalibratedStarrootSitesOfferSafePersistentRest(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3; g.save.level = 10;
+            g.Enter(1); g.enemies.Clear();
+            WorldObject stone = Object(g, "rootcounter1");
+            g.save.x = stone.x; g.save.y = stone.y;
+            g.save.health = g.save.maxHealth - 16;
+            g.save.energy = 22;
+            Check(!g.RootHarmonyRestoring,
+                "An undiscovered stone cannot provide free healing before completing the quest");
+            float before = g.save.health;
+            g.Tick(.05f, new Point());
+            Check(Math.Abs(g.save.health - before) < .001f,
+                "An untuned resonance remains inert and does not modify core player health");
+            g.save.flags.Add("root_harmony_1");
+            Check(g.RootHarmonyRestoring,
+                "Sealing the actual root reading creates a persistent safe refuge at its physical map location");
+            float energy = g.save.energy; before = g.save.health;
+            g.Tick(.05f, new Point());
+            Check(g.save.health > before + .07f &&
+                g.save.energy > energy + .9f,
+                "Safe resonance actively restores both HP and energy in the existing combat simulation");
+            // An enemy within the live safe-travel radius must interrupt the
+            // respite; the ordinary player combat remains unchanged.
+            Enemy raider = new Enemy(707, 0, stone.x + 1.5f, stone.y, 55);
+            raider.stun = 5f; g.enemies.Add(raider);
+            Check(!g.RootHarmonyRestoring,
+                "A nearby real enemy disables the sanctuary even if immobilized");
+            before = g.save.health;
+            g.Tick(.05f, new Point());
+            Check(Math.Abs(g.save.health - before) < .001f,
+                "Combat cannot be trivialized by indefinitely standing in a healing node");
+            g.enemies.Clear();
+            Point far = new Point(g.Map.spawnX, g.Map.spawnY);
+            g.save.x = far.x; g.save.y = far.y;
+            Check(!g.RootHarmonyRestoring,
+                "The permanent respite remains local rather than applying a global passive");
+            before = g.save.health;
+            g.Tick(.05f, new Point());
+            Check(Math.Abs(g.save.health - before) < .001f,
+                "Walking outside the actual resonance radius immediately ends bonus healing");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save)); loaded.Start();
+            loaded.enemies.Clear(); loaded.save.x = stone.x; loaded.save.y = stone.y;
+            Check(loaded.RootHarmonyRestoring,
+                "Existing persistent quest flags restore the refuge after reload without a new save schema");
+        }
+
         public static void StarrootCounterpointIsNewPlayableCrossRegionStory(Campaign data)
         {
             var g = Fresh(data);
