@@ -49,6 +49,17 @@ namespace Starfall
                     float dx = foe.x - x, dy = foe.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
                 }
+                // A nearby hostile shot can arrive after its archer has moved
+                // beyond the safety radius. A travel shortcut must not make
+                // an incoming arrow disappear while normal enemy travel gates
+                // are satisfied. Friendly shots do not block their caster.
+                foreach (Projectile shot in projectiles)
+                {
+                    if (shot.friendly || shot.life <= 0 || shot.damage <= 0)
+                        continue;
+                    float dx = shot.position.x - x, dy = shot.position.y - y;
+                    if (dx * dx + dy * dy < rangeSquared) return false;
+                }
                 return true;
             }
         }

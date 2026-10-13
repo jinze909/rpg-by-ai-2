@@ -126,6 +126,23 @@ namespace Starfall.Tests
             Check(g.SafeTravel,"Four-tile range retains its exact exclusive boundary");
             g.enemies.Clear();
             Check(g.SafeTravel,"A cleared battlefield restores ordinary safe travel");
+            // The shooter may be outside aggro range while its live arrow
+            // remains dangerous next to the player.
+            var arrow=new Projectile { position=new Point(13,12),
+                velocity=new Point(-6,0),damage=12,life=2,source="shot" };
+            g.projectiles.Add(arrow);
+            Check(!g.SafeTravel,"A live hostile projectile near the hero blocks instant escape");
+            arrow.friendly=true;
+            Check(g.SafeTravel,"Our own projectile never locks unrelated fast travel");
+            arrow.friendly=false;arrow.life=0;
+            Check(g.SafeTravel,"Expired hostile projectile does not block safe travel");
+            arrow.life=2;arrow.damage=0;
+            Check(g.SafeTravel,"Harmless preview projectiles do not create false travel danger");
+            arrow.damage=12;arrow.position=new Point(16,12);
+            Check(g.SafeTravel,"Active arrow at the exact four-tile boundary remains outside danger radius");
+            arrow.position=new Point(15.99f,12);
+            Check(!g.SafeTravel,"Approaching arrow is blocked with the same radius as local enemies");
+            g.projectiles.Clear();
             var watch=Fresh(data);watch.save.stage=4;
             watch.save.flags.Add("exp_intro");
             watch.save.flags.Add("civic_supply_complete");
