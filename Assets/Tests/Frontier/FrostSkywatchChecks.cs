@@ -113,6 +113,52 @@ namespace Starfall.Tests
             Check(loaded.save.cold<40,
                 "Refuge changes actual Frostchime cold exposure, not only the icon");
         }
+        public static void FrostSkywatchChronicleOnlyRevealsObservedEvidence(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject book=Object(g,"worldchronicle");
+            g.Talk(book);
+            int section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_after");
+            Check(section>=0,"Original chronicle has an aftermath section");
+            g.Choose(section);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_skywatch")<0,
+                "The new observatory chapter is hidden before Yilan's commission");
+            g.Close();g.save.flags.Add("skywatch_started");
+            g.Talk(book);
+            section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_after");
+            g.Choose(section);
+            int page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_skywatch");
+            Check(page>=0,"Accepting the real quest unlocks a playable-chronicle chapter");
+            g.Choose(page);
+            Check(g.conversation.text.Contains("读数尚未取回") &&
+                !g.conversation.text.Contains("观星台旁留下永久避寒穹顶"),
+                "The book does not spoil readings or claim an unearned final refuge");
+            g.Close();
+            g.save.flags.Add("skywatch_prism_1");
+            g.save.flags.Add("skywatch_prism_2");
+            g.Talk(book);section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_after");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_skywatch");g.Choose(page);
+            Check(g.conversation.text.Contains("第一场冻雨") &&
+                g.conversation.text.Contains("并非太阳") &&
+                !g.conversation.text.Contains("已经停止攻击旅人"),
+                "Only actually recovered prism clues appear in the bilingual story archive");
+            g.Close();g.save.flags.Add("skywatch_prism_3");
+            g.save.flags.Add("skywatch_defeated");g.save.flags.Add("skywatch_complete");
+            g.Talk(book);section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_after");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_skywatch");g.Choose(page);
+            Check(g.conversation.text.Contains("永久避寒穹顶") &&
+                g.conversation.textEn.Contains("permanent shelter"),
+                "Only a truly published observatory displays the public weather ending");
+        }
+
         public static void FrostSkywatchHazardsAreDodgeableAndWithdrawalIsSafe(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=12;

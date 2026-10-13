@@ -41,6 +41,7 @@ namespace Starfall
             if (page == "atlas") return Has("archive_complete");
             if (page == "counterpoint") return Has("root_harmony_started");
             if (page == "commons") return Has("commons_relay_started");
+            if (page == "skywatch") return Has("skywatch_started");
             if (page == "abyss") return save.frontierEnding > 0;
             if (page == "ending") return save.ending > 0;
             return false;
@@ -90,6 +91,8 @@ namespace Starfall
                     choices.Add(StoryChoice("星根失谐与三段音纹", "Starroot Counterpoint · three readings", "story_read_counterpoint"));
                 if (StoryUnlocked("commons"))
                     choices.Add(StoryChoice("公共信标 · 艾拉的证词", "Citadel Commons Relay · Ayla's testimony", "story_read_commons"));
+                if (StoryUnlocked("skywatch"))
+                    choices.Add(StoryChoice("霜钟夜空 · 最后一夜的光谱", "Frostchime Skywatch · last night's spectrum", "story_read_skywatch"));
                 if (StoryUnlocked("abyss")) choices.Add(StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
@@ -114,7 +117,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "ruins", "mine", "citadel" };
             if (section == "farshore") return new[] { "harbor", "desert", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "abyss", "ending" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -297,6 +300,40 @@ namespace Starfall
                         (Has("root_harmony_2") ? "The tide reading remembers when sluices opened for living travelers instead of old guild seals.\n" : "The drowned tide reading remains silent.\n") +
                         (Has("root_harmony_3") ? "Ironreach's rhythm preserves the pause between forging and extraction, long enough for miners to go home." : "The mine's iron reading is still uncalibrated.") +
                         (Has("root_harmony_complete") ? "\n\nAll three readings now belong to the public archive. Counterpoint is not another tool of rule: no land should have to sing alone." : "");
+                    break;
+                case "skywatch":
+                    headingZh = "霜钟夜空：从谁的视角预报寒潮？";
+                    headingEn = "Frostchime Skywatch: Whose Forecast?";
+                    zh = "观星师伊澜找到了一套尚未公开的旧观测记录。高原的冰光警报不只是机械故障：它把居民的求救声当作背景噪声，只留下堡垒想听的星陨预报。\n\n" +
+                        (Has("skywatch_prism_1") ?
+                            "北方的霜棱镜记录了天光出现前的第一场冻雨。\n" :
+                            "北方的霜棱镜读数尚未取回。\n") +
+                        (Has("skywatch_prism_2") ?
+                            "东方的光棱镜证实，冷光并非太阳或火焰。\n" :
+                            "东方的光棱镜仍未校准。\n") +
+                        (Has("skywatch_prism_3") ?
+                            "南方的炉火棱镜刻下了居民守着营火等候归人的夜晚。" :
+                            "南方的炉火棱镜还没有发出回声。") +
+                        (Has("skywatch_defeated") ?
+                            "\n\n古观星守卫已经停止攻击旅人。" : "") +
+                        (Has("skywatch_complete") ?
+                            "\n伊澜把气候光谱公开交给所有居民。观星台旁留下永久避寒穹顶；预报不再只为堡垒服务。" :
+                            "\n\n原始光谱尚未向镇民公开。");
+                    en = "Yilan found a weather record hidden inside the observatory. The skyfall alarm did more than malfunction: it treated travelers' distress signals as background noise and preserved only the forecast wanted by the citadel.\n\n" +
+                        (Has("skywatch_prism_1") ?
+                            "The northern lens remembers freezing rain before the lights appeared.\n" :
+                            "The northern frost reading is still missing.\n") +
+                        (Has("skywatch_prism_2") ?
+                            "The eastern lens proves that the cold beam came from neither sun nor fire.\n" :
+                            "The eastern light reading remains unaligned.\n") +
+                        (Has("skywatch_prism_3") ?
+                            "The southern hearth lens preserved the people keeping a fire for those still missing." :
+                            "The southern hearth reading remains silent.") +
+                        (Has("skywatch_defeated") ?
+                            "\n\nThe ancient skywatch guardian no longer attacks travelers." : "") +
+                        (Has("skywatch_complete") ?
+                            "\nYilan published the forecast for everyone. A permanent shelter now surrounds the observatory; weather information no longer serves only the citadel." :
+                            "\n\nThe original spectrum has not yet been released to the town.");
                     break;
                 case "abyss":
                     headingZh = "地脉深渊：星根的伤口"; headingEn = "Root Abyss: A Wound in the Network";
