@@ -1250,6 +1250,98 @@ namespace Starfall.Tests
                     "The public power network does not grant either service remotely from a map");
             }
         }
+        public static void ChapterElevenConduitHasRealWarnedArcDamageAndSelectiveRetirement(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.maxHealth=1000;g.save.health=1000;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();
+            var west=Object(g,"civicconduitmaster");
+            g.save.x=west.x;g.save.y=west.y;
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            Check(g.CivicConduitActive,"Live current must be actively carried");
+            float baseCharge=g.CivicConduitIntegrity;
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            g.invulnerable=0;hurt.Invoke(g,new object[]{20f,"shot",null});
+            float reduced=g.CivicConduitIntegrity;
+            Check(reduced<baseCharge-10&&g.CivicConduitActive,
+                "Real post-armor damage also burns down the public conductor integrity");
+            hurt.Invoke(g,new object[]{20f,"shot",null});
+            Check(g.CivicConduitIntegrity==reduced,
+                "Invulnerable repeat hits never double-drain grid conductor integrity");
+            g.invulnerable=0;hurt.Invoke(g,new object[]{12f,"environment",null});
+            Check(g.CivicConduitIntegrity==reduced,
+                "Environmental weather does not incorrectly destroy electric circuit integrity");
+            var pulse=typeof(GameCore).GetField("conduitPulseLeft",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            pulse.SetValue(g,.01f);
+            g.invulnerable=0;g.hitStop=0;g.Tick(.05f,new Point());
+            var arc=g.hazards.Find(h=>h.civicConduitOwned);
+            Check(arc!=null&&arc.kind=="rift"&&arc.timer>0&&
+                (arc.position-g.Position).Length<.1f,
+                "Old grid uses the actual game world telegraph with a real timed impact");
+            float health=g.save.health;
+            arc.timer=.01f;g.invulnerable=0;g.hitStop=0;g.Tick(.05f,new Point());
+            Check(!g.hazards.Contains(arc)&&g.save.health<health&&
+                g.effects.Exists(e=>e.civicConduitOwned),
+                "Real spatial pulse contacts hero, damages carrier and shows its owned impact");
+            pulse.SetValue(g,.01f);
+            g.hitStop=0;g.invulnerable=0;g.Tick(.05f,new Point());
+            arc=g.hazards.Find(h=>h.civicConduitOwned);
+            Check(arc!=null,"Repeated live grid arcs are generated");
+            g.save.x=arc.position.x+3.5f;
+            g.save.y=arc.position.y;
+            health=g.save.health;g.hitStop=0;g.invulnerable=0;
+            arc.timer=.01f;g.Tick(.05f,new Point());
+            Check(g.save.health>=health-1,
+                "An arc missed after a genuine move away from its warned contact area");
+            // Test selective clean-up without throwing out unrelated bosses'
+            // delayed area warnings.
+            var nonOwned=new Hazard{position=g.Position,radius=.5f,timer=10,
+                kind="bell",damage=9};
+            g.hazards.Add(nonOwned);
+            pulse.SetValue(g,.01f);g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.hazards.Exists(h=>h.civicConduitOwned),
+                "There is a still live authored grid hazard before abort");
+            g.save.x=west.x;g.save.y=west.y;
+            Action(g,"civicconduitmaster","civic_conduit_abort");
+            Check(!g.CivicConduitActive&&
+                !g.hazards.Exists(h=>h.civicConduitOwned)&&
+                g.hazards.Contains(nonOwned)&&
+                !g.effects.Exists(e=>e.civicConduitOwned),
+                "Canceling the circuit preserves all unrelated active world hazards");
+        }
+        public static void ChapterElevenReadOnlyChronicleRequiresActuallyStartingGrid(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("last_directive_complete");
+            var gate=typeof(GameCore).GetMethod("StoryUnlocked",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var section=typeof(GameCore).GetMethod("WorldChronicleSection",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(!(bool)gate.Invoke(g,new object[]{"civicconduit"}),
+                "Reading the storybook must not reveal the next chapter before the physical first visit");
+            g.save.flags.Add("civic_conduit_started");
+            section.Invoke(g,new object[]{"after"});
+            Check((bool)gate.Invoke(g,new object[]{"civicconduit"})&&
+                Array.Exists(g.conversation.choices,c=>c.action=="story_read_civicconduit"),
+                "Only an authentic grid first step unlocks chapter eleven's book page");
+            int idx=Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_civicconduit");
+            int coins=g.save.coins,flags=g.save.flags.Count;
+            g.Choose(idx);
+            Check(g.conversation.text.Contains("仍未完成")&&
+                g.conversation.textEn.Contains("Not yet complete")&&
+                g.save.coins==coins&&g.save.flags.Count==flags,
+                "The read-only chapter never fakes a live valve completion or bonus loot");
+            g.Close();g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("last_directive_open");
+            section.Invoke(g,new object[]{"after"});
+            idx=Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_civicconduit");
+            g.Choose(idx);
+            Check(g.conversation.text.Contains("公共避险棚")&&
+                g.conversation.textEn.Contains("stamina recovery"),
+                "The published afterword correctly shows the prior political choice's earned consequences");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
