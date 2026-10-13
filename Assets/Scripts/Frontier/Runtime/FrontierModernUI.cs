@@ -122,7 +122,42 @@ namespace Starfall
             if(cooldown>0) Bar(x+4,y+h-3,w-8,1-cooldown/Math.Max(.01f,duration),gold,2);
             if(hit) act();
         }
-        private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrain(1024, 42, Mathf.Min(216f / Game.Map.rows[0].Length, 135f / Game.Map.rows.Length)); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
+        private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrainWindow(1024, 42); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
+        // The HUD shows a readable, player-centered 24x15-tile neighborhood.
+        // M still opens the separately scaled full-world strategic map.
+        private void MiniTerrainWindow(float x0, float y0)
+        {
+            const int cellsX=24, cellsY=15;
+            const float cell=9f;
+            int width=Game.Map.rows[0].Length,height=Game.Map.rows.Length;
+            int left=Math.Max(0,Math.Min(width-cellsX,(int)Game.save.x-cellsX/2));
+            int top=Math.Max(0,Math.Min(height-cellsY,(int)Game.save.y-cellsY/2));
+            Color low=PixelArt.C(Game.Map.color), water=PixelArt.C("#315c76"),
+                stone=PixelArt.C("#566879"),road=PixelArt.C("#a09877");
+            for(int dy=0;dy<cellsY;dy++)for(int dx=0;dx<cellsX;dx++)
+            {
+                int x=left+dx,y=top+dy;
+                if(x<0||x>=width||y<0||y>=height)continue;
+                char tile=Game.Map.rows[y][x];
+                Color c=tile=='~'||tile=='%'&&!Game.LowTide?water:
+                    tile=='#'?stone:tile=='='?road:low;
+                Box(x0+dx*cell,y0+dy*cell,cell,cell,
+                    Game.Explored(Game.save.room,x,y)?c:Color.Lerp(c,ink,.68f));
+            }
+            foreach(WorldObject o in Game.Map.objects)
+            {
+                if(o.x<left||o.x>=left+cellsX||o.y<top||o.y>=top+cellsY||
+                    !Game.IsObjectPresent(o))continue;
+                if(o.kind.StartsWith("portal")||Game.Explored(Game.save.room,o.x,o.y))
+                    Box(x0+(o.x-left)*cell-2,y0+(o.y-top)*cell-2,5,5,
+                        o.kind.StartsWith("portal")?mint:gold);
+            }
+            Point? goal=Game.NavigationTarget();
+            if(goal.HasValue&&Game.save.showGuidance&&goal.Value.x>=left&&goal.Value.x<left+cellsX&&
+                goal.Value.y>=top&&goal.Value.y<top+cellsY)
+                Box(x0+(goal.Value.x-left)*cell-3,y0+(goal.Value.y-top)*cell-3,7,7,gold);
+            Box(x0+(Game.save.x-left)*cell-3,y0+(Game.save.y-top)*cell-3,6,6,paper);
+        }
         private void MiniTerrain(float x0, float y0, float size)
         {
             for (int y = 0; y < Game.Map.rows.Length; y++) for (int x = 0; x < Game.Map.rows[y].Length; x++) { char t = Game.Map.rows[y][x]; Color c = t == '~' || t == '%' && !Game.LowTide ? PixelArt.C("#315c76") : t == '#' ? PixelArt.C("#566879") : t == '=' ? PixelArt.C("#a09877") : PixelArt.C(Game.Map.color); Box(x0 + x * size, y0 + y * size, size, size, Game.Explored(Game.save.room, x, y) ? c : Color.Lerp(c, ink, .68f)); }

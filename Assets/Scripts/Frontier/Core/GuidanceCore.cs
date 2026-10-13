@@ -43,18 +43,24 @@ namespace Starfall
             }
             // Preserve all legacy 36x24 fog bits. Annex discoveries use the
             // existing string flags instead of widening the SaveData v2 schema.
-            if (save.room < 8 && (save.x >= 36 || save.y >= 24))
+            if (save.room < 10 && (save.x >= 36 || save.y >= 24))
             {
                 string key = AnnexSectorKey(save.room, save.x, save.y);
                 if (!Has(key)) { save.flags.Add(key); revision++; }
             }
         }
         private static int Sector(float x, float y) { return (int)Clamp(x / 6, 0, 5) + (int)Clamp(y / 6, 0, 3) * 6; }
-        private static string AnnexSectorKey(int room, float x, float y)
-        { return "annex_seen_" + room + "_" + (int)Math.Floor(x / 6) + "_" + (int)Math.Floor(y / 6); }
+        private string AnnexSectorKey(int room, float x, float y)
+        {
+            // The procedural abyss must not leak discovery across different
+            // seeds or floors; outdoor flags retain their legacy v2 IDs.
+            string prefix=room==8?"abyss_annex_seen_"+save.abyssSeed+"_"+save.abyssFloor+"_":
+                "annex_seen_"+room+"_";
+            return prefix+(int)Math.Floor(x/6)+"_"+(int)Math.Floor(y/6);
+        }
         public bool Explored(int room, float x, float y)
         {
-            if (room >= 0 && room < 8 && (x >= 36 || y >= 24))
+            if (room >= 0 && room < 10 && (x >= 36 || y >= 24))
                 return Has(AnnexSectorKey(room, x, y));
             return (save.explored[room] & (1 << Sector(x, y))) != 0;
         }

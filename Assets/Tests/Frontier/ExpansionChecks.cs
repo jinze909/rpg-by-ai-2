@@ -340,7 +340,12 @@ namespace Starfall.Tests
             Check(g.save.runXp==startRunXp+15,"Survey awards unbanked experience only");
             g.Close();g.Talk(survey);g.Close();
             Check(g.save.runXp==startRunXp+15,"Abyss survey cannot mint XP twice");
+            Check(!g.Explored(8,cache.x,cache.y),
+                "Procedural annex begins unknown before visiting the side corridor");
             g.save.x=cache.x;g.save.y=cache.y;
+            g.Tick(.02f,new Point());
+            Check(g.Explored(8,cache.x,cache.y)&&!g.Explored(8,12,28),
+                "Abyss fog tracks actual distant rooms separately");
             int runCoins=g.save.runCoins,runShards=g.save.runShards;
             g.Talk(cache);
             Check(g.save.runCoins==runCoins+18&&g.save.runShards==runShards+2&&
@@ -350,7 +355,8 @@ namespace Starfall.Tests
             GameCore reloaded=new GameCore(data,g.save);
             Check(reloaded.InAbyss&&reloaded.save.version==2&&
                 reloaded.Map.rows.Length==36&&reloaded.Map.rows[0].Length==54&&
-                reloaded.Has("abyss_annex_cache_1")&&reloaded.save.runCoins==g.save.runCoins,
+                reloaded.Has("abyss_annex_cache_1")&&
+                reloaded.Explored(8,cache.x,cache.y)&&reloaded.save.runCoins==g.save.runCoins,
                 "Legacy v2 mid-expedition save restores expanded geometry and pending loot");
             reloaded.StartAbyss(1);
             Check(reloaded.save.runCoins==g.save.runCoins,

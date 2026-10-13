@@ -1040,14 +1040,14 @@ namespace Starfall
             Dialog(o.name, o.en,
                 cache ?
                     "巡路人的补给被冲进第二条地脉岔道。它并没有变成你的永久战利品；只有抵达东侧地脉门并结算，才真正能把物资带回来。" +
-                        (first ? "\\n\\n本层待结算：硬币 +18、碎片 +2。" : "\\n\\n这批补给已经登记。") :
+                        (first ? "\n\n本层待结算：硬币 +18、碎片 +2。" : "\n\n这批补给已经登记。") :
                     "旧石板记下矿工、船夫和巡路人怎样在星陨之后尝试共享能源。原来洞穴的旧路不止一条。" +
-                        (first ? "\\n\\n本层待结算经验 +15。" : "\\n\\n拓片已在你的临时记录里。"),
+                        (first ? "\n\n本层待结算经验 +15。" : "\n\n拓片已在你的临时记录里。"),
                 cache ?
                     "A warden's field supplies drifted into a new starroot gallery. These are unbanked rewards until you settle the floor at the east gate." +
-                        (first ? "\\n\\nUnbanked: +18 coins, +2 shards." : "\\n\\nAlready recorded.") :
+                        (first ? "\n\nUnbanked: +18 coins, +2 shards." : "\n\nAlready recorded.") :
                     "The rubbing traces how miners, ferrymen and wardens once shared light. The old abyss had more than one road." +
-                        (first ? "\\n\\nUnbanked XP +15." : "\\n\\nRubbing already recorded."),
+                        (first ? "\n\nUnbanked XP +15." : "\n\nRubbing already recorded."),
                 C("收进本层记录", "Keep in floor journal", "close"));
         }
         private void AbyssGateConversation()

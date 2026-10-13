@@ -317,6 +317,8 @@ namespace Starfall
         }
         private PreparedTerrainChunk FindTerrainChunk(int x, int y)
         {
+            if(terrainStreamingRoom!=Game.save.room||
+                terrainStreamingFloor!=Game.save.abyssFloor)return null;
             PreparedTerrainChunk state;
             int wide = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
             preparedTerrainChunks.TryGetValue(y / TerrainChunkTiles * wide +
@@ -347,6 +349,8 @@ namespace Starfall
         }
         private float TerrainChunkOpacity(int cx, int cy)
         {
+            if(terrainStreamingRoom!=Game.save.room||
+                terrainStreamingFloor!=Game.save.abyssFloor)return 1f;
             if (cx < 0 || cy < 0) return 1f;
             int width = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
             int height = (Game.Map.rows.Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
