@@ -55,6 +55,7 @@ namespace Starfall
             if (page == "hearing") return Has("hearing_started") || Has("hearing_complete");
             if (page == "supply_inquest") return CivicSupplyStarted;
             if (page == "lastdirective") return LastDirectiveStarted;
+            if (page == "civicconduit") return CivicConduitStarted;
             return false;
         }
         private void WorldChronicleSection(string section)
@@ -117,6 +118,10 @@ namespace Starfall
                 if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
                 if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
                 if (StoryUnlocked("hearing")) choices.Add(StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing"));
+                if (StoryUnlocked("civicconduit"))
+                    choices.Add(StoryChoice("第十一章 · 重接公共电网",
+                        "Chapter Eleven · Reconnecting the Public Grid",
+                        "story_read_civicconduit"));
                 if (StoryUnlocked("lastdirective"))
                     choices.Add(StoryChoice("第十章 · 最后指令", "Chapter Ten · The Last Directive", "story_read_lastdirective"));
                 if (StoryUnlocked("supply_inquest"))
@@ -145,7 +150,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective", "civicconduit" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -622,6 +627,32 @@ namespace Starfall
                             HearingOrrinResponsibility==2?
                             "\nOrrin released two real parts to volunteer roadwardens, and the old shrine now supplies public energy.":
                             "\nOrrin must personally answer for his share of the charter. The hero cannot sign on his behalf.";
+                    }
+                    break;
+                case "civicconduit":
+                    headingZh="第十一章：重接公共电网";
+                    headingEn="Chapter Eleven: Reconnecting the Public Grid";
+                    zh="最后的军令公开，并不意味着九年前的自动输电器就会自己停下来。西端熔断器旁留下了一份由维修工签名的告示：每一个调谐阀门都必须有人真实走到现场，在绿色的相位窗口内重新连接。失去稳定的电网会发出真正的危险电弧，而不是只有表格上的红字。\n\n";
+                    en="Publishing the last military order did not repair the nine-year-old automatic power grid. A mechanic's signed note at the western fuse desk requires a person to walk to every valve and align it during its own green phase. The old conductor discharges real, dodgeable arcs—not merely warning colors on a spreadsheet.\n\n";
+                    if(CivicConduitComplete)
+                    {
+                        zh+="【三处阀门真正调谐完毕】熔断器接通的公共网络已开始服务八地实际修好的公共避险棚。";
+                        en+="[All three physical valves tuned] The reclaimed power grid now serves truly rebuilt refuges across eight regions.";
+                        if(LastDirectiveChoice==1)
+                        {
+                            zh+="\n社区选择公开巡路与停机监督，因此安全时各地避险棚会补充额外耐力。";
+                            en+="\nPublic oversight routes extra safe stamina recovery to each rebuilt refuge.";
+                        }
+                        if(LastDirectiveChoice==2)
+                        {
+                            zh+="\n社区选择无条件紧急庇护，因此安全时各地避险棚会提供额外疗伤。";
+                            en+="\nUnconditional public shelter routes extra safe medical recovery to each rebuilt refuge.";
+                        }
+                    }
+                    else
+                    {
+                        zh+="【仍未完成】本册不会替旅行者走完现场线路，也不会虚构三处成功的调谐记录。";
+                        en+="[Not yet complete] This chronicle cannot walk the circuit or invent three successful calibrations.";
                     }
                     break;
                 case "lastdirective":
