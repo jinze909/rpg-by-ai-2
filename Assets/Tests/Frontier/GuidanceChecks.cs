@@ -787,6 +787,32 @@ namespace Starfall.Tests
             Check(g.save.health-40<upgraded,
                 "Shared care cannot remotely heal a traveler far away from a physical refuge");
         }
+        public static void CivicLookoutRaidersReallyTelegraphAndHitWithoutScriptedDamage(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("civic_supply_watch_0");
+            g.save.flags.Add("far_shelter_0");g.Enter(0);g.enemies.Clear();
+            var shelter=Object(g,"farshelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,"farshelter","civic_response_start");
+            Check(g.CivicResponseWatchRun&&g.CivicResponseEnemiesAlive==2,
+                "Real live watch defense must deploy actual nearby combat AI");
+            float health=g.save.health;
+            bool warned=false,contact=false;
+            for(int i=0;i<180&&g.CivicResponseActive&&!g.Dying;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(g.enemies.Exists(e=>e.id>=90200&&e.id<90216&&e.state==1))
+                    warned=true;
+                if(g.save.health<health){contact=true;break;}
+            }
+            Check(warned,
+                "Organic watch raiders must visibly wind up with standard enemy AI");
+            Check(contact,
+                "At least one unforced actual AI attack must contact the player");
+            Check(!g.CivicResponseDone(0),
+                "Taking real damage during a watch never counts as defeating its attackers");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
