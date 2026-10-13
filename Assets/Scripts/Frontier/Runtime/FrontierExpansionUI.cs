@@ -185,6 +185,19 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind.StartsWith("afterlightwaypoint"))
+            {
+                int region;
+                if(!int.TryParse(kind.Substring("afterlightwaypoint".Length),out region) ||
+                    region<1||region>3)return true;
+                PropImage("afterlightanchor",region,p.x-26,p.y-69,52,69,Color.white);
+                Ring(new Point(o.x,o.y),.67f,mint,26);
+                Text(p.x-78,p.y-91,156,22,
+                    Game.L(new[]{"密林公共星灯","遗迹公共星灯","矿场公共星灯"}[region-1],
+                        new[]{"GROVE STARROAD","RUINS STARROAD","MINE STARROAD"}[region-1]),
+                    11,mint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="afterlightcouncil")
             {
                 Color tint=Game.Has("afterlight_complete")?mint:

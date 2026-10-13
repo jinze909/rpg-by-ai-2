@@ -543,10 +543,10 @@ namespace Starfall
                             en+=AfterlightLocation(ri,true)+": "+
                                 AfterlightOutcomeEn(ri)+"\n";
                             zh+=Has("afterlight_steward_"+ri)?
-                                new[]{"","莫芽已亲笔签下根系与林灯维护责任。\n","阿菱已亲笔签下渡口及旅人名单维护责任。\n","维恩已亲笔签下矿工安全停机与维修责任。\n"}[ri]:
+                                new[]{"","莫芽已亲笔签下根系与林灯维护责任；余烬镇公共星灯已开放。\n","阿菱已亲笔签下渡口及旅人名单维护责任；余烬镇公共星灯已开放。\n","维恩已亲笔签下矿工安全停机与维修责任；余烬镇公共星灯已开放。\n"}[ri]:
                                 "公共设施虽已接通，维护者仍未亲自署名。\n";
                             en+=Has("afterlight_steward_"+ri)?
-                                new[]{"","Moya personally signed responsibility for roots and road lamps.\n","Arin signed responsibility for the public crossing and traveler ledger.\n","Venn signed responsibility for safe shutdown and repairs.\n"}[ri]:
+                                new[]{"","Moya signed for roots and road lamps; Emberfall public starroad access is now open.\n","Arin signed for the crossing and travelers; Emberfall public starroad access is now open.\n","Venn signed for safe shutdown and repairs; Emberfall public starroad access is now open.\n"}[ri]:
                                 "The installed facility still awaits the living steward's signature.\n";
                         }
                     }

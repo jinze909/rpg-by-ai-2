@@ -773,6 +773,13 @@ namespace Starfall
         public bool IsObjectPresent(WorldObject o)
         {
             if (o == null) return false;
+            if(o.kind.StartsWith("afterlightwaypoint"))
+            {
+                int region;
+                return int.TryParse(o.kind.Substring("afterlightwaypoint".Length),out region) &&
+                    region>=1 && region<=3 && Has("afterlight_done_"+region) &&
+                    Has("afterlight_steward_"+region);
+            }
             if (o.kind.StartsWith("blackoutcivilian"))
             {
                 int id;

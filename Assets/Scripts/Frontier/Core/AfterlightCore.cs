@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace Starfall
 {
     // Chapter Five: three original regions visibly rebuilt AFTER the original
@@ -63,6 +64,21 @@ namespace Starfall
             string kind=o.kind;
             bool board=kind=="afterlightcouncil";
             int room=save.room;
+            bool waypoint=room==0 && kind.StartsWith("afterlightwaypoint");
+            if(waypoint)
+            {
+                int region;
+                if(!int.TryParse(kind.Substring("afterlightwaypoint".Length),out region) ||
+                    region<1||region>3 || !Has("afterlight_done_"+region) ||
+                    !Has("afterlight_steward_"+region))return true;
+                Dialog(o.name,o.en,
+                    "这是居民亲自签署维护责任后，余烬镇新增的公共星灯线路。\n\n"+
+                    "线路已经直连"+AfterlightLocation(region,false)+"的修好设施。附近没有敌人时才能乘坐；它不会替你完成尚未接通的其它地区主线。",
+                    "This public starroad opened only after the actual regional steward signed the maintenance record.\n\n"+
+                    "It leads directly to the repaired receiver at "+AfterlightLocation(region,true)+". Nearby combat blocks travel; other unfinished story regions remain unfinished.",
+                    C("沿公共星灯抵达修好的设施","Travel directly to the repaired site","afterlight_route_"+region),
+                    C("先不出发","Stay","close"));return true;
+            }
             // Reuse the EXISTING living characters of Acts I–III rather than
             // cloning them as new NPCs or bypassing their signed commitments.
             if(room>=1&&room<=3 && kind=="witnessnpc"+room &&
@@ -154,30 +170,32 @@ namespace Starfall
             }
             if(Has("afterlight_done_"+room))
             {
-                if(outlet&&room==2&&AfterlightMode(2)==1)
+                string descriptionZh=AfterlightOutcomeZh(room);
+                string descriptionEn=AfterlightOutcomeEn(room);
+                var options=new List<Choice>();
+                if(room==2 && AfterlightMode(2)==1)
                 {
-                    Dialog(o.name,o.en,AfterlightOutcomeZh(room)+"\n\n"+
-                        "没有敌人在附近时可使用公用小舟前往原水闸的另一岸。",
-                        AfterlightOutcomeEn(room)+"\n\n"+
-                        "When enemies are clear, use the free public boat to reach the former sluice gate.",
-                        C("搭乘公共渡船","Ride public ferry","afterlight_ferry_out"),
-                        C("留在此处","Stay","close"));return true;
+                    if(outlet)
+                    {
+                        descriptionZh+="\n\n公用渡船在无战斗时可前往原水闸另一岸。";
+                        descriptionEn+="\n\nThe public ferry travels to the original sluice terminal only outside combat.";
+                        options.Add(C("搭乘公共渡船","Ride public ferry","afterlight_ferry_out"));
+                    }
+                    else
+                        options.Add(C("搭乘公共渡船","Ride public ferry","afterlight_ferry_back"));
                 }
-                if(anchor&&room==2&&AfterlightMode(2)==1)
+                if(outlet && room==3 && AfterlightMode(3)==1)
                 {
-                    Dialog(o.name,o.en,AfterlightOutcomeZh(room),AfterlightOutcomeEn(room),
-                        C("搭乘公共渡船","Ride public ferry","afterlight_ferry_back"),
-                        C("留在此处","Stay","close"));return true;
+                    descriptionZh+="\n\n真实成本：木材 ×1，星晶 ×2；加工零件 ×2。";
+                    descriptionEn+="\n\nReal cost: 1 timber, 2 starcrystals, gaining 2 machine parts.";
+                    options.Add(C("制作可修桥的零件 ×2","Craft 2 repair parts","afterlight_craft"));
                 }
-                if(outlet&&room==3&&AfterlightMode(3)==1)
-                {
-                    Dialog(o.name,o.en,AfterlightOutcomeZh(room)+"\n\n真实成本：木材 ×1，星晶 ×2；可在此加工零件 ×2。",
-                        AfterlightOutcomeEn(room)+"\n\nReal cost: 1 timber and 2 starcrystals; gain 2 genuine machine parts.",
-                        C("制作可修桥的零件 ×2","Craft 2 repair parts","afterlight_craft"),
-                        C("暂时不用","Later","close"));return true;
-                }
-                Dialog(o.name,o.en,AfterlightOutcomeZh(room),AfterlightOutcomeEn(room),
-                    C("继续旅程","Continue","close"));return true;
+                if(outlet && Has("afterlight_steward_"+room))
+                    options.Add(C("沿公共星灯返回余烬镇","Return to Emberfall via public starroad",
+                        "afterlight_return_"+room));
+                options.Add(C("继续旅程","Continue","close"));
+                Dialog(o.name,o.en,descriptionZh,descriptionEn,options.ToArray());
+                return true;
             }
             if(anchor)
             {
@@ -274,6 +292,34 @@ namespace Starfall
                 save.x=to.x;save.y=to.y;revision++;sound="travel";
                 Notify("公共渡船已抵达对岸。不是公会独占的水路了。",
                     "Public ferry reached the other bank. Passage no longer belongs only to the guild.");
+                return true;
+            }
+            if(action.StartsWith("afterlight_route_") ||
+                action.StartsWith("afterlight_return_"))
+            {
+                bool outbound=action.StartsWith("afterlight_route_");
+                int region;
+                if(!int.TryParse(action.Substring(outbound?
+                    "afterlight_route_".Length:"afterlight_return_".Length),out region) ||
+                    region<1||region>3 || !Has("afterlight_started") ||
+                    !Has("afterlight_done_"+region) || !Has("afterlight_steward_"+region) ||
+                    !SafeTravel || Dying || practicing || afterlightChargeRegion!=0)
+                    return true;
+                Point from=outbound?
+                    ObjectPoint(0,"afterlightwaypoint"+region,new Point(-100,-100)):
+                    AfterlightPoint(region,"outlet");
+                Point destination=outbound?AfterlightPoint(region,"outlet"):
+                    ObjectPoint(0,"afterlightwaypoint"+region,new Point(-100,-100));
+                if(save.room!=(outbound?0:region) ||
+                    (Position-from).Length>2.2f || !CanStand(destination))
+                    return true;
+                Enter(outbound?region:0);
+                if(save.room==(outbound?region:0))
+                {
+                    save.x=destination.x;save.y=destination.y;revision++;sound="travel";
+                    Notify("公共星灯线路已接通。居民和冒险者都能使用这条新道路。",
+                        "Public starroad now links town and civic services for every traveler.");
+                }
                 return true;
             }
             if(action.StartsWith("afterlight_steward_"))

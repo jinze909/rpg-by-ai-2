@@ -238,6 +238,30 @@
           "en": "Chapter Five · Afterlight Council",
           "x": 16.5,
           "y": 19.5
+        },
+        {
+          "id": "afterlightwaypoint1",
+          "kind": "afterlightwaypoint1",
+          "name": "密林公共星灯路标",
+          "en": "Grove Public Starroad",
+          "x": 20.5,
+          "y": 7.5
+        },
+        {
+          "id": "afterlightwaypoint2",
+          "kind": "afterlightwaypoint2",
+          "name": "遗迹公共星灯路标",
+          "en": "Ruins Public Starroad",
+          "x": 6.5,
+          "y": 12.5
+        },
+        {
+          "id": "afterlightwaypoint3",
+          "kind": "afterlightwaypoint3",
+          "name": "矿场公共星灯路标",
+          "en": "Mine Public Starroad",
+          "x": 29.5,
+          "y": 12.5
         }
       ],
       "decor": [

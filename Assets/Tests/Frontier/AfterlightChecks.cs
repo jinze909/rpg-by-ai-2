@@ -310,5 +310,58 @@ namespace Starfall.Tests
             Check(g.AfterlightComplete,"Signed civic reconstruction is an earned main-story closure");
         }
 
+
+        public static void ChapterFiveSignedPublicStarroadsConnectActualTownAndRegionsSafely(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            for(int region=1;region<=3;region++)
+            {
+                g.Enter(0);g.enemies.Clear();
+                WorldObject waypoint=Object(g,"afterlightwaypoint"+region);
+                Point home=new Point(waypoint.x,waypoint.y);
+                g.save.x=waypoint.x;g.save.y=waypoint.y;
+                Check(g.CanStand(home) && !g.IsObjectPresent(waypoint),
+                    "A public road must not appear before a region is actually rebuilt and signed");
+                g.save.flags.Add("afterlight_plan_"+region+"_care");
+                g.save.flags.Add("afterlight_done_"+region);
+                Check(!g.IsObjectPresent(waypoint),
+                    "Repairing a machine alone is not public governance; the shortcut stays hidden until the local steward signs");
+                g.save.flags.Add("afterlight_steward_"+region);
+                Check(g.IsObjectPresent(waypoint) && g.Nearest()==waypoint,
+                    "Each signed chapter unlocks its own physical reachable landmark in the original Emberfall map");
+                var blocker=new Enemy(88000+region,0,waypoint.x+.7f,waypoint.y,60);
+                blocker.stun=60;blocker.timer=60;g.enemies.Add(blocker);
+                g.save.x=waypoint.x;g.save.y=waypoint.y;
+                Action(g,waypoint.kind,"afterlight_route_"+region);
+                Check(g.save.room==0 && 
+                    (g.Position-home).Length<.05f,
+                    "A public starroad cannot allow travel while a real enemy contests the town landmark");
+                g.enemies.Clear();
+                Action(g,waypoint.kind,"afterlight_route_"+region);
+                Check(g.save.room==region &&
+                    (g.Position-new Point(Object(g,"afterlightoutlet"+region).x,
+                        Object(g,"afterlightoutlet"+region).y)).Length<.05f,
+                    "Signed public starroad really transports the hero to that region's repaired distant receiver");
+                g.enemies.Clear();
+                WorldObject outlet=Object(g,"afterlightoutlet"+region);
+                g.save.x=outlet.x;g.save.y=outlet.y;
+                g.Talk(outlet);
+                Check(Array.Exists(g.conversation.choices,c=>
+                    c.action=="afterlight_return_"+region),
+                    "Installed public service remains available and separately offers an actual town return route");
+                g.Close();
+                Action(g,outlet.kind,"afterlight_return_"+region);
+                Check(g.save.room==0 && (g.Position-home).Length<.05f,
+                    "Public starroad is truly bidirectional and lands at its corresponding real town landmark");
+                g.PrepareSave();
+                var reload=new GameCore(data,CloneSave(g.save));reload.Start();
+                Check(reload.IsObjectPresent(waypoint) &&
+                    reload.AfterlightRestored>=region &&
+                    reload.AfterlightStewards>=region,
+                    "Real town transport stations survive SaveData v2 without changing other chapter portals");
+            }
+        }
+
     }
 }
