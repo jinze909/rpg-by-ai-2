@@ -144,7 +144,7 @@ namespace Starfall
         public int variant;
         // Only encounter-owned warnings retire when an optional rescue ends.
         // Ordinary combat effects are preserved.
-        public bool reliefMissionOwned;
+        public bool reliefMissionOwned, rootHarmonyOwned;
         public Effect(string kind, Point position, float life, string text = "")
         { this.kind = kind; this.position = position; this.life = maxLife = life; this.text = text; }
     }

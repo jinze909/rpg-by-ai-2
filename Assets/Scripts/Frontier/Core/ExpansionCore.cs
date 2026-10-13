@@ -359,7 +359,9 @@ namespace Starfall
                 if (Dying) break;
                 h.timer -= dt;
                 if (h.timer > 0) continue;
-                hazards.Remove(h); effects.Add(new Effect("danger", h.position, .45f) { radius = h.radius, variant = HazardTheme(h) });
+                hazards.Remove(h); effects.Add(new Effect("danger", h.position, .45f) {
+                    radius = h.radius, variant = HazardTheme(h),
+                    rootHarmonyOwned = h.rootHarmonyOwned });
                 if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
                 else TryRewardEscapedWarning(h.position, h.radius);
             }

@@ -505,7 +505,8 @@ namespace Starfall
                         effects.Add(new Effect("enemyRelease", e.Position, .24f) {
                             direction = e.facing, variant = e.boss ? 10 + save.room : e.kind,
                             reliefMissionOwned = IsReliefMissionEnemy(e) ||
-                                escortPatrol && e.targetingReliefCivilian });
+                                escortPatrol && e.targetingReliefCivilian,
+                            rootHarmonyOwned = IsRootHarmonyEnemy(e) });
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
@@ -640,7 +641,8 @@ namespace Starfall
                 { projectiles.Remove(p); effects.Add(new Effect("projectileFade", p.position, .25f) {
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned }); continue; }
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned,
+                        rootHarmonyOwned = p.rootHarmonyOwned }); continue; }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
                 bool dead = p.blockedAtSpawn || ShotBlocked(p,p.position); float impactRadius = 0;
                 for (int step = 0; step < steps && !dead; step++)
@@ -687,12 +689,14 @@ namespace Starfall
                     effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
                         variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
-                        reliefMissionOwned = p.reliefMissionOwned });
+                        reliefMissionOwned = p.reliefMissionOwned,
+                        rootHarmonyOwned = p.rootHarmonyOwned });
                 else if (p.life <= 0 && projectiles.Remove(p))
                     effects.Add(new Effect("projectileFade", p.position, .25f) {
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned });
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned,
+                        rootHarmonyOwned = p.rootHarmonyOwned });
             }
             tickingProjectiles.Clear();
         }

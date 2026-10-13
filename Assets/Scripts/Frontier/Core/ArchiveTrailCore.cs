@@ -150,6 +150,7 @@ namespace Starfall
             enemies.RemoveAll(IsRootHarmonyEnemy);
             projectiles.RemoveAll(p => p.rootHarmonyOwned);
             hazards.RemoveAll(h => h.rootHarmonyOwned);
+            effects.RemoveAll(e => e.rootHarmonyOwned);
             RootHarmonyRoom = 0; RootHarmonyTime = 0;
             rootHarmonyPulseTime = 0;
         }
@@ -294,7 +295,8 @@ namespace Starfall
                         (int)Math.Ceiling(RootHarmonyTime) + " 秒。",
                         "Dissonant sentinels are attacking. Defeat them before sealing the reading. " +
                         (int)Math.Ceiling(RootHarmonyTime) + " seconds left.",
-                        C("投入战斗", "Defend the node", "close"));
+                        C("投入战斗", "Defend the node", "close"),
+                        C("安全中止调谐", "Withdraw and reset", "root_harmony_abandon_" + region));
                 else Dialog(o.name, o.en,
                     "守卫已沉默。你听清了这段音纹，封存它，免得星根再次被迫共振。",
                     "The sentinels are silent. Seal this reading before dissonance returns.",
@@ -353,6 +355,21 @@ namespace Starfall
                 }
                 return true;
             }
+            if (action.StartsWith("root_harmony_abandon_"))
+            {
+                int room;
+                if (!int.TryParse(action.Substring("root_harmony_abandon_".Length), out room) ||
+                    room < 1 || room > 3) return true;
+                Point site = ObjectPoint(room, "rootcounter" + room, new Point(-100, -100));
+                if (RootHarmonyRoom == room && save.room == room && !Dying &&
+                    (Position - site).Length <= 2.2f)
+                {
+                    ResetRootHarmonyTrial(); revision++; sound = "quest";
+                    Notify("已安全终止调谐。守卫与残留攻击已清除，可重新尝试。",
+                        "Tuning withdrawn. Sentinels and encounter attacks retired; retry when ready.");
+                }
+                return true;
+            }
             if (action.StartsWith("root_harmony_tune_"))
             {
                 string[] pieces = action.Substring("root_harmony_tune_".Length).Split('_');
@@ -385,7 +402,7 @@ namespace Starfall
                     enemies.Add(CreatePlacedEnemy(88000 + room * 10 + i,
                         i == 2 ? 2 : i, spawn, 35 + room * 13));
                 }
-                effects.Add(new Effect("discover", site, .8f));
+                effects.Add(new Effect("discover", site, .8f) { rootHarmonyOwned = true });
                 sound = "windup"; revision++;
                 Notify("音纹调谐成功！真正击退三名失谐守卫，再回来封存读数。40秒倒计时开始。",
                     "Correct resonance! Defeat three real sentinels and seal the reading within 40 seconds.");
