@@ -42,6 +42,7 @@ namespace Starfall
             if (page == "counterpoint") return Has("root_harmony_started");
             if (page == "commons") return Has("commons_relay_started");
             if (page == "skywatch") return Has("skywatch_started");
+            if (page == "glasswind") return Has("glasswind_started");
             if (page == "abyss") return save.frontierEnding > 0;
             if (page == "ending") return save.ending > 0;
             return false;
@@ -77,6 +78,8 @@ namespace Starfall
                 descriptionEn = "Who sees the light, receives the water, and gets named beneath the bells? Three records belong at one table.";
                 if (StoryUnlocked("harbor")) choices.Add(StoryChoice("雾港 · 灯与救援", "Mistport · light and rescue", "story_read_harbor"));
                 if (StoryUnlocked("desert")) choices.Add(StoryChoice("玻璃沙海 · 水归谁", "Glass Desert · who owns water", "story_read_desert"));
+                if (StoryUnlocked("glasswind"))
+                    choices.Add(StoryChoice("玻璃风脉 · 为谁吹来的风", "Glasswind Circuit · Who Owns the Wind", "story_read_glasswind"));
                 if (StoryUnlocked("mountain")) choices.Add(StoryChoice("霜钟高原 · 名字", "Frostchime · names", "story_read_mountain"));
                 if (StoryUnlocked("covenant")) choices.Add(StoryChoice("三方议事厅 · 协定", "The council covenant", "story_read_covenant"));
             }
@@ -109,14 +112,14 @@ namespace Starfall
         {
             if (page == "origin" || page == "roots" || page == "orders" || page == "wardens") return "origins";
             if (page == "forest" || page == "ruins" || page == "mine" || page == "citadel") return "campaign";
-            if (page == "harbor" || page == "desert" || page == "mountain" || page == "covenant") return "farshore";
+            if (page == "harbor" || page == "desert" || page == "glasswind" || page == "mountain" || page == "covenant") return "farshore";
             return "after";
         }
         private static string[] StoryPagesForSection(string section)
         {
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "ruins", "mine", "citadel" };
-            if (section == "farshore") return new[] { "harbor", "desert", "mountain", "covenant" };
+            if (section == "farshore") return new[] { "harbor", "desert", "glasswind", "mountain", "covenant" };
             return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
         }
         private string AdjacentStoryPage(string page, int direction)
@@ -300,6 +303,39 @@ namespace Starfall
                         (Has("root_harmony_2") ? "The tide reading remembers when sluices opened for living travelers instead of old guild seals.\n" : "The drowned tide reading remains silent.\n") +
                         (Has("root_harmony_3") ? "Ironreach's rhythm preserves the pause between forging and extraction, long enough for miners to go home." : "The mine's iron reading is still uncalibrated.") +
                         (Has("root_harmony_complete") ? "\n\nAll three readings now belong to the public archive. Counterpoint is not another tool of rule: no land should have to sing alone." : "");
+                    break;
+                case "glasswind":
+                    headingZh="玻璃风脉：为谁吹来的风";headingEn="Glasswind: Who Owns the Wind?";
+                    zh="沙海的旧风压阀曾经根据货运许可证分配风与阴凉。测绘员米娅指出，机器记住了九年前的旧指令，却忘记了如今依靠这些道路生活的人。她将三座回路交给你，要求亲自重写公共通行权。\n\n" +
+                        (Has("glasswind_1")?
+                            "北沙阀已经解除货运锁，风路重新覆盖徒步旅人。\n":
+                            "北沙阀仍在等人亲自守住控制圈。\n") +
+                        (Has("glasswind_2")?
+                            "东脊阀不再将遮阳只留给有通行证的车队。\n":
+                            "东脊阀仍将人们挡在旧权限之外。\n") +
+                        (Has("glasswind_3")?
+                            "南沙阀已经打通，南部行路者也能寻到公共阴凉。":
+                            "南沙阀还没有完成两轮实际防卫。") +
+                        (Has("glasswind_complete")?
+                            "\n\n米娅已把新风路图公开交给居民，三座风阀不再要求许可证。真正改变的是对机器下令的人。":
+                            Has("glasswind_all_sealed")?
+                            "\n\n三个阀门均已封存，但公共路线仍等待米娅正式归档。":
+                            "\n\n这条风路尚未全部连通。");
+                    en="The old wind valves once rationed shade by freight permits. Mia found that the machines still obey orders issued nine years ago, without recognizing the people who now live along these roads. She asks you to rewrite their public access by holding three real defense sites.\n\n" +
+                        (Has("glasswind_1")?
+                            "The northern valve now carries cool wind to walkers without freight papers.\n":
+                            "The northern capture ring has not yet been held.\n") +
+                        (Has("glasswind_2")?
+                            "The eastern ridge no longer reserves shade for approved convoys.\n":
+                            "The eastern ridge still honors the obsolete lock.\n") +
+                        (Has("glasswind_3")?
+                            "The southern valve offers public refuge to late travelers.":
+                            "The southern valve still waits for a defended final seal.") +
+                        (Has("glasswind_complete")?
+                            "\n\nMia published the routes for every resident. The valves now welcome travelers without permits; what changed was who could give them orders.":
+                            Has("glasswind_all_sealed")?
+                            "\n\nAll relays are secured, but Mia has not yet published the public chart.":
+                            "\n\nThe wind circuit remains incomplete.");
                     break;
                 case "skywatch":
                     headingZh = "霜钟夜空：从谁的视角预报寒潮？";

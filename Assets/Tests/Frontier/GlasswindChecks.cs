@@ -132,5 +132,59 @@ namespace Starfall.Tests
                 loaded.Has("glasswind_1") && loaded.Has("glasswind_3"),
                 "Older v2 storage preserves all new permanent flags without a schema change");
         }
+
+        public static void GlasswindChronicleRevealsOnlyEarnedFieldProgress(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject book=Object(g,"worldchronicle");
+            g.Talk(book);
+            int section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");
+            Check(section>=0,"The old chronicle still offers its aftermath section");
+            g.Choose(section);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_glasswind")<0,
+                "The new page stays locked before the real commission");
+            g.Close();g.save.flags.Add("glasswind_started");
+            g.Talk(book);
+            section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            int page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_glasswind");
+            Check(page>=0,"Accepting Mia's quest unlocks one readable page");
+            g.Choose(page);
+            Check(g.conversation.text.Contains("北沙阀仍在等人") &&
+                g.conversation.textEn.Contains("northern capture ring has not yet been held") &&
+                !g.conversation.text.Contains("米娅已把新风路图公开"),
+                "The chronicle does not claim uncaptured sites or spoil rewards");
+            g.Close();g.save.flags.Add("glasswind_1");
+            g.Talk(book);section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_glasswind");g.Choose(page);
+            Check(g.conversation.text.Contains("北沙阀已经解除") &&
+                g.conversation.text.Contains("东脊阀仍将") &&
+                !g.conversation.text.Contains("米娅已把新风路图公开"),
+                "The archive distinguishes one cleared relay from the remaining locked sites");
+            g.Close();g.save.flags.Add("glasswind_2");
+            g.save.flags.Add("glasswind_3");
+            g.save.flags.Add("glasswind_all_sealed");
+            g.Talk(book);section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_glasswind");g.Choose(page);
+            Check(g.conversation.text.Contains("等待米娅正式归档") &&
+                !g.conversation.text.Contains("米娅已把新风路图公开"),
+                "Three live site completions must not fabricate the town publication");
+            g.Close();g.save.flags.Add("glasswind_complete");
+            g.Talk(book);section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_glasswind");g.Choose(page);
+            Check(g.conversation.text.Contains("米娅已把新风路图公开") &&
+                g.conversation.textEn.Contains("Mia published"),
+                "Only real final publication reveals the bilingual epilogue");
+        }
+
     }
 }
