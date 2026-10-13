@@ -1408,6 +1408,114 @@ namespace Starfall.Tests
                 g.FarCourierActive&&g.save.inventory[4]==parts,
                 "No time-sensitive courier can overlap the new conductor or consume its fuse");
         }
+        public static void QualityLiveCitadelWarpMustNotDiscardPaidFuseOrPhysicalDefense(Campaign data)
+        {
+            var a=Fresh(data);a.save.stage=4;
+            a.save.flags.Add("last_directive_complete");
+            a.save.flags.Add("last_directive_open");
+            a.Enter(4);a.enemies.Clear();
+            var master=Object(a,"civicconduitmaster");
+            a.save.x=master.x;a.save.y=master.y;
+            Action(a,"civicconduitmaster","civic_conduit_start");
+            Check(a.CivicConduitActive,"Real circuit must be active before travel attempts");
+            int parts=a.save.inventory[4],coins=a.save.coins;
+            a.Enter(0);
+            Check(a.save.room==4&&a.CivicConduitActive&&
+                a.save.inventory[4]==parts,
+                "Portals and route travel cannot silently erase an active paid circuit");
+            a.ReturnToTown();
+            Check(a.save.room==4&&a.CivicConduitActive,
+                "Fast-return must not reset the active route while the player carries its charge");
+            Action(a,"civicconduitmaster","civic_conduit_abort");
+            Check(!a.CivicConduitActive&&a.save.inventory[4]==parts&&
+                a.save.coins==coins,
+                "Original fuse terminal deliberately cancels without charging another part");
+            a.Enter(0);
+            Check(a.save.room==0,"After explicit physical abort normal world travel still works");
+            a.Enter(4);a.enemies.Clear();master=Object(a,"civicconduitmaster");
+            a.save.x=master.x;a.save.y=master.y;
+            Action(a,"civicconduitmaster","civic_conduit_start");
+            Check(a.CivicConduitActive&&a.save.inventory[4]==parts,
+                "Restart after travel costs no extra fuse and resets only transient charge");
+            a.PrepareSave();
+            var restored=new GameCore(data,CloneSave(a.save));restored.Start();
+            Check(!restored.CivicConduitActive&&restored.CivicConduitStarted,
+                "Old v2 saves never resurrect the live charge or lose the paid fuse");
+
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();
+            var terminal=Object(g,"lastdirectivecore");
+            g.save.x=terminal.x;g.save.y=terminal.y;
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "First defense physically deploys real AI enemies");
+            g.Enter(0);g.ReturnToTown();
+            Check(g.save.room==4&&g.LastDirectiveWave==1&&
+                g.LastDirectiveEnemies==2,
+                "Neither direct travel nor fast travel can silently cancel the real defenders");
+            var other=new Hazard{kind="bell",position=g.Position,
+                radius=.5f,timer=40,damage=1};
+            g.hazards.Add(other);
+            Action(g,"lastdirectivecore","last_directive_abort");
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveEnemies==0&&
+                g.hazards.Contains(other)&&g.LastDirectiveClues==3,
+                "Explicit terminal abort removes only wave combat, not unrelated hazards or permanent testimony");
+            g.Enter(0);
+            Check(g.save.room==0,
+                "World travel is restored immediately after deliberate defense abort");
+            g.Enter(4);g.enemies.Clear();
+            terminal=Object(g,"lastdirectivecore");
+            g.save.x=terminal.x;g.save.y=terminal.y;
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Defenders can respawn on fair retry; no forged prior-wave completion");
+        }
+        public static void QualityLockedValveDialogueNeverOffersAnInertAction(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_shelter");
+            g.Enter(4);g.enemies.Clear();
+            var master=Object(g,"civicconduitmaster");
+            var valve=Object(g,"civicconduitvalve");
+            g.save.x=master.x;g.save.y=master.y;
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            for(int i=0;i<43;i++)g.Tick(.05f,new Point());
+            Check(g.CivicConduitActive&&!g.CivicConduitWindowOpen,
+                "The real clock advances out of green before examining the valve dialogue");
+            // Walk the same authored ground while keeping the valve closed.
+            for(int i=0;i<62;i++)g.Tick(.05f,new Point(1,0));
+            Check((g.Position-new Point(valve.x,valve.y)).Length<2.2f,
+                "The player reaches the real valve, not a fake UI-only choice");
+            // Phase could have reopened during walking; advance to locked phase.
+            for(int i=0;i<135&&g.CivicConduitActive&&g.CivicConduitWindowOpen;i++)
+                g.Tick(.05f,new Point());
+            Check(g.CivicConduitActive&&!g.CivicConduitWindowOpen,
+                "The first valve is physically in its red/locked period");
+            g.Talk(valve);
+            Check(g.conversation!=null&&
+                !Array.Exists(g.conversation.choices,c=>c.action=="civic_conduit_tune")&&
+                g.conversation.text.Contains("绿色窗口")&&
+                g.conversation.textEn.Contains("Next green phase"),
+                "Closed valve offers only useful close/wait actions and a numeric next-window cue");
+            g.Close();
+            int phase=g.CivicConduitStage;
+            var choose=typeof(GameCore).GetMethod("ChooseCivicConduit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"civic_conduit_tune"});
+            Check(g.CivicConduitStage==phase,
+                "A forged locked-phase input cannot tune the valve while the clock is red");
+            for(int i=0;i<150&&g.CivicConduitActive&&!g.CivicConduitWindowOpen;i++)
+                g.Tick(.05f,new Point());
+            Check(g.CivicConduitActive&&g.CivicConduitWindowOpen,
+                "The valve transitions to real green after leaving the paused dialogue");
+            g.Talk(valve);
+            Check(Array.Exists(g.conversation.choices,c=>c.action=="civic_conduit_tune"),
+                "Only the actual green phase now shows an actionable tune button");
+            g.Close();
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
