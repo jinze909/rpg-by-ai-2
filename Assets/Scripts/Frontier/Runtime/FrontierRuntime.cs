@@ -131,7 +131,7 @@ namespace Starfall
             if (pointerMoved || Input.GetMouseButton(0)||keyboardMove||keyboardAction) controllerUsed = false;
             lastPointer = pointer; pointerSeen = true;
             for (int i = 0; i < 8; i++) if (PadDown(i)) controllerUsed = true;
-            Point frameAim = InputAim() ?? Game.aim;
+            Point? frameAim = InputAim();
             float timeLeft = frameDelta;
             while (timeLeft > .00001f)
             {
