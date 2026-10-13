@@ -74,7 +74,7 @@ namespace Starfall
                 if (!Has("boss_4"))
                 {
                     Dialog(o.name, o.en,
-                        "堡垒的旧调度日志不许外界抄录。先弄清四枚星核与屏障究竟发生了什么，等守卫不再阻拦，我们才能取得公共供给密钥。",
+                        "堡垒的旧调度日志不许外界抄录。先弄清三枚星核与屏障究竟发生了什么，等守卫不再阻拦，我们才能取得公共供给密钥。",
                         "The citadel still seals its allocation records. First confront the fourth starcore guardian. Only then can we recover the public supply key.",
                         C("我会调查堡垒", "I'll investigate the citadel", "close"));
                 }
