@@ -538,11 +538,13 @@ namespace Starfall.Tests
                     System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
                 Check(hit!=null,"Exercise real combat Hit transaction, not a simulated flag");
                 hit.Invoke(g,new object[]{attackerA,10000f,true,null,null});
-                g.Tick(.02f,new Point());
+                // Hit-stop is part of actual combat and temporarily defers
+                // quest ticks. Run normal real frames, not a magic giant dt.
+                for(int frame=0;frame<10;frame++)g.Tick(.02f,new Point());
                 Check(!g.OuterPatrolDone(room)&&g.OuterPatrolActive,
                     "Defeating one real attacker is not enough to clear the defense");
                 hit.Invoke(g,new object[]{attackerB,10000f,true,null,null});
-                g.Tick(.02f,new Point());
+                for(int frame=0;frame<10;frame++)g.Tick(.02f,new Point());
                 Check(g.OuterPatrolDone(room)&&g.save.coins==coins+14,
                     "Both true lethal Hit transactions award the single defense reward");
                 GameCore reload=new GameCore(data,g.save);
