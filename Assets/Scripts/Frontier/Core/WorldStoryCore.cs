@@ -34,6 +34,7 @@ namespace Starfall
             if (page == "mine") return Has("core_3") || Has("boss_3");
             if (page == "citadel") return Has("boss_4");
             if (page == "harbor") return Has("harbor_report");
+            if (page == "tidebound") return Has("tide_salvage_started") || Has("tide_salvage_complete");
             if (page == "desert") return Has("desert_report");
             if (page == "mountain") return Has("mountain_report");
             if (page == "covenant") return save.frontierEnding > 0;
@@ -77,6 +78,8 @@ namespace Starfall
                 descriptionZh = "灯照向哪里？谁喝得到水？被封在钟声下的人叫什么名字？三份记录必须放在同一张桌前。";
                 descriptionEn = "Who sees the light, receives the water, and gets named beneath the bells? Three records belong at one table.";
                 if (StoryUnlocked("harbor")) choices.Add(StoryChoice("雾港 · 灯与救援", "Mistport · light and rescue", "story_read_harbor"));
+                if (StoryUnlocked("tidebound"))
+                    choices.Add(StoryChoice("潮缚货单 · 谁被记作货损", "Tidebound Manifest · Written Off", "story_read_tidebound"));
                 if (StoryUnlocked("desert")) choices.Add(StoryChoice("玻璃沙海 · 水归谁", "Glass Desert · who owns water", "story_read_desert"));
                 if (StoryUnlocked("glasswind"))
                     choices.Add(StoryChoice("玻璃风脉 · 为谁吹来的风", "Glasswind Circuit · Who Owns the Wind", "story_read_glasswind"));
@@ -112,14 +115,14 @@ namespace Starfall
         {
             if (page == "origin" || page == "roots" || page == "orders" || page == "wardens") return "origins";
             if (page == "forest" || page == "ruins" || page == "mine" || page == "citadel") return "campaign";
-            if (page == "harbor" || page == "desert" || page == "glasswind" || page == "mountain" || page == "covenant") return "farshore";
+            if (page == "harbor" || page == "tidebound" || page == "desert" || page == "glasswind" || page == "mountain" || page == "covenant") return "farshore";
             return "after";
         }
         private static string[] StoryPagesForSection(string section)
         {
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "ruins", "mine", "citadel" };
-            if (section == "farshore") return new[] { "harbor", "desert", "glasswind", "mountain", "covenant" };
+            if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
             return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
         }
         private string AdjacentStoryPage(string page, int direction)
@@ -336,6 +339,36 @@ namespace Starfall
                             Has("glasswind_all_sealed")?
                             "\n\nAll relays are secured, but Mia has not yet published the public chart.":
                             "\n\nThe wind circuit remains incomplete.");
+                    break;
+                case "tidebound":
+                    headingZh="潮缚货单：谁被记作货损";
+                    headingEn="Tidebound Manifest: Who Was Written Off?";
+                    zh="托兰在雾港旧货运册里发现三项被注销的民用物资。这些不是什么船上的财宝：医药是给岸上的伤者，粮食是给避难的居民，航道记录是让下一艘船安全回来。\n\n" +
+                        (Has("tide_salvage_seen_1") ?
+                            "西侧潮滩的药品名单已被你亲手找回，上面的病人仍等着药。\n" :
+                            "西侧潮滩的药品名单仍未被找到。\n") +
+                        (Has("tide_salvage_seen_2") ?
+                            "内湾粮食原来一直配给给九年前便已失踪的船只。\n" :
+                            "内湾的粮食货单还未核实。\n") +
+                        (Has("tide_salvage_seen_3") ?
+                            "南岛保留了未被篡改的潮汐模型，证明航路本可公开。" :
+                            "南岛的真实潮汐模型尚未取回。") +
+                        (Has("tide_salvage_complete") ?
+                            "\n\n所有物资已经亲自运回码头并交给居民。托兰更新了观测站，每次稳潮比过去多十五秒。这次公开的不是海盗的战利品，而是居民本来就该拥有的东西。" :
+                            "\n\n货物尚未完整交付。眼睛看到过的记录可以留在手帐里，但没有送回去的物资不能算作完成救援。");
+                    en="Tolan found three civilian shipments written off in Mistport's freight ledgers. They were never treasure: medicine belonged to shore patients, food to displaced families, and a tide chart to the next vessel trying to return safely.\n\n" +
+                        (Has("tide_salvage_seen_1") ?
+                            "You recovered a western shoal medicine roster naming patients still waiting for care.\n" :
+                            "The western medicine roster remains missing.\n") +
+                        (Has("tide_salvage_seen_2") ?
+                            "The inner-bay food had been allocated to ships lost nine years before.\n" :
+                            "The inner-bay provisions have not been verified.\n") +
+                        (Has("tide_salvage_seen_3") ?
+                            "The southern isle preserved an untampered tide model and a public safe route." :
+                            "The southern island's original tide model is still missing.") +
+                        (Has("tide_salvage_complete") ?
+                            "\n\nYou physically returned every shipment to residents. Tolan updated Tidewatch to hold the ebb fifteen seconds longer. These were not a raider's trophies: they always belonged to the people." :
+                            "\n\nThe cargo is not yet delivered. What you witnessed may remain in your journal, but nothing not brought home can count as a finished rescue.");
                     break;
                 case "skywatch":
                     headingZh = "霜钟夜空：从谁的视角预报寒潮？";

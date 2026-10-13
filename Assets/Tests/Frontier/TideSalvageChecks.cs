@@ -168,5 +168,76 @@ namespace Starfall.Tests
             g.Enter(0);
             Check(g.save.room==0,"Ordinary travel is restored after abandoning or timing out");
         }
+
+        public static void TideboundArchiveTracksWitnessedCluesWithoutClaimingLostCargo(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","harbor_report","gate_5","fieldstation_5"})
+                g.save.flags.Add(flag);
+            WorldObject chronicle=Object(g,"worldchronicle");
+            g.Talk(chronicle);
+            int section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_tidebound")<0,
+                "The tidebound chronicle page remains hidden until the real expedition begins");
+            g.Close();g.Enter(5);g.enemies.Clear();
+            WorldObject dock=Object(g,"tidedock");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_start");
+            Check(g.Has("tide_salvage_started") &&
+                g.Conditions().Contains("潮滩打捞") &&
+                g.Conditions().Contains("100s"),
+                "The real mission unlocks the chronicle and a continuously visible timer");
+            g.save.english=true;
+            Check(g.Conditions().Contains("SALVAGE") &&
+                g.Conditions().Contains("LOW TIDE"),
+                "The live tide/timer HUD is also readable in English");
+            g.save.english=false;
+            WorldObject first=Object(g,"tidecargo1");
+            g.save.x=first.x;g.save.y=first.y;
+            Action(g,"tidecargo1","tide_salvage_take_1");
+            Check(g.Has("tide_salvage_seen_1") &&
+                !g.Has("tide_salvage_seen_2") &&
+                !g.Has("tide_salvage_complete"),
+                "Seeing the first physical roster writes only its earned evidence flag");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_abandon");
+            Check(!g.TideSalvageActive && g.Has("tide_salvage_seen_1"),
+                "Withdrawing loses cargo but does not erase genuinely witnessed history");
+            g.Enter(0);g.save.x=chronicle.x;g.save.y=chronicle.y;
+            g.Talk(chronicle);
+            section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            int page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_tidebound");
+            Check(page>=0,"A field-experienced player can read their unlocked archive entry");
+            g.Choose(page);
+            Check(g.conversation.text.Contains("药品名单已被你亲手找回") &&
+                g.conversation.text.Contains("粮食货单还未核实") &&
+                !g.conversation.text.Contains("所有物资已经亲自运回码头"),
+                "One witnessed manifest cannot fabricate the remaining cargo or public handoff");
+            g.Close();
+            g.save.flags.Add("tide_salvage_seen_2");
+            g.save.flags.Add("tide_salvage_seen_3");
+            g.Talk(chronicle);
+            section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_tidebound");g.Choose(page);
+            Check(g.conversation.text.Contains("货物尚未完整交付") &&
+                !g.conversation.text.Contains("所有物资已经亲自运回码头"),
+                "All recovered field evidence still cannot bypass actual physical delivery");
+            g.Close();g.save.flags.Add("tide_salvage_complete");
+            g.Talk(chronicle);
+            section=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_farshore");g.Choose(section);
+            page=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_tidebound");g.Choose(page);
+            Check(g.conversation.text.Contains("每次稳潮比过去多十五秒") &&
+                g.conversation.textEn.Contains("fifteen seconds longer"),
+                "Only the completed quest exposes the bilingual public tide model");
+        }
+
     }
 }

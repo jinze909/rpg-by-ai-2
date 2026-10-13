@@ -1042,6 +1042,9 @@ namespace Starfall
             }
             if (action == "fieldstation_survey_start")
             {
+                if (TideSalvageActive)
+                { Notify("潮滩打捞尚未结束，先返回码头交付或放弃。",
+                    "Finish or abandon your tide salvage before starting another survey."); return true; }
                 if (reliefMissionRoom != 0)
                 { Notify("先完成当前居民救援，才能接取新巡测。", "Finish the active civilian rescue before beginning another survey."); return true; }
                 int surveyRegion = save.room;

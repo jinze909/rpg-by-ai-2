@@ -155,12 +155,13 @@ namespace Starfall
             {
                 if(save.room!=5 || !Has("harbor_report") ||
                     Has("tide_salvage_complete") || TideSalvageActive ||
-                    Dying || practicing || racing || reliefMissionRoom!=0 ||
+                    Dying || practicing || racing || fieldSurveyRoom!=0 || reliefMissionRoom!=0 ||
                     GlasswindSite!=0 || commonsRelayRoom!=0 ||
                     !LowTide || !SafeTravel ||
                     (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)
                     return true;
                 TideSalvagePhase=1;TideSalvageTime=100;tideSalvageHoldUsed=false;
+                Flag("tide_salvage_started");
                 TrackQuest("tide_salvage");revision++;sound="quest";
                 Notify("已出航！在100秒内找到西侧、内湾、南岛三份货单，避开潮水与掠夺者。",
                     "Salvage launched! Recover three ordered shoal manifests in 100 seconds; beware tides and raiders.");
@@ -194,6 +195,17 @@ namespace Starfall
                     Notify("掠夺者来路受阻，请在潮滩另一侧靠近后重试。",
                         "No reachable raider approach. Reposition and retry this crate.");
                     return true;
+                }
+                string seen="tide_salvage_seen_"+site;
+                if(!Has(seen))
+                {
+                    Flag(seen);
+                    RecordMoment(site==1?"西潮滩：医药名单被删作货损。":
+                        site==2?"内湾：粮食被旧灯塔锁给失踪船只。":
+                        "南岛：找到真实水位模型与安全航路。",
+                        site==1?"West shoal: medicine was erased as freight loss.":
+                        site==2?"Inner bay: food remains assigned to ships long gone.":
+                        "South isle: an original tide model and safe passage survived.");
                 }
                 TideSalvagePhase++;
                 effects.Add(new Effect("discover",Position,.65f));
