@@ -194,7 +194,7 @@ namespace Starfall.Tests
                 c.action=="upgrade" && c.en.Contains("2 timber / 1 crystal / 1 parts")),
                 "Existing town forge UI actually advertises the cheaper material recipe");
             g.Close();
-            int oldHealth=g.save.maxHealth;
+            float oldHealth=g.save.maxHealth;
             Action(g,"forge","upgrade");
             Check(g.save.upgrades==3 && g.save.maxHealth==oldHealth+20 &&
                 g.save.inventory[0]==0 && g.save.inventory[1]==0 &&
