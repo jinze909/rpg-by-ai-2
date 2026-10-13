@@ -538,6 +538,21 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Fishing freezes off-window and resumes with its catches intact");
     }
 
+    private static void MaxLevelProgressionShowsFinalState(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.english=true;
+        game.save.level=30;
+        game.save.xp=0;
+        game.mode="talents";
+        Event.current.type=EventType.Repaint;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("XP MAX")),
+            "The actual talents menu renders a final XP MAX state instead of an unreachable next-level progress bar");
+        Console.WriteLine("PASS Max-level talents menu shows XP MAX without inventing prestige levels");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -547,6 +562,7 @@ public static class RuntimeCombatInputChecks
             ReleasedTechniqueDrawsContactFrame, RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
+            MaxLevelProgressionShowsFinalState,
             TitleSaveManagerNeverOverwritesAnotherJourney,
             FishingSuspendsOnFocusLossAndResumesOnReturn,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup };

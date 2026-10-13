@@ -180,7 +180,7 @@ namespace Starfall
         }
         private void DrawTalents()
         {
-            Window(Game.L("职业成长", "Talents & techniques"), "LV " + Game.save.level + "  ·  XP " + Game.save.xp + "/" + Game.save.level * 40 + "  ·  " + Game.L("可用技能点 ", "Available points ") + Game.save.skillPoints);
+            Window(Game.L("职业成长", "Talents & techniques"), "LV " + Game.save.level + "  ·  XP " + (Game.save.level >= 30 ? Game.L("满级", "MAX") : Game.save.xp + "/" + (Game.save.level * 40)) + "  ·  " + Game.L("可用技能点 ", "Available points ") + Game.save.skillPoints);
             string[] names = { Game.L("锋芒", "Edge"), Game.L("坚韧", "Resolve"), Game.L("轻盈", "Agility") }, icons = { "sword", "shield", "bow" };
             string[] info = { Game.L("每级攻击+3\n暴击率+2.5%", "+3 damage per rank\n+2.5% critical chance"), Game.L("每级生命+12\n受到伤害-3.5%", "+12 health per rank\n-3.5% incoming damage"), Game.L("提高移动速度\n缩短闪避冷却", "Faster movement\nShorter dodge cooldown") };
             for (int i = 0; i < 3; i++) { float x = 279 + i * 318; Card(x, 178, 302, 338); Icon(icons[i], x + 111, 194, 80); Text(x + 23, 288, 256, 40, names[i], 27, gold, TextAnchor.MiddleCenter); Text(x + 23, 350, 256, 76, info[i], 17, muted, TextAnchor.MiddleCenter); for (int n = 0; n < 5; n++) Box(x + 62 + n * 37, 442, 26, 5, n < Game.save.talents[i] ? gold : PixelArt.C("#43566b")); if (Button(x + 18, 475, 266, 29, Game.L("投入1技能点", "Spend 1 point"), false, Game.save.skillPoints > 0 && Game.save.talents[i] < 5)) Game.Learn(i); }

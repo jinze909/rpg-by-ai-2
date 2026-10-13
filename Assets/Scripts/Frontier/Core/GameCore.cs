@@ -82,6 +82,9 @@ namespace Starfall
             if (save.room == 8) GenerateAbyss();
             save.difficulty = (int)Clamp(save.difficulty, 0, 2); save.profession = (int)Clamp(save.profession, 0, 2);
             save.upgrades = (int)Clamp(save.upgrades, 0, 5); save.level = (int)Clamp(save.level, 1, 30);
+            // The level-30 cap has no experience sink; saved XP beyond the
+            // next level is invalid legacy state, not extra progression.
+            save.xp = save.level == 30 ? 0 : (int)Clamp(save.xp, 0, save.level * 40 - 1);
             save.coins = (int)Clamp(save.coins, 0, 999999); save.weapon = (int)Clamp(save.weapon, 0, 2);
             save.skillPoints = (int)Clamp(save.skillPoints, 0, 99); save.ending = (int)Clamp(save.ending, 0, 3);
             save.maxHealth = 100 + save.upgrades * 20 + save.talents[1] * 12 + (save.profession == 0 ? 20 : 0);
@@ -561,12 +564,10 @@ namespace Starfall
             if (!specialEncounterEnemy) effects.Add(new Effect("loot", e.Position, .75f) { variant = e.boss ? 5 : e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2 });
             if (!InAbyss && !specialEncounterEnemy)
             {
-                save.coins += e.boss ? 70 : 6; save.xp += e.boss ? 80 : 12;
+                save.coins += e.boss ? 70 : 6; GrantXp(e.boss ? 80 : 12, true);
                 save.inventory[e.boss ? 5 : (e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2)]++;
             }
             effects.Add(new Effect("defeat", e.Position, .5f) { variant = e.boss ? 1 : 0 }); sound = "reward";
-            while (save.xp >= save.level * 40 && save.level < 30)
-            { save.xp -= save.level * 40; save.level++; save.skillPoints++; save.health = save.maxHealth; Notify("升级！生命回满，获得 1 技能点。按 K 分配。", "Level up! Health restored, +1 skill point. Open K to spend it."); }
             // Optional Skywatch's armored elite is NOT a main chapter boss.
             // Its victory is accounted for by TickSkywatch only, never by
             // the original regional boss/core or gate progression flags.

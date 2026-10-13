@@ -112,6 +112,28 @@ namespace Starfall.Tests
             var g = new GameCore(data, bad); Check(g.save.room == 0 && g.save.x == 18 && g.save.coins == 0 && g.save.health == 120, "Damaged saves are sanitized");
             bool rejected = false; try { new GameCore(data, new SaveData { version = 900 }); } catch (ArgumentException) { rejected = true; }
             Check(rejected, "Unsupported save schema is rejected");
+            var negativeXp=new GameCore(data,new SaveData{level=6,xp=-900});
+            Check(negativeXp.save.level==6&&negativeXp.save.xp==0,
+                "Negative XP cannot persist in a valid old v2 save");
+            var levelCap=new GameCore(data,new SaveData{level=30,xp=int.MaxValue});
+            Check(levelCap.save.level==30&&levelCap.save.xp==0,
+                "Already-maxed legacy saves cannot preserve overflowing XP");
+            var justBefore=new GameCore(data,new SaveData{level=29,xp=1159});
+            Check(justBefore.save.xp==1159,
+                "Ordinary near-level progress is preserved byte-for-byte on load");
+            justBefore.enemies.Clear();
+            var finalFoe=new Enemy(88131,0,18,14,30);
+            justBefore.enemies.Add(finalFoe);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            hit.Invoke(justBefore,new object[]{finalFoe,99999f,false,null,null});
+            Check(justBefore.save.level==30&&justBefore.save.xp==0,
+                "Real combat reaching level 30 resets obsolete excess XP");
+            var grant=typeof(GameCore).GetMethod("AddXp",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            grant.Invoke(justBefore,new object[]{int.MaxValue});
+            Check(justBefore.save.level==30&&justBefore.save.xp==0,
+                "At the cap huge quest/bounty payouts cannot overflow or unlock phantom levels");
             g.Enter(1); g.save.x = 2.3f; g.save.y = 14; g.Dash(new Point(-1, 0));
             for (int i = 0; i < 20; i++) g.Tick(.02f, new Point(-1, 0));
             Check(g.save.x >= 2.2f, "Dash cannot tunnel through the map boundary");

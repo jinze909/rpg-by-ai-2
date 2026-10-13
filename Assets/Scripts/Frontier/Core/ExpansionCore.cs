@@ -203,11 +203,24 @@ namespace Starfall
                 PrepareSave();
             }
         }
-        private void AddXp(int amount)
+        private void AddXp(int amount) { GrantXp(amount, false); }
+        private void GrantXp(int amount, bool announce)
         {
-            save.xp += amount;
-            while (save.xp >= save.level * 40 && save.level < 30)
-            { save.xp -= save.level * 40; save.level++; save.skillPoints++; save.health = save.maxHealth; }
+            if (save.level >= 30) { save.xp = 0; return; }
+            // Both combat and quest payouts share a saturating integer path.
+            // Normal gameplay cannot overflow XP after extended max-level play.
+            if (amount > 0)
+                save.xp = (int)Math.Min((long)int.MaxValue,
+                    (long)Math.Max(0, save.xp) + amount);
+            while (save.level < 30 && save.xp >= save.level * 40)
+            {
+                save.xp -= save.level * 40;
+                save.level++; save.skillPoints++; save.health = save.maxHealth;
+                if (announce)
+                    Notify("升级！生命回满，获得 1 技能点。按 K 分配。",
+                        "Level up! Health restored, +1 skill point. Open K to spend it.");
+            }
+            if (save.level >= 30) save.xp = 0;
         }
         private void Reputation(int faction, int amount) { save.reputation[faction] = Math.Min(10, save.reputation[faction] + amount); revision++; }
         private void RewardRelic(int id) { Flag("relic_" + id); sound = "reward"; }
