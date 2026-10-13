@@ -487,6 +487,7 @@ namespace Starfall.Tests
         public static void VotedClinicChangesActualTimberRefugeRestWithoutBreakingCharter(Campaign data)
         {
             var g=Fresh(data);g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_dial_0");
             g.Enter(0);g.enemies.Clear();
             var refuge=Object(g,"farshelter");
             g.save.x=refuge.x;g.save.y=refuge.y;
