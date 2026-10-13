@@ -67,14 +67,14 @@ namespace Starfall
             }
             Dialog(o.name,o.en,vista?
                     "高处的旧观测站能看见其他人曾走过的路。它记录附近五乘五块地形，而不代替你真正进入还没探索的远处区域。"+
-                    (first?"\\n\\n经验 +16，周边地貌已记载。":"\\n\\n此处地图已经测绘。"):
+                    (first?"\n\n经验 +16，周边地貌已记载。":"\n\n此处地图已经测绘。"):
                     "遗失的救援物资没有被登记进公会名单。守路者后来把它们藏在了第六圈的死角，留给真正需要的行人。"+
-                    (first?"\\n\\n硬币 +9、材料 +2。":"\\n\\n补给已被取回。"),
+                    (first?"\n\n硬币 +9、材料 +2。":"\n\n补给已被取回。"),
                 vista?
                     "From this high lookout the old wardens could see forgotten local routes. The nearby 5x5 sectors are charted, but the distant wilderness remains yours to walk."+
-                    (first?"\\n\\n+16 XP; surrounding terrain surveyed.":"\\n\\nAlready charted."):
+                    (first?"\n\n+16 XP; surrounding terrain surveyed.":"\n\nAlready charted."):
                     "These lost supplies never entered the guild's official count. Wardens hid them in the far frontier for travelers in need."+
-                    (first?"\\n\\n+9 coins and 2 materials.":"\\n\\nSupplies already recovered."),
+                    (first?"\n\n+9 coins and 2 materials.":"\n\nSupplies already recovered."),
                 C("继续探索","Continue exploring","close"));
             return true;
         }
@@ -90,22 +90,22 @@ namespace Starfall
                     if(first){Flag("far_refuge_guest_record");AddXp(10);sound="reward";}
                     Dialog(o.name,o.en,
                         "这份旅店住客名单记录了未被计入官方救援数字的老人、矿工和孩子。新的避险棚应为所有走到这里的人敞开。"+
-                        (first?"\\n\\n首次记录：经验 +10。":""),
+                        (first?"\n\n首次记录：经验 +10。":""),
                         "This guest list remembers elders, miners and children missing from official relief totals. Every new refuge must remain open to people who actually reach it."+
-                        (first?"\\n\\nFirst reading: +10 XP.":""),
+                        (first?"\n\nFirst reading: +10 XP.":""),
                         C("记下姓名","Remember their names","close"));
                     return true;
                 }
                 bool ready=FarShelterCount==8,complete=Has("far_refuge_atlas");
                 Dialog(o.name,o.en,
                     "炉火旅店的新制图室收集八个地区的气象记录与避险棚实地图。只有全部实地修复后，才能把开放的公共路线印给每一个旅人。"+
-                    "\\n\\n已建成公共避险棚："+FarShelterCount+"/8。"+
-                    (complete?"\\n\\n总图已经公开，旧名字不会再次消失。":ready?
-                        "\\n\\n真实站点全部验证完毕，可以签发公共总图。":"\\n\\n继续前往未完成的远地气象站。"),
+                    "\n\n已建成公共避险棚："+FarShelterCount+"/8。"+
+                    (complete?"\n\n总图已经公开，旧名字不会再次消失。":ready?
+                        "\n\n真实站点全部验证完毕，可以签发公共总图。":"\n\n继续前往未完成的远地气象站。"),
                     "The Hearth Inn's new cartography wing collects weather logs and public refuges from all eight regions. Only verified built shelters can enter the open atlas."+
-                    "\\n\\nRebuilt shelters: "+FarShelterCount+"/8."+
-                    (complete?"\\n\\nThe public atlas is already filed.":ready?
-                        "\\n\\nAll stations verified. The civic chart may now be published.":"\\n\\nExplore the remaining weather shelters."),
+                    "\n\nRebuilt shelters: "+FarShelterCount+"/8."+
+                    (complete?"\n\nThe public atlas is already filed.":ready?
+                        "\n\nAll stations verified. The civic chart may now be published.":"\n\nExplore the remaining weather shelters."),
                     C(complete?"重读公共总图":"签发公开避险总图",
                         complete?"Reread the atlas":"Publish public refuge atlas","far_publish"),
                     C("继续巡路","Keep exploring","close"));

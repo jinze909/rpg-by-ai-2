@@ -787,6 +787,9 @@ namespace Starfall.Tests
             full.save.x=atlas.x;full.save.y=atlas.y;
             int startCoins=full.save.coins;
             full.Talk(atlas);
+            Check(full.conversation.text.IndexOf('\n')>=0&&
+                full.conversation.textEn.IndexOf('\n')>=0,
+                "Public inn atlas dialogue must format paragraphs as genuine newlines");
             int publish=Array.FindIndex(full.conversation.choices,c=>c.action=="far_publish");
             Check(publish>=0,"An actual Inn desk offers civic publication");
             full.Choose(publish);
