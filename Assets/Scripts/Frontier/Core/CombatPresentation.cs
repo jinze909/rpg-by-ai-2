@@ -173,7 +173,16 @@ namespace Starfall
         {
             bool abyss = InAbyss;
             if (abyss) EndAbyss(false);
-            save.flags.Remove("recovery_pending"); save.health = save.maxHealth; save.energy = 100; Enter(0);
+            save.flags.Remove("recovery_pending"); save.health = save.maxHealth; save.energy = 100;
+            // Death is a mandatory recovery transaction, NOT voluntary
+            // portal travel. Enter(0) refuses active escorts/defense tasks and
+            // used to leave a dead player's body in the hostile region while
+            // showing the false "returned to inn" message. Explicitly retire
+            // transient combat/mission ownership and spawn at the home inn.
+            save.room = 0; save.x = Map.spawnX; save.y = Map.spawnY;
+            save.snapshotRoom = -1; save.worldEnemies = null; save.savedRunes = 0;
+            ResetTransient(); SpawnRoom();
+            mode = "world"; revision++; sound = "travel";
             Notify("镇民把你带回了旅店。失去 10 硬币，物品和任务进度保留。", "The town brought you home. Lost 10 coins; items and quests are safe.");
             if (abyss) Notify("远征中止：本层未结算收益丢失，先前结算与永久进度保留。", "Expedition ended: this floor's unbanked loot is lost; banked rewards and permanent progress remain.");
         }

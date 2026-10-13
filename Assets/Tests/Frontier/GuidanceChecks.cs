@@ -2571,5 +2571,57 @@ namespace Starfall.Tests
                 "Clinic abort restores access to the exact original inn rest economy");
         }
 
+
+        public static void FatalFieldMissionDamageAlwaysRespawnsAtInn(Campaign data)
+        {
+            var parcel=Fresh(data);
+            parcel.save.stage=4;parcel.save.flags.Add("scout_saved");
+            parcel.save.flags.Add("far_bridge_1");parcel.save.flags.Add("far_shelter_1");
+            parcel.Enter(1);parcel.enemies.Clear();
+            WorldObject bridge=Object(parcel,"farbridge");
+            parcel.save.x=bridge.x;parcel.save.y=bridge.y;
+            Action(parcel,"farbridge","far_courier_start");
+            Check(parcel.FarCourierActive,"Real bridge parcel is active before death");
+            int coins=parcel.save.coins;
+            parcel.save.health=1;parcel.invulnerable=0;
+            parcel.projectiles.Add(new Projectile{
+                position=parcel.Position, damage=999, source="shot",life=3 });
+            parcel.Tick(.02f,new Point());
+            Check(parcel.Dying&&parcel.FarCourierActive,
+                "Lethal enemy arrow triggers a visible death during the actual cargo run");
+            for(int i=0;i<26&&parcel.Dying;i++)parcel.Tick(.05f,new Point());
+            Check(!parcel.Dying&&parcel.save.room==0&&
+                Math.Abs(parcel.save.x-data.maps[0].spawnX)<.01f&&
+                Math.Abs(parcel.save.y-data.maps[0].spawnY)<.01f&&
+                parcel.save.health==parcel.save.maxHealth&&parcel.save.energy==100,
+                "Death forcibly transfers to the safe home spawn despite mission travel restrictions");
+            Check(!parcel.FarCourierActive&&parcel.save.coins==Math.Max(0,coins-10)&&
+                !parcel.FarCourierDelivered(1)&&parcel.mode=="world"&&
+                !parcel.Has("recovery_pending"),
+                "Death releases transient cargo without inventing rewards or losing the one-time death penalty");
+            // The live regional watch has owned attackers to retire as well.
+            var watch=Fresh(data);watch.save.stage=4;
+            watch.save.flags.Add("exp_intro");watch.save.flags.Add("harbor_report");
+            watch.save.flags.Add("civic_supply_complete");
+            watch.save.flags.Add("civic_supply_watch_3");watch.save.flags.Add("far_shelter_3");
+            watch.Enter(3);watch.enemies.Clear();
+            WorldObject shelter=Object(watch,"farshelter");
+            watch.save.x=shelter.x;watch.save.y=shelter.y;
+            Action(watch,"farshelter","civic_response_start");
+            Check(watch.CivicResponseWatchRun&&watch.CivicResponseEnemiesAlive==2,
+                "Physical civic watch has two real enemies before lethal hit");
+            watch.save.health=1;watch.invulnerable=0;
+            watch.projectiles.Add(new Projectile{
+                position=watch.Position,damage=999,source="shot",life=3 });
+            watch.Tick(.02f,new Point());
+            Check(watch.Dying&&watch.CivicResponseActive,
+                "Fatal arrow does not silently award the unfinished watch objective");
+            for(int i=0;i<26&&watch.Dying;i++)watch.Tick(.05f,new Point());
+            Check(!watch.Dying&&watch.save.room==0&&
+                !watch.CivicResponseActive&&watch.CivicResponseEnemiesAlive==0&&
+                !watch.CivicResponseDone(3)&&watch.mode=="world",
+                "Dead watch defender respawns safely, retires owned attackers, and gets no free reward");
+        }
+
     }
 }
