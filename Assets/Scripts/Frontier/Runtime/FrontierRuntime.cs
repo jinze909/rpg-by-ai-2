@@ -546,6 +546,38 @@ namespace Starfall
                 if(!complete)Diamond(p.x,p.y-74,5,gold);
                 return;
             }
+            if(kind=="civicconduitmaster"||kind=="civicconduitvalve")
+            {
+                bool master=kind=="civicconduitmaster";
+                int slot=master?-1:o.x<107?0:o.x<112?1:2;
+                bool finished=Game.CivicConduitComplete;
+                bool active=Game.CivicConduitActive;
+                bool tuned=active&&slot>=0&&slot<Game.CivicConduitStage;
+                bool next=active&&slot==Game.CivicConduitStage;
+                bool green=next&&Game.CivicConduitWindowOpen;
+                Color pipe=finished?new Color(.5f,.95f,.81f):
+                    tuned?new Color(.55f,.77f,.88f):
+                    green?new Color(.47f,.98f,.55f):
+                    next?new Color(1f,.54f,.34f):
+                    new Color(.84f,.72f,.52f);
+                PropImage(master?"obelisk":"post",0,
+                    p.x-32,p.y-81,64,81,pipe);
+                // Static readable phase rings work with reduced-motion enabled.
+                Ring(new Point(o.x,o.y),next?.72f:.5f,pipe,18);
+                if(next)
+                    Text(p.x-68,p.y-111,136,20,
+                        Game.L(green?"稳定 · 现在操作":"等待绿色周期",
+                            green?"GREEN · TUNE NOW":"WAIT FOR GREEN"),
+                        11,pipe,TextAnchor.MiddleCenter);
+                if(active&&master)
+                    Text(p.x-73,p.y-108,146,20,
+                        Game.L("线路剩余 "+(int)Game.CivicConduitTimeLeft+"秒",
+                            "GRID "+(int)Game.CivicConduitTimeLeft+"s"),
+                        11,pipe,TextAnchor.MiddleCenter);
+                if(!finished&&!tuned&&!active)
+                    Diamond(p.x,p.y-77,5,gold);
+                return;
+            }
             if(kind=="lastdirectiveboard"||kind=="lastdirectivecore"||
                 kind.StartsWith("lastdirectiveclue"))
             {
