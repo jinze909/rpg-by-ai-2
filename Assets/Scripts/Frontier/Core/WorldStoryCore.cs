@@ -33,6 +33,7 @@ namespace Starfall
             if (page == "ruins") return Has("core_2") || Has("boss_2");
             if (page == "mine") return Has("core_3") || Has("boss_3");
             if (page == "citadel") return Has("boss_4");
+            if (page == "triad") return Has("triad_started") || Has("triad_complete");
             if (page == "harbor") return Has("harbor_report");
             if (page == "temper") return Has("iron_temper_started") || Has("iron_temper_complete");
             if (page == "tidebound") return Has("tide_salvage_started") || Has("tide_salvage_complete");
@@ -73,6 +74,7 @@ namespace Starfall
                 if (StoryUnlocked("mine")) choices.Add(StoryChoice("赤铁矿场 · 不停的机器", "Ironreach · the tireless machine", "story_read_mine"));
                 if (StoryUnlocked("temper"))
                     choices.Add(StoryChoice("余烬回火 · 能停下的炉", "Ember Temper · A Furnace That Can Rest", "story_read_temper"));
+                if (StoryUnlocked("triad")) choices.Add(StoryChoice("第四章 · 三核审计", "Chapter Four · Three-Core Reckoning", "story_read_triad"));
                 if (StoryUnlocked("citadel")) choices.Add(StoryChoice("星陨堡垒 · 厄洛的屏障", "Citadel · Orrin's shield", "story_read_citadel"));
             }
             else if (section == "farshore")
@@ -117,14 +119,14 @@ namespace Starfall
         private static string StorySectionForPage(string page)
         {
             if (page == "origin" || page == "roots" || page == "orders" || page == "wardens") return "origins";
-            if (page == "forest" || page == "ruins" || page == "mine" || page == "temper" || page == "citadel") return "campaign";
+            if (page == "forest" || page == "ruins" || page == "mine" || page == "temper" || page == "triad" || page == "citadel") return "campaign";
             if (page == "harbor" || page == "tidebound" || page == "desert" || page == "glasswind" || page == "mountain" || page == "covenant") return "farshore";
             return "after";
         }
         private static string[] StoryPagesForSection(string section)
         {
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
-            if (section == "campaign") return new[] { "forest", "ruins", "mine", "temper", "citadel" };
+            if (section == "campaign") return new[] { "forest", "ruins", "mine", "temper", "triad", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
             return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
         }
@@ -342,6 +344,23 @@ namespace Starfall
                             Has("glasswind_all_sealed")?
                             "\n\nAll relays are secured, but Mia has not yet published the public chart.":
                             "\n\nThe wind circuit remains incomplete.");
+                    break;
+                case "triad":
+                    headingZh="第四章：三核审计";headingEn="Chapter Four: Three-Core Reckoning";
+                    zh="森林、遗迹、矿场的三枚星核原本不是供城墙消耗的矿石。它们分别调节生命的再生、旅人过河的时间与矿工从机器前退下的权利。莉雅怀疑堡垒将这三项民生都计成零，才让屏障的支出表永远显得正确。\n\n"+
+                        (Has("triad_evidence_1")?"你从密林印记找回了森林再生账：根系和泥土原本得到修复能源。\n":"森林供能印记仍在堡垒待查。\n")+
+                        (Has("triad_evidence_2")?"你找回了遗迹通行账：水闸原先为真实的旅人留出时间。\n":"遗迹水位印记仍在堡垒待查。\n")+
+                        (Has("triad_evidence_3")?"你找回了矿场作业账：过热时必须允许矿工撤离。\n":"矿场停机印记仍在堡垒待查。\n")+
+                        (Has("triad_defense_clear")?"旧保密卫兵已在实际交战后停止执行封锁。\n":"中央审计台仍受保密卫兵控制。\n")+
+                        (Has("triad_sealed")?"三份原始日志已在中央审计台保全。\n":"原始日志尚未完成保全。\n")+
+                        (Has("triad_complete")?"\n莉雅将这份账目公之于众。三枚星核的故事终于合成一段完整的证据，而非三个供能战利品；厄洛必须亲自回答它揭露的代价。":"\n调查仍未公开。完成证据链后，亲自把审计交给莉雅。");
+                    en="The three starcores of forest, ruins and mine were never fuel trophies. They governed renewal, the time travelers had to cross a river, and the right of miners to leave overheating machinery. Lyra suspects the shield's ledger simply valued all three at zero.\n\n"+
+                        (Has("triad_evidence_1")?"You recovered the forest renewal account: roots and living soil once received the spare energy.\n":"The forest supply seal remains unread.\n")+
+                        (Has("triad_evidence_2")?"The ruins account records an ebb passage open to real travelers.\n":"The sluice passage seal remains unread.\n")+
+                        (Has("triad_evidence_3")?"The mine account recognizes evacuation when machines overheat.\n":"The miners' rest seal remains unread.\n")+
+                        (Has("triad_defense_clear")?"The obsolete security guardian was defeated in real combat.\n":"The central audit remains under armed security.\n")+
+                        (Has("triad_sealed")?"The original audit was preserved at the central console.\n":"The original central record remains unsecured.\n")+
+                        (Has("triad_complete")?"\nLyra published the complete evidence. Three chapters become one record of the real cost of the shield, and Orrin must answer for it.":"\nThese findings remain unpublished. Preserve the ledger and carry it to Lyra.");
                     break;
                 case "temper":
                     headingZh="余烬回火：能停下的炉";

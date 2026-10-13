@@ -168,6 +168,39 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind.StartsWith("triadmemory"))
+            {
+                int site;
+                if(!int.TryParse(kind.Substring("triadmemory".Length),out site) ||
+                    site<1 || site>3)return true;
+                bool seen=Game.Has("triad_evidence_"+site);
+                Color tint=seen?mint:Game.Has("triad_started")?gold:muted;
+                PropImage("column",site%2,p.x-27,p.y-65,54,72,seen?Color.white:muted);
+                Ring(new Point(o.x,o.y),seen?.75f:.5f,tint,24);
+                Text(p.x-67,p.y-85,134,20,
+                    seen?Game.L("原始星核账已记录","EVIDENCE SECURED"):
+                    Game.L(new[]{"森林供能记录","遗迹水闸记录","矿场机器记录"}[site-1],
+                        new[]{"FOREST LEDGER","SLUICE LEDGER","MINE LEDGER"}[site-1]),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(kind=="triadnexus")
+            {
+                Color tint=Game.Has("triad_sealed")?mint:
+                    Game.TriadDefenseActive?PixelArt.C("#d28b86"):gold;
+                PropImage("altar",0,p.x-30,p.y-73,60,80,
+                    Game.Has("triad_sealed")?Color.white:muted);
+                Ring(new Point(o.x,o.y),Game.TriadDefenseActive?1.3f:.7f,tint,30);
+                Text(p.x-75,p.y-90,150,20,
+                    Game.Has("triad_sealed")?Game.L("真相已保全","AUDIT PRESERVED"):
+                    Game.TriadDefenseActive?Game.L("保密防卫启动","SECURITY ACTIVE"):
+                    Game.L("三核中央审计","THREE-CORE AUDIT"),
+                    11,tint,TextAnchor.MiddleCenter);
+                if(Game.TriadDefenseActive)
+                    Text(p.x-43,p.y-110,86,19,Game.TriadTime.ToString("0")+"s",
+                        12,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="ironfoundry")
             {
                 bool done=Game.Has("iron_temper_complete");

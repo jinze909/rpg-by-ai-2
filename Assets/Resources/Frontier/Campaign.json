@@ -1451,6 +1451,38 @@
           "en": "Commons Relay · Evacuation Lamps",
           "x": 26.5,
           "y": 16.5
+        },
+        {
+          "id": "triadmemory1",
+          "kind": "triadmemory1",
+          "name": "荆棘密林供能审计",
+          "en": "Thornwood Core Ledger",
+          "x": 11.5,
+          "y": 9.5
+        },
+        {
+          "id": "triadmemory2",
+          "kind": "triadmemory2",
+          "name": "沉没遗迹水位审计",
+          "en": "Drowned Ruins Core Ledger",
+          "x": 23.5,
+          "y": 6.5
+        },
+        {
+          "id": "triadmemory3",
+          "kind": "triadmemory3",
+          "name": "赤铁矿场作业审计",
+          "en": "Ironreach Core Ledger",
+          "x": 25.5,
+          "y": 19.5
+        },
+        {
+          "id": "triadnexus",
+          "kind": "triadnexus",
+          "name": "三核中央审计台",
+          "en": "Central Three-Core Audit",
+          "x": 18.5,
+          "y": 11.5
         }
       ],
       "decor": [

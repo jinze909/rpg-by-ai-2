@@ -656,6 +656,41 @@ namespace Starfall
             }
             else if (Has("core_" + chapter) && chapter < 4) { q.room = 0; q.target = new Point(18, 17); q.next = L("把星核交给莉雅", "Deliver the starcore to Lyra"); }
             else q.next = Has("boss_" + chapter) ? L("与祭坛互动，完成本章", "Interact with the altar to finish this chapter") : L("前往祭坛，准备守护者挑战", "Approach the altar and prepare for the guardian");
+            if (chapter == 4 && !Has("boss_4"))
+            {
+                q.steps.Insert(0,new QuestStep(L("莉雅的第四章调查 · 三核审计",
+                    "Lyra's Chapter Four investigation"),Has("triad_started")));
+                for(int site=1;site<=3;site++)
+                    q.steps.Insert(site,new QuestStep(L(new[]{"森林的再生账","遗迹的通行账","矿场的休息账"}[site-1],
+                        new[]{"Forest renewal ledger","Ruins passage ledger","Mine workers' rest ledger"}[site-1]),
+                        Has("triad_evidence_"+site)));
+                q.steps.Insert(4,new QuestStep(L("击败堡垒保密卫兵并保全日志",
+                    "Defeat audit security and preserve records"),Has("triad_sealed")));
+                q.steps.Insert(5,new QuestStep(L("返回莉雅身边，公开三核真相",
+                    "Publish the three-core truth with Lyra"),Has("triad_complete")));
+                if(!Has("triad_complete"))
+                {
+                    q.next=!Has("triad_started")?
+                        L("找莉雅开启第四章的三核审计","Meet Lyra for the Chapter Four audit"):
+                        TriadEvidence<3?
+                        L("在堡垒读取三份星核原始记录，核对正确用途",
+                            "Read three original core records in the citadel and restore their purpose"):
+                        !Has("triad_sealed")?
+                        L("前往中央审计台，击败真实保密卫兵后保全日志",
+                            "At the central audit desk, defeat security and preserve the log"):
+                        L("返回余烬镇交给莉雅，公开屏障支出",
+                            "Return to Lyra and publish the shield's real cost");
+                    q.room=!Has("triad_started") || Has("triad_sealed")?0:4;
+                    string kind=TriadEvidence<3?
+                        (!Has("triad_evidence_1")?"triadmemory1":
+                         !Has("triad_evidence_2")?"triadmemory2":"triadmemory3"):
+                        "triadnexus";
+                    q.target=q.room==0?ObjectPoint(0,"guild",new Point(18,17)):
+                        ObjectPoint(4,kind,new Point(18.5f,11.5f));
+                    q.description+=L("\n\n第四章关键事件：亲自审计三枚星核的旧用途，解除安全协议并向莉雅公开证据。为了兼容已经抵达结局的旧存档，此调查不重新封锁厄洛。",
+                        "\n\nChapter Four key event: reconstruct three core purposes, defeat obsolete audit security and publish the real cost. Existing saves are not locked out of Orrin.");
+                }
+            }
             if (q.complete) { q.room = 0; q.target = new Point(10, 11); q.next = L("故事已完成，自由探索边境", "Story complete; explore the frontier freely"); } return q;
         }
         private string GameItemsZh(int item) { return data.items[item].name; }

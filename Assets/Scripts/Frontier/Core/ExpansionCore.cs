@@ -365,7 +365,8 @@ namespace Starfall
                     radius = h.radius, variant = HazardTheme(h),
                     rootHarmonyOwned = h.rootHarmonyOwned,
                     commonsRelayOwned = h.commonsRelayOwned,
-                    glasswindOwned = h.glasswindOwned, temperOwned = h.temperOwned });
+                    glasswindOwned = h.glasswindOwned, temperOwned = h.temperOwned,
+                    triadOwned = h.triadOwned });
                 if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
                 else TryRewardEscapedWarning(h.position, h.radius);
             }
@@ -462,6 +463,9 @@ namespace Starfall
                     (save.room == 5 ? (LowTide ? L("低潮", "LOW TIDE") : L("高潮", "HIGH TIDE")) :
                      save.room == 6 ? L("热度 ", "HEAT ") + (int)save.heat + "/100" :
                      L("寒意 ", "COLD ") + (int)save.cold + "/100");
+            if (TriadDefenseActive && save.room==4)
+                return L("三核审计 ", "CORE AUDIT ") + (int)Math.Ceiling(TriadTime) +
+                    "s · " + L("击败保密守卫","DEFEAT SECURITY");
             if (TemperActive && save.room==3)
                 return L("回火 ", "TEMPER ") + (int)Math.Ceiling(TemperTime) +
                     "s · " + L("热压 ", "PRESSURE ") +
