@@ -549,7 +549,7 @@ namespace Starfall
             if(kind=="civicconduitmaster"||kind=="civicconduitvalve")
             {
                 bool master=kind=="civicconduitmaster";
-                int slot=master?-1:o.x<107?0:o.x<112?1:2;
+                int slot=master?-1:Game.CivicConduitValveIndex(o);
                 bool finished=Game.CivicConduitComplete;
                 bool active=Game.CivicConduitActive;
                 bool tuned=active&&slot>=0&&slot<Game.CivicConduitStage;

@@ -9,6 +9,25 @@ namespace Starfall
         private int conduitRoom=-1,conduitStage;
         private float conduitElapsed,conduitWalked,conduitIntegrity,conduitPulseLeft;
         private Point conduitLast;
+        // Stable campaign object identity, not a hard-coded X coordinate.
+        // Moving a field valve in the authored map must never change its slot.
+        public int CivicConduitValveIndex(WorldObject o)
+        {
+            if(o==null||o.kind!="civicconduitvalve")return -1;
+            if(o.id=="civicConduitValve1")return 0;
+            if(o.id=="civicConduitValve2")return 1;
+            if(o.id=="civicConduitValve3")return 2;
+            return -1;
+        }
+        public Point CivicConduitTarget(int stage)
+        {
+            stage=Math.Max(0,Math.Min(2,stage));
+            string id="civicConduitValve"+(stage+1);
+            foreach(WorldObject o in data.maps[4].objects)
+                if(o.kind=="civicconduitvalve"&&o.id==id)
+                    return new Point(o.x,o.y);
+            return new Point(stage==0?104.5f:stage==1?108.5f:115.5f,74.5f);
+        }
         public bool CivicConduitStarted { get{return Has("civic_conduit_started");} }
         public bool CivicConduitComplete { get{return Has("civic_conduit_complete");} }
         public bool CivicConduitActive { get{return conduitRoom==save.room&&save.room==4&&!Dying;} }
@@ -125,8 +144,8 @@ namespace Starfall
                     C("以后再来","Later","close"));
                 return true;
             }
-            int valve=(int)(o.x+.1f);
-            int slot=valve==104?0:valve==108?1:2;
+            int slot=CivicConduitValveIndex(o);
+            if(slot<0)return true;
             if(!CivicConduitActive)
             {
                 Dialog(o.name,o.en,"这处阀门只有在从西端接入真实电流后才能响应。",
@@ -176,8 +195,9 @@ namespace Starfall
             foreach(WorldObject o in Map.objects)
             {
                 if(o.kind=="civicconduitmaster")master=o;
-                if(o.kind=="civicconduitvalve"&&
-                    (Position-new Point(o.x,o.y)).Length<=2.2f)valve=o;
+                if(CivicConduitValveIndex(o)==conduitStage&&
+                    (Position-new Point(o.x,o.y)).Length<=2.2f)
+                    valve=o;
             }
             bool nearMaster=master!=null&&
                 (Position-new Point(master.x,master.y)).Length<=2.2f;
@@ -210,8 +230,7 @@ namespace Starfall
             }
             if(action!="civic_conduit_tune"||!CivicConduitActive||valve==null||
                 !CivicConduitWindowOpen||!SafeTravel)return true;
-            int slot=(int)(valve.x+.1f)==104?0:
-                (int)(valve.x+.1f)==108?1:2;
+            int slot=CivicConduitValveIndex(valve);
             float required=conduitStage==0?7.2f:conduitStage==1?3.1f:5.1f;
             if(slot!=conduitStage||conduitWalked<required)return true;
             conduitStage++;conduitWalked=0;revision++;sound="quest";

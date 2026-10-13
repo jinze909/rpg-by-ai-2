@@ -104,13 +104,8 @@ namespace Starfall
                 }
                 if(CivicConduitActive)
                 {
-                    string kind=CivicConduitStage==0?"civicConduitValve1":
-                        CivicConduitStage==1?"civicConduitValve2":"civicConduitValve3";
-                    string objId=CivicConduitStage==0?"civicConduitValve1":
-                        CivicConduitStage==1?"civicConduitValve2":"civicConduitValve3";
                     q.room=4;
-                    q.target=new Point(CivicConduitStage==0?104.5f:
-                        CivicConduitStage==1?108.5f:115.5f,74.5f);
+                    q.target=CivicConduitTarget(CivicConduitStage);
                     q.next=L("第 "+(CivicConduitStage+1)+"/3 阀门 · "+
                         (CivicConduitWindowOpen?"绿色窗口！":"等待相位变绿")+" · "+
                         (int)Math.Ceiling(CivicConduitTimeLeft)+"秒",
