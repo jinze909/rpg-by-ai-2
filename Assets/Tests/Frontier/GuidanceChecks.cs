@@ -1537,7 +1537,8 @@ namespace Starfall.Tests
             }
             g.hitStop=0;g.Tick(.05f,new Point());
             Check(g.LastDirectiveWave==2,"First real wave must be defeated before the intermission");
-            int coins=g.save.coins,energy=g.save.energy;
+            int coins=g.save.coins;
+            float energy=g.save.energy;
             g.ReturnToTown();
             Check(g.save.room==4&&g.LastDirectiveWave==2,
                 "Chapter Ten cannot silently skip the intermission via fast travel");
