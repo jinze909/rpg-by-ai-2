@@ -150,5 +150,32 @@ namespace Starfall.Tests
                 "Zero surviving mission attackers shows zero without a stale display cache");
         }
 
+        public static void InnRestActuallyClearsExpiredCombatCooldowns(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);
+            g.enemies.Clear();
+            g.save.energy=100;
+            g.Skill(new Point(1,0));
+            Check(g.skillCooldown>0,"A real Q cast starts its usual combat cooldown");
+            g.CommandCompanion();
+            Check(g.companionCooldown>0,"A real companion order starts a separate cooldown");
+            g.dashCooldown=.4f;
+            g.attackCooldown=.3f;
+            g.guardTime=.5f;
+            g.Close();
+            float before=g.save.totalTime;
+            Action(g,"rest","rest");
+            Check(Math.Abs(g.save.totalTime-before-45)<.001f&&
+                  g.skillCooldown==0&&g.dashCooldown==0&&g.attackCooldown==0&&
+                  g.companionCooldown==0&&g.guardTime==0&&g.playerAction==null,
+                "A 45-second bed rest restores skill, companion, dodge and attack readiness");
+            g.save.energy=100;
+            g.Skill(new Point(1,0));
+            Check(g.skillCooldown>0,
+                "The same skill can be used normally after the player has rested");
+        }
+
     }
 }

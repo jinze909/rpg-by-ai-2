@@ -1171,6 +1171,14 @@ namespace Starfall
                     return;
                 }
                 save.health = save.maxHealth; save.energy = 100; save.totalTime += 45;
+                // A real 45-second rest outlasts every ordinary combat
+                // cooldown. Do not strand a recovered hero with a frozen
+                // skill, companion, dash or hit-reaction timer.
+                CancelAction();
+                attackCooldown = dashCooldown = skillCooldown = dashTime = 0;
+                companionCooldown = companionAttack = 0;
+                combo = 0; comboTimer = riposteTime = 0;
+                guardTime = playerHitTime = hitStop = 0;
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
             }
             if (action == "scout" && save.kills[1] >= 4) { Flag("scout_saved"); save.coins += 20; Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }
