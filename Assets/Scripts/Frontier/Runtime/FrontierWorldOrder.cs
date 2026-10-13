@@ -26,17 +26,41 @@ namespace Starfall
         private readonly List<WorldDrawEntry> worldDrawEntries=new List<WorldDrawEntry>(256);
         private void AddWorldEntry(WorldDrawEntry entry)
         {entry.order=worldDrawEntries.Count;worldDrawEntries.Add(entry);}
+        private bool WorldDrawable(float x, float y, float horizontalMargin = 230,
+            float verticalMargin = 250)
+        {
+            Point screen = ScreenPoint(new Point(x, y));
+            return screen.x > -horizontalMargin && screen.x < Width + horizontalMargin &&
+                screen.y > -verticalMargin && screen.y < Height + verticalMargin;
+        }
         private void DrawOrderedWorld()
         {
             // Reuse storage and explicit references. Captured per-actor callbacks
             // used to allocate on every IMGUI pass; equal-depth ties also flickered.
             worldDrawEntries.Clear();
             foreach(LightRay ray in Game.LightRays())DrawRay(ray.from,ray.to,gold);
-            foreach(Decoration d in Game.Map.decor)AddWorldEntry(new WorldDrawEntry{depth=d.y,kind=WorldDrawKind.Decoration,decoration=d});
-            foreach(WorldObject o in Game.Map.objects)AddWorldEntry(new WorldDrawEntry{depth=o.y+.01f,kind=WorldDrawKind.Object,obj=o});
+            // Artwork is already loaded and nearby terrain prewarmed. Avoid
+            // sorting and invoking GUI props for hundreds of remote actors.
+            // The 230x250 margin exceeds even the tallest authored canopy.
+            foreach(Decoration d in Game.Map.decor)
+                if(WorldDrawable(d.x,d.y))
+                    AddWorldEntry(new WorldDrawEntry{depth=d.y,kind=WorldDrawKind.Decoration,decoration=d});
+            foreach(WorldObject o in Game.Map.objects)
+                if(WorldDrawable(o.x,o.y))
+                    AddWorldEntry(new WorldDrawEntry{depth=o.y+.01f,kind=WorldDrawKind.Object,obj=o});
             foreach(Enemy e in Game.enemies)
-            {DrawEnemyWarning(e);AddWorldEntry(new WorldDrawEntry{depth=e.y,kind=WorldDrawKind.Enemy,enemy=e});}
-            foreach(FallenActor f in Game.fallen)AddWorldEntry(new WorldDrawEntry{depth=f.actor.y-.02f,kind=WorldDrawKind.Fallen,fallen=f});
+            {
+                // Combat simulation remains active everywhere; visuals still
+                // draw well beyond the viewport to keep long-range warnings.
+                if(WorldDrawable(e.x,e.y,450,450))
+                {
+                    DrawEnemyWarning(e);
+                    AddWorldEntry(new WorldDrawEntry{depth=e.y,kind=WorldDrawKind.Enemy,enemy=e});
+                }
+            }
+            foreach(FallenActor f in Game.fallen)
+                if(WorldDrawable(f.actor.x,f.actor.y))
+                    AddWorldEntry(new WorldDrawEntry{depth=f.actor.y-.02f,kind=WorldDrawKind.Fallen,fallen=f});
             AddWorldEntry(new WorldDrawEntry{depth=Game.save.y+.002f,kind=WorldDrawKind.Player});
             if(Game.save.companion>=0)AddWorldEntry(new WorldDrawEntry{depth=Game.companionPosition.y,kind=WorldDrawKind.Companion});
             // Keep the moving rescue survivor in the same depth pass as every

@@ -21,7 +21,16 @@ namespace Starfall
         // Authored map textures remain shared; lightweight tile-chunk readiness
         // prewarms nearby terrain before it crosses the viewport edge.
         private const int TerrainChunkTiles = 6;
-        private readonly Dictionary<int, float> terrainChunkWarmAt = new Dictionary<int, float>();
+        // Each prepared chunk carries actual precomputed tile variants and
+        // object-clearance flags; no per-frame mass object scans at render time.
+        private sealed class PreparedTerrainChunk
+        {
+            public float warmAt;
+            public readonly int[] seeds = new int[TerrainChunkTiles * TerrainChunkTiles];
+            public readonly bool[] detailOccluded = new bool[TerrainChunkTiles * TerrainChunkTiles];
+        }
+        private readonly Dictionary<int, PreparedTerrainChunk> preparedTerrainChunks =
+            new Dictionary<int, PreparedTerrainChunk>(128);
         private int terrainStreamingRoom = -1, terrainStreamingFloor = -1;
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
@@ -255,6 +264,9 @@ namespace Starfall
             for (int i = 0; i < segments; i++)
             { double a = i * Math.PI * 2 / segments; Box(s.x + (float)Math.Cos(a) * radius * Tile - 2, s.y + (float)Math.Sin(a) * radius * Tile - 2, 4, 4, color); }
         }
+        // The visible window is surrounded by precomputed terrain, not a
+        // timestamp-only pretend load. Movement sees the next chunks while
+        // they are still at least ten tiles beyond the edge of the screen.
         private void PrewarmTerrain()
         {
             if (Game == null) return;
@@ -262,37 +274,101 @@ namespace Starfall
                 terrainStreamingFloor != Game.save.abyssFloor;
             if (firstView)
             {
-                terrainChunkWarmAt.Clear();
+                preparedTerrainChunks.Clear();
                 terrainStreamingRoom = Game.save.room;
                 terrainStreamingFloor = Game.save.abyssFloor;
             }
             Point origin = WorldOrigin;
             int width = Game.Map.rows[0].Length, height = Game.Map.rows.Length;
-            // Ten tiles of overscan preload the next region long before the
-            // camera reaches its first visible pixel, even at dash speeds.
-            int fromX = Math.Max(0, (int)Math.Floor((-Tile - origin.x) / Tile) - 10);
-            int toX = Math.Min(width - 1, (int)Math.Ceiling((Width + Tile - origin.x) / Tile) + 10);
-            int fromY = Math.Max(0, (int)Math.Floor((-Tile - origin.y) / Tile) - 10);
-            int toY = Math.Min(height - 1, (int)Math.Ceiling((Height + Tile - origin.y) / Tile) + 10);
+            const int preloadTiles = 12;
+            int left = Math.Max(0, (int)Math.Floor((-Tile - origin.x) / Tile) - preloadTiles);
+            int right = Math.Min(width - 1, (int)Math.Ceiling((Width + Tile - origin.x) / Tile) + preloadTiles);
+            int top = Math.Max(0, (int)Math.Floor((-Tile - origin.y) / Tile) - preloadTiles);
+            int bottom = Math.Min(height - 1, (int)Math.Ceiling((Height + Tile - origin.y) / Tile) + preloadTiles);
             int chunksWide = (width + TerrainChunkTiles - 1) / TerrainChunkTiles;
-            for (int y = fromY / TerrainChunkTiles; y <= toY / TerrainChunkTiles; y++)
-                for (int x = fromX / TerrainChunkTiles; x <= toX / TerrainChunkTiles; x++)
+            for (int cy = top / TerrainChunkTiles; cy <= bottom / TerrainChunkTiles; cy++)
+                for (int cx = left / TerrainChunkTiles; cx <= right / TerrainChunkTiles; cx++)
                 {
-                    int key = y * chunksWide + x;
-                    if (!terrainChunkWarmAt.ContainsKey(key))
-                        terrainChunkWarmAt.Add(key, firstView ? clock - 2f : clock);
+                    int key = cy * chunksWide + cx;
+                    if (preparedTerrainChunks.ContainsKey(key)) continue;
+                    PreparedTerrainChunk chunk = new PreparedTerrainChunk();
+                    chunk.warmAt = firstView ? clock - 2f : clock;
+                    for (int localY = 0; localY < TerrainChunkTiles; localY++)
+                        for (int localX = 0; localX < TerrainChunkTiles; localX++)
+                        {
+                            int x = cx * TerrainChunkTiles + localX;
+                            int y = cy * TerrainChunkTiles + localY;
+                            if (x >= width || y >= height) continue;
+                            int offset = localY * TerrainChunkTiles + localX;
+                            int seed = TileSeed(x, y, Game.save.room);
+                            chunk.seeds[offset] = seed;
+                            if (seed % 17 != 0) continue;
+                            float footX = x + .35f + seed % 5 * .07f;
+                            float footY = y + .65f;
+                            foreach (WorldObject item in Game.Map.objects)
+                            {
+                                float dx = footX - item.x, dy = footY - item.y;
+                                if (dx * dx + dy * dy < 1.96f)
+                                { chunk.detailOccluded[offset] = true; break; }
+                            }
+                        }
+                    preparedTerrainChunks.Add(key, chunk);
                 }
+        }
+        private PreparedTerrainChunk FindTerrainChunk(int x, int y)
+        {
+            PreparedTerrainChunk state;
+            int wide = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
+            preparedTerrainChunks.TryGetValue(y / TerrainChunkTiles * wide +
+                x / TerrainChunkTiles, out state);
+            return state;
+        }
+        private int PreparedTileSeed(int x, int y)
+        {
+            PreparedTerrainChunk chunk = FindTerrainChunk(x, y);
+            return chunk == null ? TileSeed(x, y, Game.save.room) :
+                chunk.seeds[y % TerrainChunkTiles * TerrainChunkTiles + x % TerrainChunkTiles];
+        }
+        private bool GroundDetailOccluded(int x, int y)
+        {
+            PreparedTerrainChunk chunk = FindTerrainChunk(x, y);
+            if (chunk != null)
+                return chunk.detailOccluded[y % TerrainChunkTiles * TerrainChunkTiles + x % TerrainChunkTiles];
+            // Offline OnGUI screenshot may run without Update. Preserve the
+            // exact prior behavior without claiming an uncached tile is clear.
+            int seed = TileSeed(x, y, Game.save.room);
+            float wx = x + .35f + seed % 5 * .07f, wy = y + .65f;
+            foreach (WorldObject item in Game.Map.objects)
+            {
+                float dx = wx - item.x, dy = wy - item.y;
+                if (dx * dx + dy * dy < 1.96f) return true;
+            }
+            return false;
+        }
+        private float TerrainChunkOpacity(int cx, int cy)
+        {
+            if (cx < 0 || cy < 0) return 1f;
+            int width = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
+            int height = (Game.Map.rows.Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
+            if (cx >= width || cy >= height) return 1f;
+            PreparedTerrainChunk chunk;
+            if (!preparedTerrainChunks.TryGetValue(cy * width + cx, out chunk))
+                return 1f; // Render ready rather than leaving missing black squares.
+            float progress = Mathf.Clamp01((clock - chunk.warmAt) / .45f);
+            return progress * progress * (3 - 2 * progress);
         }
         private float TerrainTileOpacity(int x, int y)
         {
             if (Game.save.reducedMotion || Game.save.effectsQuality == 0) return 1f;
-            int wide = (Game.Map.rows[0].Length + TerrainChunkTiles - 1) / TerrainChunkTiles;
-            float at;
-            if (!terrainChunkWarmAt.TryGetValue(y / TerrainChunkTiles * wide + x / TerrainChunkTiles, out at))
-                return 1f; // Safe direct OnGUI capture before the first Update.
-            float delay = TileSeed(x, y, Game.save.room) % 9 * .012f;
-            float phase = Mathf.Clamp01((clock - at - delay) / .42f);
-            return phase * phase * (3 - 2 * phase);
+            // Blend four neighboring chunk maturities continuously across the
+            // boundary. A single cold chunk cannot produce a 6x6 square pop-in.
+            float fx = (x + .5f) / TerrainChunkTiles - .5f;
+            float fy = (y + .5f) / TerrainChunkTiles - .5f;
+            int cx = (int)Math.Floor(fx), cy = (int)Math.Floor(fy);
+            float tx = Mathf.Clamp01(fx - cx), ty = Mathf.Clamp01(fy - cy);
+            float a = Mathf.Lerp(TerrainChunkOpacity(cx, cy), TerrainChunkOpacity(cx + 1, cy), tx);
+            float b = Mathf.Lerp(TerrainChunkOpacity(cx, cy + 1), TerrainChunkOpacity(cx + 1, cy + 1), tx);
+            return Mathf.Lerp(a, b, ty);
         }
         private void DrawWorld()
         {

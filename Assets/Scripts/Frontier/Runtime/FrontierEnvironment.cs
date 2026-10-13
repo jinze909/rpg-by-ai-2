@@ -20,7 +20,7 @@ namespace Starfall
         private void DrawSurface(int x, int y, char tile, Point p)
         {
             if (terrainSheet == null) { Image(art.Tile(Game.save.room, tile, (x * 7 + y * 11) % 4, PixelArt.C(Game.Map.color)), p.x, p.y, Tile + .5f, Tile + .5f); return; }
-            int seed = TileSeed(x, y, Game.save.room), id = SurfaceId(tile);
+            int seed = PreparedTileSeed(x, y), id = SurfaceId(tile);
             float value = .97f + seed % 5 * .014f;
             int row = id == 0 ? 0 : id == 1 ? 1 : id == 3 ? 2 : id == 8 ? 3 : -1;
             if (row >= 0 && terrainVariants != null) Atlas(terrainVariants, 4, 4, row * 4 + seed % 4, new Rect(p.x, p.y, Tile, Tile), new Color(value, value, value), (seed & 4) == 0);
@@ -37,11 +37,9 @@ namespace Starfall
         private void DrawGroundDetail(int x, int y, char tile, Point p)
         {
             if (detailSheet == null || Game.save.room == 9 || tile != '.' && tile != '%') return;
-            int seed = TileSeed(x, y, Game.save.room);
-            if (seed % 17 != 0) return;
+            int seed = PreparedTileSeed(x, y);
+            if (seed % 17 != 0 || GroundDetailOccluded(x, y)) return;
             Point world = new Point(x + .35f + seed % 5 * .07f, y + .65f);
-            // Persistent world decoration: approaching actors cannot erase tiles.
-            foreach (WorldObject item in Game.Map.objects) if ((world - new Point(item.x, item.y)).Length < 1.4f) return;
             int room = Game.save.room;
             int[] options = room == 6 || room == 3 || room == 8 ? dryDetails : room == 7 ? snowDetails : room == 2 || room == 4 ? ruinDetails : greenDetails;
             int id = options[(seed / 17) % options.Length];
