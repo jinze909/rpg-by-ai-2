@@ -313,7 +313,11 @@ namespace Starfall.Tests
                 for(int k=0;k<3;k++)
                 {
                     g.save.x=sites[k].x;g.save.y=sites[k].y;
-                    g.Talk(sites[k]);g.Close();
+                    g.Talk(sites[k]);
+                    Check(g.conversation!=null&&g.conversation.text.Length>55&&
+                        g.conversation.textEn.Length>55,
+                        "Every visited physical waypoint provides real bilingual lore");
+                    g.Close();
                     Check(g.TrailCircuitProgress(room)==k+1,"Each visited stop records real ordered progress");
                 }
                 Check(g.TrailCircuitComplete(room)&&g.save.coins==startCoins+24,
