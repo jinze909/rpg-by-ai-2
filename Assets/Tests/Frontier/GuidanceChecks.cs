@@ -1639,6 +1639,32 @@ namespace Starfall.Tests
             Check(g.CivicConduitStage==1,
                 "The correct active-stage valve, not the later iterated nearby valve, receives the interaction");
         }
+        public static void QualityNonFiniteControllerVectorsCannotCorruptWorldOrOldSave(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.stage=4;g.save.level=30;
+            Point original=g.Position;
+            g.Tick(.05f,new Point(float.NaN,float.PositiveInfinity),
+                new Point(float.NegativeInfinity,float.NaN));
+            Check(g.CanStand(g.Position)&&
+                (g.Position-original).Length<.0001f&&
+                !float.IsNaN(g.aim.x)&&!float.IsNaN(g.aim.y),
+                "Invalid movement and explicit aim inputs cannot send the canonical character into NaN world space");
+            g.Attack(new Point(float.NaN,float.PositiveInfinity));
+            Check(!float.IsNaN(g.aim.x)&&!float.IsInfinity(g.aim.x)&&
+                !float.IsNaN(g.aim.y)&&!float.IsInfinity(g.aim.y),
+                "Malformed attack inputs cannot poison retained aim used by later projectiles");
+            g.Dash(new Point(float.PositiveInfinity,float.NaN));
+            for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+            Check(g.CanStand(g.Position)&&
+                !float.IsNaN(g.save.x)&&!float.IsInfinity(g.save.x)&&
+                !float.IsNaN(g.save.y)&&!float.IsInfinity(g.save.y),
+                "Invalid dodge vectors cannot corrupt collision, locomotion or persistent coordinates");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.CanStand(restored.Position),
+                "Sanitized inputs remain compatible with the unchanged SaveData v2 serializer");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
