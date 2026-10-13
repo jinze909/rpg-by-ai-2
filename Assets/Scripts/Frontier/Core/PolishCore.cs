@@ -120,6 +120,7 @@ namespace Starfall
             TickWayfarerEncounter();
             TickReliefMission(dt);
             TickAtlasEcho(dt);
+            TickRootHarmonyTrial(dt);
             actionHintTimer = Math.Max(0, actionHintTimer - dt);
             // Permanent quest mutations increment revision; tablet progress is
             // transient. Do not rebuild two language journals every idle frame.
@@ -194,6 +195,7 @@ namespace Starfall
             if (TalkWorldChronicle(o)) return true;
             if (TalkAtlasEcho(o)) return true;
             if (TalkArchiveTrail(o)) return true;
+            if (TalkRootHarmony(o)) return true;
             if (TalkWayfarer(o)) return true;
             if (TalkRoadwardenCipher(o)) return true;
 
@@ -271,6 +273,7 @@ namespace Starfall
         }
         private bool ChoosePolish(string action)
         {
+            if (ChooseRootHarmony(action)) return true;
             if (action == "farshore_relief_routes")
             {
                 if (save.room != 9 || !Has("farshore_relief_complete")) return true;

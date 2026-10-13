@@ -136,5 +136,226 @@ namespace Starfall
                 "Record secured! +20 coins, +2 shards, +20 XP.");
             return true;
         }
+
+        // The Starroot Counterpoint: an optional, original three-region
+        // investigation with distinct lore readings and real enemy defense.
+        // Persistent flags are only written once a physical trial is cleared.
+        public int RootHarmonyRoom { get; private set; }
+        public float RootHarmonyTime { get; private set; }
+        public bool IsRootHarmonyEnemy(Enemy e)
+        { return e != null && e.id >= 88000 && e.id < 88100; }
+        private void ResetRootHarmonyTrial()
+        {
+            enemies.RemoveAll(IsRootHarmonyEnemy);
+            projectiles.RemoveAll(p => p.rootHarmonyOwned);
+            RootHarmonyRoom = 0; RootHarmonyTime = 0;
+        }
+        private void TickRootHarmonyTrial(float dt)
+        {
+            if (RootHarmonyRoom == 0) return;
+            if (save.room != RootHarmonyRoom || Dying || practicing)
+            { ResetRootHarmonyTrial(); return; }
+            RootHarmonyTime -= dt;
+            if (RootHarmonyTime <= 0)
+            {
+                ResetRootHarmonyTrial(); revision++;
+                Notify("失谐守卫夺回了共鸣石。线索仍在，可以重新调谐。",
+                    "The discordant sentinels reclaimed the node. Try tuning again.");
+            }
+        }
+        private int RootHarmonyNext()
+        {
+            for (int i = 1; i <= 3; i++)
+                if (!Has("root_harmony_" + i)) return i;
+            return 0;
+        }
+        private bool TalkRootHarmony(WorldObject o)
+        {
+            if (o.kind == "rootlistener")
+            {
+                if (save.room != 0) return true;
+                if (!Has("scout_saved"))
+                {
+                    Dialog(o.name, o.en,
+                        "密林仍有失踪的巡路员。先去把他救回来，我才敢让你靠近地下的失谐节点。",
+                        "A roadwarden remains lost in the forest. Bring him home before approaching the unstable nodes.",
+                        C("我先去密林", "I'll go to Thornwood", "close"));
+                    return true;
+                }
+                if (!Has("root_harmony_started"))
+                {
+                    Dialog(o.name, o.en,
+                        "我是芮，负责倾听星根而非抽走它。密林的根音、遗迹的潮音和矿场的铁音已经失去节拍。九年前的调谐命令把它们拆散，星陨只是最后一声巨响。\n\n请听三处共鸣石的证词。调对音节后，失谐守卫会醒来；必须真正击退它们才能安全封存读数。",
+                        "I'm Rui. I listen to starroot instead of harvesting it. Root-song in Thornwood, tidal song in the ruins and iron-song in the mine have fallen out of time. A nine-year-old tuning order divided them. Starfall was only the final crack.\n\nListen to three sites. Choosing the right note awakens dissonant sentinels. Defeat them before sealing the reading.",
+                        C("接取星根失谐调查", "Investigate the Starroot Counterpoint", "root_harmony_accept"),
+                        C("稍后再来", "Later", "close"));
+                    return true;
+                }
+                if (Has("root_harmony_complete"))
+                {
+                    Dialog(o.name, o.en,
+                        "三道音纹合成了第三条路：不再要求一座城市替另一座城市耗尽河流。你把星根的节拍还给了能听见它的人。",
+                        "Three readings reveal a third path: no city need drain another city's river. You returned the rhythm to those who can hear it.",
+                        C("记住和声", "Remember the counterpoint", "close"));
+                    return true;
+                }
+                if (RootHarmonyNext() == 0)
+                {
+                    Dialog(o.name, o.en,
+                        "根、潮、铁终于能互相听见。它们不是堡垒的燃料，而是三地共用的脉搏。把最后的读数归档吧。",
+                        "Root, tide and iron can finally hear one another. They were never fuel for a wall. Archive the complete reading.",
+                        C("归档星根和声", "Archive the starroot harmony", "root_harmony_finish"),
+                        C("稍后", "Later", "close"));
+                    return true;
+                }
+                int next = RootHarmonyNext();
+                Dialog(o.name, o.en,
+                    "下一段失谐读数在" + new[] { "", "荆棘密林", "沉没遗迹", "赤铁矿场" }[next] + "。每段唱片都记着真正的地貌：根靠泥土，潮随水道，铁与矿脉共振。错误音节会耗损你的耐力。",
+                    "The next reading is in " + new[] { "", "Thornwood", "the Drowned Ruins", "Ironreach" }[next] +
+                        ". Root belongs to soil, tide to water and iron to ore. False notes sap energy.",
+                    C("追踪失谐读数", "Track the dissonance", "root_harmony_track"),
+                    C("继续探索", "Continue exploring", "close"));
+                return true;
+            }
+            if (!o.kind.StartsWith("rootcounter")) return false;
+            int region;
+            if (!int.TryParse(o.kind.Substring("rootcounter".Length), out region) ||
+                region < 1 || region > 3 || save.room != region) return true;
+            if (!Has("root_harmony_started"))
+            { Notify("星根石仍在低鸣。余烬镇的听纹师可能读得懂它。", "The stone hums. Rui in Emberfall may understand it."); return true; }
+            if (Has("root_harmony_" + region))
+            {
+                Dialog(o.name, o.en, "这道音纹已被封存。它不会再唤醒守卫。", "This reading is sealed. The sentinels will not awaken again.",
+                    C("离开", "Leave", "close")); return true;
+            }
+            if (RootHarmonyNext() != region)
+            {
+                Dialog(o.name, o.en, "缺少前一段节拍，石面上的音纹无法稳定。", "The earlier reading is missing. This node cannot hold its beat.",
+                    C("返回调查", "Return to the investigation", "close")); return true;
+            }
+            if (RootHarmonyRoom == region)
+            {
+                if (enemies.Exists(IsRootHarmonyEnemy))
+                    Dialog(o.name, o.en, "失谐守卫正在攻击。先击败真正的守卫，再封存本地读数。余下 " +
+                        (int)Math.Ceiling(RootHarmonyTime) + " 秒。",
+                        "Dissonant sentinels are attacking. Defeat them before sealing the reading. " +
+                        (int)Math.Ceiling(RootHarmonyTime) + " seconds left.",
+                        C("投入战斗", "Defend the node", "close"));
+                else Dialog(o.name, o.en,
+                    "守卫已沉默。你听清了这段音纹，封存它，免得星根再次被迫共振。",
+                    "The sentinels are silent. Seal this reading before dissonance returns.",
+                    C("封存调谐读数", "Seal the tuned reading", "root_harmony_seal_" + region),
+                    C("稍后", "Later", "close"));
+                return true;
+            }
+            if (RootHarmonyRoom != 0)
+            { Notify("另一处共鸣石正在调谐。", "Another harmonic trial is active."); return true; }
+            string[] zh = {
+                "泥下的星根不会说谎。它用湿土的呼吸而不是铜管的回音报出伤口。",
+                "被改写的闸门仍记得涨潮的方向，水底的声音在潮汐停歇时最清晰。",
+                "矿井深处，铁轨上的锤音与原始矿脉的搏动一致，机器却忘了停下。"
+            };
+            string[] en = {
+                "Under soil, starroot speaks through earth rather than brass.",
+                "The ruined sluice still remembers which way the tide once ran.",
+                "Beneath the mine, the hammer on iron follows the ore's original pulse."
+            };
+            Dialog(o.name, o.en,
+                zh[region - 1] + "\n\n哪一段音纹属于这里？选对后需守住40秒内的真实战斗。",
+                en[region - 1] + "\n\nWhich note belongs here? Tune correctly, then defeat the sentinels before forty seconds elapse.",
+                C("潮音：水道", "Tide: waterways", "root_harmony_tune_" + region + "_0"),
+                C("铁音：矿脉", "Iron: ore veins", "root_harmony_tune_" + region + "_1"),
+                C("根音：土壤", "Root: living soil", "root_harmony_tune_" + region + "_2"),
+                C("暂不调谐", "Not yet", "close"));
+            return true;
+        }
+        private bool ChooseRootHarmony(string action)
+        {
+            if (action == "root_harmony_track")
+            { if (Has("root_harmony_started")) TrackQuest("root_harmony"); return true; }
+            if (action == "root_harmony_accept")
+            {
+                if (save.room == 0 && Has("scout_saved") && !Has("root_harmony_started") &&
+                    (Position - ObjectPoint(0, "rootlistener", new Point(-100, -100))).Length <= 2.2f)
+                {
+                    Flag("root_harmony_started"); TrackQuest("root_harmony");
+                    Notify("新任务：星根失谐。去荆棘密林寻找第一处音纹。",
+                        "New quest: Starroot Counterpoint. Find the first listening stone in Thornwood.");
+                }
+                return true;
+            }
+            if (action == "root_harmony_finish")
+            {
+                if (save.room == 0 && Has("root_harmony_started") &&
+                    !Has("root_harmony_complete") && RootHarmonyNext() == 0 &&
+                    (Position - ObjectPoint(0, "rootlistener", new Point(-100, -100))).Length <= 2.2f)
+                {
+                    Flag("root_harmony_complete"); save.coins += 75; save.skillPoints++;
+                    AddXp(70); revision++; sound = "reward";
+                    RecordMoment("星根失谐调查已归档：根、潮、铁不再被迫为堡垒独奏。",
+                        "Starroot Counterpoint archived: root, tide and iron no longer play for the citadel alone.");
+                    Notify("三段音纹已归档！获得75硬币、1技能点与70经验。",
+                        "Three readings archived! +75 coins, +1 talent and +70 XP.");
+                }
+                return true;
+            }
+            if (action.StartsWith("root_harmony_tune_"))
+            {
+                string[] pieces = action.Substring("root_harmony_tune_".Length).Split('_');
+                int room, note;
+                if (pieces.Length != 2 || !int.TryParse(pieces[0], out room) ||
+                    !int.TryParse(pieces[1], out note) || note < 0 || note > 2 ||
+                    room < 1 || room > 3) return true;
+                Point site = ObjectPoint(room, "rootcounter" + room, new Point(-100, -100));
+                if (save.room != room || !Has("root_harmony_started") ||
+                    RootHarmonyNext() != room || RootHarmonyRoom != 0 ||
+                    (Position - site).Length > 2.2f || Dying || practicing || racing ||
+                    reliefMissionRoom != 0 || roadTrialRoom != 0 ||
+                    wayfarerEncounterRoom != 0 || atlasEchoRoom != 0) return true;
+                int answer = room == 1 ? 2 : room == 2 ? 0 : 1;
+                if (note != answer)
+                {
+                    save.energy = Math.Max(0, save.energy - 8);
+                    effects.Add(new Effect("danger", site, .6f) { radius = .65f });
+                    sound = "deny"; revision++;
+                    Notify("失谐反馈让耐力减少8点。再听听石面与当地地貌的联系。",
+                        "Dissonance costs 8 energy. Listen to the landscape, then try again.");
+                    return true;
+                }
+                RootHarmonyRoom = room; RootHarmonyTime = 40;
+                for (int i = 0; i < 3; i++)
+                {
+                    Point spawn = site + new Point(i == 0 ? -3 : i == 1 ? 3 : 0,
+                        i == 2 ? 3 : -1);
+                    enemies.Add(CreatePlacedEnemy(88000 + room * 10 + i,
+                        i == 2 ? 2 : i, spawn, 35 + room * 13));
+                }
+                effects.Add(new Effect("discover", site, .8f));
+                sound = "windup"; revision++;
+                Notify("音纹调谐成功！真正击退三名失谐守卫，再回来封存读数。40秒倒计时开始。",
+                    "Correct resonance! Defeat three real sentinels and seal the reading within 40 seconds.");
+                return true;
+            }
+            if (action.StartsWith("root_harmony_seal_"))
+            {
+                int room;
+                if (!int.TryParse(action.Substring("root_harmony_seal_".Length), out room) ||
+                    room < 1 || room > 3) return true;
+                Point site = ObjectPoint(room, "rootcounter" + room, new Point(-100, -100));
+                if (save.room != room || RootHarmonyRoom != room || RootHarmonyTime <= 0 ||
+                    (Position - site).Length > 2.2f || enemies.Exists(IsRootHarmonyEnemy) ||
+                    Has("root_harmony_" + room)) return true;
+                ResetRootHarmonyTrial(); Flag("root_harmony_" + room);
+                save.coins += 25; save.shards += 2; AddXp(35);
+                sound = "reward"; revision++;
+                effects.Add(new Effect("discover", site, .8f));
+                RecordMoment("已封存第" + room + "段失谐音纹，失控的星根正在恢复节拍。",
+                    "Sealed counterpoint reading " + room + "; starroot is recovering its rhythm.");
+                Notify("读数已封存！获得25硬币、2碎片和35经验。",
+                    "Reading sealed! +25 coins, +2 shards, +35 XP.");
+                return true;
+            }
+            return false;
+        }
     }
 }

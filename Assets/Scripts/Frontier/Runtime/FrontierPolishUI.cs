@@ -66,6 +66,33 @@ namespace Starfall
         {
             Point p = ScreenPoint(new Point(o.x, o.y));
 
+
+            if (o.kind == "rootlistener")
+            {
+                DrawNpc(o.kind, new Point(o.x, o.y));
+                Color hue = Game.Has("root_harmony_complete") ? mint : gold;
+                Ring(new Point(o.x, o.y), .42f, hue, 16);
+                Text(p.x - 54, p.y - 84, 108, 24,
+                    Game.L("星根听纹", "ROOT SONG"), 11, hue, TextAnchor.MiddleCenter);
+                return true;
+            }
+            if (o.kind.StartsWith("rootcounter"))
+            {
+                int region;
+                if (!int.TryParse(o.kind.Substring("rootcounter".Length), out region)) return false;
+                bool sealedNode = Game.Has("root_harmony_" + region);
+                bool inTrial = Game.RootHarmonyRoom == region;
+                Color color = sealedNode ? mint : inTrial ? PixelArt.C("#f3a57a") : gold;
+                PropImage("column", 0, p.x - 31, p.y - 69, 62, 74);
+                Ring(new Point(o.x, o.y), .48f, color, 20);
+                Text(p.x - 50, p.y - 80, 100, 22,
+                    sealedNode ? Game.L("已归档", "SEALED") :
+                        inTrial ? Game.L("守卫 " , "DEFEND ") +
+                            (int)Math.Ceiling(Game.RootHarmonyTime) + "s" :
+                            Game.L("聆听音纹", "LISTEN"),
+                    11, color, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (o.kind == "worldchronicle")
             {
                 PropImage("bookshelf", 0, p.x - 29, p.y - 64, 58, 68, Color.white);

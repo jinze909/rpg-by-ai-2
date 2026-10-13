@@ -198,6 +198,14 @@
           "kind": "worldchronicle",
           "x": 13.5,
           "y": 9.5
+        },
+        {
+          "id": "rootlistener0",
+          "kind": "rootlistener",
+          "name": "芮 · 星根听纹师",
+          "en": "Rui · Starroot Listener",
+          "x": 22.5,
+          "y": 11.5
         }
       ],
       "decor": [
@@ -487,6 +495,14 @@
           "kind": "archivefragment1",
           "x": 23.5,
           "y": 10.5
+        },
+        {
+          "id": "rootcounter1",
+          "kind": "rootcounter1",
+          "name": "密林失谐共鸣石",
+          "en": "Thornwood broken resonance",
+          "x": 20.5,
+          "y": 12.5
         }
       ],
       "decor": [
@@ -798,6 +814,14 @@
           "kind": "archivefragment2",
           "x": 8.5,
           "y": 11.5
+        },
+        {
+          "id": "rootcounter2",
+          "kind": "rootcounter2",
+          "name": "沉没遗迹潮音柱",
+          "en": "Drowned Ruins tide column",
+          "x": 20.5,
+          "y": 12.5
         }
       ],
       "decor": [
@@ -1101,6 +1125,14 @@
           "en": "Surveyor's Echo Challenge",
           "x": 23.5,
           "y": 11.5
+        },
+        {
+          "id": "rootcounter3",
+          "kind": "rootcounter3",
+          "name": "赤铁矿场震荡枢纽",
+          "en": "Ironreach vibration hub",
+          "x": 24.5,
+          "y": 16.5
         }
       ],
       "decor": [

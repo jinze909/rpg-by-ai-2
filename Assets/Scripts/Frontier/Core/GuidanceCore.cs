@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -149,6 +149,40 @@ namespace Starfall
                     L("前往赤铁矿场的旧校准台", "Visit the calibrator in Rediron Mine");
                 q.reward = L("首次胜利85硬币、5碎片、90经验；不可重复领取",
                     "First clear: 85 coins, 5 shards and 90 XP; cannot repeat");
+                return q;
+            }
+
+
+            if (id == "root_harmony")
+            {
+                q.title = L("星根失谐", "Starroot Counterpoint");
+                q.category = L("调谐谜题 · 实战", "RESONANCE PUZZLE · COMBAT");
+                q.locked = !Has("root_harmony_started");
+                q.description = L("听纹师芮请你调谐密林、遗迹和矿场的三处星根共鸣石。阅读地貌线索选择对应音节，击败三名真实失谐守卫，再返回封存数据。挑战失败可重新尝试，完成奖励不可刷取。",
+                    "Rui asks you to tune three starroot listening stones. Read the landscape clues, choose the correct note, defeat three dissonant sentinels, then seal the reading. Retries are free; rewards are once only.");
+                for (int region = 1; region <= 3; region++)
+                    q.steps.Add(new QuestStep(L(new[] { "密林的根音", "遗迹的潮音", "矿场的铁音" }[region-1],
+                        new[] { "Root note in Thornwood", "Tide note in the Ruins", "Iron note in Ironreach" }[region-1]),
+                        Has("root_harmony_" + region)));
+                q.complete = Has("root_harmony_complete");
+                q.steps.Add(new QuestStep(L("向芮归档三段和声", "Archive all three readings with Rui"), q.complete));
+                int next = RootHarmonyNext();
+                q.room = q.locked || next == 0 ? 0 : next;
+                q.target = ObjectPoint(q.room,
+                    next == 0 || q.locked ? "rootlistener" : "rootcounter" + next,
+                    new Point(20, 12));
+                q.next = q.complete ? L("三道和声已经归档", "The three harmonies are archived") :
+                    q.locked ? L("救回密林侦察员后在余烬镇寻找听纹师芮", "Rescue the forest scout, then speak to Rui in Emberfall") :
+                    next == 0 ? L("返回余烬镇，把三段读数交给芮", "Return to Emberfall and report to Rui") :
+                    RootHarmonyRoom == next ?
+                        enemies.Exists(IsRootHarmonyEnemy) ?
+                            L("击退共鸣石附近的失谐守卫", "Defeat the sentinels guarding the node") :
+                            L("靠近共鸣石按 E 封存读数", "Press E at the node to seal the reading") :
+                        !CanEnter(next) ? L("先解锁下一章的地区", "Unlock the next campaign region") :
+                            L("前往共鸣石，依据地貌选择音纹并守住阵地",
+                              "Visit the stone, tune its landscape note and defend the site");
+                q.reward = L("每区25硬币、2碎片、35经验；完成另得75硬币、1技能点、70经验",
+                    "Each region: 25 coins, 2 shards, 35 XP; final: 75 coins, 1 talent, 70 XP");
                 return q;
             }
 
