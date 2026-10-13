@@ -250,8 +250,12 @@ namespace Starfall.Tests
                 g.Tick(.02f, new Point()); Check(action.released && g.PlayerPose == 5, "Contact and release pose share the same clock");
                 if (weapon == 0) { float hp = foe.hp; Check(hp < 999, "Sword contacts at the strike frame"); Advance(g, .1f); Check(foe.hp == hp, "A swing cannot repeatedly damage the same enemy"); }
                 else Check(g.projectiles.Count > 0, "Ranged weapons spawn only at their release frame");
-                g.Enter(0); g.Close(); g.attackCooldown = 0; g.Attack(new Point(1, 0)); g.save.flags.Add("weapon_1"); g.Equip(1); Advance(g, .8f);
-                Check(g.playerAction == null && g.projectiles.Count == 0, "Equipment change cancels the stored attack");
+                g.Enter(0); g.Close(); g.attackCooldown = 0; g.Attack(new Point(1, 0));
+                // Weapon 1 is already equipped for the ranger. Exercise a
+                // genuine loadout change, not re-selecting the same icon.
+                int alternateWeapon = weapon == 1 ? 0 : 1;
+                g.save.flags.Add("weapon_1"); g.Equip(alternateWeapon); Advance(g, .8f);
+                Check(g.playerAction == null && g.projectiles.Count == 0, "Changing to a different weapon cancels the stored attack");
                 g.Attack(new Point(1, 0)); g.Enter(1); Advance(g, .8f); Check(g.projectiles.Count == 0, "Travel does not release an old attack in the new region");
             }
             var caster = Fresh(data, 2); caster.Enter(1); caster.enemies.Clear(); caster.save.reducedMotion = true;
