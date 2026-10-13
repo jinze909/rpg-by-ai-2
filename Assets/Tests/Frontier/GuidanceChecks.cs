@@ -1348,6 +1348,65 @@ namespace Starfall.Tests
                 g.conversation.textEn.Contains("stamina recovery"),
                 "The published afterword correctly shows the prior political choice's earned consequences");
         }
+        public static void ChapterElevenAffectsAllEightActualRefugesAndExplainsServices(Campaign data)
+        {
+            foreach(int policy in new[]{1,2})
+            {
+                var g=Fresh(data);g.save.stage=4;
+                g.save.flags.Add("exp_intro");g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
+                g.save.flags.Add("civic_conduit_complete");
+                g.save.flags.Add(policy==1?"last_directive_open":"last_directive_shelter");
+                for(int room=0;room<8;room++)
+                {
+                    g.save.flags.Add("far_shelter_"+room);
+                    g.Enter(room);g.enemies.Clear();
+                    var shelter=Object(g,"farshelter");
+                    Check(g.CanStand(new Point(shelter.x,shelter.y)),
+                        "Every powered public refuge has a genuine walkable location");
+                    g.save.x=shelter.x;g.save.y=shelter.y;
+                    g.save.health=40;g.save.energy=20;g.hitStop=0;
+                    g.Tick(.05f,new Point());
+                    float strong=policy==1?g.save.energy-20:g.save.health-40;
+                    g.save.flags.Remove("civic_conduit_complete");
+                    g.save.health=40;g.save.energy=20;g.hitStop=0;
+                    g.Tick(.05f,new Point());
+                    float ordinary=policy==1?g.save.energy-20:g.save.health-40;
+                    Check(strong>ordinary+(policy==1?.11f:.035f),
+                        "The real choice-based benefit must apply to all eight actual built refuges");
+                    g.save.flags.Add("civic_conduit_complete");
+                    if(room==1)
+                    {
+                        g.Talk(shelter);
+                        Check(g.conversation.text.Contains("第十一章公共电网")&&
+                            g.conversation.textEn.Contains("Chapter Eleven public grid"),
+                            "Existing living refuge dialogue clearly explains the new earned public service");
+                        g.Close();
+                    }
+                }
+            }
+        }
+        public static void ChapterElevenCannotOverlapAnAuthenticCivilianParcel(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.save.flags.Add("far_bridge_4");
+            g.save.flags.Add("far_shelter_4");
+            g.save.flags.Add("far_dial_4");
+            g.Enter(4);g.enemies.Clear();
+            var bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"An authentic legacy bridge delivery must actually be underway");
+            var station=Object(g,"civicconduitmaster");
+            g.save.x=station.x;g.save.y=station.y;
+            int parts=g.save.inventory[4];
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            Check(!g.CivicConduitActive&&!g.CivicConduitStarted&&
+                g.FarCourierActive&&g.save.inventory[4]==parts,
+                "No time-sensitive courier can overlap the new conductor or consume its fuse");
+        }
         public static void ScoutPresenceMatchesInteractionAndSavedJourney(Campaign data)
         {
             var g=Fresh(data);WorldObject returned=Object(g,"returnscout");g.save.x=returned.x;g.save.y=returned.y;
