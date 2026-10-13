@@ -249,9 +249,20 @@ public static class RenderStateChecks
         game.save.flags.Remove("seal_1");
         Check((char)Call(app,"TerrainPreviewGlyph",gate,1,gx,gy)=='#',
             "Locked seal tiles must be represented as blocked on the map");
+        Clear();Call(app,"DrawTerrainPreview",gate,1,false,888f,264f,2f);
+        var sealedRaster=Get<Texture2D>(app,"terrainPreview");
+        Color sealedPixel=sealedRaster.pixels[(sealedRaster.height-1-gy)*sealedRaster.width+gx];
         game.save.flags.Add("seal_1");
         Check((char)Call(app,"TerrainPreviewGlyph",gate,1,gx,gy)=='=',
             "Opened seals must be represented as traversable road");
+        Clear();Call(app,"DrawTerrainPreview",gate,1,false,888f,264f,2f);
+        var openRaster=Get<Texture2D>(app,"terrainPreview");
+        Color openPixel=openRaster.pixels[(openRaster.height-1-gy)*openRaster.width+gx];
+        Check(!object.ReferenceEquals(sealedRaster,openRaster)&&sealedRaster.destroyed,
+            "Unlocking a sealed gate invalidates and disposes the full-map terrain raster");
+        Check(Math.Abs(openPixel.r-sealedPixel.r)+Math.Abs(openPixel.g-sealedPixel.g)+
+            Math.Abs(openPixel.b-sealedPixel.b)>.03f,
+            "The full map physically changes the sealed cell from stone to road");
         Console.WriteLine("PASS live minimap bridge repair and sealed gate collision colors (offline)");
     }
     static void CourierStatusIsVisibleEvenOutsideFarshore(FrontierRuntime app)

@@ -17,6 +17,9 @@ namespace Starfall
         private int PreviewDiscoveryStamp(int region,bool fog)
         {
             int code=Game.FarBridgeOpen(region)?41:17;
+            // Locked gate surfaces are rasterized as stone; an unlocked seal
+            // must invalidate the same cached map immediately.
+            code=code*31+(Game.Has("seal_"+region)?1:0);
             if(!fog)return code;
             string prefix=region==8?
                 "abyss_annex_seen_"+Game.save.abyssSeed+"_"+Game.save.abyssFloor+"_":
