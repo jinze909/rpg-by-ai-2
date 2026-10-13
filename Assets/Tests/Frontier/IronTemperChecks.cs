@@ -130,9 +130,12 @@ namespace Starfall.Tests
                 g.TemperUpgradeTimber==2 && g.TemperUpgradeCrystal==1 &&
                 g.TemperUpgradeParts==1,
                 "Only player-delivered full victory unlocks actual one-time material discounts");
-            Action(g,"ironfoundry","iron_temper_finish");
-            Check(g.save.coins==initialCoins+75,
-                "Repeating a forged dialogue cannot duplicate quest rewards");
+            g.Talk(furnace);
+            Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="iron_temper_finish")<0 &&
+                g.save.coins==initialCoins+75,
+                "A finished forge no longer offers its reward action; rewards cannot be duplicated");
+            g.Close();
             g.PrepareSave();
             var persisted=new GameCore(data,CloneSave(g.save));persisted.Start();
             Check(persisted.save.version==2 && persisted.Has("iron_temper_complete") &&
@@ -207,5 +210,60 @@ namespace Starfall.Tests
                 g.save.inventory[4]==0,
                 "An actual equipment upgrade consumes the discounted materials once");
         }
+
+        public static void EmberTemperEarnedChronicleDoesNotSpoilUnrecoveredMachineState(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject chronicle=Object(g,"worldchronicle");
+            g.Talk(chronicle);
+            int chapter=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_campaign");g.Choose(chapter);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_temper")<0,
+                "Players who never used the forge cannot read a spoiler chapter");
+            g.Close();
+            g.save.flags.Add("iron_temper_started");
+            g.Talk(chronicle);
+            chapter=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_campaign");g.Choose(chapter);
+            int entry=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_temper");
+            Check(entry>=0,"A genuinely started foundry run unlocks its own public record");
+            g.Choose(entry);
+            Check(g.conversation.text.Contains("西北支管的高温锁仍未解除") &&
+                g.conversation.text.Contains("东侧军用散热锁仍未拆除") &&
+                !g.conversation.text.Contains("你在真正的战斗中击败守卫"),
+                "Unrepaired valves and the actual overseer victory remain unpublished");
+            g.Close();
+            g.save.flags.Add("iron_temper_vent_seen_1");
+            g.Talk(chronicle);
+            chapter=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_campaign");g.Choose(chapter);
+            entry=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_temper");g.Choose(entry);
+            Check(g.conversation.text.Contains("你亲手打开西北支管") &&
+                g.conversation.text.Contains("东侧军用散热锁仍未拆除"),
+                "The archive shows only the first witnessed pressure valve");
+            g.Close();
+            g.save.flags.Add("iron_temper_vent_seen_2");
+            g.Talk(chronicle);
+            chapter=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_campaign");g.Choose(chapter);
+            entry=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_temper");g.Choose(entry);
+            Check(g.conversation.text.Contains("东侧散热阀接通") &&
+                !g.conversation.text.Contains("你在真正的战斗中击败守卫"),
+                "Opening both valves cannot invent a defeated overseer");
+            g.Close();g.save.flags.Add("iron_temper_complete");
+            g.Talk(chronicle);
+            chapter=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_section_campaign");g.Choose(chapter);
+            entry=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="story_read_temper");g.Choose(entry);
+            Check(g.conversation.text.Contains("每次强化只需两木、一晶、一零件") &&
+                g.conversation.textEn.Contains("two timber, one crystal and one part"),
+                "Only finished combat reveals the bilingual public temper recipe");
+        }
+
     }
 }

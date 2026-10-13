@@ -172,7 +172,7 @@ namespace Starfall
             {
                 bool done=Game.Has("iron_temper_complete");
                 Color tint=done?mint:Game.TemperActive?PixelArt.C("#e3a66b"):gold;
-                PropImage("lighthouse",0,p.x-32,p.y-70,64,77,done?Color.white:muted);
+                PropImage("foundry",0,p.x-35,p.y-74,70,82,done?Color.white:muted);
                 Ring(new Point(o.x,o.y),Game.TemperActive?1.1f:.6f,tint,22);
                 Text(p.x-70,p.y-91,140,22,done?
                     Game.L("公共回火工房","PUBLIC FOUNDRY"):
@@ -195,7 +195,7 @@ namespace Starfall
                     Game.TemperActive && Game.TemperStage>stage;
                 bool next=Game.TemperActive && Game.TemperStage==stage;
                 Color tint=done?mint:next?PixelArt.C("#f3ad75"):muted;
-                PropImage("post",0,p.x-25,p.y-59,50,65,done?Color.white:muted);
+                PropImage("pressurevent",0,p.x-25,p.y-59,50,65,done?Color.white:muted);
                 Ring(new Point(o.x,o.y),next?.85f:.42f,tint,20);
                 Text(p.x-67,p.y-79,134,20,
                     done?Game.L("管线已降温","PRESSURE RELEASED"):

@@ -34,6 +34,7 @@ namespace Starfall
             if (page == "mine") return Has("core_3") || Has("boss_3");
             if (page == "citadel") return Has("boss_4");
             if (page == "harbor") return Has("harbor_report");
+            if (page == "temper") return Has("iron_temper_started") || Has("iron_temper_complete");
             if (page == "tidebound") return Has("tide_salvage_started") || Has("tide_salvage_complete");
             if (page == "desert") return Has("desert_report");
             if (page == "mountain") return Has("mountain_report");
@@ -70,6 +71,8 @@ namespace Starfall
                 if (StoryUnlocked("forest")) choices.Add(StoryChoice("荆棘密林 · 被割断的根", "Thornwood · severed roots", "story_read_forest"));
                 if (StoryUnlocked("ruins")) choices.Add(StoryChoice("沉没遗迹 · 被改写的闸", "Ruins · rewritten sluice", "story_read_ruins"));
                 if (StoryUnlocked("mine")) choices.Add(StoryChoice("赤铁矿场 · 不停的机器", "Ironreach · the tireless machine", "story_read_mine"));
+                if (StoryUnlocked("temper"))
+                    choices.Add(StoryChoice("余烬回火 · 能停下的炉", "Ember Temper · A Furnace That Can Rest", "story_read_temper"));
                 if (StoryUnlocked("citadel")) choices.Add(StoryChoice("星陨堡垒 · 厄洛的屏障", "Citadel · Orrin's shield", "story_read_citadel"));
             }
             else if (section == "farshore")
@@ -114,14 +117,14 @@ namespace Starfall
         private static string StorySectionForPage(string page)
         {
             if (page == "origin" || page == "roots" || page == "orders" || page == "wardens") return "origins";
-            if (page == "forest" || page == "ruins" || page == "mine" || page == "citadel") return "campaign";
+            if (page == "forest" || page == "ruins" || page == "mine" || page == "temper" || page == "citadel") return "campaign";
             if (page == "harbor" || page == "tidebound" || page == "desert" || page == "glasswind" || page == "mountain" || page == "covenant") return "farshore";
             return "after";
         }
         private static string[] StoryPagesForSection(string section)
         {
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
-            if (section == "campaign") return new[] { "forest", "ruins", "mine", "citadel" };
+            if (section == "campaign") return new[] { "forest", "ruins", "mine", "temper", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
             return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending" };
         }
@@ -339,6 +342,30 @@ namespace Starfall
                             Has("glasswind_all_sealed")?
                             "\n\nAll relays are secured, but Mia has not yet published the public chart.":
                             "\n\nThe wind circuit remains incomplete.");
+                    break;
+                case "temper":
+                    headingZh="余烬回火：能停下的炉";
+                    headingEn="Ember Temper: A Furnace That Can Rest";
+                    zh="赤铁矿场原有矿工掌握的换班降温规程。九年前，堡垒把它连接到军用产量表，休息被当作浪费，管线被封锁，锻炉只记得永不熄灭的命令。\n\n"+
+                        (Has("iron_temper_vent_seen_1")?
+                            "你亲手打开西北支管，让矿工第一次看到压力计下降。\n":
+                            "西北支管的高温锁仍未解除。\n")+
+                        (Has("iron_temper_vent_seen_2")?
+                            "东侧散热阀接通，最后的重装监工被迫现身。":
+                            "东侧军用散热锁仍未拆除。")+
+                        (Has("iron_temper_complete")?
+                            "\n\n你在真正的战斗中击败守卫，将工房交还矿工。诺尔公开新的回火配方：每次强化只需两木、一晶、一零件。停炉终于不再是失败，而意味着矿工能够下班。":
+                            "\n\n工房尚未完成公共交接。发现管线不等于击败守卫。");
+                    en="Ironreach miners once controlled their own cooling and shift changes. Nine years ago the citadel chained the furnace to military quotas. Rest was labeled wasted output, valves were locked and the forge was told never to stop.\n\n"+
+                        (Has("iron_temper_vent_seen_1")?
+                            "You opened the northwest pipe, letting miners see the pressure gauge finally fall.\n":
+                            "The northwest high-pressure lock remains sealed.\n")+
+                        (Has("iron_temper_vent_seen_2")?
+                            "The eastern coolant valve is free; the armored overseer has emerged.":
+                            "The eastern military coolant valve remains locked.")+
+                        (Has("iron_temper_complete")?
+                            "\n\nYou defeated the real overseer and returned the foundry to its workers. Noll's public upgrade recipe now costs two timber, one crystal and one part. A furnace can finally stop so its workers can go home.":
+                            "\n\nThe foundry has not yet been handed over. Finding valves is not the same as defeating the guards.");
                     break;
                 case "tidebound":
                     headingZh="潮缚货单：谁被记作货损";

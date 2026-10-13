@@ -133,6 +133,39 @@ namespace Starfall
                 Box(24,88,3,3,edge);Box(68,88,3,3,edge);
                 Box(34,29,28,9,new Color(.3f,.75f,.81f,.22f));
             }
+            else if (kind == "foundry")
+            {
+                // Riveted industrial iron furnace with a distinctive active firebox.
+                Color metal=C("#61717b"),steel=C("#a1a7a4"),dark=C("#283b48"),
+                    ember=C("#f0a35f"),flame=C("#ffe0a0");
+                Box(16,65,64,39,dark);Box(20,55,56,46,metal);
+                Box(12,87,72,13,C("#42525c"));Box(15,95,66,8,steel);
+                for(int i=0;i<3;i++)
+                {
+                    int x=25+i*19;
+                    Box(x,26,11,39,dark);Box(x+2,18,7,39,metal);
+                    Box(x+2,15,7,5,steel);
+                }
+                Box(32,62,32,37,dark);Box(36,67,24,26,C("#8a443c"));
+                Box(38,70,20,18,ember);Box(41,72,14,12,flame);
+                Box(20,63,5,35,steel);Box(71,63,5,35,steel);
+                for(int y=0;y<2;y++)for(int x=0;x<4;x++)
+                    Disc(23+x*17,76+y*19,2,2,C("#b8b1a0"));
+                Box(26,51,44,7,steel);
+            }
+            else if (kind == "pressurevent")
+            {
+                // Manual handwheel and cooling pipe; visually not a checkpoint post.
+                Color iron=C("#627781"),rim=C("#c4ae86"),dark=C("#304754");
+                Box(45,48,10,55,iron);
+                Box(22,88,54,13,dark);Box(23,91,51,5,iron);
+                Disc(48,55,26,25,rim);Disc(48,55,20,19,dark);
+                Disc(48,55,15,14,iron);
+                Box(44,36,8,38,rim);Box(29,51,38,8,rim);
+                Disc(48,55,7,7,C("#f1cf8a"));
+                Box(46,26,4,12,rim);Box(46,74,4,10,rim);
+                Box(17,54,10,3,rim);Box(68,54,11,3,rim);
+            }
             else if (kind == "column" || kind == "obelisk")
             { Box(35, 35, 26, 66, C(kind == "column" ? "#798b96" : "#646078")); Box(30, 31, 36, 8, C("#9aa2a2")); Box(31, 99, 35, 6, C("#8a969b")); Box(41, 48, 3, 40, C("#aec4b4")); Box(51, 57, 6, 12, C("#90cfc7")); }
             else if (kind == "crystal" || kind == "ore")
