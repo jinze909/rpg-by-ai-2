@@ -12,7 +12,9 @@ namespace Starfall.Tests
             Check(!Array.Exists(g.conversation.choices,c=>c.action=="hearing_begin"),
                 "The post-storm public hearing cannot begin on an unfinished campaign or before Orrin's accord");
             g.Close();
-            foreach(string f in new[]{"afterlight_complete","storm_complete","storm_orrin_open"})
+            foreach(string f in new[]{"afterlight_complete","afterlight_started","storm_started",
+                "storm_complete","storm_orrin_open","scout_saved","gate_2","gate_3",
+                "storm_region_1_shelter","storm_region_2_shelter","storm_region_3_shelter"})
                 g.save.flags.Add(f);
             Action(g,dais.kind,"hearing_begin");
             Check(g.Has("hearing_started") && g.CurrentGuide.id=="hearing" &&
@@ -122,6 +124,7 @@ namespace Starfall.Tests
             g.save.flags.Add("hearing_voice_3_care");
             g.save.flags.Add("afterlight_plan_3_care");
             g.save.flags.Add("afterlight_done_3");
+            g.save.flags.Add("afterlight_started");
             WorldObject foundry=Object(g,"afterlightoutlet3");
             g.save.x=foundry.x;g.save.y=foundry.y;
             g.save.inventory[0]=2;g.save.inventory[1]=5;g.save.inventory[4]=0;
@@ -148,6 +151,7 @@ namespace Starfall.Tests
                 g.enemies.Clear();g.invulnerable=100;
                 g.save.health=40;g.save.energy=10;
                 Advance(g,2);
+                float safeEnergy=g.save.energy;
                 if(publicHealth)
                     Check(g.save.health>43 && g.save.energy<100,
                         "Open-access vote operates a visible, real nearby medical lamp");
@@ -162,8 +166,8 @@ namespace Starfall.Tests
                     Check(g.save.health<=40.2f,
                         "Political victory never provides healing while a real monster occupies the public dais");
                 else
-                    Check(g.save.energy<24,
-                        "Reserve lamp never grants its extra energy during contested combat");
+                    Check(g.save.energy<safeEnergy-4.5f,
+                        "Reserve lantern supplies no added energy in combat beyond preexisting passive regeneration");
                 g.enemies.Clear();
                 g.save.x=Object(g,"guild").x;
                 g.save.y=Object(g,"guild").y;
