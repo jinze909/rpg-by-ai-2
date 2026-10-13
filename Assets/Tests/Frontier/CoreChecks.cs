@@ -523,9 +523,28 @@ namespace Starfall.Tests
                 g.Tick(.02f,new Point());
                 Check(!g.OuterPatrolDone(room)&&g.save.coins==coins,
                     "Unbeaten enemies cannot award any defense completion");
+                // Regression: forcibly removing actors from the list is NOT
+                // damage, and must never counterfeit a successful clear.
                 g.enemies.Clear();g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolDone(room)&&!g.OuterPatrolActive&&g.save.coins==coins,
+                    "Enemy despawn must abort rather than award a counterfeit win");
+                g.Talk(o);
+                start=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start");
+                Check(start>=0,"Aborted encounter can be retried safely");
+                g.Choose(start);
+                Check(g.enemies.Count==2,"Retry spawns two live combat actors");
+                Enemy attackerA=g.enemies[0],attackerB=g.enemies[1];
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"Exercise real combat Hit transaction, not a simulated flag");
+                hit.Invoke(g,new object[]{attackerA,10000f,true,null,null});
+                g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolDone(room)&&g.OuterPatrolActive,
+                    "Defeating one real attacker is not enough to clear the defense");
+                hit.Invoke(g,new object[]{attackerB,10000f,true,null,null});
+                g.Tick(.02f,new Point());
                 Check(g.OuterPatrolDone(room)&&g.save.coins==coins+14,
-                    "Only defeating both enemies completes the field defense");
+                    "Both true lethal Hit transactions award the single defense reward");
                 GameCore reload=new GameCore(data,g.save);
                 Check(reload.save.version==2&&reload.OuterPatrolDone(room),
                     "Defended watchposts persist with original v2 flags");

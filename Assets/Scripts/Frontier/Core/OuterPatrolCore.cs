@@ -7,6 +7,7 @@ namespace Starfall
     {
         private int outerPatrolRoom=-1;
         private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1;
+        private bool outerPatrolADead,outerPatrolBDead;
         public bool OuterPatrolActive { get { return outerPatrolRoom==save.room; } }
         public bool OuterPatrolDone(int room)
         { return room>=0&&room<8&&Has("outer_patrol_done_"+room); }
@@ -15,7 +16,23 @@ namespace Starfall
             get { int n=0;for(int i=0;i<8;i++)if(OuterPatrolDone(i))n++;return n; }
         }
         private void ResetOuterPatrol()
-        { outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=-1; }
+        {
+            outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=-1;
+            outerPatrolADead=outerPatrolBDead=false;
+        }
+        private bool IsOuterPatrolEnemy(Enemy e)
+        {
+            return outerPatrolRoom==save.room &&
+                (e.id==outerPatrolEnemyA||e.id==outerPatrolEnemyB);
+        }
+        private void OnOuterPatrolEnemyDefeated(Enemy e)
+        {
+            // Invoked *only* after real Hit() reduces HP to zero. A list clear,
+            // transition, despawn or save load can never forge a victory.
+            if(!IsOuterPatrolEnemy(e))return;
+            if(e.id==outerPatrolEnemyA)outerPatrolADead=true;
+            if(e.id==outerPatrolEnemyB)outerPatrolBDead=true;
+        }
         private bool TalkOuterPatrol(WorldObject o)
         {
             if(o.kind!="outerwatch")return false;
@@ -73,6 +90,7 @@ namespace Starfall
             Enemy one=CreatePlacedEnemy(++enemyId,0,left,48+room*10);
             Enemy two=CreatePlacedEnemy(++enemyId,1,right,42+room*10);
             outerPatrolEnemyA=one.id;outerPatrolEnemyB=two.id;
+            outerPatrolADead=outerPatrolBDead=false;
             enemies.Add(one);enemies.Add(two);
             revision++;sound="quest";
             Notify("救援防卫开始：击退两名真实敌人！",
@@ -86,8 +104,18 @@ namespace Starfall
             {
                 ResetOuterPatrol();return;
             }
-            foreach(Enemy e in enemies)
-                if(e.id==outerPatrolEnemyA||e.id==outerPatrolEnemyB)return;
+            // Any unexpected removal aborts the attempt. Only registered
+            // lethal damage against BOTH owned attackers can settle it.
+            bool presentA=enemies.Exists(e=>e.id==outerPatrolEnemyA);
+            bool presentB=enemies.Exists(e=>e.id==outerPatrolEnemyB);
+            if((!presentA&&!outerPatrolADead)||(!presentB&&!outerPatrolBDead))
+            {
+                ResetOuterPatrol();
+                Notify("守卫战中断；只有击退两只敌人才算成功。",
+                    "Defense interrupted. Only actual defeated attackers count.");
+                return;
+            }
+            if(!outerPatrolADead||!outerPatrolBDead||presentA||presentB)return;
             int completedRoom=outerPatrolRoom;
             ResetOuterPatrol();
             if(OuterPatrolDone(completedRoom))return;
