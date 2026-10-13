@@ -564,8 +564,7 @@ namespace Starfall
             if(CivicConduitActive)
                 return L("公共电网 · ","CIVIC GRID · ")+
                     (int)Math.Ceiling(CivicConduitTimeLeft)+"s · "+
-                    (int)Math.Ceiling(CivicConduitIntegrity)+"%
-"+
+                    (int)Math.Ceiling(CivicConduitIntegrity)+"%\n"+
                     L("阀门 ","VALVE ")+(CivicConduitStage+1)+"/3 · "+
                     (CivicConduitWindowOpen?
                         L("绿色稳定 · 现在操作","GREEN PHASE · TUNE NOW"):
