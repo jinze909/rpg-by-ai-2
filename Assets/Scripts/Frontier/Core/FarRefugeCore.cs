@@ -384,11 +384,19 @@ namespace Starfall
             Dialog(o.name,o.en,FarWitnessZh[room]+
                 (Has("far_courier_charter")?
                     "\n\n公开补给公约已生效。消耗木材1休息：生命 +55、耐力全满、寒冷 -40。":
-                    "\n\n公共避险棚已经建好。消耗木材1休息：生命 +35、耐力全满、寒冷 -25。"),
+                    "\n\n公共避险棚已经建好。消耗木材1休息：生命 +35、耐力全满、寒冷 -25。")+
+                (CivicSupplyClinic(room)?
+                    "\n\n【居民医疗点】安全时持续疗伤；添柴额外恢复生命 +15。":
+                 CivicSupplyWatch(room)?
+                    "\n\n【居民守路岗】安全时持续恢复耐力，无需消耗木材。":""),
                 FarWitnessEn[room]+
                 (Has("far_courier_charter")?
-                    "\n\nPublic supply charter: 1 timber gives +55 HP, full stamina and -40 cold.":
-                    "\n\nThe shared shelter is open. Spend 1 timber to rest: +35 HP, full stamina and -25 cold."),
+                    "\n\nPublic charter: 1 timber restores +55 HP, full stamina, -40 cold.":
+                    "\n\nShared refuge: 1 timber restores +35 HP, full stamina, -25 cold.")+
+                (CivicSupplyClinic(room)?
+                    "\n\n[Resident clinic] Heal when safe; paid rest adds 15 HP.":
+                 CivicSupplyWatch(room)?
+                    "\n\n[Resident lookout] Regenerate energy when safe without timber.":""),
                 C("添柴休息 · 木材 ×1","Rest · 1 timber","far_rest"),
                 C("继续探索","Keep exploring","close"));
             return true;
@@ -478,16 +486,16 @@ namespace Starfall
                 return true;
             }
             if(!FarShelterBuilt(room)||!Spend(1,0,0,0,0))return true;
-            save.health=Clamp(save.health+(Has("far_courier_charter")?55:35),0,save.maxHealth);
+            save.health=Clamp(save.health+(Has("far_courier_charter")?55:35)+
+                (CivicSupplyClinic(room)?15:0),0,save.maxHealth);
             save.energy=100;
             save.cold=Math.Max(0,save.cold-(Has("far_courier_charter")?40:25));
             revision++;sound="reward";
-            Notify(Has("far_courier_charter")?
-                "公共补给棚升级：生命 +55，耐力全满，寒冷 -40。":
-                "暖棚休息：生命 +35，耐力全满，寒冷 -25。",
-                Has("far_courier_charter")?
-                "Upgraded public refuge: +55 HP, full energy, -40 cold.":
-                "Refuge rest: +35 health, full energy and -25 cold.");
+            int healed=(Has("far_courier_charter")?55:35)+(CivicSupplyClinic(room)?15:0);
+            Notify("避险棚休息：生命 +"+healed+"，耐力全满，寒冷 -"+
+                (Has("far_courier_charter")?40:25)+"。",
+                "Refuge rest: +"+healed+" HP, full energy, -"+
+                (Has("far_courier_charter")?40:25)+" cold.");
             return true;
         }
     }
