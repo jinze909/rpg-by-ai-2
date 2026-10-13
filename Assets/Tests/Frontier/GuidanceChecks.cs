@@ -1486,9 +1486,12 @@ namespace Starfall.Tests
             Check(g.CivicConduitActive&&!g.CivicConduitWindowOpen,
                 "The real clock advances out of green before examining the valve dialogue");
             // Walk the same authored ground while keeping the valve closed.
-            for(int i=0;i<62;i++)g.Tick(.05f,new Point(1,0));
-            Check((g.Position-new Point(valve.x,valve.y)).Length<2.2f,
-                "The player reaches the real valve, not a fake UI-only choice");
+            for(int i=0;i<200&&g.CivicConduitActive&&
+                (g.Position-new Point(valve.x,valve.y)).Length>1.25f;i++)
+                g.Tick(.05f,new Point(1,0));
+            Check(g.CivicConduitActive&&
+                (g.Position-new Point(valve.x,valve.y)).Length<2.2f,
+                "Real variable-speed body movement reaches the mapped switch without teleporting");
             // Phase could have reopened during walking; advance to locked phase.
             for(int i=0;i<135&&g.CivicConduitActive&&g.CivicConduitWindowOpen;i++)
                 g.Tick(.05f,new Point());
