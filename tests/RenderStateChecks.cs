@@ -527,6 +527,11 @@ public static class RenderStateChecks
         Check(g.CivicConduitActive&&g.CivicConduitWindowOpen&&
             g.CivicConduitIntegrity==100,
             "A live, undamaged public circuit begins in the first green phase");
+        Clear();Call(app,"DrawCivicConduitCoil");
+        Check(GUI.textureCalls.Count>0&&
+            GUI.commands.Exists(c=>c.Contains("CONDUCTOR 100%")),
+            "Canonical playable hero visibly carries one live 100% charge coil with timer");
+
         Clear();Call(app,"DrawObject",first);
         Check(GUI.textureCalls.Count>0&&
             GUI.commands.Exists(c=>c.Contains("GREEN")),
@@ -535,6 +540,11 @@ public static class RenderStateChecks
         for(int i=0;i<43;i++)g.Tick(.05f,new Point());
         Check(g.CivicConduitActive&&!g.CivicConduitWindowOpen,
             "A real elapsed clock closes the stability window without fake input");
+        Clear();Call(app,"DrawCivicConduitCoil");
+        Check(GUI.commands.Exists(c=>c.Contains("CONDUCTOR "))&&
+            !GUI.commands.Exists(c=>c.Contains("CONDUCTOR 100%")),
+            "Hero-mounted coil reflects genuine elapsed conductor degradation");
+
         Clear();Call(app,"DrawObject",first);
         Check(GUI.commands.Exists(c=>c.Contains("WAIT FOR GREEN")),
             "Closed physical valve visibly teaches the player to wait for green");
