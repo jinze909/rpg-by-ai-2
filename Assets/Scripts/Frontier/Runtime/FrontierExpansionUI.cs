@@ -199,6 +199,43 @@ namespace Starfall
                 }
                 return true;
             }
+            if(kind=="tidedock")
+            {
+                DrawNpc("innGuest",new Point(o.x,o.y),11);
+                Color tint=Game.Has("tide_salvage_complete")?mint:gold;
+                Text(p.x-63,p.y-85,126,20,
+                    Game.Has("tide_salvage_complete")?Game.L("公共货单已归档","CARGO PUBLIC"):
+                    Game.TideSalvageActive?Game.L("等待运回货物","DELIVER CARGO"):
+                    Game.L("潮汐打捞码头","TIDAL SALVAGE"),
+                    11,tint,TextAnchor.MiddleCenter);
+                if(Game.TideSalvageActive)
+                {
+                    Text(p.x-50,p.y-106,100,20,
+                        Game.TideSalvageTime.ToString("0")+"s · "+
+                        (Game.TideSalvagePhase-1)+"/3",12,gold,TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
+            if(kind.StartsWith("tidecargo"))
+            {
+                int site;
+                if(!int.TryParse(kind.Substring("tidecargo".Length),out site) ||
+                    site<1 || site>3)return true;
+                bool done=Game.Has("tide_salvage_complete") ||
+                    Game.TideSalvageActive && Game.TideSalvagePhase>site;
+                bool next=Game.TideSalvageActive && Game.TideSalvagePhase==site;
+                Color tint=done?mint:next?gold:muted;
+                PropImage("cache",0,p.x-22,p.y-41,44,49,
+                    done?Color.white:Game.LowTide?Color.white:muted);
+                Ring(new Point(o.x,o.y),next?.78f:.42f,tint,20);
+                Text(p.x-65,p.y-71,130,20,
+                    done?Game.L("已打捞","RECOVERED"):
+                    next?Game.LowTide?Game.L("可收回货单","SALVAGE NOW"):
+                    Game.L("等待退潮","WAIT FOR EBB"):
+                    Game.L("封存货箱","SEALED CRATE"),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="skywatcher")
             {
                 DrawNpc("innGuest",new Point(o.x,o.y),12);

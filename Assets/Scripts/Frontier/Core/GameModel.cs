@@ -127,7 +127,7 @@ namespace Starfall
         public bool friendly, explosive, piercing;
         public bool slowing, technique, blockedAtSpawn;
         // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
-        public bool roadTrialOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned;
+        public bool roadTrialOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, tideSalvageOwned;
         public string source, visual;
         public float age, height = 32, launchHeight = -1, flightHeight = -1;
         public ImpactProfile impact;
@@ -144,7 +144,7 @@ namespace Starfall
         public int variant;
         // Only encounter-owned warnings retire when an optional rescue ends.
         // Ordinary combat effects are preserved.
-        public bool reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned;
+        public bool reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned;
         public Effect(string kind, Point position, float life, string text = "")
         { this.kind = kind; this.position = position; this.life = maxLife = life; this.text = text; }
     }

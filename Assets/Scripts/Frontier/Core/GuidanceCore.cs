@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "farshore_relief", "relief_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "farshore_relief", "relief_rescue" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -179,6 +179,31 @@ namespace Starfall
                     L("前往沙海中继站开始守点","Start a desert relay defense");
                 q.reward=L("每站15硬币、1碎片、20经验与避暑圈；最终65硬币、2碎片、1天赋点、70经验",
                     "Each: 15 coins, 1 shard, 20 XP and shade; final: 65 coins, 2 shards, 1 talent, 70 XP");
+                return q;
+            }
+            if (id == "tide_salvage")
+            {
+                q.title=L("潮缚货单","Tidebound Manifest");
+                q.category=L("潮汐探险 · 限时打捞","TIDE EXPEDITION · TIMED SALVAGE");
+                q.locked=!Has("harbor_report");
+                q.description=L("托兰要将被旧物流网注销的药品、粮食和航海图交还居民。利用低潮走到三处真实潮滩，依序收回货单，途中击退真实掠夺者，再在100秒内回到码头。",
+                    "Tolan asks you to restore medicine, food and passage records erased by the freight network. Explore three real shoals at low tide in order, fight live raiders, and return to the dock within 100 seconds.");
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(L(new[]{"西侧药品货单","内湾粮食货单","南岛潮汐模型"}[i-1],
+                        new[]{"West shoal medicine","Inner bay provisions","Southern tide model"}[i-1]),
+                        Has("tide_salvage_complete") || TideSalvagePhase>i));
+                q.complete=Has("tide_salvage_complete");
+                q.steps.Add(new QuestStep(L("回码头交付公开货单","Return cargo to the dock"),q.complete));
+                q.room=5;
+                q.target=ObjectPoint(5,!TideSalvageActive || TideSalvagePhase==4?
+                    "tidedock":"tidecargo"+TideSalvagePhase,new Point(10.5f,14.5f));
+                q.next=q.complete?L("公共稳潮模型已安装，观测站的控潮延长15秒","Public tide model extends Tidewatch holds by 15 seconds"):
+                    q.locked?L("先完成雾港事故调查并提交米拉","First finish and file Mistport's tide investigation"):
+                    !TideSalvageActive?L("到渡船码头趁低潮发起打捞","Launch at the ferry dock during low tide"):
+                    TideSalvagePhase==4?L("击退掠夺者后回码头交付全部货物","Defeat the raiders and return all cargo"):
+                    L("前往下一处潮滩货箱，等待低潮后按E打捞","Reach the next crate; recover it at low tide");
+                q.reward=L("一次性60硬币、3碎片、1天赋点、75经验；永久稳潮+15秒",
+                    "One-time 60 coins, 3 shards, 1 talent, 75 XP and +15s Tidewatch holds");
                 return q;
             }
             if (id == "skywatch")

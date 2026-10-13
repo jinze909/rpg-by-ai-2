@@ -95,7 +95,7 @@ namespace Starfall
         {
             return region >= 6 && region <= 7 && Has("farshore_relief_" + region) ? 6.5f : 4.2f;
         }
-        public int TidewatchHoldSeconds { get { return Has("farshore_relief_5") ? 90 : 45; } }
+        public int TidewatchHoldSeconds { get { return (Has("farshore_relief_5") ? 90 : 45) + (Has("tide_salvage_complete") ? 15 : 0); } }
         // A timed, two-wave rescue sortie from each real civilian shelter.
         // The route and enemies are live combat; replay gives no further rewards.
         public int reliefMissionRoom, reliefMissionWave;

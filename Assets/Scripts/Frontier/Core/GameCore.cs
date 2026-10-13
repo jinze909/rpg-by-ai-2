@@ -48,7 +48,7 @@ namespace Starfall
         }
         public int Allies { get { int n = 0; for (int i = 1; i <= 3; i++) if (Has("ally_" + i)) n++; return n; } }
         public float Damage { get { return (19 + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
-        public float Speed { get { return 4.5f + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (save.cold > 70 ? .55f : 0); } }
+        public float Speed { get { return 4.5f + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
         public bool GateOpen
         {
             get { return save.room == 0 || save.room == 4 || save.room == 8 || save.room == 9 || (save.room == 1 && Has("scout_saved")) || Has("gate_" + save.room); }
@@ -105,7 +105,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage();
         }
         public void NewGame(int profession)
         {
@@ -202,6 +202,12 @@ namespace Starfall
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
+            if (TideSalvageActive)
+            {
+                Notify("打捞行动还在进行，先回码头交付或放弃货物。",
+                    "Salvage is underway. Deliver or abandon at the dock before traveling.");
+                return;
+            }
             if (GlasswindSite != 0)
             {
                 Notify("风脉中继正在争夺中。请封存或返回中继台撤出后再旅行。",
@@ -419,7 +425,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsGlasswindEnemy(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }
@@ -646,7 +652,7 @@ namespace Starfall
         private void Fire(Enemy e, Point dir, float speed)
         { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
-                e.targetingReliefCivilian;shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -662,7 +668,7 @@ namespace Starfall
                 { projectiles.Remove(p); effects.Add(new Effect("projectileFade", p.position, .25f) {
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned,
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned }); continue; }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
                 bool dead = p.blockedAtSpawn || ShotBlocked(p,p.position); float impactRadius = 0;
@@ -710,13 +716,13 @@ namespace Starfall
                     effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
                         variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
-                        reliefMissionOwned = p.reliefMissionOwned,
+                        reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned });
                 else if (p.life <= 0 && projectiles.Remove(p))
                     effects.Add(new Effect("projectileFade", p.position, .25f) {
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned,
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned });
             }
             tickingProjectiles.Clear();

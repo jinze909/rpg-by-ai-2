@@ -1786,6 +1786,38 @@
           "x": 4.5,
           "y": 19.5,
           "lore": 13
+        },
+        {
+          "id": "tidedock",
+          "name": "托兰 · 渡船打捞码头",
+          "en": "Tolan · Salvage Dock",
+          "kind": "tidedock",
+          "x": 10.5,
+          "y": 14.5
+        },
+        {
+          "id": "tidecargo1",
+          "name": "西侧药箱残片",
+          "en": "Western Medicine Crate",
+          "kind": "tidecargo1",
+          "x": 8.5,
+          "y": 8.5
+        },
+        {
+          "id": "tidecargo2",
+          "name": "内湾粮食货单",
+          "en": "Inner Bay Provisions",
+          "kind": "tidecargo2",
+          "x": 10.5,
+          "y": 9.5
+        },
+        {
+          "id": "tidecargo3",
+          "name": "南岛潮汐航图",
+          "en": "Southern Tide Chart",
+          "kind": "tidecargo3",
+          "x": 25.5,
+          "y": 17.5
         }
       ],
       "decor": [
