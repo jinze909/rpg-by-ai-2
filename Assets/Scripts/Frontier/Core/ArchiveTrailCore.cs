@@ -150,8 +150,26 @@ namespace Starfall
             projectiles.RemoveAll(p => p.rootHarmonyOwned);
             RootHarmonyRoom = 0; RootHarmonyTime = 0;
         }
+        public bool RootHarmonyRestoring
+        {
+            get {
+                return save.room >= 1 && save.room <= 3 &&
+                    RootHarmonyRoom == 0 && !Dying &&
+                    Has("root_harmony_" + save.room) &&
+                    (Position - ObjectPoint(save.room, "rootcounter" + save.room,
+                        new Point(-100, -100))).Length < 2.75f && SafeTravel;
+            }
+        }
         private void TickRootHarmonyTrial(float dt)
         {
+            if (RootHarmonyRestoring)
+            {
+                // A calibrated stone remains a tangible world reward.
+                // Its short-radius refuge cannot out-heal a nearby battle
+                // or silently supply money, items or infinite XP.
+                save.health = Math.Min(save.maxHealth, save.health + dt * 1.6f);
+                save.energy = Math.Min(100, save.energy + dt * 6f);
+            }
             if (RootHarmonyRoom == 0) return;
             if (save.room != RootHarmonyRoom || Dying || practicing)
             { ResetRootHarmonyTrial(); return; }
@@ -225,7 +243,7 @@ namespace Starfall
             { Notify("星根石仍在低鸣。余烬镇的听纹师可能读得懂它。", "The stone hums. Rui in Emberfall may understand it."); return true; }
             if (Has("root_harmony_" + region))
             {
-                Dialog(o.name, o.en, "这道音纹已被封存。它不会再唤醒守卫。", "This reading is sealed. The sentinels will not awaken again.",
+                Dialog(o.name, o.en, "音纹已经归档。周围安全时，这块石头会短暂恢复你失去的生命与耐力。敌人接近便会中断恢复。", "The reading is sealed. In safety this stone restores health and energy nearby; approaching enemies interrupt the respite.",
                     C("离开", "Leave", "close")); return true;
             }
             if (RootHarmonyNext() != region)
@@ -351,8 +369,8 @@ namespace Starfall
                 effects.Add(new Effect("discover", site, .8f));
                 RecordMoment("已封存第" + room + "段失谐音纹，失控的星根正在恢复节拍。",
                     "Sealed counterpoint reading " + room + "; starroot is recovering its rhythm.");
-                Notify("读数已封存！获得25硬币、2碎片和35经验。",
-                    "Reading sealed! +25 coins, +2 shards, +35 XP.");
+                Notify("读数已封存！硬币25、碎片2、经验35。共鸣石附近已可安全休整。",
+                    "Reading sealed! +25 coins, +2 shards, +35 XP. The stone now offers a safe respite.");
                 return true;
             }
             return false;

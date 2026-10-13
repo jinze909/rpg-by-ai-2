@@ -181,8 +181,8 @@ namespace Starfall
                         !CanEnter(next) ? L("先解锁下一章的地区", "Unlock the next campaign region") :
                             L("前往共鸣石，依据地貌选择音纹并守住阵地",
                               "Visit the stone, tune its landscape note and defend the site");
-                q.reward = L("每区25硬币、2碎片、35经验；完成另得75硬币、1技能点、70经验",
-                    "Each region: 25 coins, 2 shards, 35 XP; final: 75 coins, 1 talent, 70 XP");
+                q.reward = L("每区25硬币、2碎片、35经验与永久休整点；完成另得75硬币、1技能点、70经验",
+                    "Each node: 25 coins, 2 shards, 35 XP and permanent safe rest; final: 75 coins, 1 talent, 70 XP");
                 return q;
             }
 

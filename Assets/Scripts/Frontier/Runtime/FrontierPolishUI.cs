@@ -86,7 +86,8 @@ namespace Starfall
                 PropImage("column", 0, p.x - 31, p.y - 69, 62, 74);
                 Ring(new Point(o.x, o.y), .48f, color, 20);
                 Text(p.x - 50, p.y - 80, 100, 22,
-                    sealedNode ? Game.L("已归档", "SEALED") :
+                    sealedNode ? Game.RootHarmonyRestoring ?
+                        Game.L("安全休整", "RESTORING") : Game.L("已归档", "SEALED") :
                         inTrial ? Game.L("守卫 " , "DEFEND ") +
                             (int)Math.Ceiling(Game.RootHarmonyTime) + "s" :
                             Game.L("聆听音纹", "LISTEN"),
