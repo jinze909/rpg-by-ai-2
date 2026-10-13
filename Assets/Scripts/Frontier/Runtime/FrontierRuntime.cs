@@ -672,6 +672,19 @@ namespace Starfall
                     clinic||watch?upkeep:ready?mint:gold,14);
                 if(clinic||watch)
                     Diamond(p.x,p.y-85,4,upkeep);
+                if(kind=="farshelter"&&ready&&Game.CivicConduitComplete)
+                {
+                    Color network=Game.LastDirectiveChoice==1?
+                        new Color(.54f,.82f,1f):new Color(1f,.78f,.49f);
+                    // Outer network ring preserves prior local clinic/watch tints.
+                    Ring(new Point(o.x,o.y),.77f,network,18);
+                    Text(p.x-69,p.y-112,138,20,
+                        Game.L(Game.LastDirectiveChoice==1?
+                            "公共电网 · 补充耐力":"庇护电网 · 基础疗养",
+                            Game.LastDirectiveChoice==1?
+                            "GRID POWER ONLINE":"PUBLIC CARE ONLINE"),
+                        11,network,TextAnchor.MiddleCenter);
+                }
                 if(!ready)Diamond(p.x,p.y-79,6,gold);
                 return;
             }
