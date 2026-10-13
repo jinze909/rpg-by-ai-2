@@ -70,10 +70,19 @@ namespace Starfall
                 }
                 if (Has("skywatch_complete"))
                 {
-                    Dialog(o.name,o.en,
-                        "三座棱镜的读数已向所有旅人公开。观星台不再将极寒预报藏在钟声里；校准后的穹顶还会为夜归者挡风。",
-                        "All three prism readings now belong to the travelers. The observatory no longer hides its freeze warning in bell tones, and its restored canopy shelters those returning at night.",
-                        C("保管这份公开记录","Keep the public record","close"));
+                    if(!Has("skywatch_afterglow_complete"))
+                    {
+                        Dialog(o.name,o.en,
+                            "光谱已经公开，但北、东、南三座棱镜还留下最后的旅人余辉。若能找回并归档，就能在高原点亮三座公开的避寒信标。",
+                            "The spectrum is public, but three lenses still contain lost travelers' afterglows. Recover and archive them to activate three public highland warming beacons.",
+                            C("追踪余辉调查","Track afterglows","skywatch_afterglow_track"),
+                            C("稍后回去","Later","close"));
+                    }
+                    else
+                        Dialog(o.name,o.en,
+                            "三枚余辉已公开归档，三座棱镜与观星台都能在寒夜帮助远行者。",
+                            "All afterglows are now public. The observatory and three lens sites shelter highland travelers.",
+                            C("谢谢","Thank you","close"));
                     return true;
                 }
                 if (Has("skywatch_defeated"))
@@ -218,6 +227,12 @@ namespace Starfall
         }
         private bool ChooseSkywatch(string action)
         {
+            if (action == "skywatch_afterglow_track")
+            {
+                if (Has("skywatch_complete") && !Has("skywatch_afterglow_complete"))
+                    TrackQuest("skywatch_afterglow");
+                return true;
+            }
             if (action == "skywatch_track")
             {
                 if (Has("skywatch_started")) TrackQuest("skywatch");
