@@ -567,6 +567,26 @@ public static class RenderStateChecks
         Clear();Call(app,"DrawObject",done);
         Check(GUI.textureCalls.Count>0,
             "A completed physical valve remains visible and does not disappear");
+        app.BeginVisualReview(1,1);
+        g=app.Game;
+        var refuge=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
+        Check(refuge!=null,"A true regional public shelter exists");
+        g.save.flags.Add("far_shelter_1");
+        g.save.flags.Add("civic_conduit_complete");
+        g.save.flags.Add("last_directive_open");
+        Clear();Call(app,"DrawObject",refuge);
+        Check(GUI.commands.Exists(c=>c.Contains("GRID POWER ONLINE")),
+            "Every rebuilt refuge visibly shows the choice-specific public energy grid");
+        g.save.flags.Remove("last_directive_open");
+        g.save.flags.Add("last_directive_shelter");
+        Clear();Call(app,"DrawObject",refuge);
+        Check(GUI.commands.Exists(c=>c.Contains("PUBLIC CARE ONLINE"))&&
+            !GUI.commands.Exists(c=>c.Contains("GRID POWER ONLINE")),
+            "The alternative healing network is distinctly labeled in actual regional art");
+        g.save.flags.Remove("civic_conduit_complete");
+        Clear();Call(app,"DrawObject",refuge);
+        Check(!GUI.commands.Exists(c=>c.Contains("PUBLIC CARE ONLINE")),
+            "Original legacy shelter art remains unchanged before the actual powered-grid completion");
         Console.WriteLine("PASS chapter-eleven live valve phase colors, readable clock cues and original HUD (offline)");
     }
     static void RestoresState(FrontierRuntime app)
