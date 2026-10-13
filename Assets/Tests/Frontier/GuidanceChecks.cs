@@ -898,11 +898,12 @@ namespace Starfall.Tests
                 "The final live terminal permanently records a distinct public-oversight choice");
             g.Enter(0);g.enemies.Clear();
             board=Object(g,"lastdirectiveboard");g.save.x=board.x;g.save.y=board.y;
+            g.save.level=30;
             int before=g.save.coins,shards=g.save.shards,talent=g.save.skillPoints;
             Action(g,"lastdirectiveboard","last_directive_publish");
             Check(g.LastDirectiveComplete&&g.save.coins==before+95&&
                 g.save.shards==shards+5&&g.save.skillPoints==talent+1,
-                "Returning to the REAL town council publishes a single earned Chapter Ten reward");
+                "Town publication: complete="+g.LastDirectiveComplete+" choice="+g.LastDirectiveChoice+" coins="+g.save.coins+" expected="+(before+95)+" shards="+g.save.shards+" expected="+(shards+5)+" talents="+g.save.skillPoints+" expected="+(talent+1));
             g.Talk(board);
             Check(!Array.Exists(g.conversation.choices,c=>c.action=="last_directive_publish"),
                 "Published final order cannot be claimed repeatedly");
@@ -914,7 +915,7 @@ namespace Starfall.Tests
         }
         public static void ChapterTenCannotForgeCivilianRightsOrLoseOriginalWildlife(Campaign data)
         {
-            var g=Fresh(data);g.save.flags.Add("civic_response_ledger");
+            var g=Fresh(data);g.save.stage=4;g.save.flags.Add("civic_response_ledger");
             var choose=typeof(GameCore).GetMethod("ChooseLastDirective",
                 System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
             choose.Invoke(g,new object[]{"last_directive_publish"});
