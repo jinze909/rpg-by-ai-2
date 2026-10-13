@@ -752,7 +752,13 @@ namespace Starfall.Tests
             g.Talk(guest);
             Check(Array.Exists(g.conversation.choices,
                 c=>c.action=="civic_response_ledger"),
-                "Hearth Inn's true registry offers publishing only after three completed trials");
+                "Hearth Inn ledger choice: room="+g.save.room+
+                " done="+g.CivicResponseDoneCount+
+                " guests="+g.Has("far_refuge_guest_record")+
+                " courier="+g.FarCourierDeliveredCount+
+                " inquest="+g.CivicSupplyComplete+
+                " actions="+string.Join(",",Array.ConvertAll(g.conversation.choices,
+                    c=>c.action)));
             int ledgerCoins=g.save.coins,ledgerShards=g.save.shards;
             Action(g,"farrefugerecord","civic_response_ledger");
             Check(g.Has("civic_response_ledger")&&
