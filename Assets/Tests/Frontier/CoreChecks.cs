@@ -908,9 +908,14 @@ namespace Starfall.Tests
                 Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_bridge_repair")<0,
                     "Bridge repair cannot duplicate materials or rewards");
                 var reload=new GameCore(data,g.save);
-                Check(reload.save.version==2&&reload.FarBridgeOpen(room)&&
-                    !reload.Blocked(111.5f,52.5f),
-                    "Permanent bridge terrain state survives legacy save reload");
+                Check(reload.save.version==2&&reload.FarBridgeOpen(room),
+                    "Old v2 save reload preserves the constructed bridge flag even if story gates redirect the player");
+                // In an unprogressed test save the normal story gates may
+                // return to the safe town; only test collision after entering
+                // the matching author's region again.
+                reload.save.room=room;
+                Check(!reload.Blocked(111.5f,52.5f),
+                    "Returning to the reconstructed region restores real walkable collision");
             }
         }
 

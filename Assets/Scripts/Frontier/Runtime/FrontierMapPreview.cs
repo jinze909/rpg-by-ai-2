@@ -27,7 +27,7 @@ namespace Starfall
             if(terrainPreview==null||!object.ReferenceEquals(previewMap,map)||
                 !object.ReferenceEquals(previewOwner,Game)||
                 previewRegion!=region||previewFog!=fog||
-                previewRevision!=(fog?Game.revision:-1)||
+                previewRevision!=Game.revision||
                 previewLowTide!=tide)
             {
                 ReleaseTerrainPreview();
@@ -57,7 +57,7 @@ namespace Starfall
                 terrainPreview.SetPixels(pixels);
                 terrainPreview.Apply(false,false);
                 previewOwner=Game;previewMap=map;previewRegion=region;
-                previewFog=fog;previewRevision=fog?Game.revision:-1;
+                previewFog=fog;previewRevision=Game.revision;
                 previewLowTide=tide;
             }
             Image(terrainPreview,x,y,width*scale,height*scale);
