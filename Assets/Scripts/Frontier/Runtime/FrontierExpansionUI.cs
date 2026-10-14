@@ -67,6 +67,21 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.FrostSignalActive)
+            {
+                Point screen=ScreenPoint(Game.Position);
+                Color tint=Game.FrostSignalFlame<25?PixelArt.C("#ef826b"):
+                    Game.FrostSignalFlame<50?gold:mint;
+                Ring(Game.Position,.58f,tint,22);
+                Box(screen.x-10,screen.y-73,20,17,PixelArt.C("#895938"));
+                Box(screen.x-4,screen.y-87,8,15,PixelArt.C("#f2b568"));
+                Bar(screen.x-31,screen.y-94,62,
+                    Game.FrostSignalFlame/100f,tint,6);
+                Text(screen.x-78,screen.y-125,156,20,
+                    Game.L("民用余火 ","CIVIC EMBER ")+
+                    Game.FrostSignalTime.ToString("0")+"s",
+                    12,tint,TextAnchor.MiddleCenter);
+            }
             if(Game.MineConvoyActive)
             {
                 Point cart=Game.MineCartPosition,screen=ScreenPoint(cart);
@@ -210,6 +225,27 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="frostsignal")
+            {
+                int stage=0;
+                for(int i=1;i<=3;i++)if(o.id=="frostsignal_"+i)stage=i;
+                bool complete=Game.FrostSignalComplete;
+                bool active=Game.FrostSignalActive&&stage==Game.FrostSignalStage;
+                Color tint=complete?mint:active?gold:muted;
+                Box(p.x-17,p.y-31,34,27,PixelArt.C("#736662"));
+                Box(p.x-10,p.y-41,20,12,PixelArt.C("#b27b51"));
+                if(complete||active)Box(p.x-4,p.y-54,8,13,PixelArt.C("#edb76a"));
+                Ring(new Point(o.x,o.y),active?.84f:.55f,tint,22);
+                Text(p.x-82,p.y-81,164,20,
+                    complete?Game.L("公共暖站已重燃","PUBLIC FIRE RESTORED"):
+                    active&&stage==2?Game.L("警戒 · 解决守卫","ALERT · CLEAR GUARDS"):
+                    active&&stage==3?Game.L("交付火种 · 选择","DELIVER EMBER · CHOOSE"):
+                    active?Game.L("带着火种前进","CARRY THE EMBER"):
+                    stage==1?Game.L("旧西部守灯岗","WESTERN SIGNAL"):
+                    Game.L("未点燃的公共火堆","UNLIT PUBLIC HEARTH"),
+                    11,tint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="mineconvoy")
             {
                 int phase=0;

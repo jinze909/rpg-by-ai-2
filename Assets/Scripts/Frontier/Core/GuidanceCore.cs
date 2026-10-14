@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "mine_convoy" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "mine_convoy", "frost_signal" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -86,6 +86,35 @@ namespace Starfall
 
 
 
+            if(id=="frost_signal")
+            {
+                q.title=L("霜钟高原 · 公共余火","Frostchime · The Civic Ember");
+                q.category=L("护火实战 · 严寒生存","EMBER RUN · COLD SURVIVAL");
+                q.description=L(
+                    "原有高原守护者失去控制后，将民用火种由西岗送往南侧暖站。严寒使余温衰减，转折台仍有旧守卫。亲自抵达并解决战斗，可选择消耗月光草、耐力或不使用补给，最终决定建立居民疗养点或巡路补给点。",
+                    "After defeating the original highland guardian, carry a civilian ember from the west to southern shelter. Real cold erodes warmth and two guards contest the middle station. Choose herbs, energy or no supplies before commissioning a clinic or road-crew supply fire.");
+                q.room=7;q.locked=!Has("boss_7")||!CanEnter(7);
+                q.complete=FrostSignalComplete;
+                q.steps.Add(new QuestStep(L("在西部领取余火","Collect the original western ember"),
+                    Has("frostsignal_started")));
+                q.steps.Add(new QuestStep(L("守卫实战与补给抉择","Overcome the middle guards and select supplies"),
+                    q.complete||FrostSignalStage>=3));
+                q.steps.Add(new QuestStep(L("送达南方并选择公共用途","Deliver south and choose a civic purpose"),
+                    q.complete));
+                int post=FrostSignalStage==2?2:FrostSignalStage==3?3:1;
+                foreach(WorldObject o in data.maps[7].objects)
+                    if(o.id=="frostsignal_"+post){q.target=new Point(o.x,o.y);break;}
+                q.next=q.locked?L("先击败高原守护者","First defeat the original Frostchime guardian"):
+                    q.complete?L("民用火堆已重燃","Public hearth restored"):
+                    FrostSignalActive?L("余温 "+FrostSignalFlame.ToString("0")+
+                        " · 剩余 "+FrostSignalTime.ToString("0")+" 秒",
+                        "Ember "+FrostSignalFlame.ToString("0")+
+                        " · "+FrostSignalTime.ToString("0")+"s remain"):
+                    L("前往西部守灯岗领取火种","Collect ember at the west signal");
+                q.reward=L("首次55硬币、2碎片、85经验；余温50以上额外10硬币；永久暖站服务",
+                    "First clear: 55 coins, 2 shards, 85 XP; 10 extra coins at 50+ flame; permanent local shelter service");
+                return q;
+            }
             if(id=="mine_convoy")
             {
                 q.title=L("矿工的最后一班车","The Miners' Last Shift");
@@ -1666,6 +1695,7 @@ namespace Starfall
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.
+            if(FrostSignalActive)return GetQuest("frost_signal").target;
             if(MineConvoyActive)return MineConvoyStage==2||
                 MineConvoyStage==4?GetQuest("mine_convoy").target:MineCartPosition;
             if(FarCourierActive) return GetQuest("far_couriers").target;
