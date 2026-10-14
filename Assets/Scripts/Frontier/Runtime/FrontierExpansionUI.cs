@@ -192,6 +192,31 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="floodarchive")
+            {
+                int stage=0;
+                for(int i=1;i<=3;i++)if(o.id=="floodarchive_"+i)stage=i;
+                bool complete=Game.FloodArchiveComplete;
+                bool recorded=complete||stage>0&&stage<=Game.FloodArchiveProgress;
+                bool current=stage==Game.FloodArchiveProgress+1&&Game.Has("scout_saved");
+                float wait=Game.FloodArchiveWait(stage);
+                bool ready=current&&wait<=0;
+                Color tint=recorded?mint:ready?PixelArt.C("#8de3f0"):current?gold:muted;
+                Box(p.x-15,p.y-38,30,34,PixelArt.C("#3a6179"));
+                Box(p.x-22,p.y-43,44,8,PixelArt.C("#7d9cae"));
+                Ring(new Point(o.x,o.y),ready?.94f:.63f,tint,24);
+                Text(p.x-79,p.y-77,158,20,
+                    recorded?Game.L("已记录的民用档案","CIVIC RECORD FOUND"):
+                    current&&stage==1?ready?Game.L("涨潮水尺 · 可读取","HIGH WATER · READ"):
+                                          Game.L("涨潮水尺 · 等潮","GAUGE · WAIT HIGH"):
+                    current&&stage==2?ready?Game.L("退潮名册 · 可读取","LOW TIDE · READ"):
+                                          Game.L("退潮名册 · 等潮","ROSTER · WAIT LOW"):
+                    current?Game.L("公开渡口 · 选择","PUBLIC FERRY · CHOOSE"):
+                            Game.L("尚未解锁","LOCKED"),11,tint,TextAnchor.MiddleCenter);
+                if(current&&stage<=2&&!ready)
+                    Text(p.x-38,p.y-96,76,18,wait.ToString("0")+"s",12,gold,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="rootsonestone")
             {
                 int stage=0;

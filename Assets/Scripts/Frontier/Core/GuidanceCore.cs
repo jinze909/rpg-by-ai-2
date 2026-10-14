@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,38 @@ namespace Starfall
 
 
 
+
+            if(id=="flood_archive")
+            {
+                q.title=L("沉没遗迹 · 被抹去的渡船","Drowned Ruins · The Erased Ferries");
+                q.category=L("潮汐探索 · 民用抉择","TIDE EXPLORATION · CIVILIAN CHOICE");
+                q.description=L(
+                    "失踪侦察员归来后，调查沉桥深处真实存在的高水尺与低潮名册。依潮位实地记录两份证据，在公议台决定优先救治伤者还是培训摆渡人；两种决定改变潮标附近的安全补给。",
+                    "After the scout returns, recover a high-water gauge and a low-tide roster at actual river landmarks. Reconcile the records at the public desk and decide whether to treat survivors or train ferry pilots. Each choice changes local safe refuge services.");
+                q.room=2;q.locked=!Has("scout_saved");q.complete=FloodArchiveComplete;
+                string[] labelsZh={"涨潮时抄录旧桥水尺","退潮时找回摆渡名册","在公共渡口决定档案用途"};
+                string[] labelsEn={"Read the bridge gauge at high tide","Recover the ferry roster at low tide","Decide the archive's use at the public ferry"};
+                int next=FloodArchiveProgress+1;
+                for(int i=1;i<=3;i++)
+                {
+                    q.steps.Add(new QuestStep(L(labelsZh[i-1],labelsEn[i-1]),i<=FloodArchiveProgress));
+                    if(i==next)
+                        foreach(WorldObject site in data.maps[2].objects)
+                            if(site.id=="floodarchive_"+i)
+                            {q.target=new Point(site.x,site.y);break;}
+                }
+                if(q.complete)q.target=new Point(79.5f,35.5f);
+                q.next=q.locked?L("先救回荆棘密林的侦察员","First rescue the Thornwood scout"):
+                    q.complete?FloodArchiveChoice==1?
+                    L("伤者名册已公开，安全潮标提供疗养","Public roster published; safe tideposts provide recovery"):
+                    L("原始水图已保留，潮标培训渡船","Original tide charts saved; pilots now train at tideposts"):
+                    next==1?L("寻找旧桥水尺，等待涨潮","Find the upper gauge and wait for high tide"):
+                    next==2?L("寻找摆渡名册，等待退潮","Find the submerged roster at low tide"):
+                    L("抵达议事台，决定如何使用证据","Choose the outcome at the public ferry desk");
+                q.reward=L("两份证据各12经验；终点50硬币、2碎片、80经验，以及地区安全补给",
+                    "Two records: 12 XP each; final 50 coins, 2 shards, 80 XP and local safe support");
+                return q;
+            }
 
             if(id=="rootsong")
             {
