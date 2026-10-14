@@ -59,6 +59,15 @@ def check():
                     extracted = sheet.crop((index * CELL, 0, (index + 1) * CELL, CELL))
                     with Image.open(PREVIEW / klass / action / f"{facing}_{original_index:02}.png") as source:
                         assert extracted.tobytes() == source.convert("RGBA").tobytes(), (key, original_index)
+                    if action in ("Run", "Attack", "Cast") and len(originals) > 1:
+                        if original_index < len(originals) - 1 or action == "Run":
+                            midpoint = sheet.crop(((index + 1) * CELL, 0, (index + 2) * CELL, CELL))
+                            # Bottom-origin y 57..117 -> Pillow top y 138..198.
+                            # The FULL canonical head guard must be unchanged,
+                            # including transparent bangs/head silhouette edges.
+                            box = (91, 138, 170, 199)
+                            assert midpoint.crop(box).tobytes() == extracted.crop(box).tobytes(), (
+                                key, original_index, "canonical blonde head altered")
                 tally += 1
                 midpoints += row["generated_midpoints"]
                 if action == "Attack" and klass == "Vanguard":

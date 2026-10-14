@@ -62,11 +62,15 @@ def motion_midpoint(first, second):
         oy = round(dy * root_weight)
         for x in range(CELL):
             pa, pb = pixel(a, x - ox, y - oy), pixel(b, x + ox, y + oy)
-            if pa[3] > 127 and pb[3] > 127:
-                if 91 <= x < 170 and 57 <= y < 118:
-                    result = pa   # no ghosted duplicate face
-                else:
-                    result = tuple(round((u + v) * .5) for u, v in zip(pa, pb))
+            # The approved short blonde hair and face are an indivisible
+            # raster identity. Holding their complete 79x61 guard region
+            # (including its transparent edge) avoids dithered bangs and
+            # doubled eyes during procedural in-betweens. No source pose
+            # or original hair pixel is regenerated.
+            if 91 <= x < 170 and 57 <= y < 118:
+                result = pa
+            elif pa[3] > 127 and pb[3] > 127:
+                result = tuple(round((u + v) * .5) for u, v in zip(pa, pb))
             else:
                 second_pixel = ORDERED4[(y & 3) * 4 + (x & 3)] < 8
                 result = pb if second_pixel else pa

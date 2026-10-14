@@ -300,13 +300,14 @@ namespace Starfall.EditorTools
                     Color a = Pixel(first, x - ox, y - oy);
                     Color b = Pixel(next, x + ox, y + oy);
                     int i = y * Cell + x;
-                    if (a.a > .5f && b.a > .5f)
-                    {
-                        // Never superimpose faces. Same blonde identity in
-                        // both poses; the canonical hair/face remains crisp.
-                        bool head = x >= 91 && x < 170 && y >= 57 && y < 118;
-                        output[i] = head ? a : Color.Lerp(a, b, .5f);
-                    }
+                    // Entire canonical head guard is frozen to the accepted
+                    // predecessor, including transparent boundary pixels.
+                    // Never dither/duplicate golden hair or face in a midpoint.
+                    bool head = x >= 91 && x < 170 && y >= 57 && y < 118;
+                    if (head)
+                        output[i] = a;
+                    else if (a.a > .5f && b.a > .5f)
+                        output[i] = Color.Lerp(a, b, .5f);
                     else
                     {
                         // Ordered alpha quantization keeps point-filtered
