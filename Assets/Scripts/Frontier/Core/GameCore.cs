@@ -1199,9 +1199,28 @@ namespace Starfall
                 // Pausing the simulation for 45 world seconds would otherwise
                 // leave a 3-second arrow or attack flash alive after waking.
                 // Keep genuinely persistent (>45s) scripted effects intact.
-                projectiles.RemoveAll(p => p.life <= 45f);
-                effects.RemoveAll(e => e.life <= 45f);
-                hazards.RemoveAll(h => h.timer <= 45f);
+                // A real 45-second time skip also ages the few rare
+                // scripted entities that outlive a normal short-term effect.
+                // Do not simulate forty-five seconds of impacts; expire
+                // short warnings and preserve only the correct remainder.
+                for (int i = projectiles.Count - 1; i >= 0; i--)
+                {
+                    Projectile p = projectiles[i];
+                    p.life -= 45f;
+                    if (p.life <= 0) projectiles.RemoveAt(i);
+                }
+                for (int i = effects.Count - 1; i >= 0; i--)
+                {
+                    Effect e = effects[i];
+                    e.life -= 45f;
+                    if (e.life <= 0) effects.RemoveAt(i);
+                }
+                for (int i = hazards.Count - 1; i >= 0; i--)
+                {
+                    Hazard h = hazards[i];
+                    h.timer -= 45f;
+                    if (h.timer <= 0) hazards.RemoveAt(i);
+                }
                 combo = 0; comboTimer = riposteTime = 0;
                 guardTime = playerHitTime = hitStop = 0;
                 // An expired dodge invulnerability/escape window cannot be

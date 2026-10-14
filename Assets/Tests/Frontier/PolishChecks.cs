@@ -202,10 +202,11 @@ namespace Starfall.Tests
                   g.companionCooldown==0&&g.guardTime==0&&g.playerAction==null,
                 "A 45-second bed rest restores skill, companion, dodge and attack readiness");
             Check(!g.projectiles.Contains(ordinaryShot) &&
-                  g.projectiles.Contains(persistentShot) && !g.effects.Contains(flash),
-                "Time-skipping a 45-second rest expires ordinary flying shots and short-lived effects, not persistent scripted entities");
+                  g.projectiles.Contains(persistentShot) && persistentShot.life==45&&
+                  !g.effects.Contains(flash),
+                "45-second rest expires short shots and deducts actual elapsed time from longer scripted projectile lifetimes");
             Check(!g.hazards.Contains(warning)&&g.hazards.Contains(lasting)&&
-                  g.invulnerable==0&&!g.perfectDodgeArmed&&
+                  lasting.timer==45&&g.invulnerable==0&&!g.perfectDodgeArmed&&
                   g.playerFlash==0&&g.impactShake==0,
                 "Real rest expires near-term red warnings, invulnerability and dodge feedback, preserving only long-lived hazards");
             g.save.energy=100;
