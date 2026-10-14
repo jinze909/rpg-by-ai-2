@@ -75,7 +75,13 @@ namespace Starfall
                 if (action == 1) cellPosition %= bakedFrames;
                 int publishedFrame = Mathf.Clamp(Mathf.FloorToInt(cellPosition + .20f),
                     0, bakedFrames - 1);
-                bool hasClip = unifiedAction == null && TryUseProductionHeroClip(facing);
+                // Heavy combo swings use the approved 6/7 sword poses,
+                // NOT the 4/5 normal-attack atlas. GameCore already
+                // differentiates them through PlayerPose. Preserve that
+                // distinction until a dedicated heavy atlas is authored.
+                bool specialHeavy = action == 2 && (pose == 6 || pose == 7);
+                bool allowStandardClip = unifiedAction == null && !specialHeavy;
+                bool hasClip = allowStandardClip && TryUseProductionHeroClip(facing);
                 if (hasClip)
                 {
                     float normalized = (cellPosition + .20f) / bakedFrames;
@@ -90,7 +96,7 @@ namespace Starfall
                 {
                     if (heroCaptureAnimator != null) heroCaptureAnimator.enabled = false;
                     Sprite published;
-                    if (unifiedAction == null &&
+                    if (allowStandardClip &&
                         TryUsePublishedHeroFrame(Game.AppearanceWeapon, action, facing,
                             publishedFrame, bakedFrames, out published))
                     {

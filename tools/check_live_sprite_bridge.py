@@ -55,6 +55,12 @@ def check():
     assert "public float WalkPosePhase" in continuity
     assert "if (state == 1) return WalkPosePhase;" in core
     assert "cellPosition %= bakedFrames" in engine
+    assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
+    assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
+    assert "bool hasClip = allowStandardClip && TryUseProductionHeroClip(facing);" in engine
+    assert "if (allowStandardClip &&" in engine
+    # Third-combo/heavy original poses must bypass both regular 4/5
+    # Sprite strip sampling and its normal-attack Animator clip.
     assert "AddComponent<UnityEngine.Rendering.SortingGroup>()" in engine
     assert "CanonicalHeroSpriteFactory.PixelsPerUnit" in engine
     spec_cs = compositor
