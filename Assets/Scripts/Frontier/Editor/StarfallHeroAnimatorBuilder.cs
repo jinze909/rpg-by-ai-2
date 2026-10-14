@@ -127,7 +127,9 @@ namespace Starfall.EditorTools
                                 clips[ClipKey(Classes[0], a, f)],
                                 clips[ClipKey(Classes[c], a, f)]));
                     overrides.ApplyOverrides(replacements);
-                    AssetDatabase.CreateAsset(overrides, Animation + "HeroPreview" + Classes[c] + ".overrideController");
+                    string overridePath = Animation + "HeroPreview" + Classes[c] + ".overrideController";
+                    AssetDatabase.DeleteAsset(overridePath); // rebuild only generated-preview assets
+                    AssetDatabase.CreateAsset(overrides, overridePath);
                     runtimeController = overrides;
                 }
                 var go = new GameObject("CanonicalBlondHero_" + Classes[c]);
