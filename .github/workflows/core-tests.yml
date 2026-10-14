@@ -6,8 +6,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Mono
-        run: sudo apt-get update && sudo apt-get install -y mono-mcs
+        run: sudo apt-get update && sudo apt-get install -y mono-mcs python3-pil
       - name: Run actual C# gameplay checks
         run: python3 tools/run_core_tests.py
       - name: Check production combat input with offline Unity declarations
         run: python3 tools/run_combat_input_checks.py
+      - name: Sprite animation QA - original hero, Boss cues and remastered PNGs
+        run: python3 tools/check_visual_sprites.py
+      - name: Preserve sprite QA filmstrips, onion-skins and GIFs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-sprite-qa
+          path: .starfall-checks/sprite-qa/
+          if-no-files-found: ignore
