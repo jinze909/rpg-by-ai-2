@@ -118,20 +118,21 @@ namespace Starfall.Tests
                 }
             };
             var restored=new GameCore(data,old);
-            Check(restored.enemies.Count==2,
-                "Only real in-map enemies survive a corrupt or out-of-map saved patrol snapshot");
+            Check(restored.enemies.Count==3,
+                "Malformed duplicate loses to a valid same-ID record while the old safe-location recovery still saves isolated off-map actors");
             Enemy valid=restored.enemies.Find(e=>e.id==5);
             Check(valid!=null&&valid.hp==20&&valid.maxHp==30&&
                   (valid.Position-new Point(13,14)).Length<.001f,
                 "A malformed duplicate cannot reserve an ID before its genuine original saved entry");
-            Check(restored.enemies.Exists(e=>e.id==7)&&
-                  !restored.enemies.Exists(e=>e.id==6),
-                "Other legitimate patrols remain while impossible enemy positions are discarded");
+            Enemy rescued=restored.enemies.Find(e=>e.id==6);
+            Check(restored.enemies.Exists(e=>e.id==7)&&rescued!=null&&
+                  rescued.hp==30&&restored.CanStand(rescued.Position),
+                "An isolated damaged-position enemy still recovers with its saved identity and health");
             restored.PrepareSave();
             var again=new GameCore(data,CloneSave(restored.save));
-            Check(again.enemies.Count==2&&again.enemies.Exists(e=>e.id==5)&&
-                  again.enemies.Exists(e=>e.id==7),
-                "Cleaned real patrols persist normally across the next old-format save and reload");
+            Check(again.enemies.Count==3&&again.enemies.Exists(e=>e.id==5)&&
+                  again.enemies.Exists(e=>e.id==6)&&again.enemies.Exists(e=>e.id==7),
+                "Deduplicated and rescued patrols persist normally across the next old-format save and reload");
         }
         public static void SaveValidation(Campaign data)
         {

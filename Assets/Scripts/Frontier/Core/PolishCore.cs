@@ -447,6 +447,19 @@ namespace Starfall
         {
             runeProgress = save.savedRunes; if (InAbyss || save.snapshotRoom != save.room || save.worldEnemies == null) return;
             enemies.Clear(); var ids = new HashSet<int>();
+            // The old v2 loader deliberately rescues an isolated enemy whose
+            // saved coordinates are damaged. Prefer a valid position if a
+            // duplicate ID also exists; only fall back to spawn when *no*
+            // legitimate-position entry represents that original enemy.
+            var positionedIds = new HashSet<int>();
+            foreach (EnemyRecord candidate in save.worldEnemies)
+                if (candidate != null && candidate.id > 0 && candidate.id <= 99999 &&
+                    Finite(candidate.x) && Finite(candidate.y) &&
+                    candidate.x >= 0 && candidate.y >= 0 &&
+                    candidate.x < Map.rows[0].Length && candidate.y < Map.rows.Length &&
+                    Finite(candidate.hp) && Finite(candidate.maxHp) &&
+                    candidate.hp > 0 && candidate.maxHp > 0)
+                    positionedIds.Add(candidate.id);
             foreach (var r in save.worldEnemies)
             {
                 if (r == null || r.id < 1 || r.id > 99999 ||
@@ -461,14 +474,13 @@ namespace Starfall
                     (r.id >= 90100 && r.id < 90116) ||
                     (r.id >= 90200 && r.id < 90216) ||
                     (r.id >= 90300 && r.id <= 90304) ||
-                    !Finite(r.x) || !Finite(r.y) || r.x < 0 || r.y < 0 ||
-                    r.x >= Map.rows[0].Length || r.y >= Map.rows.Length ||
+                    (!Finite(r.x) || !Finite(r.y) || r.x < 0 || r.y < 0 ||
+                     r.x >= Map.rows[0].Length || r.y >= Map.rows.Length) &&
+                        positionedIds.Contains(r.id) ||
                     !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0 ||
                     r.boss && Has("boss_" + save.room) || !ids.Add(r.id)) continue;
-                // Reject corrupt/out-of-map locations rather than spawning
-                // their alleged enemy at the hero's region entry point.
-                // Collision-overlapping but finite in-bounds old positions
-                // still use the established safe-foot recovery.
+                // Isolated damaged positions recover through SafeActorFoot as
+                // before; malformed duplicates cannot preempt a valid actor.
                 Point p = SafeActorFoot(new Point(r.x, r.y));
                 var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, Clamp(r.maxHp, 1, 5000), r.boss); e.hp = Clamp(r.hp, .1f, e.maxHp); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);
             }
