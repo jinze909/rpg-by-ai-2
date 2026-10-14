@@ -21,3 +21,34 @@ This pilot reuses **accepted existing art**, not newly invented frames. `Cast` /
 **Stage 3 remains open until:** redesigned canonical full-body hero sets for all professions/directions and Idle/Run/Attack/Cast/Dodge; correct non-duplicate in-betweens and coherent golden hair; real SpriteRenderer + Animator runtime bridge with IMGUI-world occlusion handling and fallback; asset/pivot/frame/weapon QA, Editor/PlayMode and real Game View screenshots; gameplay regression green.
 
 Aseprite CLI reference: https://www.aseprite.org/docs/cli/ — use frame tags and frame durations, not repeated raster files to inflate FPS.
+
+
+## 2026-10-14 — Stage 3 silhouette continuity repair (in progress)
+
+The shipped 63 class/action/facing PNG sheets have an opt-in, **real gameplay**
+`SpriteRenderer + Animator` capture path; the established `OnGUI` path is still
+the production-safe fallback. Existing approved source poses at even indices
+and original textures/Unity GUIDs remain unchanged.
+
+**Defect repaired in the exporter and Unity Editor recovery baker:** the first
+motion-assisted in-betweens used 50/50 Bayer mosaics of two distant source
+poses. That created multiple overlapping leg/weapon outlines and colored
+half-tone seams. Intermediate cells now deform the **single preceding approved
+silhouette** using separately bounded torso and outer-arm motion estimates.
+Motion tapers to zero across the fixed `(128,240)` root and the complete
+canonical golden-haired head guard, protecting protagonist identity. The
+algorithm never averages colors from competing silhouettes.
+
+CI regression now checks: all 63 sheets, both original frames and generated
+midpoints, source-palette-only pixels, no change to the head-guard raster,
+unchanged boot-contact band, and a synthetic pose that provably moves.
+The existing `[publish-hero-art]` gated workflow rebuilds PNGs and changes
+**only `chatgpt/dev`** after core checks, using non-force fast-forward and
+refusing to publish if another developer has moved the branch.
+
+**Limitations:** deforming one accepted sprite is not a replacement for
+hand-authored limb articulation, real weapon grips, carefully redrawn
+`Cast` anticipation/contact/recovery or Unity PlayMode footage. Clip counts
+must not be represented as third-stage visual acceptance. Next art pass should
+replace the most abrupt `Arcanist/Cast` and sword/bow weapon motion with
+authored, manually inspected poses before graduating from the fallback.
