@@ -50,7 +50,7 @@ jobs:
           fetch-depth: 0
       - name: Build and inspect actual three-class production sheets
         run: |
-          python3 -m pip install Pillow
+          sudo apt-get update && sudo apt-get install -y python3-pil python3-fonttools
           python3 tools/build_hero_animation_preview.py
           python3 tools/export_canonical_hero_atlases.py
           python3 tools/check_hero_generated_motion.py

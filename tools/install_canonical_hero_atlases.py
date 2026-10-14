@@ -31,7 +31,7 @@ def main():
             raise AssertionError("Missing approved export: " + key)
         target = ASSETS / source.name
         payload = source.read_bytes()
-        if not payload.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        if not payload.startswith(bytes.fromhex("89504e470d0a1a0a")):
             raise AssertionError("Production resource is not PNG: " + key)
         if len(row["frame_sha256_rgba"]) != row["frame_count"]:
             raise AssertionError("Missing exact frame checksums: " + key)
