@@ -67,6 +67,22 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.SwordLessonActive)
+            {
+                Point launcher=GameCore.SwordLessonLauncher;
+                Point fire=ScreenPoint(launcher);
+                Ring(launcher,.42f,gold,24);
+                Box(fire.x-10,fire.y-32,20,26,PixelArt.C("#66798b"));
+                Box(fire.x-17,fire.y-37,34,7,PixelArt.C("#c39d68"));
+                Text(fire.x-70,fire.y-66,140,20,
+                    Game.L("实弹发箭器","LIVE ARROW LAUNCHER"),
+                    11,gold,TextAnchor.MiddleCenter);
+                Point hero=ScreenPoint(Game.Position);
+                Text(hero.x-79,hero.y-148,158,20,
+                    Game.L("诺尔三箭 ","NOLL'S ARROWS ")+
+                    Game.SwordLessonHits+"/3 · "+Game.SwordLessonTime.ToString("0")+"s",
+                    12,gold,TextAnchor.MiddleCenter);
+            }
             // The defensive skill has a genuine directional reaction, not
             // a passive immunity bubble. Always show its active front.
             if(Game.save.profession==0&&Game.save.weapon==0&&Game.guardTime>0)

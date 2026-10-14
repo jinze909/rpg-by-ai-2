@@ -876,7 +876,7 @@ namespace Starfall
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
                         height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
-                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
                         commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned }); continue; }
@@ -948,7 +948,7 @@ namespace Starfall
                         variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
                         reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
-                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
                         commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned });
@@ -958,7 +958,7 @@ namespace Starfall
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
                         height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
-                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
                         commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned });
