@@ -73,12 +73,41 @@ namespace Starfall.EditorTools
                         }
                         ObjectReferenceKeyframe[] frames =
                             AnimationUtility.GetObjectReferenceCurve(clip, spriteBinding);
-                        if (frames == null || frames.Length != expected + 1 ||
-                            frames.Any(frame => !(frame.value is Sprite)))
+                        if (!NativeClipMatchesPublished(frames, Generated + key + ".png",
+                                expected, action))
                             ready = false;
                     }
             }
             if (!ready) Build();
+        }
+
+        private static bool NativeClipMatchesPublished(
+            ObjectReferenceKeyframe[] keys, string atlasPath, int expected, int action)
+        {
+            // Count alone cannot detect same-length but incorrectly overridden
+            // Ranger/Arcanist clips, wrong direction rows or moved foot pivots.
+            if (keys == null || keys.Length != expected + 1) return false;
+            const float sampleRate = 12f;
+            for (int i = 0; i < keys.Length; i++)
+            {
+                Sprite sprite = keys[i].value as Sprite;
+                if (sprite == null) return false;
+                int index = i == expected
+                    ? (action <= 1 ? 0 : expected - 1) : i;
+                if (AssetDatabase.GetAssetPath(sprite) != atlasPath ||
+                    Mathf.Abs(sprite.rect.x - index * Cell) > .05f ||
+                    Mathf.Abs(sprite.rect.y) > .05f ||
+                    Mathf.Abs(sprite.rect.width - Cell) > .05f ||
+                    Mathf.Abs(sprite.rect.height - Cell) > .05f ||
+                    Vector2.Distance(sprite.pivot,
+                        new Vector2(CanonicalHeroSpriteFactory.FootX,
+                            Cell - CanonicalHeroSpriteFactory.FootTop)) > .05f ||
+                    Mathf.Abs(sprite.pixelsPerUnit -
+                        CanonicalHeroSpriteFactory.PixelsPerUnit) > .05f ||
+                    Mathf.Abs(keys[i].time - i / sampleRate) > .001f)
+                    return false;
+            }
+            return true;
         }
 
         [MenuItem("Starfall/Animation/Bake Accepted Hero To Live 3-Class Animator")]
