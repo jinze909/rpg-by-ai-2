@@ -35,14 +35,57 @@ def check_solid_midpoint_synthetic():
         (0, 233, CELL, CELL)).tobytes(), "Foot contact band shifted"
 
 
+def check_opposing_limb_motion():
+    """Symmetric opposing movement defeated the old single-centroid warp."""
+    original = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+    target = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+
+    def paint(img, x0, x1, y0, y1, color):
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                img.putpixel((x, CELL - 1 - y), color)
+
+    # Both arm gestures move in opposite directions and heights, while
+    # legs counterstep; total frame centroid movement stays near zero.
+    paint(original, 59, 70, 77, 105, (193, 84, 49, 255))
+    paint(target, 71, 82, 82, 110, (193, 84, 49, 255))
+    paint(original, 190, 201, 76, 105, (83, 161, 195, 255))
+    paint(target, 178, 189, 70, 99, (83, 161, 195, 255))
+    paint(original, 100, 118, 30, 47, (68, 87, 110, 255))
+    paint(target, 108, 126, 33, 50, (68, 87, 110, 255))
+    paint(original, 141, 159, 30, 47, (131, 105, 79, 255))
+    paint(target, 133, 151, 27, 44, (131, 105, 79, 255))
+    paint(original, 118, 139, 47, 65, (38, 45, 51, 255))
+    paint(target, 118, 139, 47, 65, (38, 45, 51, 255))
+    paint(original, 101, 155, 78, 110, (244, 223, 154, 255))
+    paint(target, 101, 155, 78, 110, (244, 223, 154, 255))
+    midpoint = motion_midpoint(original, target)
+    # Verify actual deformations on both sides independently. Do not count
+    # a static duplicate with a new filename as authored animation.
+    areas = [(45, 138, 110, 202), (157, 138, 222, 202),
+             (90, 202, 126, 233), (130, 202, 173, 233)]
+    for area in areas:
+        assert midpoint.crop(area).tobytes() != original.crop(area).tobytes(), (
+            "Opposing limb did not move", area)
+    assert midpoint.crop((91, 138, 170, 199)).tobytes() == original.crop(
+        (91, 138, 170, 199)).tobytes(), "Identity pixels drifted"
+    assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == original.crop(
+        (0, 233, CELL, CELL)).tobytes(), "Boot contact drifted"
+    assert set(midpoint.getdata()) <= set(original.getdata()), "Palette/alpha ghosting"
+
+
 def check():
     check_solid_midpoint_synthetic()
+    check_opposing_limb_motion()
     manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "accepted_source_plus_algorithmic_motion_midpoints_not_art_approved"
     assert manifest["top_origin_foot_px"] == [128, 240]
     assert manifest["unity_bottom_origin_pivot"] == [0.5, 0.0625]
     assert not manifest["native_unity_verified"] and not manifest["art_direction_acceptance"]
     tally = midpoints = 0
+    identical_motion_cells = 0
+    distinct_motion_cells = 0
+    identical_by_action = {}
     examples = []
     # Preserve intent of the actual authored source pose slots:
     # 4/5 normal attack, 6/7 class skill, south 0/1 normal, 2/3 skill.
@@ -102,6 +145,11 @@ def check():
                     if action in ("Run", "Attack", "Cast") and len(originals) > 1:
                         if original_index < len(originals) - 1 or action == "Run":
                             midpoint = sheet.crop(((index + 1) * CELL, 0, (index + 2) * CELL, CELL))
+                            if midpoint.tobytes() == extracted.tobytes():
+                                identical_motion_cells += 1
+                                identical_by_action[action] = identical_by_action.get(action, 0) + 1
+                            else:
+                                distinct_motion_cells += 1
                             # Bottom-origin y 57..117 -> Pillow top y 138..198.
                             # The FULL canonical head guard must be unchanged,
                             # including transparent bangs/head silhouette edges.
@@ -122,17 +170,27 @@ def check():
                 if action == "Attack" and klass == "Vanguard":
                     examples.append(key)
     assert tally == 63 and midpoints > 60, (tally, midpoints)
+    assert distinct_motion_cells + identical_motion_cells == midpoints, (
+        "Motion cell audit missed a generated sprite")
+    # A geometry pass should actually move most limbs; report any remaining
+    # held duplicates rather than marking their presence as artistic success.
+    assert distinct_motion_cells >= midpoints // 2, (
+        "Most in-betweens are static repeats", distinct_motion_cells, midpoints)
     report = {
         "status": "offline_raster_invariants_only",
         "clip_count": tally,
         "generated_midpoints": midpoints,
+        "distinct_generated_midpoints": distinct_motion_cells,
+        "identical_hold_midpoints": identical_motion_cells,
+        "identical_hold_by_action": identical_by_action,
         "approved_source_frames_unchanged": True,
         "native_playmode_verified": False,
         "artist_review_pending": True,
         "sample_atlases": examples,
     }
     (DEST / "generated-motion-qa.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"PASS: {tally} generated atlases / {midpoints} single-source, ghost-free silhouette midpoints.")
+    print(f"PASS: {tally} atlases; {distinct_motion_cells}/{midpoints} non-identical rooted motion poses, "
+          f"{identical_motion_cells} detected holds {identical_by_action}.")
     print("PASS: original hero poses unchanged in all 63 generated atlases; same canonical root.")
     print("NATIVE_UNVERIFIED: native Unity playback and aesthetic animation quality.")
 
