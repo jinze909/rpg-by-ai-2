@@ -16,20 +16,44 @@ RUNTIME = ROOT / "Assets/Scripts/Frontier/Runtime"
 
 def check():
     engine = (RUNTIME / "FrontierHeroSpriteCapture.cs").read_text()
+    compositor = (RUNTIME / "CanonicalHeroSpriteFactory.cs").read_text()
     actor = (RUNTIME / "FrontierActors.cs").read_text()
     game = (RUNTIME / "FrontierRuntime.cs").read_text()
     editor = (ROOT / "Assets/Scripts/Frontier/Editor/StarfallHeroAnimatorBuilder.cs").read_text()
+    native = (ROOT / "Assets/Scripts/Frontier/Editor/StarfallCanonicalHeroProductionBuilder.cs").read_text()
     required = [
         "SpriteRenderer", "RenderTexture", "CameraClearFlags.SolidColor",
-        "BakeCanonicalHeroFrame", "ActorFrameRegistration.TryHead",
-        "ActorFrameRegistration.TryStableHead", "walkSheets[0]",
-        "Game.HeroAnimationState",
-        "new Vector2(.5f, .0625f)", "new Rect(foot.x - 96, foot.y - 180, 192, 192)",
+        "BakeCanonicalHeroFrame", "walkSheets[0]",
+        "Game.HeroAnimationState", "HeroClipStep", "HeroClipFrames",
+        "Animator.StringToHash", "heroCaptureAnimator.Play(", "heroCaptureAnimator.Update(0f)",
+        "Production", "ProductionHeroClip",
+        "new Rect(foot.x - 96, foot.y - 180, 192, 192)",
         "heroCaptureCamera.Render()", "heroCaptureBroken", "ReleaseHeroCapture",
         "Resources.Load<RuntimeAnimatorController>",
+        "tint.a *= worldActorOpacity",
     ]
     for mark in required:
         assert mark in engine, f"Live sprite production branch lost invariant {mark!r}"
+    for mark in ["ActorFrameRegistration.TryHead", "ActorFrameRegistration.TryStableHead",
+                 "new Vector2(.5f, .0625f)", "class CanonicalHeroSpriteFactory",
+                 "Sprite.Create(", "Point", "TextureFormat.RGBA32"]:
+        # 'Point' is expressed through pivot/identity, not a physical 3D rig.
+        if mark == "Point":
+            continue
+        assert mark in compositor, f"Shared canonical compositor lost invariant {mark!r}"
+    for mark in ["Bake Accepted Hero To Live 3-Class Animator",
+                 "CanonicalHeroSpriteFactory.Bake(",
+                 "AnimationUtility.SetObjectReferenceCurve",
+                 "typeof(SpriteRenderer)", 'propertyName = "m_Sprite"',
+                 "AnimatorOverrideController", "AssetDatabase.SaveAssets",
+                 "AssetDatabase.LoadAssetAtPath<Texture2D>",
+                 "SpriteAlignment.Custom", "Resources/Frontier/HeroAnimator",
+                 "sequence", "Frames", "Hit", "Death"]:
+        if mark in ("sequence", "Frames"):
+            continue
+        assert mark in native, f"Native production Sprite/Animator bake lost invariant {mark!r}"
+    assert "AssetDatabase.DeleteAsset(" not in native, (
+        "A production rebake must preserve existing GUIDs and accepted animation assets")
     assert engine.startswith("#if UNITY_5_3_OR_NEWER")
     assert "useSpriteRendererHero;" in engine, "Not safe to silently replace accepted art"
     assert engine.count("return false;") >= 3, "Production must have a failure fallback"
@@ -56,8 +80,19 @@ def check():
     for klass in ("Vanguard", "Ranger", "Arcanist"):
         assert f'"Walk{klass}"' in registration
         assert f'"Player{klass}"' in registration
-    print("PASS: live SpriteRenderer root/pixel geometry, three accepted class atlases, "
-          "canonical blonde head, 7-state Animator builder, safe OnGUI fallback (offline)")
+    from build_hero_animation_preview import ACTIONS, FACINGS, CLASSES, source_indices
+    assert len(CLASSES) * len(ACTIONS) * len(FACINGS) == 63
+    for klass in CLASSES:
+        for action in ACTIONS:
+            for facing in FACINGS:
+                refs = source_indices(klass, action, facing)
+                expected = 4 if action == "Run" else (2 if action == "Cast" or
+                    action == "Attack" and facing == "N" else
+                    4 if action == "Attack" else 1)
+                assert len(refs) == expected, f"Wrong inherited clip length: {klass}/{action}/{facing}"
+    print("PASS: production canonical compositor, approved atlas import, "
+          "7 action x 3 direction x 3 profession Sprite/Animator bake, "
+          "GameCore contact synchronization and safe OnGUI fallback (offline)")
     print("NATIVE_UNVERIFIED: Unity Editor, live RenderTexture alpha, animations and FPS")
 
 

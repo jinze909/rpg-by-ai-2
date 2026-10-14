@@ -23,6 +23,23 @@ namespace Starfall
         private readonly Queue<string> heroSpriteOrder = new Queue<string>();
         private int heroCaptureFrame = -1;
         private bool heroCaptureBroken;
+        private int heroCaptureProfession = -1;
+        private bool heroProductionReady;
+        private static readonly string[] HeroLiveActions =
+            { "Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death" };
+        private static readonly string[] HeroLiveFacings = { "E", "N", "S" };
+        private static readonly string[] HeroLiveProfessions = { "Vanguard", "Ranger", "Arcanist" };
+        private static readonly int[,] HeroLiveStateHash = CreateHeroLiveStates();
+
+        private static int[,] CreateHeroLiveStates()
+        {
+            var hashes = new int[7, 3];
+            for (int a = 0; a < 7; a++)
+                for (int f = 0; f < 3; f++)
+                    hashes[a, f] = Animator.StringToHash("Base Layer."
+                        + HeroLiveActions[a] + "_" + HeroLiveFacings[f]);
+            return hashes;
+        }
 
         private bool DrawSpriteRendererHero(Texture2D sheet, int frame, Point foot,
             Color tint, bool flip, int facing, int pose, bool locomotion,
@@ -36,40 +53,57 @@ namespace Starfall
             try
             {
                 EnsureHeroCapture();
-                Texture2D original = unifiedAction != null ? unifiedAction : sheet;
-                int spriteFrame = unifiedAction != null ? 0 : frame;
-                string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
-                    sheet.GetInstanceID() + ":" + frame + ":" + facing + ":" +
-                    (locomotion ? "walk" : "pose") + ":" + (death ? "dead" : "live");
-                Sprite sprite;
-                if (!heroSprites.TryGetValue(key, out sprite))
+                bool hasClip = unifiedAction == null && TryUseProductionHeroClip(facing);
+                if (hasClip)
                 {
-                    sprite = BakeCanonicalHeroFrame(original, spriteFrame, sheet, frame,
-                        GameCore.DirectionRow(Game.VisualFacing), locomotion, death);
-                    if (sprite == null) return false;
-                    heroSprites.Add(key, sprite);
-                    heroSpriteOrder.Enqueue(key);
-                    while (heroSpriteOrder.Count > 144)
-                    {
-                        string oldest = heroSpriteOrder.Dequeue();
-                        Sprite removed;
-                        if (!heroSprites.TryGetValue(oldest, out removed)) continue;
-                        heroSprites.Remove(oldest);
-                        Texture2D texture = removed.texture;
-                        Destroy(removed);
-                        if (texture != null) Destroy(texture);
-                    }
-                }
-                heroCaptureRenderer.sprite = sprite;
-                heroCaptureRenderer.flipX = flip;
-                // The core decides when damage, movement and recovery happen.
-                // Animator tracks the same seven logical actions, never fires
-                // a second damage event or changes SaveData.
-                if (heroCaptureAnimator != null && heroCaptureAnimator.runtimeAnimatorController != null)
-                {
-                    heroCaptureAnimator.SetInteger("Action", Game.HeroAnimationState);
+                    // The canonical baked Sprite asset belongs to its Animator
+                    // Controller. Align the frame with the actual GameCore
+                    // action/release clock; no second independent damage timer.
+                    int action = Game.HeroAnimationState;
+                    int frames = HeroClipFrames(action, facing);
+                    int step = HeroClipStep(action, facing, frames);
+                    float normalized = (step + .20f) / frames;
+                    heroCaptureAnimator.SetInteger("Action", action);
                     heroCaptureAnimator.SetInteger("Facing", facing);
+                    heroCaptureAnimator.Play(HeroLiveStateHash[action, facing], 0, normalized);
+                    heroCaptureAnimator.Update(0f);
+                    if (heroCaptureRenderer.sprite == null)
+                        throw new InvalidOperationException("Baked Animator has no canonical Sprite frame");
                 }
+                else
+                {
+                    // The game is runnable before an Editor bake and while
+                    // attack/walk upper/lower-body combination is active.
+                    // Existing accepted-frame compositor is a full fallback,
+                    // not a replacement artwork set.
+                    if (heroCaptureAnimator != null) heroCaptureAnimator.enabled = false;
+                    Texture2D original = unifiedAction != null ? unifiedAction : sheet;
+                    int spriteFrame = unifiedAction != null ? 0 : frame;
+                    string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
+                        sheet.GetInstanceID() + ":" + frame + ":" + facing + ":" +
+                        (locomotion ? "walk" : "pose") + ":" + (death ? "dead" : "live");
+                    Sprite sprite;
+                    if (!heroSprites.TryGetValue(key, out sprite))
+                    {
+                        sprite = BakeCanonicalHeroFrame(original, spriteFrame, sheet, frame,
+                            facing, locomotion, death);
+                        if (sprite == null) return false;
+                        heroSprites.Add(key, sprite);
+                        heroSpriteOrder.Enqueue(key);
+                        while (heroSpriteOrder.Count > 144)
+                        {
+                            string oldest = heroSpriteOrder.Dequeue();
+                            Sprite removed;
+                            if (!heroSprites.TryGetValue(oldest, out removed)) continue;
+                            heroSprites.Remove(oldest);
+                            Texture2D texture = removed.texture;
+                            Destroy(removed);
+                            if (texture != null) Destroy(texture);
+                        }
+                    }
+                    heroCaptureRenderer.sprite = sprite;
+                }
+                heroCaptureRenderer.flipX = flip;
                 if (heroCaptureFrame != Time.frameCount)
                 {
                     heroCaptureCamera.Render();
@@ -78,6 +112,9 @@ namespace Starfall
                 Color old = GUI.color;
                 try
                 {
+                    // Match the established actor fade / occlusion shader in
+                    // HumanActor; capture should never punch through a wall.
+                    tint.a *= worldActorOpacity;
                     GUI.color = tint;
                     // 256 source pixels * .75 GUI density. Foot pixel (128,240)
                     // stays at the SAME ScreenPoint as the legacy HumanActor.
@@ -97,6 +134,51 @@ namespace Starfall
             }
         }
 
+        private bool TryUseProductionHeroClip(int facing)
+        {
+            int profession = Game.AppearanceWeapon;
+            if (profession < 0 || profession >= HeroLiveProfessions.Length ||
+                facing < 0 || facing >= HeroLiveFacings.Length)
+                return false;
+            if (heroCaptureProfession != profession)
+            {
+                heroCaptureProfession = profession;
+                RuntimeAnimatorController controller =
+                    Resources.Load<RuntimeAnimatorController>("Frontier/HeroAnimator/Production"
+                        + HeroLiveProfessions[profession]);
+                heroCaptureAnimator.runtimeAnimatorController = controller;
+                heroProductionReady = controller != null;
+            }
+            if (!heroProductionReady) return false;
+            if (!heroCaptureAnimator.enabled) heroCaptureAnimator.enabled = true;
+            heroCaptureAnimator.speed = 0f;
+            return true;
+        }
+
+        private static int HeroClipFrames(int action, int facing)
+        {
+            if (action == 1) return 4; // 4 accepted, rooted walk poses
+            if (action == 2) return facing == 1 ? 2 : 4;
+            if (action == 3) return 2; // legacy cast recovery placeholders
+            return 1; // idle, dodge, hit, death: no invented frames
+        }
+
+        private int HeroClipStep(int action, int facing, int frames)
+        {
+            if (frames <= 1) return 0;
+            if (action == 1) return Game.WalkFrame % frames;
+            ActorAction playing = Game.playerAction;
+            if (playing == null) return 0;
+            if (!playing.released)
+            {
+                if (frames == 2) return 0;
+                float interval = Mathf.Max(.0001f, playing.contact);
+                return playing.elapsed < interval * .55f ? 0 : 1;
+            }
+            if (frames == 2) return 1;
+            return playing.elapsed - playing.contact < .12f ? 2 : 3;
+        }
+
         private void EnsureHeroCapture()
         {
             if (heroCaptureCamera != null) return;
@@ -106,14 +188,9 @@ namespace Starfall
             heroCaptureRoot.layer = HeroCaptureLayer;
             heroCaptureRenderer = heroCaptureRoot.AddComponent<SpriteRenderer>();
             heroCaptureRenderer.sortingOrder = 100;
-            // Animator is an action-state bridge; the legacy accepted
-            // raster (including the original blonde head) is still selected
-            // synchronously by GameCore and SpriteRenderer each simulation tick.
             heroCaptureAnimator = heroCaptureRoot.AddComponent<Animator>();
-            RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>(
-                "Frontier/HeroAnimator/ProductionController");
-            if (controller != null) heroCaptureAnimator.runtimeAnimatorController = controller;
-            else heroCaptureAnimator.enabled = false;
+            heroCaptureAnimator.enabled = false; // no silent independent timeline
+            heroCaptureAnimator.speed = 0f;
             heroCaptureTexture = new RenderTexture(256, 256, 16, RenderTextureFormat.ARGB32);
             heroCaptureTexture.filterMode = FilterMode.Point;
             heroCaptureTexture.useMipMap = false;
@@ -140,71 +217,11 @@ namespace Starfall
             Texture2D registration, int registrationIndex, int facing,
             bool locomotion, bool death)
         {
-            // The original source sheets are marked Read/Write. Preserve
-            // existing authored gear/limbs and replace ONLY the registered
-            // head with WalkVanguard's accepted single-protagonist identity.
-            const int cellsPerRow = 4;
-            int cols = source.width / HeroCell;
-            if (cols < 1 || source.height % HeroCell != 0 || index < 0 ||
-                index >= cols * (source.height / HeroCell)) return null;
-            Color[] colors = source.GetPixels(index % cols * HeroCell,
-                source.height - (index / cols + 1) * HeroCell,
-                HeroCell, HeroCell);
-            if (!death && walkSheets != null && walkSheets.Length > 0 &&
-                walkSheets[0] != null)
-            {
-                Rect head, canonical;
-                if (ActorFrameRegistration.TryHead(registration, registrationIndex, out head))
-                {
-                    if (locomotion && ActorFrameRegistration.TryStableHead(registration,
-                        registrationIndex / cellsPerRow, out canonical)) head = canonical;
-                    Texture2D identity = walkSheets[0];
-                    int sourceHeadFrame = facing * 4;
-                    Rect reference;
-                    if (ActorFrameRegistration.TryStableHead(identity, facing, out reference))
-                    {
-                        int hx = Mathf.RoundToInt(head.x), hy = Mathf.RoundToInt(head.y);
-                        int hw = Mathf.RoundToInt(head.width), hh = Mathf.RoundToInt(head.height);
-                        for (int row = hy; row < hy + hh; row++)
-                            for (int col = hx; col < hx + hw; col++)
-                                if (row >= 0 && row < HeroCell && col >= 0 && col < HeroCell)
-                                    colors[(HeroCell - 1 - row) * HeroCell + col] = Color.clear;
-                        int w = Mathf.RoundToInt(reference.width), h = Mathf.RoundToInt(reference.height);
-                        Color[] hair = identity.GetPixels(sourceHeadFrame % 4 * HeroCell +
-                            Mathf.RoundToInt(reference.x),
-                            identity.height - (sourceHeadFrame / 4 + 1) * HeroCell +
-                            HeroCell - Mathf.RoundToInt(reference.y + reference.height), w, h);
-                        int destX = locomotion ? (HeroCell - w) / 2 :
-                            Mathf.RoundToInt(head.x + head.width / 2f - w / 2f);
-                        int destY = locomotion ? Mathf.RoundToInt(reference.y) :
-                            Mathf.RoundToInt(head.y + head.height - h);
-                        for (int row = 0; row < h; row++)
-                            for (int col = 0; col < w; col++)
-                            {
-                                int px = destX + col, py = destY + row;
-                                if (px < 0 || px >= HeroCell || py < 0 || py >= HeroCell) continue;
-                                Color upper = hair[(h - 1 - row) * w + col];
-                                if (upper.a <= 0) continue;
-                                int pos = (HeroCell - 1 - py) * HeroCell + px;
-                                Color lower = colors[pos];
-                                float alpha = upper.a + lower.a * (1 - upper.a);
-                                colors[pos] = alpha > 0
-                                    ? new Color((upper.r * upper.a + lower.r * lower.a * (1 - upper.a)) / alpha,
-                                        (upper.g * upper.a + lower.g * lower.a * (1 - upper.a)) / alpha,
-                                        (upper.b * upper.a + lower.b * lower.a * (1 - upper.a)) / alpha, alpha)
-                                    : Color.clear;
-                            }
-                    }
-                }
-            }
-            Texture2D baked = new Texture2D(HeroCell, HeroCell, TextureFormat.RGBA32, false);
-            baked.filterMode = FilterMode.Point;
-            baked.SetPixels(colors);
-            baked.Apply(false, false);
-            // Unity pivot Y is bottom-origin: (128, 16) means the SAME
-            // top-origin foot coordinate (128, 240) as OnGUI.
-            return Sprite.Create(baked, new Rect(0, 0, HeroCell, HeroCell),
-                new Vector2(.5f, .0625f), HeroPixelsPerUnit);
+            // Runtime and Editor now share the EXACT pixel compositor.
+            Texture2D acceptedHead = walkSheets != null && walkSheets.Length > 0
+                ? walkSheets[0] : null;
+            return CanonicalHeroSpriteFactory.Bake(source, index, registration,
+                registrationIndex, facing, locomotion, death, acceptedHead);
         }
 
         private void ReleaseHeroCapture()
@@ -231,6 +248,8 @@ namespace Starfall
             heroCaptureRoot = null;
             heroCaptureTexture = null;
             heroCaptureFrame = -1;
+            heroCaptureProfession = -1;
+            heroProductionReady = false;
         }
     }
 }
