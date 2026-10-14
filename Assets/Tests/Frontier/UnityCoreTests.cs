@@ -15,6 +15,7 @@ namespace Starfall.Tests
         [Test] public void InvalidWeaponDamageCannotHealEnemies() { CoreChecks.InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Data()); }
         [Test] public void SwappedWeaponsCannotCarrySwordComboProgress() { CoreChecks.RealWeaponChangesRestartWeaponComboButReselectDoesNot(Data()); }
         [Test] public void PracticeExitNeverLeaksRedCirclesOrCounterBuffs() { CoreChecks.PracticeExitRetiresDummyHazardsAndEarnedCounter(Data()); }
+        [Test] public void FerrymanRemembersPublicArchiveChoice() { CoreChecks.RestoredFerrymanRespondsToActualCivicArchiveChoice(Data()); }
         [Test] public void PublicFerryRespectsCombatHazardsAndTides() { CoreChecks.RestoredPublicFerryHasRealSafetyAndLowTideGates(Data()); }
         [Test] public void DrownedRuinsArchiveChoicesPersist() { CoreChecks.DrownedFloodArchiveRequiresRealTidesAndChoice(Data()); }
         [Test] public void RestoredRootguardHasRealEnemyInterrupts() { CoreChecks.RestoredRootGuardInterruptsOnlyNearbyThreats(Data()); }

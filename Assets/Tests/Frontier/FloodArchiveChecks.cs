@@ -42,9 +42,9 @@ namespace Starfall.Tests
                 g.save.english=true;
                 g.Talk(ferryman);
                 Check(g.conversation!=null&&
-                    (ending==0?g.conversation.text.Contains("public desk"):
-                    ending==1?g.conversation.text.Contains("ferry register"):
-                              g.conversation.text.Contains("flood charts")),
+                    (ending==0?g.conversation.textEn.Contains("public desk"):
+                    ending==1?g.conversation.textEn.Contains("ferry register"):
+                              g.conversation.textEn.Contains("flood charts")),
                     "The same story consequence is authored in real English too");
                 g.Close();
             }
