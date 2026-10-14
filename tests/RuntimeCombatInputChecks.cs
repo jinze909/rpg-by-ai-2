@@ -614,6 +614,55 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Real death pose rejects menu toggles and recovers after window focus resumes");
     }
 
+    private static void RealMovingSpellCompositesAndBossFrames(FrontierRuntime app)
+    {
+        foreach(int vocation in new[]{1,2})
+        {
+            Prepare(app,vocation);app.Game.enemies.Clear();
+            Input.keys.Add(KeyCode.Q);Update(app);Frames(app,22);
+            var g=app.Game;
+            Check(g.playerAction!=null&&g.PlayerPhase==ActionPhase.Recovery,
+                "Original spell Q must release true damage before any leg blend");
+            Input.axes["Horizontal"]=1;
+            Input.held.Add(KeyCode.D);
+            Update(app);
+            Check(g.ActuallyMoving&&g.PlayerPose==7&&
+                g.PlayerMobility==MobilityRule.Reduced,
+                "Moving cast holds original upper-body release while walking legs progress");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            string identity=vocation==1?"Ranger":"Arcanist";
+            Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith("Unified_")&&
+                t.texture.name.Contains("Player"+identity)&&
+                t.texture.name.Contains("Walk"+identity)&&
+                t.texture.width==256&&t.texture.height==256),
+                "Actual rendering must draw cached one-root pixels for moving hero spell");
+            Check(GUI.textureCalls.Exists(t=>t.texture.name==
+                "resource:Frontier/Art/WalkVanguard"),
+                "Moving spells must preserve the same original blonde head across all outfits");
+        }
+        Prepare(app,0);
+        var player=app.Game;
+        player.enemies.Clear();
+        var normal=new Enemy(9891,2,player.Position.x+1.2f,player.Position.y,150){
+            state=1,timer=.3f,windupDuration=.65f
+        };
+        GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",normal);
+        var key="resource:Frontier/Art/CombatRhythmRemaster";
+        Check(GUI.textureCalls.Exists(x=>x.texture.name==key),
+            "Ordinary enemies draw real authored winding phases in actual renderer");
+        normal.state=0;normal.releaseTime=.15f;
+        GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",normal);
+        Check(GUI.textureCalls.Exists(x=>x.texture.name==key),
+            "Real enemy release displays distinct authored impact frames");
+        var boss=new Enemy(9892,2,player.Position.x+1,player.Position.y,400,true){
+            state=1,timer=.6f,windupDuration=1.1f
+        };
+        GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",boss);
+        Check(GUI.textureCalls.Exists(x=>x.texture.name==key),
+            "Actual boss windup uses its own rune sequence without changing the original boss sprite");
+        Console.WriteLine("PASS released cast→walking half-body continuity, original blond head, physical boss/enemy animated pixels");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -621,6 +670,7 @@ public static class RuntimeCombatInputChecks
         Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
+            RealMovingSpellCompositesAndBossFrames,
             RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
