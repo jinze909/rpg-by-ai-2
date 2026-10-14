@@ -19,6 +19,11 @@ from build_hero_animation_preview import (
 
 DEST = ROOT / ".starfall-checks/hero-production-atlases"
 PREVIEW = ROOT / ".starfall-checks/hero-animation-qa"
+def expected_count(action, original):
+    return (2 * original - (0 if action == "Run" else 1)
+            if action in ("Run", "Attack", "Cast") and original > 1 else original)
+
+
 def motion_midpoint(first, second):
     """A coherent source-silhouette motion pass: NO Bayer ghost outlines.
 
