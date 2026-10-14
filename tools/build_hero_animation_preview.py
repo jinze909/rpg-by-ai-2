@@ -73,8 +73,11 @@ def source_indices(profession, action, facing):
         if f == 1:
             return [("PlayerRear", c * 4 + 2), ("PlayerRear", c * 4 + 3)]
         if f == 2:
-            return [("PlayerSouth", c * 4 + i) for i in range(4)]
-        return [(player, i) for i in range(4, 8)]
+            # South frames 2/3 are SKILL poses, not normal recovery.
+            return [(walk, 8), ("PlayerSouth", c * 4),
+                    ("PlayerSouth", c * 4 + 1), (walk, 8)]
+        # Side frames 6/7 are heavy/skill poses, not normal recovery.
+        return [(player, 0), (player, 4), (player, 5), (player, 0)]
     # Three distinct animation meanings, not four unrelated reaction poses
     # accidentally looped as a "cast" or "dodge". These are ACCEPTED old
     # body frames, not new in-between art. Always declare their limitations.
@@ -135,9 +138,11 @@ def build(destination):
             for a, action in enumerate(ACTIONS):
                 frames = []
                 references = source_indices(profession, action, facing)
-                for name, index in references:
+                for i, (name, index) in enumerate(references):
                     frame = canonical_frame(sheets, heads, name, index, facing,
-                                            name.startswith("Walk") or action in ("Idle", "Run"))
+                        name.startswith("Walk") or action in ("Idle", "Run")
+                        or (action == "Attack" and i in (0, len(references) - 1)
+                            and name.startswith("Player") and index == 0))
                     frames.append(frame)
                 hashes = [hashlib.sha256(im.tobytes()).hexdigest() for im in frames]
                 unique = len(set(hashes))

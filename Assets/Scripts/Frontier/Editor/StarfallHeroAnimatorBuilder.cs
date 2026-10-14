@@ -227,8 +227,10 @@ namespace Starfall.EditorTools
                 if (facing == 1)
                     return new List<Sprite> { sheets["PlayerRear"][classIndex * 4 + 2], sheets["PlayerRear"][classIndex * 4 + 3] };
                 if (facing == 2)
-                    return Enumerable.Range(classIndex * 4, 4).Select(i => sheets["PlayerSouth"][i]).ToList();
-                return Enumerable.Range(4, 4).Select(i => sheets[player][i]).ToList();
+                    return new List<Sprite> { sheets[walk][8], sheets["PlayerSouth"][classIndex * 4],
+                        sheets["PlayerSouth"][classIndex * 4 + 1], sheets[walk][8] };
+                return new List<Sprite> { sheets[player][0], sheets[player][4],
+                    sheets[player][5], sheets[player][0] };
             }
             // Existing legacy poses only: no fictional cast/dodge/death
             // in-betweens, and no imported user-rejected replacement art.

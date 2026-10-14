@@ -17,6 +17,16 @@ def check():
     assert not manifest["native_unity_verified"] and not manifest["art_direction_acceptance"]
     tally = midpoints = 0
     examples = []
+    # Preserve intent of the actual authored source pose slots:
+    # 4/5 normal attack, 6/7 class skill, south 0/1 normal, 2/3 skill.
+    for profession in CLASSES:
+        player, walk = "Player" + profession, "Walk" + profession
+        n = CLASSES.index(profession)
+        assert source_indices(profession, "Attack", "E") == [
+            (player, 0), (player, 4), (player, 5), (player, 0)]
+        assert source_indices(profession, "Attack", "S") == [
+            (walk, 8), ("PlayerSouth", n * 4), ("PlayerSouth", n * 4 + 1), (walk, 8)]
+        assert source_indices(profession, "Cast", "E") == [(player, 6), (player, 7)]
     for klass in CLASSES:
         for action in ACTIONS:
             for facing in FACINGS:

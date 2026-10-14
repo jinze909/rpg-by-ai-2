@@ -57,7 +57,7 @@ def check():
     assert "ExpandWithInbetweens(" in native
     assert "ExpandedCount(refs.Length, action)" in native
     for mark in ["ActorFrameRegistration.TryHead", "ActorFrameRegistration.TryStableHead",
-                 "new Vector2(.5f, .0625f)", "class CanonicalHeroSpriteFactory",
+                 "new Vector2(FootX / (float)Cell, (Cell - FootTop) / (float)Cell)", "class CanonicalHeroSpriteFactory",
                  "Sprite.Create(", "Point", "TextureFormat.RGBA32"]:
         # 'Point' is expressed through pivot/identity, not a physical 3D rig.
         if mark == "Point":

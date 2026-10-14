@@ -68,7 +68,10 @@ namespace Starfall.EditorTools
                             Sprite baked = CanonicalHeroSpriteFactory.Bake(
                                 textures[item.atlas], item.index,
                                 textures[item.atlas], item.index,
-                                facing, action == 0 || action == 1,
+                                facing, action == 0 || action == 1 ||
+                                    item.atlas.StartsWith("Walk") ||
+                                    (action == 2 && item.index == 0 &&
+                                     item.atlas.StartsWith("Player") && item.atlas != "PlayerSouth"),
                                 action == 6, textures["WalkVanguard"]);
                             if (baked == null)
                                 throw new InvalidOperationException("Accepted hero pose missing: " + key);
@@ -294,9 +297,12 @@ namespace Starfall.EditorTools
                     return new[] { new FrameSource("PlayerRear", cls * 4 + 2),
                         new FrameSource("PlayerRear", cls * 4 + 3) };
                 if (facing == 2)
-                    return Enumerable.Range(cls * 4, 4)
-                        .Select(i => new FrameSource("PlayerSouth", i)).ToArray();
-                return Enumerable.Range(4, 4).Select(i => new FrameSource(p, i)).ToArray();
+                    return new[] { new FrameSource(walk, 8),
+                        new FrameSource("PlayerSouth", cls * 4),
+                        new FrameSource("PlayerSouth", cls * 4 + 1),
+                        new FrameSource(walk, 8) };
+                return new[] { new FrameSource(p, 0), new FrameSource(p, 4),
+                    new FrameSource(p, 5), new FrameSource(p, 0) };
             }
             if (action == 3)
                 return new[] {
