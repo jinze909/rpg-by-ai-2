@@ -8,8 +8,10 @@ namespace Starfall
         // Unified, root-anchored sprite composites built only from ACCEPTED
         // project pixel atlases. No independent puppet legs, rotation center,
         // unknown faces, or third-party generated body parts are introduced.
+        private const int UnifiedGaitCacheMaxFrames=96;
         private readonly Dictionary<string,Texture2D> unifiedGaitCache=
             new Dictionary<string,Texture2D>();
+        private readonly Queue<string> unifiedGaitOrder=new Queue<string>();
 
         private Texture2D UnifiedActionGait(Texture2D action,int columns,int rows,
             int actionFrame,Texture2D walk,int walkFrame)
@@ -71,7 +73,21 @@ namespace Starfall
             result.wrapMode=TextureWrapMode.Clamp;
             result.SetPixels(posePixels);
             result.Apply(false,false);
+            // 96 full RGBA action cells are at most about 24MiB, even after
+            // long sessions cycling every vocation and cardinal camera row.
+            // Evict an old generated frame instead of leaking CPU/GPU memory.
+            if(unifiedGaitOrder.Count>=UnifiedGaitCacheMaxFrames)
+            {
+                string oldest=unifiedGaitOrder.Dequeue();
+                Texture2D retired;
+                if(unifiedGaitCache.TryGetValue(oldest,out retired))
+                {
+                    unifiedGaitCache.Remove(oldest);
+                    if(retired!=null)UnityEngine.Object.Destroy(retired);
+                }
+            }
             unifiedGaitCache.Add(key,result);
+            unifiedGaitOrder.Enqueue(key);
             return result;
         }
 
@@ -80,6 +96,7 @@ namespace Starfall
             foreach(Texture2D sheet in unifiedGaitCache.Values)
                 if(sheet!=null)UnityEngine.Object.Destroy(sheet);
             unifiedGaitCache.Clear();
+            unifiedGaitOrder.Clear();
         }
     }
 }

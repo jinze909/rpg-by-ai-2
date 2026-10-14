@@ -143,6 +143,17 @@ public static class ActorRegistrationChecks
             Math.Abs(a1.pixels[ixFoot].b-nextStep.b)<.001f&&
             Math.Abs(a0.pixels[ixFoot].b-a1.pixels[ixFoot].b)>.2f,
             "Real authored gait frames change boot silhouettes while the one shared pivot remains fixed");
+        // A long session must not accumulate arbitrary per-weapon generated
+        // RGBA textures when switching all directions and action frames.
+        for(int actionFrame=0;actionFrame<12;actionFrame++)
+            for(int walkFrame=0;walkFrame<12;walkFrame++)
+                method.Invoke(app,new object[]{action,4,3,actionFrame,walk,walkFrame});
+        var cache=(System.Collections.IDictionary)app.GetType().
+            GetField("unifiedGaitCache",Private).GetValue(app);
+        Check(cache.Count<=96&&cache.Count>50,
+            "Runtime-generated hero gait textures need a bounded cache in long sessions");
+        Check(a0.destroyed,
+            "An old generated frame must be retired and returned to Unity memory");
         Console.WriteLine("PASS unified animation pixels: 2 unique gait frames, fixed waist/weapon, one 256px pivot, cached Point texture");
     }
 
