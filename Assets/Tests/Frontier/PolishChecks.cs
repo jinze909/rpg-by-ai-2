@@ -228,6 +228,8 @@ namespace Starfall.Tests
             var g=Fresh(data);g.save.stage=3;g.save.level=20;
             foreach(string flag in new[]{"harbor_report","desert_report","gate_6"})
                 g.save.flags.Add(flag);
+            WorldObject mia=Object(g,"glasswindkeeper");
+            g.save.x=mia.x;g.save.y=mia.y;
             Action(g,"glasswindkeeper","glasswind_accept");
             Check(g.Has("glasswind_started"),
                 "Test starts the actual accepted optional relay campaign at the town NPC");
