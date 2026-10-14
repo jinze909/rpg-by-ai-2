@@ -77,6 +77,14 @@ def check():
     assert "ExpandedCount(refs.Length, action)" in native
     assert "public static void EnsureBuilt()" in native
     assert "if (!ready) Build();" in native
+    # Published Cast strips expanded from 3 to 7 frames; a native Clip
+    # existing on disk is NOT proof that its Sprite curves are current.
+    for guard in ('AnimationUtility.GetObjectReferenceCurve(clip, spriteBinding)',
+                  'frames.Length != expected + 1',
+                  'frames.Any(frame => !(frame.value is Sprite))',
+                  'atlas.width != expected * Cell',
+                  'Array.IndexOf(Classes, profession)'):
+        assert guard in native, "Missing native stale-clip rebuild guard: " + guard
     editor_boot = (ROOT / "Assets/Editor/Frontier/FrontierEditor.cs").read_text()
     assert editor_boot.count("Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();") == 3
     assert "if (File.Exists(installedPath))" in native

@@ -82,3 +82,33 @@ publisher then fast-forwards only `chatgpt/dev` on success.
 weapon-grip poses are claimed. Native Unity 2022.3.53f1 Game View,
 complete motion anatomy, casting movement, alpha/occlusion, and 60fps
 remain to be verified before stage-three completion.
+
+## 2026-10-14 — Per-limb optical motion, exact-frame native rebake gate
+
+Replaced the previous shared 'reach' translation with independently
+registered left/right shin/boot and left/right shoulder/weapon movement,
+blending each motion into the original rooted waist. Golden hair/face
+raster and all 256px foot-root geometry remain untouched. Intermediate
+pixels are sampled only from their preceding accepted source frame:
+**no semi-transparent silhouette overlays, no artificial palette colors**.
+The Python production exporter and Unity Editor backup compositor use
+the same region boundaries and rounded pixel offsets. This is still
+procedural raster scaffolding, not professional hand-animated artwork.
+
+Added opposing-arm/leg synthetic regression to catch canceled global
+centroids. Full offline exporter check measured **89/90** generated
+intermediates different from their preceding pose, and **one** explicit
+Run hold. This reports real uniqueness rather than calling all new
+cells new artwork. The exact published atlas check and QA remain required.
+
+Critical native Editor migration fix: `EnsureBuilt()` now audits all 63
+existing Sprite curves and shipped source PNG frame dimensions. Existing
+`.anim` assets for three-frame Cast are **automatically rebaked** when
+seven-frame Cast sheets arrive. This preserves assets' paths, GUIDs,
+Animator controller overrides and existing gameplay/save timing, while
+avoiding a visual mismatch between the current GameCore clock and old clips.
+
+**Native gate remains open:** Unity 2022.3.53f1 import, PlayMode,
+projectile grips, anatomical art direction, stable occlusion and
+frame-rate measurement still need recorded evidence before stage three
+can be marked accepted.

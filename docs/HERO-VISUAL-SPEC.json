@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -173,5 +173,77 @@
     "moving_recovery": "Keep UnifiedActionGait authored walk legs and gameplay movement rules",
     "safety_fallback": "Opt-in SpriteRenderer/Animator with existing OnGUI route on failure",
     "final_gate": "Native Unity 2022.3.53f1 PlayMode + visually accepted frame-to-frame anatomy and weapon grips required"
+  },
+  "motion_registration": {
+    "source_canvas": "accepted 256x256 RGBA world sprite from the current one blonde hero",
+    "coordinates": "Unity bottom origin; y=0 at ground-side edge",
+    "target_regions_bottom_xyxy": {
+      "torso": [
+        103,
+        30,
+        154,
+        64
+      ],
+      "left_leg": [
+        89,
+        23,
+        128,
+        58
+      ],
+      "right_leg": [
+        129,
+        23,
+        171,
+        58
+      ],
+      "left_arm_and_weapon": [
+        34,
+        47,
+        121,
+        145
+      ],
+      "right_arm_and_weapon": [
+        140,
+        47,
+        230,
+        145
+      ]
+    },
+    "maximum_midpoint_displacement_px": {
+      "torso": [
+        3,
+        3
+      ],
+      "left_leg": [
+        7,
+        5
+      ],
+      "right_leg": [
+        7,
+        5
+      ],
+      "left_arm_and_weapon": [
+        14,
+        10
+      ],
+      "right_arm_and_weapon": [
+        14,
+        10
+      ]
+    },
+    "pixel_source_policy": "Nearest-neighbor resampling of the preceding accepted pose only: no two-pose color blend or alpha Bayer dither",
+    "immutable_pixel_guards": {
+      "blonde_identity_bottom_xyxy": [
+        91,
+        57,
+        170,
+        118
+      ],
+      "ground_contact_bottom_y": [
+        0,
+        22
+      ]
+    },
+    "review_only": "Non-identical inbetween counts validate raster motion, not anatomical quality or authored keyframes"
   }
 }
