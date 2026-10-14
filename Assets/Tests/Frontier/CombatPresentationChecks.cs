@@ -83,12 +83,26 @@ namespace Starfall.Tests
                     caster.enemies.Clear();
                     caster.Skill(new Point(1, 0));
                     Check(caster.playerAction != null && caster.HeroAnimationState == 3 &&
-                        caster.HeroAnimationFrameCount(0) == 2 && caster.HeroAnimationFrame(0) == 0,
-                        "Skill is a separate two-frame inherited clip while still in windup");
+                        caster.HeroAnimationFrameCount(0) == 4 &&
+                        caster.HeroAnimationFrameCount(1) == 4 &&
+                        caster.HeroAnimationFrameCount(2) == 4 &&
+                        caster.HeroAnimationFrame(0) == 0,
+                        "Skill begins at the rooted idle pose in all three four-phase Cast clips");
                     for (int frame = 0; frame < 50 && !caster.playerAction.released; frame++)
+                    {
+                        Check(caster.HeroAnimationFrame(0) < 2,
+                            "Windup cannot show a skill contact before authoritative release");
                         caster.Tick(dt, new Point());
-                    Check(caster.HeroAnimationState == 3 && caster.HeroAnimationFrame(0) == 1,
-                        "Cast pose changes only after GameCore emits the real skill release");
+                    }
+                    Check(caster.HeroAnimationState == 3 && caster.HeroAnimationFrame(0) == 2,
+                        "Cast contact pose follows only the real GameCore skill release");
+                    ActorAction castAction = caster.playerAction;
+                    for (int frame = 0; frame < 50 && caster.playerAction == castAction &&
+                        castAction.elapsed < castAction.contact + .21f; frame++)
+                        caster.Tick(dt, new Point());
+                    Check(caster.playerAction == castAction &&
+                        caster.HeroAnimationFrame(0) == 3,
+                        "Cast finishes on identical rooted idle pixels before action expiration");
                     GameCore runner = Quiet(data, profession);
                     runner.save.x = 10; runner.save.y = 14;
                     runner.Tick(.05f, new Point(1, 0));
