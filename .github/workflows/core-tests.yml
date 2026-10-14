@@ -15,8 +15,10 @@ jobs:
         run: python3 tools/check_visual_sprites.py
       - name: Build three-class canonical hero animation preview / QA matrix
         run: python3 tools/build_hero_animation_preview.py
-      - name: Export 63 production-compatible accepted protagonist sprite atlases
+      - name: Export 63 motion-assisted production hero sprite atlases
         run: python3 tools/export_canonical_hero_atlases.py
+      - name: Verify generated hero action midpoints and original pose preservation
+        run: python3 tools/check_hero_generated_motion.py
       - name: Check live SpriteRenderer hero bridge and accepted sources
         run: python3 tools/check_live_sprite_bridge.py
       - name: Audit three-class animation frame continuity and provenance
