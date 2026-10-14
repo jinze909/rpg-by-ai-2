@@ -113,8 +113,8 @@ namespace Starfall
                         MineConvoyTime.ToString("0")+"s · Hull "+MineConvoyIntegrity.ToString("0")+
                         "/80 · "+MineConvoyStage+"/4"):
                     L("前往西北矿车岗启动撤离","Begin evacuation at western dispatch");
-                q.reward=L("首次60硬币、2碎片、80经验，矿棚安全生命恢复",
-                    "First clear: 60 coins, 2 shards, 80 XP and safe depot healing");
+                q.reward=L("首次60硬币、2碎片、80经验、矿棚安全疗养、强化木料成本永久-1",
+                    "First clear: 60 coins, 2 shards, 80 XP, safe depot healing and -1 timber per future upgrade");
                 return q;
             }
 

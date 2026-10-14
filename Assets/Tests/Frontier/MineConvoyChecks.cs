@@ -45,6 +45,47 @@ namespace Starfall.Tests
                     "Actual player combat defeats each minecart ambusher");
             }
         }
+        public static void MinecartCivicTimberSavingsActuallyReachTownForge(Campaign data)
+        {
+            foreach(bool temper in new[]{false,true})
+            {
+                var before=Fresh(data);
+                if(temper)before.save.flags.Add("iron_temper_complete");
+                int baseCost=temper?2:3;
+                Check(before.TemperUpgradeTimber==baseCost,
+                    "Original old-save smithing recipe stays unchanged before escort completion");
+                var g=Fresh(data);
+                if(temper)g.save.flags.Add("iron_temper_complete");
+                g.save.flags.Add("mineconvoy_complete");
+                int savedCost=baseCost-1;
+                Check(g.TemperUpgradeTimber==savedCost&&g.TemperUpgradeTimber>=1,
+                    "The successful escort saves exactly one timber, stacking with the earned temper recipe");
+                g.save.inventory[0]=savedCost;
+                g.save.inventory[1]=temper?1:2;
+                g.save.inventory[4]=temper?1:2;
+                int shards=g.save.shards,coins=g.save.coins;
+                WorldObject noll=Object(g,"forge");
+                g.save.x=noll.x;g.save.y=noll.y;
+                g.Talk(noll);
+                bool shown=false;
+                foreach(Choice choice in g.conversation.choices)
+                    if(choice.action=="upgrade"&&
+                        choice.en.Contains(savedCost+" timber"))shown=true;
+                Check(shown&&g.conversation.text.Contains("最后一班矿工安全归来"),
+                    "The original Noll smith menu and narrative advertise the actual upgrade discount");
+                Check(MineCartTestChoice(g,"upgrade")&&
+                    g.save.upgrades==1&&g.save.inventory[0]==0&&
+                    g.save.inventory[1]==0&&g.save.inventory[4]==0,
+                    "The authentic game upgrade transaction consumes exactly discounted timber and original crystals/parts");
+                Check(g.save.coins==coins&&g.save.shards==shards,
+                    "Returning reusable mine timber does not create free money or duplicate quest loot");
+                g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.TemperUpgradeTimber==savedCost&&
+                    restored.save.upgrades==1,
+                    "The new workshop economy and prior equipment upgrades survive unchanged version-two save reload");
+            }
+        }
+
         public static void MinecartEngineeringReallyReducesSteamDamageAndAbortIsSelective(Campaign data)
         {
             float[] damages=new float[2];

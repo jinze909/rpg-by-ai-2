@@ -15,7 +15,11 @@ namespace Starfall
         public bool TemperActive { get { return TemperStage!=0; } }
         public bool IsTemperEnemy(Enemy e)
         { return e!=null && e.id>=89940 && e.id<89950; }
-        public int TemperUpgradeTimber { get { return Has("iron_temper_complete") ? 2 : 3; } }
+        // Rescued workers return reusable timber to Noll's public workshop.
+        // The genuine Iron Temper recipe and the escort are independent,
+        // permanently stackable benefits, never cheaper than one timber.
+        public int TemperUpgradeTimber
+        { get { return Math.Max(1,(Has("iron_temper_complete")?2:3)-(MineConvoyComplete?1:0)); } }
         public int TemperUpgradeCrystal { get { return Has("iron_temper_complete") ? 1 : 2; } }
         public int TemperUpgradeParts { get { return Has("iron_temper_complete") ? 1 : 2; } }
 
@@ -70,8 +74,8 @@ namespace Starfall
                 if(Has("iron_temper_complete"))
                 {
                     Dialog(o.name,o.en,
-                        "锻炉已交给矿工管理。余烬镇的诺尔收到回火工艺：装备强化现在只用2木、1晶、1零件。任何旧存档里的强化等级都没有重置。",
-                        "The miners run the forge now. Noll's upgraded tempering recipe costs only 2 timber, 1 crystal and 1 part per equipment upgrade. Existing upgrades remain intact.",
+                        "锻炉已交给矿工管理。诺尔收到公开回火工艺：装备强化现在只用"+TemperUpgradeTimber+"木、1晶、1零件。"+(MineConvoyComplete?"矿车回收的可用木材又额外省下1份。":"")+"任何旧存档里的强化等级都没有重置。",
+                        "The miners run the forge now. Noll's upgraded tempering recipe costs "+TemperUpgradeTimber+" timber, 1 crystal and 1 part."+(MineConvoyComplete?" Reclaimed minecart timber saves an additional unit.":"")+" Existing upgrades remain intact.",
                         C("明白了","Understood","close"));return true;
                 }
                 if(!TemperActive)

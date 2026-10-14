@@ -273,8 +273,8 @@ namespace Starfall
                 revision++;sound="reward";
                 RecordMoment("赤铁矿场的最后一班工人搭乘真正穿过旧矿道的矿车抵达南侧安全矿棚。工人决定以后优先撤离人，而不是运送矿石。",
                     "Ironreach workers escaped in a physical railcart to southern shelter. Workers now evacuate people before ore.");
-                Notify("矿工安全撤离！硬币+60、碎片+2、经验+80。安全矿棚可额外恢复生命。",
-                    "Workers rescued! +60 coins, +2 shards, +80 XP. The safe depot now provides extra healing.");
+                Notify("矿工安全撤离！硬币+60、碎片+2、经验+80。矿棚可安全恢复生命，诺尔强化装备额外省1份木料。",
+                    "Workers rescued! +60 coins, +2 shards, +80 XP. The safe depot heals, and Noll's upgrades cost one less timber.");
                 return true;
             }
             return true;
