@@ -56,7 +56,9 @@ jobs:
           python3 tools/check_hero_generated_motion.py
           python3 tools/check_hero_visual_spec.py
           python3 tools/install_canonical_hero_atlases.py
-          python3 tools/check_visual_assets.py
+          # The checkout intentionally does not hydrate unrelated Git LFS art.
+          # Validate the 63 freshly installed production textures instead.
+          python3 tools/check_installed_hero_atlases.py
       - name: Safe fast-forward publish into the ONLY writable branch
         shell: bash
         run: |
