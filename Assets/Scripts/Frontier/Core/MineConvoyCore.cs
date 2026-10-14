@@ -75,7 +75,7 @@ namespace Starfall
             foreach(Hazard steam in hazards)
                 if(steam.mineConvoyOwned&&steam.timer>0&&steam.timer<=dt&&
                     (steam.position-MineCartPosition).Length<=steam.radius+.4f)
-                    MineConvoyIntegrity-=12;
+                    MineConvoyIntegrity-=mineConvoyBraced?6:12;
             if(MineConvoyIntegrity<=0)return;
             mineConvoySteam-=dt;
             if(MineConvoyStage==3&&mineConvoySteam<=0)
@@ -139,11 +139,11 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,
                     "矿工最后一班撤离已成功。"+(Has("mineconvoy_braced")?
-                        "你花零件加固了车厢，工人已经把这套保护结构记录下来。":
+                        "你花零件加固了车厢，后半程蒸汽损伤减半；工人已经把这套保护结构记录下来。":
                         "你保留了备用零件，以驾驶和战斗技术将车厢护送至安全矿棚。")+
                         "\n\n安全矿棚已可供旅人休整，不能重复领取奖励。",
                     "The workers' last shift reached shelter."+(Has("mineconvoy_braced")?
-                        " You spent a spare part to reinforce the carriage.":
+                        " You spent a spare part to halve steam damage to the carriage.":
                         " You saved the spare parts and relied on escort tactics.")+
                         "\n\nThe depot now offers safe rest, never duplicate rewards.",
                     C("阅读工人留言","Read workers' note","close"));
@@ -190,8 +190,8 @@ namespace Starfall
                         C("继续战斗","Defend cart","close"));return true;
                 }
                 Dialog(o.name,o.en,
-                    "矿工已经重新握住转轨手柄。车厢完整度"+MineConvoyIntegrity.ToString("0")+"/80。消耗1份零件可修补28完整度并加固运载；或免费赶往南侧矿棚。两者均为有效策略。",
-                    "The worker has secured the switch. Hull "+MineConvoyIntegrity.ToString("0")+"/80. Use one part to repair 28 hull and reinforce the cart, or save it and proceed.",
+                    "矿工已经重新握住转轨手柄。车厢完整度"+MineConvoyIntegrity.ToString("0")+"/80。消耗1份零件可修补28完整度，并让后半程蒸汽对车厢的伤害减半；或保留材料直接冒险出发。",
+                    "The worker has secured the switch. Hull "+MineConvoyIntegrity.ToString("0")+"/80. Spend one part to restore 28 hull AND halve later steam damage to the cart, or keep your spare and take the risk.",
                     C("消耗零件修车 · +28","Repair with 1 part · +28","mineconvoy_brace"),
                     C("不消耗材料，直接放行","Conserve supplies · dispatch","mineconvoy_go"));
                 return true;
