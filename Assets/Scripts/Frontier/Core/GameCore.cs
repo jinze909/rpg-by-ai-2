@@ -214,7 +214,31 @@ namespace Starfall
                     parents[next] = cell; pathQueue[tail++] = next;
                 }
             }
-            if (parents[target] < 0) return direct;
+            if (parents[target] < 0)
+            {
+                // The player, an escort or a live objective can be sealed behind
+                // terrain, tide or a story gate. Chasing the straight vector
+                // forever makes enemies walk into the wall and jitter in place.
+                // Stop at the nearest REACHABLE frontier instead. Do not cache:
+                // a repaired bridge / newly opened gate must take effect now.
+                int closest = start;
+                float bestDistance = float.MaxValue;
+                for (int i = 0; i < tail; i++)
+                {
+                    int cell = pathQueue[i], x = cell % width, y = cell / width;
+                    float dx = x + .5f - to.x, dy = y + .5f - to.y;
+                    float distance = dx * dx + dy * dy;
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        closest = cell;
+                    }
+                }
+                // Already at the frontier: stand guard rather than pushing
+                // continuously into an impassable tile.
+                if (closest == start) return new Point();
+                target = closest;
+            }
             int waypoint = target; while (parents[waypoint] != start) waypoint = parents[waypoint];
             return (new Point(waypoint % width + .5f, waypoint / width + .5f) - from).Normalized;
         }

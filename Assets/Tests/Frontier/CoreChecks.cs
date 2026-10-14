@@ -22,6 +22,51 @@ namespace Starfall.Tests
                 if (g.conversation.choices[i].action == action) { g.Choose(i); return; }
             throw new Exception("Missing action " + action);
         }
+        public static void SealedPursuitRoutesToLegalFrontierAndReopensImmediately(Campaign data)
+        {
+            // Keep all authored campaign maps and story objects unchanged.
+            // Temporarily substitute a miniature blocked arena for a real
+            // GameCore to exercise the production DirectionTo + Fits path.
+            MapData original = data.maps[0];
+            try
+            {
+                string[] rows = new string[16];
+                for (int y = 0; y < rows.Length; y++)
+                {
+                    char[] cells = new string('.', 16).ToCharArray();
+                    for (int x = 0; x < 16; x++)
+                        if (x < 2 || x >= 14 || y < 2 || y >= 14) cells[x] = '#';
+                    if (y >= 2 && y < 14) cells[7] = '#';
+                    rows[y] = new string(cells);
+                }
+                data.maps[0] = new MapData {
+                    id = 0, spawnX = 4.5f, spawnY = 8.5f,
+                    rows = rows, objects = new WorldObject[0],
+                    decor = new Decoration[0]
+                };
+                GameCore g = new GameCore(data);
+                Point target = new Point(10.5f, 8.5f);
+                Point approach = g.DirectionTo(new Point(4.5f, 8.5f), target);
+                Check(approach.x > .9f && Math.Abs(approach.y) < .1f,
+                    "Sealed target first draws pursuit toward the nearest reachable legal frontier");
+                Point waiting = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                Check(waiting.Length < .001f,
+                    "At a sealed frontier the pursuer must not walk straight into the wall or jitter");
+
+                char[] doorway = rows[12].ToCharArray(); doorway[7] = '.';
+                rows[12] = new string(doorway);
+                Point detour = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                Check(detour.y > .9f && Math.Abs(detour.x) < .1f,
+                    "Opening a distant legal corridor immediately makes AI seek its detour");
+                char[] crossing = rows[8].ToCharArray(); crossing[7] = '.';
+                rows[8] = new string(crossing);
+                Point direct = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                Check(direct.x > .9f && Math.Abs(direct.y) < .1f,
+                    "Opening a direct bridge immediately replaces the detour without stale navigation");
+            }
+            finally { data.maps[0] = original; }
+        }
+
         public static void ClassesAndPause(Campaign data)
         {
             for (int i = 0; i < 3; i++)
