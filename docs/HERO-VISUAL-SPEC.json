@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
+  "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
+  "unity_version": "2022.3.53f1",
+  "canvas_px": [
+    256,
+    256
+  ],
+  "pixels_per_unit": 128,
+  "gui_density": 0.75,
+  "foot_top_origin_px": [
+    128,
+    240
+  ],
+  "foot_bottom_origin_px": [
+    128,
+    16
+  ],
+  "pivot_normalized": [
+    0.5,
+    0.0625
+  ],
+  "head": {
+    "source": "WalkVanguard",
+    "canonical_frames": {
+      "E": 0,
+      "N": 4,
+      "S": 8
+    },
+    "source_rect_top_px": [
+      100,
+      140,
+      56,
+      56
+    ],
+    "hair": "short cream-gold swept bangs and recognizable raised tufts",
+    "face": "same accepted pale youthful face/eyes across all classes",
+    "must_not_rescale": true
+  },
+  "silhouette": {
+    "base": "approved playable character; do not scale heads or bodies per animation",
+    "comparison": "measure from actual accepted source; do not enforce a new ratio incompatible with original",
+    "shoulder_band_y_top": [
+      188,
+      211
+    ],
+    "hip_band_y_top": [
+      207,
+      230
+    ],
+    "boot_contact_y_top": [
+      228,
+      246
+    ],
+    "foot_must_remain_fixed": true
+  },
+  "palette": {
+    "blonde": "#F4DF9A",
+    "skin_light": "#F2EAD7",
+    "cloth_warm": "#BD715F",
+    "leather": "#85614D",
+    "grass_contrast": "#526C53",
+    "arcane_teal": "#78B6A6",
+    "cool_outline": "#17283B"
+  },
+  "weapon_grip_hints_top_origin_px": {
+    "Vanguard": {
+      "E": [
+        112,
+        210
+      ],
+      "N": [
+        151,
+        216
+      ],
+      "S": [
+        107,
+        211
+      ]
+    },
+    "Ranger": {
+      "E": [
+        149,
+        204
+      ],
+      "N": [
+        145,
+        207
+      ],
+      "S": [
+        145,
+        206
+      ]
+    },
+    "Arcanist": {
+      "E": [
+        111,
+        204
+      ],
+      "N": [
+        105,
+        204
+      ],
+      "S": [
+        107,
+        207
+      ]
+    }
+  },
+  "socket_contract": "Approximate per-facing inspection guide inside accepted full-body pixels. Weapon grip follows authored frame pose; never move projectile collision or fake independent weapon bones using these static hints.",
+  "professions": [
+    "Vanguard",
+    "Ranger",
+    "Arcanist"
+  ],
+  "facings": [
+    "E",
+    "N",
+    "S"
+  ],
+  "actions": [
+    "Idle",
+    "Run",
+    "Attack",
+    "Cast",
+    "Dodge",
+    "Hit",
+    "Death"
+  ],
+  "state_clock": "GameCore authoritative released/contact, walkDistance; no independent clip damage clock",
+  "integration": "CanonicalHeroSpriteFactory uses foot/head constants; Editor builder uses shared pivot; live SpriteRenderer capture uses shared geometry and SortingGroup; OnGUI fallback retained.",
+  "quality_gate": "Native Unity Editor/PlayMode, weapon hand grips, anatomy, frame continuity, visuals, and real-world FPS require independent review"
+}

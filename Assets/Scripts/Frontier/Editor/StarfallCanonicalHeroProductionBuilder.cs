@@ -112,7 +112,9 @@ namespace Starfall.EditorTools
                             .ToArray();
                         if (frames.Length != ExpandedCount(refs.Length, action) ||
                             frames.Any(s => s.rect.width != Cell || s.rect.height != Cell ||
-                                Vector2.Distance(s.pivot, new Vector2(128, 16)) > .05f))
+                                Vector2.Distance(s.pivot,
+                                    new Vector2(CanonicalHeroSpriteFactory.FootX,
+                                        Cell - CanonicalHeroSpriteFactory.FootTop)) > .05f))
                             throw new InvalidOperationException("Canonical foot pivot/sheet import invalid: " + key);
                         string clipPath = Clips + key + ".anim";
                         AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);

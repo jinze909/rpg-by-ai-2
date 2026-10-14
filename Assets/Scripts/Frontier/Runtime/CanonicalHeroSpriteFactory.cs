@@ -12,9 +12,18 @@ namespace Starfall
     /// </summary>
     public static class CanonicalHeroSpriteFactory
     {
+        // The accepted playable blonde hero is ONE identity in all classes.
+        // Every renderer and generated animation uses this pixel specification.
         public const int Cell = 256;
         public const float PixelsPerUnit = 128f;
-        public static readonly Vector2 FootPivot = new Vector2(.5f, .0625f);
+        public const int FootX = 128;
+        public const int FootTop = 240;
+        public const int IdentityHeadX = 100;
+        public const int IdentityHeadTop = 140;
+        public const int IdentityHeadSize = 56;
+        public const float GuiDensity = .75f;
+        public static readonly Vector2 FootPivot =
+            new Vector2(FootX / (float)Cell, (Cell - FootTop) / (float)Cell);
 
         public static Sprite Bake(Texture2D source, int index, Texture2D registration,
             int registrationIndex, int facing, bool locomotion, bool death, Texture2D identity)
@@ -35,6 +44,14 @@ namespace Starfall
                     Rect reference;
                     if (ActorFrameRegistration.TryStableHead(identity, facing, out reference))
                     {
+                        // The registered golden hair/face must stay the same
+                        // size and source on all three equipment variants.
+                        // Reject unexpected reimports instead of resizing it.
+                        if (Mathf.RoundToInt(reference.x) != IdentityHeadX ||
+                            Mathf.RoundToInt(reference.y) != IdentityHeadTop ||
+                            Mathf.RoundToInt(reference.width) != IdentityHeadSize ||
+                            Mathf.RoundToInt(reference.height) != IdentityHeadSize)
+                            return null;
                         int hx = Mathf.RoundToInt(head.x), hy = Mathf.RoundToInt(head.y);
                         int hw = Mathf.RoundToInt(head.width), hh = Mathf.RoundToInt(head.height);
                         if (hx < 0 || hy < 0 || hx + hw > Cell || hy + hh > Cell)

@@ -11,9 +11,8 @@ namespace Starfall
         // FrontierRuntime Inspector after native PlayMode/art QA to compare the
         // SpriteRenderer lane in the REAL scene (not a disconnected prefab).
         [SerializeField] private bool useSpriteRendererHero;
-        private const int HeroCell = 256;
+        private const int HeroCell = CanonicalHeroSpriteFactory.Cell;
         private const int HeroCaptureLayer = 31;
-        private const float HeroPixelsPerUnit = 128f;
         private GameObject heroCaptureRoot;
         private Camera heroCaptureCamera;
         private SpriteRenderer heroCaptureRenderer;
@@ -126,8 +125,11 @@ namespace Starfall
                     GUI.color = tint;
                     // 256 source pixels * .75 GUI density. Foot pixel (128,240)
                     // stays at the SAME ScreenPoint as the legacy HumanActor.
-                    GUI.DrawTexture(new Rect(foot.x - 96, foot.y - 180, 192, 192),
-                        heroCaptureTexture);
+                    float density = CanonicalHeroSpriteFactory.GuiDensity;
+                    GUI.DrawTexture(new Rect(
+                        foot.x - CanonicalHeroSpriteFactory.FootX * density,
+                        foot.y - CanonicalHeroSpriteFactory.FootTop * density,
+                        HeroCell * density, HeroCell * density), heroCaptureTexture);
                 }
                 finally { GUI.color = old; }
                 return true;
@@ -170,24 +172,32 @@ namespace Starfall
             heroCaptureRoot.hideFlags = HideFlags.HideAndDontSave;
             heroCaptureRoot.transform.position = new Vector3(9000, 9000, 0);
             heroCaptureRoot.layer = HeroCaptureLayer;
+            // Enclose current body and future weapon/effect child renderers
+            // in one stable draw-order unit. IMGUI-world occlusion still uses
+            // its existing depth-sorted capture rectangle.
+            var sorting = heroCaptureRoot.AddComponent<UnityEngine.Rendering.SortingGroup>();
+            sorting.sortingOrder = 100;
             heroCaptureRenderer = heroCaptureRoot.AddComponent<SpriteRenderer>();
-            heroCaptureRenderer.sortingOrder = 100;
+            heroCaptureRenderer.sortingOrder = 0;
             heroCaptureAnimator = heroCaptureRoot.AddComponent<Animator>();
             heroCaptureAnimator.enabled = false; // no silent independent timeline
             heroCaptureAnimator.speed = 0f;
-            heroCaptureTexture = new RenderTexture(256, 256, 16, RenderTextureFormat.ARGB32);
+            heroCaptureTexture = new RenderTexture(HeroCell, HeroCell, 16, RenderTextureFormat.ARGB32);
             heroCaptureTexture.filterMode = FilterMode.Point;
             heroCaptureTexture.useMipMap = false;
             heroCaptureTexture.Create();
             var cameraObject = new GameObject("Hero Sprite Capture Camera");
             cameraObject.hideFlags = HideFlags.HideAndDontSave;
             cameraObject.transform.SetParent(heroCaptureRoot.transform, false);
-            cameraObject.transform.localPosition = new Vector3(0, .875f, -10);
+            float centerAboveFeet = (CanonicalHeroSpriteFactory.FootTop - HeroCell * .5f)
+                / CanonicalHeroSpriteFactory.PixelsPerUnit;
+            cameraObject.transform.localPosition = new Vector3(0, centerAboveFeet, -10);
             cameraObject.layer = HeroCaptureLayer;
             heroCaptureCamera = cameraObject.AddComponent<Camera>();
             heroCaptureCamera.enabled = false;
             heroCaptureCamera.orthographic = true;
-            heroCaptureCamera.orthographicSize = 1;
+            heroCaptureCamera.orthographicSize =
+                HeroCell / (2f * CanonicalHeroSpriteFactory.PixelsPerUnit);
             heroCaptureCamera.aspect = 1;
             heroCaptureCamera.clearFlags = CameraClearFlags.SolidColor;
             heroCaptureCamera.backgroundColor = new Color(0, 0, 0, 0);

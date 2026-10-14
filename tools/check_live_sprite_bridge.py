@@ -28,7 +28,9 @@ def check():
         "Game.HeroAnimationPlaybackPosition(facing)",
         "Animator.StringToHash", "heroCaptureAnimator.Play(", "heroCaptureAnimator.Update(0f)",
         "Production", "ProductionHeroClip",
-        "new Rect(foot.x - 96, foot.y - 180, 192, 192)",
+        "foot.x - CanonicalHeroSpriteFactory.FootX * density",
+        "foot.y - CanonicalHeroSpriteFactory.FootTop * density",
+        "HeroCell * density, HeroCell * density",
         "heroCaptureCamera.Render()", "heroCaptureBroken", "ReleaseHeroCapture",
         "Resources.Load<RuntimeAnimatorController>",
         "tint.a *= worldActorOpacity",
@@ -44,6 +46,13 @@ def check():
     assert "public float WalkPosePhase" in continuity
     assert "if (state == 1) return WalkPosePhase;" in core
     assert "cellPosition %= bakedFrames" in engine
+    assert "AddComponent<UnityEngine.Rendering.SortingGroup>()" in engine
+    assert "CanonicalHeroSpriteFactory.PixelsPerUnit" in engine
+    spec_cs = compositor
+    for mark in ["public const int FootX = 128;", "public const int FootTop = 240;",
+                 "public const int IdentityHeadX = 100;", "public const int IdentityHeadTop = 140;",
+                 "public const int IdentityHeadSize = 56;", "public const float GuiDensity = .75f;"]:
+        assert mark in spec_cs, "Canonical code profile mismatch " + mark
     assert "MotionMidpoint(" in native
     assert "ExpandWithInbetweens(" in native
     assert "ExpandedCount(refs.Length, action)" in native
