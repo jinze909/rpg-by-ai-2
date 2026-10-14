@@ -61,8 +61,13 @@ namespace Starfall
                     // action/release clock; no second independent damage timer.
                     int action = Game.HeroAnimationState;
                     int frames = Game.HeroAnimationFrameCount(facing);
-                    int step = Game.HeroAnimationFrame(facing);
-                    float normalized = (step + .20f) / frames;
+                    float posePosition = Game.HeroAnimationPlaybackPosition(facing);
+                    bool expanded = action >= 1 && action <= 3 && frames > 1;
+                    int bakedFrames = expanded
+                        ? frames * 2 - (action == 1 ? 0 : 1) : frames;
+                    // Authored contact poses remain even-numbered cells.
+                    float cellPosition = expanded ? posePosition * 2f : posePosition;
+                    float normalized = (cellPosition + .20f) / bakedFrames;
                     heroCaptureAnimator.SetInteger("Action", action);
                     heroCaptureAnimator.SetInteger("Facing", facing);
                     heroCaptureAnimator.Play(HeroLiveStateHash[action, facing], 0, normalized);

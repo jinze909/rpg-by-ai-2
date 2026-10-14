@@ -24,7 +24,8 @@ def check():
     required = [
         "SpriteRenderer", "RenderTexture", "CameraClearFlags.SolidColor",
         "BakeCanonicalHeroFrame", "walkSheets[0]",
-        "Game.HeroAnimationState", "Game.HeroAnimationFrameCount(facing)", "Game.HeroAnimationFrame(facing)",
+        "Game.HeroAnimationState", "Game.HeroAnimationFrameCount(facing)",
+        "Game.HeroAnimationPlaybackPosition(facing)",
         "Animator.StringToHash", "heroCaptureAnimator.Play(", "heroCaptureAnimator.Update(0f)",
         "Production", "ProductionHeroClip",
         "new Rect(foot.x - 96, foot.y - 180, 192, 192)",
@@ -38,6 +39,10 @@ def check():
     assert "public int HeroAnimationFrameCount" in core
     assert "public int HeroAnimationFrame(int facing)" in core
     assert "action.elapsed - action.contact < .12f" in core
+    assert "HeroAnimationPlaybackPosition(int facing)" in core
+    assert "MotionMidpoint(" in native
+    assert "ExpandWithInbetweens(" in native
+    assert "ExpandedCount(refs.Length, action)" in native
     for mark in ["ActorFrameRegistration.TryHead", "ActorFrameRegistration.TryStableHead",
                  "new Vector2(.5f, .0625f)", "class CanonicalHeroSpriteFactory",
                  "Sprite.Create(", "Point", "TextureFormat.RGBA32"]:

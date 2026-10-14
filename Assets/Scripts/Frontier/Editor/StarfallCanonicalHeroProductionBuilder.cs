@@ -60,27 +60,32 @@ namespace Starfall.EditorTools
                         string key = Key(profession, action, facing);
                         FrameSource[] refs = FrameRefs(Array.IndexOf(Classes, profession),
                             action, facing);
-                        var combined = new Texture2D(Cell * refs.Length, Cell,
+                        // Intermediates are emitted into the actual live Animator atlas.
+                        // Source sprites, original poses, foot pivot and head compositor stay intact.
+                        var authored = new List<Color[]>(refs.Length);
+                        foreach (FrameSource item in refs)
+                        {
+                            Sprite baked = CanonicalHeroSpriteFactory.Bake(
+                                textures[item.atlas], item.index,
+                                textures[item.atlas], item.index,
+                                facing, action == 0 || action == 1,
+                                action == 6, textures["WalkVanguard"]);
+                            if (baked == null)
+                                throw new InvalidOperationException("Accepted hero pose missing: " + key);
+                            try { authored.Add(baked.texture.GetPixels()); }
+                            finally
+                            {
+                                UnityEngine.Object.DestroyImmediate(baked.texture);
+                                UnityEngine.Object.DestroyImmediate(baked);
+                            }
+                        }
+                        List<Color[]> sequence = ExpandWithInbetweens(authored, action);
+                        var combined = new Texture2D(Cell * sequence.Count, Cell,
                             TextureFormat.RGBA32, false);
                         try
                         {
-                            for (int i = 0; i < refs.Length; i++)
-                            {
-                                var item = refs[i];
-                                Sprite baked = CanonicalHeroSpriteFactory.Bake(
-                                    textures[item.atlas], item.index,
-                                    textures[item.atlas], item.index,
-                                    facing, action == 0 || action == 1,
-                                    action == 6, textures["WalkVanguard"]);
-                                if (baked == null)
-                                    throw new InvalidOperationException("Hero pixel registry failed: " + key + " frame " + i);
-                                try { combined.SetPixels(i * Cell, 0, Cell, Cell, baked.texture.GetPixels()); }
-                                finally
-                                {
-                                    UnityEngine.Object.DestroyImmediate(baked.texture);
-                                    UnityEngine.Object.DestroyImmediate(baked);
-                                }
-                            }
+                            for (int i = 0; i < sequence.Count; i++)
+                                combined.SetPixels(i * Cell, 0, Cell, Cell, sequence[i]);
                             combined.Apply(false, false);
                             string path = Generated + key + ".png";
                             byte[] bytes = combined.EncodeToPNG();
@@ -100,12 +105,12 @@ namespace Starfall.EditorTools
                         FrameSource[] refs = FrameRefs(Array.IndexOf(Classes, profession),
                             action, facing);
                         string path = atlasPaths[key];
-                        ImportCanonicalSheet(path, key, refs.Length);
+                        ImportCanonicalSheet(path, key, ExpandedCount(refs.Length, action));
                         Sprite[] frames = AssetDatabase.LoadAllAssetsAtPath(path)
                             .OfType<Sprite>()
                             .OrderBy(s => FrameIndex(s.name))
                             .ToArray();
-                        if (frames.Length != refs.Length ||
+                        if (frames.Length != ExpandedCount(refs.Length, action) ||
                             frames.Any(s => s.rect.width != Cell || s.rect.height != Cell ||
                                 Vector2.Distance(s.pivot, new Vector2(128, 16)) > .05f))
                             throw new InvalidOperationException("Canonical foot pivot/sheet import invalid: " + key);
@@ -182,7 +187,92 @@ namespace Starfall.EditorTools
             Debug.Log("Production hero SpriteRenderer clips baked from ACCEPTED original atlases: "
                 + "3 classes x 7 actions x 3 facings, root=(128,240). "
                 + "The runtime F8 lane can now load real Sprite curves. "
-                + "These are inherited source poses; unique missing in-betweens are NOT claimed complete.");
+                + "Additional in-betweens are deterministic pixel-motion approximations, NOT hand-redrawn/artist-approved.");
+        }
+
+
+        // One deterministic pixel midpoint between consecutive *approved*
+        // poses. Run also bridges the final pose back to the first; action
+        // clips never loop into their windup. Keeps the approved 256px root.
+        // The motion pass is an authoring scaffold, not a replacement for
+        // manually drawn anticipation/contact/recovery art.
+        private static int ExpandedCount(int original, int action)
+        {
+            return original > 1 && action >= 1 && action <= 3
+                ? original * 2 - (action == 1 ? 0 : 1) : original;
+        }
+
+        private static List<Color[]> ExpandWithInbetweens(List<Color[]> original, int action)
+        {
+            var result = new List<Color[]>(ExpandedCount(original.Count, action));
+            bool interpolate = original.Count > 1 && action >= 1 && action <= 3;
+            for (int i = 0; i < original.Count; i++)
+            {
+                result.Add(original[i]);
+                if (interpolate && (i + 1 < original.Count || action == 1))
+                    result.Add(MotionMidpoint(original[i], original[(i + 1) % original.Count]));
+            }
+            if (result.Count != ExpandedCount(original.Count, action))
+                throw new InvalidOperationException("Hero frame count mismatch");
+            return result;
+        }
+
+        private static readonly int[] Ordered4 = {
+            0, 8, 2, 10, 12, 4, 14, 6,
+            3, 11, 1, 9, 15, 7, 13, 5
+        };
+
+        private static Color[] MotionMidpoint(Color[] first, Color[] next)
+        {
+            if (first.Length != Cell * Cell || next.Length != Cell * Cell)
+                throw new InvalidOperationException("Expected full canonical 256px frames");
+            float ax = 0, ay = 0, aw = 0, bx = 0, by = 0, bw = 0;
+            // Exclude extended weapons when estimating the BODY movement.
+            // Boot contact stays at the immutable canonical foot anchor.
+            for (int y = 28; y < 118; y += 2)
+                for (int x = 86; x < 172; x += 2)
+                {
+                    int i = y * Cell + x;
+                    float a = first[i].a, b = next[i].a;
+                    ax += a * x; ay += a * y; aw += a;
+                    bx += b * x; by += b * y; bw += b;
+                }
+            int dx = aw > 1 && bw > 1
+                ? Mathf.Clamp(Mathf.RoundToInt(((bx / bw) - (ax / aw)) * .5f), -6, 6) : 0;
+            int dy = aw > 1 && bw > 1
+                ? Mathf.Clamp(Mathf.RoundToInt(((by / bw) - (ay / aw)) * .5f), -5, 5) : 0;
+            var output = new Color[Cell * Cell];
+            for (int y = 0; y < Cell; y++)
+                for (int x = 0; x < Cell; x++)
+                {
+                    float anchorWeight = Mathf.Clamp01((y - 18f) / 64f);
+                    int ox = Mathf.RoundToInt(dx * anchorWeight);
+                    int oy = Mathf.RoundToInt(dy * anchorWeight);
+                    Color a = Pixel(first, x - ox, y - oy);
+                    Color b = Pixel(next, x + ox, y + oy);
+                    int i = y * Cell + x;
+                    if (a.a > .5f && b.a > .5f)
+                    {
+                        // Never superimpose faces. Same blonde identity in
+                        // both poses; the canonical hair/face remains crisp.
+                        bool head = x >= 91 && x < 170 && y >= 57 && y < 118;
+                        output[i] = head ? a : Color.Lerp(a, b, .5f);
+                    }
+                    else
+                    {
+                        // Ordered alpha quantization keeps point-filtered
+                        // silhouettes opaque rather than ghostly double limbs.
+                        bool second = Ordered4[(y & 3) * 4 + (x & 3)] < 8;
+                        output[i] = second ? b : a;
+                    }
+                }
+            return output;
+        }
+
+        private static Color Pixel(Color[] pixels, int x, int y)
+        {
+            return x >= 0 && x < Cell && y >= 0 && y < Cell
+                ? pixels[y * Cell + x] : Color.clear;
         }
 
         private static string Key(string profession, int action, int facing)

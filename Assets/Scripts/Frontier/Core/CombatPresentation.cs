@@ -292,6 +292,23 @@ namespace Starfall
             if (count == 2) return 1;
             return action.elapsed - action.contact < .12f ? 2 : 3;
         }
+        // Read-only pose interpolation: contact and damage are still solely
+        // determined by ActorAction. No change to SaveData or combat clock.
+        public float HeroAnimationPlaybackPosition(int facing)
+        {
+            int state = HeroAnimationState;
+            int count = HeroAnimationFrameCount(facing);
+            if (state == 1) return WalkFrame % 4;
+            if ((state != 2 && state != 3) || playerAction == null)
+                return HeroAnimationFrame(facing);
+            ActorAction action = playerAction;
+            float windup = Clamp(action.elapsed / Math.Max(.001f, action.contact), 0f, 1f);
+            if (!action.released)
+                return count == 2 ? windup * .85f : windup;
+            if (count == 2) return 1f;
+            return 2f + Clamp((action.elapsed - action.contact) / .18f, 0f, 1f);
+        }
+
         // Exposes the exact contact boundary to native capture/tests without duplicating rules.
         public int PlayerPose
         {
