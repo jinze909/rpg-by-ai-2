@@ -41,6 +41,44 @@ namespace Starfall.Tests
             }
         }
 
+        public static void HeroWindupActuallySamplesAnticipationBeforeContact(Campaign data)
+        {
+            // The production 7-cell Attack/Cast strips are arranged:
+            // idle, intermediate, windup, anticipation, RELEASE, recovery, idle.
+            // Contact must remain hidden until GameCore emits real damage.
+            for (int profession = 0; profession < 3; profession++)
+                foreach (bool skill in new[] { false, true })
+                {
+                    var g = Quiet(data, profession);
+                    g.enemies.Clear();
+                    if (skill) g.Skill(new Point(1, 0));
+                    else g.Attack(new Point(1, 0));
+                    ActorAction a = g.playerAction;
+                    Check(a != null && !a.released, "Real action must begin in windup");
+                    a.elapsed = a.contact * .88f;
+                    for (int facing = 0; facing < 3; facing++)
+                    {
+                        float position = g.HeroAnimationPlaybackPosition(facing);
+                        int nativeIndex = (int)Math.Floor(position * 2f + .20f);
+                        Check(g.HeroAnimationState == (skill ? 3 : 2) &&
+                            g.HeroAnimationFrame(facing) < 2 &&
+                            position > 1.4f && position < 2f &&
+                            nativeIndex == 3,
+                            "All three facings must show anticipation cell 3, "
+                            + "never contact cell 4, before release");
+                    }
+                    g.Tick(a.contact - a.elapsed + .005f, new Point());
+                    Check(a.released && g.playerAction == a,
+                        "Authoritative GameCore must release at the actual contact time");
+                    for (int facing = 0; facing < 3; facing++)
+                    {
+                        float position = g.HeroAnimationPlaybackPosition(facing);
+                        Check(position >= 2f && g.HeroAnimationFrame(facing) >= 2,
+                            "Only the actual damage contact may display release cell 4");
+                    }
+                }
+        }
+
         public static void RealHeroAnimatorFramesFollowActionReleaseAtAllFrameRates(Campaign data)
         {
             foreach (float dt in new[] { .01f, .02f, .05f })
