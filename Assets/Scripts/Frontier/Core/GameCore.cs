@@ -113,6 +113,10 @@ namespace Starfall
             fishTime = fishCursor = 0;
             fishHits = fishMisses = 0;
             toast = ""; toastTime = 0;
+            // Runtime audio consumes a pending queue, not just the current
+            // sound name. Neither old combat cues nor dialogue clicks may
+            // play after loading a different character or starting fresh.
+            sounds.Clear(); lastSound = "";
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();

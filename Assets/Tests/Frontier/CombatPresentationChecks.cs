@@ -458,14 +458,20 @@ namespace Starfall.Tests
             g.SetAimTarget(new Point(77,16));
             g.fishTime=3.2f;g.fishCursor=.72f;g.fishHits=2;g.fishMisses=1;
             g.Notify("旧旅程的消息","Prior journey notification");
-            Check(g.toastTime>0,"Previous journey has a visible notification before slot switch");
+            g.sound="attack";g.sound="hurt";
+            Check(g.toastTime>0&&g.sounds.Count>=2,
+                "Prior journey has a pending notification and authentic queued combat audio");
             SaveData replacement=new SaveData();
             replacement.flags.Add("intro");
             g.Load(replacement);g.Start();
             Check((g.aim-new Point(1,0)).Length<.001f&&
                   g.fishTime==0&&g.fishCursor==0&&g.fishHits==0&&g.fishMisses==0&&
-                  g.toastTime==0&&g.toast=="",
-                "A loaded slot starts without inherited camera-facing, fishing or HUD state");
+                  g.toastTime==0&&g.toast==""&&g.sounds.Count==0&&g.sound=="",
+                "A loaded slot starts without inherited aiming, fishing, HUD or combat audio state");
+            g.sound="travel";
+            Check(g.sounds.Count==1,
+                "New journey audio continues to enqueue its own distinct travel cue");
+            g.sounds.Clear();
             g.Skill();
             Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
                   (g.playerAction.direction-new Point(1,0)).Length<.001f&&
