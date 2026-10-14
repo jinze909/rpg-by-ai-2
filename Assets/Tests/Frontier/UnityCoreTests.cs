@@ -179,6 +179,57 @@ namespace Starfall.Tests
             var saved = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(game.save)); var loaded = new GameCore(Data(), saved);
             Assert.AreEqual(2, loaded.save.profession); Assert.AreEqual(1, loaded.Style); Assert.AreEqual(7, loaded.save.practiceBits); Assert.AreEqual("回家的路", loaded.save.moments[0].zh);
         }
+        [Test] public void NativeHeroAnimatorCannotSwapClassFacingOrFootPivot()
+        {
+            // Unity-native EditMode contract. Imported AnimationClip sprites
+            // and runtime Sprite.Create wrappers are different objects, but
+            // must address the exact SAME accepted pixels and anchored root.
+            var method = typeof(FrontierRuntime).GetMethod(
+                "HeroSpriteMatchesPublishedFrame",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(method, "SpriteRenderer parity gate must exist");
+            Texture2D atlas = new Texture2D(512, 256, TextureFormat.RGBA32, false);
+            Texture2D other = new Texture2D(512, 256, TextureFormat.RGBA32, false);
+            Sprite published = null, equivalent = null, wrongFrame = null;
+            Sprite wrongPivot = null, wrongPpu = null, wrongClass = null;
+            try
+            {
+                Vector2 foot = CanonicalHeroSpriteFactory.FootPivot;
+                Rect first = new Rect(0, 0, 256, 256);
+                published = Sprite.Create(atlas, first, foot, 128f, 0,
+                    SpriteMeshType.FullRect);
+                equivalent = Sprite.Create(atlas, first, foot, 128f, 0,
+                    SpriteMeshType.FullRect);
+                wrongFrame = Sprite.Create(atlas, new Rect(256, 0, 256, 256),
+                    foot, 128f, 0, SpriteMeshType.FullRect);
+                wrongPivot = Sprite.Create(atlas, first, new Vector2(.5f, .5f),
+                    128f, 0, SpriteMeshType.FullRect);
+                wrongPpu = Sprite.Create(atlas, first, foot, 100f, 0,
+                    SpriteMeshType.FullRect);
+                wrongClass = Sprite.Create(other, first, foot, 128f, 0,
+                    SpriteMeshType.FullRect);
+                System.Func<Sprite, bool> matches = sprite =>
+                    (bool)method.Invoke(null, new object[] { sprite, published });
+                Assert.IsTrue(matches(equivalent), "Same texture/rect/root is equivalent");
+                Assert.IsFalse(matches(wrongFrame), "Incorrect facing/contact frame rejected");
+                Assert.IsFalse(matches(wrongPivot), "Foot pivot jump rejected");
+                Assert.IsFalse(matches(wrongPpu), "Rescaled class rejected");
+                Assert.IsFalse(matches(wrongClass), "Wrong profession atlas rejected");
+                Assert.IsFalse(matches(null), "No GPU Sprite cannot count as success");
+            }
+            finally
+            {
+                if (published != null) Object.DestroyImmediate(published);
+                if (equivalent != null) Object.DestroyImmediate(equivalent);
+                if (wrongFrame != null) Object.DestroyImmediate(wrongFrame);
+                if (wrongPivot != null) Object.DestroyImmediate(wrongPivot);
+                if (wrongPpu != null) Object.DestroyImmediate(wrongPpu);
+                if (wrongClass != null) Object.DestroyImmediate(wrongClass);
+                Object.DestroyImmediate(atlas);
+                Object.DestroyImmediate(other);
+            }
+        }
         private Campaign Data() { return JsonUtility.FromJson<Campaign>(Resources.Load<TextAsset>("Frontier/Campaign").text); }
         [Test] public void ClassesAndPausedMenus() { CoreChecks.ClassesAndPause(Data()); }
         [Test] public void CraftingAndCommissionTransactions() { CoreChecks.Transactions(Data()); }
