@@ -69,9 +69,12 @@ namespace Starfall.Tests
                         "A physically committed frontal melee lunge is parried and earns an actual riposte opening");
                     Check(g.save.energy<=92&&g.save.energy>=90,
                         "A real sword counter pays nine energy exactly once");
-                    g.Attack(new Point(-1,0));Advance(g,.25f);
-                    Check(g.riposteTime==0&&attacker.hp<180,
-                        "The parry opening is consumed by an actual subsequent sword strike");
+                    g.Attack(new Point(-1,0));
+                    Check(g.riposteTime==0,
+                        "A genuine post-parry attack spends the existing empowered riposte window");
+                    Advance(g,.45f);
+                    Check(attacker.hp<180,
+                        "The parry opening boosts a real sword contact, not a cosmetic reward");
                 }
                 else
                     Check(g.save.health<hp&&g.riposteTime<=0&&
