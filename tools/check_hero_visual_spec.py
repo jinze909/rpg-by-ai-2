@@ -59,6 +59,23 @@ def check():
             assert 88 < bounds[2] < 221 and 226 <= bounds[3] <= 252, (klass,facing,bounds)
             canonical = img.crop((100, 140, 156, 196))
             assert canonical.getchannel("A").getbbox(), (klass, facing)
+            # Every opaque original golden-hair/face pixel must survive
+            # identically in all three class outfits. Transparent edge
+            # pixels may reveal armor beneath; don't falsely demand an
+            # identical entire 56px square across different costumes.
+            baseline = baselines[facing]
+            pix = canonical.tobytes()
+            pixels_checked = 0
+            for pixel in range(56 * 56):
+                offset = pixel * 4
+                if baseline[offset + 3] != 255:
+                    continue
+                assert pix[offset:offset + 4] == baseline[offset:offset + 4], (
+                    "Canonical opaque hair/face changed", klass, facing, pixel)
+                pixels_checked += 1
+            assert pixels_checked >= 100, (
+                "Canonical protagonist identity lacks enough anchored pixels",
+                klass, facing, pixels_checked)
             socket = spec["weapon_grip_hints_top_origin_px"][klass][facing]
             assert all(isinstance(x, int) and 60 <= x < 220 for x in socket)
             # Fail if a declared socket is nowhere near this approved outfit.
@@ -67,7 +84,8 @@ def check():
                 min(256, socket[1] + 39)))
             assert nearby.getbbox(), "Weapon-hint detached from actual body: " + klass + facing
             review.append({"class":klass,"facing":facing,"opaque_bounds":list(bounds),
-                           "reference_socket_px":socket,"foot_px":[128,240]})
+                           "reference_socket_px":socket,"foot_px":[128,240],
+                           "opaque_head_pixels_locked":pixels_checked})
     assert len(review) == 9
     DEST.mkdir(parents=True, exist_ok=True)
     report = {"status":"source_pixel_geometry_verified_not_artist_acceptance",
