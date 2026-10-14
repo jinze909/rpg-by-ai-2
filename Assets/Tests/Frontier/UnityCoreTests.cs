@@ -15,6 +15,7 @@ namespace Starfall.Tests
         [Test] public void InvalidWeaponDamageCannotHealEnemies() { CoreChecks.InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Data()); }
         [Test] public void SwappedWeaponsCannotCarrySwordComboProgress() { CoreChecks.RealWeaponChangesRestartWeaponComboButReselectDoesNot(Data()); }
         [Test] public void PracticeExitNeverLeaksRedCirclesOrCounterBuffs() { CoreChecks.PracticeExitRetiresDummyHazardsAndEarnedCounter(Data()); }
+        [Test] public void RootsongRequiresActualTimedForestTones() { CoreChecks.ThornwoodRootsongUsesPhysicalTimingAndPersistentHarmony(Data()); }
         [Test] public void StyleChangesRestartAttackChains() { CoreChecks.StyleChangesRestartCombosButRepeatedStylesPreserveAttacks(Data()); }
         [Test] public void LateAttackBufferHonorsStyleAndWeaponChanges() { CoreChecks.LateBasicAttacksBufferOnceAndRespectCombatProfiles(Data()); }
         [Test] public void RangedAttackChainsPayOffWithRealProjectileEffects() { CoreChecks.RangedThirdHitsProduceDistinctRealProjectiles(Data()); }

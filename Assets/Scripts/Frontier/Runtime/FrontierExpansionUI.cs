@@ -192,6 +192,28 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="rootsonestone")
+            {
+                int stage=0;
+                for(int i=1;i<=3;i++)if(o.id=="rootsong_"+i)stage=i;
+                bool done=stage>0&&Game.RootsongProgress>=stage;
+                bool next=stage>0&&Game.Has("scout_saved")&&Game.RootsongProgress+1==stage;
+                bool green=next&&Game.RootsongOpen(stage);
+                Color tint=done?mint:green?PixelArt.C("#86eba7"):next?gold:muted;
+                Box(p.x-8,p.y-39,16,36,PixelArt.C("#395a45"));
+                Box(p.x-14,p.y-46,28,10,PixelArt.C("#718c70"));
+                Ring(new Point(o.x,o.y),green?.91f:.66f,tint,25);
+                Text(p.x-77,p.y-79,154,21,
+                    done?Game.L("古根 · 已归档","ROOT RESTORED"):
+                    green?Game.L("根鸣泛绿 · 现在调谐","GREEN · TUNE NOW"):
+                    next?Game.L("等待绿光","WAIT FOR GREEN"):
+                         Game.L("沉寂的古根","SILENT ROOT"),11,tint,TextAnchor.MiddleCenter);
+                if(next&&!green)
+                    Text(p.x-39,p.y-99,78,18,
+                        Game.RootsongWait(stage).ToString("0.0")+"s",
+                        12,gold,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="hearingdais")
             {
                 Color tint=Game.HearingComplete?mint:

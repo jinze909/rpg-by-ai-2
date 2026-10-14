@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,32 @@ namespace Starfall
 
 
 
+
+            if(id=="rootsong")
+            {
+                q.title=L("荆棘密林 · 古根三声","Thornwood · Three Root Voices");
+                q.category=L("林地实地解谜","EXPLORATION · TIMED ROOT CIPHER");
+                q.description=L("救出侦察员，深入密林寻找三根古树。根据庇护、摆渡与归乡三段历史，依次奏出低、中、高音调；必须等待各自绿光窗口。",
+                    "Rescue the scout and find three ancient trunks. Follow the history of shelter, ferry and homecoming with Low, Middle and High tones in the green windows.");
+                q.room=1;q.target=new Point(62.5f,34.5f);
+                q.locked=!Has("scout_saved");q.complete=RootsongComplete;
+                string[] namesZh={"庇护之根 · 低音","摆渡之根 · 中音","归乡之根 · 高音"};
+                string[] namesEn={"Shelter Root · Low","Ferryman Root · Middle","Homeward Root · High"};
+                for(int i=1;i<=3;i++)
+                {
+                    q.steps.Add(new QuestStep(L(namesZh[i-1],namesEn[i-1]),Has("rootsong_"+i)));
+                    if(i==RootsongProgress+1)
+                        foreach(WorldObject stone in data.maps[1].objects)
+                            if(stone.id=="rootsong_"+i){q.target=new Point(stone.x,stone.y);break;}
+                }
+                q.next=q.locked?L("先救回密林侦察员","First rescue the Thornwood scout"):
+                    q.complete?L("古根三声已经归一","All three root voices are restored"):
+                    L("前往下一根古树，观察绿光并选择正确音调",
+                      "Reach the next root, wait for green and play its correct tone");
+                q.reward=L("每段15经验；终点45硬币、2碎片、75经验，安全树旁额外耐力恢复",
+                    "15 XP per earlier note; final 45 coins, 2 shards, 75 XP and safe energy refuge");
+                return q;
+            }
 
             if(id=="civic_conduit")
             {
