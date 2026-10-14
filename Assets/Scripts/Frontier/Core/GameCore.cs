@@ -1195,6 +1195,40 @@ namespace Starfall
                 "Inventory stack is full. Use some items before buying more.");
             return false;
         }
+        // Inn and upgraded field camps must advance the same transient
+        // simulation clocks during a time skip. A single long rest is not
+        // twenty/forty-five free frames of ongoing attacks or spell casts.
+        private void ResolveRestTimeSkip(float elapsed)
+        {
+            save.totalTime += elapsed;
+            CancelAction();
+            attackCooldown = dashCooldown = skillCooldown = dashTime = 0;
+            companionCooldown = companionAttack = 0;
+            companionAction = null;
+            ClearFrost();
+            for (int i = projectiles.Count - 1; i >= 0; i--)
+            {
+                Projectile p = projectiles[i];
+                p.life -= elapsed;
+                if (p.life <= 0) projectiles.RemoveAt(i);
+            }
+            for (int i = effects.Count - 1; i >= 0; i--)
+            {
+                Effect effect = effects[i];
+                effect.life -= elapsed;
+                if (effect.life <= 0) effects.RemoveAt(i);
+            }
+            for (int i = hazards.Count - 1; i >= 0; i--)
+            {
+                Hazard h = hazards[i];
+                h.timer -= elapsed;
+                if (h.timer <= 0) hazards.RemoveAt(i);
+            }
+            combo = 0; comboTimer = riposteTime = 0;
+            guardTime = playerHitTime = hitStop = 0;
+            invulnerable = dodgeEscapeTime = playerFlash = impactShake = 0;
+            perfectDodgeArmed = false; dashOrigin = new Point();
+        }
         private bool FieldWorkPreventsRest
         {
             get { return FarCourierActive || CivicResponseActive || stormTuning ||
@@ -1221,46 +1255,8 @@ namespace Starfall
                         "Finish active fieldwork and clear nearby threats before resting.");
                     return;
                 }
-                save.health = save.maxHealth; save.energy = 100; save.totalTime += 45;
-                // A real 45-second rest outlasts every ordinary combat
-                // cooldown. Do not strand a recovered hero with a frozen
-                // skill, companion, dash or hit-reaction timer.
-                CancelAction();
-                attackCooldown = dashCooldown = skillCooldown = dashTime = 0;
-                companionCooldown = companionAttack = 0;
-                companionAction = null;
-                ClearFrost();
-                // Pausing the simulation for 45 world seconds would otherwise
-                // leave a 3-second arrow or attack flash alive after waking.
-                // Keep genuinely persistent (>45s) scripted effects intact.
-                // A real 45-second time skip also ages the few rare
-                // scripted entities that outlive a normal short-term effect.
-                // Do not simulate forty-five seconds of impacts; expire
-                // short warnings and preserve only the correct remainder.
-                for (int i = projectiles.Count - 1; i >= 0; i--)
-                {
-                    Projectile p = projectiles[i];
-                    p.life -= 45f;
-                    if (p.life <= 0) projectiles.RemoveAt(i);
-                }
-                for (int i = effects.Count - 1; i >= 0; i--)
-                {
-                    Effect e = effects[i];
-                    e.life -= 45f;
-                    if (e.life <= 0) effects.RemoveAt(i);
-                }
-                for (int i = hazards.Count - 1; i >= 0; i--)
-                {
-                    Hazard h = hazards[i];
-                    h.timer -= 45f;
-                    if (h.timer <= 0) hazards.RemoveAt(i);
-                }
-                combo = 0; comboTimer = riposteTime = 0;
-                guardTime = playerHitTime = hitStop = 0;
-                // An expired dodge invulnerability/escape window cannot be
-                // carried through 45 seconds of rest and exploited on waking.
-                invulnerable = dodgeEscapeTime = playerFlash = impactShake = 0;
-                perfectDodgeArmed = false; dashOrigin = new Point();
+                save.health = save.maxHealth; save.energy = 100;
+                ResolveRestTimeSkip(45f);
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
             }
             if (action == "scout" && save.kills[1] >= 4) { Flag("scout_saved"); save.coins += 20; Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }

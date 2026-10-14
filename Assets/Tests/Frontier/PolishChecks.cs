@@ -194,6 +194,56 @@ namespace Starfall.Tests
                 "Zero surviving mission attackers shows zero without a stale display cache");
         }
 
+        public static void FieldCampRestAdvancesCombatTimeAndCannotSkipLiveCivilianWork(Campaign data)
+        {
+            var g=Unlocked(data);g.save.projects[1]=2;g.Enter(5);g.enemies.Clear();
+            g.save.flags.Add("companion_0");g.SelectCompanion(0);
+            g.save.health=23;g.save.energy=100;g.Skill();g.CommandCompanion();
+            Check(g.skillCooldown>0&&g.companionCooldown>0,
+                "Real camp setup begins two independent skill cooldowns");
+            var shortShot=new Projectile{position=g.Position,friendly=true,
+                velocity=new Point(1,0),damage=0,life=4};
+            var longShot=new Projectile{position=g.Position,friendly=true,
+                velocity=new Point(1,0),damage=0,life=48};
+            var hazard=new Hazard{position=g.Position,radius=1,timer=.5f,damage=0,kind="rift"};
+            g.projectiles.Add(shortShot);g.projectiles.Add(longShot);g.hazards.Add(hazard);
+            float before=g.save.totalTime;
+            Action(g,"campfire","fieldrest");
+            Check(g.save.totalTime==before+20&&g.save.health==g.save.maxHealth&&
+                  g.save.energy==100&&g.skillCooldown==0&&g.companionCooldown==0&&
+                  g.playerAction==null&&g.companionAction==null,
+                "Actual 20-second field rest ends active skills and their elapsed cooldowns");
+            Check(!g.projectiles.Contains(shortShot)&&g.projectiles.Contains(longShot)&&
+                  Math.Abs(longShot.life-28)<.001f&&!g.hazards.Contains(hazard),
+                "Field camp correctly expires a 4-second shot and red circle while ageing a persistent missile by 20 seconds");
+            g.save.tea=999;
+            string ration="camptea_"+g.Day;
+            g.save.flags.Remove(ration);
+            Action(g,"campfire","fieldrest");
+            Check(g.save.tea==999&&!g.Has("camptea_"+g.Day),
+                "A full saved tea stack does not consume its once-per-day ration");
+            g.DrinkTea();
+            Action(g,"campfire","fieldrest");
+            Check(g.save.tea==999&&g.Has("camptea_"+g.Day),
+                "An unclaimed daily camp ration can be collected after making room");
+
+            var mission=Fresh(data);mission.save.stage=4;
+            mission.save.flags.Add("last_directive_complete");
+            mission.save.flags.Add("last_directive_open");
+            mission.Enter(4);mission.enemies.Clear();
+            var terminal=Object(mission,"civicconduitmaster");
+            mission.save.x=terminal.x;mission.save.y=terminal.y;
+            Action(mission,"civicconduitmaster","civic_conduit_start");
+            Check(mission.CivicConduitActive,"A real paid conduit must start before testing time-skip exploits");
+            mission.save.projects[1]=2;
+            float missionTime=mission.save.totalTime,health=mission.save.health;
+            mission.conversation=new Conversation("营地","Camp","休整","Rest",
+                new Choice("休整","Rest","fieldrest"));mission.mode="dialog";
+            mission.Choose(0);
+            Check(mission.CivicConduitActive&&mission.save.totalTime==missionTime&&
+                  mission.save.health==health,
+                "Even a stale field-camp rest command cannot skip the live conductor's timer or silently abort the paid mission");
+        }
         public static void InnRestActuallyClearsExpiredCombatCooldowns(Campaign data)
         {
             var g=Fresh(data);

@@ -996,9 +996,18 @@ namespace Starfall
             if (action == "fieldrest")
             {
                 if (save.projects[1] == 0) { Notify("先在余烬镇建设远行驿站。按 B 查看工程。", "Build a waystation in Emberfall first. B opens projects."); return true; }
-                if (!SafeTravel) { Notify("营地附近有敌人，先清理周围。", "Clear the enemies around this camp first."); return true; }
-                save.health = save.maxHealth; save.energy = 100; save.heat = save.cold = 0; save.totalTime += 20;
-                if (save.projects[1] == 2 && !Has("camptea_" + Day)) { Flag("camptea_" + Day); save.tea++; }
+                if (FieldWorkPreventsRest || !SafeTravel)
+                {
+                    Notify("现场任务或敌方攻击仍在进行。先完成任务并清除危险，再休整。",
+                        "Finish active fieldwork and nearby combat before resting at camp.");
+                    return true;
+                }
+                save.health = save.maxHealth; save.energy = 100; save.heat = save.cold = 0;
+                ResolveRestTimeSkip(20f);
+                // Never award stock that the v2 save cannot preserve or mark
+                // the daily ration as claimed before it can be carried.
+                if (save.projects[1] == 2 && save.tea < 999 && !Has("camptea_" + Day))
+                { Flag("camptea_" + Day); save.tea++; }
                 revision++; Notify("驿站补给已送达，整装再出发。", "Waystation supplies delivered. Ready to set out."); return true;
             }
             if (action == "race")
