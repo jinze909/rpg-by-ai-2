@@ -189,6 +189,11 @@ namespace Starfall.Tests
             g.projectiles.Add(persistentShot);
             var flash=new Effect("release",g.Position,.25f);
             g.effects.Add(flash);
+            var warning=new Hazard{position=g.Position,radius=1.5f,timer=.3f,damage=100,kind="rift"};
+            var lasting=new Hazard{position=g.Position+new Point(20,0),radius=1,timer=90,damage=0,kind="rift"};
+            g.hazards.Add(warning);g.hazards.Add(lasting);
+            g.perfectDodgeArmed=true;
+            g.invulnerable=.3f;g.playerFlash=.2f;g.impactShake=.1f;
             g.Close();
             float before=g.save.totalTime;
             Action(g,"rest","rest");
@@ -199,6 +204,10 @@ namespace Starfall.Tests
             Check(!g.projectiles.Contains(ordinaryShot) &&
                   g.projectiles.Contains(persistentShot) && !g.effects.Contains(flash),
                 "Time-skipping a 45-second rest expires ordinary flying shots and short-lived effects, not persistent scripted entities");
+            Check(!g.hazards.Contains(warning)&&g.hazards.Contains(lasting)&&
+                  g.invulnerable==0&&!g.perfectDodgeArmed&&
+                  g.playerFlash==0&&g.impactShake==0,
+                "Real rest expires near-term red warnings, invulnerability and dodge feedback, preserving only long-lived hazards");
             g.save.energy=100;
             g.Skill(new Point(1,0));
             Check(g.skillCooldown>0,

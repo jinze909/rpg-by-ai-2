@@ -1201,8 +1201,13 @@ namespace Starfall
                 // Keep genuinely persistent (>45s) scripted effects intact.
                 projectiles.RemoveAll(p => p.life <= 45f);
                 effects.RemoveAll(e => e.life <= 45f);
+                hazards.RemoveAll(h => h.timer <= 45f);
                 combo = 0; comboTimer = riposteTime = 0;
                 guardTime = playerHitTime = hitStop = 0;
+                // An expired dodge invulnerability/escape window cannot be
+                // carried through 45 seconds of rest and exploited on waking.
+                invulnerable = dodgeEscapeTime = playerFlash = impactShake = 0;
+                perfectDodgeArmed = false; dashOrigin = new Point();
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
             }
             if (action == "scout" && save.kills[1] >= 4) { Flag("scout_saved"); save.coins += 20; Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }
