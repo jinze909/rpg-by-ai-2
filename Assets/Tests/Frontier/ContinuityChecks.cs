@@ -58,7 +58,9 @@ namespace Starfall.Tests
                 Check((g.Position-recovery).Length>.001f&&g.PlayerPose>=2&&g.PlayerPose<=3,"Recovery restores movement together with walking legs");
                 g.playerAction=null;g.skillCooldown=0;g.save.energy=100;g.Skill(direction);a=g.playerAction;start=g.Position;
                 while(g.playerAction!=null)g.Tick(.02f,new Point(1,0),direction*-1);
-                if(weapon>0) Check((g.Position-start).Length<.001f,"Powerful ranged Q intentionally stays planted through recovery");
+                if(weapon>0)
+                    Check((g.Position-start).Length>.03f,
+                        "Spell and bow Q anchor the real contact but then allow reduced-speed moving recovery");
                 g.Tick(.02f,new Point(1,0));Check(g.ActuallyMoving&&g.PlayerPose>=2&&g.PlayerPose<=3,"A completed Q returns to locomotion without a frozen full-body pose");
             }
             var blocked=Quiet(data);Point approach=WallStand(blocked);blocked.save.x=approach.x;blocked.save.y=approach.y;blocked.Attack(new Point(-1,0));Advance(blocked,.6f);

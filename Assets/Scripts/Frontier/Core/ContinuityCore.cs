@@ -36,8 +36,14 @@ namespace Starfall
         {
             get
             {
-                if (Dying || playerHitTime > 0 || playerAction != null && playerAction.kind == "skill" && playerAction.weapon != 0) return MobilityRule.Stationary;
+                if (Dying || playerHitTime > 0) return MobilityRule.Stationary;
                 if (playerAction == null) return MobilityRule.Full;
+                // Spell/bow windups and actual contact still plant the feet.
+                // Only after release may the HERO move and finish the cast
+                // with authored walk legs, without shifting the hitbox.
+                if(playerAction.kind=="skill"&&playerAction.weapon!=0)
+                    return PlayerPhase==ActionPhase.Recovery ?
+                        MobilityRule.Reduced : MobilityRule.Stationary;
                 if (playerAction.weapon == 0) return PlayerPhase == ActionPhase.Recovery ? MobilityRule.Reduced : MobilityRule.AttackMovement;
                 return PlayerPhase == ActionPhase.Recovery ? MobilityRule.Reduced : MobilityRule.Stationary;
             }

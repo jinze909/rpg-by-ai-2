@@ -258,7 +258,19 @@ namespace Starfall
                 if (playerHitTime > 0) return 10;
                 if (playerAction != null)
                 {
-                    if (RecoveryWalking) return 2 + WalkFrame % 2;
+                    if (RecoveryWalking)
+                    {
+                        // Hold the already-released authored upper-body action
+                        // for the short moving recovery, with walk legs
+                        // supplied by the unified rooted render texture.
+                        // If Q uses another equipped weapon, restore its own
+                        // walk silhouette instead of showing the wrong outfit.
+                        if(playerAction.kind=="skill"&&
+                           playerAction.equippedWeapon==save.weapon&&
+                           playerAction.elapsed<playerAction.contact+.34f)
+                            return 7;
+                        return 2 + WalkFrame % 2;
+                    }
                     bool ready = PlayerPhase == ActionPhase.Windup;
                     bool heavy = playerAction.weapon == 0 && (playerAction.combo == 2 || playerAction.style == 1);
                     return playerAction.kind == "skill" || heavy ? (ready ? 6 : 7) : (ready ? 4 : 5);

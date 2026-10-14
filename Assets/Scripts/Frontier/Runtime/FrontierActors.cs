@@ -95,6 +95,7 @@ namespace Starfall
                 // atlas cell before drawing; never offset torso/head/weapon
                 // independently, which caused a detached waist.
                 Texture2D unified = !Game.Dying && Game.ActuallyMoving &&
+                    Game.PlayerMobility==MobilityRule.Reduced &&
                     pose>=4 && pose<=7 && walkSheets[look]!=null ?
                     UnifiedActionGait(sheet,4,3,frame,walkSheets[look],
                         facingRow*4+Game.WalkFrame) : null;
