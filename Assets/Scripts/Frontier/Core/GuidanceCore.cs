@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "mine_convoy" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -85,6 +85,38 @@ namespace Starfall
 
 
 
+
+            if(id=="mine_convoy")
+            {
+                q.title=L("矿工的最后一班车","The Miners' Last Shift");
+                q.category=L("护送、战斗与资源选择","ESCORT, COMBAT & RESOURCE CHOICE");
+                q.description=L(
+                    "矿场监工倒台后，从西北矿车岗亲自护送最后一班矿工。始终跟在矿车附近；在转轨台击退两名袭击者，选择消耗零件修复或保留材料。避开沿途蒸汽预警，将矿车送到南侧矿棚。失败可免费重试。",
+                    "After defeating the overseer, physically escort the workers' cart from western dispatch. Stay nearby, defeat two real raiders at the switchyard, choose spare-part reinforcement or conserve resources, dodge steam and deliver to southern shelter. Retries are free.");
+                q.room=3;q.locked=!Has("boss_3")||!CanEnter(3);
+                q.complete=MineConvoyComplete;
+                q.steps.Add(new QuestStep(L("在西北发车岗启动护送","Start the western cart dispatch"),
+                    Has("mineconvoy_started")));
+                q.steps.Add(new QuestStep(L("击退转轨台袭击者并重新放行",
+                    "Defeat switchyard raiders and release the cart"),
+                    q.complete||MineConvoyStage>=3));
+                q.steps.Add(new QuestStep(L("将最后一班矿工送到南侧矿棚",
+                    "Deliver the workers at southern shelter"),q.complete));
+                int target=MineConvoyStage==2?2:MineConvoyStage>=3?3:1;
+                foreach(WorldObject post in data.maps[3].objects)
+                    if(post.id=="mineconvoy_"+target)
+                    {q.target=new Point(post.x,post.y);break;}
+                q.next=q.complete?L("撤离完成，南侧矿棚提供安全休息","Evacuation complete; the shelter now offers safe rest"):
+                    q.locked?L("先完成矿场的原始守护者战斗","Defeat Ironreach's original guardian"):
+                    MineConvoyActive?L("剩余"+MineConvoyTime.ToString("0")+"秒 · 车厢"+
+                        MineConvoyIntegrity.ToString("0")+"/80 · "+MineConvoyStage+"/4",
+                        MineConvoyTime.ToString("0")+"s · Hull "+MineConvoyIntegrity.ToString("0")+
+                        "/80 · "+MineConvoyStage+"/4"):
+                    L("前往西北矿车岗启动撤离","Begin evacuation at western dispatch");
+                q.reward=L("首次60硬币、2碎片、80经验，矿棚安全生命恢复",
+                    "First clear: 60 coins, 2 shards, 80 XP and safe depot healing");
+                return q;
+            }
 
             if(id=="flood_archive")
             {
@@ -1634,6 +1666,8 @@ namespace Starfall
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.
+            if(MineConvoyActive)return MineConvoyStage==2||
+                MineConvoyStage==4?GetQuest("mine_convoy").target:MineCartPosition;
             if(FarCourierActive) return GetQuest("far_couriers").target;
             if(CivicResponseActive) return GetQuest("civic_services").target;
             if(CivicConduitActive) return GetQuest("civic_conduit").target;

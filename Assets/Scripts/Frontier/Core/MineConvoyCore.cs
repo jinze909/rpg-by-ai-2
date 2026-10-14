@@ -10,6 +10,7 @@ namespace Starfall
         public float MineConvoyIntegrity { get; private set; }
         public Point MineCartPosition { get; private set; }
         private float mineConvoySteam;
+        private bool mineConvoyBraced;
         public bool MineConvoyActive { get { return MineConvoyStage>0; } }
         public bool MineConvoyComplete { get { return Has("mineconvoy_complete"); } }
         public bool IsMineConvoyEnemy(Enemy e)
@@ -29,6 +30,7 @@ namespace Starfall
             effects.RemoveAll(e=>e.mineConvoyOwned);
             MineConvoyStage=0;MineConvoyTime=MineConvoyIntegrity=0;
             MineCartPosition=new Point();mineConvoySteam=0;
+            mineConvoyBraced=false;
         }
         private bool SpawnMineConvoyAmbush()
         {
@@ -218,7 +220,7 @@ namespace Starfall
                     !Has("boss_3")||FieldWorkPreventsRest||!SafeTravel||
                     (Position-new Point(start.x,start.y)).Length>1.8f)return true;
                 MineCartPosition=new Point(start.x,start.y);
-                MineConvoyStage=1;MineConvoyTime=110;MineConvoyIntegrity=80;
+                mineConvoyBraced=false;MineConvoyStage=1;MineConvoyTime=110;MineConvoyIntegrity=80;
                 mineConvoySteam=5;
                 Flag("mineconvoy_started");revision++;sound="quest";
                 Notify("矿车出发！保持在矿车3格以内，靠近转轨台击退袭击者。",
@@ -250,7 +252,7 @@ namespace Starfall
                         return true;
                     }
                     save.inventory[4]--;MineConvoyIntegrity=Math.Min(80,MineConvoyIntegrity+28);
-                    Flag("mineconvoy_braced");
+                    mineConvoyBraced=true;
                 }
                 MineConvoyStage=3;mineConvoySteam=5.2f;
                 revision++;sound="reward";
@@ -263,7 +265,9 @@ namespace Starfall
                 WorldObject end=MineCartPost(3);
                 if(MineConvoyStage!=4||end==null||MineConvoyComplete||
                     (Position-new Point(end.x,end.y)).Length>1.8f)return true;
+                bool braceEarned=mineConvoyBraced;
                 ResetMineConvoy();
+                if(braceEarned)Flag("mineconvoy_braced");
                 Flag("mineconvoy_complete");
                 save.coins+=60;save.shards+=2;AddXp(80);
                 revision++;sound="reward";

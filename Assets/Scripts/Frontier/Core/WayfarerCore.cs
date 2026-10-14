@@ -52,8 +52,14 @@ namespace Starfall
                 string responseEn = Has("wayfarer_defended_" + room) ? defendedEn[room] :
                     Has("wayfarer_supplied_" + room) ? suppliedEn[room] :
                     "Thanks to you, I can travel again.";
-                Dialog(o.name, o.en, responseZh + " 其他旅人也许还在等待救援。" + FloodArchiveWayfarerNote(false),
-                    responseEn + " Others may still be stranded." + FloodArchiveWayfarerNote(true),
+                Dialog(o.name, o.en, responseZh +
+                    (room==3&&MineConvoyComplete?
+                        " 南侧矿棚最后一班矿工已经平安归来，矿工不再需要军用货运许可。":"")+
+                    " 其他旅人也许还在等待救援。" + FloodArchiveWayfarerNote(false),
+                    responseEn +
+                    (room==3&&MineConvoyComplete?
+                        " The last-shift miners returned safely; they no longer need a military cargo permit.":"")+
+                    " Others may still be stranded." + FloodArchiveWayfarerNote(true),
                     C("旅途平安", "Safe travels", "close"));
                 return true;
             }

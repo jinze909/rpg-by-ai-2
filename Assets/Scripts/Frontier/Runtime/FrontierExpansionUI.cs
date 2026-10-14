@@ -67,6 +67,24 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.MineConvoyActive)
+            {
+                Point cart=Game.MineCartPosition,screen=ScreenPoint(cart);
+                Color color=Game.MineConvoyIntegrity<25?
+                    PixelArt.C("#ed7d67"):Game.MineConvoyIntegrity<50?gold:mint;
+                Box(screen.x-23,screen.y-28,46,25,PixelArt.C("#596878"));
+                Box(screen.x-18,screen.y-40,36,13,PixelArt.C("#ad835e"));
+                Box(screen.x-14,screen.y-47,28,8,PixelArt.C("#e2b16e"));
+                Box(screen.x-22,screen.y-4,10,6,PixelArt.C("#394353"));
+                Box(screen.x+12,screen.y-4,10,6,PixelArt.C("#394353"));
+                Ring(cart,.55f,color,25);
+                Bar(screen.x-27,screen.y+11,54,
+                    Game.MineConvoyIntegrity/80f,color,6);
+                Text(screen.x-79,screen.y-94,158,20,
+                    Game.L("矿车护送 ","CART ESCORT ")+
+                    Game.MineConvoyTime.ToString("0")+"s · "+
+                    Game.MineConvoyStage+"/4",12,gold,TextAnchor.MiddleCenter);
+            }
             if(Game.BlackoutActive && Game.BlackoutFollowing!=0)
             {
                 Point pos=Game.BlackoutFollowerPosition,screen=ScreenPoint(pos);
@@ -192,6 +210,28 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            if(kind=="mineconvoy")
+            {
+                int phase=0;
+                for(int i=1;i<=3;i++)if(o.id=="mineconvoy_"+i)phase=i;
+                bool done=Game.MineConvoyComplete,active=Game.MineConvoyActive;
+                bool next=active&&(phase==1&&Game.MineConvoyStage==1||
+                    phase==2&&Game.MineConvoyStage==2||
+                    phase==3&&Game.MineConvoyStage==4);
+                Color color=done?mint:next?gold:muted;
+                Box(p.x-18,p.y-32,36,28,PixelArt.C("#596a73"));
+                Box(p.x-13,p.y-39,26,8,PixelArt.C("#b79a79"));
+                Ring(new Point(o.x,o.y),next?.73f:.55f,color,23);
+                Text(p.x-82,p.y-77,164,20,
+                    done?Game.L("矿工安全归来","WORKERS SAFE"):
+                    next&&phase==2?Game.L("击退袭击者 · 转轨","DEFEAT RAIDERS · SWITCH"):
+                    next&&phase==3?Game.L("矿车已到站 · 登记","CART ARRIVED · REGISTER"):
+                    next?Game.L("继续护送","KEEP ESCORTING"):
+                    phase==1?Game.L("矿车发车岗","CART DISPATCH"):
+                    Game.L("矿工安全矿棚","MINERS' SHELTER"),
+                    11,color,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(kind=="floodarchive")
             {
                 int stage=0;
