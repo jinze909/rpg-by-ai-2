@@ -21,6 +21,79 @@ namespace Starfall.Tests
         }
         [UnityTearDown] public IEnumerator TearDown()
         { if (app != null) app.EndVisualReview(); if (host != null) Object.Destroy(host); yield return null; }
+        [UnityTest] public IEnumerator LiveSpriteRendererCapturesCanonicalHeroPixelsInGameView()
+        {
+            // This tests the actual FrontierRuntime renderer switch and
+            // GPU RenderTexture, not just isolated AnimationClips. The
+            // original OnGUI lane is restored in finally even on failure.
+            var flags = System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic;
+            var mode = typeof(FrontierRuntime).GetField("useSpriteRendererHero", flags);
+            var textureField = typeof(FrontierRuntime).GetField("heroCaptureTexture", flags);
+            var rendererField = typeof(FrontierRuntime).GetField("heroCaptureRenderer", flags);
+            var brokenField = typeof(FrontierRuntime).GetField("heroCaptureBroken", flags);
+            Assert.IsNotNull(mode);
+            Assert.IsNotNull(textureField);
+            Assert.IsNotNull(rendererField);
+            Assert.IsNotNull(brokenField);
+            bool previous = (bool)mode.GetValue(app);
+            string folder = Path.GetFullPath(Path.Combine(Application.dataPath,
+                "../docs/native-captures"));
+            Directory.CreateDirectory(folder);
+            try
+            {
+                string[] classes = { "Vanguard", "Ranger", "Arcanist" };
+                for (int vocation = 0; vocation < 3; vocation++)
+                {
+                    app.BeginVisualReview(vocation, 1, false);
+                    mode.SetValue(app, true);
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                    Assert.IsFalse((bool)brokenField.GetValue(app),
+                        classes[vocation] + " native capture must not fail to OnGUI");
+                    var texture = textureField.GetValue(app) as RenderTexture;
+                    var renderer = rendererField.GetValue(app) as SpriteRenderer;
+                    Assert.IsNotNull(texture, "No live GPU output for " + classes[vocation]);
+                    Assert.IsTrue(texture.IsCreated(), "GPU texture lost");
+                    Assert.IsNotNull(renderer);
+                    Assert.IsNotNull(renderer.sprite, "No live character frame");
+                    Texture2D published = Resources.Load<Texture2D>(
+                        "Frontier/HeroAnimator/Canonical/Hero_" +
+                        classes[vocation] + "_Idle_E");
+                    Assert.IsNotNull(published);
+                    Assert.AreSame(published, renderer.sprite.texture,
+                        "Live native character cannot show another profession");
+                    var readback = new Texture2D(256, 256,
+                        TextureFormat.RGBA32, false);
+                    var active = RenderTexture.active;
+                    try
+                    {
+                        RenderTexture.active = texture;
+                        readback.ReadPixels(new Rect(0, 0, 256, 256), 0, 0);
+                        readback.Apply();
+                        int visible = 0;
+                        foreach (Color32 pixel in readback.GetPixels32())
+                            if (pixel.a > 0) visible++;
+                        Assert.Greater(visible, 100,
+                            "SpriteRenderer camera produced an invisible hero");
+                    }
+                    finally
+                    {
+                        RenderTexture.active = active;
+                        Object.Destroy(readback);
+                    }
+                    ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                        "native-canonical-" + classes[vocation] + ".png"));
+                    yield return null;
+                }
+            }
+            finally
+            {
+                mode.SetValue(app, previous);
+                app.EndVisualReview();
+            }
+        }
+
         [UnityTest] public IEnumerator CanonicalHeroAnimatorMatchesEveryPublishedSprite()
         {
             // Native PlayMode acceptance: sample the real Animator graph,
