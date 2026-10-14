@@ -248,6 +248,24 @@ namespace Starfall
             Notify("镇民把你带回了旅店。失去 10 硬币，物品和任务进度保留。", "The town brought you home. Lost 10 coins; items and quests are safe.");
             if (abyss) Notify("远征中止：本层未结算收益丢失，先前结算与永久进度保留。", "Expedition ended: this floor's unbanked loot is lost; banked rewards and permanent progress remain.");
         }
+        // Single authoritative action state for both the old rooted OnGUI
+        // renderer and the new live SpriteRenderer/Animator bridge.
+        // Seven actions: 0 idle, 1 run, 2 attack, 3 skill/cast,
+        // 4 dodge, 5 hit, 6 death. No new save fields or damage clock.
+        public int HeroAnimationState
+        {
+            get
+            {
+                if (Dying) return 6;
+                if (dashTime > 0) return 4;
+                if (playerHitTime > 0) return 5;
+                int pose = PlayerPose;
+                if (playerAction != null && pose >= 4 && pose <= 7)
+                    return playerAction.kind == "skill" ? 3 : 2;
+                if (pose == 2 || pose == 3) return 1;
+                return 0;
+            }
+        }
         // Exposes the exact contact boundary to native capture/tests without duplicating rules.
         public int PlayerPose
         {

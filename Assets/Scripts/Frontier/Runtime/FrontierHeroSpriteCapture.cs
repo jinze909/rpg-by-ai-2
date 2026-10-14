@@ -24,19 +24,6 @@ namespace Starfall
         private int heroCaptureFrame = -1;
         private bool heroCaptureBroken;
 
-        private int HeroAnimationAction(int pose)
-        {
-            if (pose == 8) return 4; // dodge
-            if (pose == 10) return 5; // hit
-            if (pose == 11) return 6; // death
-            // Heavy sword attacks legitimately use pose 6/7 too; never
-            // mistake those for spellcasting purely from the pose number.
-            if (Game.playerAction != null && pose >= 4 && pose <= 7)
-                return Game.playerAction.kind == "skill" ? 3 : 2;
-            if (pose == 2 || pose == 3) return 1; // run
-            return 0; // idle, guard and completed recovery
-        }
-
         private bool DrawSpriteRendererHero(Texture2D sheet, int frame, Point foot,
             Color tint, bool flip, int facing, int pose, bool locomotion,
             bool death, Texture2D unifiedAction)
@@ -80,7 +67,7 @@ namespace Starfall
                 // a second damage event or changes SaveData.
                 if (heroCaptureAnimator != null && heroCaptureAnimator.runtimeAnimatorController != null)
                 {
-                    heroCaptureAnimator.SetInteger("Action", HeroAnimationAction(pose));
+                    heroCaptureAnimator.SetInteger("Action", Game.HeroAnimationState);
                     heroCaptureAnimator.SetInteger("Facing", facing);
                 }
                 if (heroCaptureFrame != Time.frameCount)

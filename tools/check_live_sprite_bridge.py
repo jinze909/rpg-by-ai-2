@@ -23,7 +23,7 @@ def check():
         "SpriteRenderer", "RenderTexture", "CameraClearFlags.SolidColor",
         "BakeCanonicalHeroFrame", "ActorFrameRegistration.TryHead",
         "ActorFrameRegistration.TryStableHead", "walkSheets[0]",
-        "HeroAnimationAction", 'Game.playerAction.kind == "skill"',
+        "Game.HeroAnimationState",
         "new Vector2(.5f, .0625f)", "new Rect(foot.x - 96, foot.y - 180, 192, 192)",
         "heroCaptureCamera.Render()", "heroCaptureBroken", "ReleaseHeroCapture",
         "Resources.Load<RuntimeAnimatorController>",

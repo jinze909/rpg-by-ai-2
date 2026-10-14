@@ -3,6 +3,44 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
+        {
+            for (int profession = 0; profession < 3; profession++)
+            {
+                GameCore g = Quiet(data, profession);
+                g.enemies.Clear();
+                Check(g.HeroAnimationState == 0,
+                    "Canonical blond hero must start in idle before any actual player action");
+                g.Attack(new Point(1, 0));
+                Check(g.playerAction != null && g.HeroAnimationState == 2,
+                    "All classes enter attack state from an actual accepted combat input");
+                if (profession == 0)
+                {
+                    // Sword heavy/combo attacks also use visual pose 6/7;
+                    // pose numbers must NOT be confused with mage casting.
+                    g.playerAction.combo = 2;
+                    Check(g.PlayerPose >= 6 && g.HeroAnimationState == 2,
+                        "Heavy sword contact remains an attack, not a fake spell state");
+                }
+                g.Dash(new Point(1, 0));
+                Check(g.HeroAnimationState == 4 && g.playerAction == null,
+                    "Real dodge overrides and cancels previous attack animation");
+                Advance(g, .85f);
+                Check(g.HeroAnimationState == 0,
+                    "Completed dodge recovers to idle without phantom action");
+                g.Skill(new Point(0, -1));
+                Check(g.playerAction != null && g.playerAction.kind == "skill" &&
+                      g.HeroAnimationState == 3,
+                    "All class skills use the real cast action state");
+                g.playerHitTime = .18f;
+                Check(g.HeroAnimationState == 5,
+                    "Taking damage interrupts cast with a visible hurt pose");
+                g.deathTime = .9f;
+                Check(g.HeroAnimationState == 6,
+                    "Real player death has higher animation priority than recoil");
+            }
+        }
+
         private static float OpeningStrike(Campaign data, float step, bool boss, Point facing, float recovery, out GameCore game, out Enemy target)
         {
             game = Quiet(data);
