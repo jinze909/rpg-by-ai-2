@@ -65,6 +65,24 @@ def main():
         check(all(frames[k].getchannel("A").getbbox() for k in range(12)),
               f"Blank hero combat frame in {name}")
         results[name]={"warnings":qa(name,(4,3),[4,5,6,7],(128,240),8)}
+    # Hero motion accents are distinct 4-frame, 32px authored source poses:
+    # sword follow-through, bow release, arcanist glyph and grounded footfalls.
+    # Preserve accepted body atlases and verify production resource metadata.
+    name="HeroMotionAccents"
+    path,frames=cell_frames(name,4,4)
+    check(frames[0].size==(32,32),"Hero motion accent canvas changed")
+    hashes=[hashlib.sha256(frame.tobytes()).hexdigest() for frame in frames]
+    check(len(set(hashes))==16,"Hero accent animation has duplicate cells")
+    visible=[sum(1 for a in frame.getchannel("A").getdata() if a>0) for frame in frames]
+    check(all(12<=n<=220 for n in visible),"Hero effects blank or too dense")
+    meta=path.with_suffix(".png.meta").read_text()
+    check("enableMipMap: 0" in meta and "filterMode: 0" in meta,
+          "Hero motion sprite must use nearest neighbor / no mipmaps")
+    results[name]={"unique":16,"min_opaque":min(visible),
+                   "max_opaque":max(visible)}
+    for row in range(4):
+        results[name][f"row{row}_warnings"]=qa(name,(4,4),
+            list(range(row*4,row*4+4)),(16,29),8)
     for name in ("TerrainAccentRemaster","CombatRhythmRemaster"):
         path,frames=cell_frames(name,4,4)
         check(frames[0].size==(32,32),f"Remaster cells must remain 32px {name}")

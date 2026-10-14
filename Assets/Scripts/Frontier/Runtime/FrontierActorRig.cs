@@ -14,7 +14,9 @@ namespace Starfall
             Rect dest=new Rect(foot.x-w*density/2+localX*density,foot.y-h*density*120/128+part.y*density,part.width*density,part.height*density);
             float u=(frame%columns*w+part.x+(flip?part.width:0))/sheet.width;
             Rect uv=new Rect(u,1-(frame/columns*h+part.y+part.height)/sheet.height,part.width/sheet.width*(flip?-1:1),part.height/sheet.height);
-            Color previous=GUI.color;try{GUI.color=color;GUI.DrawTextureWithTexCoords(dest,sheet,uv);}finally{GUI.color=previous;}
+            // Atlas() applies worldActorOpacity; five-piece HumanActor must
+            // obey the identical opacity during occlusion and fades.
+            Color previous=GUI.color;try{color.a*=worldActorOpacity;GUI.color=color;GUI.DrawTextureWithTexCoords(dest,sheet,uv);}finally{GUI.color=previous;}
         }
         private void HumanActor(Texture2D sheet,int columns,int rows,int frame,Point foot,float density,Color color,bool flip,Texture2D identity,int identityFrame,bool locomotion,bool flash=false,bool death=false,Texture2D unifiedAction=null)
         {

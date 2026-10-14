@@ -11,6 +11,9 @@ namespace Starfall
         // Real pixel-art accent sheet, drawn over the accepted imported terrain.
         private Texture2D terrainAccentRemaster;
         private Texture2D combatRhythmRemaster;
+        // Authored four-stage sword, bow, magic and foot-contact pixel accents.
+        // Separate resource: never overwrite accepted protagonist body sheets.
+        private Texture2D heroMotionAccents;
         // The wider canvas leaves space for weapons while keeping the same
         // logical body scale and 120/128 foot anchor in every pose.
         private static float BossCanvasSize(int room) { return room == 5 ? 264 : 240; }
@@ -43,6 +46,7 @@ namespace Starfall
             terrainVariants = Resources.Load<Texture2D>(root + "TerrainVariants");
             terrainAccentRemaster=Resources.Load<Texture2D>(root+"TerrainAccentRemaster");
             combatRhythmRemaster=Resources.Load<Texture2D>(root+"CombatRhythmRemaster");
+            heroMotionAccents=Resources.Load<Texture2D>(root+"HeroMotionAccents");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)
@@ -110,6 +114,35 @@ namespace Starfall
                     HumanActor(sheet,4,3,frame,p,.75f,
                         new Color(1,1,1,Game.playerFlash/.09f*.86f),
                         flip,walkSheets[0],facingRow*4,false,true,Game.Dying,unified);
+            }
+            // Real 32px authored accents track the SAME live action/release
+            // timestamps as the composed body; not an independent decorative
+            // animation clock. Every pose keeps the actor's ground pivot.
+            if (!drawingOutline && !Game.Dying && heroMotionAccents != null)
+            {
+                if (Game.ActuallyMoving && pose >= 2 && pose <= 7)
+                {
+                    int step = Game.WalkFrame;
+                    Atlas(heroMotionAccents, 4, 4, 12 + step,
+                        new Rect(p.x - 18, p.y - 15, 36, 27),
+                        new Color(1, 1, 1, .40f), direction.x < -.1f);
+                }
+                ActorAction activeAction = Game.playerAction;
+                if (activeAction != null && pose >= 4 && pose <= 7)
+                {
+                    int phase;
+                    if (!activeAction.released)
+                        phase = activeAction.elapsed < activeAction.contact * .56f ? 0 : 1;
+                    else
+                        phase = activeAction.elapsed - activeAction.contact < .12f ? 2 : 3;
+                    float axis = direction.x < -.1f ? -1 : 1;
+                    float effectX = p.x + axis * 22;
+                    float effectY = p.y - (look == 2 ? 77 : 63);
+                    Atlas(heroMotionAccents, 4, 4, look * 4 + phase,
+                        new Rect(effectX - 20, effectY - 20, 40, 40),
+                        new Color(1, 1, 1, phase == 3 ? .55f : .78f),
+                        direction.x < -.1f);
+                }
             }
             if (!drawingOutline && Game.save.upgrades > 0 && !Game.Dying)
             { Point rune=p+new Point(direction.x<0?-24:24,-26);Atlas(effectSheet,4,4,13,new Rect(rune.x-7,rune.y-7,14,14),new Color(1,.83f,.54f,Math.Min(.8f,.3f+Game.save.upgrades*.09f))); }
