@@ -37,6 +37,8 @@ def check():
     assert actor.count("if (!captured)") == 2
     assert "HumanActor(sheet,4,3,frame,p,.75f" in actor
     assert "ReleaseHeroCapture();" in game
+    assert "KeyCode.F8" in game and "Debug.isDebugBuild" in game
+    assert "if (useSpriteRendererHero) heroCaptureBroken = false;" in game
     assert 'Build Live SpriteRenderer State Bridge' in editor
     assert editor.count('"Hit", "Death"') >= 2
     # The root is top-origin (128,240), not Unity's bottom-origin (128,16).

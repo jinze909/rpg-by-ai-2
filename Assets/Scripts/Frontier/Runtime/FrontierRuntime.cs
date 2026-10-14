@@ -119,6 +119,19 @@ namespace Starfall
                 frameDelta = 0;
             frameDelta = Math.Min(frameDelta, .20f); // cap severe stalls; avoid runaway catch-up
             clock += frameDelta; Resize();
+#if UNITY_5_3_OR_NEWER
+            // Native QA switch. Keep legacy OnGUI the default until verified
+            // in the actual Unity 2022.3 Game view. F8 switches the LIVE
+            // avatar path in development builds without changing save slots.
+            if ((Application.isEditor || Debug.isDebugBuild) && Input.GetKeyDown(KeyCode.F8))
+            {
+                useSpriteRendererHero = !useSpriteRendererHero;
+                if (useSpriteRendererHero) heroCaptureBroken = false;
+                else ReleaseHeroCapture();
+                Game.Notify(useSpriteRendererHero ? "实验性 SpriteRenderer 已开启（F8 切回）" : "已恢复原始 OnGUI 主角",
+                    useSpriteRendererHero ? "Experimental SpriteRenderer enabled (F8 to revert)" : "Original OnGUI hero restored");
+            }
+#endif
             Point movement = new Point(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical") * -1);
             moving = movement.Length > .1f;
             bool beganInWorld = Game.mode == "world";
