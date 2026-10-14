@@ -45,6 +45,55 @@ namespace Starfall.Tests
                     "Actual player combat defeats each minecart ambusher");
             }
         }
+        public static void MinecartEngineeringReallyReducesSteamDamageAndAbortIsSelective(Campaign data)
+        {
+            float[] damages=new float[2];
+            for(int branch=0;branch<2;branch++)
+            {
+                var g=Fresh(data);g.save.stage=3;g.Enter(3);g.enemies.Clear();
+                g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+                g.invulnerable=120;
+                WorldObject start=MineCartTestPost(g,1);
+                WorldObject relay=MineCartTestPost(g,2);
+                g.save.x=start.x;g.save.y=start.y;g.Talk(start);
+                Check(MineCartTestChoice(g,"mineconvoy_start"),"The authored cart can launch");
+                WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+                Check(g.MineConvoyStage==2,"The cart must physically reach the switchyard");
+                DefeatMinecartRaiders(g,relay);
+                g.save.inventory[4]=1;
+                g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+                Check(MineCartTestChoice(g,branch==1?"mineconvoy_brace":"mineconvoy_go"),
+                    "Players can choose the real repair or spare-conservation route");
+                Check(g.MineConvoyStage==3,"Both strategies launch the southern escort");
+                g.save.x=start.x;g.save.y=start.y;
+                float original=g.MineConvoyIntegrity;
+                for(int frame=0;frame<140;frame++)g.Tick(.05f,new Point());
+                damages[branch]=original-g.MineConvoyIntegrity;
+                Check(g.MineConvoyStage==3&&g.MineConvoyTime>0,
+                    "Cart pauses while the player is remote but genuine steam keeps pulsing");
+                var unrelated=new Hazard{position=new Point(21,14),radius=1f,
+                    damage=9,timer=2.5f,kind="other"};
+                g.hazards.Add(unrelated);
+                g.Talk(start);
+                Check(MineCartTestChoice(g,"mineconvoy_abort")&&
+                    !g.MineConvoyActive&&!g.MineConvoyComplete,
+                    "Physical western dispatch explicitly stops the active escort");
+                Check(g.hazards.Contains(unrelated)&&
+                    !g.hazards.Exists(h=>h.mineConvoyOwned)&&
+                    !g.effects.Exists(e=>e.mineConvoyOwned)&&
+                    !g.projectiles.Exists(p=>p.mineConvoyOwned),
+                    "Aborting retires only escort-owned actors and warnings, never unrelated threats");
+                Check(!g.Has("mineconvoy_braced"),
+                    "Aborted optional repairs never incorrectly persist as successful evacuation history");
+                g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+                Check(!loaded.MineConvoyActive&&loaded.save.version==2,
+                    "After-abort old-version saves never inherit ghost cart warnings");
+            }
+            Check(Math.Abs(damages[0]-12f)<.15f&&
+                Math.Abs(damages[1]-6f)<.15f,
+                "Spending one part really halves precisely the same first steam contact from 12 to 6 hull");
+        }
+
         public static void IronreachMinecartEscortProtectsRealWorkers(Campaign data)
         {
             var g=Fresh(data);
