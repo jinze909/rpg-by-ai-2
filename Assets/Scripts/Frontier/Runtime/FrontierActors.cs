@@ -133,8 +133,16 @@ namespace Starfall
                 // walking legs as its movement state. Compose pixels on one
                 // atlas cell before drawing; never offset torso/head/weapon
                 // independently, which caused a detached waist.
+                // Sword attack windups/contacts translate under the real
+                // AttackMovement mobility rule. They MUST advance the same
+                // distance-driven walk legs as moving recovery or the hero
+                // slides along the floor with a frozen sword-attack stance.
+                // Spell/bow windups remain planted by GameCore's existing
+                // Stationary rule; never change collision/damage timing.
+                MobilityRule mobility = Game.PlayerMobility;
                 Texture2D unified = !Game.Dying && Game.ActuallyMoving &&
-                    Game.PlayerMobility==MobilityRule.Reduced &&
+                    (mobility==MobilityRule.Reduced ||
+                     mobility==MobilityRule.AttackMovement) &&
                     pose>=4 && pose<=7 && walkSheets[look]!=null ?
                     UnifiedActionGait(sheet,4,3,frame,walkSheets[look],
                         facingRow*4+Game.WalkFrame) : null;
