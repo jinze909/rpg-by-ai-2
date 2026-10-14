@@ -42,6 +42,8 @@ namespace Starfall.EditorTools
         public static void EnsureBuilt()
         {
             bool ready = true;
+            var spriteBinding = new EditorCurveBinding {
+                path = "", type = typeof(SpriteRenderer), propertyName = "m_Sprite" };
             foreach (string profession in Classes)
             {
                 string path = Controllers + "Production" + profession +
@@ -52,7 +54,27 @@ namespace Starfall.EditorTools
                     for (int facing = 0; facing < Facings.Length; facing++)
                     {
                         string key = Key(profession, action, facing);
-                        if (AssetDatabase.LoadAssetAtPath<AnimationClip>(Clips + key + ".anim") == null)
+                        int expected = ExpandedCount(FrameRefs(
+                            Array.IndexOf(Classes, profession), action, facing).Length, action);
+                        // Existing .anim files are NOT necessarily current:
+                        // Cast grew from 3 to 7 Sprite cells. A mere existence
+                        // check silently left old curves active in gameplay.
+                        Texture2D atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(
+                            Generated + key + ".png");
+                        if (atlas == null || atlas.width != expected * Cell ||
+                            atlas.height != Cell)
+                            ready = false;
+                        AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(
+                            Clips + key + ".anim");
+                        if (clip == null)
+                        {
+                            ready = false;
+                            continue;
+                        }
+                        ObjectReferenceKeyframe[] frames =
+                            AnimationUtility.GetObjectReferenceCurve(clip, spriteBinding);
+                        if (frames == null || frames.Length != expected + 1 ||
+                            frames.Any(frame => !(frame.value is Sprite)))
                             ready = false;
                     }
             }
