@@ -390,6 +390,15 @@ namespace Starfall
             if(Dying||mode!="world")return;
             // The tactical root pulse only cools down in the real world clock.
             RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
+            // The Drowned Ruins civilian decision changes what real, local
+            // and safe ferry tideposts provide, never a map-wide passive buff.
+            if(FloodArchiveRefuge && SafeTravel && !practicing && !racing)
+            {
+                if(FloodArchiveChoice==1&&save.health>0&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.8f);
+                else if(FloodArchiveChoice==2)
+                    save.energy=Math.Min(100,save.energy+dt*3.2f);
+            }
             // Persistent forest roots are safe, proximity-gated places to recover.
             if(RootsongRefuge && SafeTravel && !practicing && !racing)
                 save.energy=Math.Min(100,save.energy+dt*2.3f);
