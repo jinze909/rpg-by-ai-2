@@ -167,6 +167,11 @@ public static class ActorRegistrationChecks
         int ax=120,atop=180,afoot=230;
         a[(action.height-256-1-atop)*action.width+ax]=upper;
         a[(action.height-256-1-afoot)*action.width+ax]=originalFoot;
+        // Core belt and side-seam are independent of gait phase. The old
+        // rectangular 217px crop would cut this authored waist in half.
+        var belt=new Color(.9f,.12f,.08f,1f);
+        a[(action.height-256-1-222)*action.width+128]=belt;
+
         // WalkVanguard frames 0 and 1 on atlas top row.
         w[(walk.height-1-afoot)*walk.width+ax]=firstStep;
         w[(walk.height-1-afoot)*walk.width+256+ax]=nextStep;
@@ -183,6 +188,10 @@ public static class ActorRegistrationChecks
         Check(Math.Abs(a0.pixels[ixTop].r-upper.r)<.001f&&
             Math.Abs(a1.pixels[ixTop].r-upper.r)<.001f,
             "Authored action's torso and weapon never pop between individual gait frames");
+        int beltIndex=(255-222)*256+128;
+        Check(Math.Abs(a0.pixels[beltIndex].r-belt.r)<.001f&&
+            Math.Abs(a1.pixels[beltIndex].r-belt.r)<.001f,
+            "Central belt remains attached through walking/casting transitions");
         Check(Math.Abs(a0.pixels[ixFoot].g-firstStep.g)<.001f&&
             Math.Abs(a1.pixels[ixFoot].b-nextStep.b)<.001f&&
             Math.Abs(a0.pixels[ixFoot].b-a1.pixels[ixFoot].b)>.2f,

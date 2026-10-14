@@ -43,25 +43,33 @@ namespace Starfall
             // Unlike rendering two separate cropped sprites, this yields
             // exactly ONE image and ONE pivot: no leg/torso drift when the
             // action's facing or release phase changes.
-            for(int yTop=208;yTop<=247;yTop++)
+            // The original flat cut at row 217 removed the hero's belt and
+            // made a visible straight line across the waist. A three-level
+            // cloth hem keeps the authored pelvis longer at the centre while
+            // letting both swinging thighs join the walk artwork earlier.
+            // The shape depends ONLY on canvas x, not animation phase: it
+            // cannot jump when the same walking stride changes direction.
+            for(int yTop=205;yTop<=247;yTop++)
             {
                 int y=cell-1-yTop;
-                int left=yTop<217?104:yTop<224?94:88;
-                int right=yTop<217?153:yTop<224?162:175;
+                int left=yTop<219?104:yTop<226?94:88;
+                int right=yTop<219?153:yTop<226?162:175;
                 for(int x=left;x<=right;x++)
                 {
                     int i=y*cell+x;
-                    if(yTop<217)
+                    int distance=Math.Abs(x-128);
+                    int hem=distance<16?225:distance<28?222:219;
+                    if(yTop<hem)
                     {
-                        // Preserve the original torso/hip overlap, adding
-                        // missing walking cloth behind transparent gaps.
+                        // Let real walk cloth fill transparent holes behind
+                        // the authored torso instead of painting a dark void.
                         if(posePixels[i].a<.08f&&feetPixels[i].a>.08f)
                             posePixels[i]=feetPixels[i];
                     }
                     else
                     {
-                        // Keep the authored weapon/cape outside the central
-                        // pelvis/leg area rather than cutting entire rows.
+                        // Boots, knees and their transparent silhouettes must
+                        // all originate from ONE matching stride frame.
                         posePixels[i]=feetPixels[i];
                     }
                 }
