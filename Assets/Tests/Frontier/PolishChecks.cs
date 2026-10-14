@@ -189,7 +189,9 @@ namespace Starfall.Tests
             g.projectiles.Add(persistentShot);
             var flash=new Effect("release",g.Position,.25f);
             g.effects.Add(flash);
-            var warning=new Hazard{position=g.Position,radius=1.5f,timer=.3f,damage=100,kind="rift"};
+            // Harmless expired warning tests time-skip cleanup; the separate
+            // area-combat test verifies damaging warnings correctly deny rest.
+            var warning=new Hazard{position=g.Position,radius=1.5f,timer=.3f,damage=0,kind="rift"};
             var lasting=new Hazard{position=g.Position+new Point(20,0),radius=1,timer=90,damage=0,kind="rift"};
             g.hazards.Add(warning);g.hazards.Add(lasting);
             g.perfectDodgeArmed=true;
