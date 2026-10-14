@@ -1,0 +1,137 @@
+using System;
+namespace Starfall.Tests
+{
+    public static partial class CoreChecks
+    {
+        private static WorldObject MineCartTestPost(GameCore g,int stage)
+        {
+            foreach(WorldObject o in g.Map.objects)
+                if(o.id=="mineconvoy_"+stage)return o;
+            throw new Exception("Missing physical minecart station "+stage);
+        }
+        private static bool MineCartTestChoice(GameCore g,string action)
+        {
+            if(g.mode!="dialog"||g.conversation==null)return false;
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action==action){g.Choose(i);return true;}
+            return false;
+        }
+        private static void WalkBesideMinecart(GameCore g,Point target,int stage)
+        {
+            // The single canon hero follows the physically moving cart using
+            // the real Tick locomotion, not teleportation or a stage flag.
+            for(int frame=0;frame<1200&&g.MineConvoyStage==stage;frame++)
+            {
+                Point forward=(target-g.MineCartPosition).Normalized;
+                Point desired=g.MineCartPosition+forward*1.05f;
+                Point motion=(desired-g.Position).Length>.18f?
+                    (desired-g.Position).Normalized:new Point();
+                g.Tick(.05f,motion);
+            }
+        }
+        private static void DefeatMinecartRaiders(GameCore g,WorldObject relay)
+        {
+            foreach(Enemy e in g.enemies.FindAll(g.IsMineConvoyEnemy))
+            {
+                e.stun=200;e.timer=200;e.hp=3;
+                e.x=relay.x+1.05f;e.y=relay.y;
+                g.save.x=relay.x;g.save.y=relay.y;
+                for(int frame=0;frame<135&&g.enemies.Contains(e);frame++)
+                {
+                    if(g.attackCooldown<=0)g.Attack(new Point(1,0));
+                    g.Tick(.02f,new Point());
+                }
+                Check(!g.enemies.Contains(e),
+                    "Actual player combat defeats each minecart ambusher");
+            }
+        }
+        public static void IronreachMinecartEscortProtectsRealWorkers(Campaign data)
+        {
+            var g=Fresh(data);
+            Check(g.GetQuest("mine_convoy").locked,
+                "Old chapter and original guardian gate the optional workers' rescue");
+            g.save.stage=3;g.Enter(3);g.enemies.Clear();
+            WorldObject dispatch=MineCartTestPost(g,1);
+            WorldObject switchyard=MineCartTestPost(g,2);
+            WorldObject depot=MineCartTestPost(g,3);
+            foreach(WorldObject o in new[]{dispatch,switchyard,depot})
+            {
+                Check(g.CanStand(new Point(o.x,o.y)),
+                    "A real minecart waypoint stands on original legal terrain");
+                g.save.x=data.maps[3].spawnX;g.save.y=data.maps[3].spawnY;
+                Check(g.NavigationPath(new Point(o.x,o.y)).Count>0,
+                    "Each waypoint is reachable from the unchanged Ironreach spawn");
+            }
+            g.save.x=dispatch.x;g.save.y=dispatch.y;
+            g.Talk(dispatch);
+            Check(g.conversation!=null&&g.conversation.choices.Length==1,
+                "Old guardian cannot be skipped by the new civilian railcart");g.Close();
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            g.invulnerable=120;
+            int beforeMoney=g.save.coins,oldKills=g.save.kills[3];
+            g.Talk(dispatch);
+            Check(MineCartTestChoice(g,"mineconvoy_start")&&g.MineConvoyStage==1&&
+                g.MineConvoyTime==110&&g.MineConvoyIntegrity==80,
+                "Physical dispatch starts a real countdown and cart hull");
+            g.Enter(0);
+            Check(g.save.room==3&&g.MineConvoyActive,
+                "Direct region travel never discards the active civilian cart");
+            g.ReturnToTown();
+            Check(g.save.room==3,"Quick return cannot bypass the escort");
+            g.PrepareSave();
+            var reloadedMidway=new GameCore(data,CloneSave(g.save));
+            Check(!reloadedMidway.MineConvoyActive&&
+                !reloadedMidway.MineConvoyComplete&&reloadedMidway.save.version==2,
+                "Unfinished carts never serialize into old SaveData v2");
+            WalkBesideMinecart(g,new Point(switchyard.x,switchyard.y),1);
+            Check(g.MineConvoyStage==2&&
+                (g.MineCartPosition-new Point(switchyard.x,switchyard.y)).Length<.01f&&
+                g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                "True escort progression brings the cart to two genuine combat raiders");
+            g.PrepareSave();
+            Check(!Array.Exists(g.save.worldEnemies,e=>e!=null&&e.id>=91300&&e.id<91310),
+                "Authored attackers never leak into persistent ordinary enemy snapshots");
+            g.save.x=switchyard.x;g.save.y=switchyard.y;
+            g.Talk(switchyard);
+            Check(!MineCartTestChoice(g,"mineconvoy_go")&&g.MineConvoyStage==2,
+                "Raiders must really die before player can dispatch the car");
+            g.Close();
+            DefeatMinecartRaiders(g,switchyard);
+            Check(g.save.coins==beforeMoney&&g.save.kills[3]==oldKills,
+                "Minecart enemy deaths cannot farm ordinary story money/kills");
+            g.save.inventory[4]=1;
+            float oldHull=g.MineConvoyIntegrity;
+            g.Talk(switchyard);
+            Check(MineCartTestChoice(g,"mineconvoy_brace")&&
+                g.MineConvoyStage==3&&g.save.inventory[4]==0&&
+                g.MineConvoyIntegrity>=oldHull,
+                "Spending one genuine spare part reinforces the workers' cart");
+            Check(!g.Has("mineconvoy_braced"),
+                "An attempted brace is not permanent until the workers reach safety");
+            WalkBesideMinecart(g,new Point(depot.x,depot.y),3);
+            Check(g.MineConvoyStage==4&&g.MineConvoyIntegrity>0,
+                "Actual player movement and cart motion reach shelter despite steam");
+            g.save.x=depot.x;g.save.y=depot.y;g.Talk(depot);
+            Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                g.MineConvoyComplete&&g.Has("mineconvoy_braced")&&
+                g.save.coins==beforeMoney+60&&g.save.shards>=2,
+                "Only physical final dispatch grants the one-time escort reward and saved brace story");
+            g.Talk(depot);
+            Check(g.conversation.choices.Length==1,
+                "No finished civilian evacuation can pay its completion reward twice");
+            g.Close();
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.health=60;g.Tick(.05f,new Point());
+            Check(g.MineConvoyRefuge&&g.save.health>60.07f,
+                "Restored depot heals only when the actual player is physically nearby and safe");
+            g.save.x=data.maps[3].spawnX;g.save.y=data.maps[3].spawnY;
+            Check(!g.MineConvoyRefuge,
+                "The completed mine depot never gives free health remotely");
+            g.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(reloaded.MineConvoyComplete&&reloaded.save.version==2&&
+                reloaded.GetQuest("mine_convoy").complete,
+                "All completed rescue and depot service flags survive original version-two saves");
+        }
+    }
+}
