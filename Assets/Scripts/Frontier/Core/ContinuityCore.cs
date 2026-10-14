@@ -20,6 +20,20 @@ namespace Starfall
         { aimTarget=target.HasValue&&Finite(target.Value.x)&&Finite(target.Value.y)?target:null; }
         public bool ActuallyMoving { get { return movementDirection.Length > .001f; } }
         public int WalkFrame { get { return GaitFrame(walkDistance, WalkStride); } }
+        // Native sprites need the fraction BETWEEN the four distance-driven
+        // poses. This is read-only and uses the same accumulated distance as
+        // OnGUI, footsteps, collision and the original integer walk frame.
+        // No free-running Animator or save schema is introduced.
+        public float WalkPosePhase
+        {
+            get
+            {
+                double distance = Math.Max(0, walkDistance);
+                double stride = Math.Max(.1, WalkStride);
+                double cycle = (distance / stride * 4.0) % 4.0;
+                return (float)cycle;
+            }
+        }
         public static int GaitFrame(float distance, float stride)
         { return ((int)Math.Floor(Math.Max(0, distance) / Math.Max(.1f, stride) * 4)) % 4; }
         public static int DirectionRow(Point direction)

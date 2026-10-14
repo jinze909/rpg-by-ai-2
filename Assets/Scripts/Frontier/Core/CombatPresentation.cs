@@ -298,7 +298,7 @@ namespace Starfall
         {
             int state = HeroAnimationState;
             int count = HeroAnimationFrameCount(facing);
-            if (state == 1) return WalkFrame % 4;
+            if (state == 1) return WalkPosePhase;
             if ((state != 2 && state != 3) || playerAction == null)
                 return HeroAnimationFrame(facing);
             ActorAction action = playerAction;

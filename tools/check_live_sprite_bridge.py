@@ -40,6 +40,10 @@ def check():
     assert "public int HeroAnimationFrame(int facing)" in core
     assert "action.elapsed - action.contact < .12f" in core
     assert "HeroAnimationPlaybackPosition(int facing)" in core
+    continuity = (ROOT / "Assets/Scripts/Frontier/Core/ContinuityCore.cs").read_text()
+    assert "public float WalkPosePhase" in continuity
+    assert "if (state == 1) return WalkPosePhase;" in core
+    assert "cellPosition %= bakedFrames" in engine
     assert "MotionMidpoint(" in native
     assert "ExpandWithInbetweens(" in native
     assert "ExpandedCount(refs.Length, action)" in native

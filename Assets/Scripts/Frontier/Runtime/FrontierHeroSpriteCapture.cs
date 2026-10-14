@@ -67,6 +67,9 @@ namespace Starfall
                         ? frames * 2 - (action == 1 ? 0 : 1) : frames;
                     // Authored contact poses remain even-numbered cells.
                     float cellPosition = expanded ? posePosition * 2f : posePosition;
+                    // Explicitly wrap walk to avoid a one-frame pause at the
+                    // looping boundary; non-looping combat keeps its recovery.
+                    if (action == 1) cellPosition %= bakedFrames;
                     float normalized = (cellPosition + .20f) / bakedFrames;
                     heroCaptureAnimator.SetInteger("Action", action);
                     heroCaptureAnimator.SetInteger("Facing", facing);

@@ -28,6 +28,25 @@ namespace Starfall.Tests
                 }
                 Check(phases.Count==4&&walked>110&&Math.Abs(g.walkDistance-walked)<.02f,"All four gait phases follow 30 seconds of real travel");
                 Check(g.footContacts==(int)Math.Floor(g.walkDistance/(GameCore.WalkStride/2)),"Foot contacts come from the same gait clock");
+                // Previously the new SpriteRenderer animator sampled only the
+                // four integer key poses, so ALL newly authored intermediate
+                // walking frames were silently skipped.
+                var sampling = Quiet(data,profession);
+                sampling.movementDirection = new Point(1,0);
+                sampling.locomotionFacing = new Point(1,0);
+                for (int eighth=0;eighth<8;eighth++)
+                {
+                    sampling.walkDistance = GameCore.WalkStride * eighth / 8f;
+                    float expected = eighth * .5f;
+                    Check(sampling.HeroAnimationState==1
+                        && Math.Abs(sampling.HeroAnimationPlaybackPosition(0)-expected)<.001f,
+                        "SpriteRenderer distance sampler reaches midpoint " + eighth);
+                    Check(sampling.WalkFrame==(int)expected,
+                        "Legacy integer walk and native subframe share one stride phase");
+                }
+                sampling.walkDistance = GameCore.WalkStride;
+                Check(Math.Abs(sampling.WalkPosePhase)<.001f,
+                    "Run loop returns to the exact same foot contact after one stride");
                 g.Tick(.02f,new Point());float stopped=g.walkDistance;Advance(g,.6f);Check(!g.ActuallyMoving&&g.walkDistance==stopped,"Stopping cannot keep cycling the legs");
                 Point wall=WallStand(g);g.save.x=wall.x;g.save.y=wall.y;
                 for(int i=0;i<20;i++)g.Tick(.02f,new Point(-1,0));float distanceAtWall=g.walkDistance;int contacts=g.footContacts;
