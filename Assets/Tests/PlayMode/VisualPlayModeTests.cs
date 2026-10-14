@@ -81,6 +81,62 @@ namespace Starfall.Tests
                 yield return null; yield return new WaitForEndOfFrame(); ScreenCapture.CaptureScreenshot(Path.Combine(folder, "boss-" + room + "-death.png")); yield return null;
             }
         }
+        [UnityTest] public IEnumerator CanonicalProductionAnimatorFramesAndPivot()
+        {
+            // Run only after the Editor production bake. An unbaked checkout
+            // remains playable via OnGUI, but must NOT be marked native-verified.
+            var classes = new[] { "Vanguard", "Ranger", "Arcanist" };
+            var directions = new[] { "E", "N", "S" };
+            var actions = new[] { "Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death" };
+            for (int vocation = 0; vocation < classes.Length; vocation++)
+            {
+                RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>(
+                    "Frontier/HeroAnimator/Production" + classes[vocation]);
+                if (controller == null)
+                    Assert.Ignore("Native Animator assets not baked: first run Starfall/Animation/Bake Accepted Hero To Live 3-Class Animator");
+                var go = new GameObject("Hero native frame QA " + classes[vocation]);
+                var renderer = go.AddComponent<SpriteRenderer>();
+                var animator = go.AddComponent<Animator>();
+                animator.runtimeAnimatorController = controller;
+                animator.speed = 0f; // GameCore supplies the action/attack clock
+                for (int facing = 0; facing < directions.Length; facing++)
+                {
+                    for (int action = 0; action < actions.Length; action++)
+                    {
+                        int hash = Animator.StringToHash("Base Layer." + actions[action] + "_" + directions[facing]);
+                        animator.SetInteger("Action", action);
+                        animator.SetInteger("Facing", facing);
+                        animator.Play(hash, 0, .1f);
+                        animator.Update(0f);
+                        Sprite sprite = renderer.sprite;
+                        Assert.NotNull(sprite, classes[vocation] + "/" + actions[action] + "/" + directions[facing]);
+                        Assert.AreEqual(256f, sprite.rect.width, .01f);
+                        Assert.AreEqual(256f, sprite.rect.height, .01f);
+                        Assert.AreEqual(128f, sprite.pixelsPerUnit, .01f);
+                        Assert.AreEqual(128f, sprite.pivot.x, .01f);
+                        Assert.AreEqual(16f, sprite.pivot.y, .01f);
+                    }
+                    // The eight-state loop MUST sample all four accepted
+                    // poses AND all four actual in-between Sprite assets.
+                    var steps = new System.Collections.Generic.HashSet<Sprite>();
+                    int runHash = Animator.StringToHash("Base Layer.Run_" + directions[facing]);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        animator.SetInteger("Action", 1);
+                        animator.SetInteger("Facing", facing);
+                        animator.Play(runHash, 0, (i + .2f) / 8f);
+                        animator.Update(0f);
+                        Assert.NotNull(renderer.sprite);
+                        steps.Add(renderer.sprite);
+                    }
+                    Assert.AreEqual(8, steps.Count, classes[vocation] + "/" + directions[facing] +
+                        ": native Run samples must reach every new cell");
+                }
+                Object.Destroy(go);
+                yield return null;
+            }
+        }
+
         [UnityTest] public IEnumerator NativeWalkingAndPlantedAttackTransitions()
         {
             string folder=Path.GetFullPath(Path.Combine(Application.dataPath,"../docs/native-captures"));Directory.CreateDirectory(folder);
