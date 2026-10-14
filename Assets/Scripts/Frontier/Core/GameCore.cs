@@ -69,6 +69,10 @@ namespace Starfall
             for (int i = 0; i < 3; i++) save.talents[i] = Math.Max(0, Math.Min(5, save.talents[i]));
             for (int i = 0; i < save.kills.Length; i++) save.kills[i] = Math.Max(0, Math.Min(99999, save.kills[i]));
             save.stage = (int)Clamp(save.stage, 0, 3); save.room = save.room < 0 || save.room >= data.maps.Length ? 0 : save.room;
+            // Expansion sanitization checks "technique_<profession>" before
+            // any further class handling. Repair the profession first so a
+            // valid unlocked second technique is not erased on load.
+            save.profession = (int)Clamp(save.profession, 0, 2);
             SanitizeExpansion();
             SanitizeGuidance();
             SanitizePolish();
@@ -80,7 +84,7 @@ namespace Starfall
             }
             if (!CanEnter(save.room)) save.room = 0;
             if (save.room == 8) GenerateAbyss();
-            save.difficulty = (int)Clamp(save.difficulty, 0, 2); save.profession = (int)Clamp(save.profession, 0, 2);
+            save.difficulty = (int)Clamp(save.difficulty, 0, 2);
             save.upgrades = (int)Clamp(save.upgrades, 0, 5); save.level = (int)Clamp(save.level, 1, 30);
             // The level-30 cap has no experience sink; saved XP beyond the
             // next level is invalid legacy state, not extra progression.

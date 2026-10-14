@@ -139,6 +139,19 @@ namespace Starfall.Tests
             var g = new GameCore(data, bad); Check(g.save.room == 0 && g.save.x == 18 && g.save.coins == 0 && g.save.health == 120, "Damaged saves are sanitized");
             bool rejected = false; try { new GameCore(data, new SaveData { version = 900 }); } catch (ArgumentException) { rejected = true; }
             Check(rejected, "Unsupported save schema is rejected");
+            var legacyClass=new SaveData {
+                profession=500,weapon=2,technique=1,
+                flags=new List<string> { "weapon_2", "technique_2" }
+            };
+            var corrected=new GameCore(data,legacyClass);
+            Check(corrected.save.profession==2&&corrected.save.weapon==2&&
+                  corrected.save.technique==1,
+                "A corrupted profession number is repaired before validating a legitimately unlocked alternate skill");
+            var noUnlock=new SaveData { profession=500,technique=1 };
+            var denied=new GameCore(data,noUnlock);
+            Check(denied.save.profession==2&&denied.save.technique==0,
+                "Early class correction must never unlock an absent alternate profession skill");
+
             var negativeXp=new GameCore(data,new SaveData{level=6,xp=-900});
             Check(negativeXp.save.level==6&&negativeXp.save.xp==0,
                 "Negative XP cannot persist in a valid old v2 save");
