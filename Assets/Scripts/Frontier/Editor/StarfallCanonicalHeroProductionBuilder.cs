@@ -266,56 +266,76 @@ namespace Starfall.EditorTools
             return result;
         }
 
-        private static readonly int[] Ordered4 = {
-            0, 8, 2, 10, 12, 4, 14, 6,
-            3, 11, 1, 9, 15, 7, 13, 5
-        };
+        // Source-silhouette interpolation deliberately uses ONE accepted
+        // sprite for each generated midpoint. Mixing two distant raster
+        // silhouettes produced doubled legs, ghosted weapon outlines and
+        // fragmented checkerboard edges in Run/Attack/Cast.
+        private static bool MotionCentroid(Color[] pixels, int x0, int x1,
+            int y0, int y1, bool outer, out Vector2 center)
+        {
+            float xsum = 0f, ysum = 0f, weight = 0f;
+            for (int y = y0; y < y1; y += 2)
+                for (int x = x0; x < x1; x += 2)
+                {
+                    if (outer && x >= 94 && x < 162) continue;
+                    float a = pixels[y * Cell + x].a;
+                    if (a < .5f) continue;
+                    xsum += x * a;
+                    ysum += y * a;
+                    weight += a;
+                }
+            center = weight > 0f
+                ? new Vector2(xsum / weight, ysum / weight) : Vector2.zero;
+            return weight > 0f;
+        }
+
+        private static Vector2 MidpointShift(Color[] first, Color[] next,
+            int x0, int x1, int y0, int y1, bool outer, int limitX, int limitY)
+        {
+            Vector2 before, after;
+            if (!MotionCentroid(first, x0, x1, y0, y1, outer, out before) ||
+                !MotionCentroid(next, x0, x1, y0, y1, outer, out after))
+                return Vector2.zero;
+            return new Vector2(
+                Mathf.Clamp(Mathf.RoundToInt((after.x - before.x) * .5f), -limitX, limitX),
+                Mathf.Clamp(Mathf.RoundToInt((after.y - before.y) * .5f), -limitY, limitY));
+        }
 
         private static Color[] MotionMidpoint(Color[] first, Color[] next)
         {
             if (first.Length != Cell * Cell || next.Length != Cell * Cell)
                 throw new InvalidOperationException("Expected full canonical 256px frames");
-            float ax = 0, ay = 0, aw = 0, bx = 0, by = 0, bw = 0;
-            // Exclude extended weapons when estimating the BODY movement.
-            // Boot contact stays at the immutable canonical foot anchor.
-            for (int y = 28; y < 118; y += 2)
-                for (int x = 86; x < 172; x += 2)
-                {
-                    int i = y * Cell + x;
-                    float a = first[i].a, b = next[i].a;
-                    ax += a * x; ay += a * y; aw += a;
-                    bx += b * x; by += b * y; bw += b;
-                }
-            int dx = aw > 1 && bw > 1
-                ? Mathf.Clamp(Mathf.RoundToInt(((bx / bw) - (ax / aw)) * .5f), -6, 6) : 0;
-            int dy = aw > 1 && bw > 1
-                ? Mathf.Clamp(Mathf.RoundToInt(((by / bw) - (ay / aw)) * .5f), -5, 5) : 0;
+            // Lower-body motion must never drag the immutable blonde head;
+            // outer hand/weapon motion is tracked independently of the torso.
+            Vector2 body = MidpointShift(first, next, 86, 172, 22, 64, false, 5, 4);
+            Vector2 reach = MidpointShift(first, next, 20, 236, 30, 122, true, 12, 9);
+            if (reach == Vector2.zero) reach = body;
             var output = new Color[Cell * Cell];
             for (int y = 0; y < Cell; y++)
+            {
+                // The boot-contact strip remains exactly in place.
+                float grounded = Mathf.Clamp01((y - 22f) / 44f);
+                float guardY = y < 57 ? Mathf.Clamp01((57f - y) / 12f) :
+                    y >= 118 ? Mathf.Clamp01((y - 117f) / 12f) : 0f;
                 for (int x = 0; x < Cell; x++)
                 {
-                    float anchorWeight = Mathf.Clamp01((y - 18f) / 64f);
-                    int ox = Mathf.RoundToInt(dx * anchorWeight);
-                    int oy = Mathf.RoundToInt(dy * anchorWeight);
-                    Color a = Pixel(first, x - ox, y - oy);
-                    Color b = Pixel(next, x + ox, y + oy);
-                    int i = y * Cell + x;
-                    // Entire canonical head guard is frozen to the accepted
-                    // predecessor, including transparent boundary pixels.
-                    // Never dither/duplicate golden hair or face in a midpoint.
-                    bool head = x >= 91 && x < 170 && y >= 57 && y < 118;
-                    if (head)
-                        output[i] = first[i]; // exact source head; no warp
-                    else if (a.a > .5f && b.a > .5f)
-                        output[i] = Color.Lerp(a, b, .5f);
-                    else
+                    int index = y * Cell + x;
+                    // Exact approved hair, eyes and transparent head outline.
+                    if (x >= 91 && x < 170 && y >= 57 && y < 118)
                     {
-                        // Ordered alpha quantization keeps point-filtered
-                        // silhouettes opaque rather than ghostly double limbs.
-                        bool second = Ordered4[(y & 3) * 4 + (x & 3)] < 8;
-                        output[i] = second ? b : a;
+                        output[index] = first[index];
+                        continue;
                     }
+                    float edge = Mathf.Clamp01((Mathf.Abs(x - 128f) - 26f) / 44f);
+                    float guardX = Mathf.Clamp01((Mathf.Abs(x - 130f) - 39f) / 12f);
+                    float amount = grounded * Mathf.Max(guardX, guardY);
+                    int dx = Mathf.RoundToInt(Mathf.Lerp(body.x, reach.x, edge) * amount);
+                    int dy = Mathf.RoundToInt(Mathf.Lerp(body.y, reach.y, edge) * amount);
+                    // Never lerp colors or checkerboard silhouettes. Sample
+                    // the approved source only, retaining its palette/alpha.
+                    output[index] = Pixel(first, x - dx, y - dy);
                 }
+            }
             return output;
         }
 
