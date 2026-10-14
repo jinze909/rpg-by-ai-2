@@ -266,6 +266,32 @@ namespace Starfall
                 return 0;
             }
         }
+        // Sprite frames are selected from the SAME clock that releases actual
+        // attack damage. The GPU Animator must not invent its own release time.
+        // Facing: 0 E/W, 1 north, 2 south; left mirrors the existing E art.
+        public int HeroAnimationFrameCount(int facing)
+        {
+            int state = HeroAnimationState;
+            if (state == 1) return 4;
+            if (state == 2) return facing == 1 ? 2 : 4;
+            if (state == 3) return 2;
+            return 1;
+        }
+        public int HeroAnimationFrame(int facing)
+        {
+            int state = HeroAnimationState, count = HeroAnimationFrameCount(facing);
+            if (count <= 1) return 0;
+            if (state == 1) return WalkFrame % 4;
+            ActorAction action = playerAction;
+            if (action == null) return 0;
+            if (!action.released)
+            {
+                if (count == 2) return 0;
+                return action.elapsed < action.contact * .55f ? 0 : 1;
+            }
+            if (count == 2) return 1;
+            return action.elapsed - action.contact < .12f ? 2 : 3;
+        }
         // Exposes the exact contact boundary to native capture/tests without duplicating rules.
         public int PlayerPose
         {

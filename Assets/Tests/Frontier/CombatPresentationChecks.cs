@@ -41,6 +41,62 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RealHeroAnimatorFramesFollowActionReleaseAtAllFrameRates(Campaign data)
+        {
+            foreach (float dt in new[] { .01f, .02f, .05f })
+                for (int profession = 0; profession < 3; profession++)
+                {
+                    GameCore game = Quiet(data, profession);
+                    game.enemies.Clear();
+                    Check(game.HeroAnimationFrameCount(0) == 1 &&
+                        game.HeroAnimationFrame(0) == 0, "Idle has one rooted accepted frame");
+                    game.Attack(new Point(1, 0));
+                    ActorAction attack = game.playerAction;
+                    Check(attack != null && game.HeroAnimationState == 2,
+                        "An actual accepted attack starts production Animator's attack state");
+                    Check(game.HeroAnimationFrameCount(0) == 4 &&
+                        game.HeroAnimationFrameCount(1) == 2,
+                        "North has two source poses; E/S each have four inherited attack poses");
+                    int windupSamples = 0, releasedSamples = 0;
+                    for (int step = 0; step < 50 && game.playerAction == attack; step++)
+                    {
+                        if (!attack.released)
+                        {
+                            Check(game.HeroAnimationFrame(0) < 2 &&
+                                game.HeroAnimationFrame(1) == 0,
+                                "No contact/release artwork may precede production hit contact");
+                            windupSamples++;
+                        }
+                        else
+                        {
+                            Check(game.HeroAnimationFrame(0) >= 2 &&
+                                game.HeroAnimationFrame(1) == 1,
+                                "Contact/recovery art follows the real damage release, never a separate clock");
+                            releasedSamples++;
+                        }
+                        game.Tick(dt, new Point());
+                    }
+                    Check(windupSamples > 0 && releasedSamples > 0,
+                        "Each profession has windup AND release animation at " + dt);
+                    GameCore caster = Quiet(data, profession);
+                    caster.enemies.Clear();
+                    caster.Skill(new Point(1, 0));
+                    Check(caster.playerAction != null && caster.HeroAnimationState == 3 &&
+                        caster.HeroAnimationFrameCount(0) == 2 && caster.HeroAnimationFrame(0) == 0,
+                        "Skill is a separate two-frame inherited clip while still in windup");
+                    for (int frame = 0; frame < 50 && !caster.playerAction.released; frame++)
+                        caster.Tick(dt, new Point());
+                    Check(caster.HeroAnimationState == 3 && caster.HeroAnimationFrame(0) == 1,
+                        "Cast pose changes only after GameCore emits the real skill release");
+                    GameCore runner = Quiet(data, profession);
+                    runner.save.x = 10; runner.save.y = 14;
+                    runner.Tick(.05f, new Point(1, 0));
+                    Check(runner.HeroAnimationState == 1 &&
+                        runner.HeroAnimationFrame(0) == runner.WalkFrame % 4,
+                        "Animator run samples the real walking distance-derived frame");
+                }
+        }
+
         private static float OpeningStrike(Campaign data, float step, bool boss, Point facing, float recovery, out GameCore game, out Enemy target)
         {
             game = Quiet(data);

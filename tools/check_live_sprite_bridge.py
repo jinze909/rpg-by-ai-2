@@ -24,7 +24,7 @@ def check():
     required = [
         "SpriteRenderer", "RenderTexture", "CameraClearFlags.SolidColor",
         "BakeCanonicalHeroFrame", "walkSheets[0]",
-        "Game.HeroAnimationState", "HeroClipStep", "HeroClipFrames",
+        "Game.HeroAnimationState", "Game.HeroAnimationFrameCount(facing)", "Game.HeroAnimationFrame(facing)",
         "Animator.StringToHash", "heroCaptureAnimator.Play(", "heroCaptureAnimator.Update(0f)",
         "Production", "ProductionHeroClip",
         "new Rect(foot.x - 96, foot.y - 180, 192, 192)",
@@ -34,6 +34,10 @@ def check():
     ]
     for mark in required:
         assert mark in engine, f"Live sprite production branch lost invariant {mark!r}"
+    core = (ROOT / "Assets/Scripts/Frontier/Core/CombatPresentation.cs").read_text()
+    assert "public int HeroAnimationFrameCount" in core
+    assert "public int HeroAnimationFrame(int facing)" in core
+    assert "action.elapsed - action.contact < .12f" in core
     for mark in ["ActorFrameRegistration.TryHead", "ActorFrameRegistration.TryStableHead",
                  "new Vector2(.5f, .0625f)", "class CanonicalHeroSpriteFactory",
                  "Sprite.Create(", "Point", "TextureFormat.RGBA32"]:

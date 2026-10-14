@@ -60,8 +60,8 @@ namespace Starfall
                     // Controller. Align the frame with the actual GameCore
                     // action/release clock; no second independent damage timer.
                     int action = Game.HeroAnimationState;
-                    int frames = HeroClipFrames(action, facing);
-                    int step = HeroClipStep(action, facing, frames);
+                    int frames = Game.HeroAnimationFrameCount(facing);
+                    int step = Game.HeroAnimationFrame(facing);
                     float normalized = (step + .20f) / frames;
                     heroCaptureAnimator.SetInteger("Action", action);
                     heroCaptureAnimator.SetInteger("Facing", facing);
@@ -153,30 +153,6 @@ namespace Starfall
             if (!heroCaptureAnimator.enabled) heroCaptureAnimator.enabled = true;
             heroCaptureAnimator.speed = 0f;
             return true;
-        }
-
-        private static int HeroClipFrames(int action, int facing)
-        {
-            if (action == 1) return 4; // 4 accepted, rooted walk poses
-            if (action == 2) return facing == 1 ? 2 : 4;
-            if (action == 3) return 2; // legacy cast recovery placeholders
-            return 1; // idle, dodge, hit, death: no invented frames
-        }
-
-        private int HeroClipStep(int action, int facing, int frames)
-        {
-            if (frames <= 1) return 0;
-            if (action == 1) return Game.WalkFrame % frames;
-            ActorAction playing = Game.playerAction;
-            if (playing == null) return 0;
-            if (!playing.released)
-            {
-                if (frames == 2) return 0;
-                float interval = Mathf.Max(.0001f, playing.contact);
-                return playing.elapsed < interval * .55f ? 0 : 1;
-            }
-            if (frames == 2) return 1;
-            return playing.elapsed - playing.contact < .12f ? 2 : 3;
         }
 
         private void EnsureHeroCapture()
