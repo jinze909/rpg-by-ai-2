@@ -46,6 +46,7 @@ namespace Starfall.Tests
                 for (int vocation = 0; vocation < 3; vocation++)
                 {
                     app.BeginVisualReview(vocation, 1, false);
+                    app.Game.SetAim(new Point(1, 0)); // deterministic E idle probe
                     mode.SetValue(app, true);
                     yield return null;
                     yield return new WaitForEndOfFrame();
