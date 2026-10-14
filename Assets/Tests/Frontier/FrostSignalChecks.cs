@@ -93,6 +93,19 @@ namespace Starfall.Tests
                     "The physical last post awards one permanent civilian choice");
                 g.Talk(south);Check(g.conversation.choices.Length==1,
                     "No duplicate final choice or repeatable compensation");g.Close();
+                // Sen's original regional NPC genuinely observes this outcome
+                // without replacing his original quest or companion choices.
+                g.save.flags.Add("mountain_report");
+                WorldObject keeper=null;
+                foreach(WorldObject o in g.Map.objects)
+                    if(o.kind=="keeper"){keeper=o;break;}
+                Check(keeper!=null,"The old frost NPC still exists");
+                g.save.x=keeper.x;g.save.y=keeper.y;g.Talk(keeper);
+                Check(g.conversation!=null&&
+                    (branch==1?g.conversation.text.Contains("伤者"):
+                               g.conversation.text.Contains("巡路队")),
+                    "Sen's existing dialogue responds to the selected civilian service");
+                g.Close();
                 g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
                 g.save.health=60;g.save.energy=0;g.save.cold=40;
                 g.Tick(.05f,new Point());

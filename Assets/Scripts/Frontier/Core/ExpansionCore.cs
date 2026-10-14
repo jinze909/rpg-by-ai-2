@@ -954,6 +954,15 @@ namespace Starfall
                 };
                 addedZh += rescuedZh[id]; addedEn += rescuedEn[id];
             }
+            if(id==2&&FrostSignalComplete)
+            {
+                addedZh+=FrostSignalOutcome==1?
+                    "\n\n西边新点亮的三处火讯属于居民。你把有限的余火留给伤者，赶夜路的人终于知道哪里有人可以求助。":
+                    "\n\n巡路队终于可以按自己的路线点火，不必让旧军用钟声决定谁能走过冰桥。火堆附近的守路人还能补充体力。";
+                addedEn+=FrostSignalOutcome==1?
+                    "\n\nThe three new fires belong to the villagers. You chose care for the wounded; travelers now know where to find human help in the snow.":
+                    "\n\nThe road crews can light their own crossings again, beyond the old military chimes. They can safely recover energy at those public fires.";
+            }
             Dialog(o.name, o.en, (Has("personal_" + id) ? new[] { "米拉把名册交还给幸存的孩子。她不再等一封回信，而是开始写下一条新航线。", "伊沃给新机器起名叫明天。它没有主人，只记录每个用水人的名字。", "森拆下了钟舌，铸成一块路碑。他仍守着高原，这一次是在路口听人说话。" }[id] : zh[id]) + addedZh, (Has("personal_" + id) ? new[] { "Mira gives the manifest to the surviving children. She stops waiting for a reply and starts drawing a new route.", "Ivo names the machine Tomorrow. It has no master; it records everyone who shares its water.", "Sen casts the old clapper into a road marker. He still keeps the pass, but now he listens." }[id] : en[id]) + addedEn, choices.ToArray());
         }
         private void ExpansionAltar(WorldObject o)
