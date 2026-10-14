@@ -45,6 +45,26 @@ namespace Starfall.Tests
                 "The reversed projectile physically flies back and damages a real living enemy");
             Check(g.save.version==2,"A reflected arrow uses no new save fields");
         }
+        public static void MultipleHostileShotsRespectActualGuardCooldown(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            g.save.x=19.5f;g.save.y=14.5f;
+            Advance(g,1.1f);
+            g.save.energy=100;g.guardTime=2;g.aim=new Point(-1,0);
+            var first=ThreateningShot(g,new Point(7,0));
+            var second=ThreateningShot(g,new Point(7,0));
+            g.projectiles.Add(first);g.projectiles.Add(second);
+            for(int i=0;i<8&&!first.friendly&&g.projectiles.Contains(first);i++)
+                g.Tick(.05f,new Point());
+            Check(first.friendly&&!second.friendly&&g.deflectCooldown>0,
+                "Only the first live projectile can be reflected inside a cooldown window");
+            Check(g.save.energy>=90&&g.save.energy<=96,
+                "A simultaneous arrow volley costs exactly one seven-energy deflection");
+            g.PrepareSave();var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(!reloaded.SwordGuardReady&&reloaded.deflectCooldown==0,
+                "Reload retires transient guard timing without altering old persistent save fields");
+        }
+
         public static void SwordGuardDoesNotReflectSideShotsOrBypassClassAndCooldown(Campaign data)
         {
             foreach(int profession in new[]{0,1,2})
@@ -76,7 +96,9 @@ namespace Starfall.Tests
             var g2=Fresh(data);g2.enemies.Clear();
             g2.save.x=19.5f;g2.save.y=14.5f;
             Advance(g2,1.1f);g2.guardTime=2;g2.aim=new Point(-1,0);
-            g2.save.energy=6.9f;
+            // The world recovers energy during flight; zero ensures the
+            // real contact still occurs below the seven-energy guard cost.
+            g2.save.energy=0;
             var insufficient=ThreateningShot(g2,new Point(6,0));
             g2.projectiles.Add(insufficient);
             for(int i=0;i<9&&g2.projectiles.Contains(insufficient);i++)g2.Tick(.05f,new Point());
