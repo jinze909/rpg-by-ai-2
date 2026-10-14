@@ -984,7 +984,14 @@ namespace Starfall
                 enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), CurrentBoss.hp, true)); save.health = save.maxHealth; save.energy = 100; revision++; return true;
             }
             if (action.StartsWith("warm:")) { string id = action.Substring(5); if (save.room == 7 && !Has("warm_" + id) && Spend(2, 0, 0, 0, 0)) Flag("warm_" + id); return true; }
-            if (action == "tea") { if (Spend(0, 1, 2, 0, 0)) { save.tea++; revision++; Notify("星薄荷凉茶 ×1", "Star-mint tea ×1"); } return true; }
+            if (action == "tea")
+            {
+                if (save.tea >= 999)
+                    Notify("凉茶已达到存档上限。先喝掉一份再制作。", "Tea is at the 999-stack limit. Drink some before brewing.");
+                else if (Spend(0, 1, 2, 0, 0))
+                { save.tea++; revision++; Notify("星薄荷凉茶 ×1", "Star-mint tea ×1"); }
+                return true;
+            }
             if (action == "drinktea") { DrinkTea(); return true; }
             if (action == "fieldrest")
             {

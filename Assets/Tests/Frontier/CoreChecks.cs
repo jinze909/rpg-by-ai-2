@@ -34,6 +34,41 @@ namespace Starfall.Tests
                 g.Skill(); Check(g.save.energy == 60, "Skill cannot repeat during cooldown");
             }
         }
+        public static void RepeatablePurchasesCannotConsumeResourcesPastSavedStackCaps(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.coins=500;
+            g.save.inventory[0]=9997;g.save.inventory[7]=9998;
+            g.save.inventory[6]=9999;g.save.inventory[2]=20;
+            g.save.inventory[3]=20;g.save.inventory[1]=20;g.save.tea=999;
+            int cash=g.save.coins,wood=g.save.inventory[0],
+                seeds=g.save.inventory[7],herbs=g.save.inventory[2],
+                fish=g.save.inventory[3],crystal=g.save.inventory[1];
+            Action(g,"cook","buywood");
+            Action(g,"garden","seeds");
+            Action(g,"cook","buymeal");
+            Action(g,"cook","cook");
+            Action(g,"cook","tea");
+            Check(g.save.coins==cash&&g.save.inventory[0]==wood&&
+                  g.save.inventory[7]==seeds&&g.save.inventory[6]==9999&&
+                  g.save.inventory[2]==herbs&&g.save.inventory[3]==fish&&
+                  g.save.inventory[1]==crystal&&g.save.tea==999,
+                "Full saved stacks reject timber, seeds, purchased/cooked stew and tea before deducting any ingredients or coins");
+            g.save.inventory[0]=9995;g.save.inventory[7]=9996;
+            g.save.inventory[6]=9998;g.save.tea=998;
+            Action(g,"cook","buywood");
+            Action(g,"garden","seeds");
+            Action(g,"cook","buymeal");
+            Action(g,"cook","tea");
+            Check(g.save.inventory[0]==9999&&g.save.inventory[7]==9999&&
+                  g.save.inventory[6]==9999&&g.save.tea==999&&
+                  g.save.coins==cash-g.ShopTimberCost-5-g.ShopStewCost&&
+                  g.save.inventory[2]==herbs-2&&g.save.inventory[1]==crystal-1,
+                "Exact last available storage space still permits legitimate paid purchases with correct resource costs");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.inventory[0]==9999&&loaded.save.inventory[7]==9999&&
+                  loaded.save.inventory[6]==9999&&loaded.save.tea==999,
+                "Full-stack purchases survive v2 save/load without losing paid inventory");
+        }
         public static void Transactions(Campaign data)
         {
             var g = Fresh(data); g.save.inventory[1] = 0;

@@ -1185,6 +1185,16 @@ namespace Starfall
             if (save.coins < coins) { Notify("硬币还不够。", "Not enough coins."); return false; }
             for (int i = 0; i < 5; i++) save.inventory[i] -= costs[i]; save.coins -= coins; revision++; return true;
         }
+        // Inventory quantities are capped in SaveData v2 on reload. Reject a
+        // repeatable purchase before Spend so a full stack never silently
+        // consumes gold or crafting materials for discarded stock.
+        private bool HasInventoryRoom(int index, int quantity)
+        {
+            if (save.inventory[index] <= 9999 - quantity) return true;
+            Notify("背包数量已达上限。先使用或出售一些物品再购买。",
+                "Inventory stack is full. Use some items before buying more.");
+            return false;
+        }
         private bool FieldWorkPreventsRest
         {
             get { return FarCourierActive || CivicResponseActive || stormTuning ||
@@ -1268,7 +1278,7 @@ namespace Starfall
                 int harvest = 5 + save.projects[0] * 2 + (save.frontierEnding == 1 ? 2 : 0);
                 save.inventory[2] += harvest; save.inventory[7] += 2; save.plantedAt = -1; save.coins += 8; revision++; sound = "reward"; Notify("收获：月光草 ×" + harvest + "，种子 ×2，硬币 +8。", "Harvest: " + harvest + " Moonherbs, 2 seeds, 8 coins."); return;
             }
-            if (action == "seeds" && Spend(0, 0, 0, 0, 0, 5)) { save.inventory[7] += 3; Notify("种子 ×3", "Seeds ×3"); }
+            if (action == "seeds" && HasInventoryRoom(7, 3) && Spend(0, 0, 0, 0, 0, 5)) { save.inventory[7] += 3; Notify("种子 ×3", "Seeds ×3"); }
             if (action == "upgrade")
             {
                 if (save.upgrades >= 5) { Notify("装备已经满级。", "Your equipment is fully upgraded."); return; }
@@ -1280,9 +1290,9 @@ namespace Starfall
                 if (Has("weapon_" + w)) { Equip(w); Notify("已装备。", "Equipped."); return; }
                 if (Spend(w == 1 ? 4 : 0, w == 2 ? 4 : 0, 0, 0, w == 1 ? 2 : 3)) { Flag("weapon_" + w); Equip(w); sound = "reward"; Notify("制作成功！背包 I 可以切换武器。", "Crafted! Switch weapons in your inventory, I."); }
             }
-            if (action == "cook" && Spend(0, 0, 2, 1, 0)) { save.inventory[6]++; sound = "reward"; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
-            if (action == "buymeal" && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
-            if (action == "buywood" && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
+            if (action == "cook" && HasInventoryRoom(6, 1) && Spend(0, 0, 2, 1, 0)) { save.inventory[6]++; sound = "reward"; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
+            if (action == "buymeal" && HasInventoryRoom(6, 1) && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
+            if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
             if (action == "fish") { fishTime = fishCursor = 0; fishHits = fishMisses = 0; mode = "fish"; }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
             { save.stage++; save.coins += 40; save.inventory[6]++; save.inventory[0] += 3; save.inventory[1] += 2; revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
