@@ -270,70 +270,87 @@ namespace Starfall.EditorTools
         // sprite for each generated midpoint. Mixing two distant raster
         // silhouettes produced doubled legs, ghosted weapon outlines and
         // fragmented checkerboard edges in Run/Attack/Cast.
+        // Mirror the production Python limb-registration baker when PNGs are
+        // absent. Separate left/right gait and hand/weapon trajectories so a
+        // single centroid never pulls both limbs or leaves a frozen midpoint.
         private static bool MotionCentroid(Color[] pixels, int x0, int x1,
-            int y0, int y1, bool outer, out Vector2 center)
+            int y0, int y1, out Vector2 center)
         {
-            float xsum = 0f, ysum = 0f, weight = 0f;
+            float sx = 0f, sy = 0f, mass = 0f;
             for (int y = y0; y < y1; y += 2)
                 for (int x = x0; x < x1; x += 2)
                 {
-                    if (outer && x >= 94 && x < 162) continue;
-                    float a = pixels[y * Cell + x].a;
-                    if (a < .5f) continue;
-                    xsum += x * a;
-                    ysum += y * a;
-                    weight += a;
+                    if (x >= 91 && x < 170 && y >= 57 && y < 118) continue;
+                    float alpha = pixels[y * Cell + x].a;
+                    if (alpha < .5f) continue;
+                    sx += x * alpha;
+                    sy += y * alpha;
+                    mass += alpha;
                 }
-            center = weight > 0f
-                ? new Vector2(xsum / weight, ysum / weight) : Vector2.zero;
-            return weight > 0f;
+            center = mass > 0 ? new Vector2(sx / mass, sy / mass) : Vector2.zero;
+            return mass > 0;
         }
 
-        private static Vector2 MidpointShift(Color[] first, Color[] next,
-            int x0, int x1, int y0, int y1, bool outer, int limitX, int limitY)
+        private static Vector2 RegionShift(Color[] first, Color[] next,
+            int x0, int x1, int y0, int y1, int limitX, int limitY)
         {
-            Vector2 before, after;
-            if (!MotionCentroid(first, x0, x1, y0, y1, outer, out before) ||
-                !MotionCentroid(next, x0, x1, y0, y1, outer, out after))
+            Vector2 a, b;
+            if (!MotionCentroid(first, x0, x1, y0, y1, out a) ||
+                !MotionCentroid(next, x0, x1, y0, y1, out b))
                 return Vector2.zero;
             return new Vector2(
-                Mathf.Clamp(Mathf.RoundToInt((after.x - before.x) * .5f), -limitX, limitX),
-                Mathf.Clamp(Mathf.RoundToInt((after.y - before.y) * .5f), -limitY, limitY));
+                Mathf.RoundToInt(Mathf.Clamp((b.x - a.x) * .5f, -limitX, limitX)),
+                Mathf.RoundToInt(Mathf.Clamp((b.y - a.y) * .5f, -limitY, limitY)));
         }
 
         private static Color[] MotionMidpoint(Color[] first, Color[] next)
         {
             if (first.Length != Cell * Cell || next.Length != Cell * Cell)
                 throw new InvalidOperationException("Expected full canonical 256px frames");
-            // Lower-body motion must never drag the immutable blonde head;
-            // outer hand/weapon motion is tracked independently of the torso.
-            Vector2 body = MidpointShift(first, next, 86, 172, 22, 64, false, 5, 4);
-            Vector2 reach = MidpointShift(first, next, 20, 236, 30, 122, true, 12, 9);
-            if (reach == Vector2.zero) reach = body;
+            Vector2 torso = RegionShift(first, next, 103, 154, 30, 64, 3, 3);
+            Vector2 leftLeg = RegionShift(first, next, 89, 128, 23, 58, 7, 5);
+            Vector2 rightLeg = RegionShift(first, next, 129, 171, 23, 58, 7, 5);
+            Vector2 leftArm = RegionShift(first, next, 34, 121, 47, 145, 14, 10);
+            Vector2 rightArm = RegionShift(first, next, 140, 230, 47, 145, 14, 10);
             var output = new Color[Cell * Cell];
             for (int y = 0; y < Cell; y++)
             {
-                // The boot-contact strip remains exactly in place.
-                float grounded = Mathf.Clamp01((y - 22f) / 44f);
-                float guardY = y < 57 ? Mathf.Clamp01((57f - y) / 12f) :
-                    y >= 118 ? Mathf.Clamp01((y - 117f) / 12f) : 0f;
+                float legs = Mathf.Clamp01((y - 22f) / 23f) *
+                    Mathf.Clamp01((66f - y) / 20f);
+                float shoulders = Mathf.Clamp01((y - 42f) / 22f);
+                float torsoGate = Mathf.Clamp01((y - 22f) / 28f) *
+                    Mathf.Clamp01((73f - y) / 18f);
                 for (int x = 0; x < Cell; x++)
                 {
                     int index = y * Cell + x;
-                    // Exact approved hair, eyes and transparent head outline.
                     if (x >= 91 && x < 170 && y >= 57 && y < 118)
                     {
                         output[index] = first[index];
                         continue;
                     }
-                    float edge = Mathf.Clamp01((Mathf.Abs(x - 128f) - 26f) / 44f);
-                    float guardX = Mathf.Clamp01((Mathf.Abs(x - 130f) - 39f) / 12f);
-                    float amount = grounded * Mathf.Max(guardX, guardY);
-                    int dx = Mathf.RoundToInt(Mathf.Lerp(body.x, reach.x, edge) * amount);
-                    int dy = Mathf.RoundToInt(Mathf.Lerp(body.y, reach.y, edge) * amount);
-                    // Never lerp colors or checkerboard silhouettes. Sample
-                    // the approved source only, retaining its palette/alpha.
-                    output[index] = Pixel(first, x - dx, y - dy);
+                    float side = Mathf.Clamp01((Mathf.Abs(x - 128f) - 13f) / 29f);
+                    float right = Mathf.Clamp01((x - 122f) / 14f);
+                    float leftLegW = legs * (1f - right);
+                    float rightLegW = legs * right;
+                    float leftArmW = shoulders * side * (1f - right);
+                    float rightArmW = shoulders * side * right;
+                    float bodyW = torsoGate * (1f - side) * (1f - legs);
+                    float total = leftLegW + rightLegW + leftArmW + rightArmW;
+                    if (total > 1f)
+                    {
+                        leftLegW /= total;
+                        rightLegW /= total;
+                        leftArmW /= total;
+                        rightArmW /= total;
+                    }
+                    float dx = torso.x * bodyW + leftLeg.x * leftLegW +
+                        rightLeg.x * rightLegW + leftArm.x * leftArmW +
+                        rightArm.x * rightArmW;
+                    float dy = torso.y * bodyW + leftLeg.y * leftLegW +
+                        rightLeg.y * rightLegW + leftArm.y * leftArmW +
+                        rightArm.y * rightArmW;
+                    output[index] = Pixel(first, x - Mathf.RoundToInt(dx),
+                        y - Mathf.RoundToInt(dy));
                 }
             }
             return output;
