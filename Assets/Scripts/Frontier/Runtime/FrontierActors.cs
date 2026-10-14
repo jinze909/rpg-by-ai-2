@@ -14,6 +14,8 @@ namespace Starfall
         // Authored four-stage sword, bow, magic and foot-contact pixel accents.
         // Separate resource: never overwrite accepted protagonist body sheets.
         private Texture2D heroMotionAccents;
+        // Edge-continuous 32px water-to-land pixel material, never collision.
+        private Texture2D coastlineRemaster;
         // The wider canvas leaves space for weapons while keeping the same
         // logical body scale and 120/128 foot anchor in every pose.
         private static float BossCanvasSize(int room) { return room == 5 ? 264 : 240; }
@@ -47,6 +49,7 @@ namespace Starfall
             terrainAccentRemaster=Resources.Load<Texture2D>(root+"TerrainAccentRemaster");
             combatRhythmRemaster=Resources.Load<Texture2D>(root+"CombatRhythmRemaster");
             heroMotionAccents=Resources.Load<Texture2D>(root+"HeroMotionAccents");
+            coastlineRemaster=Resources.Load<Texture2D>(root+"CoastlineRemaster");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)

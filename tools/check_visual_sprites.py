@@ -83,6 +83,22 @@ def main():
     for row in range(4):
         results[name][f"row{row}_warnings"]=qa(name,(4,4),
             list(range(row*4,row*4+4)),(16,29),8)
+    # Four explicit coastline orientations x four irregular authored edge
+    # variants, placed ONLY on real water-to-land transitions by the renderer.
+    coast="CoastlineRemaster"
+    path,frames=cell_frames(coast,4,4)
+    check(frames[0].size==(32,32),"Coastline edge canvas changed")
+    hashes=[hashlib.sha256(frame.tobytes()).hexdigest() for frame in frames]
+    check(len(set(hashes))==16,"Coastline directional cells repeat")
+    visible=[sum(1 for a in frame.getchannel("A").getdata() if a>0)
+             for frame in frames]
+    check(all(20<=n<=220 for n in visible),
+          "Coastline foam must be visible but not cover original mature water")
+    meta=path.with_suffix(".png.meta").read_text()
+    check("enableMipMap: 0" in meta and "filterMode: 0" in meta,
+          "Coastline pixels require nearest neighbor/no mipmap")
+    results[coast]={"unique":16,"min_opaque":min(visible),
+                    "max_opaque":max(visible)}
     for name in ("TerrainAccentRemaster","CombatRhythmRemaster"):
         path,frames=cell_frames(name,4,4)
         check(frames[0].size==(32,32),f"Remaster cells must remain 32px {name}")

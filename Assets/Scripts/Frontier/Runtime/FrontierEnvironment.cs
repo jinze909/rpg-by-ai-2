@@ -26,6 +26,7 @@ namespace Starfall
             if (row >= 0 && terrainVariants != null) Atlas(terrainVariants, 4, 4, row * 4 + seed % 4, new Rect(p.x, p.y, Tile, Tile), new Color(value, value, value), (seed & 4) == 0);
             else Atlas(terrainSheet, 8, 2, id, new Rect(p.x, p.y, Tile, Tile), new Color(value, value, value), id != 11 && id != 9 && (seed & 1) == 1);
             DrawRemasteredMaterial(x,y,tile,p,seed);
+            DrawRemasteredCoastline(x,y,tile,p,seed);
             if (tile == '=' && Game.save.room < 2)
             {
                 // Dark, narrow soil edges make the road shape read above busy grass.
@@ -50,6 +51,37 @@ namespace Starfall
             int variant=(seed/7)%4;
             Atlas(terrainAccentRemaster,4,4,row*4+variant,
                 new Rect(p.x,p.y,Tile,Tile),new Color(1,1,1,.82f));
+        }
+
+        // A shoreline is defined by a real water/land neighbor, never a
+        // pseudo-random foam tile in the middle of an ocean. Use the same
+        // current tide rule as SurfaceId, preserving walkability unchanged.
+        private bool WaterAt(int x,int y)
+        {
+            if(y<0||y>=Game.Map.rows.Length)return true;
+            string row=Game.Map.rows[y];
+            if(x<0||x>=row.Length)return true;
+            char tile=row[x];
+            return tile=='~'||tile=='%'&&Game.save.room==5&&!Game.LowTide;
+        }
+        private void DrawRemasteredCoastline(int x,int y,char tile,Point p,int seed)
+        {
+            if(coastlineRemaster==null||
+                !(tile=='~'||tile=='%'&&Game.save.room==5&&!Game.LowTide))return;
+            int variant=(seed/11)%4;
+            Rect area=new Rect(p.x,p.y,Tile,Tile);
+            Color tide=new Color(1,1,1,Game.save.room==7?.77f:.88f);
+            // Four individually painted border orientations. The source
+            // canvas and renderer are tile-anchored; no stretching a free
+            // floating decoration around NPCs, buildings or actors.
+            if(!WaterAt(x,y-1))
+                Atlas(coastlineRemaster,4,4,variant,area,tide);
+            if(!WaterAt(x+1,y))
+                Atlas(coastlineRemaster,4,4,4+variant,area,tide);
+            if(!WaterAt(x,y+1))
+                Atlas(coastlineRemaster,4,4,8+variant,area,tide);
+            if(!WaterAt(x-1,y))
+                Atlas(coastlineRemaster,4,4,12+variant,area,tide);
         }
 
         // Hand-authored regions now carry subtle clusters of moss, gravel,
