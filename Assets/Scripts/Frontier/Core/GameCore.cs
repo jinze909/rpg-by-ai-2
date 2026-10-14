@@ -200,9 +200,9 @@ namespace Starfall
             if (sx < 0 || sy < 0 || tx < 0 || ty < 0 || sx >= width || tx >= width || sy >= height || ty >= height) return direct;
             int start = sy * width + sx, target = ty * width + tx;
             if (start == target) return direct;
-            PreparePathSearch(width * height, -1);
-            int[] parents = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; parents[start] = start;
-            while (head < tail && parents[target] < 0)
+            PreparePathSearch(width * height);
+            int[] parents = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, start);
+            while (head < tail && !PathVisited(target))
             {
                 int cell = pathQueue[head++], x = cell % width, y = cell / width;
                 for (int i = 0; i < 4; i++)
@@ -210,11 +210,11 @@ namespace Starfall
                     int xx = x + pursuitSteps[i, 0], yy = y + pursuitSteps[i, 1];
                     if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
                     int next = yy * width + xx;
-                    if (parents[next] >= 0 || !Fits(new Point(xx + .5f, yy + .5f))) continue;
-                    parents[next] = cell; pathQueue[tail++] = next;
+                    if (PathVisited(next) || !Fits(new Point(xx + .5f, yy + .5f))) continue;
+                    VisitPath(next, cell); pathQueue[tail++] = next;
                 }
             }
-            if (parents[target] < 0)
+            if (!PathVisited(target))
             {
                 // The player, an escort or a live objective can be sealed behind
                 // terrain, tide or a story gate. Chasing the straight vector

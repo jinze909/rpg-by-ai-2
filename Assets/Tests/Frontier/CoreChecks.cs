@@ -52,12 +52,24 @@ namespace Starfall.Tests
                 Point waiting = g.DirectionTo(new Point(6.5f, 8.5f), target);
                 Check(waiting.Length < .001f,
                     "At a sealed frontier the pursuer must not walk straight into the wall or jitter");
+                Check(g.NavigationPath(target).Count == 0,
+                    "Navigation HUD cannot draw a physically false route through a sealed wall");
 
                 char[] doorway = rows[12].ToCharArray(); doorway[7] = '.';
                 rows[12] = new string(doorway);
                 Point detour = g.DirectionTo(new Point(6.5f, 8.5f), target);
                 Check(detour.y > .9f && Math.Abs(detour.x) < .1f,
                     "Opening a distant legal corridor immediately makes AI seek its detour");
+                for (int pass = 0; pass < 4; pass++)
+                {
+                    List<Point> route = g.NavigationPath(target);
+                    Check(route.Count > 6 &&
+                        (route[route.Count - 1] - target).Length < 1.2f,
+                        "Shared HUD and combat BFS workspace must not retain stale parent links, pass " + pass);
+                    Point again = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                    Check(again.y > .9f,
+                        "Shared BFS generations must never corrupt the following enemy detour");
+                }
                 char[] crossing = rows[8].ToCharArray(); crossing[7] = '.';
                 rows[8] = new string(crossing);
                 Point direct = g.DirectionTo(new Point(6.5f, 8.5f), target);

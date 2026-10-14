@@ -1740,13 +1740,13 @@ namespace Starfall
         {
             int w = Map.rows[0].Length, h = Map.rows.Length, sx = (int)Position.x, sy = (int)Position.y, start = sy * w + sx;
             var path = new List<Point>(); if (sx < 0 || sx >= w || sy < 0 || sy >= h) return path;
-            PreparePathSearch(w * h, -2);
-            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; parent[start] = -1; int end = start; float best = (Position - target).Length;
+            PreparePathSearch(w * h);
+            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, -1); int end = start; float best = (Position - target).Length;
             while (head < tail)
             {
                 int n = pathQueue[head++], x = n % w, y = n / w; float d = (new Point(x + .5f, y + .5f) - target).Length;
                 if (d < best) { best = d; end = n; } if (d <= 1.2f) { end = n; break; }
-                for (int i = 0; i < 4; i++) { int xx = x + guidanceSteps[i, 0], yy = y + guidanceSteps[i, 1]; if (xx < 0 || xx >= w || yy < 0 || yy >= h) continue; int next = yy * w + xx; if (parent[next] != -2 || !Fits(new Point(xx + .5f, yy + .5f))) continue; parent[next] = n; pathQueue[tail++] = next; }
+                for (int i = 0; i < 4; i++) { int xx = x + guidanceSteps[i, 0], yy = y + guidanceSteps[i, 1]; if (xx < 0 || xx >= w || yy < 0 || yy >= h) continue; int next = yy * w + xx; if (PathVisited(next) || !Fits(new Point(xx + .5f, yy + .5f))) continue; VisitPath(next, n); pathQueue[tail++] = next; }
             }
             if (best > 1.8f && (new Point(end % w + .5f, end / w + .5f) - target).Length > 1.8f) return path;
             for (int n = end; n != start && n >= 0; n = parent[n]) path.Add(new Point(n % w + .5f, n / w + .5f)); path.Reverse(); return path;
