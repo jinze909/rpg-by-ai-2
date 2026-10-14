@@ -312,8 +312,11 @@ namespace Starfall.Tests
             hazard.position=g.Position;hazard.damage=0;
             Check(g.SafeTravel,"Non-damaging tutorial decals cannot block travel");
             hazard.damage=20;hazard.timer=0;
-            Check(g.SafeTravel,"Expired warning never locks an otherwise safe hero");
-            hazard.timer=.8f;g.hazards.Clear();
+            Check(!g.SafeTravel,"A zero-timer contact stays dangerous until world simulation retires it");
+            hazard.timer=-.1f;
+            Check(!g.SafeTravel,"Overdue but not yet delivered area damage cannot be bypassed by travel");
+            g.hazards.Clear();
+            Check(g.SafeTravel,"Removing a resolved warning immediately restores normal travel clearance");
             Action(g,"rest","rest");
             Check(g.save.totalTime==start+45&&g.save.health==g.save.maxHealth,
                 "Once danger has actually ended, normal 45-second inn recovery still works");

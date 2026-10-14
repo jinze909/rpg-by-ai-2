@@ -66,7 +66,10 @@ namespace Starfall
                 // Use circle intersection, including the damage radius.
                 foreach (Hazard warning in hazards)
                 {
-                    if (warning.damage <= 0 || warning.timer <= 0) continue;
+                    // A zero/negative timer is a pending contact, not a
+                    // retired warning: TickExpansion removes it only after
+                    // delivering its real area hit on the next world step.
+                    if (warning.damage <= 0) continue;
                     float dx = warning.position.x - x, dy = warning.position.y - y;
                     float reach = dangerRadius + Math.Max(0, warning.radius);
                     if (dx * dx + dy * dy < reach * reach) return false;
