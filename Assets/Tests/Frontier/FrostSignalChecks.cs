@@ -16,6 +16,50 @@ namespace Starfall.Tests
                 if(g.conversation.choices[i].action==a){g.Choose(i);return true;}
             return false;
         }
+        public static void CivicEmberAbortAndFailurePreserveUnrelatedWorldEffects(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+            g.save.flags.Add("boss_7");g.invulnerable=400;
+            WorldObject source=FrostPost(g,1),switchyard=FrostPost(g,2);
+            g.save.x=source.x;g.save.y=source.y;
+            int beforeMoney=g.save.coins,beforeShards=g.save.shards;
+            g.Talk(source);
+            Check(FrostChoice(g,"frostsignal_start")&&g.FrostSignalStage==1,
+                "Authentic west signal begins the new public trip");
+            var unrelated=new Hazard{position=new Point(22,14),damage=8,radius=1,timer=10};
+            var owned=new Hazard{position=new Point(24,14),damage=8,radius=1,timer=10,frostSignalOwned=true};
+            var unrelatedShot=new Projectile{position=new Point(22,14),damage=7,life=3};
+            var ownedShot=new Projectile{position=new Point(24,14),damage=7,life=3,frostSignalOwned=true};
+            g.hazards.Add(unrelated);g.hazards.Add(owned);
+            g.projectiles.Add(unrelatedShot);g.projectiles.Add(ownedShot);
+            g.Talk(source);
+            Check(FrostChoice(g,"frostsignal_abort")&&!g.FrostSignalActive,
+                "Physical west post explicitly cancels the entire old signal run");
+            Check(g.hazards.Contains(unrelated)&&!g.hazards.Contains(owned)&&
+                g.projectiles.Contains(unrelatedShot)&&!g.projectiles.Contains(ownedShot),
+                "Retiring one civil rescue removes only mission-owned hazards and missiles");
+            Check(g.save.coins==beforeMoney&&g.save.shards==beforeShards&&
+                !g.FrostSignalComplete,
+                "Voluntary return never awards fictional residents' success");
+            g.Talk(source);
+            Check(FrostChoice(g,"frostsignal_start"),"Returned signal can be retried");
+            g.save.x=switchyard.x;g.save.y=switchyard.y;
+            g.Talk(switchyard);
+            Check(g.FrostSignalStage==2&&g.enemies.Exists(g.IsFrostSignalEnemy),
+                "The guard checkpoint has real combat participants during retry");
+            g.Close();
+            g.enemies.Clear(); // Allow real frost/time failure rather than a lethal attack.
+            g.save.x=source.x;g.save.y=source.y;
+            for(int i=0;i<2200&&g.FrostSignalActive;i++)g.Tick(.05f,new Point());
+            Check(!g.FrostSignalActive&&!g.FrostSignalComplete&&
+                g.save.coins==beforeMoney&&g.save.shards==beforeShards,
+                "A real expiring ember resets safely with no repeatable reward");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(!restored.FrostSignalActive&&restored.save.version==2,
+                "Expired temporary highland missions do not leak into old v2 saves");
+        }
+
         public static void HighlandCivicEmberHasActualColdCombatAndPublicChoices(Campaign data)
         {
             foreach(int branch in new[]{1,2})
