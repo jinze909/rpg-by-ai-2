@@ -517,7 +517,10 @@ namespace Starfall
         }
         private void Hit(Enemy e, float damage, bool technique = false, Point? attackDirection = null, ImpactProfile impact = null)
         {
-            if (!enemies.Contains(e)) return;
+            // Reject malformed or cosmetic attack power before recording a
+            // tutorial strike, RNG roll, stagger, loot, death or hit-stop.
+            // Negative power previously healed enemies and polluted combat.
+            if (!Finite(damage) || damage <= 0 || e == null || !enemies.Contains(e)) return;
             ImpactProfile profile=impact??CaptureImpact(save.weapon,combo);
             if(profile.playerOwned){TutorialAction(3);if(technique)TutorialAction(5);}
             if (practicing) { if(profile.playerOwned){if (technique) PracticeSkill(); else PracticeHit();} return; }

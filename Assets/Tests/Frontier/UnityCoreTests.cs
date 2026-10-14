@@ -12,6 +12,7 @@ namespace Starfall.Tests
         [Test] public void PiercingProjectilesPreserveSweptContactOrder() { CoreChecks.PiercingVolleysKeepEveryContactWithReusableTargetSnapshot(Data()); }
         [Test] public void ZeroDamageDoesNotCauseHitStunOrIFrames() { CoreChecks.NonDamagingContactsCannotGrantFreeHitImmunity(Data()); }
         [Test] public void SameCompanionSelectionDoesNotCancelHealing() { CoreChecks.ReselectingSameCompanionPreservesInFlightCommand(Data()); }
+        [Test] public void InvalidWeaponDamageCannotHealEnemies() { CoreChecks.InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Data()); }
         [Test] public void SameWeaponEquippingKeepsCombatIntent() { CoreChecks.EquippingIdenticalWeaponCannotEraseActiveAttack(Data()); }
         [Test] public void ReleaseEventGovernsContactPoses(){CoreChecks.ReleasedContactsSelectVisibleActivePoses(Data());}
         [Test] public void RecoveryWalkingRestoresEquipment(){CoreChecks.WalkingSkillRecoveryRestoresEquippedAppearance(Data());}

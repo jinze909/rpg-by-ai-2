@@ -563,5 +563,26 @@ namespace Starfall.Tests
                 "An earlier command cooldown cannot be bypassed by swapping companions");
         }
 
+        public static void InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.reducedMotion=true;
+            var e=new Enemy(784,0,13,14,80){stun=999,timer=999};
+            g.enemies.Add(e);
+            int seed=g.save.seed,revision=g.revision;
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            foreach(float amount in new []{0f,-8f,float.NaN,float.NegativeInfinity})
+            {
+                hit.Invoke(g,new object[]{e,amount,false,null,null});
+                Check(e.hp==80&&e.stagger==0&&g.save.seed==seed&&
+                      g.effects.Count==0&&g.revision==revision&&
+                      g.enemies.Contains(e),
+                    "An invalid player damage number cannot heal or stagger foes or spend the crit seed");
+            }
+            hit.Invoke(g,new object[]{e,15f,false,null,null});
+            Check(e.hp<80&&g.effects.Count>0&&g.save.seed!=seed,
+                "A genuine subsequent positive hit still uses the complete damage and visual pipeline");
+        }
+
     }
 }
