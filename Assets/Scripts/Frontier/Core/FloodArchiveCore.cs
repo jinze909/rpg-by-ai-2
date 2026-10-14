@@ -219,6 +219,29 @@ namespace Starfall
                 "Public ferry restored! +50 coins, +2 shards, +80 XP. Your decision now changes local safe provisions.");
             return true;
         }
+        // The existing local ferryman reacts to the same actual
+        // player-published records. Pure dialogue, no extra quest/reward.
+        private string FloodArchiveWayfarerNote(bool english)
+        {
+            if(save.room!=2)return "";
+            if(FloodArchiveChoice==1)
+                return english?
+                    "\n\nThe families are no longer missing from the ferry register. I can finally put names beside those we treated at the crossing.":
+                    "\n\n这些家庭终于不再从渡口名册上消失。我可以在救治记录旁写下真实姓名了。";
+            if(FloodArchiveChoice==2)
+                return english?
+                    "\n\nWith your preserved flood charts, we now teach apprentices to read the current rather than trust the citadel's false cargo timetable.":
+                    "\n\n你保住的原始水图已经交到学徒手里。我们现在看水流，而不再相信堡垒失真的货运时刻。";
+            if(FloodArchiveProgress==2)
+                return english?
+                    "\n\nYou found the lost families on both tide records. Take the evidence to the public desk; their fate still needs a decision.":
+                    "\n\n你从两份潮汐记录里找到了失踪家庭。请带去公共议事台，还得有人决定怎样帮助他们。";
+            if(FloodArchiveProgress==1)
+                return english?
+                    "\n\nThe high-water gauge confirms a rescue boat passed here. At the next ebb, the missing roster may surface.":
+                    "\n\n高水尺证实这里曾有救援小艇。等下一次退潮，沉下去的名册应该就能露出。";
+            return "";
+        }
         public bool FloodArchiveRefuge
         {
             get

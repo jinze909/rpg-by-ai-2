@@ -52,8 +52,8 @@ namespace Starfall
                 string responseEn = Has("wayfarer_defended_" + room) ? defendedEn[room] :
                     Has("wayfarer_supplied_" + room) ? suppliedEn[room] :
                     "Thanks to you, I can travel again.";
-                Dialog(o.name, o.en, responseZh + " 其他旅人也许还在等待救援。",
-                    responseEn + " Others may still be stranded.",
+                Dialog(o.name, o.en, responseZh + " 其他旅人也许还在等待救援。" + FloodArchiveWayfarerNote(false),
+                    responseEn + " Others may still be stranded." + FloodArchiveWayfarerNote(true),
                     C("旅途平安", "Safe travels", "close"));
                 return true;
             }
@@ -78,7 +78,7 @@ namespace Starfall
                 "The supply cart broke down. Two spare parts will repair it, or we can fight the ambushers." };
             string[] supplyZh = { "", "药草×2 · 当地声望+1", "星晶×2 · 当地声望+1", "零件×2 · 当地声望+1" };
             string[] supplyEn = { "", "2 Moonherbs · trust +1", "2 starcrystals · trust +1", "2 spare parts · trust +1" };
-            Dialog(o.name, o.en, zh[room], en[room],
+            Dialog(o.name, o.en, zh[room]+FloodArchiveWayfarerNote(false), en[room]+FloodArchiveWayfarerNote(true),
                 C(supplyZh[room], supplyEn[room], "wayfarer_supply_" + room),
                 C("守护旅人 · 武器熟练度+4", "Defend traveler · mastery +4", "wayfarer_defend_" + room),
                 C("稍后再说", "Prepare first", "close"));

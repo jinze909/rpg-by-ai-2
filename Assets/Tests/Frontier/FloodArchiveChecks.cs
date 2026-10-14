@@ -17,6 +17,39 @@ namespace Starfall.Tests
                 {g.Choose(i);return true;}
             return false;
         }
+        public static void RestoredFerrymanRespondsToActualCivicArchiveChoice(Campaign data)
+        {
+            foreach(int ending in new[]{0,1,2})
+            {
+                var g=Fresh(data);g.save.stage=1;g.Enter(2);g.enemies.Clear();
+                g.save.flags.Add("scout_saved");
+                g.save.flags.Add("floodarchive_1");
+                if(ending==0)g.save.flags.Add("floodarchive_2");
+                if(ending==1)g.save.flags.Add("floodarchive_public");
+                if(ending==2)g.save.flags.Add("floodarchive_chart");
+                WorldObject ferryman=Object(g,"wayfarer2");
+                g.save.x=ferryman.x;g.save.y=ferryman.y;
+                int coins=g.save.coins;
+                g.Talk(ferryman);
+                Check(g.conversation!=null&&g.mode=="dialog"&&
+                    (ending==0?g.conversation.text.Contains("公共议事台"):
+                    ending==1?g.conversation.text.Contains("真实姓名"):
+                              g.conversation.text.Contains("原始水图")),
+                    "The existing actual ferry NPC acknowledges precisely the documented progress or branch");
+                Check(g.save.coins==coins,
+                    "Local reactions are actual dialogue with no duplicate money or rewards");
+                g.Close();
+                g.save.english=true;
+                g.Talk(ferryman);
+                Check(g.conversation!=null&&
+                    (ending==0?g.conversation.text.Contains("public desk"):
+                    ending==1?g.conversation.text.Contains("ferry register"):
+                              g.conversation.text.Contains("flood charts")),
+                    "The same story consequence is authored in real English too");
+                g.Close();
+            }
+        }
+
         public static void RestoredPublicFerryHasRealSafetyAndLowTideGates(Campaign data)
         {
             var g=Fresh(data);g.save.stage=1;g.Enter(2);g.enemies.Clear();
