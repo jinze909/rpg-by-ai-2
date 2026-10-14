@@ -13,10 +13,14 @@ jobs:
         run: python3 tools/run_combat_input_checks.py
       - name: Sprite animation QA - original hero, Boss cues and remastered PNGs
         run: python3 tools/check_visual_sprites.py
+      - name: Build three-class canonical hero animation preview / QA matrix
+        run: python3 tools/build_hero_animation_preview.py
       - name: Preserve sprite QA filmstrips, onion-skins and GIFs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: visual-sprite-qa
-          path: .starfall-checks/sprite-qa/
+          path: |
+            .starfall-checks/sprite-qa/
+            .starfall-checks/hero-animation-qa/
           if-no-files-found: ignore
