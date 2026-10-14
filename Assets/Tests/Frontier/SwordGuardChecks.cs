@@ -45,6 +45,41 @@ namespace Starfall.Tests
                 "The reversed projectile physically flies back and damages a real living enemy");
             Check(g.save.version==2,"A reflected arrow uses no new save fields");
         }
+        public static void SwordGuardParriesRealFrontalLungesButNotSlamsOrRearAttacks(Campaign data)
+        {
+            foreach(bool front in new[]{true,false})
+            {
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=19.5f;g.save.y=14.5f;
+                Advance(g,1.1f);
+                g.save.energy=100;g.guardTime=2;g.aim=new Point(-1,0);
+                float attackerX=front?18.25f:20.75f;
+                var attacker=new Enemy(91891,0,attackerX,g.save.y,180);
+                attacker.Face(new Point(front?1:-1,0));
+                attacker.target=g.Position;
+                attacker.stun=0;attacker.state=1;attacker.timer=.02f;
+                attacker.windupDuration=.65f;
+                g.enemies.Add(attacker);
+                float hp=g.save.health;
+                g.Tick(.05f,new Point());
+                if(front)
+                {
+                    Check(g.save.health==hp&&g.riposteTime>1.3f&&
+                        g.deflectCooldown>.25f,
+                        "A physically committed frontal melee lunge is parried and earns an actual riposte opening");
+                    Check(g.save.energy<=92&&g.save.energy>=90,
+                        "A real sword counter pays nine energy exactly once");
+                    g.Attack(new Point(-1,0));Advance(g,.25f);
+                    Check(g.riposteTime==0&&attacker.hp<180,
+                        "The parry opening is consumed by an actual subsequent sword strike");
+                }
+                else
+                    Check(g.save.health<hp&&g.riposteTime<=0&&
+                        g.deflectCooldown==0,
+                        "A physically attacking enemy behind the sword guard still inflicts normal mitigated damage");
+            }
+        }
+
         public static void MultipleHostileShotsRespectActualGuardCooldown(Campaign data)
         {
             var g=Fresh(data,0);g.enemies.Clear();

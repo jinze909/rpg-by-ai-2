@@ -21,6 +21,28 @@ namespace Starfall
             deflectCooldown=Math.Max(0,deflectCooldown-dt);
             deflectFlash=Math.Max(0,deflectFlash-dt);
         }
+        private bool TryParryRealMelee(string source,Point? incoming)
+        {
+            // A sword-guard blocks the CONTACT of an actual lunge, never the
+            // abstract warning circle from a shockwave. Frontal contact and
+            // nine spare energy are required; rear hits retain normal armor.
+            if(source!="lunge"||!SwordGuardReady||save.energy<9||
+                !incoming.HasValue||!Finite(incoming.Value.x)||
+                !Finite(incoming.Value.y)||incoming.Value.Length<.5f)return false;
+            Point threat=incoming.Value.Normalized*-1;
+            Point face=aim.Normalized;
+            if(face.Length<.1f||face.x*threat.x+face.y*threat.y<.55f)
+                return false;
+            save.energy-=9;
+            deflectCooldown=.36f;deflectFlash=.42f;
+            riposteTime=Math.Max(riposteTime,1.5f);
+            effects.Add(new Effect("number",Position,.7f,
+                L("破招！立即反击","PARRY · RIPOSTE")));
+            effects.Add(new Effect("burst",Position,.25f)
+                {radius=.8f,variant=0,direction=threat});
+            sound="counter";revision++;
+            return true;
+        }
         private bool TryDeflectHostileProjectile(Projectile p)
         {
             if(!SwordGuardReady||p==null||p.friendly||p.explosive||

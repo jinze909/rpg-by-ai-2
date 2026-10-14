@@ -77,7 +77,7 @@ namespace Starfall
                 Ring(Game.Position,Game.deflectFlash>0?.96f:.68f,tint,26);
                 Text(hero.x-85,hero.y+17,170,20,
                     Game.deflectFlash>0?Game.L("剑盾弹反！","GUARD REFLECT!"):
-                    ready?Game.L("正面迎箭 · 弹反耗7耐力","FACE SHOTS · COST 7 ENERGY"):
+                    ready?Game.L("剑盾弹箭7 / 挡近战9","REFLECT 7 / PARRY 9"):
                     Game.L("剑盾防护 · 弹反冷却中","GUARD · REFLECT RECOVERY"),
                     11,tint,TextAnchor.MiddleCenter);
             }

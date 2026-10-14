@@ -16,6 +16,7 @@ namespace Starfall.Tests
         [Test] public void SwappedWeaponsCannotCarrySwordComboProgress() { CoreChecks.RealWeaponChangesRestartWeaponComboButReselectDoesNot(Data()); }
         [Test] public void PracticeExitNeverLeaksRedCirclesOrCounterBuffs() { CoreChecks.PracticeExitRetiresDummyHazardsAndEarnedCounter(Data()); }
         [Test] public void CivicSignalAbortAndTimeoutAreSelective() { CoreChecks.CivicEmberAbortAndFailurePreserveUnrelatedWorldEffects(Data()); }
+        [Test] public void SwordGuardRipostesRequireActualFrontMeleeContact() { CoreChecks.SwordGuardParriesRealFrontalLungesButNotSlamsOrRearAttacks(Data()); }
         [Test] public void SwordGuardCoolsDownAcrossARealArrowVolley() { CoreChecks.MultipleHostileShotsRespectActualGuardCooldown(Data()); }
         [Test] public void SwordGuardReallyTurnsIncomingArrowsIntoCounterShots() { CoreChecks.SwordGuardReflectsRealHostileShotsWithResourceAndDirection(Data()); }
         [Test] public void SwordGuardRejectsSideHitsAndOtherProfessions() { CoreChecks.SwordGuardDoesNotReflectSideShotsOrBypassClassAndCooldown(Data()); }
