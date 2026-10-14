@@ -14,6 +14,7 @@ namespace Starfall.Tests
         [Test] public void SameCompanionSelectionDoesNotCancelHealing() { CoreChecks.ReselectingSameCompanionPreservesInFlightCommand(Data()); }
         [Test] public void InvalidWeaponDamageCannotHealEnemies() { CoreChecks.InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Data()); }
         [Test] public void SwappedWeaponsCannotCarrySwordComboProgress() { CoreChecks.RealWeaponChangesRestartWeaponComboButReselectDoesNot(Data()); }
+        [Test] public void PracticeExitNeverLeaksRedCirclesOrCounterBuffs() { CoreChecks.PracticeExitRetiresDummyHazardsAndEarnedCounter(Data()); }
         [Test] public void SameWeaponEquippingKeepsCombatIntent() { CoreChecks.EquippingIdenticalWeaponCannotEraseActiveAttack(Data()); }
         [Test] public void ReleaseEventGovernsContactPoses(){CoreChecks.ReleasedContactsSelectVisibleActivePoses(Data());}
         [Test] public void RecoveryWalkingRestoresEquipment(){CoreChecks.WalkingSkillRecoveryRestoresEquippedAppearance(Data());}

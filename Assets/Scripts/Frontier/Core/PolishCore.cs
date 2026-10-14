@@ -195,7 +195,21 @@ namespace Starfall
             Notify(first ? "练习完成：技能点1、硬币15！可以出发去密林了。" : "练习完成！随时可以再来。", first ? "Practice complete: 1 point, 15 coins. Ready for Thornwood." : "Practice complete! Return anytime.");
         }
         public void EndPractice()
-        { if (!practicing) return; practicing = false; CancelAction(); companionAction = null; movementDirection = new Point(); companionMoving = false; enemies.Clear(); projectiles.Clear(); effects.Clear(); save.x = practiceReturn.x; save.y = practiceReturn.y; save.energy = 100; attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0; ClearFrost(); invulnerable = 1; revision++; }
+        {
+            if (!practicing) return;
+            practicing = false;
+            CancelAction(); companionAction = null;
+            movementDirection = new Point(); companionMoving = false;
+            // The practice dummy can own timed strikes. They must not survive
+            // in a playable town after the safe tutorial is aborted/completed.
+            enemies.Clear(); projectiles.Clear(); effects.Clear(); hazards.Clear();
+            save.x = practiceReturn.x; save.y = practiceReturn.y; save.energy = 100;
+            attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
+            combo = 0; comboTimer = riposteTime = 0;
+            perfectDodgeArmed = false; dodgeEscapeTime = 0; dashOrigin = new Point();
+            hitStop = playerHitTime = playerFlash = impactShake = 0;
+            ClearFrost(); invulnerable = 1; revision++;
+        }
         public string PracticeHint { get { return L(new[] { "J / 左键：命中木桩", "观察红圈，空格闪避攻击", "Q：命中目标，完成练习" }[practiceStage], new[] { "J / click: hit the dummy", "Read the red circle; Space to dodge", "Q: hit the target to finish" }[practiceStage]); } }
         public void UseExplorationAbility()
         {

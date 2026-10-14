@@ -15,6 +15,33 @@ namespace Starfall.Tests
             g.save.x = 15; g.save.y = 13; g.aim = new Point(1, 0); g.Skill(); for (int i = 0; i < 40 && g.practicing; i++) g.Tick(.05f, new Point());
             Check(!g.practicing && g.save.practiceBits == 7, "Actual Q impact completes practice");
         }
+        public static void PracticeExitRetiresDummyHazardsAndEarnedCounter(Campaign data)
+        {
+            var g=Fresh(data);
+            g.enemies.Clear();g.save.x=17;g.save.y=15;
+            Point exit=g.Position;float health=g.save.health;
+            g.StartPractice();
+            Check(g.practicing&&g.enemies.Count==1,
+                "Entering authentic practice creates the temporary dummy");
+            var warning=new Hazard{position=exit,radius=1.5f,timer=1.4f,damage=999,kind="rift"};
+            g.hazards.Add(warning);
+            g.perfectDodgeArmed=true;g.combo=2;g.comboTimer=1f;
+            g.riposteTime=1.5f;g.playerFlash=.4f;g.impactShake=.2f;
+            g.EndPractice();
+            Check(!g.practicing&&g.mode=="world"&&g.hazards.Count==0&&
+                  g.enemies.Count==0&&g.projectiles.Count==0&&
+                  (g.Position-exit).Length<.001f,
+                "Aborting a genuine dummy session restores town location without leaking timed danger");
+            Check(g.combo==0&&g.comboTimer==0&&g.riposteTime==0&&
+                  !g.perfectDodgeArmed&&g.playerFlash==0&&g.impactShake==0,
+                "No fake combo/temporary perfect-dodge or hit-reaction bonus survives exiting practice");
+            for(int i=0;i<35;i++)g.Tick(.05f,new Point());
+            Check(g.save.health==health&&!g.Dying,
+                "Town travel after practice cannot be struck by a retired training explosion");
+            PracticeRun(g);
+            Check(g.hazards.Count==0&&!g.practicing&&g.riposteTime==0,
+                "Completing the entire actual combat tutorial also retires its own red circles");
+        }
         public static void InteractivePracticeAndReplay(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
