@@ -137,7 +137,7 @@ def build(destination):
                 references = source_indices(profession, action, facing)
                 for name, index in references:
                     frame = canonical_frame(sheets, heads, name, index, facing,
-                                            name.startswith("Walk") or action == "Run")
+                                            name.startswith("Walk") or action in ("Idle", "Run"))
                     frames.append(frame)
                 hashes = [hashlib.sha256(im.tobytes()).hexdigest() for im in frames]
                 unique = len(set(hashes))
