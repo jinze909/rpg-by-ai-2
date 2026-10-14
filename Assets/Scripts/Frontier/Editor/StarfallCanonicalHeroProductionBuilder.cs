@@ -33,6 +33,32 @@ namespace Starfall.EditorTools
             public FrameSource(string name, int frame) { atlas = name; index = frame; }
         }
 
+        /// <summary>
+        /// A playable Unity project should not require an extra manual menu
+        /// action to discover the already published three-profession sprites.
+        /// Only create missing native assets; preserve present controllers,
+        /// clips, their GUIDs, all scene content and player save files.
+        /// </summary>
+        public static void EnsureBuilt()
+        {
+            bool ready = true;
+            foreach (string profession in Classes)
+            {
+                string path = Controllers + "Production" + profession +
+                    (profession == "Vanguard" ? ".controller" : ".overrideController");
+                if (AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(path) == null)
+                    ready = false;
+                for (int action = 0; action < Actions.Length; action++)
+                    for (int facing = 0; facing < Facings.Length; facing++)
+                    {
+                        string key = Key(profession, action, facing);
+                        if (AssetDatabase.LoadAssetAtPath<AnimationClip>(Clips + key + ".anim") == null)
+                            ready = false;
+                    }
+            }
+            if (!ready) Build();
+        }
+
         [MenuItem("Starfall/Animation/Bake Accepted Hero To Live 3-Class Animator")]
         public static void Build()
         {

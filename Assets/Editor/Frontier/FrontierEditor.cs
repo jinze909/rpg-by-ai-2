@@ -12,6 +12,7 @@ namespace Starfall.Editor
         public static void Play()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
             EditorSceneManager.OpenScene(Scene); EditorApplication.isPlaying = true;
         }
         [MenuItem("Starfall/Build/Windows")]
@@ -24,6 +25,7 @@ namespace Starfall.Editor
         {
             string folder = EditorUtility.SaveFolderPanel("Build Starfall Frontier", "", "StarfallFrontier");
             if (string.IsNullOrEmpty(folder)) return;
+            Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
             var report = BuildPipeline.BuildPlayer(new[] { Scene }, Path.Combine(folder, filename), target, BuildOptions.None);
             Debug.Log("Starfall build: " + report.summary.result);
         }
@@ -31,6 +33,7 @@ namespace Starfall.Editor
         public static void BuildWindowsBatch()
         {
             Directory.CreateDirectory("Builds/Windows");
+            Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
             var report = BuildPipeline.BuildPlayer(new[] { Scene }, "Builds/Windows/StarfallFrontier.exe", BuildTarget.StandaloneWindows64, BuildOptions.None);
             if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) throw new System.Exception("Unity player build failed.");
         }

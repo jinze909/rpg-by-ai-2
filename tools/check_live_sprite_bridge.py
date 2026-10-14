@@ -71,6 +71,10 @@ def check():
     assert "MotionMidpoint(" in native
     assert "ExpandWithInbetweens(" in native
     assert "ExpandedCount(refs.Length, action)" in native
+    assert "public static void EnsureBuilt()" in native
+    assert "if (!ready) Build();" in native
+    editor_boot = (ROOT / "Assets/Editor/Frontier/FrontierEditor.cs").read_text()
+    assert editor_boot.count("Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();") == 3
     assert "if (File.Exists(installedPath))" in native
     assert "atlasPaths.Add(key, installedPath);" in native
     assert "installed.width != expectedCount * Cell" in native
