@@ -282,5 +282,40 @@ namespace Starfall.Tests
                 "Saved v2 progression retains the full refunded total after reloading");
         }
 
+        public static void LiveAreaWarningsBlockVoluntaryEscapeAndRest(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.x=18;g.save.y=15;
+            var inn=Object(g,"rest");
+            g.save.health=37;g.save.energy=21;
+            float start=g.save.totalTime;
+            var hazard=new Hazard { position=g.Position+new Point(6.4f,0),
+                radius=1.1f,damage=20,timer=.8f,kind="rift" };
+            g.hazards.Add(hazard);
+            Check(!g.SafeTravel,"The edge of an active damaging blast intersects the player's travel safety circle");
+            g.Talk(inn);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rest")<0,
+                "Inn menu cannot skip the active area-warning telegraph");
+            g.Close();
+            g.conversation=new Conversation("旅店","Inn","休息","Rest",
+                new Choice("休息","Rest","rest"));g.mode="dialog";g.Choose(0);
+            Check(g.save.health==37&&g.save.energy==21&&g.save.totalTime==start,
+                "Forged/stale rest action cannot heal or erase a warning mid-combat");
+            g.ReturnToTown();
+            Check(g.save.room==0&&g.hazards.Contains(hazard),
+                "Town rest/fast-return rejection retains the actual warning");
+            hazard.position=g.Position+new Point(7.1f,0);
+            Check(g.SafeTravel,"A warning outside the combined blast and safety range does not block travel");
+            hazard.position=g.Position;hazard.damage=0;
+            Check(g.SafeTravel,"Non-damaging tutorial decals cannot block travel");
+            hazard.damage=20;hazard.timer=0;
+            Check(g.SafeTravel,"Expired warning never locks an otherwise safe hero");
+            hazard.timer=.8f;g.hazards.Clear();
+            Action(g,"rest","rest");
+            Check(g.save.totalTime==start+45&&g.save.health==g.save.maxHealth,
+                "Once danger has actually ended, normal 45-second inn recovery still works");
+        }
+
     }
 }

@@ -60,6 +60,17 @@ namespace Starfall
                     float dx = shot.position.x - x, dy = shot.position.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
                 }
+                // A live telegraphed explosion is also combat. Previously
+                // resting or quick travel could erase its pending contact
+                // even when its blast circle already covered the hero.
+                // Use circle intersection, including the damage radius.
+                foreach (Hazard warning in hazards)
+                {
+                    if (warning.damage <= 0 || warning.timer <= 0) continue;
+                    float dx = warning.position.x - x, dy = warning.position.y - y;
+                    float reach = dangerRadius + Math.Max(0, warning.radius);
+                    if (dx * dx + dy * dy < reach * reach) return false;
+                }
                 return true;
             }
         }

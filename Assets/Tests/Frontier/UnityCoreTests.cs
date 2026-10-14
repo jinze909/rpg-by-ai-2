@@ -132,6 +132,7 @@ namespace Starfall.Tests
         [Test] public void EncounterSnapshotsAndWorldResponse() { CoreChecks.WorldSnapshotsAndChoiceResponses(Data()); }
         [Test] public void MenuFocusFollowsGeometry() { CoreChecks.PredictableMenuFocus(Data()); }
         [Test] public void OriginalScoresAndFeedback() { CoreChecks.SoundFeedbackAndRegionalScores(Data()); }
+        [Test] public void AreaWarningsBlockTravelAndInnRest() { CoreChecks.LiveAreaWarningsBlockVoluntaryEscapeAndRest(Data()); }
         [Test] public void SafeTravelAndCivicHudKeepExactCombatDistances() { CoreChecks.TravelClearanceAndCivicEnemyHudUseExactRealDistances(Data()); }
         [Test] public void TimedCivilianFieldMissionsAreMutuallyExclusive() { CoreChecks.SimultaneousTimedCivilianTasksCannotHideEachOthersObjectives(Data()); }
         [Test] public void FieldMissionsDoNotSkipTheirClockAtInn() { CoreChecks.ActiveFieldMissionsCannotFreeRestOrSkipTheirTimedRuns(Data()); }
