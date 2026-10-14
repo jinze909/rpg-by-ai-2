@@ -25,7 +25,7 @@ namespace Starfall.EditorTools
         // A Unity Sprite pivot is measured from the BOTTOM, so y=16/256.
         private static readonly Vector2 FootPivot = new Vector2(.5f, 1f / 16f);
         private static readonly string[] Classes = { "Vanguard", "Ranger", "Arcanist" };
-        private static readonly string[] Actions = { "Idle", "Run", "Attack", "Cast", "Dodge" };
+        private static readonly string[] Actions = { "Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death" };
         private static readonly string[] Facings = { "E", "N", "S" };
 
         [MenuItem("Starfall/Animation/Build Three-Class Hero Preview")]
@@ -146,7 +146,7 @@ namespace Starfall.EditorTools
                 finally { UnityEngine.Object.DestroyImmediate(go); }
             }
             AssetDatabase.SaveAssets();
-            Debug.Log("Starfall: three-class, five-action, three-facing Animator preview prefabs built. "
+            Debug.Log("Starfall: three-class, seven-action, three-facing Animator preview prefabs built. "
                 + "They use ACCEPTED existing cells as a bridge, NOT newly redrawn or fully QA-approved animations. "
                 + "Production remains on the safe IMGUI renderer.");
         }
@@ -230,13 +230,20 @@ namespace Starfall.EditorTools
                     return Enumerable.Range(classIndex * 4, 4).Select(i => sheets["PlayerSouth"][i]).ToList();
                 return Enumerable.Range(4, 4).Select(i => sheets[player][i]).ToList();
             }
-            // Cast and Dodge are SOURCE-ART PLACEHOLDERS for preview integration.
-            // They are deliberately not described as commissioned new in-betweens.
-            if (facing == 1)
-                return Enumerable.Range(classIndex * 4, 4).Select(i => sheets["PlayerReactionsRear"][i]).ToList();
-            if (facing == 2)
-                return Enumerable.Range(classIndex * 4, 4).Select(i => sheets["PlayerReactionsSouth"][i]).ToList();
-            return Enumerable.Range(8, 4).Select(i => sheets[player][i]).ToList();
+            // Existing legacy poses only: no fictional cast/dodge/death
+            // in-betweens, and no imported user-rejected replacement art.
+            if (action == 3)
+            {
+                if (facing == 1) return new List<Sprite> {
+                    sheets["PlayerRear"][classIndex * 4 + 2], sheets["PlayerRear"][classIndex * 4 + 3] };
+                if (facing == 2) return new List<Sprite> {
+                    sheets["PlayerSouth"][classIndex * 4 + 2], sheets["PlayerSouth"][classIndex * 4 + 3] };
+                return new List<Sprite> { sheets[player][6], sheets[player][7] };
+            }
+            int reaction = action == 4 ? 0 : action == 5 ? 2 : 3;
+            if (facing == 1) return new List<Sprite> { sheets["PlayerReactionsRear"][classIndex * 4 + reaction] };
+            if (facing == 2) return new List<Sprite> { sheets["PlayerReactionsSouth"][classIndex * 4 + reaction] };
+            return new List<Sprite> { sheets[player][action == 4 ? 8 : action == 5 ? 10 : 11] };
         }
 
         private static void CloneSheet(string stem)

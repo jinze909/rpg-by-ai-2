@@ -17,7 +17,7 @@ ART = ROOT / "Assets/Resources/Frontier/Art"
 REG = ROOT / "Assets/Scripts/Frontier/Runtime/ActorFrameRegistration.cs"
 DEFAULT_OUT = ROOT / ".starfall-checks/hero-animation-qa"
 CLASSES = ("Vanguard", "Ranger", "Arcanist")
-ACTIONS = ("Idle", "Run", "Attack", "Cast", "Dodge")
+ACTIONS = ("Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death")
 FACINGS = ("E", "N", "S")
 CELL = 256
 FOOT = (128, 240)
@@ -75,12 +75,22 @@ def source_indices(profession, action, facing):
         if f == 2:
             return [("PlayerSouth", c * 4 + i) for i in range(4)]
         return [(player, i) for i in range(4, 8)]
-    # Source-art fallback. Cast/Dodge are NOT newly authored unique action art.
-    if f == 1:
-        return [("PlayerReactionsRear", c * 4 + i) for i in range(4)]
-    if f == 2:
-        return [("PlayerReactionsSouth", c * 4 + i) for i in range(4)]
-    return [(player, i) for i in range(8, 12)]
+    # Three distinct animation meanings, not four unrelated reaction poses
+    # accidentally looped as a "cast" or "dodge". These are ACCEPTED old
+    # body frames, not new in-between art. Always declare their limitations.
+    if action == "Cast":
+        if f == 1:
+            return [("PlayerRear", c * 4 + 2), ("PlayerRear", c * 4 + 3)]
+        if f == 2:
+            return [("PlayerSouth", c * 4 + 2), ("PlayerSouth", c * 4 + 3)]
+        return [(player, 6), (player, 7)]
+    if action == "Dodge":
+        return [(("PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth"), c * 4)] if f != 0 else [(player, 8)]
+    if action == "Hit":
+        return [(("PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth"), c * 4 + 2)] if f != 0 else [(player, 10)]
+    if action == "Death":
+        return [(("PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth"), c * 4 + 3)] if f != 0 else [(player, 11)]
+    raise AssertionError(f"Unknown action {action}")
 
 
 def canonical_frame(sheets, heads, name, index, facing, locomotion):
@@ -119,7 +129,7 @@ def build(destination):
     report = {"canvas": [256, 256], "canonical_pivot": list(FOOT),
               "art_origin": "accepted-existing-atlas; no new in-betweens",
               "native_unity_verified": False, "action_sets": {}}
-    overview = Image.new("RGB", (5 * 256, 3 * 3 * 256), (22, 27, 34))
+    overview = Image.new("RGB", (7 * 256, 3 * 3 * 256), (22, 27, 34))
     for c, profession in enumerate(CLASSES):
         for f, facing in enumerate(FACINGS):
             for a, action in enumerate(ACTIONS):
@@ -135,7 +145,7 @@ def build(destination):
                 warnings = []
                 if unique < len(frames):
                     warnings.append("identical physical pose in sequence; hold timing instead")
-                if action in ("Cast", "Dodge"):
+                if action in ("Cast", "Dodge", "Hit", "Death"):
                     warnings.append("shared legacy reaction cells, needs authored redraw")
                 if len(frames) < 3 and action != "Idle":
                     warnings.append("insufficient unique in-betweens for third-stage acceptance")
@@ -149,7 +159,7 @@ def build(destination):
                     frame.save(action_dir / f"{facing}_{i:02}.png")
                 strip(frames).save(action_dir / f"{facing}_strip.png")
                 # Matrix is inspectable without unity: all 3 professions,
-                # all directions, all five actions, same root and scale.
+                # all directions, all seven actions, same root and scale.
                 overview.paste(frames[0], (a * CELL, (c * 3 + f) * CELL), frames[0])
     overview.save(destination / "three_profession_action_matrix.png")
     (destination / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

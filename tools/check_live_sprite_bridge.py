@@ -38,7 +38,7 @@ def check():
     assert "HumanActor(sheet,4,3,frame,p,.75f" in actor
     assert "ReleaseHeroCapture();" in game
     assert 'Build Live SpriteRenderer State Bridge' in editor
-    assert editor.count('"Hit", "Death"') == 1
+    assert editor.count('"Hit", "Death"') >= 2
     # The root is top-origin (128,240), not Unity's bottom-origin (128,16).
     assert (256 / 2 - 16) / 128 == .875
     assert (256 - 240) / 256 == .0625

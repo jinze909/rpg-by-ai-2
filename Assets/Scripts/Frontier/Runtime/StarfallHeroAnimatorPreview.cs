@@ -28,6 +28,8 @@ namespace Starfall
             if (Input.GetKeyDown(KeyCode.Alpha3)) action = 2;
             if (Input.GetKeyDown(KeyCode.Alpha4)) action = 3;
             if (Input.GetKeyDown(KeyCode.Alpha5)) action = 4;
+            if (Input.GetKeyDown(KeyCode.Alpha6)) action = 5;
+            if (Input.GetKeyDown(KeyCode.Alpha7)) action = 6;
             if (Input.GetKeyDown(KeyCode.UpArrow)) facing = 1;
             if (Input.GetKeyDown(KeyCode.DownArrow)) facing = 2;
             if (Input.GetKeyDown(KeyCode.RightArrow))

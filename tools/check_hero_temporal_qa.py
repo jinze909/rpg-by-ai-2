@@ -13,7 +13,7 @@ from PIL import Image, ImageChops
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT = ROOT / ".starfall-checks/hero-animation-qa"
 CLASSES = ("Vanguard", "Ranger", "Arcanist")
-ACTIONS = ("Idle", "Run", "Attack", "Cast", "Dodge")
+ACTIONS = ("Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death")
 FACINGS = ("E", "N", "S")
 CELL = (256, 256)
 ANCHOR = (128, 240)
@@ -69,7 +69,7 @@ def sequence_report(paths, action):
         flags.append("duplicated_raster_review_timing_holds")
     if len(frames) < (3 if action in ("Attack", "Cast", "Dodge") else 4 if action == "Run" else 1):
         flags.append("insufficient_distinct_action_poses")
-    if action in ("Cast", "Dodge"):
+    if action in ("Cast", "Dodge", "Hit", "Death"):
         flags.append("legacy_shared_reaction_requires_true_redraw")
     if displacement and max(displacement) > (18 if action in ("Attack", "Cast", "Dodge") else 11):
         flags.append("centroid_jump_inspect_weapon_and_body")
@@ -111,14 +111,14 @@ def check(root):
                 metrics["inherited_source_frames"] = manifest["source"]
                 metrics["source_warnings"] = manifest["warnings"]
                 report["clips"][key] = metrics
-    if len(report["clips"]) != 45:
+    if len(report["clips"]) != 63:
         raise AssertionError("Missing a class/action/direction combination")
     destination = root / "temporal-qa.json"
     destination.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
                            encoding="utf-8")
     warnings = sum(bool(c["review_flags"] or c["source_warnings"])
                    for c in report["clips"].values())
-    print(f"PASS: measured all 45 inherited hero animation sequences; {warnings} need art review.")
+    print(f"PASS: measured all 63 inherited hero animation sequences; {warnings} need art review.")
     print("Milestone three is NOT accepted: no newly authored interpolation or Unity PlayMode proof.")
     return report
 
