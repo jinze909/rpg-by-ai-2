@@ -8,6 +8,8 @@ namespace Starfall
         private Texture2D[] companionSheets;
         private Texture2D[] walkSheets, companionWalkSheets, bossWalkSheets;
         private Texture2D monsterWalkSheet;
+        // Real pixel-art accent sheet, drawn over the accepted imported terrain.
+        private Texture2D terrainAccentRemaster;
         // The wider canvas leaves space for weapons while keeping the same
         // logical body scale and 120/128 foot anchor in every pose.
         private static float BossCanvasSize(int room) { return room == 5 ? 264 : 240; }
@@ -38,6 +40,7 @@ namespace Starfall
                 if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             fieldProps = Resources.Load<Texture2D>(root + "FieldProps"); terrainSheet = Resources.Load<Texture2D>(root + "Terrain");
             terrainVariants = Resources.Load<Texture2D>(root + "TerrainVariants");
+            terrainAccentRemaster=Resources.Load<Texture2D>(root+"TerrainAccentRemaster");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)
