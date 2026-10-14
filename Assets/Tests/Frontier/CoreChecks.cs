@@ -106,6 +106,33 @@ namespace Starfall.Tests
                 }
             }
         }
+        public static void CorruptEnemySnapshotsCannotInjectOrHideValidPatrols(Campaign data)
+        {
+            var old=new SaveData {
+                room=1,snapshotRoom=1,
+                worldEnemies=new [] {
+                    new EnemyRecord { id=5,kind=0,x=float.NaN,y=14,hp=30,maxHp=30 },
+                    new EnemyRecord { id=5,kind=0,x=13,y=14,hp=20,maxHp=30 },
+                    new EnemyRecord { id=6,kind=1,x=9999,y=9999,hp=30,maxHp=30 },
+                    new EnemyRecord { id=7,kind=2,x=14,y=14,hp=65,maxHp=80 }
+                }
+            };
+            var restored=new GameCore(data,old);
+            Check(restored.enemies.Count==2,
+                "Only real in-map enemies survive a corrupt or out-of-map saved patrol snapshot");
+            Enemy valid=restored.enemies.Find(e=>e.id==5);
+            Check(valid!=null&&valid.hp==20&&valid.maxHp==30&&
+                  (valid.Position-new Point(13,14)).Length<.001f,
+                "A malformed duplicate cannot reserve an ID before its genuine original saved entry");
+            Check(restored.enemies.Exists(e=>e.id==7)&&
+                  !restored.enemies.Exists(e=>e.id==6),
+                "Other legitimate patrols remain while impossible enemy positions are discarded");
+            restored.PrepareSave();
+            var again=new GameCore(data,CloneSave(restored.save));
+            Check(again.enemies.Count==2&&again.enemies.Exists(e=>e.id==5)&&
+                  again.enemies.Exists(e=>e.id==7),
+                "Cleaned real patrols persist normally across the next old-format save and reload");
+        }
         public static void SaveValidation(Campaign data)
         {
             var bad = new SaveData { room = 99, stage = -1, x = float.NaN, y = -300, health = float.PositiveInfinity, coins = -100, inventory = null, talents = null, kills = null, flags = null };

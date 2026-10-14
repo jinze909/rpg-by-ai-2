@@ -461,7 +461,14 @@ namespace Starfall
                     (r.id >= 90100 && r.id < 90116) ||
                     (r.id >= 90200 && r.id < 90216) ||
                     (r.id >= 90300 && r.id <= 90304) ||
-                    !ids.Add(r.id) || !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0 || r.boss && Has("boss_" + save.room)) continue;
+                    !Finite(r.x) || !Finite(r.y) || r.x < 0 || r.y < 0 ||
+                    r.x >= Map.rows[0].Length || r.y >= Map.rows.Length ||
+                    !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0 ||
+                    r.boss && Has("boss_" + save.room) || !ids.Add(r.id)) continue;
+                // Reject corrupt/out-of-map locations rather than spawning
+                // their alleged enemy at the hero's region entry point.
+                // Collision-overlapping but finite in-bounds old positions
+                // still use the established safe-foot recovery.
                 Point p = SafeActorFoot(new Point(r.x, r.y));
                 var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, Clamp(r.maxHp, 1, 5000), r.boss); e.hp = Clamp(r.hp, .1f, e.maxHp); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);
             }
