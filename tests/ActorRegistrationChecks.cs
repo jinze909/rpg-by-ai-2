@@ -107,9 +107,48 @@ public static class ActorRegistrationChecks
             Caption(pixel,"release "+direction);
         }GUI.Export(folder,"review-registered-muzzles");
     }
+    static void UnifiedGaitComposites(FrontierRuntime app)
+    {
+        // Synthetic opaque identities isolate *pixel replacement* from draw
+        // geometry: walking feet must change, but head/weapon/torso may not.
+        var action=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="PlayerVanguard"};
+        var walk=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="WalkVanguard"};
+        var upper=new Color(.8f,.5f,.2f,1f);
+        var originalFoot=new Color(.6f,.3f,.1f,1f);
+        var firstStep=new Color(.1f,.7f,.3f,1f);
+        var nextStep=new Color(.15f,.35f,.9f,1f);
+        var a=new Color[action.width*action.height];
+        var w=new Color[walk.width*walk.height];
+        // PlayerVanguard action frame 4 is first cell of atlas row 1.
+        int ax=120,atop=180,afoot=230;
+        a[(action.height-256-atop)*action.width+ax]=upper;
+        a[(action.height-256-afoot)*action.width+ax]=originalFoot;
+        // WalkVanguard frames 0 and 1 on atlas top row.
+        w[(walk.height-1-afoot)*walk.width+ax]=firstStep;
+        w[(walk.height-1-afoot)*walk.width+256+ax]=nextStep;
+        action.SetPixels(a);walk.SetPixels(w);
+        var method=app.GetType().GetMethod("UnifiedActionGait",Private);
+        Check(method!=null,"Native actor compositor must be wired into the game runtime");
+        var a0=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0});
+        var a1=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,1});
+        var repeat=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0});
+        Check(a0!=null&&a1!=null&&a0.width==256&&a0.height==256&&
+            a0.filterMode==FilterMode.Point&&ReferenceEquals(a0,repeat),
+            "Unified frames retain identical 256px canvas, point-filtering and cache their real texture");
+        int ixTop=(255-atop)*256+ax,ixFoot=(255-afoot)*256+ax;
+        Check(Math.Abs(a0.pixels[ixTop].r-upper.r)<.001f&&
+            Math.Abs(a1.pixels[ixTop].r-upper.r)<.001f,
+            "Authored action's torso and weapon never pop between individual gait frames");
+        Check(Math.Abs(a0.pixels[ixFoot].g-firstStep.g)<.001f&&
+            Math.Abs(a1.pixels[ixFoot].b-nextStep.b)<.001f&&
+            Math.Abs(a0.pixels[ixFoot].b-a1.pixels[ixFoot].b)>.2f,
+            "Real authored gait frames change boot silhouettes while the one shared pivot remains fixed");
+        Console.WriteLine("PASS unified animation pixels: 2 unique gait frames, fixed waist/weapon, one 256px pivot, cached Point texture");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();Players(app,folder);Companions(app,folder);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();UnifiedGaitComposites(app);Players(app,folder);Companions(app,folder);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }

@@ -209,7 +209,7 @@ namespace Starfall
             }
         }
         private void OnApplicationQuit() { Save(); }
-        private void OnDestroy() { ReleaseTerrainPreview(); if (art != null) art.Dispose(); if (audioSystem != null) audioSystem.Dispose(); }
+        private void OnDestroy() { ReleaseTerrainPreview(); if (art != null) art.Dispose(); ClearUnifiedActionGait(); if (audioSystem != null) audioSystem.Dispose(); }
 
         private void OnGUI()
         {

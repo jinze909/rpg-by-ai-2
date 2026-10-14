@@ -7,7 +7,7 @@ using System.IO;
 using System.Text;
 namespace UnityEngine
 {
-    public class Object { public string name; public bool destroyed; public static T FindObjectOfType<T>() where T:class { return null; } public static void Destroy(Object o) {o.destroyed=true;} }
+    public class Object { public string name; public bool destroyed; public int GetInstanceID(){return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);} public static T FindObjectOfType<T>() where T:class { return null; } public static void Destroy(Object o) {o.destroyed=true;} }
     public class GameObject:Object { public GameObject(string name="") { this.name=name; } public T AddComponent<T>() where T:new() { return new T(); } }
     public class MonoBehaviour:Object { public GameObject gameObject=new GameObject(); public object StartCoroutine(System.Collections.IEnumerator routine){return null;} }
     public struct Color
@@ -24,7 +24,19 @@ namespace UnityEngine
         public static Texture2D whiteTexture=new Texture2D(1,1,TextureFormat.RGBA32,false){name="white"};
         public Texture2D(int w,int h,TextureFormat f,bool mip) {width=w;height=h;}
         public int pixelReads;
-        public Color[] GetPixels(){pixelReads++;if(!isReadable)throw new InvalidOperationException("Texture is not readable: "+name);return pixels??new Color[width*height];} public void SetPixels(Color[] c) {pixels=c;} public void Apply(bool m,bool r){isReadable=!r;}
+        public Color[] GetPixels(){pixelReads++;if(!isReadable)throw new InvalidOperationException("Texture is not readable: "+name);return pixels??new Color[width*height];}
+        // Match the native Unity rectangular GetPixels contract. Origin is
+        // bottom-left; this stub is intentionally a pixel-layout check, not GPU.
+        public Color[] GetPixels(int x,int y,int w,int h)
+        {
+            if(x<0||y<0||w<=0||h<=0||x+w>width||y+h>height)
+                throw new ArgumentException("Texture sample outside source "+name);
+            var original=GetPixels();var block=new Color[w*h];
+            for(int row=0;row<h;row++)
+                Array.Copy(original,(y+row)*width+x,block,row*w,w);
+            return block;
+        }
+        public void SetPixels(Color[] c) {pixels=c;} public void Apply(bool m,bool r){isReadable=!r;}
     }
     public class Font:Object {public static Font CreateDynamicFontFromOSFont(string[] n,int s){return new Font();}}
     public class TextAsset:Object {public string text;}
