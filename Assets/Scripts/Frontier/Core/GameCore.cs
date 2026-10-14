@@ -125,7 +125,7 @@ namespace Starfall
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
-            ResetMineConvoy(); ResetFrostSignal();
+            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard();
             ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit();
         }
         public void NewGame(int profession)
@@ -427,6 +427,7 @@ namespace Starfall
             // Resolve changed world collision before any body, missile or contact advances.
             TickTideTransition(); Point beforeMove = Position;
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
+            TickSwordGuard(dt);
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) +
@@ -902,7 +903,14 @@ namespace Starfall
                         }
                     }
                     else if ((Position - p.position).Length < .38f)
-                    { Hurt(p.damage, p.source ?? "shot", p.velocity.Normalized); dead = true; }
+                    {
+                        // Reflection keeps the very same swept projectile.
+                        // Stop this frame: on the next Tick its fresh friendly
+                        // target snapshot can hit the real source actor.
+                        if(TryDeflectHostileProjectile(p))break;
+                        Hurt(p.damage,p.source ?? "shot",p.velocity.Normalized);
+                        dead=true;
+                    }
                     else if (p.reliefMissionOwned && reliefMissionRoom == save.room &&
                         (reliefMissionWave >= 1 && reliefMissionWave <= 3) &&
                         (p.position - reliefFollowerPosition).Length < .45f)

@@ -16,6 +16,8 @@ namespace Starfall.Tests
         [Test] public void SwappedWeaponsCannotCarrySwordComboProgress() { CoreChecks.RealWeaponChangesRestartWeaponComboButReselectDoesNot(Data()); }
         [Test] public void PracticeExitNeverLeaksRedCirclesOrCounterBuffs() { CoreChecks.PracticeExitRetiresDummyHazardsAndEarnedCounter(Data()); }
         [Test] public void CivicSignalAbortAndTimeoutAreSelective() { CoreChecks.CivicEmberAbortAndFailurePreserveUnrelatedWorldEffects(Data()); }
+        [Test] public void SwordGuardReallyTurnsIncomingArrowsIntoCounterShots() { CoreChecks.SwordGuardReflectsRealHostileShotsWithResourceAndDirection(Data()); }
+        [Test] public void SwordGuardRejectsSideHitsAndOtherProfessions() { CoreChecks.SwordGuardDoesNotReflectSideShotsOrBypassClassAndCooldown(Data()); }
         [Test] public void HighlandCivicEmberSurvivesActualColdAndGuardCombat() { CoreChecks.HighlandCivicEmberHasActualColdCombatAndPublicChoices(Data()); }
         [Test] public void MinecartMaterialsReallyLowerSmithCosts() { CoreChecks.MinecartCivicTimberSavingsActuallyReachTownForge(Data()); }
         [Test] public void CartEngineeringHalvesSteamAndAbortsSelectiveActors() { CoreChecks.MinecartEngineeringReallyReducesSteamDamageAndAbortIsSelective(Data()); }
