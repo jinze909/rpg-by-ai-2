@@ -450,5 +450,34 @@ namespace Starfall.Tests
                 "Genuine equipment swap discards previously buffered dodge Q rather than replaying it");
         }
 
+        public static void SwitchingSaveSlotsDoesNotInheritOldAimOrFishingState(Campaign data)
+        {
+            var g=Fresh(data,1);
+            g.enemies.Clear();
+            g.SetAim(new Point(0,-1));
+            g.SetAimTarget(new Point(77,16));
+            g.fishTime=3.2f;g.fishCursor=.72f;g.fishHits=2;g.fishMisses=1;
+            g.Notify("旧旅程的消息","Prior journey notification");
+            Check(g.toastTime>0,"Previous journey has a visible notification before slot switch");
+            SaveData replacement=new SaveData();
+            replacement.flags.Add("intro");
+            g.Load(replacement);g.Start();
+            Check((g.aim-new Point(1,0)).Length<.001f&&
+                  g.fishTime==0&&g.fishCursor==0&&g.fishHits==0&&g.fishMisses==0&&
+                  g.toastTime==0&&g.toast=="",
+                "A loaded slot starts without inherited camera-facing, fishing or HUD state");
+            g.Skill();
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                  (g.playerAction.direction-new Point(1,0)).Length<.001f&&
+                  !g.playerAction.target.HasValue,
+                "The newly loaded hero's first authentic skill cannot reuse a prior slot's cursor target");
+            g.SetAimTarget(new Point(23,20));g.SetAim(new Point(-1,0));
+            g.NewGame(2);g.Close();g.Skill();
+            Check(g.playerAction!=null&&
+                  (g.playerAction.direction-new Point(1,0)).Length<.001f&&
+                  !g.playerAction.target.HasValue,
+                "Starting a new class also clears the previous hero's targeting state");
+        }
+
     }
 }

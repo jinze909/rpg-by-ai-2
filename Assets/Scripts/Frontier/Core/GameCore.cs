@@ -105,6 +105,14 @@ namespace Starfall
         private void ResetTransient()
         {
             projectiles.Clear(); effects.Clear();
+            // A new journey/slot must never inherit pointer targeting, facing,
+            // fishing results or HUD notifications from the previous hero.
+            // None of these transient inputs belong to persisted SaveData.
+            aim = dashDirection = new Point(1, 0);
+            aimTarget = null;
+            fishTime = fishCursor = 0;
+            fishHits = fishMisses = 0;
+            toast = ""; toastTime = 0;
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
