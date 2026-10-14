@@ -106,6 +106,9 @@ namespace Starfall.Tests
                                g.conversation.text.Contains("巡路队")),
                     "Sen's existing dialogue responds to the selected civilian service");
                 g.Close();
+                // After checking Sen in the original settlement, return to
+                // the physically restored southern hearth to measure its benefit.
+                g.save.x=south.x;g.save.y=south.y;
                 g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
                 g.save.health=60;g.save.energy=0;g.save.cold=40;
                 // Resolve residual attack hit-stop in real simulation before
