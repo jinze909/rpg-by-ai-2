@@ -32,6 +32,7 @@ namespace Starfall.Tests
                 "Dodge", "Hit", "Death" };
             string[] facings = { "E", "N", "S" };
             var probe = new GameObject("Starfall 63-clip native animation probe");
+            probe.transform.position = new Vector3(9000, 9000, 0);
             SpriteRenderer renderer = probe.AddComponent<SpriteRenderer>();
             Animator animator = probe.AddComponent<Animator>();
             try
@@ -66,6 +67,8 @@ namespace Starfall.Tests
                             {
                                 // The Editor bakes each key at index/12 fps,
                                 // plus a final closure/hold at expected/12.
+                                animator.SetInteger("Action", action);
+                                animator.SetInteger("Facing", facing);
                                 animator.Play(state, 0, (index + .2f) / expected);
                                 animator.Update(0f);
                                 Sprite sprite = renderer.sprite;
