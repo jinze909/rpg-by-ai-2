@@ -125,7 +125,7 @@ namespace Starfall
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
-            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard();
+            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
             ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit();
         }
         public void NewGame(int profession)
@@ -223,6 +223,12 @@ namespace Starfall
         // discard its combat actors or timer through ResetTransient().
         private bool CivilianFieldMissionBlocksTravel()
         {
+            if(SwordLessonActive)
+            {
+                Notify("诺尔的实弹练习正在进行，完成或在铁匠铺安全中止后才能旅行。",
+                    "Noll's live drill is active. Finish or abort at his forge before traveling.");
+                return true;
+            }
             if(FrostSignalActive)
             {
                 Notify("高原火种尚在运送。必须送往公共暖站，或回西部站主动归还。",
@@ -428,6 +434,7 @@ namespace Starfall
             TickTideTransition(); Point beforeMove = Position;
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
             TickSwordGuard(dt);
+            TickSwordLesson(dt);
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) +
@@ -1177,6 +1184,14 @@ namespace Starfall
             {
                 List<Choice> list = new List<Choice> { C("强化装备 · 木"+TemperUpgradeTimber+" 晶"+TemperUpgradeCrystal+" 零件"+TemperUpgradeParts, "Upgrade · "+TemperUpgradeTimber+" timber / "+TemperUpgradeCrystal+" crystal / "+TemperUpgradeParts+" parts", "upgrade"), C("制作猎弓 · 木4 零件2", "Craft bow · 4 timber / 2 parts", "bow"), C("制作星火杖 · 晶4 零件3", "Craft staff · 4 crystal / 3 parts", "staff") };
                 if (!Has("ally_3")) list.Add(C("支线：交付零件 ×5", "Commission: deliver 5 parts", "ally3"));
+                if(save.profession==0&&save.weapon==0)
+                {
+                    if(SwordLessonActive)
+                        list.Add(C("中止三箭练习","Abort three-arrow practice","swordlesson_abort"));
+                    else if(!SwordLessonComplete)
+                        list.Add(C("剑盾弹反试炼 · 三箭","Sword-guard trial · three arrows","swordlesson_start"));
+                    else list.Add(C("三箭试炼 · 已通过","Three-arrow trial · cleared","close"));
+                }
                 list.Add(C("再见", "Goodbye", "close"));
                 Dialog(o.name, o.en, "短剑快，猎弓远，法杖能让星火在敌人间爆开。强化装备提升生命与攻击。\n\n我还需要五个零件修好镇里的水泵。堡垒里有那么多机器，小镇却没有一口能用的井。"+(MineConvoyComplete?"\n\n最后一班矿工安全归来，还带回能再次使用的木材；每次装备强化已额外节省一份木料。":"")+
                     (save.profession==0&&save.weapon==0?"\n\n战士的Q技能会举起剑盾；正面迎接飞箭，消耗7耐力可弹回。正面挡下敌人的近身扑击则需9耐力，并获得一次强化反击；侧后方和冷却期间只有通常的减伤效果。":""),
@@ -1307,7 +1322,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || stormTuning ||
+            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 TideSalvageActive || LastDirectiveWave > 0 || CivicConduitActive ||
                 // A lull between scripted enemy waves is not a break in the
@@ -1323,6 +1338,7 @@ namespace Starfall
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action; Close();
+            if (ChooseSwordLesson(action)) return;
             if (ChooseFrostSignal(action)) return;
             if (ChooseMineConvoy(action)) return;
             if (ChooseFloodArchive(action)) return;

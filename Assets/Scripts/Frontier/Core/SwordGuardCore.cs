@@ -72,6 +72,7 @@ namespace Starfall
             effects.Add(new Effect("burst",Position,.27f)
                 {radius=.85f,variant=0,direction=fromEnemy});
             sound="counter";revision++;
+            CountSwordLessonDeflection(p);
             return true;
         }
     }
