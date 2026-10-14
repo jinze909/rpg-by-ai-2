@@ -49,6 +49,12 @@ def check():
     assert "public int HeroAnimationFrameCount" in core
     assert "public int HeroAnimationFrame(int facing)" in core
     assert "action.elapsed - action.contact < .12f" in core
+    # Native seven-cell Cast/Attack requires *three* distinct precontact
+    # samples: stand, intermediate, windup and anticipation keyframe 3.
+    # Never jump directly from windup cell 2 to contact cell 4.
+    assert "return 1f + .55f * Clamp((windup - .60f) / .25f" in core
+    assert "if (windup <= .60f) return windup / .60f;" in core
+    assert "return 2f + Clamp((action.elapsed - action.contact) / .18f" in core
     assert "HeroAnimationPlaybackPosition(int facing)" in core
     assert "if (state == 6) return 4;" in core
     assert "if (state == 3) return 4;" in core
