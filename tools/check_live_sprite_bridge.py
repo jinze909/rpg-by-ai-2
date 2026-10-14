@@ -113,6 +113,14 @@ def check():
     assert engine.startswith("#if UNITY_5_3_OR_NEWER")
     assert "useSpriteRendererHero;" in engine, "Not safe to silently replace accepted art"
     assert engine.count("return false;") >= 3, "Production must have a failure fallback"
+    # Live sword windup/contact can translate with AttackMovement, so
+    # both SpriteRenderer capture and proven OnGUI fallback must use the
+    # same original walking legs; collision/damage remain GameCore-owned.
+    assert re.search(r"mobility==MobilityRule\\.Reduced\\s*\\|\\|\\s*"
+                     r"mobility==MobilityRule\\.AttackMovement", actor), (
+        "Translating sword attacks would slide with static frozen legs")
+    assert "UnifiedActionGait(sheet,4,3,frame,walkSheets[look]," in actor
+    assert "Game.ActuallyMoving" in actor
     assert actor.count("DrawSpriteRendererHero(") == 2
     assert actor.count("if (!captured)") == 2
     assert "HumanActor(sheet,4,3,frame,p,.75f" in actor
