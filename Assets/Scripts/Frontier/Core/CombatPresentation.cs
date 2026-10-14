@@ -324,7 +324,17 @@ namespace Starfall
             ActorAction action = playerAction;
             float windup = Clamp(action.elapsed / Math.Max(.001f, action.contact), 0f, 1f);
             if (!action.released)
-                return count == 2 ? windup * .85f : windup;
+            {
+                if (count == 2) return windup * .85f;
+                // Idle -> windup -> ANTICIPATION midpoint -> actual contact.
+                // Previously the entire source1-to-source2 in-between was
+                // skipped: the player visibly snapped at damage release.
+                // Sample its non-contact, source-windup silhouette during
+                // the last 40% of preparation, leaving contact Sprite #4
+                // exclusively for ActorAction.released.
+                if (windup <= .60f) return windup / .60f;
+                return 1f + .55f * Clamp((windup - .60f) / .25f, 0f, 1f);
+            }
             if (count == 2) return 1f;
             return 2f + Clamp((action.elapsed - action.contact) / .18f, 0f, 1f);
         }
