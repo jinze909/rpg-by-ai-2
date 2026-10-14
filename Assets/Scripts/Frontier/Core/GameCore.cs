@@ -727,11 +727,16 @@ namespace Starfall
                             direction = e.facing, variant = e.boss ? 10 + save.room : e.kind,
                             reliefMissionOwned = IsReliefMissionEnemy(e) ||
                                 escortPatrol && e.targetingReliefCivilian,
-                            rootHarmonyOwned = IsRootHarmonyEnemy(e) });
+                            rootHarmonyOwned = IsRootHarmonyEnemy(e),
+                            mineConvoyOwned = IsMineConvoyEnemy(e),
+                            frostSignalOwned = IsFrostSignalEnemy(e) });
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
-                            effects.Add(new Effect("danger", e.target, .45f) { variant = e.boss ? save.room : 0, radius = radius });
+                            effects.Add(new Effect("danger", e.target, .45f) {
+                                variant = e.boss ? save.room : 0, radius = radius,
+                                mineConvoyOwned = IsMineConvoyEnemy(e),
+                                frostSignalOwned = IsFrostSignalEnemy(e) });
                             if ((Position - e.target).Length < radius && ClearAttackPath(e.Position, Position)) Hurt(e.boss ? 22 + e.BossPhase * 3 : 14, "slam", (Position - e.Position).Normalized);
                             else TryRewardEscapedWarning(e.target, radius);
                             if (Dying) break;
@@ -863,7 +868,11 @@ namespace Starfall
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
                         height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
-                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned }); continue; }
+                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
+                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
+                        civicConduitOwned = p.civicConduitOwned }); continue; }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
                 bool dead = p.blockedAtSpawn || ShotBlocked(p,p.position); float impactRadius = 0;
                 // Capture collision candidates once per flying projectile,
@@ -931,13 +940,21 @@ namespace Starfall
                         p.position, .28f) { direction = p.velocity.Normalized,
                         variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
                         reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
-                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned });
+                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
+                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
+                        civicConduitOwned = p.civicConduitOwned });
                 else if (p.life <= 0 && projectiles.Remove(p))
                     effects.Add(new Effect("projectileFade", p.position, .25f) {
                         direction = p.velocity.Normalized,
                         variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
                         height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
-                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned });
+                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
+                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
+                        civicConduitOwned = p.civicConduitOwned });
             }
             tickingProjectiles.Clear();
         }

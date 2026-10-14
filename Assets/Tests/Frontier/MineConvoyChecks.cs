@@ -135,6 +135,41 @@ namespace Starfall.Tests
                 "Spending one part really halves precisely the same first steam contact from 12 to 6 hull");
         }
 
+        public static void CombatSignalsRetireOnlyTheirOwnImpactAndWarningEffects(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(3);g.enemies.Clear();
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            WorldObject west=MineCartTestPost(g,1);
+            g.save.x=west.x;g.save.y=west.y;g.invulnerable=120;
+            g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start"),
+                "Real minecart must be active before its owned combat effects exist");
+            g.projectiles.Add(new Projectile {
+                position=new Point(west.x+1,west.y),velocity=new Point(),
+                life=0,mineConvoyOwned=true,visual="enemyArrow" });
+            g.projectiles.Add(new Projectile {
+                position=new Point(west.x+2,west.y),velocity=new Point(),
+                life=0,frostSignalOwned=true,visual="enemyArrow" });
+            Enemy raider=new Enemy(91303,2,west.x+1.4f,west.y,100);
+            raider.state=1;raider.timer=.01f;raider.target=g.Position;
+            raider.Face(new Point(-1,0));
+            g.enemies.Add(raider);
+            g.Tick(.05f,new Point());
+            Check(g.effects.Exists(e=>e.kind=="projectileFade"&&e.mineConvoyOwned)&&
+                g.effects.Exists(e=>e.kind=="projectileFade"&&e.frostSignalOwned),
+                "Real projectile expiration tags the correct authored combat source");
+            Check(g.effects.Exists(e=>e.kind=="enemyRelease"&&e.mineConvoyOwned)&&
+                g.effects.Exists(e=>e.kind=="danger"&&e.mineConvoyOwned),
+                "An actual minecart raider's windup/release warnings inherit mission ownership");
+            g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_abort"),
+                "The western civilian post can actually cancel its active fight");
+            Check(!g.effects.Exists(e=>e.mineConvoyOwned)&&
+                g.effects.Exists(e=>e.frostSignalOwned)&&
+                !g.projectiles.Exists(p=>p.mineConvoyOwned),
+                "Aborting clears only owned windups, impacts and fading shots; unrelated effects survive");
+        }
+
         public static void IronreachMinecartEscortProtectsRealWorkers(Campaign data)
         {
             var g=Fresh(data);

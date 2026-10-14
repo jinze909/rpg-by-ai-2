@@ -21,6 +21,7 @@ namespace Starfall.Tests
         [Test] public void SwordGuardReallyTurnsIncomingArrowsIntoCounterShots() { CoreChecks.SwordGuardReflectsRealHostileShotsWithResourceAndDirection(Data()); }
         [Test] public void SwordGuardRejectsSideHitsAndOtherProfessions() { CoreChecks.SwordGuardDoesNotReflectSideShotsOrBypassClassAndCooldown(Data()); }
         [Test] public void HighlandCivicEmberSurvivesActualColdAndGuardCombat() { CoreChecks.HighlandCivicEmberHasActualColdCombatAndPublicChoices(Data()); }
+        [Test] public void CombatEffectsKeepEncounterOwnershipThroughImpact() { CoreChecks.CombatSignalsRetireOnlyTheirOwnImpactAndWarningEffects(Data()); }
         [Test] public void MinecartMaterialsReallyLowerSmithCosts() { CoreChecks.MinecartCivicTimberSavingsActuallyReachTownForge(Data()); }
         [Test] public void CartEngineeringHalvesSteamAndAbortsSelectiveActors() { CoreChecks.MinecartEngineeringReallyReducesSteamDamageAndAbortIsSelective(Data()); }
         [Test] public void IronreachEscortRequiresActualFightingAndMovement() { CoreChecks.IronreachMinecartEscortProtectsRealWorkers(Data()); }
