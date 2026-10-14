@@ -116,9 +116,12 @@ def check():
     # Live sword windup/contact can translate with AttackMovement, so
     # both SpriteRenderer capture and proven OnGUI fallback must use the
     # same original walking legs; collision/damage remain GameCore-owned.
-    assert re.search(r"mobility==MobilityRule\.Reduced\s*\|\|\s*"
-                     r"mobility==MobilityRule\.AttackMovement", actor), (
-        "Translating sword attacks would slide with static frozen legs")
+    assert re.search(
+        r"mobility==MobilityRule\.Reduced\s*\|\|\s*\("
+        r"mobility==MobilityRule\.AttackMovement\s*&&\s*"
+        r"Game\.playerAction!=null\s*&&\s*"
+        r'Game\.playerAction\.kind=="attack"\)', actor), (
+        "Basic sword advances must use gait, but Vanguard Q keeps its own contact pose")
     assert "UnifiedActionGait(sheet,4,3,frame,walkSheets[look]," in actor
     assert "Game.ActuallyMoving" in actor
     assert actor.count("DrawSpriteRendererHero(") == 2
