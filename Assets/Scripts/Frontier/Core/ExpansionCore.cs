@@ -390,6 +390,9 @@ namespace Starfall
             if(Dying||mode!="world")return;
             // The tactical root pulse only cools down in the real world clock.
             RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
+            if(MineConvoyRefuge&&!practicing&&!racing&&SafeTravel&&
+                save.health>0&&save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.7f);
             // The Drowned Ruins civilian decision changes what real, local
             // and safe ferry tideposts provide, never a map-wide passive buff.
             if(FloodArchiveRefuge && SafeTravel && !practicing && !racing)

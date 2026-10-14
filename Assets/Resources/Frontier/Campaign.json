@@ -4436,6 +4436,30 @@
           "y": 36.5
         },
         {
+          "id": "mineconvoy_1",
+          "kind": "mineconvoy",
+          "name": "西北矿车发车岗",
+          "en": "Workers' Railcart · Western Dispatch",
+          "x": 58.5,
+          "y": 35.5
+        },
+        {
+          "id": "mineconvoy_2",
+          "kind": "mineconvoy",
+          "name": "矿车紧急转轨台",
+          "en": "Railcart · Emergency Switchyard",
+          "x": 64.5,
+          "y": 38.5
+        },
+        {
+          "id": "mineconvoy_3",
+          "kind": "mineconvoy",
+          "name": "南侧安全矿棚",
+          "en": "Workers' Railcart · Southern Shelter",
+          "x": 64.5,
+          "y": 44.5
+        },
+        {
           "id": "trailcircuit_3_1",
           "kind": "trailcircuit",
           "name": "工棚旧钟",

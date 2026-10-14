@@ -125,6 +125,7 @@ namespace Starfall
             invulnerable = 1; conversation = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
+            ResetMineConvoy();
             ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit();
         }
         public void NewGame(int profession)
@@ -222,6 +223,12 @@ namespace Starfall
         // discard its combat actors or timer through ResetTransient().
         private bool CivilianFieldMissionBlocksTravel()
         {
+            if(MineConvoyActive)
+            {
+                Notify("矿工撤离仍在路上！完成护送或返回西北发车岗主动取消。",
+                    "Minecart evacuation active. Finish the escort or cancel at the western dispatch.");
+                return true;
+            }
             if (FarCourierActive)
             {
                 Notify("救援包仍在运送中。请送到避险棚，或回桥头主动放回物资。",
@@ -431,6 +438,7 @@ namespace Starfall
             TickOuterPatrol();
             TickFarCourier(dt);
             TickCivicResponse(dt);
+            TickMineConvoy(dt);
             TickLastDirective(dt);
             TickCivicConduit(dt);
             TickExpansion(dt);
@@ -592,7 +600,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }
@@ -826,7 +834,7 @@ namespace Starfall
         private void Fire(Enemy e, Point dir, float speed)
         { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.courierOwned=IsFarCourierRaider(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
-                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -1025,6 +1033,7 @@ namespace Starfall
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
             if (TryTalkWaytrail(o)) return;
+            if (TalkMineConvoy(o)) return;
             if (TalkFloodArchive(o)) return;
             if (TalkRootsong(o)) return;
             if (TalkTrailCircuit(o)) return;
@@ -1257,7 +1266,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return FarCourierActive || CivicResponseActive || stormTuning ||
+            get { return MineConvoyActive || FarCourierActive || CivicResponseActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 TideSalvageActive || LastDirectiveWave > 0 || CivicConduitActive ||
                 // A lull between scripted enemy waves is not a break in the
@@ -1273,6 +1282,7 @@ namespace Starfall
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action; Close();
+            if (ChooseMineConvoy(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;
             if (ChoosePolish(action)) return;
