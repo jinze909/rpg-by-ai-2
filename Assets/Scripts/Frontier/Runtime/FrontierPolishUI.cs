@@ -52,8 +52,17 @@ namespace Starfall
             for (int i = 0; i < 3; i++) if (Button(294 + i * 199, 539, 187, 28, Game.L(new[] { "均衡", "蓄势", "流转" }[i], new[] { "Balanced", "Focused", "Flow" }[i]), inspectedStyle == i)) inspectedStyle = i;
             bool owned = inspectedWeapon == 0 || Game.Has("weapon_" + inspectedWeapon), unlocked = inspectedStyle == 0 || Game.Has("core_1") || Game.MasteryRank(inspectedWeapon) >= 1;
             string stats = Game.L("伤害 / 间隔 / 耗能：", "Damage / interval / energy: ") + candidate.damage.ToString("0") + " / " + candidate.interval.ToString("0.00") + "s / " + candidate.energy + "\n" + Game.L("当前：", "Equipped: ") + current.damage.ToString("0") + " / " + current.interval.ToString("0.00") + "s / " + current.energy;
-            Text(297, 577, 389, 59, stats, 13, paper);
-            if (Button(710, 580, 174, 52, Game.L("装备此打法", "Equip style"), true, owned && unlocked)) { Game.Equip(inspectedWeapon); Game.SetStyle(inspectedStyle); }
+            string finisher = inspectedWeapon == 0 ?
+                Game.L("第三击：+25%伤害，增加挥砍范围", "Third hit: +25% damage and extended sword reach") :
+                inspectedWeapon == 1 ?
+                Game.L("第三箭：+15%伤害；均衡流派穿透", "Third shot: +15% damage; Balanced pierces") :
+                Game.L("第三发：+12%伤害，短暂减速", "Third cast: +12% damage and a brief slow");
+            Text(297, 577, 389, 59, stats + "\n" + finisher, 12, paper);
+            bool equipped = owned && inspectedWeapon == Game.save.weapon && inspectedStyle == Game.Style;
+            if (Button(710, 580, 174, 52, equipped ?
+                Game.L("当前已装备", "Already equipped") : Game.L("装备此打法", "Equip style"),
+                equipped, owned && unlocked && !equipped))
+            { Game.Equip(inspectedWeapon); Game.SetStyle(inspectedStyle); }
             Text(297, 642, 583, 41, !owned ? Game.L("先去铁匠处制作武器。", "Craft this weapon at the blacksmith first.") : !unlocked ? Game.L("第一星核或本武器熟练度1解锁打法。", "First core or weapon mastery rank 1 unlocks styles.") : candidate.benefit + " · " + candidate.cost, 12, muted);
         }
         private void DrawJourney()

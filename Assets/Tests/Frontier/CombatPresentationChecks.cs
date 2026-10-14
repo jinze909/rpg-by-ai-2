@@ -711,6 +711,7 @@ namespace Starfall.Tests
 
         public static void RangedThirdHitsProduceDistinctRealProjectiles(Campaign data)
         {
+            foreach (float frameStep in new[] { .01f, .02f, .03f, .05f })
             foreach (int weapon in new[] { 1, 2 })
             foreach (int style in new[] { 0, 1, 2 })
             {
@@ -727,7 +728,7 @@ namespace Starfall.Tests
                     Check(attack != null && attack.kind == "attack" && attack.combo == index,
                         "Real ranged chain advances through each of its three consecutive attacks");
                     for (int frame = 0; frame < 100 && !attack.released; frame++)
-                        g.Tick(.02f, new Point());
+                        g.Tick(frameStep, new Point());
                     Check(attack.released, "Ranged attack reaches its visible contact before producing shots");
                     shots[index] = g.projectiles.Find(p => p.friendly);
                     Check(shots[index] != null && shots[index].impact != null &&
