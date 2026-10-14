@@ -54,7 +54,7 @@ namespace Starfall.Tests
                 Check(sampling.HeroAnimationState==4 &&
                       sampling.HeroAnimationFrameCount(0)==3 &&
                       Math.Abs(sampling.HeroAnimationPlaybackPosition(0))<.001f,
-                      "Dodge starts at the accepted crouch on the original dash clock");
+                      "Dodge begins upright on the original dash clock");
                 sampling.dashTime = .09f;
                 Check(Math.Abs(sampling.HeroAnimationPlaybackPosition(0)-1f)<.01f,
                       "Dodge middle cell follows the physical dash interval");
@@ -63,18 +63,18 @@ namespace Starfall.Tests
                 Check(sampling.HeroAnimationState==5 &&
                       sampling.HeroAnimationFrameCount(0)==3 &&
                       Math.Abs(sampling.HeroAnimationPlaybackPosition(0))<.01f,
-                      "Hit starts on accepted recoil without an invented timing clock");
+                      "Hit begins upright without inventing a separate damage clock");
                 sampling.playerHitTime = 0f;
                 sampling.deathTime = .9f;
                 Check(sampling.HeroAnimationState==6 &&
-                      sampling.HeroAnimationFrameCount(0)==3 &&
+                      sampling.HeroAnimationFrameCount(0)==4 &&
                       sampling.HeroAnimationFrame(0)==0,
-                      "Death enters real recoil pose");
+                      "Death starts upright before recoil, crouch and grounded final frame");
                 sampling.deathTime = .70f;
                 Check(sampling.HeroAnimationPlaybackPosition(0)>1f,
                       "Death progresses into the existing fall pose");
                 sampling.deathTime = .45f;
-                Check(sampling.HeroAnimationFrame(0)==2,
+                Check(sampling.HeroAnimationFrame(0)==3,
                       "Death holds the original authored grounded corpse until recovery");
                 g.Tick(.02f,new Point());float stopped=g.walkDistance;Advance(g,.6f);Check(!g.ActuallyMoving&&g.walkDistance==stopped,"Stopping cannot keep cycling the legs");
                 Point wall=WallStand(g);g.save.x=wall.x;g.save.y=wall.y;

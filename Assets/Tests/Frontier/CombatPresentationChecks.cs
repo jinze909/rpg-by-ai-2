@@ -55,23 +55,24 @@ namespace Starfall.Tests
                     Check(attack != null && game.HeroAnimationState == 2,
                         "An actual accepted attack starts production Animator's attack state");
                     Check(game.HeroAnimationFrameCount(0) == 4 &&
-                        game.HeroAnimationFrameCount(1) == 2,
-                        "North has two source poses; E/S each have four inherited attack poses");
+                        game.HeroAnimationFrameCount(1) == 4 &&
+                        game.HeroAnimationFrameCount(2) == 4,
+                        "All three attack facings use four phases: idle, windup, contact, recovery");
                     int windupSamples = 0, releasedSamples = 0;
                     for (int step = 0; step < 50 && game.playerAction == attack; step++)
                     {
                         if (!attack.released)
                         {
                             Check(game.HeroAnimationFrame(0) < 2 &&
-                                game.HeroAnimationFrame(1) == 0,
-                                "No contact/release artwork may precede production hit contact");
+                                game.HeroAnimationFrame(1) < 2,
+                                "No facing may display a contact pose before real damage release");
                             windupSamples++;
                         }
                         else
                         {
                             Check(game.HeroAnimationFrame(0) >= 2 &&
-                                game.HeroAnimationFrame(1) == 1,
-                                "Contact/recovery art follows the real damage release, never a separate clock");
+                                game.HeroAnimationFrame(1) >= 2,
+                                "Every attack contact/recovery frame follows GameCore damage release");
                             releasedSamples++;
                         }
                         game.Tick(dt, new Point());
