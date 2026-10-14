@@ -46,7 +46,17 @@ namespace Starfall
             if (id < 0 || portraits == null) { Icon(id < 0 ? "journal" : "companion", x + w * .2f, y + h * .25f, w * .6f); return; }
             float size = Math.Min(w, h); id = Math.Max(0, Math.Min(7, id)); GUI.DrawTextureWithTexCoords(new Rect(x + (w - size) / 2, y + h - size, size, size), portraits, new Rect(id % 4 / 4f, id < 4 ? .5f : 0, .25f, .5f));
         }
-        private void OpenMenu(string mode) { if (mode == "pause" && Game.mode != "title") settingsParent = "world"; if (mode == "saves") RefreshSlots(); Game.mode = mode; if (mode == "inventory") Game.TutorialAction(6); }
+        private void OpenMenu(string mode)
+        {
+            // A downed player must finish the mandatory recovery animation.
+            // Opening inventory, pause or journal mid-death stops the world
+            // clock and previously stranded the player at zero health.
+            if (Game == null || Game.Dying) return;
+            if (mode == "pause" && Game.mode != "title") settingsParent = "world";
+            if (mode == "saves") RefreshSlots();
+            Game.mode = mode;
+            if (mode == "inventory") Game.TutorialAction(6);
+        }
         private void Dim() { Box(0, 0, Width, Height, new Color(.02f, .035f, .07f, .87f)); }
         private void Bar(float x, float y, float w, float value, Color color, float h = 6)
         { Box(x, y, w, h, PixelArt.C("#0d1c2c")); Box(x, y, w * Mathf.Clamp01(value), h, color); Box(x, y, w * Mathf.Clamp01(value), 1, Color.Lerp(color, paper, .3f)); }

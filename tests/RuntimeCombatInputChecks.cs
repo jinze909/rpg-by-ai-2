@@ -580,6 +580,40 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Actual talents UI blocks overflowing respec and explains the point-cap remedy");
     }
 
+
+    private static void DeathRecoveryCannotBeInterruptedByMenuOrFocus(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.Enter(1);game.enemies.Clear();game.mode="world";
+        game.save.health=1;game.invulnerable=0;
+        typeof(GameCore).GetMethod("Hurt", Private).Invoke(game,new object[]{999f,"shot",null});
+        Check(game.Dying&&game.mode=="world"&&game.save.room==1,
+            "Authentic lethal damage begins a visible recovery at the original battlefield");
+        Input.keys.Add(KeyCode.I);Update(app);
+        Check(game.mode=="world"&&game.Dying,
+            "Pressing inventory during death must not pause mandatory recovery");
+        Input.keys.Add(KeyCode.Tab);Update(app);
+        Check(game.mode=="world"&&game.Dying,
+            "Pressing journal during death must not pause mandatory recovery");
+        Call(app,"OpenMenu","pause");
+        Check(game.mode=="world"&&game.Dying,
+            "GUI or controller pause calls cannot interrupt a dead player's recovery");
+        Call(app,"OnApplicationFocus",false);
+        Check(game.mode=="world",
+            "Window focus loss during death may not leave a hidden pause menu behind");
+        float frozen=game.deathTime;
+        Frames(app,7);
+        Check(game.deathTime==frozen,
+            "Window focus loss still freezes the recovery clock while actually away");
+        Call(app,"OnApplicationFocus",true);
+        Frames(app,55);
+        Check(!game.Dying&&game.mode=="world"&&game.save.room==0&&
+              game.save.health==game.save.maxHealth,
+            "Returning focus completes safe inn respawn without any special unpause action");
+        Console.WriteLine("PASS Real death pose rejects menu toggles and recovers after window focus resumes");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -593,6 +627,7 @@ public static class RuntimeCombatInputChecks
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
             FishingSuspendsOnFocusLossAndResumesOnReturn,
+            DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup };
         int failures = 0;
         foreach (var test in cases)

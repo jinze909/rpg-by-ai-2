@@ -202,7 +202,10 @@ namespace Starfall
                 // fishing) instead of letting their cursor run unseen.
                 // World combat additionally displays the existing pause menu.
                 Game.ClearBufferedSkill();
-                if (Game.mode == "world") { Game.mode = "pause"; Save(); }
+                // Off-window updates already freeze. Do not convert an
+                // active death pose to a persistent pause menu: on returning,
+                // mandatory respawn must continue without another keypress.
+                if (Game.mode == "world" && !Game.Dying) { Game.mode = "pause"; Save(); }
             }
         }
         private void OnApplicationQuit() { Save(); }
