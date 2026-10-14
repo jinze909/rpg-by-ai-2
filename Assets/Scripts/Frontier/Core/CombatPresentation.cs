@@ -34,6 +34,53 @@ namespace Starfall
             public int weapon, profession, style, technique;
         }
         private SkillIntent bufferedSkill;
+        // A single late basic-attack press may carry through the tail of its
+        // current swing. The intent is never serialized and spends nothing until
+        // the next swing is actually accepted.
+        public const float AttackBufferWindow = .16f;
+        private sealed class AttackIntent
+        {
+            public float remaining;
+            public Point direction;
+            public Point? target;
+            public int weapon, profession, style, technique;
+        }
+        private AttackIntent bufferedAttack;
+        private void ClearBufferedAttack() { bufferedAttack = null; }
+        private void QueueLateAttack(Point direction)
+        {
+            ActorAction action = playerAction;
+            if (action == null || action.kind != "attack" || !action.released ||
+                playerHitTime > 0 || dashTime > 0 || bufferedSkill != null) return;
+            float untilReady = Math.Max(attackCooldown, Math.Max(0, action.duration - action.elapsed));
+            if (untilReady > AttackBufferWindow + .00001f) return;
+            Point facing = direction.Length > .05f ? direction.Normalized : aim;
+            bufferedAttack = new AttackIntent { remaining = AttackBufferWindow,
+                direction = facing, target = aimTarget, weapon = save.weapon,
+                profession = save.profession, style = Style, technique = save.technique };
+        }
+        private void TickBufferedAttack(float dt, float readyDelay)
+        {
+            AttackIntent intent = bufferedAttack;
+            if (intent == null) return;
+            float previousRemaining = intent.remaining;
+            intent.remaining -= dt;
+            if (bufferedSkill != null || intent.weapon != save.weapon ||
+                intent.profession != save.profession || intent.style != Style ||
+                intent.technique != save.technique)
+            { ClearBufferedAttack(); return; }
+            // Compare readiness with the window *before* this simulation step
+            // so a valid 30/50ms boundary input is neither lost nor extended.
+            if (attackCooldown <= .00001f && playerAction == null &&
+                !ActionTransitionBlocked && readyDelay <= previousRemaining + .00001f)
+            {
+                ClearBufferedAttack();
+                Point? liveTarget = aimTarget;
+                try { aimTarget = intent.target; Attack(intent.direction); }
+                finally { aimTarget = liveTarget; }
+            }
+            else if (intent.remaining <= .00001f) ClearBufferedAttack();
+        }
         public bool ActionTransitionBlocked
         {
             get { return dashTime > 0 || hitStop > 0 || playerHitTime > 0 || playerAction != null && PlayerPhase != ActionPhase.Recovery; }
@@ -90,19 +137,22 @@ namespace Starfall
 
         private void ResetCombatPresentation()
         {
-            ClearBufferedSkill();
+            ClearBufferedSkill(); ClearBufferedAttack();
             playerAction = null; fallen.Clear(); playerHitTime = playerFlash = deathTime = hitStop = impactShake = finaleDelay = 0;
             playerRecoil = movementDirection = new Point();
             fallenPlayerWeapon=-1;fallenPlayerFacing=new Point();
             playerHitFacing=new Point(); playerHitWeapon = -1;
         }
-        private void CancelAction() { playerAction = null; ClearBufferedSkill(); }
+        private void CancelAction() { playerAction = null; ClearBufferedSkill(); ClearBufferedAttack(); }
         private void ValidateActionProfile()
         {
             ActorAction a = playerAction;
             if (a != null && (a.equippedWeapon != save.weapon || a.profession != save.profession || a.style != Style || a.technique != save.technique)) CancelAction();
             SkillIntent intent = bufferedSkill;
             if (intent != null && (intent.weapon != save.weapon || intent.profession != save.profession || intent.style != Style || intent.technique != save.technique)) ClearBufferedSkill();
+            AttackIntent attack = bufferedAttack;
+            if (attack != null && (attack.weapon != save.weapon || attack.profession != save.profession ||
+                attack.style != Style || attack.technique != save.technique)) ClearBufferedAttack();
         }
         private void BeginAction(string kind, float damage, float duration, float contact)
         {

@@ -20,7 +20,7 @@ namespace Starfall
         public string mode
         {
             get { return currentMode; }
-            set { currentMode = value; if (value != "world") ClearBufferedSkill(); }
+            set { currentMode = value; if (value != "world") { ClearBufferedSkill(); ClearBufferedAttack(); } }
         }
         public string toast = "";
         public Conversation conversation;
@@ -400,6 +400,10 @@ namespace Starfall
                 if (dt <= .00001f) return;
             }
             float skillReadyDelay = SkillReadyDelay();
+            float attackReadyDelay = Math.Max(0, attackCooldown);
+            if (playerAction != null)
+                attackReadyDelay = Math.Max(attackReadyDelay,
+                    Math.Max(0, playerAction.duration - playerAction.elapsed));
             movementDirection = new Point();
             TickVisuals(dt); if (mode != "world") return; TickGate(dt);
             for (int i = effects.Count - 1; i >= 0; i--) { effects[i].life -= dt; if (effects[i].life <= 0) effects.RemoveAt(i); }
@@ -420,6 +424,7 @@ namespace Starfall
             TickAction(dt);
             if (mode != "world" || beganInPractice && !practicing) return;
             TickBufferedSkill(dt, skillReadyDelay);
+            TickBufferedAttack(dt, attackReadyDelay);
             UpdateEnemies(dt); if (Dying) return;
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
             TickOuterPatrol();
@@ -454,7 +459,10 @@ namespace Starfall
         {
             if(!Finite(direction.x)||!Finite(direction.y))
                 direction=new Point();
-            if (mode != "world" || Dying || ActionTransitionBlocked || attackCooldown > 0 || bufferedSkill != null) return;
+            if (mode != "world" || Dying || bufferedSkill != null) return;
+            if (ActionTransitionBlocked || attackCooldown > 0)
+            { QueueLateAttack(direction); return; }
+            ClearBufferedAttack();
             SetAim(direction);
             WeaponProfile profile = Profile(save.weapon, Style);
             if (save.energy < profile.energy) { ActionUnavailable(0, profile.energy); return; }
@@ -469,6 +477,7 @@ namespace Starfall
             float cost = Relic(4) ? 50 : 40;
             if (mode != "world" || Dying) return;
             if (skillCooldown > 0 || save.energy < cost) { ClearBufferedSkill(); ActionUnavailable(skillCooldown, cost); return; }
+            ClearBufferedAttack(); // A requested Q outranks a queued ordinary swing.
             Point facing = direction.HasValue && Finite(direction.Value.x) && Finite(direction.Value.y) && direction.Value.Length > .05f ? direction.Value.Normalized : aim;
             if (ActionTransitionBlocked)
             {

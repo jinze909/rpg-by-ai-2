@@ -632,6 +632,82 @@ namespace Starfall.Tests
                 "Returning to balanced style begins a genuine first strike, not a borrowed third-hit bonus");
         }
 
+
+        public static void LateBasicAttacksBufferOnceAndRespectCombatProfiles(Campaign data)
+        {
+            foreach (float step in new[] { .01f, .02f, .03f, .05f })
+            {
+                var g = Quiet(data); g.enemies.Clear();
+                g.Attack(new Point(1, 0));
+                ActorAction first = g.playerAction;
+                while (first.elapsed < first.duration - .10f && g.playerAction == first)
+                    g.Tick(step, new Point());
+                Check(g.playerAction == first && first.released,
+                    "A late input still belongs to a real released sword attack");
+                g.Attack(new Point(0, -1));
+                Check(g.playerAction == first && g.combo == 0,
+                    "Pressing during recovery never cuts off the old contact pose");
+                g.SetAim(new Point(1, 0));
+                ActorAction next = null;
+                for (int frame = 0; frame < 50; frame++)
+                {
+                    g.Tick(step, new Point());
+                    if (g.playerAction != first) { next = g.playerAction; break; }
+                }
+                Check(next != null && next.kind == "attack" && g.combo == 1 &&
+                    next.direction.y < -.99f,
+                    "A single late press chains one real second strike with its original facing at step " + step);
+                for (int frame = 0; frame < 70; frame++) g.Tick(step, new Point());
+                Check(g.playerAction == null && g.combo == 1,
+                    "A buffered tap must never self-repeat as a third strike");
+            }
+            var early = Quiet(data); early.enemies.Clear(); early.Attack(new Point(1, 0));
+            early.Tick(.05f, new Point()); early.Attack(new Point(0, -1));
+            Advance(early, .7f);
+            Check(early.playerAction == null && early.combo == 0,
+                "An early press during the first windup cannot queue a delayed phantom attack");
+            var same = Quiet(data); same.enemies.Clear(); same.Attack(new Point(1, 0));
+            Advance(same, .27f); same.Attack(new Point(0, -1));
+            same.Equip(0); same.SetStyle(0);
+            Advance(same, .12f);
+            Check(same.playerAction != null && same.combo == 1,
+                "Re-selecting an unchanged weapon and style preserves the late attack");
+            var changed = Quiet(data); changed.enemies.Clear();
+            changed.save.flags.Add("core_1"); changed.Attack(new Point(1, 0));
+            Advance(changed, .27f); changed.Attack(new Point(0, -1)); changed.SetStyle(1);
+            Advance(changed, .5f);
+            Check(changed.playerAction == null && changed.combo == 0 &&
+                changed.Style == 1, "A genuine style change drops the obsolete buffered attack and combo");
+            var equipped = Quiet(data); equipped.enemies.Clear();
+            equipped.save.flags.Add("weapon_1"); equipped.Attack(new Point(1, 0));
+            Advance(equipped, .27f); equipped.Attack(new Point(0, -1)); equipped.Equip(1);
+            Advance(equipped, .5f);
+            Check(equipped.playerAction == null && equipped.combo == 0,
+                "Changing weapon cannot replay the old sword buffer as a bow attack");
+            var priority = Quiet(data); priority.enemies.Clear();
+            priority.Attack(new Point(1, 0)); Advance(priority, .27f);
+            priority.Attack(new Point(0, -1)); priority.Skill(new Point(1, 0));
+            Check(priority.playerAction != null && priority.playerAction.kind == "skill",
+                "A real Q input takes priority over the pending basic strike");
+            Advance(priority, 1f);
+            Check(priority.playerAction == null && priority.combo == 0,
+                "A queued basic strike does not fire after the skill");
+            var limited = Quiet(data); limited.enemies.Clear(); limited.save.flags.Add("core_1");
+            limited.SetStyle(1); limited.Attack(new Point(1, 0));
+            Advance(limited, .34f); limited.Attack(new Point(0, -1));
+            limited.save.energy = 0;
+            Advance(limited, .4f);
+            Check(limited.playerAction == null && limited.combo == 0,
+                "Buffered focused strike checks energy when dispatched, not when queued");
+            var loaded = Quiet(data); loaded.enemies.Clear();
+            loaded.Attack(new Point(1, 0)); Advance(loaded, .27f);
+            loaded.Attack(new Point(0, -1));
+            loaded.PrepareSave(); loaded.Load(CloneSave(loaded.save));
+            Advance(loaded, .7f);
+            Check(loaded.playerAction == null && loaded.combo == 0,
+                "Transient buffer is never carried into a newly loaded v2 save");
+        }
+
         public static void ArcherCompanionCannotWasteVolleyOnItsOwnFootTarget(Campaign data)
         {
             var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("companion_1");
