@@ -21,7 +21,9 @@ namespace Starfall.Tests
             foreach(int branch in new[]{1,2})
             {
                 var g=Fresh(data);
-                g.save.stage=7;g.Enter(7);g.enemies.Clear();
+                g.save.flags.Add("desert_report");
+                g.save.stage=3;g.Enter(7);g.enemies.Clear();
+                Check(g.save.room==7,"Existing desert report legitimately unlocks original Frostchime area");
                 Check(g.GetQuest("frost_signal").locked,"Highland civilian task respects the original boss gate");
                 WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
                 foreach(WorldObject post in new[]{west,mid,south})
