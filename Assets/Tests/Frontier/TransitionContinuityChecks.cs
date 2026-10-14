@@ -206,7 +206,10 @@ namespace Starfall.Tests
                 g.Tick(.01f,new Point(),direction*-1);
                 Check(g.playerAction==action&&(g.VisualFacing-direction).Length<.001f,"An idle release pose cannot rotate before recovery ends");
                 g.Tick(.01f,direction*-1,direction*-1);
-                Check(g.ActuallyMoving&&(g.VisualFacing-direction*-1).Length<.001f&&g.PlayerPose>=2&&g.PlayerPose<=3,"Moving recovery returns body and legs together to locomotion");
+                Check(g.ActuallyMoving&&(g.VisualFacing-direction*-1).Length<.001f&&
+                    g.PlayerMobility==MobilityRule.Reduced&&
+                    (g.PlayerPose==5||g.PlayerPose==7||g.PlayerPose>=2&&g.PlayerPose<=3),
+                    "Moving recovery keeps a rooted released upper pose while real legs resume");
                 g=Quiet(data,weapon);g.save.weapon=(weapon+1)%3;g.Skill(direction);
                 Check(g.AppearanceWeapon==weapon,"Q preparation shows the vocation's real equipment");
                 g.invulnerable=0;g.save.health=1;g.projectiles.Add(new Projectile{position=g.Position,damage=999,visual="enemyOrb"});

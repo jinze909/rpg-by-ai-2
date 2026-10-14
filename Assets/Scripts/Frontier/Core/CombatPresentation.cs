@@ -265,11 +265,20 @@ namespace Starfall
                         // supplied by the unified rooted render texture.
                         // If Q uses another equipped weapon, restore its own
                         // walk silhouette instead of showing the wrong outfit.
-                        if(playerAction.kind=="skill"&&
-                           playerAction.weapon==save.weapon&&
-                           playerAction.equippedWeapon==save.weapon&&
-                           playerAction.elapsed<playerAction.contact+.34f)
-                            return 7;
+                        if(playerAction.weapon==save.weapon&&
+                           playerAction.equippedWeapon==save.weapon)
+                        {
+                            if(playerAction.kind=="skill"&&
+                               playerAction.elapsed<playerAction.contact+.34f)
+                                return 7;
+                            if(playerAction.kind=="attack"&&
+                               playerAction.elapsed<playerAction.contact+.22f)
+                            {
+                                bool heavy=playerAction.weapon==0&&
+                                    (playerAction.combo==2||playerAction.style==1);
+                                return heavy?7:5;
+                            }
+                        }
                         return 2 + WalkFrame % 2;
                     }
                     bool ready = PlayerPhase == ActionPhase.Windup;

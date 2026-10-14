@@ -640,6 +640,22 @@ public static class RuntimeCombatInputChecks
                 "resource:Frontier/Art/WalkVanguard"),
                 "Moving spells must preserve the same original blonde head across all outfits");
         }
+        // A regular sword attack is still fully authored during its forced
+        // forward lunge. Only after the real contact enters moving recovery
+        // may its release torso be combined with actual distance-driven legs.
+        Prepare(app,0);
+        var blade=app.Game;blade.Attack(new Point(1,0));Frames(app,14);
+        Check(blade.PlayerPhase==ActionPhase.Recovery&&!blade.ActuallyMoving,
+            "The mature sword lunge is intact through real attack contact");
+        Input.axes["Horizontal"]=1;Input.held.Add(KeyCode.D);Update(app);
+        Check(blade.ActuallyMoving&&blade.PlayerMobility==MobilityRule.Reduced&&
+            blade.PlayerPose==5,
+            "Sword release has distinct moving recovery with authored upper frame");
+        GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith("Unified_")&&
+            t.texture.name.Contains("PlayerVanguard")&&
+            t.texture.name.Contains("WalkVanguard")),
+            "A real post-contact sword stride uses a single rooted authored composite");
         Prepare(app,0);
         var player=app.Game;
         player.enemies.Clear();

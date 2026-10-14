@@ -55,7 +55,9 @@ namespace Starfall.Tests
                 }
                 while(g.playerAction!=null&&g.PlayerPhase!=ActionPhase.Recovery)g.Tick(.01f,new Point());
                 Point recovery=g.Position;g.Tick(.01f,new Point(0,1));
-                Check((g.Position-recovery).Length>.001f&&g.PlayerPose>=2&&g.PlayerPose<=3,"Recovery restores movement together with walking legs");
+                Check((g.Position-recovery).Length>.001f&&g.PlayerMobility==MobilityRule.Reduced&&
+                    (g.PlayerPose==5||g.PlayerPose==7||g.PlayerPose>=2&&g.PlayerPose<=3),
+                    "Recovery restores true translation with authored attack upper pose and unified leg gait");
                 g.playerAction=null;g.skillCooldown=0;g.save.energy=100;g.Skill(direction);a=g.playerAction;start=g.Position;
                 while(g.playerAction!=null)g.Tick(.02f,new Point(1,0),direction*-1);
                 if(weapon>0)
