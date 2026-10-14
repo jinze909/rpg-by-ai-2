@@ -7,9 +7,36 @@ import json
 from pathlib import Path
 from PIL import Image
 from build_hero_animation_preview import CLASSES, FACINGS, ACTIONS, CELL, ROOT, source_indices
-from export_canonical_hero_atlases import DEST, PREVIEW, expected_count
+from export_canonical_hero_atlases import DEST, PREVIEW, expected_count, motion_midpoint
+
+def check_solid_midpoint_synthetic():
+    """Prove the replacement actually moves pixels without mixing silhouettes."""
+    first = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+    next_pose = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+    for y in range(20, 57):  # body moves while boots remain rooted
+        for x in range(105, 148):
+            first.putpixel((x, CELL - 1 - y), (18, 32, 48, 255))
+            next_pose.putpixel((x + 10, CELL - 1 - y), (18, 32, 48, 255))
+    for y in range(58, 113):  # canonical head stays put
+        for x in range(102, 148):
+            color = (240, 223, 154, 255)
+            first.putpixel((x, CELL - 1 - y), color)
+            next_pose.putpixel((x, CELL - 1 - y), color)
+    for y in range(40, 70):  # outstretched weapon changes pose
+        for x in range(185, 193):
+            first.putpixel((x, CELL - 1 - y), (230, 113, 35, 255))
+            next_pose.putpixel((x + 12, CELL - 1 - y - 10), (230, 113, 35, 255))
+    midpoint = motion_midpoint(first, next_pose)
+    assert midpoint.tobytes() != first.tobytes(), "Motion pass did not create a new pose"
+    assert set(midpoint.getdata()) <= set(first.getdata()), "Blended/new colors or double silhouettes"
+    assert midpoint.crop((91, 138, 170, 199)).tobytes() == first.crop(
+        (91, 138, 170, 199)).tobytes(), "Blonde protagonist's head changed"
+    assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == first.crop(
+        (0, 233, CELL, CELL)).tobytes(), "Foot contact band shifted"
+
 
 def check():
+    check_solid_midpoint_synthetic()
     manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "accepted_source_plus_algorithmic_motion_midpoints_not_art_approved"
     assert manifest["top_origin_foot_px"] == [128, 240]
@@ -68,6 +95,15 @@ def check():
                             box = (91, 138, 170, 199)
                             assert midpoint.crop(box).tobytes() == extracted.crop(box).tobytes(), (
                                 key, original_index, "canonical blonde head altered")
+                            # One approved silhouette only: no checkerboard splice
+                            # of two weapons/legs or synthetic blended colors.
+                            assert set(midpoint.getdata()) <= (
+                                set(extracted.getdata()) | {(0, 0, 0, 0)}
+                            ), (key, original_index, "non-source colors / raster ghosting")
+                            # Boots + contact shadow always use the original root.
+                            assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == extracted.crop(
+                                (0, 233, CELL, CELL)).tobytes(), (
+                                    key, original_index, "foot-band slide")
                 tally += 1
                 midpoints += row["generated_midpoints"]
                 if action == "Attack" and klass == "Vanguard":
@@ -83,7 +119,7 @@ def check():
         "sample_atlases": examples,
     }
     (DEST / "generated-motion-qa.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"PASS: {tally} generated atlases / {midpoints} newly synthesized opaque pixel midpoints.")
+    print(f"PASS: {tally} generated atlases / {midpoints} single-source, ghost-free silhouette midpoints.")
     print("PASS: original hero poses unchanged in all 63 generated atlases; same canonical root.")
     print("NATIVE_UNVERIFIED: native Unity playback and aesthetic animation quality.")
 
