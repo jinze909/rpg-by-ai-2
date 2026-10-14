@@ -390,6 +390,13 @@ namespace Starfall
             if(Dying||mode!="world")return;
             // The tactical root pulse only cools down in the real world clock.
             RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
+            if(FrostSignalRefuge&&SafeTravel&&!practicing&&!racing)
+            {
+                if(FrostSignalOutcome==1&&save.health>0&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.35f);
+                else if(FrostSignalOutcome==2)
+                    save.energy=Math.Min(100,save.energy+dt*3.6f);
+            }
             if(MineConvoyRefuge&&!practicing&&!racing&&SafeTravel&&
                 save.health>0&&save.health<save.maxHealth)
                 save.health=Math.Min(save.maxHealth,save.health+dt*1.7f);
@@ -409,7 +416,7 @@ namespace Starfall
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
                 !GlasswindRefuge && !racing ? 1.3f : -10), 0, 100);
-            bool warm = false;
+            bool warm = FrostSignalRefuge;
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&

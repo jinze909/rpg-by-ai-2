@@ -9499,6 +9499,30 @@
           "y": 36.5
         },
         {
+          "id": "frostsignal_1",
+          "kind": "frostsignal",
+          "name": "西部寒地守灯岗",
+          "en": "Highland Ember · Western Signal",
+          "x": 58.5,
+          "y": 35.5
+        },
+        {
+          "id": "frostsignal_2",
+          "kind": "frostsignal",
+          "name": "冰路火种转折台",
+          "en": "Highland Ember · Windbreak Junction",
+          "x": 65.5,
+          "y": 39.5
+        },
+        {
+          "id": "frostsignal_3",
+          "kind": "frostsignal",
+          "name": "南侧平民暖站",
+          "en": "Highland Ember · Civilian Hearth",
+          "x": 66.5,
+          "y": 44.5
+        },
+        {
           "id": "trailcircuit_7_1",
           "kind": "trailcircuit",
           "name": "冰崖风铃",
