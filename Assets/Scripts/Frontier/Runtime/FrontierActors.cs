@@ -105,8 +105,16 @@ namespace Starfall
             {
                 int row = GameCore.DirectionRow(direction);
                 sheet = walkSheets[look]; frame = row * 4 + Game.WalkFrame;
-                HumanActor(sheet,4,3,frame,p,.75f,tint,row==0&&direction.x<0,walkSheets[0],row*4,true);
-                if(!drawingOutline&&Game.playerFlash>0)HumanActor(sheet,4,3,frame,p,.75f,new Color(1,1,1,Game.playerFlash/.09f*.86f),row==0&&direction.x<0,walkSheets[0],row*4,true,true);
+                bool captured = false;
+#if UNITY_5_3_OR_NEWER
+                captured = DrawSpriteRendererHero(sheet,frame,p,tint,
+                    row==0&&direction.x<0,row,pose,true,false,null);
+#endif
+                if (!captured)
+                {
+                    HumanActor(sheet,4,3,frame,p,.75f,tint,row==0&&direction.x<0,walkSheets[0],row*4,true);
+                    if(!drawingOutline&&Game.playerFlash>0)HumanActor(sheet,4,3,frame,p,.75f,new Color(1,1,1,Game.playerFlash/.09f*.86f),row==0&&direction.x<0,walkSheets[0],row*4,true,true);
+                }
             }
             else
             {
@@ -130,12 +138,20 @@ namespace Starfall
                     pose>=4 && pose<=7 && walkSheets[look]!=null ?
                     UnifiedActionGait(sheet,4,3,frame,walkSheets[look],
                         facingRow*4+Game.WalkFrame) : null;
-                HumanActor(sheet,4,3,frame,p,.75f,tint,flip,walkSheets[0],
-                    facingRow*4,resting,false,Game.Dying,unified);
-                if(!drawingOutline&&Game.playerFlash>0)
-                    HumanActor(sheet,4,3,frame,p,.75f,
-                        new Color(1,1,1,Game.playerFlash/.09f*.86f),
-                        flip,walkSheets[0],facingRow*4,false,true,Game.Dying,unified);
+                bool captured = false;
+#if UNITY_5_3_OR_NEWER
+                captured = DrawSpriteRendererHero(sheet,frame,p,tint,flip,
+                    facingRow,pose,resting,Game.Dying,unified);
+#endif
+                if (!captured)
+                {
+                    HumanActor(sheet,4,3,frame,p,.75f,tint,flip,walkSheets[0],
+                        facingRow*4,resting,false,Game.Dying,unified);
+                    if(!drawingOutline&&Game.playerFlash>0)
+                        HumanActor(sheet,4,3,frame,p,.75f,
+                            new Color(1,1,1,Game.playerFlash/.09f*.86f),
+                            flip,walkSheets[0],facingRow*4,false,true,Game.Dying,unified);
+                }
             }
             // Real 32px authored accents track the SAME live action/release
             // timestamps as the composed body; not an independent decorative

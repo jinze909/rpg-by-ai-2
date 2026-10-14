@@ -151,6 +151,64 @@ namespace Starfall.EditorTools
                 + "Production remains on the safe IMGUI renderer.");
         }
 
+        // Generates a real runtime-loadable Animator state machine for the live
+        // SpriteRenderer bridge in FrontierHeroSpriteCapture. It never writes
+        // over accepted source PNGs or the separate preview controller.
+        // The GameCore clock still chooses exact contact/leg frames: these
+        // Animator states deliberately do not keyframe m_Sprite yet.
+        [MenuItem("Starfall/Animation/Build Live SpriteRenderer State Bridge")]
+        public static void BuildLiveStateBridge()
+        {
+            const string controllerPath = "Assets/Resources/Frontier/HeroAnimator/ProductionController.controller";
+            const string clipsDirectory = "Assets/Animations/Frontier/HeroLiveStates/";
+            EnsureDirectory("Assets/Resources/Frontier/HeroAnimator");
+            EnsureDirectory(clipsDirectory);
+            AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
+            if (controller != null)
+            {
+                Debug.Log("Existing live Hero Animator Controller preserved; no authored transition or clip overwritten.");
+                return;
+            }
+            controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+            controller.AddParameter("Action", AnimatorControllerParameterType.Int);
+            controller.AddParameter("Facing", AnimatorControllerParameterType.Int);
+            AnimatorStateMachine stateMachine = controller.layers[0].stateMachine;
+            string[] actions = { "Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death" };
+            string[] directions = { "E", "N", "S" };
+            for (int action = 0; action < actions.Length; action++)
+                for (int facing = 0; facing < directions.Length; facing++)
+                {
+                    string name = actions[action] + "_" + directions[facing];
+                    string clipPath = clipsDirectory + "Live_" + name + ".anim";
+                    AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
+                    if (clip == null)
+                    {
+                        clip = new AnimationClip { frameRate = 12 };
+                        // Harmless, nonvisual constant track gives Animator an
+                        // actual duration without overwriting the production
+                        // SpriteRenderer's GameCore-registered art.
+                        AnimationUtility.SetEditorCurve(clip,
+                            new EditorCurveBinding { path = "", type = typeof(Transform),
+                                propertyName = "m_LocalScale.z" },
+                            AnimationCurve.Constant(0, .5f, 1));
+                        AssetDatabase.CreateAsset(clip, clipPath);
+                    }
+                    AnimatorState state = stateMachine.AddState(name);
+                    state.motion = clip;
+                    if (action == 0 && facing == 0) stateMachine.defaultState = state;
+                    AnimatorStateTransition change = stateMachine.AddAnyStateTransition(state);
+                    change.hasExitTime = false;
+                    change.duration = 0;
+                    change.canTransitionToSelf = false;
+                    change.AddCondition(AnimatorConditionMode.Equals, action, "Action");
+                    change.AddCondition(AnimatorConditionMode.Equals, facing, "Facing");
+                }
+            AssetDatabase.SaveAssets();
+            Debug.Log("Live seven-action, three-facing Animator bridge created. " +
+                "Inspector opt-in on FrontierRuntime enables production SpriteRenderer compositing; " +
+                "actual accepted source pixels and SaveData v2 remain untouched.");
+        }
+
         private static string ClipKey(string profession, int action, int facing)
         {
             return "Hero_" + profession + "_" + Actions[action] + "_" + Facings[facing];

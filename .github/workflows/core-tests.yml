@@ -15,6 +15,8 @@ jobs:
         run: python3 tools/check_visual_sprites.py
       - name: Build three-class canonical hero animation preview / QA matrix
         run: python3 tools/build_hero_animation_preview.py
+      - name: Check live SpriteRenderer hero bridge and accepted sources
+        run: python3 tools/check_live_sprite_bridge.py
       - name: Audit three-class animation frame continuity and provenance
         run: python3 tools/check_hero_temporal_qa.py
       - name: Preserve sprite QA filmstrips, onion-skins and GIFs
