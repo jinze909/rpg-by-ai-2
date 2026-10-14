@@ -142,7 +142,9 @@ namespace Starfall
                 MobilityRule mobility = Game.PlayerMobility;
                 Texture2D unified = !Game.Dying && Game.ActuallyMoving &&
                     (mobility==MobilityRule.Reduced ||
-                     mobility==MobilityRule.AttackMovement) &&
+                     (mobility==MobilityRule.AttackMovement &&
+                      Game.playerAction!=null &&
+                      Game.playerAction.kind=="attack")) &&
                     pose>=4 && pose<=7 && walkSheets[look]!=null ?
                     UnifiedActionGait(sheet,4,3,frame,walkSheets[look],
                         facingRow*4+Game.WalkFrame) : null;
