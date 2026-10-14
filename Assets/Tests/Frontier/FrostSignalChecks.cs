@@ -108,7 +108,9 @@ namespace Starfall.Tests
                 g.Close();
                 g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
                 g.save.health=60;g.save.energy=0;g.save.cold=40;
-                g.Tick(.05f,new Point());
+                // Resolve residual attack hit-stop in real simulation before
+                // evaluating environment and safe-service ticks.
+                for(int settle=0;settle<6;settle++)g.Tick(.05f,new Point());
                 Check(g.FrostSignalRefuge&&g.save.cold<40&&
                     (branch==1?g.save.health>60.05f:g.save.energy>.75f),
                     "Each outcome truly creates its own safe local refuge benefit");
