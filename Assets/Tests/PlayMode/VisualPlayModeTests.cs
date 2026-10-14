@@ -21,6 +21,80 @@ namespace Starfall.Tests
         }
         [UnityTearDown] public IEnumerator TearDown()
         { if (app != null) app.EndVisualReview(); if (host != null) Object.Destroy(host); yield return null; }
+        [UnityTest] public IEnumerator CanonicalHeroAnimatorMatchesEveryPublishedSprite()
+        {
+            // Native PlayMode acceptance: sample the real Animator graph,
+            // not synthetic off-line key values. Failed profession overrides,
+            // wrong frame sampling and wrong foot pivots become test failures.
+            const int cell = 256;
+            string[] classes = { "Vanguard", "Ranger", "Arcanist" };
+            string[] actions = { "Idle", "Run", "Attack", "Cast",
+                "Dodge", "Hit", "Death" };
+            string[] facings = { "E", "N", "S" };
+            var probe = new GameObject("Starfall 63-clip native animation probe");
+            SpriteRenderer renderer = probe.AddComponent<SpriteRenderer>();
+            Animator animator = probe.AddComponent<Animator>();
+            try
+            {
+                yield return null;
+                for (int cls = 0; cls < classes.Length; cls++)
+                {
+                    var controller = Resources.Load<RuntimeAnimatorController>(
+                        "Frontier/HeroAnimator/Production" + classes[cls]);
+                    Assert.IsNotNull(controller, "Missing native Animator " + classes[cls]);
+                    animator.runtimeAnimatorController = controller;
+                    animator.enabled = true;
+                    animator.speed = 0;
+                    animator.Rebind();
+                    animator.Update(0f);
+                    for (int action = 0; action < actions.Length; action++)
+                        for (int facing = 0; facing < facings.Length; facing++)
+                        {
+                            string key = "Hero_" + classes[cls] + "_" +
+                                actions[action] + "_" + facings[facing];
+                            Texture2D atlas = Resources.Load<Texture2D>(
+                                "Frontier/HeroAnimator/Canonical/" + key);
+                            Assert.IsNotNull(atlas, "Missing actual canonical resource " + key);
+                            int expected = action == 0 ? 1 :
+                                action == 1 ? 8 : action == 2 || action == 3 ? 7 :
+                                action == 4 || action == 5 ? 3 : 4;
+                            Assert.AreEqual(expected * cell, atlas.width, key + " frame width");
+                            Assert.AreEqual(cell, atlas.height, key + " frame height");
+                            int state = Animator.StringToHash("Base Layer." +
+                                actions[action] + "_" + facings[facing]);
+                            for (int index = 0; index < expected; index++)
+                            {
+                                // The Editor bakes each key at index/12 fps,
+                                // plus a final closure/hold at expected/12.
+                                animator.Play(state, 0, (index + .2f) / expected);
+                                animator.Update(0f);
+                                Sprite sprite = renderer.sprite;
+                                Assert.IsNotNull(sprite, key + " at frame " + index);
+                                Assert.AreSame(atlas, sprite.texture,
+                                    key + " has wrong class/direction atlas");
+                                Assert.AreEqual(index * cell, sprite.rect.x, .05f,
+                                    key + " wrong frame");
+                                Assert.AreEqual(0f, sprite.rect.y, .05f,
+                                    key + " sprite vertical offset");
+                                Assert.AreEqual(cell, sprite.rect.width, .05f, key);
+                                Assert.AreEqual(cell, sprite.rect.height, .05f, key);
+                                Assert.AreEqual(128f, sprite.pivot.x, .05f,
+                                    key + " root x changed");
+                                Assert.AreEqual(16f, sprite.pivot.y, .05f,
+                                    key + " foot changed");
+                                Assert.AreEqual(128f, sprite.pixelsPerUnit, .05f,
+                                    key + " class scale changed");
+                            }
+                        }
+                }
+            }
+            finally
+            {
+                animator.runtimeAnimatorController = null;
+                Object.Destroy(probe);
+            }
+        }
+
         [UnityTest] public IEnumerator ClassesRegionsAndNativeFrames()
         {
             GameCore original = app.Game;
