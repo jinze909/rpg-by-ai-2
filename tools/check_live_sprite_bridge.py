@@ -36,7 +36,7 @@ def check():
         "Resources.Load<Texture2D>", "TryUsePublishedHeroFrame(",
         '"Frontier/HeroAnimator/Canonical/" + key',
         "heroPublishedSprites.Clear()", "heroPublishedUnavailable.Clear()",
-        "if (unifiedAction == null &&", "heroCaptureRenderer.sprite = published;",
+        "heroCaptureRenderer.sprite = published;",
         "Mathf.FloorToInt(cellPosition + .20f)",
         "tint.a *= worldActorOpacity",
     ]
