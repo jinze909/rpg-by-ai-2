@@ -305,7 +305,7 @@ namespace Starfall.EditorTools
                     // Never dither/duplicate golden hair or face in a midpoint.
                     bool head = x >= 91 && x < 170 && y >= 57 && y < 118;
                     if (head)
-                        output[i] = a;
+                        output[i] = first[i]; // exact source head; no warp
                     else if (a.a > .5f && b.a > .5f)
                         output[i] = Color.Lerp(a, b, .5f);
                     else

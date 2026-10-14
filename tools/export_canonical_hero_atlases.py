@@ -68,7 +68,7 @@ def motion_midpoint(first, second):
             # doubled eyes during procedural in-betweens. No source pose
             # or original hair pixel is regenerated.
             if 91 <= x < 170 and 57 <= y < 118:
-                result = pa
+                result = a[x, CELL - 1 - y]  # exact prior head, NO motion offset
             elif pa[3] > 127 and pb[3] > 127:
                 result = tuple(round((u + v) * .5) for u, v in zip(pa, pb))
             else:
