@@ -90,8 +90,20 @@ namespace Starfall
                 }
                 if(pose>=8&&facingRow!=0){Texture2D reaction=facingRow==1?playerReactionsRear:playerReactionsSouth;if(reaction!=null){sheet=reaction;frame=look*4+(pose==8?0:pose==9?1:pose==10?2:3);}}
                 bool flip=!rear&&!south&&facingRow==0&&direction.x<-.1f;
-                HumanActor(sheet,4,3,frame,p,.75f,tint,flip,walkSheets[0],facingRow*4,resting,false,Game.Dying);
-                if(!drawingOutline&&Game.playerFlash>0)HumanActor(sheet,4,3,frame,p,.75f,new Color(1,1,1,Game.playerFlash/.09f*.86f),flip,walkSheets[0],facingRow*4,false,true,Game.Dying);
+                // Attack/cast while actually translating needs the same
+                // walking legs as its movement state. Compose pixels on one
+                // atlas cell before drawing; never offset torso/head/weapon
+                // independently, which caused a detached waist.
+                Texture2D unified = !Game.Dying && Game.ActuallyMoving &&
+                    pose>=4 && pose<=7 && walkSheets[look]!=null ?
+                    UnifiedActionGait(sheet,4,3,frame,walkSheets[look],
+                        facingRow*4+Game.WalkFrame) : null;
+                HumanActor(sheet,4,3,frame,p,.75f,tint,flip,walkSheets[0],
+                    facingRow*4,resting,false,Game.Dying,unified);
+                if(!drawingOutline&&Game.playerFlash>0)
+                    HumanActor(sheet,4,3,frame,p,.75f,
+                        new Color(1,1,1,Game.playerFlash/.09f*.86f),
+                        flip,walkSheets[0],facingRow*4,false,true,Game.Dying,unified);
             }
             if (!drawingOutline && Game.save.upgrades > 0 && !Game.Dying)
             { Point rune=p+new Point(direction.x<0?-24:24,-26);Atlas(effectSheet,4,4,13,new Rect(rune.x-7,rune.y-7,14,14),new Color(1,.83f,.54f,Math.Min(.8f,.3f+Game.save.upgrades*.09f))); }
