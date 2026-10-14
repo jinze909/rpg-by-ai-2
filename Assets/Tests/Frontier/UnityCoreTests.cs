@@ -17,6 +17,7 @@ namespace Starfall.Tests
         [Test] public void PracticeExitNeverLeaksRedCirclesOrCounterBuffs() { CoreChecks.PracticeExitRetiresDummyHazardsAndEarnedCounter(Data()); }
         [Test] public void StyleChangesRestartAttackChains() { CoreChecks.StyleChangesRestartCombosButRepeatedStylesPreserveAttacks(Data()); }
         [Test] public void LateAttackBufferHonorsStyleAndWeaponChanges() { CoreChecks.LateBasicAttacksBufferOnceAndRespectCombatProfiles(Data()); }
+        [Test] public void RangedAttackChainsPayOffWithRealProjectileEffects() { CoreChecks.RangedThirdHitsProduceDistinctRealProjectiles(Data()); }
         [Test] public void CompanionSelfTargetFallsBackToFacing() { CoreChecks.ArcherCompanionCannotWasteVolleyOnItsOwnFootTarget(Data()); }
         [Test] public void FullInventoryDoesNotChargeForOverflowStock() { CoreChecks.RepeatablePurchasesCannotConsumeResourcesPastSavedStackCaps(Data()); }
         [Test] public void FieldCampsRespectElapsedCombatTimeAndActiveMissions() { CoreChecks.FieldCampRestAdvancesCombatTimeAndCannotSkipLiveCivilianWork(Data()); }

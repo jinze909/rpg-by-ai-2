@@ -187,10 +187,19 @@ namespace Starfall
                     Projectile shot = FriendlyShot(Position, a.weapon, a.direction, a.weapon == 1 ? 12 : 8, a.damage * (spread > 0 ? .65f : 1), a.weapon == 2, a.target, a.impact);
                     double angle = Math.Atan2(shot.velocity.y, shot.velocity.x) + i * .18;
                     Point direction = new Point((float)Math.Cos(angle), (float)Math.Sin(angle));
-                    shot.velocity = direction * (a.weapon == 1 ? 12 : 8); shot.piercing = a.weapon == 1 && a.style == 1; shot.slowing = a.weapon == 2 && a.style == 2;
+                    shot.velocity = direction * (a.weapon == 1 ? 12 : 8);
+                    // Balanced bow rewards a completed chain with one real
+                    // penetrating shot; Focused already pierces every release.
+                    // Flow retains its authored spread without triple piercing.
+                    shot.piercing = a.weapon == 1 && (a.style == 1 || a.style == 0 && a.combo == 2);
+                    // The starstaff's third connected cast briefly arrests a
+                    // target using the existing .45s slow/contact mechanic.
+                    shot.slowing = a.weapon == 2 && (a.style == 2 || a.combo == 2);
                     projectiles.Add(shot);
                 }
                 effects.Add(new Effect("release", WeaponOrigin(Position, a.weapon, a.direction), .18f) { direction = a.direction, variant = a.weapon, height = WeaponHeight(a.weapon, a.direction) });
+                if (a.combo == 2)
+                    effects.Add(new Effect("number", Position + new Point(0, -.75f), .6f, L("连携终结", "CHAIN FINISH")));
                 return;
             }
             effects.Add(new Effect("slash", Position + a.direction * .7f, .22f) { direction = a.direction, variant = a.combo });

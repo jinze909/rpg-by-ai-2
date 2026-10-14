@@ -468,7 +468,13 @@ namespace Starfall
             if (save.energy < profile.energy) { ActionUnavailable(0, profile.energy); return; }
             save.energy -= profile.energy; attackCooldown = profile.interval;
             combo = comboTimer > 0 ? (combo + 1) % 3 : 0; comboTimer = 1.1f;
-            float attackDamage = profile.damage * (save.weapon == 0 && combo == 2 ? 1.25f : 1) * (riposteTime > 0 ? 1.5f : 1);
+            // Completing an uninterrupted three-hit chain matters for ranged
+            // loadouts too: the bow earns a measured 15% release bonus, while
+            // the starstaff's slower third cast earns 12%. Sword keeps its
+            // established 25% finisher and larger contact reach.
+            float finisher = combo != 2 ? 1f : save.weapon == 0 ? 1.25f :
+                save.weapon == 1 ? 1.15f : 1.12f;
+            float attackDamage = profile.damage * finisher * (riposteTime > 0 ? 1.5f : 1);
             riposteTime = 0;
             BeginAction("attack", attackDamage, profile.interval, profile.interval * (save.weapon == 1 ? .55f : .45f));
         }

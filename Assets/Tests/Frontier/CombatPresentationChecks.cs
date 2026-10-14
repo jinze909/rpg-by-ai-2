@@ -708,6 +708,48 @@ namespace Starfall.Tests
                 "Transient buffer is never carried into a newly loaded v2 save");
         }
 
+
+        public static void RangedThirdHitsProduceDistinctRealProjectiles(Campaign data)
+        {
+            foreach (int weapon in new[] { 1, 2 })
+            foreach (int style in new[] { 0, 1, 2 })
+            {
+                var g = Fresh(data, weapon); g.enemies.Clear();
+                g.save.flags.Add("core_1"); g.save.energy = 100; g.SetStyle(style);
+                Projectile[] shots = new Projectile[3];
+                for (int index = 0; index < 3; index++)
+                {
+                    Check(g.attackCooldown <= .0001f && g.playerAction == null,
+                        "Each ranger/mage attack starts after the actual preceding release");
+                    g.projectiles.Clear();
+                    g.Attack(new Point(1, 0));
+                    ActorAction attack = g.playerAction;
+                    Check(attack != null && attack.kind == "attack" && attack.combo == index,
+                        "Real ranged chain advances through each of its three consecutive attacks");
+                    for (int frame = 0; frame < 100 && !attack.released; frame++)
+                        g.Tick(.02f, new Point());
+                    Check(attack.released, "Ranged attack reaches its visible contact before producing shots");
+                    shots[index] = g.projectiles.Find(p => p.friendly);
+                    Check(shots[index] != null && shots[index].impact != null &&
+                        shots[index].impact.combo == index, "Finisher characteristics follow a real released attack");
+                    Advance(g, Math.Max(0, attack.duration - attack.elapsed) + .04f);
+                }
+                float bonus = weapon == 1 ? 1.15f : 1.12f;
+                Check(Math.Abs(shots[2].damage / shots[0].damage - bonus) < .001f &&
+                    Math.Abs(shots[1].damage / shots[0].damage - 1f) < .001f,
+                    "Only the true third ranged release earns the intended moderate damage payoff");
+                if (weapon == 1)
+                    Check(shots[0].piercing == (style == 1) &&
+                        shots[2].piercing == (style != 2),
+                        "Balanced third arrow pierces, Focused retains every-shot pierce, Flow keeps its spread balance");
+                else
+                    Check(shots[0].slowing == (style == 2) && shots[2].slowing,
+                        "Staff third hit uses real projectile slow without removing Flow's existing all-hit slow");
+                Check(g.effects.Exists(e => e.kind == "number" && e.text == "CHAIN FINISH") ||
+                    !g.save.english, "Third-hit confirmation is emitted by the live release pipeline");
+            }
+        }
+
         public static void ArcherCompanionCannotWasteVolleyOnItsOwnFootTarget(Campaign data)
         {
             var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("companion_1");
