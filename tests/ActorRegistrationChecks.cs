@@ -16,7 +16,8 @@ public static class ActorRegistrationChecks
     static bool ActorTexture(GUI.TextureCall c){return c.texture.name.StartsWith("resource:Frontier/Art/")&&
         !c.texture.name.Contains("Effects")&&
         !c.texture.name.EndsWith("/HeroMotionAccents")&&
-        !c.texture.name.EndsWith("/CoastlineRemaster");}
+        !c.texture.name.EndsWith("/CoastlineRemaster")&&
+        !c.texture.name.EndsWith("/ActorContactShadows");}
     static void Density(GUI.TextureCall[] calls,float density)
     {
         foreach(var c in calls.Where(ActorTexture))

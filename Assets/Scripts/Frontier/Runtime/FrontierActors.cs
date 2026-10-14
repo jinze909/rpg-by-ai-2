@@ -16,6 +16,8 @@ namespace Starfall
         private Texture2D heroMotionAccents;
         // Edge-continuous 32px water-to-land pixel material, never collision.
         private Texture2D coastlineRemaster;
+        // Palette-authored transparent contact patches for actors and buildings.
+        private Texture2D actorContactShadows;
         // The wider canvas leaves space for weapons while keeping the same
         // logical body scale and 120/128 foot anchor in every pose.
         private static float BossCanvasSize(int room) { return room == 5 ? 264 : 240; }
@@ -50,6 +52,7 @@ namespace Starfall
             combatRhythmRemaster=Resources.Load<Texture2D>(root+"CombatRhythmRemaster");
             heroMotionAccents=Resources.Load<Texture2D>(root+"HeroMotionAccents");
             coastlineRemaster=Resources.Load<Texture2D>(root+"CoastlineRemaster");
+            actorContactShadows=Resources.Load<Texture2D>(root+"ActorContactShadows");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)
@@ -70,11 +73,27 @@ namespace Starfall
             if (drawingOutline && sheet != null) { sheet = art.OutlineMask(sheet); color = new Color(1,.56f,.35f,.9f); }
             Atlas(sheet, columns, rows, frame, new Rect(foot.x - size / 2, foot.y - size * 120 / 128, size, size), color, flip, angle);
         }
+        private void DrawActorContactShadow(Point foot,float width,float depth,
+            int index,float opacity=1f)
+        {
+            if(drawingOutline)return;
+            if(actorContactShadows!=null)
+            {
+                // Same ground anchor for walk, spell, hit and dead poses. No
+                // head bob, puppet joint or camera translation can shift it.
+                Atlas(actorContactShadows,4,4,index,
+                    new Rect(foot.x-width/2f,foot.y-depth*.72f,width,depth),
+                    new Color(1,1,1,opacity));
+            }
+            else Box(foot.x-width/2,foot.y-3,width,7,
+                new Color(.025f,.04f,.07f,.34f*opacity));
+        }
         private void DrawPlayerPreview(int equipment, float x, float y, float size)
         { HumanActor(playerSheets[(int)GameCore.Clamp(equipment,0,2)],4,3,0,new Point(x,y),size/192,Color.white,false,walkSheets[0],0,true); }
         private void DrawPlayerActor()
         {
-            Point p = ScreenPoint(Game.Position); if(!drawingOutline)Box(p.x - 17, p.y - 3, 34, 7, new Color(.025f, .04f, .07f, .38f));
+            Point p = ScreenPoint(Game.Position);
+            DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline) PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);
             int look = Game.AppearanceWeapon, pose = Game.PlayerPose;
             if (playerSheets == null || playerSheets[look] == null) { DrawLegacyHero(); return; }
@@ -161,7 +180,9 @@ namespace Starfall
         private void DrawEnemyActor(Enemy e)
         {
             Point p = ScreenPoint(e.Position); float size = e.boss ? BossCanvasSize(Game.save.room) : e.kind == 2 ? 106 : 96;
-            if(!drawingOutline)Box(p.x - size * .22f, p.y - 3, size * .44f, 7, new Color(.025f, .04f, .07f, .35f));
+            DrawActorContactShadow(p,size*.57f,e.boss?24:16,
+                e.boss?8+GameCore.GaitFrame(e.moveTime,2.8f):
+                    e.kind==0?4:e.kind==1?5:6,.84f);
             // The two-wave roadwarden attackers are real combat enemies, but
             // their warm foot ring distinguishes them from roaming patrols.
             // A fixed ring is legible even with reduced-motion effects.
@@ -284,7 +305,7 @@ namespace Starfall
         private void DrawNpc(string kind, Point position, int id = -1)
         {
             Point p = ScreenPoint(position);
-            Box(p.x - 13, p.y - 2, 26, 5, new Color(.025f, .04f, .07f, .32f));
+            DrawActorContactShadow(p,34,13,7,.78f);
             bool occludes = Math.Abs(position.x - Game.save.x) < .85f && Game.save.y < position.y && Game.save.y > position.y - 1.8f;
             Actor(npcSheet, 4, 4, id < 0 ? NpcId(kind) : id, p, 96,
                 occludes ? new Color(1, 1, 1, .45f) : Color.white);

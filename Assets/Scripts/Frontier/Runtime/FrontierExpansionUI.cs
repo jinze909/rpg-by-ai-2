@@ -22,7 +22,7 @@ namespace Starfall
             int frame = north ? 8 : 0;
             if (action != null)
                 frame = north ? (action.released ? 7 : 6) : south ? (action.released ? 10 : 9) : action.released && action.kind == "command" && id != 1 ? 5 : action.released ? 4 : 3;
-            Box(p.x - 14, p.y - 3, 28, 6, new Color(.025f, .04f, .07f, .32f));
+            DrawActorContactShadow(p,38,14,4+id,.77f);
             bool overlaps = Math.Abs(Game.companionPosition.x - Game.save.x) < .85f && Game.save.y <= Game.companionPosition.y && Game.save.y > Game.companionPosition.y - 1.8f;
             Color tint = overlaps ? new Color(1, 1, 1, .45f) : Color.white;
             if (Game.companionMoving && action == null && companionWalkSheets[id] != null)
@@ -53,8 +53,7 @@ namespace Starfall
             float bob = step * 3.2f;
             float lean = walking ? (float)Math.Sin(cycle) * 2.5f : 0;
             if (Game.ReliefEscortUnderAttack) lean = -4f;
-            if (!drawingOutline)
-                Box(p.x - 13, p.y - 2, 26, 5, new Color(.025f, .04f, .07f, .32f));
+            DrawActorContactShadow(p,34,13,7,.78f);
             // Frame 14 is the canonical rescue civilian, not an animation
             // sheet. Procedural footfall bounce and tiny body lean preserve
             // visual identity and follow distance, without changing frames.

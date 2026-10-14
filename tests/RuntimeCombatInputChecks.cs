@@ -679,6 +679,36 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS released cast→walking half-body continuity, original blond head, physical boss/enemy animated pixels");
     }
 
+    private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.enemies.Clear();g.save.companion=-1;
+        const string path="resource:Frontier/Art/ActorContactShadows";
+        GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+        var p=(Point)Call(app,"ScreenPoint",g.Position);
+        var shadow=GUI.textureCalls.Find(t=>t.texture.name==path);
+        Check(shadow!=null&&Math.Abs(shadow.rect.x+shadow.rect.width/2-p.x)<.01f&&
+            Math.Abs(shadow.rect.y+shadow.rect.height*.72f-p.y)<.01f,
+            "The hero's real shadow must land on one stable physical foot pivot");
+        Check(shadow.texture.width==128&&shadow.texture.height==128,
+            "New pixel shadow atlas must load from shipped binary resources");
+        GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",
+            new Enemy(97211,1,g.Position.x+2,g.Position.y,100));
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
+            "An ordinary enemy's real renderer must use contact art");
+        GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",
+            new Enemy(97212,0,g.Position.x+3,g.Position.y,300,true));
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
+            "The full-size Boss must stand on a contact patch");
+        GUI.textureCalls.Clear();Call(app,"DrawNpc","forge",g.Position,-1);
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
+            "NPCs must use the same material contact language");
+        g.save.companion=0;GUI.textureCalls.Clear();Call(app,"DrawCompanionActor");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
+            "A party companion must share the grounded rendering pipeline");
+        Console.WriteLine("PASS hero, enemy, Boss, NPC and companion contact shadows use actual atlas and root");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -687,7 +717,7 @@ public static class RuntimeCombatInputChecks
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
-            RealMovingSpellCompositesAndBossFrames,
+            RealMovingSpellCompositesAndBossFrames, GroundContactArtSharesPhysicalFootPivot,
             RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,

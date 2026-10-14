@@ -115,6 +115,12 @@ namespace Starfall
             if(cover)foreach(Enemy actor in Game.enemies)occludes|=Math.Abs(actor.x-prop.x)<1.6f&&actor.y<prop.y&&actor.y>prop.y-2.9f;
             Color tint=occludes?new Color(1,1,1,.4f):Color.white;
             Rect rect=new Rect(p.x-w/2,p.y-h+8,w,h);
+            // Depth-sort and ground both large scenery and standing props
+            // before painting their existing accepted pixels.
+            if(canopy||prop.kind=="house"||prop.kind=="ruin")
+                DrawActorContactShadow(p,canopy?76:prop.kind=="house"?122:108,
+                    canopy?21:27,canopy?12:prop.kind=="house"?13:14,
+                    occludes?.48f:.68f);
             if(canopy)DrawRootedPlant(prop,rect,tint);else PropImage(prop.kind,variant,rect.x,rect.y,rect.width,rect.height,tint);
             if(prop.kind=="well"&&Game.Has("ally_3"))Box(p.x-5,p.y-16,10,5,mint);
         }

@@ -99,6 +99,22 @@ def main():
           "Coastline pixels require nearest neighbor/no mipmap")
     results[coast]={"unique":16,"min_opaque":min(visible),
                     "max_opaque":max(visible)}
+    # Contact shadows have 4 four-frame/variant rows, and each is real
+    # art with one tile root and no imported palette loss or blurred mipmaps.
+    shade="ActorContactShadows"
+    path,frames=cell_frames(shade,4,4)
+    check(frames[0].size==(32,32),"Ground contact atlas canvas changed")
+    signatures=[hashlib.sha256(f.tobytes()).hexdigest() for f in frames]
+    check(len(set(signatures))==16,"Every grounded material needs unique pixels")
+    coverage=[sum(1 for p in f.getchannel("A").getdata() if p>0)
+              for f in frames]
+    check(all(60<=n<=320 for n in coverage),
+          "Shadow cells should stay legible but never occlude a whole terrain tile")
+    meta=path.with_suffix(".png.meta").read_text()
+    check("filterMode: 0" in meta and "enableMipMap: 0" in meta,
+          "Pixel contact material must not be bilinear or mipmapped")
+    results[shade]={"unique":16,"min_coverage":min(coverage),
+                    "max_coverage":max(coverage)}
     for name in ("TerrainAccentRemaster","CombatRhythmRemaster"):
         path,frames=cell_frames(name,4,4)
         check(frames[0].size==(32,32),f"Remaster cells must remain 32px {name}")
