@@ -1326,7 +1326,11 @@ namespace Starfall
             // Selecting the already-equipped icon must not discard an active
             // attack animation or the player's buffered Q input.
             if (save.weapon == weapon) return;
-            CancelAction(); save.weapon = weapon; revision++;
+            // Combos belong to a single uninterrupted weapon sequence.
+            // Changing loadouts cancels its current action AND any stored
+            // third-hit bonus; reselecting the same weapon above remains inert.
+            CancelAction(); combo = 0; comboTimer = 0;
+            save.weapon = weapon; revision++;
         }
         public void Learn(int talent)
         {

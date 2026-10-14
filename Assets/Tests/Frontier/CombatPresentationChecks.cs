@@ -584,5 +584,29 @@ namespace Starfall.Tests
                 "A genuine subsequent positive hit still uses the complete damage and visual pipeline");
         }
 
+        public static void RealWeaponChangesRestartWeaponComboButReselectDoesNot(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.save.flags.Add("weapon_1");
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null&&g.comboTimer>0&&g.combo==0,
+                "Sword contact starts the actual uninterrupted combo window");
+            g.playerAction=null;g.attackCooldown=0;
+            g.Attack(new Point(1,0));
+            Check(g.combo==1&&g.comboTimer>0,
+                "Two real sword attacks are counted in the same combo");
+            g.Equip(0);
+            Check(g.combo==1&&g.comboTimer>0,
+                "Reselecting the exact same sword cannot reset earned combo progress");
+            g.Equip(1);
+            Check(g.save.weapon==1&&g.combo==0&&g.comboTimer==0&&
+                  g.playerAction==null,
+                "A genuine switch to the unlocked bow discards obsolete sword combo state");
+            g.Equip(0);g.attackCooldown=0;
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null&&g.combo==0,
+                "Returning to the sword starts a first hit rather than carrying a phantom third-hit boost");
+        }
+
     }
 }
