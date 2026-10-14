@@ -68,6 +68,9 @@ namespace Starfall.Tests
 
         public static void DrownedFloodArchiveRequiresRealTidesAndChoice(Campaign data)
         {
+            var novice=Fresh(data);novice.save.flags.Add("scout_saved");
+            Check(novice.GetQuest("flood_archive").locked,
+                "Rescuing the scout cannot spoil a still-locked Drowned Ruins chapter");
             foreach(int ending in new[]{1,2})
             {
                 var g=Fresh(data);g.save.stage=1;g.Enter(2);g.enemies.Clear();
@@ -132,8 +135,13 @@ namespace Starfall.Tests
                 var q=g.GetQuest("flood_archive");
                 Check(q.complete&&q.steps.Count==3&&q.steps.TrueForAll(s=>s.done),
                     "The questbook displays the real three-stop ferry restoration");
-                g.Talk(third);Check(g.conversation.choices.Length==1,
-                    "Published decisions are reread-only and cannot be chosen again");g.Close();
+                g.Talk(third);
+                foreach(Choice option in g.conversation.choices)
+                    Check(option.action!="floodarchive_public"&&option.action!="floodarchive_chart",
+                        "A completed public decision can never be chosen again or yield extra rewards");
+                // The earned low-tide ferry is allowed as a distinct,
+                // non-reward crossing after final publication.
+                g.Close();
                 g.save.health=50;g.save.energy=0;g.enemies.Clear();
                 g.projectiles.Clear();g.hazards.Clear();
                 g.Tick(.05f,new Point());

@@ -206,6 +206,9 @@ namespace Starfall
                 Box(p.x-22,p.y-43,44,8,PixelArt.C("#7d9cae"));
                 Ring(new Point(o.x,o.y),ready?.94f:.63f,tint,24);
                 Text(p.x-79,p.y-77,158,20,
+                    complete&&(stage==1||stage==3)?
+                        (Game.LowTide?Game.L("低潮渡船 · 可通行","LOW TIDE · FERRY OPEN"):
+                                      Game.L("渡船 · 等待退潮","FERRY · WAIT LOW")):
                     recorded?Game.L("已记录的民用档案","CIVIC RECORD FOUND"):
                     current&&stage==1?ready?Game.L("涨潮水尺 · 可读取","HIGH WATER · READ"):
                                           Game.L("涨潮水尺 · 等潮","GAUGE · WAIT HIGH"):

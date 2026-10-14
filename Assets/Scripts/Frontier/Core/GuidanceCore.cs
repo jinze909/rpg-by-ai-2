@@ -93,7 +93,7 @@ namespace Starfall
                 q.description=L(
                     "失踪侦察员归来后，调查沉桥深处真实存在的高水尺与低潮名册。依潮位实地记录两份证据，在公议台决定优先救治伤者还是培训摆渡人；两种决定改变潮标附近的安全补给。",
                     "After the scout returns, recover a high-water gauge and a low-tide roster at actual river landmarks. Reconcile the records at the public desk and decide whether to treat survivors or train ferry pilots. Each choice changes local safe refuge services.");
-                q.room=2;q.locked=!Has("scout_saved");q.complete=FloodArchiveComplete;
+                q.room=2;q.locked=!Has("scout_saved")||!CanEnter(2);q.complete=FloodArchiveComplete;
                 string[] labelsZh={"涨潮时抄录旧桥水尺","退潮时找回摆渡名册","在公共渡口决定档案用途"};
                 string[] labelsEn={"Read the bridge gauge at high tide","Recover the ferry roster at low tide","Decide the archive's use at the public ferry"};
                 int next=FloodArchiveProgress+1;
@@ -106,7 +106,9 @@ namespace Starfall
                             {q.target=new Point(site.x,site.y);break;}
                 }
                 if(q.complete)q.target=new Point(79.5f,35.5f);
-                q.next=q.locked?L("先救回荆棘密林的侦察员","First rescue the Thornwood scout"):
+                q.next=q.locked?(!Has("scout_saved")?
+                    L("先救回荆棘密林的侦察员","First rescue the Thornwood scout"):
+                    L("先交回第一枚星核，解锁沉没遗迹","Deliver the first starcore to unlock Drowned Ruins")):
                     q.complete?FloodArchiveChoice==1?
                     L("伤者名册已公开，安全潮标提供疗养","Public roster published; safe tideposts provide recovery"):
                     L("原始水图已保留，潮标培训渡船","Original tide charts saved; pilots now train at tideposts"):
