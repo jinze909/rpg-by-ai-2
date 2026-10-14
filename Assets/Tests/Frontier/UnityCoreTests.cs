@@ -10,6 +10,7 @@ namespace Starfall.Tests
         [Test] public void DeadPlayersCannotEnterDelayedFinale() { CoreChecks.BossFinaleCannotInterruptDeathRecovery(Data()); }
         [Test] public void SaveSwitchesResetTransientInputState() { CoreChecks.SwitchingSaveSlotsDoesNotInheritOldAimOrFishingState(Data()); }
         [Test] public void PiercingProjectilesPreserveSweptContactOrder() { CoreChecks.PiercingVolleysKeepEveryContactWithReusableTargetSnapshot(Data()); }
+        [Test] public void ZeroDamageDoesNotCauseHitStunOrIFrames() { CoreChecks.NonDamagingContactsCannotGrantFreeHitImmunity(Data()); }
         [Test] public void SameWeaponEquippingKeepsCombatIntent() { CoreChecks.EquippingIdenticalWeaponCannotEraseActiveAttack(Data()); }
         [Test] public void ReleaseEventGovernsContactPoses(){CoreChecks.ReleasedContactsSelectVisibleActivePoses(Data());}
         [Test] public void RecoveryWalkingRestoresEquipment(){CoreChecks.WalkingSkillRecoveryRestoresEquippedAppearance(Data());}

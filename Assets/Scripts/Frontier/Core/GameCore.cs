@@ -620,6 +620,10 @@ namespace Starfall
         }
         private void Hurt(float damage, string source = "environment", Point? incoming = null)
         {
+            // A zero-damage warning or malformed negative/non-finite combat
+            // value must not stagger the hero, grant free i-frames, trigger
+            // courier damage or produce misleading hurt/death feedback.
+            if (!Finite(damage) || damage <= 0) return;
             if (mode != "world" || Dying) return;
             if (invulnerable > 0) { if (dashTime > 0 && perfectDodgeArmed && source != "environment") AwardPerfectDodge(); return; }
             if (practicing) { Notify("观察红圈：在命中前闪避，或闪到圈外。练习不会受伤。", "Read the red circle: dodge before impact or leave its area. Practice cannot hurt you."); return; }

@@ -510,5 +510,28 @@ namespace Starfall.Tests
                 "Already-hit targets are not damaged again by later arrow flight frames");
         }
 
+        public static void NonDamagingContactsCannotGrantFreeHitImmunity(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.reducedMotion=true;
+            g.save.health=50;g.invulnerable=0;g.playerHitTime=0;
+            int revision=g.revision;int effects=g.effects.Count;
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            foreach(float amount in new []{0f,-10f,float.NaN,float.PositiveInfinity})
+            {
+                hurt.Invoke(g,new object[]{amount,"area",null});
+                Check(g.save.health==50&&g.invulnerable==0&&
+                      g.playerHitTime==0&&g.effects.Count==effects&&!g.Dying&&
+                      g.revision==revision,
+                    "Invalid and cosmetic zero-area contacts do not stagger or grant invulnerability");
+            }
+            // Real damage remains effective on the very next contact; the
+            // inert preview must not have consumed the hero's vulnerability.
+            hurt.Invoke(g,new object[]{12f,"area",null});
+            Check(g.save.health<50&&g.invulnerable>0&&g.playerHitTime>0&&
+                  g.effects.Count>effects,
+                "Authentic positive strike still deals damage and shows the existing hit reaction");
+        }
+
     }
 }
