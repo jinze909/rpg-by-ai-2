@@ -620,7 +620,8 @@ public static class RuntimeCombatInputChecks
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
-            ReleasedTechniqueDrawsContactFrame, RecoveryWalkingRestoresEquippedDrawing,
+            ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
+            RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
             MaxLevelProgressionShowsFinalState,

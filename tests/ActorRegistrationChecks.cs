@@ -146,6 +146,7 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS unified animation pixels: 2 unique gait frames, fixed waist/weapon, one 256px pivot, cached Point texture");
     }
 
+    public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { UnifiedGaitComposites(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
         try{PreparedMasks();UnifiedGaitComposites(app);Players(app,folder);Companions(app,folder);Enemies(app,folder);Muzzles(app,folder);}

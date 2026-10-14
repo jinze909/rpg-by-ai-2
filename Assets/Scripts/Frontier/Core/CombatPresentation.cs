@@ -266,6 +266,7 @@ namespace Starfall
                         // If Q uses another equipped weapon, restore its own
                         // walk silhouette instead of showing the wrong outfit.
                         if(playerAction.kind=="skill"&&
+                           playerAction.weapon==save.weapon&&
                            playerAction.equippedWeapon==save.weapon&&
                            playerAction.elapsed<playerAction.contact+.34f)
                             return 7;

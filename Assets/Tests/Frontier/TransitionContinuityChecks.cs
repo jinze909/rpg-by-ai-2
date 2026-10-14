@@ -46,7 +46,7 @@ namespace Starfall.Tests
                 var g=Quiet(data,profession);g.Equip(0);g.Skill(new Point(0,-1));ActorAction skill=g.playerAction;
                 while(g.PlayerPhase!=ActionPhase.Recovery)g.Tick(.01f,new Point());
                 Point before=g.Position;g.Tick(.01f,new Point(1,0));
-                Check((g.Position-before).Length<.001f&&!g.ActuallyMoving&&g.PlayerPose==7&&g.AppearanceWeapon==profession,"Ranged Q keeps its established stationary recovery and class equipment");
+                Check((g.Position-before).Length>.001f&&g.ActuallyMoving&&g.PlayerPose>=2&&g.PlayerPose<=3&&g.AppearanceWeapon==0,"Ranged Q remains planted through contact, then walks during recovery with equipped outfit");
                 while(g.playerAction==skill)g.Tick(.01f,new Point(1,0));
                 g.Tick(.01f,new Point(1,0));Check(g.ActuallyMoving&&g.AppearanceWeapon==0,"Completed ranged Q returns to walking in the saved equipment");
             }
