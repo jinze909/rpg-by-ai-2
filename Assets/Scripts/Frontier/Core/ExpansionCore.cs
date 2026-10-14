@@ -246,7 +246,12 @@ namespace Starfall
         }
         public void SelectCompanion(int id)
         {
-            if (id < -1 || id > 2 || (id >= 0 && !Has("companion_" + id)) || !SafeTravel) return;
+            if (id < -1 || id > 2 || (id >= 0 && !Has("companion_" + id))) return;
+            // A repeated selection is not a party swap. Do not interrupt the
+            // current heal/volley, snap the ally back to the hero or postpone
+            // its next automatic action just because the same icon was tapped.
+            if (id == save.companion) return;
+            if (!SafeTravel) return;
             save.companion = id; companionAction = null; companionPosition = CompanionFollowTarget(); companionAttack = 1; revision++;
         }
         public void CompanionStory(int id)

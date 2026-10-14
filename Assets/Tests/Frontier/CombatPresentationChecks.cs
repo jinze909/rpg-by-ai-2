@@ -533,5 +533,35 @@ namespace Starfall.Tests
                 "Authentic positive strike still deals damage and shows the existing hit reaction");
         }
 
+        public static void ReselectingSameCompanionPreservesInFlightCommand(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("companion_0");g.save.flags.Add("companion_1");
+            g.SelectCompanion(0);
+            g.save.health=35;g.save.energy=100;
+            g.CommandCompanion();
+            ActorAction active=g.companionAction;
+            Check(active!=null&&active.kind=="command"&&g.companionCooldown>0,
+                "An authentic healer command has a pending release and a charged cooldown");
+            int revision=g.revision;
+            Point position=g.companionPosition;
+            float cooldown=g.companionCooldown;
+            g.SelectCompanion(0);
+            Check(g.companionAction==active&&g.revision==revision&&
+                  g.companionCooldown==cooldown&&
+                  (g.companionPosition-position).Length<.001f,
+                "Selecting the already-active healer cannot cancel a charged heal or teleport the ally");
+            Advance(g,.22f);
+            Check(active.released&&g.save.health>35,
+                "The authentic healer release completes even after a redundant party selection");
+            g.SelectCompanion(1);
+            Check(g.save.companion==1&&g.companionAction==null&&
+                  g.revision>revision,
+                "Selecting another unlocked ally still performs a genuine party change");
+            g.CommandCompanion();
+            Check(g.companionAction==null,
+                "An earlier command cooldown cannot be bypassed by swapping companions");
+        }
+
     }
 }
