@@ -61,7 +61,21 @@ def check():
     assert "cellPosition %= bakedFrames" in engine
     assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
     assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
-    assert "bool hasClip = allowStandardClip && TryUseProductionHeroClip(facing);" in engine
+    # A non-null Animator sprite is NOT proof of correct class/facing/contact.
+    # The live GPU output must match the registered published atlas cell.
+    for mark in [
+        "HeroSpriteMatchesPublishedFrame(",
+        "animated.texture != published.texture",
+        "Vector2.Distance(pivotA, pivotB)",
+        "animated.pixelsPerUnit - published.pixelsPerUnit",
+        "!heroRejectedNativeClips.Contains(nativeClipKey)",
+        "heroRejectedNativeClips.Add(nativeClipKey)",
+        "heroCaptureRenderer.sprite = expectedPublished;",
+        "heroRejectedNativeClips.Clear()",
+        "bool hasClip = canVerifyNative &&",
+        "TryUseProductionHeroClip(facing);",
+    ]:
+        assert mark in engine, "Missing native Animator pixel-parity fallback: " + mark
     assert "if (allowStandardClip &&" in engine
     # Third-combo/heavy original poses must bypass both regular 4/5
     # Sprite strip sampling and its normal-attack Animator clip.
