@@ -26,6 +26,11 @@ namespace Starfall
             new Dictionary<string, Sprite[]>();
         private readonly HashSet<string> heroPublishedUnavailable =
             new HashSet<string>();
+        // An imported Animator can exist while its override still references
+        // another class, stale clip or wrong direction. Never repeatedly
+        // sample a known-mismatched native clip during this play session.
+        private readonly HashSet<string> heroRejectedNativeClips =
+            new HashSet<string>();
         private int heroCaptureFrame = -1;
         private Sprite heroCaptureRenderedSprite;
         private bool heroCaptureRenderedFlip;
@@ -83,7 +88,14 @@ namespace Starfall
                 // distinction until a dedicated heavy atlas is authored.
                 bool specialHeavy = action == 2 && (pose == 6 || pose == 7);
                 bool allowStandardClip = unifiedAction == null && !specialHeavy;
-                bool hasClip = allowStandardClip && TryUseProductionHeroClip(facing);
+                Sprite expectedPublished = null;
+                bool canVerifyNative = allowStandardClip &&
+                    TryUsePublishedHeroFrame(Game.AppearanceWeapon, action, facing,
+                        publishedFrame, bakedFrames, out expectedPublished);
+                string nativeClipKey = Game.AppearanceWeapon + ":" + action + ":" + facing;
+                bool hasClip = canVerifyNative &&
+                    !heroRejectedNativeClips.Contains(nativeClipKey) &&
+                    TryUseProductionHeroClip(facing);
                 if (hasClip)
                 {
                     float normalized = (cellPosition + .20f) / bakedFrames;
@@ -91,8 +103,19 @@ namespace Starfall
                     heroCaptureAnimator.SetInteger("Facing", facing);
                     heroCaptureAnimator.Play(HeroLiveStateHash[action, facing], 0, normalized);
                     heroCaptureAnimator.Update(0f);
-                    if (heroCaptureRenderer.sprite == null)
-                        throw new InvalidOperationException("Baked Animator has no canonical Sprite frame");
+                    // A non-null Sprite is insufficient: an old Animator
+                    // override can silently draw a different class/direction
+                    // or stale three-frame Cast contact. Pixel identity is
+                    // compared to the verified published runtime atlas.
+                    if (!HeroSpriteMatchesPublishedFrame(heroCaptureRenderer.sprite,
+                            expectedPublished))
+                    {
+                        heroRejectedNativeClips.Add(nativeClipKey);
+                        heroCaptureAnimator.enabled = false;
+                        heroCaptureRenderer.sprite = expectedPublished;
+                        Debug.LogWarning("Starfall replaced mismatched native hero clip "
+                            + nativeClipKey + " with verified published Sprite");
+                    }
                 }
                 else
                 {
@@ -224,6 +247,24 @@ namespace Starfall
             return sprite != null;
         }
 
+        private static bool HeroSpriteMatchesPublishedFrame(
+            Sprite animated, Sprite published)
+        {
+            if (animated == null || published == null) return false;
+            // Different Sprite objects are expected: imported .anim sprites
+            // versus runtime Sprite.Create wrappers. Texture, source rect,
+            // PPU and exact boot Pivot together establish pixel parity.
+            if (animated.texture != published.texture) return false;
+            Rect a = animated.rect, b = published.rect;
+            Vector2 pivotA = animated.pivot, pivotB = published.pivot;
+            return Mathf.Abs(a.x - b.x) < .05f &&
+                Mathf.Abs(a.y - b.y) < .05f &&
+                Mathf.Abs(a.width - b.width) < .05f &&
+                Mathf.Abs(a.height - b.height) < .05f &&
+                Vector2.Distance(pivotA, pivotB) < .05f &&
+                Mathf.Abs(animated.pixelsPerUnit - published.pixelsPerUnit) < .05f;
+        }
+
         private bool TryUseProductionHeroClip(int facing)
         {
             int profession = Game.AppearanceWeapon;
@@ -316,6 +357,7 @@ namespace Starfall
                     if (sprite != null) Destroy(sprite);
             heroPublishedSprites.Clear();
             heroPublishedUnavailable.Clear();
+            heroRejectedNativeClips.Clear();
             if (heroCaptureCamera != null) heroCaptureCamera.targetTexture = null;
             if (heroCaptureRoot != null) Destroy(heroCaptureRoot);
             if (heroCaptureTexture != null)
