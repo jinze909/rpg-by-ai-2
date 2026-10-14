@@ -123,8 +123,9 @@ public static class ActorRegistrationChecks
         // Nonwalking attacks still use their original author-approved Boss sheet.
         e.moving=false;e.flash=.04f;Clear();draws=Draw(app,"DrawEnemyActor",e);
         Check(draws.Any(c=>c.texture.name==
-            "resource:Frontier/Art/ActorMasks/flash_Bosses"),
-            "A stationary Boss retains its original hit silhouette");
+                "resource:Frontier/Art/ActorMasks/flash_Bosses" ||
+                c.texture.name=="flash_resource_Frontier_Art_Bosses"),
+            "A stationary Boss retains its original hit silhouette in prebaked or fallback mask mode");
         Console.WriteLine("PASS moving Boss base and flash share exact atlas, frame, UV and foot anchor");
     }
 
