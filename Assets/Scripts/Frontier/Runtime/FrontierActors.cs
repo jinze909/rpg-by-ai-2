@@ -10,6 +10,7 @@ namespace Starfall
         private Texture2D monsterWalkSheet;
         // Real pixel-art accent sheet, drawn over the accepted imported terrain.
         private Texture2D terrainAccentRemaster;
+        private Texture2D combatRhythmRemaster;
         // The wider canvas leaves space for weapons while keeping the same
         // logical body scale and 120/128 foot anchor in every pose.
         private static float BossCanvasSize(int room) { return room == 5 ? 264 : 240; }
@@ -41,6 +42,7 @@ namespace Starfall
             fieldProps = Resources.Load<Texture2D>(root + "FieldProps"); terrainSheet = Resources.Load<Texture2D>(root + "Terrain");
             terrainVariants = Resources.Load<Texture2D>(root + "TerrainVariants");
             terrainAccentRemaster=Resources.Load<Texture2D>(root+"TerrainAccentRemaster");
+            combatRhythmRemaster=Resources.Load<Texture2D>(root+"CombatRhythmRemaster");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)
@@ -168,6 +170,35 @@ namespace Starfall
                 Actor(sheet, columns, rows, frame, p + offset, canvas, tint, !vertical && e.VisualFlip);
                 if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, canvas, new Color(1, 1, 1, e.flash / .09f * .86f), !vertical && e.VisualFlip);
             }
+            // 16 real authored supplemental frames, synchronized to the
+            // exact game-core enemy state and attack-release timestamps:
+            // no animation loops running without a real attack event.
+            if(!drawingOutline&&combatRhythmRemaster!=null)
+            {
+                int fx=-1;
+                float alpha=.8f;
+                if(e.state==1&&e.stun<=0)
+                {
+                    float prep=1-e.timer/Math.Max(.01f,e.windupDuration>0?
+                        e.windupDuration:e.boss?1.1f:.65f);
+                    int stage=(int)GameCore.Clamp(prep*4,0,3);
+                    fx=e.boss?4+stage:stage;
+                }
+                else if(e.releaseTime>0)
+                {
+                    int stage=(int)GameCore.Clamp((1-e.releaseTime/
+                        (e.boss?.38f:.24f))*4,0,3);
+                    fx=8+stage;alpha=.74f;
+                }
+                if(fx>=0)
+                {
+                    float iconSize=e.boss?52:32;
+                    Atlas(combatRhythmRemaster,4,4,fx,
+                        new Rect(p.x-iconSize/2,p.y-size*.78f-iconSize/2,
+                            iconSize,iconSize),
+                        new Color(1,1,1,alpha),e.VisualFlip);
+                }
+            }
             // The boss already has a HUD poise meter. Give ordinary enemies a
             // tiny contextual meter only after the player has built stagger.
             if (!drawingOutline && !e.boss && e.stagger > .01f && e.staggerRecovery <= 0)
@@ -200,7 +231,21 @@ namespace Starfall
             Point p = ScreenPoint(position);
             Box(p.x - 13, p.y - 2, 26, 5, new Color(.025f, .04f, .07f, .32f));
             bool occludes = Math.Abs(position.x - Game.save.x) < .85f && Game.save.y < position.y && Game.save.y > position.y - 1.8f;
-            Actor(npcSheet, 4, 4, id < 0 ? NpcId(kind) : id, p, 96, occludes ? new Color(1, 1, 1, .45f) : Color.white);
+            Actor(npcSheet, 4, 4, id < 0 ? NpcId(kind) : id, p, 96,
+                occludes ? new Color(1, 1, 1, .45f) : Color.white);
+            // Existing authored NPC body remains intact. A short, locally
+            // tethered speaking sigil shows whose real-world interaction is
+            // active; the NPC never floats, scales or changes identity.
+            if(!drawingOutline&&combatRhythmRemaster!=null&&
+                Game.conversation!=null&&
+                (position-Game.Position).Length<1.8f)
+            {
+                int phase=((int)(clock*6))%4;
+                if(phase<0)phase+=4;
+                Atlas(combatRhythmRemaster,4,4,12+phase,
+                    new Rect(p.x-11,p.y-105,22,22),
+                    new Color(1,1,1,.75f));
+            }
         }
     }
 }
