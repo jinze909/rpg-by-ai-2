@@ -206,7 +206,10 @@ public static class RuntimeCombatInputChecks
         GUI.commands.Clear(); GUI.textureCalls.Clear(); GUI.buttonCalls.Clear();
         Call(app, "DrawPlayerActor");
         var body = GUI.textureCalls.Find(draw => draw.texture.name.StartsWith("resource:Frontier/Art/")
-            && !draw.texture.name.Contains("Effects"));
+            && !draw.texture.name.Contains("Effects") &&
+            // Contact artwork is a preceding, independent ground layer,
+            // never the model's actual animation source.
+            !draw.texture.name.EndsWith("/ActorContactShadows"));
         Check(body != null && body.texture.name == "resource:Frontier/Art/" + sheet && DrawnFrame(body) == frame,
             "Actual player rendering must select " + sheet + " frame " + frame);
         if (head)
