@@ -85,6 +85,46 @@ public static class ActorRegistrationChecks
             }GUI.Export(folder,"review-registered-enemies-"+batch);
         }Screen.width=1280;Screen.height=800;Console.WriteLine("PASS "+total+" enemy/Boss combinations: gait, wind-up, release, flash, recoil and retained death density");
     }
+    static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
+    {
+        // Real production drawing, captured as IMGUI texture commands.
+        // The flash must use the same actual four-frame walk atlas and crop
+        // as its moving boss, not the stationary boss pose.
+        app.BeginVisualReview(0,1);
+        var g=app.Game;g.enemies.Clear();
+        var e=new Enemy(93000,0,g.Position.x,g.Position.y,150,true){
+            facing=new Point(1,0),moving=true,moveTime=.8f,
+            flash=.045f,hitTime=0,releaseTime=0
+        };
+        Clear();
+        var draws=Draw(app,"DrawEnemyActor",e);
+        var walk=draws.FirstOrDefault(c=>
+            c.texture.name=="resource:Frontier/Art/WalkBossA");
+        var flash=draws.FirstOrDefault(c=>
+            c.texture.name=="resource:Frontier/Art/ActorMasks/flash_WalkBossA"||
+            c.texture.name=="flash_resource_Frontier_Art_WalkBossA");
+        Check(walk!=null&&flash!=null,
+            "Moving Boss flash must use the actual walk sheet and its matching mask");
+        Check(Math.Abs(walk.rect.x-flash.rect.x)<.001f&&
+            Math.Abs(walk.rect.y-flash.rect.y)<.001f&&
+            Math.Abs(walk.rect.width-flash.rect.width)<.001f&&
+            Math.Abs(walk.rect.height-flash.rect.height)<.001f&&
+            Math.Abs(walk.uv.x-flash.uv.x)<.0001f&&
+            Math.Abs(walk.uv.y-flash.uv.y)<.0001f&&
+            Math.Abs(walk.uv.width-flash.uv.width)<.0001f&&
+            Math.Abs(walk.uv.height-flash.uv.height)<.0001f,
+            "Boss body and hit-flash require identical walking frame, camera crop and foot anchor");
+        Check(!draws.Any(c=>c.texture.name==
+            "resource:Frontier/Art/ActorMasks/flash_Bosses"),
+            "A walking Boss may not receive a stationary ghost silhouette");
+        // Nonwalking attacks still use their original author-approved Boss sheet.
+        e.moving=false;e.flash=.04f;Clear();draws=Draw(app,"DrawEnemyActor",e);
+        Check(draws.Any(c=>c.texture.name==
+            "resource:Frontier/Art/ActorMasks/flash_Bosses"),
+            "A stationary Boss retains its original hit silhouette");
+        Console.WriteLine("PASS moving Boss base and flash share exact atlas, frame, UV and foot anchor");
+    }
+
     static void PreparedMasks()
     {
         var source=Resources.Load<Texture2D>("Frontier/Art/Bosses");Check(source!=null&&source.isReadable,"Actual metadata must keep source alpha readable after import");
@@ -160,7 +200,7 @@ public static class ActorRegistrationChecks
     public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { UnifiedGaitComposites(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();UnifiedGaitComposites(app);Players(app,folder);Companions(app,folder);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();UnifiedGaitComposites(app);Players(app,folder);Companions(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }

@@ -189,11 +189,30 @@ namespace Starfall
             if (e.boss && Math.Abs(e.x - Game.save.x) < 1.4f && Game.save.y < e.y - .01f && Game.save.y > e.y - 2.7f) tint.a = .55f;
             if (e.boss)
             {
-                int row = Math.Max(0, Game.save.room - 1), frame = pose == 2 ? 1 : pose == 3 ? 2 : 0;
-                if (pose == 1 && bossWalkSheets[row / 4] != null)
-                    Actor(bossWalkSheets[row / 4], 4, 4, row % 4 * 4 + GameCore.GaitFrame(e.moveTime, 2.8f), p, size * 384 / 320f, tint, e.VisualFlip);
-                else Actor(bossSheet, 4, 8, row * 4 + frame, p + offset, size, tint, e.VisualFlip);
-                if (!drawingOutline && e.flash > 0 && bossSheet != null) Actor(art.FlashMask(bossSheet), 4, 8, row * 4 + frame, p + offset, size, new Color(1, 1, 1, e.flash / .09f * .86f * tint.a), e.VisualFlip);
+                // Keep base body and hit-flash on the identical authored
+                // frame, dimensions and foot pivot. Painting the idle sheet
+                // over a moving boss previously created a second drifting
+                // silhouette whenever a hit-flash outlived the hit pose.
+                int row = Math.Min(7, Math.Max(0, Game.save.room - 1));
+                int frame = pose == 2 ? 1 : pose == 3 ? 2 : 0;
+                int walkAtlas = row / 4;
+                bool walking = pose == 1 && bossWalkSheets != null &&
+                    walkAtlas < bossWalkSheets.Length &&
+                    bossWalkSheets[walkAtlas] != null;
+                Texture2D visibleBossSheet = walking ?
+                    bossWalkSheets[walkAtlas] : bossSheet;
+                int visibleBossRows = walking ? 4 : 8;
+                int visibleBossFrame = walking ?
+                    row % 4 * 4 + GameCore.GaitFrame(e.moveTime, 2.8f) :
+                    row * 4 + frame;
+                float visibleBossSize = walking ? size * 384 / 320f : size;
+                Actor(visibleBossSheet, 4, visibleBossRows, visibleBossFrame,
+                    p + offset, visibleBossSize, tint, e.VisualFlip);
+                if (!drawingOutline && e.flash > 0 && visibleBossSheet != null)
+                    Actor(art.FlashMask(visibleBossSheet), 4, visibleBossRows,
+                        visibleBossFrame, p + offset, visibleBossSize,
+                        new Color(1, 1, 1, e.flash / .09f * .86f * tint.a),
+                        e.VisualFlip);
                 if (!drawingOutline && e.state == 1) Atlas(effectSheet,4,4,13,new Rect(p.x-19,p.y-GameCore.BossEmissionHeight(Game.save.room)-19,38,38),new Color(1,.79f,.49f,charge*.6f));
             }
             else
