@@ -51,7 +51,10 @@ namespace Starfall.Tests
             g.Talk(root);g.Close();
             Check(g.save.energy==100,"Empty roots do not drain energy or attack absent enemies");
             var boss=new Enemy(90752,3,root.x+2,root.y,500,true){state=1,timer=.02f};
-            g.enemies.Add(boss);g.RootsongPulseCooldown=0;
+            g.enemies.Add(boss);
+            // Cooldown is transient but intentionally private to game rules.
+            // Wait through actual simulation rather than mutating it from a test.
+            g.enemies.Remove(boss);Advance(g,9f);g.enemies.Add(boss);
             g.Talk(root);
             index=-1;
             for(int i=0;i<g.conversation.choices.Length;i++)

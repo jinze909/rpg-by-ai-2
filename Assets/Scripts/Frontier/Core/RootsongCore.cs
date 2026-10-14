@@ -125,13 +125,18 @@ namespace Starfall
                 if(RootsongComplete&&RootsongThreat(o))
                 {
                     bool ready=RootsongPulseCooldown<=0&&save.energy>=30;
-                    RootsongDialog(o,history+(RootsongPulseCooldown>0?
+                    string description=history+(RootsongPulseCooldown>0?
                         L("\n\n护歌仍需冷却 "+RootsongPulseCooldown.ToString("0.0")+" 秒。",
                           "\n\nRootguard recharges for "+RootsongPulseCooldown.ToString("0.0")+"s.") :
-                        L("\n\n附近有敌人。可消耗30耐力唤起一次4格范围的护歌，短暂打断进攻。",
-                          "\n\nEnemies are nearby. Spend 30 energy on a four-tile Rootguard to interrupt attacks.")),
-                        C("聆听历史","Review history","close"),
-                        C("根鸣护歌 · 30耐力","Rootguard · 30 energy","rootsongpulse_"+step));
+                        save.energy<30?
+                        L("\n\n护歌需要30耐力，当前不足。","\n\nRootguard needs 30 energy, which is currently unavailable.") :
+                        L("\n\n附近有敌人。消耗30耐力释放四格范围的护歌，短暂打断进攻。",
+                          "\n\nEnemies are nearby. Spend 30 energy on a four-tile Rootguard to interrupt attacks."));
+                    if(ready)
+                        RootsongDialog(o,description,
+                            C("聆听历史","Review history","close"),
+                            C("根鸣护歌 · 30耐力","Rootguard · 30 energy","rootsongpulse_"+step));
+                    else RootsongDialog(o,description,C("聆听历史","Review history","close"));
                     return true;
                 }
                 RootsongDialog(o,history,C("重听记录","Review","close"));
