@@ -1716,6 +1716,30 @@
           "y": 36.5
         },
         {
+          "id": "rootsong_1",
+          "kind": "rootsonestone",
+          "name": "庇护古根 · 第一声",
+          "en": "Shelter Root · First Voice",
+          "x": 62.5,
+          "y": 34.5
+        },
+        {
+          "id": "rootsong_2",
+          "kind": "rootsonestone",
+          "name": "摆渡古根 · 第二声",
+          "en": "Ferryman Root · Second Voice",
+          "x": 68.5,
+          "y": 39.5
+        },
+        {
+          "id": "rootsong_3",
+          "kind": "rootsonestone",
+          "name": "归乡古根 · 第三声",
+          "en": "Homeward Root · Third Voice",
+          "x": 79.5,
+          "y": 35.5
+        },
+        {
           "id": "trailcircuit_1_1",
           "kind": "trailcircuit",
           "name": "密林根鸣",

@@ -388,6 +388,9 @@ namespace Starfall
             TickCompanion(dt);
             TickFrost(dt);
             if(Dying||mode!="world")return;
+            // Persistent forest roots are safe, proximity-gated places to recover.
+            if(RootsongRefuge && SafeTravel && !practicing && !racing)
+                save.energy=Math.Min(100,save.energy+dt*2.3f);
             bool tea = save.teaUntil > save.totalTime;
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&

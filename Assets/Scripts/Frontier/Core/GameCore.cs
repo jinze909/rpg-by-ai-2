@@ -1024,6 +1024,7 @@ namespace Starfall
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
             if (TryTalkWaytrail(o)) return;
+            if (TalkRootsong(o)) return;
             if (TalkTrailCircuit(o)) return;
             if (TalkOuterRescue(o)) return;
             if (TalkOuterPatrol(o)) return;
@@ -1262,6 +1263,7 @@ namespace Starfall
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action; Close();
+            if (ChooseRootsong(action)) return;
             if (ChoosePolish(action)) return;
             if (ChooseExpansion(action)) return;
             if (ChooseLastDirective(action)) return;
