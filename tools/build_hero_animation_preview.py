@@ -87,20 +87,29 @@ def source_indices(profession, action, facing):
         if f == 2:
             return [("PlayerSouth", c * 4 + 2), ("PlayerSouth", c * 4 + 3)]
         return [(player, 6), (player, 7)]
+    reaction = "PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth" if f == 2 else player
+    dodge = c * 4 if f != 0 else 8
+    hit = c * 4 + 2 if f != 0 else 10
+    fallen = c * 4 + 3 if f != 0 else 11
+    idle = (walk, 8) if f == 2 else (player, 1 if f == 1 else 0)
     if action == "Dodge":
-        return [(("PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth"), c * 4)] if f != 0 else [(player, 8)]
+        return [(reaction, dodge), (reaction, dodge), idle]
     if action == "Hit":
-        return [(("PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth"), c * 4 + 2)] if f != 0 else [(player, 10)]
+        return [(reaction, hit), (reaction, hit), idle]
     if action == "Death":
-        return [(("PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth"), c * 4 + 3)] if f != 0 else [(player, 11)]
+        return [(reaction, hit), (reaction, dodge), (reaction, fallen)]
     raise AssertionError(f"Unknown action {action}")
 
 
-def canonical_frame(sheets, heads, name, index, facing, locomotion):
+def canonical_frame(sheets, heads, name, index, facing, locomotion, death=False):
     # The production IMGUI HumanActor cuts out the source head and draws
     # WalkVanguard's canonical head in its place. Bake the identical identity
     # into one whole-body cell BEFORE migrating to SpriteRenderer.
     canvas = crop_frame(sheets[name], index)
+    if death:
+        # The crouch->fallen sequence keeps the APPROVED lying blonde head;
+        # upright identity overlaid on a prone body would be detached.
+        return canvas
     hx, hy, hw, hh = heads[name][index]
     if min(hx, hy, hw, hh) < 0 or hx + hw > CELL or hy + hh > CELL:
         raise AssertionError(f"Invalid face cutout: {name}/{index}")
@@ -141,8 +150,8 @@ def build(destination):
                 for i, (name, index) in enumerate(references):
                     frame = canonical_frame(sheets, heads, name, index, facing,
                         name.startswith("Walk") or action in ("Idle", "Run")
-                        or (action == "Attack" and i in (0, len(references) - 1)
-                            and name.startswith("Player") and index == 0))
+                        or (name == "Player" + profession and index <= 1),
+                        death=(action == "Death" and i == len(references) - 1))
                     frames.append(frame)
                 hashes = [hashlib.sha256(im.tobytes()).hexdigest() for im in frames]
                 unique = len(set(hashes))

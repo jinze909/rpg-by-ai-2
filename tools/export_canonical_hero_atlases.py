@@ -112,8 +112,8 @@ def main():
                 for i, (name, index) in enumerate(refs):
                     frame = canonical_frame(sheets, heads, name, index, facing,
                         name.startswith("Walk") or action in ("Idle", "Run")
-                        or (action == "Attack" and i in (0, len(refs) - 1)
-                            and name.startswith("Player") and index == 0))
+                        or (name == "Player" + profession and index <= 1),
+                        death=(action == "Death" and i == len(refs) - 1))
                     if frame.size != (CELL, CELL):
                         raise AssertionError("Wrong canonical frame canvas")
                     reference = PREVIEW / profession / action / f"{facing}_{i:02}.png"

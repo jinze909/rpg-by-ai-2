@@ -275,6 +275,9 @@ namespace Starfall
             if (state == 1) return 4;
             if (state == 2) return facing == 1 ? 2 : 4;
             if (state == 3) return 2;
+            // Three actual reaction/death cells, driven by the existing
+            // transient movement/hurt/death clocks, NOT independent timers.
+            if (state >= 4 && state <= 6) return 3;
             return 1;
         }
         public int HeroAnimationFrame(int facing)
@@ -282,6 +285,9 @@ namespace Starfall
             int state = HeroAnimationState, count = HeroAnimationFrameCount(facing);
             if (count <= 1) return 0;
             if (state == 1) return WalkFrame % 4;
+            if (state >= 4)
+                return (int)Math.Min(count - 1,
+                    Math.Floor(HeroAnimationPlaybackPosition(facing)));
             ActorAction action = playerAction;
             if (action == null) return 0;
             if (!action.released)
@@ -299,6 +305,15 @@ namespace Starfall
             int state = HeroAnimationState;
             int count = HeroAnimationFrameCount(facing);
             if (state == 1) return WalkPosePhase;
+            if (state == 4) return Clamp((.18f - dashTime) / .18f * 2f, 0f, 2f);
+            if (state == 5) return Clamp((.18f - playerHitTime) / .18f * 2f, 0f, 2f);
+            if (state == 6)
+            {
+                float elapsed = .9f - deathTime;
+                // Contact/recoil -> kneel/fall -> retained grounded corpse.
+                if (elapsed < .14f) return Clamp(elapsed / .14f, 0f, 1f);
+                return 1f + Clamp((elapsed - .14f) / .18f, 0f, 1f);
+            }
             if ((state != 2 && state != 3) || playerAction == null)
                 return HeroAnimationFrame(facing);
             ActorAction action = playerAction;

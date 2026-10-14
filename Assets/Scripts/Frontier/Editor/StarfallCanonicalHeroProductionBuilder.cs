@@ -63,16 +63,17 @@ namespace Starfall.EditorTools
                         // Intermediates are emitted into the actual live Animator atlas.
                         // Source sprites, original poses, foot pivot and head compositor stay intact.
                         var authored = new List<Color[]>(refs.Length);
-                        foreach (FrameSource item in refs)
+                        for (int sourceIndex = 0; sourceIndex < refs.Length; sourceIndex++)
                         {
+                            FrameSource item = refs[sourceIndex];
                             Sprite baked = CanonicalHeroSpriteFactory.Bake(
                                 textures[item.atlas], item.index,
                                 textures[item.atlas], item.index,
                                 facing, action == 0 || action == 1 ||
                                     item.atlas.StartsWith("Walk") ||
-                                    (action == 2 && item.index == 0 &&
-                                     item.atlas.StartsWith("Player") && item.atlas != "PlayerSouth"),
-                                action == 6, textures["WalkVanguard"]);
+                                    (item.atlas == "Player" + profession && item.index <= 1),
+                                action == 6 && sourceIndex == refs.Length - 1,
+                                textures["WalkVanguard"]);
                             if (baked == null)
                                 throw new InvalidOperationException("Accepted hero pose missing: " + key);
                             try { authored.Add(baked.texture.GetPixels()); }
@@ -311,11 +312,24 @@ namespace Starfall.EditorTools
                     new FrameSource(facing == 1 ? "PlayerRear" : facing == 2 ? "PlayerSouth" : p,
                         facing == 0 ? 7 : cls * 4 + 3)
                 };
-            int pose = action == 4 ? 0 : action == 5 ? 2 : 3;
-            return new[] { new FrameSource(
-                facing == 1 ? "PlayerReactionsRear" :
-                facing == 2 ? "PlayerReactionsSouth" : p,
-                facing == 0 ? action == 4 ? 8 : action == 5 ? 10 : 11 : cls * 4 + pose) };
+            string reactions = facing == 1 ? "PlayerReactionsRear" :
+                facing == 2 ? "PlayerReactionsSouth" : p;
+            int dodge = facing == 0 ? 8 : cls * 4;
+            int hit = facing == 0 ? 10 : cls * 4 + 2;
+            int fallen = facing == 0 ? 11 : cls * 4 + 3;
+            // Never flash straight from standing to a grounded corpse.
+            // Approved prior poses are reused; no rejected drawings imported.
+            FrameSource stand = facing == 2 ? new FrameSource(walk, 8) :
+                new FrameSource(p, facing == 1 ? 1 : 0);
+            if (action == 4) return new[] {
+                new FrameSource(reactions, dodge),
+                new FrameSource(reactions, dodge), stand };
+            if (action == 5) return new[] {
+                new FrameSource(reactions, hit),
+                new FrameSource(reactions, hit), stand };
+            return new[] { new FrameSource(reactions, hit),
+                new FrameSource(reactions, dodge),
+                new FrameSource(reactions, fallen) };
         }
 
         private static int FrameIndex(string name)

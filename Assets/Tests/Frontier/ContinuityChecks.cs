@@ -47,6 +47,35 @@ namespace Starfall.Tests
                 sampling.walkDistance = GameCore.WalkStride;
                 Check(Math.Abs(sampling.WalkPosePhase)<.001f,
                     "Run loop returns to the exact same foot contact after one stride");
+                // Three-phase reactions derive from the existing clock; do
+                // not move damage, dash distance, or persistent save schema.
+                sampling.movementDirection = new Point();
+                sampling.dashTime = .18f;
+                Check(sampling.HeroAnimationState==4 &&
+                      sampling.HeroAnimationFrameCount(0)==3 &&
+                      Math.Abs(sampling.HeroAnimationPlaybackPosition(0))<.001f,
+                      "Dodge starts at the accepted crouch on the original dash clock");
+                sampling.dashTime = .09f;
+                Check(Math.Abs(sampling.HeroAnimationPlaybackPosition(0)-1f)<.01f,
+                      "Dodge middle cell follows the physical dash interval");
+                sampling.dashTime = 0f;
+                sampling.playerHitTime = .18f;
+                Check(sampling.HeroAnimationState==5 &&
+                      sampling.HeroAnimationFrameCount(0)==3 &&
+                      Math.Abs(sampling.HeroAnimationPlaybackPosition(0))<.01f,
+                      "Hit starts on accepted recoil without an invented timing clock");
+                sampling.playerHitTime = 0f;
+                sampling.deathTime = .9f;
+                Check(sampling.HeroAnimationState==6 &&
+                      sampling.HeroAnimationFrameCount(0)==3 &&
+                      sampling.HeroAnimationFrame(0)==0,
+                      "Death enters real recoil pose");
+                sampling.deathTime = .70f;
+                Check(sampling.HeroAnimationPlaybackPosition(0)>1f,
+                      "Death progresses into the existing fall pose");
+                sampling.deathTime = .45f;
+                Check(sampling.HeroAnimationFrame(0)==2,
+                      "Death holds the original authored grounded corpse until recovery");
                 g.Tick(.02f,new Point());float stopped=g.walkDistance;Advance(g,.6f);Check(!g.ActuallyMoving&&g.walkDistance==stopped,"Stopping cannot keep cycling the legs");
                 Point wall=WallStand(g);g.save.x=wall.x;g.save.y=wall.y;
                 for(int i=0;i<20;i++)g.Tick(.02f,new Point(-1,0));float distanceAtWall=g.walkDistance;int contacts=g.footContacts;
