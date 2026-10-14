@@ -17,6 +17,53 @@ namespace Starfall.Tests
                 if(g.conversation.choices[i].action==action){g.Choose(i);return;}
             throw new Exception("Root tone not in live dialogue: "+action);
         }
+
+        public static void RestoredRootGuardInterruptsOnlyNearbyThreats(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");
+            for(int i=1;i<=3;i++)g.save.flags.Add("rootsong_"+i);
+            g.save.flags.Add("rootsong_complete");
+            WorldObject root=RootObject(g,1);
+            g.save.x=root.x;g.save.y=root.y;g.save.energy=100;
+            var close=new Enemy(90751,2,root.x+2,root.y,250) {state=1,timer=.04f};
+            g.enemies.Add(close);
+            int coins=g.save.coins,shards=g.save.shards,kills=g.save.kills[1];
+            g.Talk(root);
+            string choice="rootsongpulse_1";int index=-1;
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action==choice)index=i;
+            Check(index>=0,"Restored root offers an actual combat interaction near an enemy");
+            g.Choose(index);
+            Check(g.save.energy==70&&g.RootsongPulseCooldown>8&&
+                close.state==0&&close.stun>=1.19f&&g.effects.Exists(e=>e.text=="ROOTGUARD"||e.text=="古根护歌"),
+                "Real root pulse spends energy, interrupts the windup and displays physical feedback");
+            Check(close.hp==250&&g.save.coins==coins&&g.save.shards==shards&&
+                g.save.kills[1]==kills,
+                "Crowd control must not mint phantom kills, XP, drops or rewards");
+            float remaining=g.save.energy;
+            g.Talk(root);
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action==choice)g.Choose(i);
+            Check(g.save.energy==remaining,"Cooldown blocks repeated field-pulse charges");
+            g.Close();
+            g.enemies.Clear();g.save.energy=100;
+            g.Talk(root);g.Close();
+            Check(g.save.energy==100,"Empty roots do not drain energy or attack absent enemies");
+            var boss=new Enemy(90752,3,root.x+2,root.y,500,true){state=1,timer=.02f};
+            g.enemies.Add(boss);g.RootsongPulseCooldown=0;
+            g.Talk(root);
+            index=-1;
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action==choice)index=i;
+            Check(index>=0,"Original boss contact is a valid tactical choice");
+            g.Choose(index);
+            Check(boss.hp==500&&boss.stun>=.29f&&boss.stun<.5f,
+                "Bosses receive only the brief authored interrupt, never a normal full stun");
+            g.PrepareSave();g.Load(CloneSave(g.save));
+            Check(g.RootsongComplete&&g.save.version==2,
+                "Combat utility needs no new persistent data or companion character");
+        }
         public static void ThornwoodRootsongUsesPhysicalTimingAndPersistentHarmony(Campaign data)
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();

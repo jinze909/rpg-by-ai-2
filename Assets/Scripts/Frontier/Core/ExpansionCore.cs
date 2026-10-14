@@ -388,6 +388,8 @@ namespace Starfall
             TickCompanion(dt);
             TickFrost(dt);
             if(Dying||mode!="world")return;
+            // The tactical root pulse only cools down in the real world clock.
+            RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
             // Persistent forest roots are safe, proximity-gated places to recover.
             if(RootsongRefuge && SafeTravel && !practicing && !racing)
                 save.energy=Math.Min(100,save.energy+dt*2.3f);

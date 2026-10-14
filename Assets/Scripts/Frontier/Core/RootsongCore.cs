@@ -25,6 +25,62 @@ namespace Starfall
             }
         }
         public bool RootsongComplete { get { return Has("rootsong_complete"); } }
+        // One non-farmable, transient field-control decision. An old save can
+        // still use its energy and the original root flags without migration.
+        public float RootsongPulseCooldown { get; private set; }
+        private bool RootsongThreat(WorldObject stone)
+        {
+            if(stone==null||save.room!=1)return false;
+            Point position=new Point(stone.x,stone.y);
+            foreach(Enemy enemy in enemies)
+                if(enemy.hp>0&&(enemy.Position-position).Length<4.1f&&
+                    ClearAttackPath(position,enemy.Position))return true;
+            return false;
+        }
+        private bool RootsongPulse(string action)
+        {
+            if(!action.StartsWith("rootsongpulse_",StringComparison.Ordinal))return false;
+            int stage;
+            if(!int.TryParse(action.Substring("rootsongpulse_".Length),out stage))return true;
+            WorldObject stone=RootsongStone(stage);
+            if(!RootsongComplete||stone==null||Dying||practicing||save.room!=1||
+                (Position-new Point(stone.x,stone.y)).Length>1.8f)return true;
+            if(RootsongPulseCooldown>0)
+            {
+                Notify("古根正在回声，稍后才能再次回应。","This root is still recovering its resonance.");
+                return true;
+            }
+            if(save.energy<30)
+            {
+                Notify("释放保护根鸣需要30耐力。","A protective root pulse needs 30 energy.");
+                return true;
+            }
+            if(!RootsongThreat(stone))
+            {
+                Notify("没有可以被根鸣触及的威胁。","There is no reachable threat within the root's song.");
+                return true;
+            }
+            Point origin=new Point(stone.x,stone.y);
+            int interrupted=0;
+            foreach(Enemy enemy in enemies)
+            {
+                if(enemy.hp<=0||(enemy.Position-origin).Length>=4.1f||
+                    !ClearAttackPath(origin,enemy.Position))continue;
+                enemy.state=0;
+                enemy.stun=Math.Max(enemy.stun,enemy.boss?.3f:1.2f);
+                enemy.timer=Math.Max(enemy.timer,enemy.boss?.4f:.75f);
+                interrupted++;
+            }
+            if(interrupted==0)return true;
+            save.energy-=30;RootsongPulseCooldown=8.5f;
+            effects.Add(new Effect("burst",origin,.5f){radius=4.1f,variant=1});
+            effects.Add(new Effect("number",origin+new Point(0,-.7f),.75f,
+                L("古根护歌","ROOTGUARD")));
+            revision++;sound="spell";
+            Notify("古根震鸣打断了 "+interrupted+" 个敌人。耐力 -30；无法连续释放。",
+                "Rootsong interrupted "+interrupted+" foes. -30 energy; the pulse must recharge.");
+            return true;
+        }
         private WorldObject RootsongStone(int step)
         {
             if(step<1||step>3)return null;
@@ -65,8 +121,20 @@ namespace Starfall
             string clue=L(RootsongCluesZh[step-1],RootsongCluesEn[step-1]);
             if(step<=RootsongProgress)
             {
-                RootsongDialog(o,clue+L("\n\n这一声已归档，不再奖励。","\n\nThis tone is archived, with no duplicate rewards."),
-                    C("重听记录","Review","close"));
+                string history=clue+L("\n\n这一声已归档，不再奖励。","\n\nThis tone is archived, with no duplicate rewards.");
+                if(RootsongComplete&&RootsongThreat(o))
+                {
+                    bool ready=RootsongPulseCooldown<=0&&save.energy>=30;
+                    RootsongDialog(o,history+(RootsongPulseCooldown>0?
+                        L("\n\n护歌仍需冷却 "+RootsongPulseCooldown.ToString("0.0")+" 秒。",
+                          "\n\nRootguard recharges for "+RootsongPulseCooldown.ToString("0.0")+"s.") :
+                        L("\n\n附近有敌人。可消耗30耐力唤起一次4格范围的护歌，短暂打断进攻。",
+                          "\n\nEnemies are nearby. Spend 30 energy on a four-tile Rootguard to interrupt attacks.")),
+                        C("聆听历史","Review history","close"),
+                        C("根鸣护歌 · 30耐力","Rootguard · 30 energy","rootsongpulse_"+step));
+                    return true;
+                }
+                RootsongDialog(o,history,C("重听记录","Review","close"));
                 return true;
             }
             if(step!=RootsongProgress+1)
@@ -90,6 +158,7 @@ namespace Starfall
         }
         private bool ChooseRootsong(string action)
         {
+            if(RootsongPulse(action))return true;
             if(!action.StartsWith("rootsong_",StringComparison.Ordinal))return false;
             string[] parts=action.Split('_');
             int step,tone;
