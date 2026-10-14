@@ -35,3 +35,52 @@ jobs:
             .starfall-checks/hero-animation-qa/
             .starfall-checks/hero-production-atlases/
           if-no-files-found: ignore
+
+  publish-approved-hero-sprites:
+    # One-shot, explicitly marked development handoff. A GITHUB_TOKEN push
+    # does not spawn another CI run. Do not create an autonomous commit loop.
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-hero-art]') }}
+    needs: core
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and inspect actual three-class production sheets
+        run: |
+          python3 -m pip install Pillow
+          python3 tools/build_hero_animation_preview.py
+          python3 tools/export_canonical_hero_atlases.py
+          python3 tools/check_hero_generated_motion.py
+          python3 tools/check_hero_visual_spec.py
+          python3 tools/install_canonical_hero_atlases.py
+          python3 tools/check_visual_assets.py
+      - name: Safe fast-forward publish into the ONLY writable branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          current="$(git rev-parse refs/remotes/origin/chatgpt/dev)"
+          if [ "$current" != "$GITHUB_SHA" ]; then
+            echo "Concurrent developer advanced chatgpt/dev: refusing stale asset publication."
+            exit 1
+          fi
+          git add -- Assets/Resources/Frontier/HeroAnimator.meta \
+            Assets/Resources/Frontier/HeroAnimator/Canonical.meta \
+            Assets/Resources/Frontier/HeroAnimator/Canonical/
+          if git diff --cached --quiet; then
+            echo "All production sheets already published; nothing to commit."
+            exit 0
+          fi
+          git -c user.name='Starfall AI-2' \
+              -c user.email='71573141+jinze909@users.noreply.github.com' \
+            commit -m 'feat(hero-art): integrate 63 verified Sprite sheets and Unity meta [published-hero-art]'
+          git fetch --no-tags origin chatgpt/dev
+          refreshed="$(git rev-parse refs/remotes/origin/chatgpt/dev)"
+          if [ "$refreshed" != "$current" ]; then
+            echo "Remote advanced before upload: refusing force push."
+            exit 1
+          fi
+          git push origin HEAD:refs/heads/chatgpt/dev

@@ -58,3 +58,6 @@
 /docs/previews/*.png -filter -diff -merge
 
 /Assets/Resources/Frontier/Art/*.png -filter -diff -merge
+
+# Real production sprite sheets generated from approved blonde source art.
+/Assets/Resources/Frontier/HeroAnimator/Canonical/*.png -filter -diff -merge
