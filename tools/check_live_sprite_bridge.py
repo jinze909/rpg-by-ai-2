@@ -42,7 +42,8 @@ def check():
     assert "public int HeroAnimationFrame(int facing)" in core
     assert "action.elapsed - action.contact < .12f" in core
     assert "HeroAnimationPlaybackPosition(int facing)" in core
-    assert "if (state >= 4 && state <= 6) return 3;" in core
+    assert "if (state == 6) return 4;" in core
+    assert "if (state == 4 || state == 5) return 3;" in core
     assert "(.18f - dashTime)" in core and "(.18f - playerHitTime)" in core
     assert ".9f - deathTime" in core
     continuity = (ROOT / "Assets/Scripts/Frontier/Core/ContinuityCore.cs").read_text()
@@ -111,9 +112,9 @@ def check():
         for action in ACTIONS:
             for facing in FACINGS:
                 refs = source_indices(klass, action, facing)
-                expected = 4 if action == "Run" or action == "Attack" and facing != "N" else (
-                    2 if action == "Cast" or action == "Attack" and facing == "N" else
-                    3 if action in ("Dodge", "Hit", "Death") else 1)
+                expected = (4 if action in ("Run", "Attack", "Death") else
+                    2 if action == "Cast" else
+                    3 if action in ("Dodge", "Hit") else 1)
                 assert len(refs) == expected, f"Wrong inherited clip length: {klass}/{action}/{facing}"
     print("PASS: production canonical compositor, approved atlas import, "
           "7 action x 3 direction x 3 profession Sprite/Animator bake, "

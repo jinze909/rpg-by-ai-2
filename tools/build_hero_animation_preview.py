@@ -71,7 +71,8 @@ def source_indices(profession, action, facing):
         return [(walk, f * 4 + i) for i in range(4)]
     if action == "Attack":
         if f == 1:
-            return [("PlayerRear", c * 4 + 2), ("PlayerRear", c * 4 + 3)]
+            return [(player, 1), ("PlayerRear", c * 4 + 2),
+                    ("PlayerRear", c * 4 + 3), (player, 1)]
         if f == 2:
             # South frames 2/3 are SKILL poses, not normal recovery.
             return [(walk, 8), ("PlayerSouth", c * 4),
@@ -93,11 +94,11 @@ def source_indices(profession, action, facing):
     fallen = c * 4 + 3 if f != 0 else 11
     idle = (walk, 8) if f == 2 else (player, 1 if f == 1 else 0)
     if action == "Dodge":
-        return [(reaction, dodge), (reaction, dodge), idle]
+        return [idle, (reaction, dodge), idle]
     if action == "Hit":
-        return [(reaction, hit), (reaction, hit), idle]
+        return [idle, (reaction, hit), idle]
     if action == "Death":
-        return [(reaction, hit), (reaction, dodge), (reaction, fallen)]
+        return [idle, (reaction, hit), (reaction, dodge), (reaction, fallen)]
     raise AssertionError(f"Unknown action {action}")
 
 

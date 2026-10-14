@@ -26,7 +26,17 @@ def check():
             (player, 0), (player, 4), (player, 5), (player, 0)]
         assert source_indices(profession, "Attack", "S") == [
             (walk, 8), ("PlayerSouth", n * 4), ("PlayerSouth", n * 4 + 1), (walk, 8)]
+        assert source_indices(profession, "Attack", "N") == [
+            (player, 1), ("PlayerRear", n * 4 + 2),
+            ("PlayerRear", n * 4 + 3), (player, 1)]
         assert source_indices(profession, "Cast", "E") == [(player, 6), (player, 7)]
+        assert source_indices(profession, "Dodge", "N") == [
+            (player, 1), ("PlayerReactionsRear", n * 4), (player, 1)]
+        assert source_indices(profession, "Hit", "S") == [
+            (walk, 8), ("PlayerReactionsSouth", n * 4 + 2), (walk, 8)]
+        assert source_indices(profession, "Death", "N") == [
+            (player, 1), ("PlayerReactionsRear", n * 4 + 2),
+            ("PlayerReactionsRear", n * 4), ("PlayerReactionsRear", n * 4 + 3)]
     for klass in CLASSES:
         for action in ACTIONS:
             for facing in FACINGS:

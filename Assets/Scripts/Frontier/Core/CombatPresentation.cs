@@ -273,11 +273,12 @@ namespace Starfall
         {
             int state = HeroAnimationState;
             if (state == 1) return 4;
-            if (state == 2) return facing == 1 ? 2 : 4;
+            if (state == 2) return 4;
             if (state == 3) return 2;
-            // Three actual reaction/death cells, driven by the existing
-            // transient movement/hurt/death clocks, NOT independent timers.
-            if (state >= 4 && state <= 6) return 3;
+            // Reactions use stand -> impact -> stand, and death keeps a
+            // distinct final grounded pose. All share GameCore's clock.
+            if (state == 6) return 4;
+            if (state == 4 || state == 5) return 3;
             return 1;
         }
         public int HeroAnimationFrame(int facing)
@@ -310,9 +311,11 @@ namespace Starfall
             if (state == 6)
             {
                 float elapsed = .9f - deathTime;
-                // Contact/recoil -> kneel/fall -> retained grounded corpse.
-                if (elapsed < .14f) return Clamp(elapsed / .14f, 0f, 1f);
-                return 1f + Clamp((elapsed - .14f) / .18f, 0f, 1f);
+                // Standing -> recoil -> crouch -> grounded corpse; hold the
+                // final actual source pose, never loop a death animation.
+                if (elapsed < .10f) return Clamp(elapsed / .10f, 0f, 1f);
+                if (elapsed < .24f) return 1f + Clamp((elapsed - .10f) / .14f, 0f, 1f);
+                return 2f + Clamp((elapsed - .24f) / .18f, 0f, 1f);
             }
             if ((state != 2 && state != 3) || playerAction == null)
                 return HeroAnimationFrame(facing);

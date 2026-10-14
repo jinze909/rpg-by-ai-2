@@ -295,8 +295,10 @@ namespace Starfall.EditorTools
             if (action == 2)
             {
                 if (facing == 1)
-                    return new[] { new FrameSource("PlayerRear", cls * 4 + 2),
-                        new FrameSource("PlayerRear", cls * 4 + 3) };
+                    return new[] { new FrameSource(p, 1),
+                        new FrameSource("PlayerRear", cls * 4 + 2),
+                        new FrameSource("PlayerRear", cls * 4 + 3),
+                        new FrameSource(p, 1) };
                 if (facing == 2)
                     return new[] { new FrameSource(walk, 8),
                         new FrameSource("PlayerSouth", cls * 4),
@@ -322,12 +324,10 @@ namespace Starfall.EditorTools
             FrameSource stand = facing == 2 ? new FrameSource(walk, 8) :
                 new FrameSource(p, facing == 1 ? 1 : 0);
             if (action == 4) return new[] {
-                new FrameSource(reactions, dodge),
-                new FrameSource(reactions, dodge), stand };
+                stand, new FrameSource(reactions, dodge), stand };
             if (action == 5) return new[] {
-                new FrameSource(reactions, hit),
-                new FrameSource(reactions, hit), stand };
-            return new[] { new FrameSource(reactions, hit),
+                stand, new FrameSource(reactions, hit), stand };
+            return new[] { stand, new FrameSource(reactions, hit),
                 new FrameSource(reactions, dodge),
                 new FrameSource(reactions, fallen) };
         }

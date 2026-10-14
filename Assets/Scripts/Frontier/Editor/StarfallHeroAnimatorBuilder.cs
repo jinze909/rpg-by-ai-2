@@ -225,7 +225,10 @@ namespace Starfall.EditorTools
             if (action == 2)
             {
                 if (facing == 1)
-                    return new List<Sprite> { sheets["PlayerRear"][classIndex * 4 + 2], sheets["PlayerRear"][classIndex * 4 + 3] };
+                    return new List<Sprite> { sheets[player][1],
+                        sheets["PlayerRear"][classIndex * 4 + 2],
+                        sheets["PlayerRear"][classIndex * 4 + 3],
+                        sheets[player][1] };
                 if (facing == 2)
                     return new List<Sprite> { sheets[walk][8], sheets["PlayerSouth"][classIndex * 4],
                         sheets["PlayerSouth"][classIndex * 4 + 1], sheets[walk][8] };
@@ -249,12 +252,12 @@ namespace Starfall.EditorTools
             int fallen = facing == 0 ? 11 : classIndex * 4 + 3;
             Sprite stand = facing == 2 ? sheets[walk][8] :
                 sheets[player][facing == 1 ? 1 : 0];
-            if (action == 4) return new List<Sprite> { sheets[reactions][dodge],
+            if (action == 4) return new List<Sprite> { stand,
                 sheets[reactions][dodge], stand };
-            if (action == 5) return new List<Sprite> { sheets[reactions][hit],
+            if (action == 5) return new List<Sprite> { stand,
                 sheets[reactions][hit], stand };
-            return new List<Sprite> { sheets[reactions][hit], sheets[reactions][dodge],
-                sheets[reactions][fallen] };
+            return new List<Sprite> { stand, sheets[reactions][hit],
+                sheets[reactions][dodge], sheets[reactions][fallen] };
         }
 
         private static void CloneSheet(string stem)
