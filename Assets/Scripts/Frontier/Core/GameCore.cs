@@ -1233,7 +1233,14 @@ namespace Starfall
         {
             get { return FarCourierActive || CivicResponseActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
-                TideSalvageActive || LastDirectiveWave > 0 || CivicConduitActive; }
+                TideSalvageActive || LastDirectiveWave > 0 || CivicConduitActive ||
+                // A lull between scripted enemy waves is not a break in the
+                // physical trial. Resting there would skip its capture clock,
+                // red warnings and challenge phases for free.
+                GlasswindSite != 0 || TemperActive || TriadDefenseActive ||
+                witnessDefenseRoom != 0 || commonsRelayRoom != 0 ||
+                RoadwardenTrialRoom != 0 || RootHarmonyRoom != 0 ||
+                SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
         public void Choose(int index)
         {

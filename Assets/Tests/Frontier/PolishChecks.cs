@@ -223,6 +223,32 @@ namespace Starfall.Tests
                   c=>c.action=="fieldrest")>=0,
                 "The normal camp rest option returns as soon as combat ends");
         }
+        public static void LiveGlasswindTrialCannotSkipTheFieldRestClock(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"harbor_report","desert_report","gate_6"})
+                g.save.flags.Add(flag);
+            Action(g,"glasswindkeeper","glasswind_accept");
+            Check(g.Has("glasswind_started"),
+                "Test starts the actual accepted optional relay campaign at the town NPC");
+            g.Enter(6);g.enemies.Clear();
+            var valve=Object(g,"glasswindrelay1");
+            g.save.x=valve.x;g.save.y=valve.y;
+            Action(g,valve.kind,"glasswind_start_1");
+            Check(g.GlasswindSite==1,
+                "A physical relay valve starts the timed capture encounter");
+            // Captured wave transitions briefly leave no active hostiles;
+            // safety alone cannot authorize skipping a still-running mission.
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            g.save.projects[1]=2;
+            Check(g.SafeTravel,"The crafted gap between waves has no nearby combat pressure");
+            float time=g.save.totalTime,health=g.save.health,relayTime=g.GlasswindTime;
+            g.conversation=new Conversation("营地","Camp","休整","Rest",
+                new Choice("休整","Rest","fieldrest"));g.mode="dialog";g.Choose(0);
+            Check(g.GlasswindSite==1&&g.GlasswindTime==relayTime&&
+                  g.save.totalTime==time&&g.save.health==health,
+                "Field rest cannot advance or erase a paid real-time relay capture between combat waves");
+        }
         public static void FieldCampRestAdvancesCombatTimeAndCannotSkipLiveCivilianWork(Campaign data)
         {
             var g=Unlocked(data);g.save.projects[1]=2;g.Enter(5);g.enemies.Clear();
