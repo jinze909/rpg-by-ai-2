@@ -19,63 +19,78 @@ from build_hero_animation_preview import (
 
 DEST = ROOT / ".starfall-checks/hero-production-atlases"
 PREVIEW = ROOT / ".starfall-checks/hero-animation-qa"
-ORDERED4 = (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
-
-
-def expected_count(action, original):
-    return (2 * original - (0 if action == "Run" else 1)
-            if action in ("Run", "Attack", "Cast") and original > 1 else original)
-
-
 def motion_midpoint(first, second):
-    """Port of the Editor body's bounded movement and opaque Bayer compositor.
+    """A coherent source-silhouette motion pass: NO Bayer ghost outlines.
 
-    Internal anchor mathematics uses Unity bottom-origin y; Image coordinates
-    are top-origin. Displaced HEAD pixels come only from existing golden heads.
+    Each interpolated frame is a pixel-preserving deformation of ONE approved
+    pose, guided by body/outer-arm motion toward the next approved pose. Never
+    average two competing silhouettes or draw a second weapon/leg outline.
+    Lock the complete golden head, preserve the grounded boot contact band,
+    and taper deformation near the neck. This is still generated scaffolding,
+    NOT a hand-drawn transition or native Unity art acceptance.
     """
     if first.size != (CELL, CELL) or second.size != (CELL, CELL):
         raise AssertionError("Motion midpoint requires canonical 256px cells")
     a, b = first.load(), second.load()
-    ax = ay = aw = bx = by = bw = 0.0
-    for y in range(28, 118, 2):
-        top = CELL - 1 - y
-        for x in range(86, 172, 2):
-            aa, bb = a[x, top][3] / 255.0, b[x, top][3] / 255.0
-            ax += aa * x
-            ay += aa * y
-            aw += aa
-            bx += bb * x
-            by += bb * y
-            bw += bb
-    dx = max(-6, min(6, round(((bx / bw) - (ax / aw)) * 0.5))) if min(aw, bw) > 1 else 0
-    dy = max(-5, min(5, round(((by / bw) - (ay / aw)) * 0.5))) if min(aw, bw) > 1 else 0
     transparent = (0, 0, 0, 0)
 
-    def pixel(img, x, bottom_y):
-        return img[x, CELL - 1 - bottom_y] if 0 <= x < CELL and 0 <= bottom_y < CELL else transparent
+    def centroid(pixels, x0, x1, y0, y1, outer):
+        xsum = ysum = weight = 0.0
+        for y in range(y0, y1, 2):
+            top = CELL - 1 - y
+            for x in range(x0, x1, 2):
+                if outer and 94 <= x < 162:
+                    continue  # ignore the torso/head when tracking the weapon arm
+                w = pixels[x, top][3]
+                if w < 128:
+                    continue
+                xsum += x * w
+                ysum += y * w
+                weight += w
+        return (xsum / weight, ysum / weight) if weight else None
+
+    def movement(area, limit_x, limit_y):
+        origin = centroid(a, *area)
+        target = centroid(b, *area)
+        if origin is None or target is None:
+            return (0, 0)
+        return (
+            max(-limit_x, min(limit_x, round((target[0] - origin[0]) * .5))),
+            max(-limit_y, min(limit_y, round((target[1] - origin[1]) * .5))),
+        )
+
+    # Separate motion estimates prevent a swinging weapon from dragging the
+    # torso/head, or a stepping body from pinning the weapon in place.
+    body = movement((86, 172, 22, 64, False), 5, 4)
+    reach = movement((20, 236, 30, 122, True), 12, 9)
+    if reach == (0, 0):
+        reach = body
 
     output = Image.new("RGBA", (CELL, CELL), transparent)
     dest = output.load()
-    for y in range(CELL):
-        root_weight = max(0.0, min(1.0, (y - 18.0) / 64.0))
-        ox = round(dx * root_weight)
-        oy = round(dy * root_weight)
+    for y in range(CELL):  # y is measured from Unity's BOTTOM origin
+        grounded = max(0.0, min(1.0, (y - 22.0) / 44.0))
+        guard_y = (max(0.0, min(1.0, (57.0 - y) / 12.0))
+                   if y < 57 else
+                   max(0.0, min(1.0, (y - 117.0) / 12.0)) if y >= 118 else 0.0)
         for x in range(CELL):
-            pa, pb = pixel(a, x - ox, y - oy), pixel(b, x + ox, y + oy)
-            # The approved short blonde hair and face are an indivisible
-            # raster identity. Holding their complete 79x61 guard region
-            # (including its transparent edge) avoids dithered bangs and
-            # doubled eyes during procedural in-betweens. No source pose
-            # or original hair pixel is regenerated.
             if 91 <= x < 170 and 57 <= y < 118:
-                result = a[x, CELL - 1 - y]  # exact prior head, NO motion offset
-            elif pa[3] > 127 and pb[3] > 127:
-                result = tuple(round((u + v) * .5) for u, v in zip(pa, pb))
-            else:
-                second_pixel = ORDERED4[(y & 3) * 4 + (x & 3)] < 8
-                result = pb if second_pixel else pa
-            dest[x, CELL - 1 - y] = result
-    if not output.getchannel("A").getbbox():
+                dest[x, CELL - 1 - y] = a[x, CELL - 1 - y]
+                continue
+            outside_body = max(0.0, min(1.0, (abs(x - 128.0) - 26.0) / 44.0))
+            guard_x = max(0.0, min(1.0, (abs(x - 130.0) - 39.0) / 12.0))
+            amount = grounded * max(guard_x, guard_y)
+            dx = round((body[0] * (1.0 - outside_body) +
+                        reach[0] * outside_body) * amount)
+            dy = round((body[1] * (1.0 - outside_body) +
+                        reach[1] * outside_body) * amount)
+            sample_x, sample_y = x - dx, y - dy
+            dest[x, CELL - 1 - y] = (
+                a[sample_x, CELL - 1 - sample_y]
+                if 0 <= sample_x < CELL and 0 <= sample_y < CELL
+                else transparent
+            )
+    if output.getchannel("A").getbbox() is None:
         raise AssertionError("Empty generated motion pose")
     return output
 
