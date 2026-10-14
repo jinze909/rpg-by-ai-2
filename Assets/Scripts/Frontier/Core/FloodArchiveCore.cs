@@ -64,8 +64,15 @@ namespace Starfall
                 string endEn=FloodArchiveChoice==1?
                     "The names returned to the ferrymen. Nearby public tideposts now help wounded travelers recover safely.":
                     "The original tide charts were preserved for the ferry pilots. Nearby posts now help travelers regain stamina safely.";
-                FloodArchiveDialog(site,endZh+"\n\n历史只奖励一次。",
-                    endEn+"\n\nThis history never pays out twice.",
+                bool ferryDock=stage==1||stage==3;
+                if(ferryDock&&LowTide)
+                    FloodArchiveDialog(site,endZh+"\n\n历史只奖励一次。低潮时可乘公共渡船，花14耐力前往对岸。",
+                        endEn+"\n\nThe history never pays twice. At low tide, spend 14 energy on a public ferry to the opposite bank.",
+                        C("重读公开记录","Read the record","close"),
+                        C("乘渡船 · 耐力14","Cross by ferry · 14 energy","floodarchive_ferry"));
+                else FloodArchiveDialog(site,
+                    endZh+(ferryDock?"\n\n当前水位过高，公共渡船要等退潮。":"\n\n历史只奖励一次。"),
+                    endEn+(ferryDock?"\n\nThe public ferry waits for low tide.":"\n\nThe history never pays twice."),
                     C("重读公开记录","Read the record","close"));
                 return true;
             }
@@ -125,9 +132,60 @@ namespace Starfall
                 C("保留水图 · 培训摆渡人","Preserve charts · train pilots","floodarchive_chart"));
             return true;
         }
+        private bool FloodArchiveLandingSafe(Point destination)
+        {
+            if(!CanStand(destination))return false;
+            foreach(Enemy enemy in enemies)
+                if(enemy.hp>0&&(enemy.Position-destination).Length<6f)return false;
+            foreach(Projectile shot in projectiles)
+                if(!shot.friendly&&shot.life>0&&shot.damage>0&&
+                    (shot.position-destination).Length<6f)return false;
+            foreach(Hazard warning in hazards)
+                if(warning.damage>0&&
+                    (warning.position-destination).Length<4f+Math.Max(0,warning.radius))
+                    return false;
+            return true;
+        }
+        private bool ChooseFloodArchiveFerry()
+        {
+            if(!FloodArchiveComplete||save.room!=2||Dying||practicing||racing)return true;
+            WorldObject from=null,to=null;
+            WorldObject western=FloodArchiveObject(1),eastern=FloodArchiveObject(3);
+            if(western==null||eastern==null)return true;
+            if((Position-new Point(western.x,western.y)).Length<=1.8f)
+            {from=western;to=eastern;}
+            else if((Position-new Point(eastern.x,eastern.y)).Length<=1.8f)
+            {from=eastern;to=western;}
+            if(from==null)return true;
+            if(!LowTide)
+            {
+                Notify("水位还未退去，公共渡船暂不通航。",
+                    "The ferry cannot launch until low tide.");
+                return true;
+            }
+            // Respect all current physical mission locks, actual threats at
+            // BOTH banks and real resource costs. This never resets a room.
+            if(FieldWorkPreventsRest||!SafeTravel||
+                !FloodArchiveLandingSafe(new Point(to.x,to.y)))
+            {
+                Notify("渡口受到威胁，或仍有现场任务。请先确保两岸安全。",
+                    "The crossing is unsafe or fieldwork remains active. Secure both banks.");
+                return true;
+            }
+            if(save.energy<14)
+            {
+                Notify("安全渡河需要14耐力。","Crossing requires 14 energy.");
+                return true;
+            }
+            save.energy-=14;save.x=to.x;save.y=to.y;
+            revision++;sound="travel";
+            Notify("低潮渡船把你安全带到了河对岸。","The low-tide public ferry brought you to the opposite bank.");
+            return true;
+        }
         private bool ChooseFloodArchive(string action)
         {
             if(!action.StartsWith("floodarchive_",StringComparison.Ordinal))return false;
+            if(action=="floodarchive_ferry")return ChooseFloodArchiveFerry();
             if(action!="floodarchive_1"&&action!="floodarchive_2"&&
                 action!="floodarchive_public"&&action!="floodarchive_chart")return true;
             if(FloodArchiveComplete||save.room!=2||Dying||practicing||!Has("scout_saved"))return true;

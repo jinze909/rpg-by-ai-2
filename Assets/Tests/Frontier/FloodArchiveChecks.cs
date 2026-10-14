@@ -17,6 +17,55 @@ namespace Starfall.Tests
                 {g.Choose(i);return true;}
             return false;
         }
+        public static void RestoredPublicFerryHasRealSafetyAndLowTideGates(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=1;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");
+            g.save.flags.Add("floodarchive_1");g.save.flags.Add("floodarchive_2");
+            g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.x=west.x;g.save.y=west.y;g.save.totalTime=24;g.save.energy=100;
+            g.Talk(west);Check(!FerryChoice(g,"floodarchive_ferry"),
+                "No public ferry choice is presented at high tide");g.Close();
+            int revision=g.revision;
+            g.save.totalTime=36;g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(east.x,east.y)).Length<.01f&&
+                g.save.energy==86&&g.revision>revision,
+                "A genuine low-tide crossing moves the original hero to the opposite bank and charges once");
+            g.save.totalTime=24;g.Talk(east);
+            Check(!FerryChoice(g,"floodarchive_ferry"),
+                "High tide blocks the return trip even on a completed route");g.Close();
+            g.save.totalTime=36;g.save.energy=13;g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_ferry")&&g.save.energy==13&&
+                (g.Position-new Point(east.x,east.y)).Length<.01f,
+                "Insufficient stamina prevents crossing, teleport and resource loss");
+            g.save.energy=100;
+            var guard=new Enemy(90880,0,west.x+.8f,west.y,120){timer=99};
+            g.enemies.Add(guard);
+            g.Talk(east);Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.save.energy==100&&g.save.x==east.x,
+                "A hostile enemy at the destination blocks the physical crossing");
+            g.enemies.Clear();
+            g.projectiles.Add(new Projectile{position=new Point(west.x,west.y),damage=10,life=2,source="shot"});
+            g.Talk(east);Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.save.energy==100&&g.save.x==east.x,
+                "Active hostile shots at the landing cannot vanish through ferry travel");
+            g.projectiles.Clear();
+            g.hazards.Add(new Hazard{position=new Point(west.x,west.y),damage=14,timer=.3f,radius=2});
+            g.Talk(east);Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.save.energy==100&&g.save.x==east.x,
+                "An incoming explosion at the landing blocks ferry traversal");
+            g.hazards.Clear();
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.save.energy==86&&(g.Position-new Point(west.x,west.y)).Length<.01f,
+                "With both banks safe, the route works in both directions");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.FloodArchiveComplete&&restored.save.version==2,
+                "Unlocked public ferry persists without altering SaveData v2");
+        }
+
         public static void DrownedFloodArchiveRequiresRealTidesAndChoice(Campaign data)
         {
             foreach(int ending in new[]{1,2})
