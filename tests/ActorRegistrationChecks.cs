@@ -121,8 +121,8 @@ public static class ActorRegistrationChecks
         var w=new Color[walk.width*walk.height];
         // PlayerVanguard action frame 4 is first cell of atlas row 1.
         int ax=120,atop=180,afoot=230;
-        a[(action.height-256-atop)*action.width+ax]=upper;
-        a[(action.height-256-afoot)*action.width+ax]=originalFoot;
+        a[(action.height-256-1-atop)*action.width+ax]=upper;
+        a[(action.height-256-1-afoot)*action.width+ax]=originalFoot;
         // WalkVanguard frames 0 and 1 on atlas top row.
         w[(walk.height-1-afoot)*walk.width+ax]=firstStep;
         w[(walk.height-1-afoot)*walk.width+256+ax]=nextStep;
