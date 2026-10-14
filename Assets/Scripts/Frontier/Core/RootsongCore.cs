@@ -46,6 +46,9 @@ namespace Starfall
             float p=RootsongPhase(step);
             return p<1.5f?1.5f-p:p<3f?0:7.5f-p;
         }
+        // Use the existing localized conversation display contract.
+        private void RootsongDialog(WorldObject o,string text,params Choice[] choices)
+        { Dialog(o.name,o.en,text,text,choices); }
         private bool TalkRootsong(WorldObject o)
         {
             if(o.kind!="rootsonestone")return false;
@@ -54,31 +57,31 @@ namespace Starfall
             if(step==0||save.room!=1||(Position-new Point(o.x,o.y)).Length>1.8f)return true;
             if(!Has("scout_saved"))
             {
-                Dialog(o.name,o.en,"先救回密林侦察员，才能听懂树根里藏着的平民归途。",
-                    "Rescue the forest scout before decoding these civilian road songs.",
+                RootsongDialog(o,L("先救回密林侦察员，才能听懂树根里藏着的平民归途。",
+                    "Rescue the forest scout before decoding these civilian road songs."),
                     C("以后再来","Return later","close"));
                 return true;
             }
             string clue=L(RootsongCluesZh[step-1],RootsongCluesEn[step-1]);
             if(step<=RootsongProgress)
             {
-                Dialog(o.name,o.en,clue+L("\n\n这一声已归档，不再奖励。","\n\nThis tone is archived, with no duplicate rewards."),
+                RootsongDialog(o,clue+L("\n\n这一声已归档，不再奖励。","\n\nThis tone is archived, with no duplicate rewards."),
                     C("重听记录","Review","close"));
                 return true;
             }
             if(step!=RootsongProgress+1)
             {
-                Dialog(o.name,o.en,L("先找到上一根古树，根鸣须依次唤醒。","Find the preceding trunk: the three voices must be restored in order."),
+                RootsongDialog(o,L("先找到上一根古树，根鸣须依次唤醒。","Find the preceding trunk: the three voices must be restored in order."),
                     C("继续探索","Explore","close"));
                 return true;
             }
             float wait=RootsongWait(step);
             if(wait>0)
-                Dialog(o.name,o.en,clue+L("\n\n石环还未泛绿，约 "+wait.ToString("0.0")+" 秒后再来。交谈期间时间暂停。",
+                RootsongDialog(o,clue+L("\n\n石环还未泛绿，约 "+wait.ToString("0.0")+" 秒后再来。交谈期间时间暂停。",
                     "\n\nThe ring is dark. Return in about "+wait.ToString("0.0")+" seconds when it turns green; conversation pauses time."),
                     C("等待石环亮起","Wait for green","close"));
             else
-                Dialog(o.name,o.en,clue+L("\n\n现在石环泛绿：选择音调。错误的声音会消耗10耐力并唤起伤人的根刺。",
+                RootsongDialog(o,clue+L("\n\n现在石环泛绿：选择音调。错误的声音会消耗10耐力并唤起伤人的根刺。",
                     "\n\nThe ring is green: choose a tone. Discord costs 10 energy and summons a damaging root surge."),
                     C("低音","Low","rootsong_"+step+"_0"),
                     C("中音","Middle","rootsong_"+step+"_1"),
