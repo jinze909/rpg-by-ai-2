@@ -686,6 +686,7 @@ public static class RuntimeCombatInputChecks
         Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
+            ActorRegistrationChecks.VerifyBossMovingFlash,
             RealMovingSpellCompositesAndBossFrames,
             RecoveryWalkingRestoresEquippedDrawing,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,

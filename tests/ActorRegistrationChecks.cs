@@ -13,7 +13,10 @@ public static class ActorRegistrationChecks
     static void Set(object app,string name,object value){app.GetType().GetField(name,Private).SetValue(app,value);}
     static void Clear(){GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();GUI.matrix=Matrix4x4.identity;GUI.color=Color.white;}
     static void Place(FrontierRuntime app,Point feet,Point pixel){Set(app,"camera",feet-new Point((pixel.x-640)/36,(pixel.y-390)/36));}
-    static bool ActorTexture(GUI.TextureCall c){return c.texture.name.StartsWith("resource:Frontier/Art/")&&!c.texture.name.Contains("Effects");}
+    static bool ActorTexture(GUI.TextureCall c){return c.texture.name.StartsWith("resource:Frontier/Art/")&&
+        !c.texture.name.Contains("Effects")&&
+        !c.texture.name.EndsWith("/HeroMotionAccents")&&
+        !c.texture.name.EndsWith("/CoastlineRemaster");}
     static void Density(GUI.TextureCall[] calls,float density)
     {
         foreach(var c in calls.Where(ActorTexture))
@@ -198,6 +201,7 @@ public static class ActorRegistrationChecks
     }
 
     public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { UnifiedGaitComposites(app); }
+    public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
         try{PreparedMasks();UnifiedGaitComposites(app);Players(app,folder);Companions(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
