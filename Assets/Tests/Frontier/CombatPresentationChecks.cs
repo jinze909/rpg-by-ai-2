@@ -632,5 +632,31 @@ namespace Starfall.Tests
                 "Returning to balanced style begins a genuine first strike, not a borrowed third-hit bonus");
         }
 
+        public static void ArcherCompanionCannotWasteVolleyOnItsOwnFootTarget(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            g.SetAim(new Point(0,-1));
+            Point ally=g.companionPosition;
+            g.SetAimTarget(ally);
+            g.CommandCompanion();
+            ActorAction action=g.companionAction;
+            Check(action!=null&&action.kind=="command"&&
+                  (action.direction-new Point(0,-1)).Length<.001f&&
+                  !action.target.HasValue,
+                "Clicking the companion itself falls back to the facing rather than a zero-length firing direction");
+            Advance(g,.23f);
+            Check(g.projectiles.Count==3&&g.projectiles.TrueForAll(p=>p.velocity.Length>10&&p.velocity.y<0),
+                "All actual commanded arrows fly away from the ally after an accidental self-target click");
+            g.projectiles.Clear();
+            g.companionCooldown=0;
+            Point valid=g.companionPosition+new Point(4,0);
+            g.SetAimTarget(valid);
+            g.CommandCompanion();
+            Check(g.companionAction!=null&&g.companionAction.target.HasValue&&
+                  (g.companionAction.direction-new Point(1,0)).Length<.001f,
+                "A genuinely different cursor target still controls the next aimed volley");
+        }
+
     }
 }

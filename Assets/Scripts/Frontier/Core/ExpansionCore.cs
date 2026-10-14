@@ -262,9 +262,20 @@ namespace Starfall
         public void CommandCompanion()
         {
             if (mode != "world" || Dying || practicing || save.companion < 0 || companionCooldown > 0) return;
+            Point? target = aimTarget;
+            Point direction = aim;
+            if (target.HasValue)
+            {
+                Point toTarget = target.Value - companionPosition;
+                if (toTarget.Length > .05f) direction = toTarget.Normalized;
+                // Pointing at Ivo's own feet is not a firing direction.
+                // Fall back to the player's real facing instead of creating
+                // zero-speed arrows and wasting an 18-second command.
+                else target = null;
+            }
             companionCooldown = save.frontierEnding == 3 ? 12 : 18;
             companionAction = new ActorAction { kind = "command", weapon = save.companion, combo = save.relationships[save.companion], damage = Damage,
-                direction = aimTarget.HasValue?(aimTarget.Value-companionPosition).Normalized:aim, target=aimTarget, duration = .52f, contact = .2f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
+                direction = direction, target=target, duration = .52f, contact = .2f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
             companionAim = companionAction.direction;
         }
         private void ReleaseCompanionCommand(ActorAction action)
