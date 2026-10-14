@@ -288,6 +288,12 @@ namespace Starfall
         {
             Point p = ScreenPoint(body.actor.Position); float progress = 1 - body.life / body.duration;
             Color tint = new Color(1, 1, 1, Math.Min(1, body.life / (body.duration * .45f)));
+            // Keep the contact patch as a corpse fades out; a death frame
+            // otherwise snaps from a solid grounded sprite into a floating one.
+            DrawActorContactShadow(p,body.actor.boss?BossCanvasSize(body.room)*.57f:
+                    body.actor.kind==2?60:54,body.actor.boss?24:16,
+                body.actor.boss?8:body.actor.kind==0?4:body.actor.kind==1?5:6,
+                tint.a*.84f);
             if (body.actor.boss) Actor(bossSheet, 4, 8, Math.Max(0, body.room - 1) * 4 + 3, p, BossCanvasSize(body.room), tint,body.actor.VisualFlip);
             else Actor(monsterSheet, 6, 3, Math.Min(2, body.actor.kind) * 6 + 5, p, body.actor.kind == 2 ? 106 : 96, tint,body.actor.VisualFlip);
             if (body.actor.boss && progress < .6f) Atlas(effectSheet, 4, 4, 15, new Rect(p.x - 52, p.y - 80 - progress * 40, 104, 104), new Color(.8f, .92f, .84f, .7f * (1 - progress)));

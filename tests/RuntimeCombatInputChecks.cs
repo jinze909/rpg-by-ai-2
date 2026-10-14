@@ -709,6 +709,12 @@ public static class RuntimeCombatInputChecks
         g.save.companion=0;GUI.textureCalls.Clear();Call(app,"DrawCompanionActor");
         Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
             "A party companion must share the grounded rendering pipeline");
+        GUI.textureCalls.Clear();Call(app,"DrawFallen",new FallenActor{
+            actor=new Enemy(97213,0,g.Position.x,g.Position.y,100),
+            room=g.save.room,life=.3f,duration=1f});
+        var fading=GUI.textureCalls.Find(t=>t.texture.name==path);
+        Check(fading!=null&&fading.color.a>0&&fading.color.a<.84f,
+            "A corpse must keep its real foot shadow and fade it with the body");
         Console.WriteLine("PASS hero, enemy, Boss, NPC and companion contact shadows use actual atlas and root");
     }
 
