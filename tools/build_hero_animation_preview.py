@@ -79,15 +79,17 @@ def source_indices(profession, action, facing):
                     ("PlayerSouth", c * 4 + 1), (walk, 8)]
         # Side frames 6/7 are heavy/skill poses, not normal recovery.
         return [(player, 0), (player, 4), (player, 5), (player, 0)]
-    # Three distinct animation meanings, not four unrelated reaction poses
-    # accidentally looped as a "cast" or "dodge". These are ACCEPTED old
-    # body frames, not new in-between art. Always declare their limitations.
+    # Rooted skill timeline: accepted Idle -> windup -> contact -> Idle recovery.
+    # The last source raster is IDENTICAL to the first (no body/head snap).
     if action == "Cast":
+        idle = (walk, 8) if f == 2 else (player, 1 if f == 1 else 0)
         if f == 1:
-            return [("PlayerRear", c * 4 + 2), ("PlayerRear", c * 4 + 3)]
+            return [idle, ("PlayerRear", c * 4 + 2),
+                    ("PlayerRear", c * 4 + 3), idle]
         if f == 2:
-            return [("PlayerSouth", c * 4 + 2), ("PlayerSouth", c * 4 + 3)]
-        return [(player, 6), (player, 7)]
+            return [idle, ("PlayerSouth", c * 4 + 2),
+                    ("PlayerSouth", c * 4 + 3), idle]
+        return [idle, (player, 6), (player, 7), idle]
     reaction = "PlayerReactionsRear" if f == 1 else "PlayerReactionsSouth" if f == 2 else player
     dodge = c * 4 if f != 0 else 8
     hit = c * 4 + 2 if f != 0 else 10

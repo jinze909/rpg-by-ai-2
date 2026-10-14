@@ -27,6 +27,8 @@ namespace Starfall
         private readonly HashSet<string> heroPublishedUnavailable =
             new HashSet<string>();
         private int heroCaptureFrame = -1;
+        private Sprite heroCaptureRenderedSprite;
+        private bool heroCaptureRenderedFlip;
         private bool heroCaptureBroken;
         private int heroCaptureProfession = -1;
         private bool heroProductionReady;
@@ -138,10 +140,22 @@ namespace Starfall
                     }
                 }
                 heroCaptureRenderer.flipX = flip;
-                if (heroCaptureFrame != Time.frameCount)
+                // Two GUI repaint passes can sample different profession,
+                // facing or animation poses inside the SAME Unity frame.
+                // Never display a stale camera texture after a Sprite switch.
+                if (!heroCaptureTexture.IsCreated())
+                {
+                    heroCaptureTexture.Create();
+                    heroCaptureFrame = -1;
+                }
+                if (heroCaptureFrame != Time.frameCount ||
+                    heroCaptureRenderedSprite != heroCaptureRenderer.sprite ||
+                    heroCaptureRenderedFlip != flip)
                 {
                     heroCaptureCamera.Render();
                     heroCaptureFrame = Time.frameCount;
+                    heroCaptureRenderedSprite = heroCaptureRenderer.sprite;
+                    heroCaptureRenderedFlip = flip;
                 }
                 Color old = GUI.color;
                 try
@@ -315,6 +329,8 @@ namespace Starfall
             heroCaptureRoot = null;
             heroCaptureTexture = null;
             heroCaptureFrame = -1;
+            heroCaptureRenderedSprite = null;
+            heroCaptureRenderedFlip = false;
             heroCaptureProfession = -1;
             heroProductionReady = false;
         }

@@ -52,3 +52,33 @@ hand-authored limb articulation, real weapon grips, carefully redrawn
 must not be represented as third-stage visual acceptance. Next art pass should
 replace the most abrupt `Arcanist/Cast` and sword/bow weapon motion with
 authored, manually inspected poses before graduating from the fallback.
+
+## 2026-10-14 — Cast contact and rooted recovery integrated
+
+All three classes × three facings now use FOUR accepted source poses:
+`Idle -> CastWindup -> CastContact -> IdleRecovery`. The final idle pose
+reuses the first exact 256px raster; foot `(128,240)`, head, outfit,
+and shared Pivot are unchanged. Three coherent single-source in-betweens
+expand each skill strip to SEVEN real Sprite cells. The 9 Cast PNG
+assets are regenerated through the existing non-force `[publish-hero-art]`
+workflow, without deleting prior art.
+
+The corresponding authoritative `GameCore.HeroAnimationFrameCount` is 4
+for skills; the preexisting elapsed/contact/recovery curve now maps onto
+a charge pose, actual contact, and a settling pose before action expiry.
+The skill's actual damage clock, reduced-speed moving recovery gait,
+combat input, quests and persisted saves are unchanged.
+
+The live render bridge invalidates its RenderTexture on a same-frame
+Sprite or facing flip change instead of reusing a stale previous pose.
+Lost graphics-context textures are re-created before rendering.
+OnGUI still remains the default and fallback until native PlayMode QA.
+
+CI now stages regenerated PNGs into its disposable checkout before
+checking actual runtime atlas frame counts and checksums. The guarded
+publisher then fast-forwards only `chatgpt/dev` on success.
+
+**Not yet an artistic approval:** no genuinely new hand-drawn joint or
+weapon-grip poses are claimed. Native Unity 2022.3.53f1 Game View,
+complete motion anatomy, casting movement, alpha/occlusion, and 60fps
+remain to be verified before stage-three completion.

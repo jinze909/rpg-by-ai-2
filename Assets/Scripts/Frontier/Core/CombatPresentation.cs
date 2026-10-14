@@ -274,7 +274,9 @@ namespace Starfall
             int state = HeroAnimationState;
             if (state == 1) return 4;
             if (state == 2) return 4;
-            if (state == 3) return 2;
+            // Rooted Idle -> CastWindup -> CastContact -> IdleRecovery.
+            // Damage remains controlled by ActorAction.released.
+            if (state == 3) return 4;
             // Reactions use stand -> impact -> stand, and death keeps a
             // distinct final grounded pose. All share GameCore's clock.
             if (state == 6) return 4;

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -130,5 +130,48 @@
   ],
   "state_clock": "GameCore authoritative released/contact, walkDistance; no independent clip damage clock",
   "integration": "CanonicalHeroSpriteFactory uses foot/head constants; Editor builder uses shared pivot; live SpriteRenderer capture uses shared geometry and SortingGroup; OnGUI fallback retained.",
-  "quality_gate": "Native Unity Editor/PlayMode, weapon hand grips, anatomy, frame continuity, visuals, and real-world FPS require independent review"
+  "quality_gate": "Native Unity Editor/PlayMode, weapon hand grips, anatomy, frame continuity, visuals, and real-world FPS require independent review",
+  "head_to_body_ratio_policy": "Reuse the accepted 56px canonical head source and full-body silhouettes; do not invent ratio from canvas padding or rescale professions.",
+  "animation_constraints": {
+    "golden_protagonist_identity": "Same short cream-gold hair and approved face/eye pixels in all three outfits; no per-class head scaling",
+    "canvas_px": [
+      256,
+      256
+    ],
+    "foot_top_origin_px": [
+      128,
+      240
+    ],
+    "unity_pivot_normalized": [
+      0.5,
+      0.0625
+    ],
+    "pixels_per_unit": 128,
+    "belt_to_boot_band_top_px": [
+      205,
+      247
+    ],
+    "ordered_states": [
+      "Idle",
+      "Run",
+      "Attack",
+      "Cast",
+      "Dodge",
+      "Hit",
+      "Death"
+    ],
+    "cast_source_phases": [
+      "accepted idle",
+      "accepted windup",
+      "accepted contact",
+      "same accepted idle recovery"
+    ],
+    "cast_expanded_frames": 7,
+    "cast_non_looping": true,
+    "source_motion": "One approved silhouette per generated in-between, locked blonde head and rooted boot contact",
+    "timing_authority": "GameCore's ActorAction.released; never drive damage from Animator",
+    "moving_recovery": "Keep UnifiedActionGait authored walk legs and gameplay movement rules",
+    "safety_fallback": "Opt-in SpriteRenderer/Animator with existing OnGUI route on failure",
+    "final_gate": "Native Unity 2022.3.53f1 PlayMode + visually accepted frame-to-frame anatomy and weapon grips required"
+  }
 }

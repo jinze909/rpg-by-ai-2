@@ -37,6 +37,9 @@ def check():
         '"Frontier/HeroAnimator/Canonical/" + key',
         "heroPublishedSprites.Clear()", "heroPublishedUnavailable.Clear()",
         "heroCaptureRenderer.sprite = published;",
+        "heroCaptureRenderedSprite != heroCaptureRenderer.sprite",
+        "heroCaptureRenderedFlip != flip",
+        "heroCaptureTexture.IsCreated()",
         "Mathf.FloorToInt(cellPosition + .20f)",
         "tint.a *= worldActorOpacity",
     ]
@@ -48,6 +51,7 @@ def check():
     assert "action.elapsed - action.contact < .12f" in core
     assert "HeroAnimationPlaybackPosition(int facing)" in core
     assert "if (state == 6) return 4;" in core
+    assert "if (state == 3) return 4;" in core
     assert "if (state == 4 || state == 5) return 3;" in core
     assert "(.18f - dashTime)" in core and "(.18f - playerHitTime)" in core
     assert ".9f - deathTime" in core
@@ -132,8 +136,7 @@ def check():
         for action in ACTIONS:
             for facing in FACINGS:
                 refs = source_indices(klass, action, facing)
-                expected = (4 if action in ("Run", "Attack", "Death") else
-                    2 if action == "Cast" else
+                expected = (4 if action in ("Run", "Attack", "Cast", "Death") else
                     3 if action in ("Dodge", "Hit") else 1)
                 assert len(refs) == expected, f"Wrong inherited clip length: {klass}/{action}/{facing}"
                 key = f"Hero_{klass}_{action}_{facing}"

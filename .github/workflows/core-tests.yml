@@ -17,6 +17,10 @@ jobs:
         run: python3 tools/build_hero_animation_preview.py
       - name: Export 63 motion-assisted production hero sprite atlases
         run: python3 tools/export_canonical_hero_atlases.py
+      - name: Stage regenerated canonical hero Sprite resources for live bridge checks
+        run: |
+          python3 tools/install_canonical_hero_atlases.py
+          python3 tools/check_installed_hero_atlases.py
       - name: Verify generated hero action midpoints and original pose preservation
         run: python3 tools/check_hero_generated_motion.py
       - name: Audit locked hero visual identity, registered hand hints and foot anchor

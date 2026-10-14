@@ -56,7 +56,14 @@ def check():
         assert source_indices(profession, "Attack", "N") == [
             (player, 1), ("PlayerRear", n * 4 + 2),
             ("PlayerRear", n * 4 + 3), (player, 1)]
-        assert source_indices(profession, "Cast", "E") == [(player, 6), (player, 7)]
+        assert source_indices(profession, "Cast", "E") == [
+            (player, 0), (player, 6), (player, 7), (player, 0)]
+        assert source_indices(profession, "Cast", "N") == [
+            (player, 1), ("PlayerRear", n * 4 + 2),
+            ("PlayerRear", n * 4 + 3), (player, 1)]
+        assert source_indices(profession, "Cast", "S") == [
+            (walk, 8), ("PlayerSouth", n * 4 + 2),
+            ("PlayerSouth", n * 4 + 3), (walk, 8)]
         assert source_indices(profession, "Dodge", "N") == [
             (player, 1), ("PlayerReactionsRear", n * 4), (player, 1)]
         assert source_indices(profession, "Hit", "S") == [
@@ -78,6 +85,12 @@ def check():
                     sheet = raw.convert("RGBA")
                 assert sheet.size == (expected * CELL, CELL), key
                 assert sheet.mode == "RGBA", key
+                if action == "Cast":
+                    assert len(originals) == 4 and expected == 7, key
+                    # The final pose EXACTLY rejoins the accepted rooted idle.
+                    first = sheet.crop((0, 0, CELL, CELL))
+                    last = sheet.crop(((expected - 1) * CELL, 0, expected * CELL, CELL))
+                    assert first.tobytes() == last.tobytes(), (key, "cast recovery does not rejoin idle")
                 for i in range(expected):
                     cell = sheet.crop((i * CELL, 0, (i + 1) * CELL, CELL))
                     assert cell.getchannel("A").getbbox() is not None, (key, i)

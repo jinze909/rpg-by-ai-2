@@ -372,12 +372,18 @@ namespace Starfall.EditorTools
                     new FrameSource(p, 5), new FrameSource(p, 0) };
             }
             if (action == 3)
-                return new[] {
-                    new FrameSource(facing == 1 ? "PlayerRear" : facing == 2 ? "PlayerSouth" : p,
-                        facing == 0 ? 6 : cls * 4 + 2),
-                    new FrameSource(facing == 1 ? "PlayerRear" : facing == 2 ? "PlayerSouth" : p,
-                        facing == 0 ? 7 : cls * 4 + 3)
-                };
+            {
+                // Shared accepted hero identity and exact foot registration.
+                // Four authored source poses produce seven real Sprite cells.
+                FrameSource idle = facing == 2 ? new FrameSource(walk, 8) :
+                    new FrameSource(p, facing == 1 ? 1 : 0);
+                string skillAtlas = facing == 1 ? "PlayerRear" :
+                    facing == 2 ? "PlayerSouth" : p;
+                return new[] { idle,
+                    new FrameSource(skillAtlas, facing == 0 ? 6 : cls * 4 + 2),
+                    new FrameSource(skillAtlas, facing == 0 ? 7 : cls * 4 + 3),
+                    idle };
+            }
             string reactions = facing == 1 ? "PlayerReactionsRear" :
                 facing == 2 ? "PlayerReactionsSouth" : p;
             int dodge = facing == 0 ? 8 : cls * 4;
