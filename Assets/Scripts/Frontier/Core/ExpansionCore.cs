@@ -844,7 +844,26 @@ namespace Starfall
             }
             if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。站在附近能迅速消除寒意。" : "木材两份能点燃火盆。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Stand near it to warm up." : "Two timber light the brazier. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "暖一会儿" : "点火 · 木材2", Has("warm_" + o.id) ? "Warm up" : "Light · 2 timber", Has("warm_" + o.id) ? "close" : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
             if (kind == "keeper") { KeeperConversation(o); return true; }
-            if (kind == "campfire") { Dialog(o.name, o.en, "星薄荷凉茶用药草2、星晶1制作。远行驿站建成后，可以在野外营地免费休整；完整升级的驿站还会赠送一杯凉茶。", "Star-mint tea needs 2 herbs and 1 crystal. A town waystation enables free rest at field camps; a full upgrade adds one tea per day.", C("营地休整", "Rest at camp", "fieldrest"), C("制作凉茶", "Brew tea", "tea"), C("喝凉茶", "Drink tea", "drinktea"), C("查看同伴", "Manage companions", "companions"), C("离开", "Leave", "close")); return true; }
+            if (kind == "campfire")
+            {
+                bool built = save.projects[1] > 0;
+                bool safe = !FieldWorkPreventsRest && SafeTravel;
+                var choices = new List<Choice>();
+                if (built && safe) choices.Add(C("营地休整", "Rest at camp", "fieldrest"));
+                choices.Add(C("制作凉茶", "Brew tea", "tea"));
+                choices.Add(C("喝凉茶", "Drink tea", "drinktea"));
+                choices.Add(C("查看同伴", "Manage companions", "companions"));
+                choices.Add(C("离开", "Leave", "close"));
+                string statusZh = !built ? "\n\n先在余烬镇建设远行驿站，才能在这里休整。" :
+                    !safe ? "\n\n附近仍有危险或正在执行现场任务，暂时不能休整。" : "";
+                string statusEn = !built ? "\n\nBuild the Emberfall waystation before resting here." :
+                    !safe ? "\n\nNearby combat or active fieldwork makes resting unsafe." : "";
+                Dialog(o.name, o.en,
+                    "星薄荷凉茶用药草2、星晶1制作。远行驿站建成后，可以在野外营地免费休整；完整升级的驿站还会赠送一杯凉茶。" + statusZh,
+                    "Star-mint tea needs 2 herbs and 1 crystal. A town waystation enables free rest at field camps; a full upgrade adds one tea per day." + statusEn,
+                    choices.ToArray());
+                return true;
+            }
             if (kind == "expAltar") { ExpansionAltar(o); return true; }
             if (kind == "council") { CouncilConversation(); return true; }
             if (kind.StartsWith("history")) { ReadHistory(int.Parse(kind.Substring(7))); return true; }

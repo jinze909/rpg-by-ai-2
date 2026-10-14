@@ -194,6 +194,35 @@ namespace Starfall.Tests
                 "Zero surviving mission attackers shows zero without a stale display cache");
         }
 
+        public static void FieldCampMenuShowsRestOnlyWhenActuallyAvailable(Campaign data)
+        {
+            var g=Unlocked(data);g.Enter(5);g.enemies.Clear();
+            WorldObject fire=Object(g,"campfire");
+            g.save.projects[1]=0;g.Talk(fire);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")<0&&g.conversation.textEn.Contains("Build the Emberfall"),
+                "An unbuilt waystation cannot advertise free camp rest");
+            g.Close();g.save.projects[1]=1;g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")>=0,
+                "Unlocked and peaceful camp offers its real twenty-second rest action");
+            g.Close();
+            var enemy=new Enemy(843,0,g.save.x+1,g.save.y,80){timer=99};
+            g.enemies.Add(enemy);g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")<0&&g.conversation.textEn.Contains("unsafe"),
+                "Active nearby enemies hide the rest choice and explain the danger in the existing dialog");
+            g.Close();g.enemies.Clear();
+            var warning=new Hazard{position=g.Position,radius=2,damage=10,timer=.2f,kind="rift"};
+            g.hazards.Add(warning);g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")<0,
+                "A live damaging red circle also hides resting rather than advertising a denied action");
+            g.Close();g.hazards.Clear();g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")>=0,
+                "The normal camp rest option returns as soon as combat ends");
+        }
         public static void FieldCampRestAdvancesCombatTimeAndCannotSkipLiveCivilianWork(Campaign data)
         {
             var g=Unlocked(data);g.save.projects[1]=2;g.Enter(5);g.enemies.Clear();
