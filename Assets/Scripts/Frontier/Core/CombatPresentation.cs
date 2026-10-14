@@ -274,9 +274,9 @@ namespace Starfall
                             if(playerAction.kind=="attack"&&
                                playerAction.elapsed<playerAction.contact+.22f)
                             {
-                                bool heavy=playerAction.weapon==0&&
+                                bool lateHeavy=playerAction.weapon==0&&
                                     (playerAction.combo==2||playerAction.style==1);
-                                return heavy?7:5;
+                                return lateHeavy?7:5;
                             }
                         }
                         return 2 + WalkFrame % 2;
