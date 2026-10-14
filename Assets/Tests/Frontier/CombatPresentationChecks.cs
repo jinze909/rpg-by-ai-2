@@ -485,5 +485,30 @@ namespace Starfall.Tests
                 "Starting a new class also clears the previous hero's targeting state");
         }
 
+        public static void PiercingVolleysKeepEveryContactWithReusableTargetSnapshot(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;g.save.reducedMotion=true;
+            var front=new Enemy(6671,0,12.5f,14,20){stun=99,timer=999};
+            var middle=new Enemy(6672,0,13.35f,14,20){stun=99,timer=999};
+            var rear=new Enemy(6673,0,14.7f,14,999){stun=99,timer=999};
+            g.enemies.Add(front);g.enemies.Add(middle);g.enemies.Add(rear);
+            var arrow=new Projectile { position=new Point(12,14),
+                velocity=new Point(20,0),life=3,damage=60,
+                friendly=true,piercing=true,visual="arrow" };
+            g.projectiles.Add(arrow);
+            for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+            Check(!g.enemies.Contains(front)&&!g.enemies.Contains(middle)&&
+                  g.enemies.Contains(rear)&&rear.hp<999,
+                "Piercing sweep still kills both front targets and damages the survivor across multiple substeps");
+            Check(arrow.hits.Contains(front.id)&&arrow.hits.Contains(middle.id)&&
+                  arrow.hits.Contains(rear.id)&&arrow.hits.Count==3,
+                "A piercing projectile never double-hits a dead/recoiling enemy when target snapshots are reused");
+            float remaining=rear.hp;
+            for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+            Check(rear.hp==remaining&&arrow.hits.Count==3,
+                "Already-hit targets are not damaged again by later arrow flight frames");
+        }
+
     }
 }

@@ -819,6 +819,10 @@ namespace Starfall
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned }); continue; }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
                 bool dead = p.blockedAtSpawn || ShotBlocked(p,p.position); float impactRadius = 0;
+                // Capture collision candidates once per flying projectile,
+                // not on every 0.1-tile sweep subdivision. Refresh only
+                // after a real hit changes the possible target roster.
+                if (p.friendly) { projectileTargets.Clear(); projectileTargets.AddRange(enemies); }
                 for (int step = 0; step < steps && !dead; step++)
                 {
                     Point next = p.position + p.velocity * (flightDt / steps);
@@ -827,11 +831,13 @@ namespace Starfall
                     p.position = next;
                     if (p.friendly)
                     {
-                        projectileTargets.Clear();projectileTargets.AddRange(enemies);
+                        bool hitAny = false;
                         foreach (Enemy e in projectileTargets)
                         {
                             if (p.hits.Contains(e.id) || (e.Position - p.position).Length >= (e.boss ? .9f : .5f) + p.Radius || !ClearAttackPath(p.position, e.Position)) continue;
-                            p.hits.Add(e.id); Hit(e, p.damage, p.technique, p.velocity.Normalized, p.impact);
+                            p.hits.Add(e.id);
+                            hitAny = true;
+                            Hit(e, p.damage, p.technique, p.velocity.Normalized, p.impact);
                             // Practice completion or another transaction can
                             // retire the shot. It must not leave an old-room impact.
                             if (!projectiles.Contains(p)) { dead = true; break; }
@@ -845,7 +851,13 @@ namespace Starfall
                             }
                             if (!p.piercing || p.explosive) break;
                         }
-                        projectileTargets.Clear();
+                        // Death can remove/spawn enemies during Hit(). Keep
+                        // pierce targets current for subsequent flight slices,
+                        // without repeating AddRange for every empty slice.
+                        if (hitAny && !dead && step + 1 < steps)
+                        {
+                            projectileTargets.Clear(); projectileTargets.AddRange(enemies);
+                        }
                     }
                     else if ((Position - p.position).Length < .38f)
                     { Hurt(p.damage, p.source ?? "shot", p.velocity.Normalized); dead = true; }
@@ -859,6 +871,7 @@ namespace Starfall
                         dead = true;
                     }
                 }
+                if (p.friendly) projectileTargets.Clear();
                 if (dead && projectiles.Remove(p))
                     effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
