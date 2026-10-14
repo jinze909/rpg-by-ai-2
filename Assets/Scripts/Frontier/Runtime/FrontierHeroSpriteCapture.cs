@@ -20,6 +20,12 @@ namespace Starfall
         private RenderTexture heroCaptureTexture;
         private readonly Dictionary<string, Sprite> heroSprites = new Dictionary<string, Sprite>();
         private readonly Queue<string> heroSpriteOrder = new Queue<string>();
+        // The 63 shipped canonical atlases are real production resources.
+        // Only Sprite sub-rect wrappers belong to us; Resources owns textures.
+        private readonly Dictionary<string, Sprite[]> heroPublishedSprites =
+            new Dictionary<string, Sprite[]>();
+        private readonly HashSet<string> heroPublishedUnavailable =
+            new HashSet<string>();
         private int heroCaptureFrame = -1;
         private bool heroCaptureBroken;
         private int heroCaptureProfession = -1;
@@ -52,23 +58,26 @@ namespace Starfall
             try
             {
                 EnsureHeroCapture();
+                // All three renderer lanes sample the SAME movement/contact
+                // clock. Neither GPU Animator nor shipped-sheet playback
+                // invents damage, projectile or hit-stop timing.
+                int action = Game.HeroAnimationState;
+                int frames = Game.HeroAnimationFrameCount(facing);
+                if (action < 0 || action >= HeroLiveActions.Length || frames <= 0 ||
+                    facing < 0 || facing >= HeroLiveFacings.Length) return false;
+                float posePosition = Game.HeroAnimationPlaybackPosition(facing);
+                bool expanded = action >= 1 && action <= 3 && frames > 1;
+                int bakedFrames = expanded
+                    ? frames * 2 - (action == 1 ? 0 : 1) : frames;
+                // The original artist poses occupy even cells; calculated
+                // midpoints occupy odd cells. Death is non-looping.
+                float cellPosition = expanded ? posePosition * 2f : posePosition;
+                if (action == 1) cellPosition %= bakedFrames;
+                int publishedFrame = Mathf.Clamp(Mathf.FloorToInt(cellPosition + .20f),
+                    0, bakedFrames - 1);
                 bool hasClip = unifiedAction == null && TryUseProductionHeroClip(facing);
                 if (hasClip)
                 {
-                    // The canonical baked Sprite asset belongs to its Animator
-                    // Controller. Align the frame with the actual GameCore
-                    // action/release clock; no second independent damage timer.
-                    int action = Game.HeroAnimationState;
-                    int frames = Game.HeroAnimationFrameCount(facing);
-                    float posePosition = Game.HeroAnimationPlaybackPosition(facing);
-                    bool expanded = action >= 1 && action <= 3 && frames > 1;
-                    int bakedFrames = expanded
-                        ? frames * 2 - (action == 1 ? 0 : 1) : frames;
-                    // Authored contact poses remain even-numbered cells.
-                    float cellPosition = expanded ? posePosition * 2f : posePosition;
-                    // Explicitly wrap walk to avoid a one-frame pause at the
-                    // looping boundary; non-looping combat keeps its recovery.
-                    if (action == 1) cellPosition %= bakedFrames;
                     float normalized = (cellPosition + .20f) / bakedFrames;
                     heroCaptureAnimator.SetInteger("Action", action);
                     heroCaptureAnimator.SetInteger("Facing", facing);
@@ -79,36 +88,48 @@ namespace Starfall
                 }
                 else
                 {
-                    // The game is runnable before an Editor bake and while
-                    // attack/walk upper/lower-body combination is active.
-                    // Existing accepted-frame compositor is a full fallback,
-                    // not a replacement artwork set.
                     if (heroCaptureAnimator != null) heroCaptureAnimator.enabled = false;
-                    Texture2D original = unifiedAction != null ? unifiedAction : sheet;
-                    int spriteFrame = unifiedAction != null ? 0 : frame;
-                    string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
-                        sheet.GetInstanceID() + ":" + frame + ":" + facing + ":" +
-                        (locomotion ? "walk" : "pose") + ":" + (death ? "dead" : "live");
-                    Sprite sprite;
-                    if (!heroSprites.TryGetValue(key, out sprite))
+                    Sprite published;
+                    if (unifiedAction == null &&
+                        TryUsePublishedHeroFrame(Game.AppearanceWeapon, action, facing,
+                            publishedFrame, bakedFrames, out published))
                     {
-                        sprite = BakeCanonicalHeroFrame(original, spriteFrame, sheet, frame,
-                            facing, locomotion, death);
-                        if (sprite == null) return false;
-                        heroSprites.Add(key, sprite);
-                        heroSpriteOrder.Enqueue(key);
-                        while (heroSpriteOrder.Count > 144)
-                        {
-                            string oldest = heroSpriteOrder.Dequeue();
-                            Sprite removed;
-                            if (!heroSprites.TryGetValue(oldest, out removed)) continue;
-                            heroSprites.Remove(oldest);
-                            Texture2D texture = removed.texture;
-                            Destroy(removed);
-                            if (texture != null) Destroy(texture);
-                        }
+                        // Production resource already contains the accepted
+                        // blonde head, shared foot pivot, all middle frames.
+                        // Do not recomposite its upper/lower body or rescale it.
+                        heroCaptureRenderer.sprite = published;
                     }
-                    heroCaptureRenderer.sprite = sprite;
+                    else
+                    {
+                        // A moving attack's unified walking legs remain
+                        // authoritative. Missing/bad shipped atlases still
+                        // fall back to the established accepted compositor.
+                        Texture2D original = unifiedAction != null ? unifiedAction : sheet;
+                        int spriteFrame = unifiedAction != null ? 0 : frame;
+                        string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
+                            sheet.GetInstanceID() + ":" + frame + ":" + facing + ":" +
+                            (locomotion ? "walk" : "pose") + ":" + (death ? "dead" : "live");
+                        Sprite sprite;
+                        if (!heroSprites.TryGetValue(key, out sprite))
+                        {
+                            sprite = BakeCanonicalHeroFrame(original, spriteFrame, sheet, frame,
+                                facing, locomotion, death);
+                            if (sprite == null) return false;
+                            heroSprites.Add(key, sprite);
+                            heroSpriteOrder.Enqueue(key);
+                            while (heroSpriteOrder.Count > 144)
+                            {
+                                string oldest = heroSpriteOrder.Dequeue();
+                                Sprite removed;
+                                if (!heroSprites.TryGetValue(oldest, out removed)) continue;
+                                heroSprites.Remove(oldest);
+                                Texture2D texture = removed.texture;
+                                Destroy(removed);
+                                if (texture != null) Destroy(texture);
+                            }
+                        }
+                        heroCaptureRenderer.sprite = sprite;
+                    }
                 }
                 heroCaptureRenderer.flipX = flip;
                 if (heroCaptureFrame != Time.frameCount)
@@ -142,6 +163,45 @@ namespace Starfall
                 ReleaseHeroCapture();
                 return false;
             }
+        }
+
+        private bool TryUsePublishedHeroFrame(int profession, int action,
+            int facing, int frame, int expectedFrames, out Sprite sprite)
+        {
+            sprite = null;
+            if (profession < 0 || profession >= HeroLiveProfessions.Length ||
+                action < 0 || action >= HeroLiveActions.Length ||
+                facing < 0 || facing >= HeroLiveFacings.Length) return false;
+            string key = "Hero_" + HeroLiveProfessions[profession] + "_" +
+                HeroLiveActions[action] + "_" + HeroLiveFacings[facing];
+            if (heroPublishedUnavailable.Contains(key)) return false;
+            Sprite[] cells;
+            if (!heroPublishedSprites.TryGetValue(key, out cells))
+            {
+                Texture2D atlas = Resources.Load<Texture2D>(
+                    "Frontier/HeroAnimator/Canonical/" + key);
+                // Reject stale or truncated publishers atomically. Never
+                // display the wrong contact/recovery or another class outfit.
+                if (atlas == null || atlas.height != HeroCell ||
+                    atlas.width != expectedFrames * HeroCell)
+                {
+                    heroPublishedUnavailable.Add(key);
+                    if (atlas != null)
+                        Debug.LogWarning("Starfall rejected incompatible hero sheet: " + key);
+                    return false;
+                }
+                cells = new Sprite[expectedFrames];
+                for (int i = 0; i < cells.Length; i++)
+                    cells[i] = Sprite.Create(atlas,
+                        new Rect(i * HeroCell, 0, HeroCell, HeroCell),
+                        CanonicalHeroSpriteFactory.FootPivot,
+                        CanonicalHeroSpriteFactory.PixelsPerUnit, 0,
+                        SpriteMeshType.FullRect);
+                heroPublishedSprites.Add(key, cells);
+            }
+            if (frame < 0 || frame >= cells.Length) return false;
+            sprite = cells[frame];
+            return sprite != null;
         }
 
         private bool TryUseProductionHeroClip(int facing)
@@ -229,6 +289,13 @@ namespace Starfall
             }
             heroSprites.Clear();
             heroSpriteOrder.Clear();
+            // Destroy only our Sprite sub-rect wrappers, not shared Resources
+            // textures which can be referenced by other game systems.
+            foreach (Sprite[] cells in heroPublishedSprites.Values)
+                foreach (Sprite sprite in cells)
+                    if (sprite != null) Destroy(sprite);
+            heroPublishedSprites.Clear();
+            heroPublishedUnavailable.Clear();
             if (heroCaptureCamera != null) heroCaptureCamera.targetTexture = null;
             if (heroCaptureRoot != null) Destroy(heroCaptureRoot);
             if (heroCaptureTexture != null)

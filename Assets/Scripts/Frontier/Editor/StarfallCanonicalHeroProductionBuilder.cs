@@ -60,8 +60,25 @@ namespace Starfall.EditorTools
                         string key = Key(profession, action, facing);
                         FrameSource[] refs = FrameRefs(Array.IndexOf(Classes, profession),
                             action, facing);
-                        // Intermediates are emitted into the actual live Animator atlas.
-                        // Source sprites, original poses, foot pivot and head compositor stay intact.
+                        // Published, CI-checked PNGs are authoritative. An
+                        // Editor Animator bake must NOT silently regenerate
+                        // their accepted pixels with different C# rounding.
+                        // Generate only when this resource is genuinely absent.
+                        string installedPath = Generated + key + ".png";
+                        int expectedCount = ExpandedCount(refs.Length, action);
+                        if (File.Exists(installedPath))
+                        {
+                            Texture2D installed = AssetDatabase.LoadAssetAtPath<Texture2D>(
+                                installedPath);
+                            if (installed == null || installed.height != Cell ||
+                                installed.width != expectedCount * Cell)
+                                throw new InvalidOperationException(
+                                    "Published hero atlas has incompatible frames: " + key);
+                            atlasPaths.Add(key, installedPath);
+                            continue;
+                        }
+                        // Legacy Editor-only recovery for projects predating
+                        // the published atlas handoff. Keep original art intact.
                         var authored = new List<Color[]>(refs.Length);
                         for (int sourceIndex = 0; sourceIndex < refs.Length; sourceIndex++)
                         {

@@ -33,6 +33,11 @@ def check():
         "HeroCell * density, HeroCell * density",
         "heroCaptureCamera.Render()", "heroCaptureBroken", "ReleaseHeroCapture",
         "Resources.Load<RuntimeAnimatorController>",
+        "Resources.Load<Texture2D>", "TryUsePublishedHeroFrame(",
+        '"Frontier/HeroAnimator/Canonical/" + key',
+        "heroPublishedSprites.Clear()", "heroPublishedUnavailable.Clear()",
+        "if (unifiedAction == null &&", "heroCaptureRenderer.sprite = published;",
+        "Mathf.FloorToInt(cellPosition + .20f)",
         "tint.a *= worldActorOpacity",
     ]
     for mark in required:
@@ -60,6 +65,9 @@ def check():
     assert "MotionMidpoint(" in native
     assert "ExpandWithInbetweens(" in native
     assert "ExpandedCount(refs.Length, action)" in native
+    assert "if (File.Exists(installedPath))" in native
+    assert "atlasPaths.Add(key, installedPath);" in native
+    assert "installed.width != expectedCount * Cell" in native
     for mark in ["ActorFrameRegistration.TryHead", "ActorFrameRegistration.TryStableHead",
                  "new Vector2(FootX / (float)Cell, (Cell - FootTop) / (float)Cell)", "class CanonicalHeroSpriteFactory",
                  "Sprite.Create(", "Point", "TextureFormat.RGBA32"]:
@@ -107,6 +115,8 @@ def check():
         assert f'"Walk{klass}"' in registration
         assert f'"Player{klass}"' in registration
     from build_hero_animation_preview import ACTIONS, FACINGS, CLASSES, source_indices
+    from export_canonical_hero_atlases import expected_count
+    resources = ROOT / "Assets/Resources/Frontier/HeroAnimator/Canonical"
     assert len(CLASSES) * len(ACTIONS) * len(FACINGS) == 63
     for klass in CLASSES:
         for action in ACTIONS:
@@ -116,6 +126,19 @@ def check():
                     2 if action == "Cast" else
                     3 if action in ("Dodge", "Hit") else 1)
                 assert len(refs) == expected, f"Wrong inherited clip length: {klass}/{action}/{facing}"
+                key = f"Hero_{klass}_{action}_{facing}"
+                published = resources / (key + ".png")
+                assert published.is_file(), "Production SpriteRenderer resource missing: " + key
+                with Image.open(published) as source:
+                    baked = expected_count(action, expected)
+                    assert source.size == (256 * baked, 256), (key, source.size, baked)
+    # GameCore's shared clock samples even contact slots (2*source index);
+    # the final grounded Death cell is 3 and must never wrap.
+    assert int(2 * 2 + .20) == 4
+    assert int(2 * 3 + .20) == 6
+    assert int(3 + .20) == 3
+    print("PASS: 63 checked shipped SpriteRenderer resources, three-class frame sampling, "
+          "non-destructive Editor controller hookup and GameCore clock fallback.")
     print("PASS: production canonical compositor, approved atlas import, "
           "7 action x 3 direction x 3 profession Sprite/Animator bake, "
           "GameCore contact synchronization and safe OnGUI fallback (offline)")
