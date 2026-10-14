@@ -608,5 +608,29 @@ namespace Starfall.Tests
                 "Returning to the sword starts a first hit rather than carrying a phantom third-hit boost");
         }
 
+        public static void StyleChangesRestartCombosButRepeatedStylesPreserveAttacks(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("core_1");
+            g.save.energy=100;
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null&&g.combo==0&&g.comboTimer>0,
+                "A real starter sword swing begins a live combat sequence");
+            ActorAction first=g.playerAction;
+            int previous=g.revision;
+            g.SetStyle(0);
+            Check(g.playerAction==first&&g.comboTimer>0&&g.revision==previous,
+                "Clicking the existing balanced style does not cancel an attack or mutate the save");
+            g.playerAction=null;g.attackCooldown=0;
+            g.Attack(new Point(1,0));
+            Check(g.combo==1&&g.comboTimer>0,
+                "A second real sword swing advances the existing chain");
+            g.SetStyle(1);
+            Check(g.Style==1&&g.playerAction==null&&g.combo==0&&g.comboTimer==0,
+                "Changing to unlocked focused sword style retires the old combo");
+            g.SetStyle(0);g.attackCooldown=0;g.Attack(new Point(1,0));
+            Check(g.combo==0&&g.playerAction!=null,
+                "Returning to balanced style begins a genuine first strike, not a borrowed third-hit bonus");
+        }
+
     }
 }

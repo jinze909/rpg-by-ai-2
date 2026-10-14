@@ -46,7 +46,16 @@ namespace Starfall
             return p;
         }
         public void SetStyle(int style)
-        { if (style < 0 || style > 2 || style > 0 && !StylesUnlocked) return; if (Style != style) CancelAction(); save.weaponStyles[save.weapon] = style; revision++; sound = "equip"; }
+        {
+            if (style < 0 || style > 2 || style > 0 && !StylesUnlocked) return;
+            // Do not interrupt live input, requeue autosaves or play equip
+            // sounds when the user reselects the style already in use.
+            if (Style == style) return;
+            // A different attack profile starts a new combo sequence, just
+            // like changing the weapon itself.
+            CancelAction(); combo = 0; comboTimer = 0;
+            save.weaponStyles[save.weapon] = style; revision++; sound = "equip";
+        }
         public bool CanResetTalents
         {
             get
