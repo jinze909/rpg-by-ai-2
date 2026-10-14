@@ -94,10 +94,13 @@ def check():
     # Published Cast strips expanded from 3 to 7 frames; a native Clip
     # existing on disk is NOT proof that its Sprite curves are current.
     for guard in ('AnimationUtility.GetObjectReferenceCurve(clip, spriteBinding)',
-                  'frames.Length != expected + 1',
-                  'frames.Any(frame => !(frame.value is Sprite))',
-                  'atlas.width != expected * Cell',
-                  'Array.IndexOf(Classes, profession)'):
+                  'NativeClipMatchesPublished(frames, Generated + key + ".png"',
+                  'frames.Length', 'atlas.width != expected * Cell',
+                  'Array.IndexOf(Classes, profession)',
+                  'AssetDatabase.GetAssetPath(sprite) != atlasPath',
+                  'sprite.rect.x - index * Cell',
+                  'sprite.pixelsPerUnit -',
+                  'Mathf.Abs(keys[i].time - i / sampleRate)'):
         assert guard in native, "Missing native stale-clip rebuild guard: " + guard
     editor_boot = (ROOT / "Assets/Editor/Frontier/FrontierEditor.cs").read_text()
     assert editor_boot.count("Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();") == 3
