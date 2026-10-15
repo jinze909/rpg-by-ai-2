@@ -59,9 +59,11 @@ namespace Starfall
             companionWalkSheets = new[] { Resources.Load<Texture2D>(root + "WalkMira"), Resources.Load<Texture2D>(root + "WalkIvo"), Resources.Load<Texture2D>(root + "WalkSen") };
             bossWalkSheets = new[] { Resources.Load<Texture2D>(root + "WalkBossA"), Resources.Load<Texture2D>(root + "WalkBossB") };
             monsterWalkSheet = Resources.Load<Texture2D>(root + "WalkMonsters");
-            mossboundRaiderSheet = Resources.Load<Texture2D>(root + "MossboundRaider");
-            cinderstoneGuardSheet = Resources.Load<Texture2D>(root + "CinderstoneGuard");
-            briarBeastSheet = Resources.Load<Texture2D>(root + "BriarBeast");
+            // Visual quality rollback: default to the published detailed
+            // Monsters, Bosses, Npcs, Terrain, Effects and Icons atlases.
+            // Rough replacement PNGs are retained AS EDITABLE CANDIDATES,
+            // with intact GUIDs, and can be repainted and reconnected later.
+            // This is not a permanent art ban.
             playerPortraits = Resources.Load<Texture2D>(root + "PlayerPortraits"); npcSheet = Resources.Load<Texture2D>(root + "Npcs");
             playerRear = Resources.Load<Texture2D>(root + "PlayerRear");
             playerSouth = Resources.Load<Texture2D>(root + "PlayerSouth");
@@ -89,11 +91,6 @@ namespace Starfall
                 if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             fieldProps = Resources.Load<Texture2D>(root + "FieldProps"); terrainSheet = Resources.Load<Texture2D>(root + "Terrain");
             terrainVariants = Resources.Load<Texture2D>(root + "TerrainVariants");
-            terrainAccentRemaster=Resources.Load<Texture2D>(root+"TerrainAccentRemaster");
-            combatRhythmRemaster=Resources.Load<Texture2D>(root+"CombatRhythmRemaster");
-            heroMotionAccents=Resources.Load<Texture2D>(root+"HeroMotionAccents");
-            coastlineRemaster=Resources.Load<Texture2D>(root+"CoastlineRemaster");
-            actorContactShadows=Resources.Load<Texture2D>(root+"ActorContactShadows");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)
@@ -131,8 +128,10 @@ namespace Starfall
                     new Rect(foot.x-width/2f,foot.y-depth*.72f,width,depth),
                     new Color(1,1,1,opacity));
             }
-            else Box(foot.x-width/2,foot.y-3,width,7,
-                new Color(.025f,.04f,.07f,.34f*opacity));
+            // An unapproved patch must not be replaced by a flat dark bar:
+            // original high-detail actor frames already contain root contact.
+            // Future high-quality shadows may be reconnected above.
+
         }
         // Both the Unity SpriteRenderer capture and the OnGUI safety path
         // use the same authoritative GameCore clock and published sprite cell.
@@ -382,7 +381,8 @@ namespace Starfall
         private int EnemyPose(Enemy e)
         {
             if (e.hitTime > 0) return 4;
-            if (e.state == 1) return e.boss && Game.save.room == 1 && e.timer < .2f ? 3 : 2;
+            // Keep the actual windup frame until Core releases damage.
+            if (e.state == 1) return 2;
             if (e.releaseTime > 0) return 3;
             return e.moving ? 1 : 0;
         }

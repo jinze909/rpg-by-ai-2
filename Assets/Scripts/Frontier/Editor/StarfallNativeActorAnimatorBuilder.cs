@@ -22,34 +22,13 @@ namespace Starfall.EditorTools
             {"MossboundRaider","CinderstoneGuard","BriarBeast","EmberfallResidents"};
         private static readonly int[] Rows = {6,6,18,4};
 
-        [InitializeOnLoadMethod]
-        private static void Register()
+        // Editable experimental actor atlases are NO LONGER auto-imported
+        // into normal Play Mode. Artists may run this menu after a repaint;
+        // this rollback does not restrict future genuine 2D reauthoring.
+        [MenuItem("Starfall/Art/Preview Experimental Actor Animators")]
+        public static void PreviewExperimentalActors()
         {
-            EditorApplication.delayCall += EnsureWhenIdle;
-            EditorApplication.playModeStateChanged -= BeforePlay;
-            EditorApplication.playModeStateChanged += BeforePlay;
-        }
-
-        private static void EnsureWhenIdle()
-        {
-            if (!EditorApplication.isPlayingOrWillChangePlaymode)
-                TryEnsure();
-        }
-
-        private static void BeforePlay(PlayModeStateChange state)
-        {
-            if (state == PlayModeStateChange.ExitingEditMode) TryEnsure();
-        }
-
-        private static void TryEnsure()
-        {
-            try { EnsureBuilt(); }
-            catch (Exception error)
-            {
-                Debug.LogError("Starfall native actor Animator importer unavailable; "+
-                    "exact complete-body SpriteRenderer fallback remains active: "+
-                    error.Message);
-            }
+            EnsureBuilt();
         }
 
         public static void EnsureBuilt()
@@ -194,22 +173,8 @@ namespace Starfall.EditorTools
         }
     }
 
-    // Prevent a Player build from quietly excluding every nonhero Animator
-    // while passing Sprite-only runtime checks. Source atlas art is preserved.
-    internal sealed class StarfallNativeActorAnimatorBuildGate :
-        UnityEditor.Build.IPreprocessBuildWithReport
-    {
-        public int callbackOrder { get { return -900; } }
-        public void OnPreprocessBuild(UnityEditor.Build.Reporting.BuildReport report)
-        {
-            try { StarfallNativeActorAnimatorBuilder.EnsureBuilt(); }
-            catch (Exception error)
-            {
-                throw new UnityEditor.Build.BuildFailedException(
-                    "Nonhero authored SpriteRenderer+Animator native build failed: " +
-                    error.Message);
-            }
-        }
-    }
+    // When repainted art passes real visual review, production Animator
+    // baking can be promoted again. This old prototype is optional in
+    // Player builds; no rejected atlas can block normal game packaging.
 }
 #endif

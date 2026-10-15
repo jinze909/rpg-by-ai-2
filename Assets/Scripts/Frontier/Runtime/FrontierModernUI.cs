@@ -25,8 +25,24 @@ namespace Starfall
         private void Icon(string id, float x, float y, float size = 36, Color? tint = null)
         {
             int index = id == "sword" ? 0 : id == "bow" ? 1 : id == "staff" ? 2 : id == "shield" ? 3 : id == "wood" ? 4 : id == "crystal" ? 5 : id == "herb" ? 6 : id == "fish" ? 7 : id == "gear" ? 8 : id == "relic" ? 9 : id == "stew" ? 10 : id == "seed" ? 11 : id == "companion" ? 12 : id == "camp" ? 13 : id == "journal" || id == "map" ? 14 : id == "tea" ? 15 : -1;
-            if (index >= 0 && iconSheet != null) Atlas(iconSheet, 4, 4, index, new Rect(x, y, size, size), tint ?? Color.white);
-            else Image(art.Icon(id), x, y, size, size, tint);
+            // Q sword/bow/staff and F stew use the detailed Icons.png.
+            // If the atlas is temporarily missing, NEVER invent a crude
+            // procedural 48px replacement for an existing authored icon.
+            if (index >= 0)
+            {
+                if (iconSheet != null)
+                    Atlas(iconSheet, 4, 4, index,
+                        new Rect(x, y, size, size), tint ?? Color.white);
+                else
+                {
+                    Frame(x, y, size, size, muted);
+                    Text(x, y + size * .25f, size, size * .5f,
+                        id, Math.Max(9f, size * .18f), tint ?? paper,
+                        TextAnchor.MiddleCenter);
+                }
+                return;
+            }
+            Image(art.Icon(id), x, y, size, size, tint);
         }
         private void Portrait(int id, float x, float y, float w, float h)
         {
