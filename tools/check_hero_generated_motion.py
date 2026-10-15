@@ -13,7 +13,8 @@ from build_hero_animation_preview import (
     imported_sheets, registered_heads
 )
 from export_canonical_hero_atlases import (
-    DEST, CONTACTS, frame_plan, expected_count
+    DEST, CONTACTS, frame_plan, expected_count,
+    assert_no_striding_action_insert
 )
 
 
@@ -43,8 +44,35 @@ def negative_control():
         raise AssertionError("UNSAFE_CI_GATE: wrong waist accepted")
 
 
+def negative_rooted_action_control():
+    """The exact old cause must fail even if the old atlas was Player_*."""
+    for klass in CLASSES:
+        for action in ("Attack", "Cast"):
+            for facing in FACINGS:
+                name = "Player" + klass if facing == "E" else "Walk" + klass
+                index = 2 if facing == "E" else (4 if facing == "N" else 9)
+                bad_plan = [
+                    (("Player" + klass, 0), "accepted", 0),
+                    ((name, index), "curated", 0),
+                    (("Player" + klass, 4), "accepted", 1),
+                    (("Player" + klass, 5), "accepted", 2),
+                    ((name, index), "curated", 2),
+                    (("Player" + klass, 0), "accepted", 3),
+                ]
+                try:
+                    assert_no_striding_action_insert(
+                        klass, action, facing, bad_plan)
+                except AssertionError as error:
+                    assert "STRIDING_POSE_INSERTED" in str(error)
+                else:
+                    raise AssertionError((
+                        "NEGATIVE_TEST_ACCEPTED_OLD_WALK_BODY_FLASH",
+                        klass, action, facing))
+
+
 def check():
     negative_control()
+    negative_rooted_action_control()
     # Exercise both six-cell legacy and true seven-cell source plan even
     # before the 18 genuinely new contact paintings are delivered.
     for profession in CLASSES:
@@ -77,6 +105,9 @@ def check():
                 refs = source_indices(klass, action, facing)
                 added = bool(hand_count and action in ("Attack", "Cast"))
                 plan = frame_plan(klass, action, facing, refs, added)
+                # This must pass for BOTH the real six-frame publisher and
+                # an eventual complete seven-frame original contact set.
+                assert_no_striding_action_insert(klass, action, facing, plan)
                 count = expected_count(action, len(refs), added)
                 assert len(plan) == count == row["frame_count"], (
                     "INVALID_ANIMATION_FRAME_COUNT",key)
