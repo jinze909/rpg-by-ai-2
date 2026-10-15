@@ -41,6 +41,47 @@ namespace Starfall.Tests
             }
         }
 
+        public static void ReactionClockTraversesBothNewMotionCells(Campaign data)
+        {
+            // Run the existing three-original-pose GameCore clock through
+            // the new FIVE-visual-Sprite response: 0,1,2,3,4.
+            // Dash travel, invulnerability and knockback remain untouched.
+            var game = Quiet(data, 0);
+            game.enemies.Clear();
+            game.Dash(new Point(1, 0));
+            Check(game.HeroAnimationState == 4 &&
+                game.HeroAnimationFrameCount(0) == 3,
+                "Dodge keeps the authoritative three-pose gameplay clock");
+            float[] timerSamples = { .18f, .135f, .09f, .045f, .001f };
+            int last = -1;
+            foreach (float remaining in timerSamples)
+            {
+                game.dashTime = remaining;
+                float position = game.HeroAnimationPlaybackPosition(0);
+                int spriteIndex = (int)Math.Floor(position * 2f + .20f);
+                Check(spriteIndex >= last && spriteIndex >= 0 && spriteIndex <= 4,
+                    "Dodge must progress through five rooted Sprite cells");
+                last = spriteIndex;
+            }
+            Check(last == 4, "Dodge must return to accepted idle frame");
+            game.dashTime = 0f;
+            game.playerHitTime = .18f;
+            Check(game.HeroAnimationState == 5 &&
+                game.HeroAnimationFrameCount(0) == 3,
+                "Hit stun keeps the authoritative three-pose gameplay clock");
+            last = -1;
+            foreach (float remaining in timerSamples)
+            {
+                game.playerHitTime = remaining;
+                int spriteIndex = (int)Math.Floor(
+                    game.HeroAnimationPlaybackPosition(0) * 2f + .20f);
+                Check(spriteIndex >= last && spriteIndex >= 0 && spriteIndex <= 4,
+                    "Hit recovery must progress through five rooted Sprite cells");
+                last = spriteIndex;
+            }
+            Check(last == 4, "Hit recovery must return to accepted idle frame");
+        }
+
         public static void HeroWindupActuallySamplesAnticipationBeforeContact(Campaign data)
         {
             // The production 7-cell Attack/Cast strips are arranged:
