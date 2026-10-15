@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -172,7 +172,14 @@
     "timing_authority": "GameCore's ActorAction.released; never drive damage from Animator",
     "moving_recovery": "Keep UnifiedActionGait authored walk legs and gameplay movement rules",
     "safety_fallback": "Opt-in SpriteRenderer/Animator with existing OnGUI route on failure",
-    "final_gate": "Native Unity 2022.3.53f1 PlayMode + visually accepted frame-to-frame anatomy and weapon grips required"
+    "final_gate": "Native Unity 2022.3.53f1 PlayMode + visually accepted frame-to-frame anatomy and weapon grips required",
+    "reaction_expanded_frames": 5,
+    "reaction_source_phases": [
+      "accepted idle",
+      "accepted dodge/hit keypose",
+      "accepted idle"
+    ],
+    "reaction_transition_policy": "All three accepted frames preserved verbatim; one full-body, root/head-locked source-raster in-between per transition; GameCore still owns invulnerability, displacement and stun."
   },
   "motion_registration": {
     "source_canvas": "accepted 256x256 RGBA world sprite from the current one blonde hero",
