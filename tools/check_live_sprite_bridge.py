@@ -107,6 +107,19 @@ def check():
                   'sprite.pixelsPerUnit -',
                   'Mathf.Abs(keys[i].time - i / sampleRate)'):
         assert guard in native, "Missing native stale-clip rebuild guard: " + guard
+    # Verify this is ACTUALLY the runtime loaded by the shipped
+    # Assets/Scenes/Frontier.unity, not a preview-only prefab. The scene
+    # contains the camera; FrontierRuntime.Boot() binds the MonoBehaviour.
+    scene = ROOT / "Assets/Scenes/Frontier.unity"
+    assert scene.is_file() and "m_Name: Main Camera" in scene.read_text()
+    live_runtime = (RUNTIME / "FrontierRuntime.cs").read_text()
+    for part in ('[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]',
+                 'if (scene.name != "Frontier"',
+                 'new GameObject("Starfall Frontier Runtime").AddComponent<FrontierRuntime>()',
+                 'private void DrawPlayerActor()'):
+        assert part in (live_runtime + actor), "Production scene/bootstrap disconnected: " + part
+    assert "BuildPipeline.BuildPlayer(new[] { Scene }" in (
+        (ROOT / "Assets/Editor/Frontier/FrontierEditor.cs").read_text())
     editor_boot = (ROOT / "Assets/Editor/Frontier/FrontierEditor.cs").read_text()
     assert editor_boot.count("Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();") == 3
     assert "if (File.Exists(installedPath))" in native
