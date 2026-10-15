@@ -218,7 +218,6 @@ public static class RuntimeCombatInputChecks
         int action=locomotion?1:app.Game.HeroAnimationState;
         string animation=new[]{"Idle","Run","Attack","Cast","Dodge","Hit","Death"}[action];
         string dir=new[]{"E","N","S"}[facing];
-        bool heavy=!locomotion&&action==2&&(pose==6||pose==7);
         string prefix="resource:Frontier/HeroAnimator/Canonical/Hero_"+
             klass+"_"+animation+"_"+dir;
         var rendered=GUI.textureCalls.Find(draw=>
@@ -226,7 +225,6 @@ public static class RuntimeCombatInputChecks
             || draw.texture.name.StartsWith("resource:Frontier/Art/Player")
             || draw.texture.name.StartsWith("resource:Frontier/Art/Walk"));
         Check(rendered!=null,"Game world must render a visible full-body hero");
-        if(!heavy)
         {
             Check(rendered.texture.name==prefix,
                 "Production player used another class/animation/facing: expected "+prefix+
@@ -244,10 +242,6 @@ public static class RuntimeCombatInputChecks
             Check(DrawnFrame(rendered)==expected,
                 "Full-body frame must match authoritative release/dash/death clock");
         }
-        else
-            Check(rendered.texture.name=="resource:Frontier/Art/"+sheet&&
-                DrawnFrame(rendered)==frame,
-                "Unbaked heavy combo must retain approved authored whole-body frame");
         Check(Math.Abs(rendered.rect.width-192)<.01f&&
             Math.Abs(rendered.rect.height-192)<.01f,
             "Full-body pixel density must stay identical in every state");
@@ -300,16 +294,18 @@ public static class RuntimeCombatInputChecks
         foreach (Point direction in ActorDirections)
         {
             BeginCrossEquippedQ(app, equipped, direction); Frames(app, 20);
-            Check(app.Game.PlayerPhase == ActionPhase.Recovery && !app.Game.ActuallyMoving && app.Game.AppearanceWeapon == 0,
-                "Standing Q recovery retains the skill's sword/shield appearance");
+            Check(app.Game.PlayerPhase == ActionPhase.Recovery && !app.Game.ActuallyMoving && app.Game.AppearanceWeapon == equipped,
+                "Standing Q recovery retains equipped actor, not skill-class armor");
             int row = GameCore.DirectionRow(direction);
-            CheckPlayerDrawing(app, row == 1 ? "PlayerRear" : row == 2 ? "PlayerSouth" : "PlayerVanguard",
-                row == 0 ? 7 : 3, direction);
+            CheckPlayerDrawing(app, row == 1 ? "PlayerRear" : row == 2 ? "PlayerSouth" :
+                equipped == 1 ? "PlayerRanger" : "PlayerArcanist",
+                row == 0 ? 7 : equipped * 4 + 3, direction);
             MoveDuringQRecovery(app, direction);
-            Check(app.Game.AppearanceWeapon == 0 && app.Game.HeroAnimationState == 3,
-                "Root-only movement must retain Vanguard skill outfit and cast state");
+            Check(app.Game.AppearanceWeapon == equipped && app.Game.HeroAnimationState == 3,
+                "Root-only movement must retain equipped outfit during Vanguard skill");
             CheckPlayerDrawing(app, row == 1 ? "PlayerRear" : row == 2 ?
-                "PlayerSouth" : "PlayerVanguard", row == 0 ? 7 : 3, direction);
+                "PlayerSouth" : equipped == 1 ? "PlayerRanger" : "PlayerArcanist",
+                row == 0 ? 7 : equipped * 4 + 3, direction);
             // Movement changes the GameCore world root, not the authored
             // action frame, facing or equipment during its life.
             Check((app.Game.VisualFacing-direction).Length < .001f,
@@ -370,20 +366,20 @@ public static class RuntimeCombatInputChecks
             Update(app);
             Check(lethal ? game.Dying : game.playerHitTime > 0 && !game.Dying,
                 "A real hostile projectile triggers the intended reaction/death boundary");
-            Check(game.AppearanceWeapon == 0 && (game.VisualFacing - direction).Length < .001f,
-                "Reaction/death must snapshot the actually displayed Vanguard cast outfit and facing");
+            Check(game.AppearanceWeapon == equipped && (game.VisualFacing - direction).Length < .001f,
+                "Reaction/death must snapshot the equipped cast outfit and facing");
             int row = GameCore.DirectionRow(direction);
             string sheet = row == 1 ? "PlayerReactionsRear" : row == 2 ? "PlayerReactionsSouth"
-                : "PlayerVanguard";
+                : equipped == 1 ? "PlayerRanger" : "PlayerArcanist";
             CheckPlayerDrawing(app, sheet, row == 0 ? lethal ? 11 : 10 :
-                (lethal ? 3 : 2), direction, !lethal);
+                equipped * 4 + (lethal ? 3 : 2), direction, !lethal);
             Input.Clear(); Mouse(app, game.Position - direction * 4);
             if (lethal) game.Equip(0);
             Frames(app, 2);
-            Check(game.AppearanceWeapon == 0 && (game.VisualFacing - direction).Length < .001f,
-                "Reaction/death must keep its captured cast outfit after other input/equipment changes");
+            Check(game.AppearanceWeapon == equipped && (game.VisualFacing - direction).Length < .001f,
+                "Reaction/death must keep its captured equipped outfit after other input/equipment changes");
             CheckPlayerDrawing(app, sheet, row == 0 ? lethal ? 11 : 10 :
-                (lethal ? 3 : 2), direction, !lethal);
+                equipped * 4 + (lethal ? 3 : 2), direction, !lethal);
         }
         Console.WriteLine("PASS Actual hostile projectile reactions and deaths preserve the visible recovery equipment/facing");
     }
@@ -956,6 +952,85 @@ public static class RuntimeCombatInputChecks
             movingRecoverySamples+" moving-recovery snapshots; NATIVE_UNVERIFIED");
     }
 
+    private static void AllEquippedBodiesRemainCanonicalDuringAttackAndSkill(FrontierRuntime app)
+    {
+        // 3 player disciplines x 3 independently equipped weapons x 2
+        // actions x 4 directions. An action.weapon is the MECHANIC,
+        // never the costume/model. Heavy LMB used to force old Player art.
+        int fullBodyChecks=0;
+        foreach(int discipline in new[]{0,1,2})
+        foreach(int equipped in new[]{0,1,2})
+        foreach(bool skill in new[]{false,true})
+        foreach(Point direction in ActorDirections)
+        {
+            Prepare(app,discipline);
+            var g=app.Game;
+            if(equipped>0 && !g.Has("weapon_"+equipped))
+                g.save.flags.Add("weapon_"+equipped);
+            g.Equip(equipped);
+            Check(g.save.weapon==equipped,
+                "Requested weapon must be equipped before animation checks");
+            // Focused sword was the real heavy combo escape hatch back to
+            // legacy original Player art. Force it for every sword LMB.
+            if(!skill && equipped==0)
+                g.save.weaponStyles[0]=1;
+            if(skill)g.Skill(direction); else g.Attack(direction);
+            var action=g.playerAction;
+            Check(action!=null&&action.kind==(skill?"skill":"attack"),
+                "Real gameplay must begin requested action");
+            Check(action.weapon==(skill?discipline:equipped)&&
+                action.equippedWeapon==equipped,
+                "Skill discipline and visual equipment remain distinct");
+            Check(g.AppearanceWeapon==equipped,
+                "First frame must retain the current equipped actor");
+            CheckPlayerDrawing(app,"",0,direction);
+            fullBodyChecks++;
+            int ticks=0;
+            while(g.playerAction==action&&!action.released&&ticks++<75)
+            {
+                g.Tick(.01f,new Point());
+                if(g.playerAction==action && !action.released && ticks==8)
+                {
+                    Check(g.AppearanceWeapon==equipped,
+                        "Windup may not switch to old class model");
+                    CheckPlayerDrawing(app,"",0,direction);
+                    fullBodyChecks++;
+                }
+            }
+            Check(g.playerAction==action&&action.released&&ticks<75,
+                "Authoritative action must reach contact");
+            Check(g.AppearanceWeapon==equipped,
+                "Contact must retain currently equipped model");
+            CheckPlayerDrawing(app,"",0,direction);
+            fullBodyChecks++;
+            while(g.playerAction==action&&
+                g.PlayerPhase!=ActionPhase.Recovery&&ticks++<95)
+                g.Tick(.01f,new Point());
+            Check(g.playerAction==action&&g.PlayerPhase==ActionPhase.Recovery,
+                "Action must reach recovery in real game clock");
+            g.Tick(.01f,new Point());
+            Check(g.AppearanceWeapon==equipped,
+                "Recovery must not restore a different profession costume");
+            CheckPlayerDrawing(app,"",0,direction);
+            fullBodyChecks++;
+            if(skill && discipline==1)
+            {
+                Check(g.projectiles.Count>0,
+                    "Cross-equipped Ranger volley preserves original combat mechanic");
+                foreach(var projectile in g.projectiles)
+                {
+                    Check(Math.Abs(projectile.launchHeight -
+                        GameCore.WeaponHeight(equipped,direction))<.001f,
+                        "Ranger skill projectile launch height must match equipped visual muzzle");
+                }
+            }
+        }
+        Check(fullBodyChecks>=216,
+            "All 72 profession/equipment/action/direction combinations sampled");
+        Console.WriteLine("PASS "+fullBodyChecks+
+            " true gameplay full-body previews across 72 equipped LMB/Q scenarios; no old model");
+    }
+
     private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1001,6 +1076,7 @@ public static class RuntimeCombatInputChecks
             ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
+            AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,
             ProduceVerifiedGameplayHeroTrace, GroundContactArtSharesPhysicalFootPivot,
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,

@@ -71,7 +71,7 @@ def check():
             "MOVING_RECOVERY_REVERTED_TO_RUN_SPRITE")
         assert "bool movingRecovery=" not in actor_code, (
             "UNSAFE_MIXED_ACTION_WALK_PRESENTATION")
-        assert "return playerAction != null ? playerAction.weapon : save.weapon;" in core_code, (
+        assert "return playerAction != null ? playerAction.equippedWeapon : save.weapon;" in core_code, (
             "ACTIVE_CAST_OUTFIT_SNAPS_TO_UNRELATED_RUN_WEAPON")
         assert "if(playerAction!=null)return playerAction.direction;" in continuity_code, (
             "ACTIVE_CAST_FACING_FOLLOWS_STRAFE_INSTEAD_OF_LOCKED_CONTACT")
@@ -281,8 +281,38 @@ def check():
         return min(6 if seven else 5, int(pos+.20))
     assert sampled_cell(1.55, True)==3 and sampled_cell(2,True)==4
     assert sampled_cell(1.55, False)==2 and sampled_cell(2,False)==3
-    assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
-    assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
+    # Both heavy LMB and cross-discipline Q must draw the new full-body
+    # published atlas of the EQUIPPED hero, never old Player art or the
+    # skill's mechanical class costume. This regression was visible in-game.
+    def check_combat_identity(actor_code, renderer_code, core_code):
+        assert "bool allowStandardClip = unifiedAction == null;" in renderer_code
+        assert "bool specialHeavy =" not in renderer_code
+        assert "bool standard=!(!moving" not in actor_code
+        assert "if(profession>=0&&profession<FullHeroClasses.Length&&" in actor_code
+        assert "playerAction.equippedWeapon : save.weapon;" in core_code
+        assert 'weapon = kind == "skill" ? save.profession : save.weapon' in core_code
+        assert "HeroAnimationState==2||Game.HeroAnimationState==3" in actor_code
+        assert "TryUsePublishedHeroFrame(Game.AppearanceWeapon," in renderer_code
+        assert "0, facing, 0, 1, out idle)" in renderer_code
+    check_combat_identity(actor, engine, core)
+    for key, damaged in (
+        ("actor", actor.replace(
+            "if(profession>=0&&profession<FullHeroClasses.Length&&",
+            "if(false&&profession>=0&&profession<FullHeroClasses.Length&&",1)),
+        ("engine", engine.replace(
+            "bool allowStandardClip = unifiedAction == null;",
+            "bool allowStandardClip = unifiedAction == null && !specialHeavy;",1)),
+        ("core", core.replace(
+            "playerAction.equippedWeapon : save.weapon;",
+            "playerAction.weapon : save.weapon;",1))):
+        try:
+            check_combat_identity(damaged if key=="actor" else actor,
+                damaged if key=="engine" else engine,
+                damaged if key=="core" else core)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_CI: old hero returns during Attack/Cast")
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
     # The live GPU output must match the registered published atlas cell.
     for mark in [

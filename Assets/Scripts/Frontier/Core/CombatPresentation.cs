@@ -131,11 +131,14 @@ namespace Starfall
             {
                 if (Dying && fallenPlayerWeapon >= 0) return fallenPlayerWeapon;
                 if (playerHitTime > 0 && playerHitWeapon >= 0) return playerHitWeapon;
-                // A released action still owns the whole-body drawing while
-                // its recovery permits root translation. Never snap between
-                // skill armor and an unrelated equipped Run costume mid-cast.
-                // Hit and death appearance overrides above remain authoritative.
-                return playerAction != null ? playerAction.weapon : save.weapon;
+                // The ACTIVE skill's weapon field identifies its damage /
+                // mobility MECHANIC (Vanguard/Ranger/Arcanist), not its
+                // CLOTHING. A Vanguard skill cast with an equipped staff must
+                // keep the staff hero for windup, contact, moving recovery,
+                // hit and death. Capture equipment when the action begins so
+                // a buffered spell never turns the body into another class.
+                // Hit and death appearance snapshots above stay authoritative.
+                return playerAction != null ? playerAction.equippedWeapon : save.weapon;
             }
         }
 
@@ -166,7 +169,12 @@ namespace Starfall
             // Do not reset footContacts (global material/audio event count).
             walkDistance = 0f;
             playerAction = new ActorAction { kind = kind, damage = damage, duration = duration, contact = contact,
-                direction = aim, target = aimTarget, weapon = kind == "skill" ? save.profession : save.weapon, equippedWeapon = save.weapon, profession = save.profession, style = Style, combo = combo, technique = save.technique,
+                direction = aim, target = aimTarget,
+                // Mechanical skill discipline can differ from held equipment.
+                // Never use action.weapon for a visual actor, muzzle or costume.
+                weapon = kind == "skill" ? save.profession : save.weapon,
+                equippedWeapon = save.weapon, profession = save.profession,
+                style = Style, combo = combo, technique = save.technique,
                 impact = CaptureImpact(kind == "skill" ? save.profession : save.weapon,kind == "attack" ? combo : 0) };
         }
         private void TickAction(float dt)

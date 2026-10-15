@@ -371,8 +371,19 @@ namespace Starfall
             }
             else if (save.profession == 1)
             {
-                effects.Add(new Effect("release", WeaponOrigin(Position, 1, aim), .18f) { direction = aim, variant = 1, height = WeaponHeight(1, aim) });
-                Projectile shot = FriendlyShot(Position, 1, aim, 17, action.damage * 3.4f, false, action.target, action.impact); shot.life = 2.5f; shot.piercing = shot.technique = true; projectiles.Add(shot);
+                // Charged Ranger skill with a sword/staff must still use
+                // the CURRENT equipped actor and muzzle, not bow cosplay.
+                int visualWeapon = action.equippedWeapon;
+                effects.Add(new Effect("release",
+                    WeaponOrigin(Position, visualWeapon, action.direction), .18f)
+                    { direction = action.direction, variant = visualWeapon,
+                      height = WeaponHeight(visualWeapon, action.direction) });
+                Projectile shot = FriendlyShot(Position, visualWeapon,
+                    action.direction, 17, action.damage * 3.4f, false,
+                    action.target, action.impact);
+                shot.life = 2.5f;
+                shot.piercing = shot.technique = true;
+                projectiles.Add(shot);
             }
             else { BeginFrost(Position,action.damage,action.impact??CaptureImpact(2)); }
         }

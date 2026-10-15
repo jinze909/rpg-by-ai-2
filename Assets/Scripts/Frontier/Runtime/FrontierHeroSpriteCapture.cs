@@ -83,12 +83,11 @@ namespace Starfall
                     return false;
                 // This exact frame contract is also used by the live OnGUI
                 // fallback; no second clock or interpolated puppet anatomy.
-                // Heavy combo swings use the approved 6/7 sword poses,
-                // NOT the 4/5 normal-attack atlas. GameCore already
-                // differentiates them through PlayerPose. Preserve that
-                // distinction until a dedicated heavy atlas is authored.
-                bool specialHeavy = action == 2 && (pose == 6 || pose == 7);
-                bool allowStandardClip = unifiedAction == null && !specialHeavy;
+                // The same modern full-body Attack strip owns ALL attack
+                // variants, including focused/heavy combo hits. The old
+                // heavy exemption restored the pre-remaster model on LMB.
+                // Mechanics (combo damage/contact timing) remain in GameCore.
+                bool allowStandardClip = unifiedAction == null;
                 Sprite expectedPublished = null;
                 bool canVerifyNative = allowStandardClip &&
                     TryUsePublishedHeroFrame(Game.AppearanceWeapon, action, facing,
@@ -133,9 +132,29 @@ namespace Starfall
                     }
                     else
                     {
+                        // A missing Attack/Cast atlas must not fall back to
+                        // the old body. Use the current equipment's canonical
+                        // Idle Sprite as a safe identity-preserving hold;
+                        // warn so asset CI / native QA can catch the defect.
+                        if ((action == 2 || action == 3) && unifiedAction == null)
+                        {
+                            Sprite idle;
+                            if (TryUsePublishedHeroFrame(Game.AppearanceWeapon,
+                                0, facing, 0, 1, out idle))
+                            {
+                                heroCaptureRenderer.sprite = idle;
+                                Debug.LogWarning("Starfall missing full-body hero "+
+                                    "action atlas; holding equipped Idle rather "+
+                                    "than reverting to old character model. "+
+                                    nativeClipKey);
+                            }
+                            else return false;
+                        }
+                        else
+                        {
                         // No dynamic torso/leg synthesis is permitted.
-                        // A missing published atlas uses only one ORIGINAL
-                        // full-body source pose with the immutable foot root.
+                        // Other rare missing resource fallbacks use a single
+                        // complete-body frame and immutable foot root.
                         Texture2D original = unifiedAction != null ? unifiedAction : sheet;
                         int spriteFrame = unifiedAction != null ? 0 : frame;
                         string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
@@ -161,6 +180,7 @@ namespace Starfall
                             }
                         }
                         heroCaptureRenderer.sprite = sprite;
+                        }
                     }
                 }
                 heroCaptureRenderer.flipX = flip;

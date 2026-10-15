@@ -559,10 +559,20 @@ namespace Starfall
             if (save.technique == 1) { AlternateSkill(action); return; }
             if (save.profession == 1)
             {
-                effects.Add(new Effect("release", WeaponOrigin(Position, 1, aim), .18f) { direction = aim, variant = 1, height = WeaponHeight(1, aim) });
+                // Mechanics remain Ranger volley (five aimed projectiles)
+                // while art/launch height follow the weapon the actor is
+                // actually holding. A staff fires arcane arrows rather than
+                // abruptly switching the protagonist into an old Ranger.
+                int visualWeapon = action.equippedWeapon;
+                effects.Add(new Effect("release",
+                    WeaponOrigin(Position, visualWeapon, action.direction), .18f)
+                    { direction = action.direction, variant = visualWeapon,
+                      height = WeaponHeight(visualWeapon, action.direction) });
                 for (int i = -2; i <= 2; i++)
                 {
-                    Projectile shot = FriendlyShot(Position, 1, aim, 13, action.damage * 1.25f, false, action.target, action.impact);
+                    Projectile shot = FriendlyShot(Position, visualWeapon,
+                        action.direction, 13, action.damage * 1.25f, false,
+                        action.target, action.impact);
                     double a = Math.Atan2(shot.velocity.y, shot.velocity.x) + i * .15;
                     shot.velocity = new Point((float)Math.Cos(a), (float)Math.Sin(a)) * 13; shot.technique = true; projectiles.Add(shot);
                 }

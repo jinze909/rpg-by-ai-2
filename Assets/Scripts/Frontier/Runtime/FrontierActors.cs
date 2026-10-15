@@ -178,9 +178,11 @@ namespace Starfall
             }
             int action,frames,index;
             float position;
-            bool standard=!(!moving&&(pose==6||pose==7)&&
-                Game.HeroAnimationState==2);
-            if(standard&&profession>=0&&profession<FullHeroClasses.Length&&
+            // Every Attack and Cast, including sword combo-3 and focused
+            // heavy strikes, uses the SAME published whole-body model as
+            // Idle/Run. The earlier pose==6/7 exemption deliberately sent
+            // heavy combat back to the old mismatched Player sheet.
+            if(profession>=0&&profession<FullHeroClasses.Length&&
                 ResolveFullBodyHeroFrame(moving,facing,
                     out action,out frames,out index,out position))
             {
@@ -201,9 +203,28 @@ namespace Starfall
                     return;
                 }
             }
-            // Missing/stale resource or an unbaked heavy-combo motion:
-            // still a SINGLE complete class-owned original, never a
-            // composited upper/lower half or detached head Sprite.
+            // An unavailable combat atlas must NEVER restore the old hero
+            // appearance. Hold the CURRENT equipped class's canonical Idle
+            // frame at the same physical foot pivot until its action asset
+            // is repaired. No interpolated body or costume swap.
+            if(!moving&&(Game.HeroAnimationState==2||Game.HeroAnimationState==3))
+            {
+                string idleKey="Hero_"+FullHeroClasses[profession]+
+                    "_Idle_"+FullHeroFacings[facing];
+                Texture2D idle;
+                if(!fullBodyHeroSheetCache.TryGetValue(idleKey,out idle))
+                {
+                    idle=Resources.Load<Texture2D>(
+                        "Frontier/HeroAnimator/Canonical/"+idleKey);
+                    fullBodyHeroSheetCache[idleKey]=idle;
+                }
+                if(idle!=null&&idle.width==256&&idle.height==256)
+                {
+                    Atlas(idle,1,1,0,
+                        new Rect(foot.x-96,foot.y-180,192,192),tint,flip);
+                    return;
+                }
+            }
             if(original!=null)
                 Actor(original,4,3,originalFrame,foot,192,tint,flip);
         }
