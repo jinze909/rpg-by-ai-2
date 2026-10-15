@@ -169,6 +169,27 @@ def main():
         "NONHERO_CAPTURE_REGRESSION" in refused.stdout),(
         "NONHERO_CI_ACCEPTED_INDEPENDENT_IDLE_ANIMATOR",refused.stdout)
     print("PASS regression mutation: forced Idle Animator row hard-fails")
+    # Regressing to the obsolete 4-column-only Animator loses the original
+    # 6-column monster attacks and 3-column north/south archer poses.
+    known = "columns == NativeActorColumnCounts[kind]"
+    assert native.count(known)==1,"ORIGINAL_ACTOR_NATIVE_COLUMNS_MISSING"
+    wrong=native.replace(known,"columns == 4",1)
+    wrongPath=OUT/"faulted-four-column-only.cs"
+    wrongPath.write_text(wrong)
+    wrongExe=OUT/"faulted-four-column-only.exe"
+    wrongBuilt=subprocess.run([
+        os.environ.get("STARFALL_MCS",shutil.which("mcs")),
+        "-define:UNITY_5_3_OR_NEWER","-out:"+str(wrongExe),
+        str(STUB),str(wrongPath),
+        str(ROOT/"tests/NativeNonheroCaptureChecks.cs")],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert wrongBuilt.returncode==0,("ORIGINAL_ACTOR_COLUMNS_MUTATION_BUILD",wrongBuilt.stdout)
+    wrongRun=subprocess.run([mono,str(wrongExe)],cwd=ROOT,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert wrongRun.returncode!=0 and (
+        "NONHERO_CAPTURE_REGRESSION" in wrongRun.stdout),(
+        "ORIGINAL_ACTOR_COLUMNS_MUTATION_WAS_NOT_REJECTED",wrongRun.stdout)
+    print("PASS obsolete fixed-four-column Animator mutation hard-fails")
     # Each indexed atlas listed below is ACTUALLY sampled in FrontierActors.
     atlases = [
         ("Npcs", 4, 4, range(16)),

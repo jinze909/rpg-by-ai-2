@@ -24,6 +24,9 @@ namespace Starfall
         {
             internal RenderTexture texture;
             internal int lastUsedFrame;
+            // The GPU capture may initially contain the lossless whole-body
+            // fallback while Unity finishes importing a native Controller.
+            internal bool nativeClipVerified;
         }
         private const int MaxCachedActorFrames = 192;
         private readonly Dictionary<string, CapturedActorFrame> actorCapturedFrames =
@@ -34,9 +37,20 @@ namespace Starfall
         // verified four-column authored actor family. GameCore, not Animator,
         // owns the row and exact frame (windup/release/hit/death/dialogue).
         // Unknown art uses the already verified exact-cell Sprite fallback.
-        private static readonly string[] NativeActorFamilies =
-            {"MossboundRaider","CinderstoneGuard","BriarBeast","EmberfallResidents"};
-        private static readonly int[] NativeActorRowCounts = {6,6,18,4};
+        // Accepted original detailed atlases take precedence over the four
+        // retained experimental candidates. This does NOT regenerate art or
+        // change the source PNG import GUIDs. Every source is the same one
+        // already selected by FrontierActors.DrawEnemyActor/DrawNpc.
+        private static readonly string[] NativeActorFamilies = {
+            "Monsters", "WalkMonsters", "Bosses", "WalkBossA", "WalkBossB",
+            "Npcs", "EnemyArcherVertical",
+            "MossboundRaider", "CinderstoneGuard", "BriarBeast",
+            "EmberfallResidents"
+        };
+        private static readonly int[] NativeActorColumnCounts =
+            {6,4,4,4,4,4,3,4,4,4,4};
+        private static readonly int[] NativeActorRowCounts =
+            {3,3,8,4,4,4,2,6,6,18,4};
         private static readonly int[] ActorPoseHashes = CreateActorPoseHashes();
         private static int[] CreateActorPoseHashes()
         {
@@ -124,16 +138,32 @@ namespace Starfall
                 }
                 else
                 {
+                    // Do not rewrite a RenderTexture earlier in this GUI
+                    // frame: a queued draw may still reference its old pixels.
+                    bool alreadySubmitted = entry.lastUsedFrame == Time.frameCount;
                     entry.lastUsedFrame = Time.frameCount;
                     if (!entry.texture.IsCreated())
                     {
                         entry.texture.Create();
                         needsRender = true; // device/context loss
                     }
+                    else if (!entry.nativeClipVerified && !alreadySubmitted &&
+                             NativeActorEligible(sheet, columns, rows) &&
+                             TryPlayNativeActorPose(sheet, columns, rows, frame, sprite))
+                    {
+                        // Recapture in the NEXT safe frame after a Controller
+                        // imports. Previously a cached fallback remained
+                        // forever and the real Animator was never used.
+                        needsRender = true;
+                        entry.nativeClipVerified = true;
+                    }
                 }
                 if (needsRender)
                 {
-                    if (!TryPlayNativeActorPose(sheet, columns, rows, frame, sprite))
+                    if (!entry.nativeClipVerified)
+                        entry.nativeClipVerified =
+                            TryPlayNativeActorPose(sheet, columns, rows, frame, sprite);
+                    if (!entry.nativeClipVerified)
                     {
                         // True lossless fallback: never show an unrelated
                         // imported animation sheet, stitched head or wrong pose.
@@ -173,14 +203,21 @@ namespace Starfall
             }
         }
 
+        private static bool NativeActorEligible(Texture2D source, int columns,
+            int rows)
+        {
+            if (source == null) return false;
+            int kind = Array.IndexOf(NativeActorFamilies, source.name);
+            return kind >= 0 && columns == NativeActorColumnCounts[kind] &&
+                rows == NativeActorRowCounts[kind];
+        }
+
         private bool TryPlayNativeActorPose(Texture2D source, int columns,
             int rows, int frame, Sprite expected)
         {
-            if (actorCaptureAnimator == null || source == null ||
-                columns != 4 || frame < 0) return false;
+            if (actorCaptureAnimator == null || !NativeActorEligible(
+                    source, columns, rows) || frame < 0) return false;
             string family = source.name;
-            int kind = Array.IndexOf(NativeActorFamilies, family);
-            if (kind < 0 || rows != NativeActorRowCounts[kind]) return false;
             Texture2D installed;
             if (!actorNativeSource.TryGetValue(family, out installed) ||
                 installed != source)

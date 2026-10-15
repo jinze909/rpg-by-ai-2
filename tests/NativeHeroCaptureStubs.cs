@@ -177,8 +177,11 @@ namespace UnityEngine
                 string nonhero="Frontier/Art/"+
                     runtimeAnimatorController.className.Substring(6);
                 Sprite[] actorFrames=Resources.LoadAll<Sprite>(nonhero);
-                int col=(int)Math.Floor(lastNormalizedSample*4f);
-                int selected=pose*4+Math.Max(0,Math.Min(3,col));
+                string family=runtimeAnimatorController.className.Substring(6);
+                int columns=family=="Monsters"?6:
+                    family=="EnemyArcherVertical"?3:4;
+                int col=(int)Math.Floor(lastNormalizedSample*columns);
+                int selected=pose*columns+Math.Max(0,Math.Min(columns-1,col));
                 if(selected<0 || selected>=actorFrames.Length)return;
                 if(InjectWrongSpriteOnce)
                 {

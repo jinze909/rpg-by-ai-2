@@ -184,6 +184,96 @@ public static class NativeNonheroCaptureChecks
             }
             release.Invoke(character,null);
         }
+        // Production native Controllers use the already approved 6x3
+        // Monsters and 4x4 rich Npcs atlas rather than withdrawn low-detail
+        // replacements. Verify GameCore action cells 0..5 in all 3 monster
+        // identities and exact NPC individual cells across four rows.
+        string[] originalFamilies={"Monsters","WalkMonsters","Npcs",
+            "EnemyArcherVertical","Bosses","WalkBossA","WalkBossB"};
+        int[] origCols={6,4,4,3,4,4,4};
+        int[] origRows={3,3,4,2,8,4,4};
+        for(int i=0;i<originalFamilies.Length;i++)
+        {
+            string family=originalFamilies[i];
+            int cols=origCols[i],rows=origRows[i];
+            int height=128;
+            var atlas=new Texture2D(cols*height,rows*height,
+                TextureFormat.RGBA32,false);
+            atlas.name=family;
+            string originalResource="Frontier/Art/"+family;
+            Resources.Registered[originalResource]=atlas;
+            Sprite[] slices=new Sprite[cols*rows];
+            for(int frame=0;frame<slices.Length;frame++)
+                slices[frame]=Sprite.Create(atlas,
+                    new Rect((frame%cols)*height,
+                        atlas.height-(frame/cols+1)*height,height,height),
+                    new Vector2(.5f,.0625f),height,0,SpriteMeshType.FullRect);
+            Resources.RegisteredSprites[originalResource]=slices;
+            Resources.Registered["Frontier/Actors/Native/Actor_"+family]=
+                new RuntimeAnimatorController{className="Actor_"+family};
+            var actualOriginal=new FrontierRuntime();
+            int[] cells={0,cols-1,(rows-1)*cols,rows*cols-1};
+            for(int v=0;v<cells.Length;v++)
+            {
+                Time.frameCount=1550+i*5+v;
+                int frame=cells[v];
+                bool ok=(bool)method.Invoke(actualOriginal,new object[]{
+                    atlas,cols,rows,frame,new Point(200,220),96f,
+                    new Color(1,1,1,1),v==3,0f});
+                var rendererField=typeof(FrontierRuntime).GetField(
+                    "actorCaptureRenderer",BindingFlags.Instance|BindingFlags.NonPublic);
+                var animatorField=typeof(FrontierRuntime).GetField(
+                    "actorCaptureAnimator",BindingFlags.Instance|BindingFlags.NonPublic);
+                var artRenderer=rendererField.GetValue(actualOriginal) as SpriteRenderer;
+                var animator=animatorField.GetValue(actualOriginal) as Animator;
+                Require(ok&&animator!=null&&animator.enabled&&
+                    ReferenceEquals(artRenderer.sprite,slices[frame])&&
+                    artRenderer.flipX==(v==3),
+                    "accepted original atlas native capture selected wrong family/pose: "+
+                    family+"/"+frame);
+                Require(Math.Abs(animator.lastNormalizedSample-
+                    ((frame%cols+.5f)/cols))<.0001f,
+                    "published source native sample did not use exact frame center");
+            }
+            release.Invoke(actualOriginal,null);
+        }
+        // A first-frame missing Controller must not permanently lock a
+        // cached whole-body sprite out of the real Animator after import.
+        var late=new FrontierRuntime();
+        const string lateFamily="Monsters";
+        string latePath="Frontier/Actors/Native/Actor_"+lateFamily;
+        var lateAtlas=(Texture2D)Resources.Registered["Frontier/Art/"+lateFamily];
+        var importedController=(RuntimeAnimatorController)Resources.Registered[latePath];
+        Resources.Registered.Remove(latePath);
+        Time.frameCount=1800;
+        bool drawnFallback=(bool)method.Invoke(late,new object[]{
+            lateAtlas,6,3,2,new Point(100,140),96f,
+            new Color(1,1,1,1),false,0f});
+        var lateField=typeof(FrontierRuntime).GetField("actorCaptureAnimator",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        var lateAnim=lateField.GetValue(late) as Animator;
+        Require(drawnFallback&&lateAnim!=null&&!lateAnim.enabled,
+            "first frame without controller must still show exact original monster");
+        Texture fallbackTexture=GUI.DrawnTextures[GUI.DrawnTextures.Count-1];
+        Resources.Registered[latePath]=importedController;
+        int beforeRecovery=Camera.RenderedTargets.Count;
+        Time.frameCount=1801;
+        bool cooled=(bool)method.Invoke(late,new object[]{
+            lateAtlas,6,3,2,new Point(100,140),96f,
+            new Color(1,1,1,1),false,0f});
+        Require(cooled&&!lateAnim.enabled&&
+            Camera.RenderedTargets.Count==beforeRecovery,
+            "cached fallback must remain stable during controller import cooldown");
+        Time.frameCount=1920;
+        bool nativeRecovered=(bool)method.Invoke(late,new object[]{
+            lateAtlas,6,3,2,new Point(100,140),96f,
+            new Color(1,1,1,1),false,0f});
+        Require(nativeRecovered&&lateAnim.enabled&&
+            Camera.RenderedTargets.Count==beforeRecovery+1&&
+            ReferenceEquals(fallbackTexture,
+                GUI.DrawnTextures[GUI.DrawnTextures.Count-1]),
+            "late imported accepted-art controller never refreshed cached GPU pose");
+        release.Invoke(late,null);
         // A corrupted native clip must NEVER be rendered as a stitched,
         // foreign-actor or wrong-action body: use exact source Sprite instead.
         var brokenActor=new FrontierRuntime();
@@ -212,7 +302,7 @@ public static class NativeNonheroCaptureChecks
             ((RenderTexture)second).releaseCount >= 1 &&
             ((RenderTexture)mirrored).releaseCount >= 1,
             "actor GPU targets leaked on runtime destruction");
-        Console.WriteLine("PASS four native nonhero SpriteRenderer/Animator families, 12 authoritative row/frame samples, wrong-sprite fallback, GPU recovery and target cleanup");
+        Console.WriteLine("PASS 11 native actor art families (seven original accepted): 3/4/6-column exact GameCore Sprite samples, late Controller cache recovery, GPU safety");
         Console.WriteLine("NATIVE_UNVERIFIED: GPU pixels, Unity GameView and Animator");
     }
 }
