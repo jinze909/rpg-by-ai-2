@@ -101,6 +101,36 @@ public static class NativeNonheroCaptureChecks
             new Color(1,1,1,1), false, 0f });
         Require(!hugeDrawn && Camera.RenderedTargets.Count == before,
             "oversized actors should use the existing exact-cell fallback");
+        // Exercise the ACTUAL runtime GPU-failure handler on a new actor
+        // scene. Bosses, enemies and residents all share this drawing path.
+        var recovering = new FrontierRuntime();
+        Camera.InjectGpuFailureOnce = true;
+        Time.frameCount = 1000;
+        int previousRenders = Camera.RenderedTargets.Count;
+        bool initial = (bool)method.Invoke(recovering, new object[] {
+            bossSheet, 4, 18, 17, new Point(200,220), 240f,
+            new Color(1,1,1,1), false, 0f });
+        Require(!initial && Camera.RenderedTargets.Count == previousRenders,
+            "failed native render must fall back to exact Boss source cell");
+        Time.frameCount = 1001;
+        bool waiting = (bool)method.Invoke(recovering, new object[] {
+            bossSheet, 4, 18, 17, new Point(200,220), 240f,
+            new Color(1,1,1,1), false, 0f });
+        Require(!waiting && Camera.RenderedTargets.Count == previousRenders,
+            "native actor capture retried on every repaint during cooldown");
+        Time.frameCount = 1120;
+        bool healed = (bool)method.Invoke(recovering, new object[] {
+            bossSheet, 4, 18, 17, new Point(200,220), 240f,
+            new Color(1,1,1,1), false, 0f });
+        Require(healed && Camera.RenderedTargets.Count == previousRenders + 1,
+            "nonhero GPU capture remained permanently disabled after recovery");
+        RenderTexture recoveredTarget = GUI.DrawnTextures[
+            GUI.DrawnTextures.Count - 1] as RenderTexture;
+        Require(recoveredTarget != null && recoveredTarget.width == 320,
+            "recovered Boss must retain native 320px source resolution");
+        release.Invoke(recovering, null);
+        Require(recoveredTarget.releaseCount >= 1 && !recoveredTarget.IsCreated(),
+            "GPU fault recovery leaked restored render target");
         release.Invoke(runtime, null);
         Require(bossCapture.releaseCount >= 1 &&
             wideCapture.releaseCount >= 1,
@@ -109,7 +139,7 @@ public static class NativeNonheroCaptureChecks
             ((RenderTexture)second).releaseCount >= 1 &&
             ((RenderTexture)mirrored).releaseCount >= 1,
             "actor GPU targets leaked on runtime destruction");
-        Console.WriteLine("PASS nonhero native capture: source-size Boss/NPC/monster pixels, atlas isolation, pose reuse, device loss, cleanup");
+        Console.WriteLine("PASS nonhero capture: Boss/NPC/monster source pixels, atlas isolation, GPU failure cooldown and automatic recovery, target cleanup");
         Console.WriteLine("NATIVE_UNVERIFIED: GPU pixels, Unity GameView and Animator");
     }
 }

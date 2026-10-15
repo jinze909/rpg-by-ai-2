@@ -31,6 +31,10 @@ namespace Starfall
         private readonly Dictionary<string, Sprite> actorFrameSprites =
             new Dictionary<string, Sprite>();
         private bool actorCaptureBroken;
+        // Recreating a lost render target should not require a scene reload.
+        // Retry at most once per 120 frames; until then the SAME source
+        // complete-body frame remains visible through Actor() fallback.
+        private int actorCaptureRetryAt;
 
         // Returns false on a recoverable/native failure, so the EXACT same
         // whole source cell can still be drawn by the existing GUI fallback.
@@ -38,7 +42,7 @@ namespace Starfall
             int rows, int frame, Point foot, float size, Color tint,
             bool flip, float angle)
         {
-            if (!useSpriteRendererActors || actorCaptureBroken ||
+            if (!useSpriteRendererActors ||
                 drawingOutline || sheet == null || angle != 0f ||
                 columns <= 0 || rows <= 0 ||
                 sheet.width % columns != 0 || sheet.height % rows != 0)
@@ -53,6 +57,11 @@ namespace Starfall
             // fallback instead of allocating unbounded GPU textures.
             int capturePixels = Math.Max(128, Math.Max(width, height));
             if (capturePixels > 512) return false;
+            if (actorCaptureBroken)
+            {
+                if (Time.frameCount < actorCaptureRetryAt) return false;
+                actorCaptureBroken = false;
+            }
             if (Event.current.type != EventType.Repaint) return true;
             try
             {
@@ -126,9 +135,10 @@ namespace Starfall
             catch (Exception ex)
             {
                 actorCaptureBroken = true;
+                actorCaptureRetryAt = Time.frameCount + 120;
                 Debug.LogWarning("Starfall nonhero SpriteRenderer capture " +
-                    "disabled; falling back to existing complete actor art: " +
-                    ex.Message);
+                    "temporarily unavailable; retrying after 120 frames and " +
+                    "drawing the exact complete-body source cell: " + ex.Message);
                 ReleaseActorCapture();
                 return false;
             }

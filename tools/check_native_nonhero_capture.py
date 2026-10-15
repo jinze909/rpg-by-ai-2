@@ -124,6 +124,28 @@ def main():
         "NONHERO_CAPTURE_REGRESSION" in rejected.stdout), (
         "NONHERO_CI_FALSE_PASS_256PX_DOWNSAMPLE", rejected.stdout)
     print("PASS regression mutation: forced 256px Boss downsampling hard-fails")
+    # An exception used to permanently disable every actor's native
+    # renderer. Deliberately restore that unsafe behaviour: CI must reject.
+    retry_guard = "if (Time.frameCount < actorCaptureRetryAt) return false;"
+    assert native.count(retry_guard) == 1, "NONHERO_GPU_RETRY_GUARD_MISSING"
+    stuck = native.replace(retry_guard, "if (true) return false;", 1)
+    stuck_path = OUT / "faulted-permanent-fallback.cs"
+    stuck_path.write_text(stuck)
+    stuck_exe = OUT / "faulted-permanent-fallback.exe"
+    stuck_compile = subprocess.run([
+        os.environ.get("STARFALL_MCS", shutil.which("mcs")),
+        "-define:UNITY_5_3_OR_NEWER", "-out:" + str(stuck_exe),
+        str(STUB), str(stuck_path),
+        str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert stuck_compile.returncode == 0, (
+        "NONHERO_FAULTED_RETRY_BUILD", stuck_compile.stdout)
+    blocked = subprocess.run([mono, str(stuck_exe)], cwd=ROOT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert blocked.returncode != 0 and (
+        "NONHERO_CAPTURE_REGRESSION" in blocked.stdout), (
+        "NONHERO_PERMANENT_GPU_FALLBACK_FALSE_PASS", blocked.stdout)
+    print("PASS regression mutation: permanent nonhero GPU fallback hard-fails")
     # Each indexed atlas listed below is ACTUALLY sampled in FrontierActors.
     atlases = [
         ("Npcs", 4, 4, range(16)),
