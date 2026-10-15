@@ -65,6 +65,7 @@ def check():
     assert "public float WalkPosePhase" in continuity
     assert "if (state == 1) return WalkPosePhase;" in core
     assert "cellPosition %= bakedFrames" in engine
+    assert "bool expanded = action >= 1 && action <= 5 && frames > 1;" in engine
     assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
     assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
@@ -181,6 +182,9 @@ def check():
                 expected = (4 if action in ("Run", "Attack", "Cast", "Death") else
                     3 if action in ("Dodge", "Hit") else 1)
                 assert len(refs) == expected, f"Wrong inherited clip length: {klass}/{action}/{facing}"
+                if action in ("Dodge", "Hit"):
+                    assert expected_count(action, expected) == 5, (
+                        klass, action, facing, "reaction clips need five sprites")
                 key = f"Hero_{klass}_{action}_{facing}"
                 published = resources / (key + ".png")
                 assert published.is_file(), "Production SpriteRenderer resource missing: " + key
