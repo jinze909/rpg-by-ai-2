@@ -542,8 +542,27 @@ def check():
     # Published canonical PNGs are isReadable: 0. World outline pass must
     # not accidentally call PixelArt.OutlineMask on those GPU-only textures.
     assert "if(drawingOutline)" in actor
-    assert "Actor(original,4,3,originalFrame,foot,192,tint,flip);" in actor
+    # Occluded protagonist silhouettes must reuse the SAME published
+    # Sprite atlas as the visible actor. The old outline pass resurrected
+    # the original Player body during LMB/Q behind foreground tiles.
+    assert "Actor(original,4,3,originalFrame,foot,192,tint,flip);" not in actor
+    assert "tint=new Color(1f,.56f,.35f,.85f);" in actor
+    assert "if(drawingOutline)" in actor
+    native_runtime = (ROOT / "tests/RuntimeCombatInputChecks.cs").read_text()
+    assert 'Set(app,"drawingOutline",true);' in native_runtime
+    assert 'finally { Set(app,"drawingOutline",false); }' in native_runtime
     assert "art.OutlineMask(atlas)" not in actor
+    # Fault injection: resurrect the old outfit only in the occlusion pass
+    # and the resource guard must hard-FAIL despite normal action tests.
+    try:
+        assert "Actor(original,4,3,originalFrame,foot,192,tint,flip);" not in (
+            actor.replace("tint=new Color(1f,.56f,.35f,.85f);",
+                          "Actor(original,4,3,originalFrame,foot,192,tint,flip);",1))
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("UNSAFE_CI: old-model silhouette injection escaped")
+
     assert "ResolveFullBodyHeroFrame" in actor
     assert actor.count("DrawSpriteRendererHero(") == 1
     assert "if(!captured)" in actor

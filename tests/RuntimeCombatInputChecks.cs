@@ -1078,6 +1078,12 @@ public static class RuntimeCombatInputChecks
                     "Combat must retain equipped full-body identity");
                 CheckPlayerDrawing(app,"",0,direction);
                 checks++;
+                // Occlusion previously drew a separate legacy Player head,
+                // armor and body. Verify the *real rendering pass* now uses
+                // this SAME canonical action atlas instead of old outlines.
+                Set(app,"drawingOutline",true);
+                try { CheckPlayerDrawing(app,"",0,direction); }
+                finally { Set(app,"drawingOutline",false); }
                 // Prepare restores gameplay fixtures; never restore old art
                 // until the whole test has completed every variant.
             }

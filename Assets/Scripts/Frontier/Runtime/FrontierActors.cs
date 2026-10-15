@@ -173,11 +173,15 @@ namespace Starfall
             // Production Sprite PNGs are GPU-only (isReadable: 0). The
             // outline system calls GetPixels, so sample the already-prewarmed
             // readable original for that PASS, never the GPU-only PNG.
+            // The occluded-player pass used to paint the OLD readable
+            // Player attack frame with an outline filter. That visibly
+            // changed silhouette/head/armor behind trees during LMB or Q.
+            // Draw a translucent amber silhouette from the SAME canonical
+            // whole-body action cell instead (GPU-only PNG, no GetPixels).
+            // This is a complete-body silhouette, not an independent
+            // animated overlay or a mechanically resampled set of limbs.
             if(drawingOutline)
-            {
-                Actor(original,4,3,originalFrame,foot,192,tint,flip);
-                return;
-            }
+                tint=new Color(1f,.56f,.35f,.85f);
             int action,frames,index;
             float position;
             // Every Attack and Cast, including sword combo-3 and focused
