@@ -12,7 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGED = ROOT / "Assets/ArtSource/Frontier/HeroContact"
@@ -27,7 +27,7 @@ def raster_hash(image):
     return hashlib.sha256(image.tobytes()).hexdigest()
 
 
-def validate_contact(image, key, forbidden):
+def validate_contact(image, key, forbidden, original_poses=()):
     """Validate structure and novelty, not subjective animation smoothness."""
     assert image.size == (CELL, CELL) and image.mode == "RGBA", (
         "INVALID_CONTACT_CANVAS_OR_MODE", key, image.size, image.mode)
@@ -47,6 +47,27 @@ def validate_contact(image, key, forbidden):
     digest = raster_hash(image)
     assert digest not in forbidden, (
         "REUSED_OLD_POSE_AS_NEW_CONTACT", key, forbidden.get(digest))
+    # Hash equality alone is NOT a meaningful art gate: recoloring a
+    # single pixel or globally tinting an old pose kept exactly the same
+    # silhouette and previously passed as a "newly painted" contact.
+    # Both full-body silhouette and meaningful pixels must change relative
+    # to every shipped pose. This is a minimum novelty invariant, NOT
+    # subjective approval of anatomy, hand grip, or animation smoothness.
+    candidate_alpha = alpha
+    candidate_rgb = image.convert("RGB")
+    for original_key, original in original_poses:
+        old_alpha = original.getchannel("A")
+        different_shape = sum(
+            ImageChops.difference(candidate_alpha, old_alpha).histogram()[1:])
+        assert different_shape >= 36, (
+            "CONTACT_REUSED_OLD_SILHOUETTE", key, original_key,
+            different_shape)
+        different_color = sum(
+            ImageChops.difference(candidate_rgb, original.convert("RGB"))
+            .convert("L").histogram()[1:])
+        assert different_color >= 120, (
+            "CONTACT_ALMOST_IDENTICAL_TO_OLD_POSE", key,
+            original_key, different_color)
     return digest
 
 
@@ -80,6 +101,7 @@ def audit(release=False, atlas_dir=ATLASES, staged_dir=STAGED):
     assert not manifest["art_direction_acceptance"], (
         "FALSE_ART_DIRECTION_ACCEPTANCE")
     forbidden = {}
+    original_poses = []
     keys = [f"Hero_{cls}_{action}_{facing}"
             for cls in CLASSES for action in ACTIONS for facing in FACINGS]
     completed = {}
@@ -97,7 +119,9 @@ def audit(release=False, atlas_dir=ATLASES, staged_dir=STAGED):
                     "_Attack_" in row["path"] or "_Cast_" in row["path"]):
                 continue
             cell = atlas.crop((i * CELL, 0, (i + 1) * CELL, CELL))
-            forbidden.setdefault(raster_hash(cell), f'{row["path"]}:{i}')
+            label = f'{row["path"]}:{i}'
+            forbidden.setdefault(raster_hash(cell), label)
+            original_poses.append((label, cell))
     for key in keys:
         completed[key] = _check_existing_row(manifest["atlases"][key], key)
     staged, missing, seen = [], [], {}
@@ -109,7 +133,7 @@ def audit(release=False, atlas_dir=ATLASES, staged_dir=STAGED):
         with Image.open(path) as file:
             assert file.format == "PNG", ("CONTACT_MUST_BE_PNG", key)
             candidate = file.copy()
-        digest = validate_contact(candidate, key, forbidden)
+        digest = validate_contact(candidate, key, forbidden, original_poses)
         assert digest not in seen, (
             "DUPLICATED_CROSS_CLASS_OR_ACTION_CONTACT", key, seen.get(digest))
         seen[digest] = key
@@ -170,6 +194,28 @@ def negative_controls():
         assert "REUSED_OLD_POSE_AS_NEW_CONTACT" in str(error)
     else:
         raise AssertionError("UNSAFE_GATE: duplicate contact accepted")
+    # A trivially recolored old complete-body pose must not pass as newly
+    # painted action contact despite different SHA256 and valid hair/boots.
+    cloned = canvas.copy()
+    cloned.putpixel((125, 222), (224, 153, 71, 255))
+    for description, candidate in (("tiny_color_edit", cloned),
+                                   ("old_silhouette_new_palette",
+                                    Image.new("RGBA", (CELL, CELL),
+                                              (0, 0, 0, 0)))):
+        if description == "old_silhouette_new_palette":
+            candidate = canvas.copy()
+            # Different all pixels' colors but exactly the SAME body shape.
+            px = candidate.load()
+            for y in range(150, 241):
+                for x in range(110, 147):
+                    px[x, y] = (239, 157, 74, 255)
+        try:
+            validate_contact(candidate, "negative_"+description, {},
+                             [("old_pose", canvas)])
+        except AssertionError as error:
+            assert "CONTACT_REUSED_OLD_SILHOUETTE" in str(error)
+        else:
+            raise AssertionError("UNSAFE_GATE: fake novel contact accepted")
 
 
 if __name__ == "__main__":
