@@ -445,7 +445,8 @@ def check():
         "heroRejectedNativeClips.Remove(nativeClipKey)",
         "heroCaptureRenderer.sprite=canonical;",
         "heroRejectedNativeClips.Clear()",
-        "bool nativeReady=available&&",
+        "bool recentlyRejected =",
+        "bool nativeReady=available && !recentlyRejected &&",
         "TryUseProductionHeroClip(facing);",
     ]:
         assert mark in engine, "Missing native Animator pixel-parity fallback: " + mark
