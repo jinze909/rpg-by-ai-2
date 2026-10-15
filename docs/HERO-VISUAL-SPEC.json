@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -283,10 +283,11 @@
         140,
         56,
         56
-      ]
+      ],
+      "source_stage": "Offline canonical frame bake only; NEVER a runtime neck/head assembly or warrior body template"
     },
-    "unity_runtime": "UnifiedActionGait samples all RGBA pixels from class-owned ACTION source; WALK is stride phase reference only",
-    "unity_safety": "Renderer refuses foreign class action/walk combinations, maintains original OnGUI fallback and shared (128,240) root",
+    "unity_runtime": "PRODUCTION: DrawPlayerActor samples one complete class-owned published Hero_{class}_{action}_{facing}.png Sprite per hero draw; no UnifiedActionGait, dynamic leg/hip warp or HumanActor head splice. Moving released recovery samples the complete class Walk/Run cell.",
+    "unity_safety": "Gameplay and Unity-native capture share ResolveFullBodyHeroFrame and one (128,240) original foot reference. If GPU path fails, OnGUI draws one complete published full-body frame; if a published atlas is missing, original class-owned full-body cell is used. OnGUI remains the verified default until native Unity QA.",
     "exporter_release_gates": [
       "shared-row profession provenance",
       "single-source class palette",
@@ -295,5 +296,39 @@
       "relative full-body height"
     ],
     "native_verification": "Unity 2022.3.53f1 PlayMode and visual grip/waist inspection not yet run"
+  },
+  "runtime_transition": {
+    "mode": "FullBodyProductionSprites (OnGUI full-frame default, SpriteRenderer+Animator compatible F8 native lane)",
+    "canonical_resources": "Assets/Resources/Frontier/HeroAnimator/Canonical/",
+    "clip_matrix": {
+      "classes": 3,
+      "actions": [
+        "Idle",
+        "Run",
+        "Attack",
+        "Cast",
+        "Dodge",
+        "Hit",
+        "Death"
+      ],
+      "facings": [
+        "E",
+        "N",
+        "S"
+      ],
+      "count": 63,
+      "frames": 333
+    },
+    "frame_clock": "ResolveFullBodyHeroFrame(wholeBodyRun, facing) shared by native and fallback",
+    "attack_mobility": "Full-body attack/skill keyframe until authoritative release, complete same-class Run after reduced-speed moving recovery begins",
+    "prohibited_runtime_patterns": [
+      "HumanActor player split parts",
+      "CanonicalHeroSpriteFactory runtime warrior face overlay",
+      "UnifiedActionGait dynamic cropped lower body",
+      "unapproved torso/head/limb pixel warping"
+    ],
+    "scene_binding": "FrontierRuntime.Boot() subscribes sceneLoaded and adds live MonoBehaviour for Assets/Scenes/Frontier.unity; FrontierEditor builds this scene",
+    "native_qa_status": "NATIVE_UNVERIFIED; do not enable native capture by default without actual Unity 2022.3.53f1 Game View + PlayMode",
+    "runtime_art_gate": "tools/check_hero_runtime_continuity.py validates real 63 PNGs and emits 22 representative production filmstrips/GIFs/onion-skins; metrics alone do not approve authored animation"
   }
 }
