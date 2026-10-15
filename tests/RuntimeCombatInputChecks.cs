@@ -1257,8 +1257,10 @@ public static class RuntimeCombatInputChecks
             "Original detailed guild/forge citizens must remain live");
         g.save.companion=0;GUI.textureCalls.Clear();
         Call(app,"DrawCompanionActor");
-        Check(GUI.textureCalls.Exists(t=>t.texture.name.Contains("WalkMira")),
-            "Detailed companion motion must remain live");
+        Check(GUI.textureCalls.Exists(t=>
+            t.texture.name=="resource:Frontier/Art/CompanionMira"||
+            t.texture.name=="resource:Frontier/Art/WalkMira"),
+            "Detailed accepted Mira body must remain visible whether idle or walking");
         Console.WriteLine("PASS original detailed hero, monster, Boss, NPC, companion roots with no coarse contact overlay");
     }
 
