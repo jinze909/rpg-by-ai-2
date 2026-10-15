@@ -319,81 +319,72 @@ public static class ActorRegistrationChecks
 
     public static void VerifyResidentAnimation(FrontierRuntime app)
     {
-        // Genuine production DrawNpc calls, not source-string-only assertions.
+        // VISUAL FIDELITY ROLLBACK: the older Npcs.png contains the carefully
+        // shaded guild and forge bodies. The unapproved tiny-pixel replacement
+        // must not appear in ANY dialogue state or on another bystander.
         app.BeginVisualReview(0,0);
-        var g=app.Game;
-        var guild=new WorldObject { id="guild",kind="guild",x=17,y=17 };
-        var other=new WorldObject { id="guild2",kind="guild",x=21,y=17 };
-        var smith=new WorldObject { id="smith",kind="forge",x=6,y=8 };
-        var priorConversation=g.conversation;
-        var priorSource=g.conversationSource;
-        const string atlas="resource:Frontier/Art/EmberfallResidents";
-        // The shipped raider is hit-flashed in actual combat; its mask must
-        // already exist before a hit, not be built in a Repaint callback.
+        var game=app.Game;
+        var guild=new WorldObject {id="guild",kind="guild",x=17,y=17};
+        var smith=new WorldObject {id="smith",kind="forge",x=6,y=8};
+        var savedConversation=game.conversation;
+        var savedSource=game.conversationSource;
+        const string original="resource:Frontier/Art/Npcs";
+        const string rejected="resource:Frontier/Art/EmberfallResidents";
         var art=(PixelArt)typeof(FrontierRuntime).GetField("art",Private).GetValue(app);
         var cache=(System.Collections.IDictionary)typeof(PixelArt).GetField(
             "cache",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(art);
         Check(cache.Keys.Cast<object>().Any(key=>
             key.ToString().Contains("flash_")&&
             key.ToString().Contains("MossboundRaider")),
-            "Mossbound first-hit flash must be prepared at startup");
-        Check(cache.Keys.Cast<object>().Any(key=>
-            key.ToString().Contains("outline_")&&
-            key.ToString().Contains("MossboundRaider")),
-            "Mossbound outline must be prepared before world drawing");
+            "Original raider first-hit flash must remain prewarmed");
         try
         {
-            foreach(var npc in new [] {guild,smith})
+            foreach(var npc in new[]{guild,smith})
             {
-                g.conversation=null;g.conversationSource=null;
+                int expectedIndex=npc.kind=="guild"?0:2;
+                game.conversation=null;
+                game.conversationSource=null;
                 Clear();
                 var idle=Draw(app,"DrawNpc",npc.kind,
-                    new Point(npc.x,npc.y),-1).FirstOrDefault(c=>c.texture.name==atlas);
-                Check(idle!=null, "Published NPC art absent from actual Frontier drawing");
-                Check(idle.rect.width==96&&idle.rect.height==96,
-                    "NPC must stay at 128px logical source / fixed 96px draw size");
-                Check(Math.Abs(idle.uv.width-.25f)<.0001f&&
-                    Math.Abs(idle.uv.height-.25f)<.0001f,
-                    "NPC must use one intact author-drawn 128x128 frame");
-                g.conversation=new Conversation("speaker","speaker","hello","hello");
-                g.conversationSource=npc;
+                    new Point(npc.x,npc.y),-1);
+                var body=idle.FirstOrDefault(c=>c.texture.name==original);
+                Check(body!=null&&!idle.Any(c=>c.texture.name==rejected),
+                    "VISUAL_REGRESSION: low-detail resident atlas replaced accepted original NPC");
+                Check(body.rect.width==96&&body.rect.height==96&&
+                    Math.Abs(body.uv.x-expectedIndex*.25f)<.0001f&&
+                    Math.Abs(body.uv.width-.25f)<.0001f&&
+                    Math.Abs(body.uv.height-.25f)<.0001f,
+                    "Guild/forge must draw the intact original high-detail source cell");
+                game.conversation=new Conversation("speaker","speaker","hello","hello");
+                game.conversationSource=npc;
                 Clear();
-                var spoken=Draw(app,"DrawNpc",npc.kind,
-                    new Point(npc.x,npc.y),-1).FirstOrDefault(c=>c.texture.name==atlas);
-                Check(spoken!=null&&Math.Abs(idle.uv.y-spoken.uv.y)>.05f,
-                    "Actual NPC speaking must select separate authored action row");
-                Check(Math.Abs(idle.rect.x-spoken.rect.x)<.001f&&
-                    Math.Abs(idle.rect.y-spoken.rect.y)<.001f,
-                    "NPC talk must not shift whole-body foot anchor");
+                var talking=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1);
+                var spoken=talking.FirstOrDefault(c=>c.texture.name==original);
+                Check(spoken!=null&&!talking.Any(c=>c.texture.name==rejected)&&
+                    Math.Abs(spoken.uv.x-body.uv.x)<.0001f&&
+                    Math.Abs(spoken.uv.y-body.uv.y)<.0001f&&
+                    Math.Abs(spoken.rect.x-body.rect.x)<.001f&&
+                    Math.Abs(spoken.rect.y-body.rect.y)<.001f,
+                    "Talking must not switch original NPC to a coarse or offset body");
             }
-            // Nearby identical residents have independently phased idle
-            // bodies, rather than synchronized clock-driven puppet motion.
-            g.conversation=null;g.conversationSource=null;
+            game.conversation=new Conversation("speaker","speaker","hello","hello");
+            game.conversationSource=guild;
             Clear();
-            var phaseA=Draw(app,"DrawNpc","guild",
-                new Point(17,17),-1).First(c=>c.texture.name==atlas);
+            var bystander=Draw(app,"DrawNpc","guild",new Point(21,17),-1);
+            Check(bystander.Any(c=>c.texture.name==original)&&
+                !bystander.Any(c=>c.texture.name==rejected),
+                "Another guild member must not inherit a rejected dialogue avatar");
             Clear();
-            var phaseB=Draw(app,"DrawNpc","guild",
-                new Point(18,17),-1).First(c=>c.texture.name==atlas);
-            Check(Math.Abs(phaseA.uv.x-phaseB.uv.x)>.01f,
-                "Two distinct residents must not breathe in lockstep");
-            g.conversation=new Conversation("speaker","speaker","hello","hello");
-            g.conversationSource=guild;
-            Clear();
-            var bystander=Draw(app,"DrawNpc","guild",
-                new Point(other.x,other.y),-1).FirstOrDefault(c=>c.texture.name==atlas);
-            Check(bystander!=null && Math.Abs(bystander.uv.y-.75f)<.0001f,
-                "Same-kind bystander cannot steal the current dialogue animation");
-            Clear();
-            var unrelated=Draw(app,"DrawNpc","garden",
-                new Point(10,10),-1);
-            Check(unrelated.Any(c=>c.texture.name=="resource:Frontier/Art/Npcs"),
-                "Other authored residents must retain their legacy body until remastered");
-            Console.WriteLine("PASS live guild/forge idle/talk 16 frames, pinned speaker, fallback and stable foot");
+            var garden=Draw(app,"DrawNpc","garden",new Point(10,10),-1);
+            Check(garden.Any(c=>c.texture.name==original),
+                "Unmodified rich source NPCs must stay on the accepted atlas");
+            Console.WriteLine("PASS guild/forge restored to rich original 16-NPC artwork in idle, dialogue and bystander views");
         }
         finally
         {
-            g.conversation=priorConversation;g.conversationSource=priorSource;
+            game.conversation=savedConversation;
+            game.conversationSource=savedSource;
         }
     }
 

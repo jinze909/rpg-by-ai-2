@@ -75,18 +75,17 @@ def emit_animation_review(atlas):
 def source_contract():
     actors=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text()
     for item in (
-        "emberfallResidentsSheet",
-        'Resources.Load<Texture2D>(root + "EmberfallResidents")',
         'NpcId(kind)',
         'Game.conversationSource',
-        'Math.Abs(interlocutor.x - position.x) < .05f',
-        'Math.Abs(interlocutor.y - position.y) < .05f',
-        'npcKey == 0 || npcKey == 2',
-        'Actor(emberfallResidentsSheet, 4, 4, frame, p, 96,',
+        'Actor(npcSheet, 4, 4, npcKey, p, 96, tint);',
     ):
         assert item in actors,("RESIDENT_NOT_LIVE",item)
+    assert "Actor(emberfallResidentsSheet" not in actors, (
+        "VISUAL_FIDELITY_REGRESSION_UNAPPROVED_RESIDENT_GOES_LIVE")
     test=(ROOT/"tests/ActorRegistrationChecks.cs").read_text()
-    assert "VerifyResidentAnimation" in test, "RESIDENT_MISSING_REAL_DRAW_TEST"
+    assert "VerifyResidentAnimation" in test, "RESIDENT_ORIGINAL_ATLAS_TEST_MISSING"
+    assert "low-detail resident atlas replaced" in test, (
+        "NPC_ORIGINAL_FIDELITY_REGRESSION_NOT_BLOCKED")
     meta=INSTALLED.with_suffix(".png.meta").read_text()
     for marker in ("guid: 0195faaf10444a4a9456b9fd983e8d22",
         "enableMipMap: 0","filterMode: 0","isReadable: 1",
@@ -125,8 +124,8 @@ def main():
         assert "RESIDENT_WHOLE_BODY_CROPPED" in str(e),e
     else:
         raise AssertionError("RESIDENT_CI_FALSE_PASS_MUTATED_FRAME")
-    print("PASS 16 shipped guild/forge full-body poses and 4-frame idle/talk loops")
-    print("PASS fixed foot, importer GUID, raster parity, unique identity, mutation rejection")
+    print("PASS experimental resident art retained for provenance, not active in-game")
+    print("PASS original shaded Npcs.png reinstated; rejected crude 16-frame override hard-gated")
     print("NATIVE_UNVERIFIED / ART_REVIEW_REQUIRED: no native Unity Animator/PlayMode")
 
 if __name__=="__main__":

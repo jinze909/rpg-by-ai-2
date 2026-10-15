@@ -36,7 +36,6 @@ namespace Starfall
                 (1f - elapsed / .32f) * .78f : 0f;
         }
         private Texture2D briarBeastSheet;
-        private Texture2D emberfallResidentsSheet;
         // Real pixel-art accent sheet, drawn over the accepted imported terrain.
         private Texture2D terrainAccentRemaster;
         private Texture2D combatRhythmRemaster;
@@ -63,7 +62,6 @@ namespace Starfall
             mossboundRaiderSheet = Resources.Load<Texture2D>(root + "MossboundRaider");
             cinderstoneGuardSheet = Resources.Load<Texture2D>(root + "CinderstoneGuard");
             briarBeastSheet = Resources.Load<Texture2D>(root + "BriarBeast");
-            emberfallResidentsSheet = Resources.Load<Texture2D>(root + "EmberfallResidents");
             playerPortraits = Resources.Load<Texture2D>(root + "PlayerPortraits"); npcSheet = Resources.Load<Texture2D>(root + "Npcs");
             playerRear = Resources.Load<Texture2D>(root + "PlayerRear");
             playerSouth = Resources.Load<Texture2D>(root + "PlayerSouth");
@@ -87,7 +85,6 @@ namespace Starfall
                 art.OutlineMask(mossboundRaiderSheet);
             }
             if(cinderstoneGuardSheet!=null) { art.FlashMask(cinderstoneGuardSheet); art.OutlineMask(cinderstoneGuardSheet); }
-            if(emberfallResidentsSheet!=null) { art.OutlineMask(emberfallResidentsSheet); }
             foreach(Texture2D sheet in new[]{playerRear,playerSouth,playerReactionsRear,playerReactionsSouth,enemyArcherVertical,monsterSheet,bossSheet,monsterWalkSheet})
                 if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             fieldProps = Resources.Load<Texture2D>(root + "FieldProps"); terrainSheet = Resources.Load<Texture2D>(root + "Terrain");
@@ -647,38 +644,13 @@ namespace Starfall
                 Math.Abs(interlocutor.x - position.x) < .05f &&
                 Math.Abs(interlocutor.y - position.y) < .05f;
             Color tint = occludes ? new Color(1,1,1,.45f) : Color.white;
-            if ((npcKey == 0 || npcKey == 2) &&
-                emberfallResidentsSheet != null &&
-                emberfallResidentsSheet.width == 512 &&
-                emberfallResidentsSheet.height == 512)
-            {
-                // Four authored whole-body poses per action, same fixed foot.
-                // Guild [0,1], forge [2,3]; talk only for real interlocutor.
-                // Separate residents must not breathe in perfect lockstep.
-                // A position-derived phase is deterministic across repaints,
-                // scene reloads and save/load; it never mutates GameCore.
-                // Speaking keeps the authored faster four-frame talk loop.
-                int phaseOffset = ((int)Math.Floor(position.x * 7f) +
-                    (int)Math.Floor(position.y * 11f)) & 3;
-                int pose = ((int)Math.Floor(clock *
-                    (isTalking ? 5.5f : 2.4f)) + phaseOffset) & 3;
-                int row = (npcKey == 0 ? 0 : 2) + (isTalking ? 1 : 0);
-                int frame = row * 4 + pose;
-                Actor(emberfallResidentsSheet, 4, 4, frame, p, 96, tint);
-            }
-            else
-                Actor(npcSheet, 4, 4, npcKey, p, 96, tint);
-            // Existing speech sigil is independent of the full-body sprite.
-            // Retain it during dialogue without introducing new OnGUI calls.
-            if (!drawingOutline && combatRhythmRemaster != null &&
-                isTalking)
-            {
-                int phase = ((int)(clock * 6)) % 4;
-                if (phase < 0) phase += 4;
-                Atlas(combatRhythmRemaster, 4, 4, 12 + phase,
-                    new Rect(p.x - 11, p.y - 105, 22, 22),
-                    new Color(1, 1, 1, .75f));
-            }
+            // VISUAL RESTORATION: the temporary 64px-vector-looking
+            // EmberfallResidents replacement erased the richer original
+            // 16-character Npcs.png detail for the guild and smith. Preserve
+            // the original per-person full-body atlas (and dialogue identity)
+            // until a visually approved, truly higher-fidelity replacement
+            // exists. The experimental resource is retained in Git, NOT drawn.
+            Actor(npcSheet, 4, 4, npcKey, p, 96, tint);
         }
     }
 }
