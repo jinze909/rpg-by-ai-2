@@ -170,6 +170,43 @@ public static class ActorRegistrationChecks
                     "Briar HP threshold must change the actual sampled sprite row");
             previousPhaseCrop=body.uv.y;
         }
+        // Phase-entry feedback is keyed to the ACTUAL enemy object and the
+        // live HP threshold, not its numeric ID or an unrelated idle clock.
+        // Test real production draw calls, including flash decay and no
+        // phantom cue when a restored boss first appears at low HP.
+        var threshold = new Enemy(93010, 0, g.Position.x, g.Position.y, 150, true) {
+            moving = true, moveTime = .8f, flash = 0
+        };
+        Clear(); var baseline = Draw(app, "DrawEnemyActor", threshold);
+        Check(mask(baseline, "BriarBeast") == null,
+            "First sight of a boss must not invent a phase transition");
+        threshold.hp = 78f;
+        Clear(); var transition = Draw(app, "DrawEnemyActor", threshold);
+        sameFrame(actor(transition, atlas), mask(transition, "BriarBeast"));
+        float firstOpacity = mask(transition, "BriarBeast").color.a;
+        Set(app, "clock", .16f);
+        Clear(); var decaying = Draw(app, "DrawEnemyActor", threshold);
+        sameFrame(actor(decaying, atlas), mask(decaying, "BriarBeast"));
+        Check(mask(decaying, "BriarBeast").color.a < firstOpacity,
+            "Phase glow must fade against the authoritative runtime clock");
+        Set(app, "clock", .4f);
+        Clear(); var expired = Draw(app, "DrawEnemyActor", threshold);
+        Check(mask(expired, "BriarBeast") == null,
+            "Boss phase cue cannot persist after its 320ms window");
+        threshold.hp = 32f;
+        Clear(); var third = Draw(app, "DrawEnemyActor", threshold);
+        sameFrame(actor(third, atlas), mask(third, "BriarBeast"));
+        threshold.hp = 150f;
+        Clear(); var healed = Draw(app, "DrawEnemyActor", threshold);
+        Check(mask(healed, "BriarBeast") == null,
+            "HP recovery must reset phase tracking without fake glow");
+        var restored = new Enemy(93010, 0, g.Position.x, g.Position.y, 150, true) {
+            hp = 30f, moving = true, moveTime = .8f
+        };
+        Clear(); var firstLowHp = Draw(app, "DrawEnemyActor", restored);
+        Check(mask(firstLowHp, "BriarBeast") == null,
+            "New enemy instance must not inherit an old boss phase cue");
+        Set(app, "clock", 0f);
         // Regression: EnemyPose() historically exposed an early-release pose
         // in room 1 for the final 200ms of still-active windup. The NEW
         // authored hit drawing may only appear after Core releases the attack.
@@ -193,7 +230,22 @@ public static class ActorRegistrationChecks
             mask(oldBoss,"WalkBossA"));
         Check(!oldBoss.Any(c=>c.texture.name==atlas),
             "Room 2 boss must not inherit Thornwood monster identity");
-        Console.WriteLine("PASS Briar three HP silhouettes, matched flash, fenced contact and other-room legacy walk");
+        // Other bosses keep their authored silhouette but acquire a readable
+        // phase tint and a same-frame flash at the exact HP threshold.
+        var other = new Enemy(93020, 0, g.Position.x, g.Position.y, 150, true) {
+            moving = true, moveTime = .8f
+        };
+        Clear(); var otherFirst = Draw(app, "DrawEnemyActor", other);
+        var firstBody = actor(otherFirst, "resource:Frontier/Art/WalkBossA");
+        Check(firstBody != null, "Other boss must retain its live walking body");
+        other.hp = 75f;
+        Clear(); var otherSecond = Draw(app, "DrawEnemyActor", other);
+        var secondBody = actor(otherSecond, "resource:Frontier/Art/WalkBossA");
+        sameFrame(secondBody, mask(otherSecond, "WalkBossA"));
+        Check(secondBody.color.g < firstBody.color.g &&
+              secondBody.color.b < firstBody.color.b,
+            "Boss stage 2 must remain visible after its phase-entry flash");
+        Console.WriteLine("PASS three Briar body phases, real HP phase cues, matched masks, persistent other-Boss tint and fenced contact");
     }
 
     static void PreparedMasks()

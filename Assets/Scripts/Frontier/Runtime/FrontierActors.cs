@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 namespace Starfall
 {
@@ -9,6 +10,30 @@ namespace Starfall
         private Texture2D[] walkSheets, companionWalkSheets, bossWalkSheets;
         private Texture2D monsterWalkSheet;
         private Texture2D mossboundRaiderSheet;
+        // Phase-entry cues are presentation-only and keyed by Enemy identity:
+        // two bosses with the same numeric spawn ID never inherit a flash.
+        // Weak keys prevent old save/review encounters from accumulating.
+        private sealed class BossPhaseCue
+        {
+            internal int phase;
+            internal float changedAt = float.NegativeInfinity;
+        }
+        private readonly ConditionalWeakTable<Enemy, BossPhaseCue> bossPhaseCues =
+            new ConditionalWeakTable<Enemy, BossPhaseCue>();
+        private float BossPhaseCueOpacity(Enemy enemy)
+        {
+            BossPhaseCue cue = bossPhaseCues.GetValue(enemy,
+                ignored => new BossPhaseCue());
+            int phase = enemy.BossPhase;
+            if (cue.phase == 0) { cue.phase = phase; return 0f; }
+            if (phase > cue.phase) cue.changedAt = clock;
+            else if (phase < cue.phase || clock < cue.changedAt)
+                cue.changedAt = float.NegativeInfinity;
+            cue.phase = phase;
+            float elapsed = clock - cue.changedAt;
+            return elapsed >= 0f && elapsed < .32f ?
+                (1f - elapsed / .32f) * .78f : 0f;
+        }
         private Texture2D briarBeastSheet;
         private Texture2D emberfallResidentsSheet;
         // Real pixel-art accent sheet, drawn over the accepted imported terrain.
@@ -392,6 +417,15 @@ namespace Starfall
             // Recoil is swept in Core rather than sliding the drawing through walls.
             Color tint = e.flash > 0 ? new Color(1.55f, 1.55f, 1.55f) : Color.white;
             if (e.boss && Math.Abs(e.x - Game.save.x) < 1.4f && Game.save.y < e.y - .01f && Game.save.y > e.y - 2.7f) tint.a = .55f;
+            // Other-room bosses lack three distinct authored body rows.
+            // Their existing identity is preserved while later HP phases
+            // receive a stable, readable warm tint (no extra GUI primitive).
+            if (e.boss && Game.save.room != 1 && e.BossPhase >= 2)
+            {
+                tint.g *= e.BossPhase == 2 ? .94f : .82f;
+                tint.b *= e.BossPhase == 2 ? .90f : .83f;
+            }
+            float phaseCue = e.boss ? BossPhaseCueOpacity(e) : 0f;
             if (e.boss)
             {
                 // Keep base body and hit-flash on the identical authored
@@ -421,10 +455,14 @@ namespace Starfall
                     int liveCell = (bodyPhase * 6 + action) * 4 + keyframe;
                     Actor(briarBeastSheet, 4, 18, liveCell,
                         p + offset, size, tint, e.VisualFlip);
-                    if (!drawingOutline && e.flash > 0)
+                    // On an HP phase transition the *current* whole-body
+                    // silhouette glows briefly, even after the ordinary hit
+                    // flash expires. No second offset body or old-phase pose.
+                    float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
+                    if (!drawingOutline && flashAlpha > 0f)
                         Actor(art.FlashMask(briarBeastSheet), 4, 18,
                             liveCell, p + offset, size,
-                            new Color(1, 1, 1, e.flash / .09f * .86f * tint.a),
+                            new Color(1, 1, 1, flashAlpha * tint.a),
                             e.VisualFlip);
                 }
                 else
@@ -444,10 +482,11 @@ namespace Starfall
                 float visibleBossSize = walking ? size * 384 / 320f : size;
                 Actor(visibleBossSheet, 4, visibleBossRows, visibleBossFrame,
                     p + offset, visibleBossSize, tint, e.VisualFlip);
-                if (!drawingOutline && e.flash > 0 && visibleBossSheet != null)
+                float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
+                if (!drawingOutline && flashAlpha > 0f && visibleBossSheet != null)
                     Actor(art.FlashMask(visibleBossSheet), 4, visibleBossRows,
                         visibleBossFrame, p + offset, visibleBossSize,
-                        new Color(1, 1, 1, e.flash / .09f * .86f * tint.a),
+                        new Color(1, 1, 1, flashAlpha * tint.a),
                         e.VisualFlip);
                 }
                 if (!drawingOutline && e.state == 1) Atlas(effectSheet,4,4,13,new Rect(p.x-19,p.y-GameCore.BossEmissionHeight(Game.save.room)-19,38,38),new Color(1,.79f,.49f,charge*.6f));
