@@ -651,6 +651,23 @@ public static class RenderStateChecks
             life=.4f,duration=.65f});
         assertOpacity(.4f,"fallen actor");
         g.fallen.Clear();
+        // The NPC must be a REAL world object, not a synthetic source-only
+        // unit test that skips the scene's actor/object dispatch.
+        MapData map=g.Map;
+        WorldObject[] savedObjects=map.objects;
+        try
+        {
+            var added=new WorldObject[savedObjects.Length+1];
+            Array.Copy(savedObjects,added,savedObjects.Length);
+            var person=new WorldObject{id="cover_qa_resident",
+                kind="guild",x=12,y=12};
+            added[added.Length-1]=person;
+            map.objects=added;
+            assertOpacity(.4f,"world NPC");
+            person.kind="barrel";
+            assertOpacity(1f,"nonactor world prop");
+        }
+        finally {map.objects=savedObjects;}
         g.enemies.Add(new Enemy(99882,1,12,12,30));
         assertOpacity(.4f,"living enemy unchanged");
         g.enemies.Clear();
@@ -658,7 +675,7 @@ public static class RenderStateChecks
         assertOpacity(.4f,"hero unchanged");
         g.save.x=30;g.save.y=30;
         assertOpacity(1f,"restored full-opacity scenery");
-        Console.WriteLine("PASS live original-canopy occlusion for companion, fallen, enemy, hero and clear world");
+        Console.WriteLine("PASS live original-canopy occlusion for NPC, companion, fallen, enemy, hero, nonactor props and clear world");
     }
     private static void WholeWorldPropsFoliageHasOneStableRoot(FrontierRuntime app)
     {

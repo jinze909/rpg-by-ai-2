@@ -113,6 +113,23 @@ namespace Starfall
             return Math.Abs(x-cover.x)<reachX && y<cover.y &&
                 y>cover.y-reachY;
         }
+        // These are the accepted full-body Npcs.png world actors actually
+        // drawn by DrawObject -> DrawNpc. Do not fade authored foliage for
+        // non-character barrels, signs, gates or quest props nearby.
+        private static bool IsCoverResident(string kind)
+        {
+            if(String.IsNullOrEmpty(kind))return false;
+            switch(kind)
+            {
+                case "guild":case "garden":case "forge":
+                case "cook":case "fish":case "scout":
+                case "returnscout":case "mentor":case "envoy":
+                case "captain":case "tinker":case "keeper":
+                case "council":case "innGuest":
+                    return true;
+            }
+            return kind.StartsWith("castaway",StringComparison.Ordinal);
+        }
         private bool WorldCoverOverlapsActor(Decoration cover)
         {
             if(BehindWorldCover(Game.save.x,Game.save.y,cover,1.4f,2.7f))
@@ -124,6 +141,11 @@ namespace Starfall
                 Game.companionPosition.x,Game.companionPosition.y,
                 cover,1.4f,2.7f))
                 return true;
+            foreach(WorldObject resident in Game.Map.objects)
+                if(IsCoverResident(resident.kind) &&
+                    Game.IsObjectPresent(resident) &&
+                    BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
+                    return true;
             if(Game.ReliefCivilianVisible && BehindWorldCover(
                 Game.reliefFollowerPosition.x,Game.reliefFollowerPosition.y,
                 cover,1.4f,2.7f))
