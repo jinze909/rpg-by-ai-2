@@ -285,7 +285,8 @@ def check():
             "matched == expectedFrames",
             "cells = candidates;",
             "heroOwnedPublishedSprites.Add(cells[i]);",
-            "heroOwnedPublishedSprites.Remove(sprite)",
+            "foreach(Sprite sprite in heroOwnedPublishedSprites)",
+            "if(sprite!=null)Destroy(sprite);",
             "heroOwnedPublishedSprites.Clear();",
         )
         for mark in checks:
@@ -299,7 +300,7 @@ def check():
             "UNITY_IMPORTED_TEXTURE_DELETION")
     verify_imported_sprite_ownership(engine)
     for mark in ("candidate.texture != atlas",
-                 "heroOwnedPublishedSprites.Remove(sprite)",
+                 "foreach(Sprite sprite in heroOwnedPublishedSprites)",
                  "Mathf.RoundToInt(candidate.rect.x / HeroCell)"):
         try:
             verify_imported_sprite_ownership(engine.replace(
@@ -416,13 +417,13 @@ def check():
         "heroRejectedNativeClips.Add(nativeClipKey)",
         "heroCaptureRenderer.sprite=canonical;",
         "heroRejectedNativeClips.Clear()",
-        "bool hasClip = canVerifyNative &&",
+        "bool nativeReady=available&&",
         "TryUseProductionHeroClip(facing);",
     ]:
         assert mark in engine, "Missing native Animator pixel-parity fallback: " + mark
     assert "bool available=TryUsePublishedHeroFrame(equipment,action," in engine
-    # Third-combo/heavy original poses must bypass both regular 4/5
-    # Sprite strip sampling and its normal-attack Animator clip.
+    # Heavy combos keep the SAME canonical full-body Attack atlas; never
+    # revert to a different original costume or independent Animator clock.
     assert "AddComponent<UnityEngine.Rendering.SortingGroup>()" in engine
     assert "CanonicalHeroSpriteFactory.PixelsPerUnit" in engine
     spec_cs = compositor

@@ -346,12 +346,14 @@ namespace Starfall
         {
             // Destroy only our Sprite sub-rect wrappers, not shared Resources
             // textures which can be referenced by other game systems.
-            foreach (Sprite[] cells in heroPublishedSprites.Values)
-                foreach (Sprite sprite in cells)
-                    if (sprite != null && heroOwnedPublishedSprites.Remove(sprite))
-                        Destroy(sprite);
-            heroPublishedSprites.Clear();
+            // A Sprite.Create() can throw halfway through an atlas import.
+            // Those partial wrappers are tracked in this ownership set but
+            // not necessarily in heroPublishedSprites. Dispose ALL wrappers
+            // we created, and never imported Unity-owned Sprite sub-assets.
+            foreach(Sprite sprite in heroOwnedPublishedSprites)
+                if(sprite!=null)Destroy(sprite);
             heroOwnedPublishedSprites.Clear();
+            heroPublishedSprites.Clear();
             heroPublishedUnavailable.Clear();
             heroRejectedNativeClips.Clear();
             if (heroCaptureCamera != null) heroCaptureCamera.targetTexture = null;
