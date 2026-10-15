@@ -803,10 +803,58 @@ public static class RenderStateChecks
         Console.WriteLine("PASS stable wave artwork UV, smooth low-alpha glints, reduced motion and dry-road safety");
     }
 
+    private static void GroundedActorsHaveContinuousAcceptedSoftShadows(FrontierRuntime app)
+    {
+        Prepare(app);
+        var source=Get<Texture2D>(app,"actorContactShadows");
+        Check(source==null,
+            "Old low-detail ActorContactShadows.png cannot re-enter production");
+        Matrix4x4 original=Matrix4x4.TRS(new Vector3(21,37,0),
+            Quaternion.identity,new Vector3(1.2f,1.2f,1));
+        Color incoming=new Color(.3f,.6f,.7f,.8f);
+        GUI.matrix=original; GUI.color=incoming;
+        int n=0;
+        foreach(float width in new[]{34f,72f,142f,240f})
+        foreach(float depth in new[]{13f,22f,33f})
+        {
+            Point root=new Point(280,420);
+            Clear();
+            Call(app,"DrawActorContactShadow",root,width,depth,7,.78f);
+            Check(GUI.textureCalls.Count==1,
+                "One continuous feathered source shadow per actor; no bars/segments");
+            var shadow=GUI.textureCalls[0];
+            Check(shadow.texture.name=="soft_glow",
+                "Use the existing stable soft-light texture for shadow, not crude PNGs");
+            Check(Math.Abs(shadow.rect.width-width)<.0001f&&
+                Math.Abs(shadow.rect.height-depth)<.0001f,
+                "Actor shadow width and depth must match its rooted silhouette");
+            Vector3 pivot=shadow.matrix.MultiplyPoint3x4(
+                new Vector3(shadow.rect.x+shadow.rect.width*.5f,
+                    shadow.rect.y+shadow.rect.height*.5f,0));
+            Near(pivot,original.MultiplyPoint3x4(
+                new Vector3(root.x,root.y,0)),
+                "Contact must stay beneath the single GameCore foot");
+            Check(shadow.color.a>.2f&&shadow.color.a<.6f,
+                "Earth shadow is soft, restrained and transparent");
+            Same(GUI.matrix,original,
+                "Rooted shadow must restore viewport transform");
+            Same(GUI.color,incoming,
+                "Rooted shadow must restore GUI tint");
+            n++;
+        }
+        Clear();
+        Call(app,"DrawActorContactShadow",new Point(280,420),
+            60f,15f,0,0f);
+        Check(GUI.textureCalls.Count==0,
+            "Invisible actors cannot leave a disconnected shadow ghost");
+        Console.WriteLine("PASS "+n+
+            " original soft grounded actor samples across NPC/hero/Boss sizes; no rejected contact sprite");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

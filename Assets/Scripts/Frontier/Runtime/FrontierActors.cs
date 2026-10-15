@@ -156,10 +156,18 @@ namespace Starfall
                     new Rect(foot.x-width/2f,foot.y-depth*.72f,width,depth),
                     new Color(1,1,1,opacity));
             }
-            // An unapproved patch must not be replaced by a flat dark bar:
-            // original high-detail actor frames already contain root contact.
-            // Future high-quality shadows may be reconnected above.
-
+            else if(opacity>.001f)
+            {
+                // Mature full-body paintings are restored. Ground them with
+                // the SAME soft 64px feathered texture that lights use,
+                // tinted warm/cool earth-shadow; never resurrect the old
+                // rejected ActorContactShadows.png or flat dark rectangles.
+                // One full shadow per actor, with exact foot pivot shared by
+                // idle/walk/attack/cast/hit/death.
+                Image(art.Glow(),foot.x-width*.5f,foot.y-depth*.5f,
+                    width,depth,new Color(.045f,.07f,.105f,
+                        .58f*opacity));
+            }
         }
         // Both the Unity SpriteRenderer capture and the OnGUI safety path
         // use the same authoritative GameCore clock and published sprite cell.
