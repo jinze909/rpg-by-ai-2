@@ -100,6 +100,36 @@ namespace Starfall
             fullBodyHeroSheetCache =
             new System.Collections.Generic.Dictionary<string,Texture2D>();
 
+
+        // A contact transfer is considered live only when the COMPLETE set
+        // of 18 seven-cell actions exists: no mixed professions/facings.
+        // An incomplete art drop leaves all established six-cell art intact.
+        private bool heroContactFamilyChecked;
+        private bool heroContactFamilyComplete;
+
+        private bool HasCompleteHeroContactArt()
+        {
+            if(heroContactFamilyChecked)return heroContactFamilyComplete;
+            heroContactFamilyChecked=true;
+            foreach(string profession in FullHeroClasses)
+                foreach(string action in new[]{"Attack","Cast"})
+                    foreach(string direction in FullHeroFacings)
+                    {
+                        string key="Hero_"+profession+"_"+action+"_"+direction;
+                        Texture2D atlas;
+                        if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas))
+                        {
+                            atlas=Resources.Load<Texture2D>(
+                                "Frontier/HeroAnimator/Canonical/"+key);
+                            fullBodyHeroSheetCache[key]=atlas;
+                        }
+                        if(atlas==null||atlas.height!=256||atlas.width!=7*256)
+                            return false;
+                    }
+            heroContactFamilyComplete=true;
+            return true;
+        }
+
         private bool ResolveFullBodyHeroFrame(bool moving,int facing,
             out int action,out int frames,out int index,out float position)
         {
@@ -109,8 +139,9 @@ namespace Starfall
             int authored=moving?4:Game.HeroAnimationFrameCount(facing);
             if(authored<=0)return false;
             bool actionSix=(action==2||action==3)&&authored==4;
+            bool actionSeven=actionSix&&HasCompleteHeroContactArt();
             bool reactionFive=(action==4||action==5)&&authored==3;
-            frames=actionSix?6:reactionFive?5:authored;
+            frames=actionSeven?7:actionSix?6:reactionFive?5:authored;
             float phase=moving?Game.WalkPosePhase:
                 Game.HeroAnimationPlaybackPosition(facing);
             // Attack/Cast source pose #2 is the LAST windup pose. An
@@ -118,7 +149,12 @@ namespace Starfall
             // the release keypose early just to conceal a missing drawing.
             // The GameCore source phase >=2, not an interpolated limb,
             // selects the actual contact frame.
-            position=actionSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):
+            // Seven-cell: 0 idle, 1 guard, 2 windup, 3 NEW hand-painted
+            // anticipation, 4 real contact, 5 recovery, 6 idle.
+            // Before ActorAction.released the contact cell is unreachable.
+            // Six-cell legacy keeps the identical prior damage-clock mapping.
+            position=actionSeven?(phase<2f?Math.Min(3f,phase*2f):phase*2f):
+                actionSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):
                 reactionFive?phase*2f:phase;
             if(action==1)position%=frames;
             index=Math.Max(0,Math.Min(frames-1,(int)Math.Floor(position+.20f)));

@@ -42,6 +42,7 @@ namespace Starfall.EditorTools
         public static void EnsureBuilt()
         {
             bool ready = true;
+            int contactSevenCount = 0;
             var spriteBinding = new EditorCurveBinding {
                 path = "", type = typeof(SpriteRenderer), propertyName = "m_Sprite" };
             foreach (string profession in Classes)
@@ -63,6 +64,9 @@ namespace Starfall.EditorTools
                         // check silently left old curves active in gameplay.
                         Texture2D atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(
                             Generated + key + ".png");
+                        expected = PublishedFrameCount(atlas, approved.Length, action);
+                        if ((action == 2 || action == 3) && expected == 7)
+                            contactSevenCount++;
                         if (atlas == null || atlas.width != expected * Cell ||
                             atlas.height != Cell)
                             ready = false;
@@ -80,7 +84,21 @@ namespace Starfall.EditorTools
                             ready = false;
                     }
             }
+            if (contactSevenCount != 0 && contactSevenCount != 18)
+                ready = false;
             if (!ready) Build();
+        }
+
+        // The validated seven-cell set is optional until all 18 genuinely
+        // hand-drawn contact sheets are published. Never invent the missing
+        // seventh cell by modifying playback speed or sprite raster geometry.
+        private static int PublishedFrameCount(Texture2D atlas, int sourceCount, int action)
+        {
+            int expected = ExpandedCount(sourceCount, action);
+            if (atlas != null && atlas.height == Cell && expected == 6 &&
+                (action == 2 || action == 3) && atlas.width == 7 * Cell)
+                return 7;
+            return expected;
         }
 
         private static bool NativeClipMatchesPublished(
@@ -142,6 +160,7 @@ namespace Starfall.EditorTools
             Directory.CreateDirectory(Controllers);
             Directory.CreateDirectory(Clips);
             var atlasPaths = new Dictionary<string, string>();
+            int installedSevenContacts = 0;
             foreach (string profession in Classes)
                 for (int action = 0; action < Actions.Length; action++)
                     for (int facing = 0; facing < Facings.Length; facing++)
@@ -160,6 +179,9 @@ namespace Starfall.EditorTools
                         {
                             Texture2D installed = AssetDatabase.LoadAssetAtPath<Texture2D>(
                                 installedPath);
+                            expectedCount = PublishedFrameCount(installed, refs.Length, action);
+                            if ((action == 2 || action == 3) && expectedCount == 7)
+                                installedSevenContacts++;
                             if (installed == null || installed.height != Cell ||
                                 installed.width != expectedCount * Cell)
                                 throw new InvalidOperationException(
@@ -177,6 +199,10 @@ namespace Starfall.EditorTools
                             ". Run verified Sprite export/publish on chatgpt/dev " +
                             "and preserve the established Sprite GUIDs.");
                     }
+            if (installedSevenContacts != 0 && installedSevenContacts != 18)
+                throw new InvalidOperationException(
+                    "Mixed six/seven-cell Attack/Cast assets: all 18 "+
+                    "hand-drawn contacts must be published atomically.");
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             var clips = new Dictionary<string, AnimationClip>();
             foreach (string profession in Classes)
@@ -188,12 +214,15 @@ namespace Starfall.EditorTools
                             action, facing);
                         VerifySameProfessionBody(profession, refs);
                         string path = atlasPaths[key];
-                        ImportCanonicalSheet(path, key, ExpandedCount(refs.Length, action));
+                        int publishedCount = PublishedFrameCount(
+                            AssetDatabase.LoadAssetAtPath<Texture2D>(path),
+                            refs.Length, action);
+                        ImportCanonicalSheet(path, key, publishedCount);
                         Sprite[] frames = AssetDatabase.LoadAllAssetsAtPath(path)
                             .OfType<Sprite>()
                             .OrderBy(s => FrameIndex(s.name))
                             .ToArray();
-                        if (frames.Length != ExpandedCount(refs.Length, action) ||
+                        if (frames.Length != publishedCount ||
                             frames.Any(s => s.rect.width != Cell || s.rect.height != Cell ||
                                 Vector2.Distance(s.pivot,
                                     new Vector2(CanonicalHeroSpriteFactory.FootX,

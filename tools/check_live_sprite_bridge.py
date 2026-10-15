@@ -65,8 +65,19 @@ def check():
     assert "if(action==1)position%=frames;" in actor
     assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
     assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor
-    assert "position=actionSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):" in actor
-    assert "frames=actionSix?6:reactionFive?5:authored;" in actor
+    assert "actionSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):" in actor
+    assert "frames=actionSeven?7:actionSix?6:reactionFive?5:authored;" in actor
+    assert "bool actionSeven=actionSix&&HasCompleteHeroContactArt();" in actor
+    assert "heroContactFamilyChecked" in actor and "heroContactFamilyComplete" in actor
+    assert "atlas.width!=7*256" in actor
+    assert "phase<2f?Math.Min(3f,phase*2f):phase*2f" in actor
+    # Exact contact boundary, no early release frame even at maximal windup.
+    def sampled_cell(phase, seven):
+        pos = (min(3.,phase*2.) if phase<2 else phase*2) if seven else (
+            min(2.,phase*2.) if phase<2 else phase*2-1)
+        return min(6 if seven else 5, int(pos+.20))
+    assert sampled_cell(1.55, True)==3 and sampled_cell(2,True)==4
+    assert sampled_cell(1.55, False)==2 and sampled_cell(2,False)==3
     assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
     assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
@@ -100,6 +111,9 @@ def check():
     assert "ExpandWithInbetweens(" not in native
     assert "Missing approved full-body hero atlas: " in native
     assert "ExpandedCount(refs.Length, action)" in native
+    assert "PublishedFrameCount(Texture2D atlas, int sourceCount, int action)" in native
+    assert "installedSevenContacts != 0 && installedSevenContacts != 18" in native
+    assert "contactSevenCount != 0 && contactSevenCount != 18" in native
     assert "public static void EnsureBuilt()" in native
     assert "if (!ready) Build();" in native
     # Published Cast strips expanded from 3 to 7 frames; a native Clip
