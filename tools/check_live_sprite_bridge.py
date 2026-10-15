@@ -258,15 +258,14 @@ def check():
     assert "if(!captured)" in actor and "DrawWholeBodyHeroOnGUI" in actor
     assert "KeyCode.F8" in game and "else ReleaseHeroCapture();" in game
     assert engine.count("return false;") >= 3, "Production must have a failure fallback"
-    # Sword Q/ordinary attack contact remain full-body authored poses.
-    # Once GameCore genuinely permits recovery movement, we show an
-    # unspliced same-class RUN frame; no Q damage timing changes.
-    for mark in ("bool movingRecovery=!Game.Dying&&Game.ActuallyMoving&&",
-                 "Game.PlayerMobility==MobilityRule.Reduced&&",
-                 "pose>=4&&pose<=7;",
-                 "sheet=walkSheets[look];",
-                 "bool moving=pose>=2&&pose<=3||movingRecovery;"):
-        assert mark in actor, "Missing safe full-body recovery switch: " + mark
+    # Sword/Q/ordinary attack contact and recovery remain a COMPLETE
+    # class-owned action body until the authoritative damage clock ends.
+    # GameCore may translate its root while reduced-speed recovery runs, but
+    # MUST NOT switch to an unrelated Walk torso/weapon/facing mid-action.
+    assert "bool moving=pose>=2&&pose<=3;" in actor
+    assert "sheet=walkSheets[look];" in actor  # legitimate full-body Run only
+    assert "bool movingRecovery" not in actor
+    assert "Game.HeroAnimationState==2" in actor  # heavy-sword fallback preserved
     # The entire old generated-parts compositor is retired, not only the
     # notorious waist scanline. Any new runtime leg-sampling/blending
     # implementation must be reviewed as a new algorithm before release.
