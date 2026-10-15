@@ -479,3 +479,62 @@ Formal native Unity 2022.3.53f1 PlayMode/GPU captures and frame
 art-direction signoff remain **NATIVE_UNVERIFIED** and
 **ART_ACCEPTANCE_PENDING** respectively. CI will continue generating
 filmstrips/GIFs and native test scripts for review.
+
+## 2026-10-15 — Third-stage root repair: absolutely no synthetic body-motion cells
+
+**Root cause finally removed from ALL seven hero actions, three classes,
+three facings:** the previous `tools/export_canonical_hero_atlases.py`
+`motion_midpoint` did region-wise inverse warps independently on
+legs/arms/torso, while preserving a fixed head/boot band. It produced
+visible fake 'inbetweens', distorted waist/grip/knees and puppet-like
+motion. Run and Dodge/Hit had already been corrected in preceding
+iterations; Attack/Cast each retained ONE illegitimate warped frame
+between distinct windup and release keyposes (18 sheets total).
+
+**Real production resolution:** no substitute from an unrelated dodge
+or walk sheet was anatomically suitable for this contact transfer.
+Rather than insert false poses/repeated fake interpolation, Attack
+and Cast now contain **six real full-body approved source poses**:
+0 idle; 1 class-authored anticipation; 2 real windup; 3 real release;
+4 class-authored recovery; 5 idle. The old synthetic slot between
+2 and 3 has been deleted. The authoritatively modeled GameCore phase
+still owns its collision and skill release: `HeroAnimationPlaybackPosition`
+source phase >= 2 selects production release slot 3. Until phase 2
+the fully accepted windup at slot 2 remains; no early contact frame.
+The relative action clock, weapon projection/hit timing, saves and
+actual game logic are unchanged.
+
+This was propagated to `FrontierActors.cs`,
+`StarfallCanonicalHeroProductionBuilder.cs`, the genuine
+`Frontier.unity` game scene boot path, native PlayMode tests,
+the Mono C# combat harness and hard-blocking GitHub CI.
+`frame_plan` in the exporter generates a deterministic provenance
+list of approved class-owned source (atlas/index/kind/source key
+index) for **every individual output PNG cell**, including the
+previously approved full-body transition poses. The independent
+whole-body gate compares all pixels head to feet to the named source,
+rejects forged manifests, cross-profession outfit layers, severed
+waists, shifted hips, improper canvas and mismatched Sprite frames.
+The motion gate uses adversarial cut-waist fixtures and also rejects
+repeated adjacent action cells. The 63-source GUIDs remain stable.
+Review filmstrips/GIFs compare the *real production files*.
+
+**Current output:** exactly 63 production sheets / **279** original
+full-body pixel-identical cells (9 Idle ×1, 9 Run ×4,
+18 Attack/Cast ×6, 18 Dodge/Hit ×5, 9 Death ×4).
+`motion_midpoint` has been permanently deleted. There are
+**72** additional genuine source-art transition poses across the
+Attack/Cast and Dodge/Hit clips and **ZERO** procedurally warped,
+limb-blended, or fake interpolation cells in production.
+No new drawings are claimed. The instantaneous pose change at
+windup→contact may still be aesthetically abrupt and merits a new
+artist-drawn connecting keyframe later, not a made-up procedural one.
+
+**Status:** the native SpriteRenderer/Animator implementation remains
+opt-in behind F8 until actual Unity 2022.3.53f1 GPU PlayMode
+screenshots and frame timing tests are run. Offline C#/Sprite CI can
+validate the implementation and published frame-provenance, but does
+not prove subjective movement naturalness.
+`NATIVE_UNVERIFIED`; `ART_ACCEPTANCE_PENDING`.
+Earlier 333/297 frame counts and earlier 7-frame Attack/Cast
+claims are superseded by this 279/6-cell source-art release.
