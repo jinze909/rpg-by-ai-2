@@ -59,7 +59,7 @@ jobs:
   publish-approved-hero-sprites:
     # One-shot, explicitly marked development handoff. A GITHUB_TOKEN push
     # does not spawn another CI run. Do not create an autonomous commit loop.
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-hero-art]') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && (contains(github.event.head_commit.message, '[publish-hero-art]') || contains(github.event.head_commit.message, '[release-hero-contacts]')) }}
     needs: core
     runs-on: ubuntu-latest
     permissions:
@@ -81,6 +81,9 @@ jobs:
           # Validate the 63 freshly installed production textures instead.
           python3 tools/check_installed_hero_atlases.py
           python3 tools/check_hero_runtime_continuity.py
+      - name: Enforce 18 installed original-contact drawings for final art-release tag
+        if: ${{ contains(github.event.head_commit.message, '[release-hero-contacts]') }}
+        run: python3 tools/check_hero_contact_art.py --release
       - name: Safe fast-forward publish into the ONLY writable branch
         shell: bash
         run: |
