@@ -113,7 +113,7 @@ namespace Starfall
             position=(moving?Game.WalkPosePhase:
                 Game.HeroAnimationPlaybackPosition(facing))*(interpolate?2f:1f);
             if(action==1)position%=frames;
-            index=Math.Max(0,Math.Min(frames-1,Mathf.FloorToInt(position+.20f)));
+            index=Math.Max(0,Math.Min(frames-1,(int)Math.Floor(position+.20f)));
             return true;
         }
 
