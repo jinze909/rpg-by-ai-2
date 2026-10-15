@@ -141,6 +141,7 @@ namespace UnityEngine
         public float speed;
         public float lastNormalizedSample;
         public int sampleCount;
+        public static bool InjectWrongSpriteOnce;
         private int action, facing;
         private static readonly string[] Actions =
             { "Idle","Run","Attack","Cast","Dodge","Hit","Death" };
@@ -173,7 +174,15 @@ namespace UnityEngine
             int slot=(int)Math.Floor(lastNormalizedSample*frames.Length);
             if(slot<0)slot=0;
             if(slot>=frames.Length)slot=frames.Length-1;
-            targetRenderer.sprite=frames[slot];
+            if(InjectWrongSpriteOnce)
+            {
+                InjectWrongSpriteOnce=false;
+                targetRenderer.sprite=Sprite.Create(
+                    new Texture2D(256,256,TextureFormat.RGBA32,false),
+                    new Rect(0,0,256,256),new Vector2(128,16),128f,0,
+                    SpriteMeshType.FullRect);
+            }
+            else targetRenderer.sprite=frames[slot];
         }
     }
     public class Camera : Behaviour

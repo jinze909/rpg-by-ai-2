@@ -47,8 +47,11 @@ namespace Starfall
         // An imported Animator can exist while its override still references
         // another class, stale clip or wrong direction. Never repeatedly
         // sample a known-mismatched native clip during this play session.
-        private readonly HashSet<string> heroRejectedNativeClips =
-            new HashSet<string>();
+        // A transient Animator graph/import race must not permanently turn
+        // off otherwise valid three-class native Sprite curves. Hold the exact
+        // verified Sprite while cooling down; retry the native state later.
+        private readonly Dictionary<string,int> heroRejectedNativeClips =
+            new Dictionary<string,int>();
         private int heroCaptureFrame = -1;
         private Sprite heroCaptureRenderedSprite;
         private bool heroCaptureRenderedFlip;
@@ -95,8 +98,11 @@ namespace Starfall
                 Sprite canonical;
                 bool available=TryUsePublishedHeroFrame(equipment,action,
                     facing,publishedFrame,bakedFrames,out canonical);
-                bool nativeReady=available&&
-                    !heroRejectedNativeClips.Contains(nativeClipKey)&&
+                int rejectedUntil;
+                bool recentlyRejected =
+                    heroRejectedNativeClips.TryGetValue(nativeClipKey,
+                        out rejectedUntil) && Time.frameCount < rejectedUntil;
+                bool nativeReady=available && !recentlyRejected &&
                     TryUseProductionHeroClip(facing);
                 if(nativeReady)
                 {
@@ -121,13 +127,18 @@ namespace Starfall
                     {
                         // A stale cross-class Animator clip must never leak
                         // an unrelated equipment/body into a live scene.
-                        heroRejectedNativeClips.Add(nativeClipKey);
+                        heroRejectedNativeClips[nativeClipKey]=
+                            Time.frameCount+120;
                         heroCaptureAnimator.enabled=false;
                         heroCaptureRenderer.sprite=canonical;
-                        Debug.LogWarning(
-                            "Starfall rejected wrong native full-body hero clip "+
-                            nativeClipKey+"; using exact published Sprite.");
+                        if(missingHeroBodyWarnings.Add("native-clip:"+nativeClipKey))
+                            Debug.LogWarning(
+                                "Starfall rejected mismatched native full-body "+
+                                nativeClipKey+"; holding exact published Sprite "+
+                                "and retrying the Animator after cooldown.");
                     }
+                    else
+                        heroRejectedNativeClips.Remove(nativeClipKey);
                 }
                 else
                 {

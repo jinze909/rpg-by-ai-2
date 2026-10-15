@@ -132,13 +132,44 @@ public static class NativeHeroCaptureChecks
             new Point(100,140),new Color(1,1,1,1),false,0,false});
         Require(restored&&attackEast.IsCreated(),
             "lost source-pose GPU buffer was not recreated");
+        // Simulate one transient wrong-asset return from a Unity Animator
+        // during editor import. The frame visible to the player must ALWAYS
+        // be the right published Sprite, and native playback must recover
+        // automatically without restarting the scene.
+        string actionResource="Frontier/HeroAnimator/Canonical/Hero_Vanguard_Attack_E";
+        Animator.InjectWrongSpriteOnce=true;
+        app.ProbeFrame=3;
+        Time.frameCount=1100;
+        bool guarded=(bool)draw.Invoke(app,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        var liveAnimator=animatorField.GetValue(app) as Animator;
+        var liveRenderer=renderField.GetValue(app) as SpriteRenderer;
+        Require(guarded&&liveAnimator!=null&&!liveAnimator.enabled&&
+            ReferenceEquals(liveRenderer.sprite,
+                Resources.RegisteredSprites[actionResource][3]),
+            "temporary wrong Animator sprite leaked into visible player body");
+        int attempts=liveAnimator.sampleCount;
+        Time.frameCount=1101;
+        bool cooled=(bool)draw.Invoke(app,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(cooled&&!liveAnimator.enabled&&
+            liveAnimator.sampleCount==attempts,
+            "same bad Animator clip retried every repaint instead of stable fallback");
+        Time.frameCount=1221;
+        bool recoveredNative=(bool)draw.Invoke(app,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(recoveredNative&&liveAnimator.enabled&&
+            liveAnimator.sampleCount>attempts&&
+            ReferenceEquals(liveRenderer.sprite,
+                Resources.RegisteredSprites[actionResource][3]),
+            "native Animator stayed permanently disabled after transient import mismatch");
         release.Invoke(app,null);
         foreach(var target in textures)
             Require(target.releaseCount>0&&!target.IsCreated(),
                 "captured action GPU target leaked at shutdown");
         Require(contactTexture.releaseCount>0,
             "contact target leaked at shutdown");
-        Console.WriteLine("PASS 84 E/W/N/S three-class all-action native captures (24 LMB/Q), left flip, E-W-E, windup-contact, device loss and cleanup");
+        Console.WriteLine("PASS 84 E/W/N/S three-class all-action native captures (24 LMB/Q), left flip, E-W-E, windup-contact, transient bad-clip recovery, device loss and cleanup");
         Console.WriteLine("NATIVE_UNVERIFIED: Unity GPU/GameView/Animator not executed");
     }
 }

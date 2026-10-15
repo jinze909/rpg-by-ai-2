@@ -118,6 +118,25 @@ def run():
     assert denied.returncode!=0 and "HERO_CAPTURE_REGRESSION" in denied.stdout,(
         "UNSAFE_CI_ACCEPTED_FRACTIONAL_ANIMATOR_FRAME_DRIFT",denied.stdout)
     print("PASS fractional Animator sample mutation hard-FAIL")
+    # A permanently disabled clip should fail the live native recovery test,
+    # even if an apparently safe Sprite fallback keeps drawing a body.
+    reenable="Time.frameCount < rejectedUntil"
+    assert original.count(reenable)==1,"HERO_STALE_ANIMATOR_RECOVERY_MISSING"
+    stuck=original.replace(reenable,"true",1)
+    stuckPath=OUT/"broken-hero-animator-stuck.cs"
+    stuckPath.write_text(stuck,encoding="utf-8")
+    stuckExe=OUT/"broken-hero-animator-stuck.exe"
+    builtStuck=subprocess.run(compiler()+[
+        "-define:UNITY_5_3_OR_NEWER","-out:"+str(stuckExe),
+        str(STUB),str(FACTORY),str(stuckPath),str(probe)],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert builtStuck.returncode==0,(
+        "HERO_STALE_ANIMATOR_MUTATION_INVALID",builtStuck.stdout)
+    rejectedStuck=subprocess.run([mono,str(stuckExe)],cwd=ROOT,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert rejectedStuck.returncode!=0 and "HERO_CAPTURE_REGRESSION" in rejectedStuck.stdout,(
+        "UNSAFE_CI_ACCEPTED_PERMANENT_ANIMATOR_DISABLE",rejectedStuck.stdout)
+    print("PASS permanently disabled Animator retry mutation hard-FAIL")
     print("PASS actual UNITY_5_3_OR_NEWER SpriteRenderer + canonical "
           "Sprite factory compiled in separate C# assembly")
     print("PASS fault-injected invalid SpriteRenderer API rejected by mcs")
