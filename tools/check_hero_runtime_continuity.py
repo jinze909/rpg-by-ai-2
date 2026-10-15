@@ -119,7 +119,34 @@ def preview(name, frames):
                      loop=0, optimize=True)
 
 
+def verify_failure_gates():
+    """Prove these checks fail on broken production sprites, not just PASS."""
+    def expect_failure(label, frames, action):
+        try:
+            o, t = measure(frames)
+            fail_nonoptional("synthetic_"+label, action, frames, o, t)
+        except AssertionError:
+            return
+        raise AssertionError("UNSAFE_CI_GATE: " + label + " was accepted")
+    blank = Image.new("RGBA", (CELL,CELL), (0,0,0,0))
+    expect_failure("blank_body", [blank.copy() for _ in range(8)], "Run")
+    small = Image.new("RGBA", (CELL,CELL))
+    ImageDraw.Draw(small).rectangle((125,170,128,175), fill=(229,114,45,255))
+    expect_failure("truncated_torso", [small.copy() for _ in range(8)], "Run")
+    normal = Image.new("RGBA", (CELL,CELL))
+    ImageDraw.Draw(normal).rectangle((104,147,149,238),fill=(91,63,48,255))
+    expect_failure("static_run", [normal.copy() for _ in range(8)], "Run")
+    # Intentional large discontinuity with valid full-body footprints
+    # must fail independently of duplicate frame detection.
+    left = Image.new("RGBA", (CELL,CELL))
+    right = Image.new("RGBA", (CELL,CELL))
+    ImageDraw.Draw(left).rectangle((49,147,95,238),fill=(91,63,48,255))
+    ImageDraw.Draw(right).rectangle((159,147,205,238),fill=(91,63,48,255))
+    expect_failure("teleporting_run", [left,right]*4, "Run")
+
+
 def run():
+    verify_failure_gates()
     DEST.mkdir(parents=True,exist_ok=True)
     rows, frames_checked, repeated = [], 0, 0
     for klass in CLASSES:
