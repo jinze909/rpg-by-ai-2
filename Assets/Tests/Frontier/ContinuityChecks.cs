@@ -200,7 +200,7 @@ namespace Starfall.Tests
             for(int profession=0;profession<3;profession++)for(int equipped=0;equipped<3;equipped++)
             {
                 var g=Quiet(data,profession);g.save.weapon=equipped;g.Skill(new Point(0,-1));ActorAction action=g.playerAction;Point before=g.Position;
-                Check(action.weapon==profession&&action.equippedWeapon==equipped&&g.AppearanceWeapon==profession,"Class technique presents its actual weapon, separately from equipped damage stats");
+                Check(action.weapon==profession&&action.equippedWeapon==equipped&&g.AppearanceWeapon==equipped,"Class technique retains actual equipped hero while skill mechanics remain discipline-owned");
                 while(!action.released)g.Tick(.01f,new Point(1,0));
                 Check(action.released&&(profession!=1||g.projectiles.Count==5),"A cross-equipped class Q remains functional and releases on contact");
                 if(profession>0)Check((g.Position-before).Length<.001f,"Ranged class Q stays planted even when a sword is equipped");
