@@ -73,12 +73,12 @@ def main():
     # Audit exact identity, order AND dimensions against the production
     # Editor builder, not only against this Python mirror.
     def csharp_array(name, kind):
-        match=re.search(r"private static readonly "+kind+r"\\[\\] "+name+
-            r"\\s*=\\s*\\{([^}]+)\\};",source,re.S)
+        match=re.search(r"private static readonly "+kind+r"\[\] "+name+
+            r"\s*=\s*\{([^}]+)\};",source,re.S)
         assert match,("ACCEPTED_SOURCE_SPEC_MISSING",name)
         if kind=="string":
             return re.findall(r'"([A-Za-z0-9]+)"',match.group(1))
-        return [int(v) for v in re.findall(r"\\d+",match.group(1))]
+        return [int(v) for v in re.findall(r"\d+",match.group(1))]
     assert csharp_array("AcceptedSourceNames","string")==[x[0] for x in APPROVED], (
         "NATIVE_EDITOR_ACCEPTED_IDENTITY_MISMATCH")
     assert csharp_array("AcceptedSourceColumns","int")==[x[1] for x in APPROVED], (
