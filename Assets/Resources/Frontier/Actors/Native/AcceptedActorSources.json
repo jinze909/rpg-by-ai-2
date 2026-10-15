@@ -35,6 +35,36 @@
       "name": "EnemyArcherVertical",
       "columns": 3,
       "rows": 2
+    },
+    {
+      "name": "CompanionMira",
+      "columns": 3,
+      "rows": 4
+    },
+    {
+      "name": "CompanionIvo",
+      "columns": 3,
+      "rows": 4
+    },
+    {
+      "name": "CompanionSen",
+      "columns": 3,
+      "rows": 4
+    },
+    {
+      "name": "WalkMira",
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "name": "WalkIvo",
+      "columns": 4,
+      "rows": 3
+    },
+    {
+      "name": "WalkSen",
+      "columns": 4,
+      "rows": 3
     }
   ]
 }

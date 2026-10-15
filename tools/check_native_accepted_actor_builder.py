@@ -22,7 +22,9 @@ OUT=ROOT/".starfall-checks/native-accepted-editor"
 APPROVED=[
     ("Monsters",6,3),("WalkMonsters",4,3),("Bosses",4,8),
     ("WalkBossA",4,4),("WalkBossB",4,4),("Npcs",4,4),
-    ("EnemyArcherVertical",3,2)
+    ("EnemyArcherVertical",3,2),
+    ("CompanionMira",3,4),("CompanionIvo",3,4),("CompanionSen",3,4),
+    ("WalkMira",4,3),("WalkIvo",4,3),("WalkSen",4,3)
 ]
 DEPRECATED={"MossboundRaider","BriarBeast","CinderstoneGuard",
             "EmberfallResidents"}
@@ -114,7 +116,7 @@ def main():
         "-out:"+str(OUT/"accepted-actor-editor.dll"),str(STUB),str(BUILDER)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert built.returncode==0,("ACCEPTED_UNITY_EDITOR_SOURCE_COMPILE_FAILED",built.stdout)
-    print("PASS seven ORIGINAL high-detail source atlas layouts; no candidate promotion")
+    print("PASS 13 ORIGINAL illustrated actor + companion atlas layouts; no candidate promotion")
     print("PASS UnityEditor conditional importer/Player build gate compiled under offline declarations")
     print("PASS attack-source GUID, foot pivot, 3/4/6-col Sprite curve and adversarial mutation checks")
     print("NATIVE_UNVERIFIED: licensed Unity 2022.3 Editor, actual Sprite subassets and GameView not executed")

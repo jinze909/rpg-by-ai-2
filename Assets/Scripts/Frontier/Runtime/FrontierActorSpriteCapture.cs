@@ -44,13 +44,15 @@ namespace Starfall
         private static readonly string[] NativeActorFamilies = {
             "Monsters", "WalkMonsters", "Bosses", "WalkBossA", "WalkBossB",
             "Npcs", "EnemyArcherVertical",
+            "CompanionMira", "CompanionIvo", "CompanionSen",
+            "WalkMira", "WalkIvo", "WalkSen",
             "MossboundRaider", "CinderstoneGuard", "BriarBeast",
             "EmberfallResidents"
         };
         private static readonly int[] NativeActorColumnCounts =
-            {6,4,4,4,4,4,3,4,4,4,4};
+            {6,4,4,4,4,4,3,3,3,3,4,4,4,4,4,4,4};
         private static readonly int[] NativeActorRowCounts =
-            {3,3,8,4,4,4,2,6,6,18,4};
+            {3,3,8,4,4,4,2,4,4,4,3,3,3,6,6,18,4};
         private static readonly int[] ActorPoseHashes = CreateActorPoseHashes();
         private static int[] CreateActorPoseHashes()
         {

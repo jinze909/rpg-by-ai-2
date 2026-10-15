@@ -179,7 +179,8 @@ namespace UnityEngine
                 Sprite[] actorFrames=Resources.LoadAll<Sprite>(nonhero);
                 string family=runtimeAnimatorController.className.Substring(6);
                 int columns=family=="Monsters"?6:
-                    family=="EnemyArcherVertical"?3:4;
+                    family=="EnemyArcherVertical"||
+                    family.StartsWith("Companion")?3:4;
                 int col=(int)Math.Floor(lastNormalizedSample*columns);
                 int selected=pose*columns+Math.Max(0,Math.Min(columns-1,col));
                 if(selected<0 || selected>=actorFrames.Length)return;

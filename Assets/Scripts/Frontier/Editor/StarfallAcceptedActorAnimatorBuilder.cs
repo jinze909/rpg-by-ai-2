@@ -85,7 +85,7 @@ namespace Starfall.EditorTools
             SourceManifest manifest =
                 JsonUtility.FromJson<SourceManifest>(manifestAsset.text);
             if (manifest == null || manifest.version != 1 ||
-                manifest.sources == null || manifest.sources.Length != 7 ||
+                manifest.sources == null || manifest.sources.Length != 13 ||
                 manifest.sources.Select(x => x.name).Distinct().Count() != 7)
                 throw new InvalidOperationException(
                     "Accepted actor manifest changed without an audited art migration");

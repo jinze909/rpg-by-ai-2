@@ -189,9 +189,11 @@ public static class NativeNonheroCaptureChecks
         // replacements. Verify GameCore action cells 0..5 in all 3 monster
         // identities and exact NPC individual cells across four rows.
         string[] originalFamilies={"Monsters","WalkMonsters","Npcs",
-            "EnemyArcherVertical","Bosses","WalkBossA","WalkBossB"};
-        int[] origCols={6,4,4,3,4,4,4};
-        int[] origRows={3,3,4,2,8,4,4};
+            "EnemyArcherVertical","Bosses","WalkBossA","WalkBossB",
+            "CompanionMira","CompanionIvo","CompanionSen",
+            "WalkMira","WalkIvo","WalkSen"};
+        int[] origCols={6,4,4,3,4,4,4,3,3,3,4,4,4};
+        int[] origRows={3,3,4,2,8,4,4,4,4,4,3,3,3};
         for(int i=0;i<originalFamilies.Length;i++)
         {
             string family=originalFamilies[i];
@@ -302,7 +304,7 @@ public static class NativeNonheroCaptureChecks
             ((RenderTexture)second).releaseCount >= 1 &&
             ((RenderTexture)mirrored).releaseCount >= 1,
             "actor GPU targets leaked on runtime destruction");
-        Console.WriteLine("PASS 11 native actor art families (seven original accepted): 3/4/6-column exact GameCore Sprite samples, late Controller cache recovery, GPU safety");
+        Console.WriteLine("PASS 17 native actor families (13 original accepted, including all companions): 3/4/6-column GameCore samples, late Controller recovery, GPU safety");
         Console.WriteLine("NATIVE_UNVERIFIED: GPU pixels, Unity GameView and Animator");
     }
 }
