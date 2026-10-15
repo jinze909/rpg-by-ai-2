@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -313,7 +313,7 @@
         "S"
       ],
       "count": 63,
-      "frames": 333
+      "frames": 297
     },
     "frame_clock": "ResolveFullBodyHeroFrame(wholeBodyRun, facing) shared by native and fallback",
     "attack_mobility": "Full-body attack/skill keyframe until authoritative release, complete same-class Run after reduced-speed moving recovery begins",
@@ -327,6 +327,16 @@
     "scene_binding": "FrontierRuntime.Boot() subscribes sceneLoaded and adds live MonoBehaviour for Assets/Scenes/Frontier.unity; FrontierEditor builds this scene",
     "native_qa_status": "NATIVE_UNVERIFIED; do not enable native capture by default without actual Unity 2022.3.53f1 Game View + PlayMode",
     "runtime_art_gate": "tools/check_hero_runtime_continuity.py validates real 63 PNGs and emits 22 representative production filmstrips/GIFs/onion-skins; metrics alone do not approve authored animation",
-    "full_body_source_qa": "Source-original RGBA crop vs generated full body byte exact, with per-class hair color/neck region checks (tools/check_hero_visual_spec.py, tools/check_hero_whole_body_integrity.py)."
+    "full_body_source_qa": "Source-original RGBA crop vs generated full body byte exact, with per-class hair color/neck region checks (tools/check_hero_visual_spec.py, tools/check_hero_whole_body_integrity.py).",
+    "run_policy": {
+      "facing_matrix": "Vanguard/Ranger/Arcanist x E/N/S",
+      "frame_count": 4,
+      "source": "Walk<profession> [facing*4+0..3]",
+      "algorithmic_intermediate_frames": 0,
+      "clock": "GameCore WalkPosePhase -> same authored cell at index 0..3",
+      "production_reason": "Rejected all four synthetic raster-warp midpoints per clip; whole-body authored Run has continuous class-owned head, hips, legs and foot root.",
+      "native_validation": "NATIVE_UNVERIFIED"
+    },
+    "art_provenance": "297 shipped cells: 9 Run sheets with four pixel-exact authored frames, plus 54 remaining action sheets retaining previously documented curated and synthetic transition details"
   }
 }
