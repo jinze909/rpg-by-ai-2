@@ -298,14 +298,14 @@ namespace Starfall.EditorTools
         // manually drawn anticipation/contact/recovery art.
         private static int ExpandedCount(int original, int action)
         {
-            return original > 1 && action >= 1 && action <= 3
+            return original > 1 && action >= 1 && action <= 5
                 ? original * 2 - (action == 1 ? 0 : 1) : original;
         }
 
         private static List<Color[]> ExpandWithInbetweens(List<Color[]> original, int action)
         {
             var result = new List<Color[]>(ExpandedCount(original.Count, action));
-            bool interpolate = original.Count > 1 && action >= 1 && action <= 3;
+            bool interpolate = original.Count > 1 && action >= 1 && action <= 5;
             for (int i = 0; i < original.Count; i++)
             {
                 result.Add(original[i]);
