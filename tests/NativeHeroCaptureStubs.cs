@@ -12,6 +12,7 @@ namespace UnityEngine
 
     public class Object
     {
+        public string name;
         public static void Destroy(Object value) { }
         // Unity gives every live atlas its own instance identity. Returning
         // a constant hid real cache collisions in multi-atlas probes.
@@ -142,7 +143,7 @@ namespace UnityEngine
         public float lastNormalizedSample;
         public int sampleCount;
         public static bool InjectWrongSpriteOnce;
-        private int action, facing;
+        private int action, facing, pose;
         private static readonly string[] Actions =
             { "Idle","Run","Attack","Cast","Dodge","Hit","Death" };
         private static readonly string[] Faces = { "E","N","S" };
@@ -156,6 +157,7 @@ namespace UnityEngine
         {
             if (parameter=="Action") action=value;
             if (parameter=="Facing") facing=value;
+            if (parameter=="Pose") pose=value;
         }
         public void Update(float deltaTime)
         {
@@ -166,6 +168,29 @@ namespace UnityEngine
             if (!enabled || runtimeAnimatorController==null ||
                 targetRenderer==null || action<0 || action>=Actions.Length ||
                 facing<0 || facing>=Faces.Length) return;
+            // Native nonhero bridge is also driven by a hard GameCore row,
+            // never by Animator autonomous time. This emulates only its
+            // imported Sprite curve, not Unity's GPU or graph validation.
+            if(runtimeAnimatorController.className!=null &&
+                runtimeAnimatorController.className.StartsWith("Actor_"))
+            {
+                string nonhero="Frontier/Art/"+
+                    runtimeAnimatorController.className.Substring(6);
+                Sprite[] actorFrames=Resources.LoadAll<Sprite>(nonhero);
+                int col=(int)Math.Floor(lastNormalizedSample*4f);
+                int selected=pose*4+Math.Max(0,Math.Min(3,col));
+                if(selected<0 || selected>=actorFrames.Length)return;
+                if(InjectWrongSpriteOnce)
+                {
+                    InjectWrongSpriteOnce=false;
+                    targetRenderer.sprite=Sprite.Create(
+                        new Texture2D(128,128,TextureFormat.RGBA32,false),
+                        new Rect(0,0,128,128),new Vector2(.5f,.0625f),
+                        128f,0,SpriteMeshType.FullRect);
+                }
+                else targetRenderer.sprite=actorFrames[selected];
+                return;
+            }
             string key="Frontier/HeroAnimator/Canonical/Hero_"+
                 runtimeAnimatorController.className+"_"+Actions[action]+"_"+
                 Faces[facing];

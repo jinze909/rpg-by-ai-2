@@ -146,6 +146,29 @@ def main():
         "NONHERO_CAPTURE_REGRESSION" in blocked.stdout), (
         "NONHERO_PERMANENT_GPU_FALLBACK_FALSE_PASS", blocked.stdout)
     print("PASS regression mutation: permanent nonhero GPU fallback hard-fails")
+    # Mutation: force every row to Idle despite GameCore choosing Attack,
+    # phase changes, talking or death. The same real native C# probe MUST
+    # fail instead of green-lighting a placeholder Animator component.
+    row_signal = 'actorCaptureAnimator.SetInteger("Pose", row);'
+    assert native.count(row_signal)==1, "NONHERO_NATIVE_POSE_BRIDGE_MISSING"
+    wrong_row = native.replace(row_signal,
+        'actorCaptureAnimator.SetInteger("Pose", 0);',1)
+    wrong_path=OUT/"faulted-nonhero-native-pose.cs"
+    wrong_path.write_text(wrong_row)
+    wrong_exe=OUT/"faulted-nonhero-native-pose.exe"
+    wrong_build=subprocess.run([
+        os.environ.get("STARFALL_MCS",shutil.which("mcs")),
+        "-define:UNITY_5_3_OR_NEWER", "-out:"+str(wrong_exe),
+        str(STUB),str(wrong_path),
+        str(ROOT/"tests/NativeNonheroCaptureChecks.cs")],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert wrong_build.returncode==0,("NONHERO_BAD_POSE_TEST_BUILD",wrong_build.stdout)
+    refused=subprocess.run([mono,str(wrong_exe)],cwd=ROOT,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert refused.returncode!=0 and (
+        "NONHERO_CAPTURE_REGRESSION" in refused.stdout),(
+        "NONHERO_CI_ACCEPTED_INDEPENDENT_IDLE_ANIMATOR",refused.stdout)
+    print("PASS regression mutation: forced Idle Animator row hard-fails")
     # Each indexed atlas listed below is ACTUALLY sampled in FrontierActors.
     atlases = [
         ("Npcs", 4, 4, range(16)),

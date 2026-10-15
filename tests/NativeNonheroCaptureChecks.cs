@@ -131,6 +131,79 @@ public static class NativeNonheroCaptureChecks
         release.Invoke(recovering, null);
         Require(recoveredTarget.releaseCount >= 1 && !recoveredTarget.IsCreated(),
             "GPU fault recovery leaked restored render target");
+        // Native animator is no longer a disabled placeholder. Four actual
+        // art families: raid monster, guard, 3-phase Boss and talking NPC.
+        // Every imported Sprite key points at its original full-body atlas.
+        string[] families={"MossboundRaider","CinderstoneGuard",
+            "BriarBeast","EmberfallResidents"};
+        int[] rowCounts={6,6,18,4};
+        for(int kind=0;kind<families.Length;kind++)
+        {
+            string family=families[kind];
+            int height=family=="BriarBeast"?320:128;
+            var atlas=new Texture2D(height*4,height*rowCounts[kind],
+                TextureFormat.RGBA32,false);
+            atlas.name=family;
+            Resources.Registered["Frontier/Art/"+family]=atlas;
+            Resources.Registered[
+                "Frontier/Actors/Native/Actor_"+family]=
+                new RuntimeAnimatorController {className="Actor_"+family};
+            Sprite[] imported=new Sprite[4*rowCounts[kind]];
+            for(int i=0;i<imported.Length;i++)
+                imported[i]=Sprite.Create(atlas,
+                    new Rect((i%4)*height,
+                        atlas.height-(i/4+1)*height,height,height),
+                    new Vector2(.5f,.0625f),height,0,SpriteMeshType.FullRect);
+            Resources.RegisteredSprites["Frontier/Art/"+family]=imported;
+            var character=new FrontierRuntime();
+            var spriteField=typeof(FrontierRuntime).GetField(
+                "actorCaptureRenderer",BindingFlags.Instance|BindingFlags.NonPublic);
+            var animatorField=typeof(FrontierRuntime).GetField(
+                "actorCaptureAnimator",BindingFlags.Instance|BindingFlags.NonPublic);
+            Require(spriteField!=null&&animatorField!=null,
+                "actual nonhero SpriteRenderer/Animator fields absent");
+            int[] frames={0,4*(rowCounts[kind]/2)+2,
+                4*rowCounts[kind]-1};
+            for(int i=0;i<frames.Length;i++)
+            {
+                Time.frameCount=1200+i;
+                int f=frames[i];
+                bool success=(bool)method.Invoke(character,new object[]{
+                    atlas,4,rowCounts[kind],f,new Point(200,220),96f,
+                    new Color(1,1,1,1),i==2,0f});
+                var liveRenderer=spriteField.GetValue(character) as SpriteRenderer;
+                var liveAnimator=animatorField.GetValue(character) as Animator;
+                Require(success&&liveRenderer!=null&&liveAnimator!=null&&
+                    liveAnimator.enabled&&
+                    ReferenceEquals(liveRenderer.sprite,imported[f])&&
+                    liveRenderer.flipX==(i==2),
+                    "native row/cell/profession mismatch for "+family+" frame "+f);
+                Require(Math.Abs(liveAnimator.lastNormalizedSample-
+                    ((f%4+.5f)/4f))<.0001f,
+                    "nonhero native frame sampled at wrong action-clock boundary");
+            }
+            release.Invoke(character,null);
+        }
+        // A corrupted native clip must NEVER be rendered as a stitched,
+        // foreign-actor or wrong-action body: use exact source Sprite instead.
+        var brokenActor=new FrontierRuntime();
+        var offender=(Texture2D)Resources.Registered[
+            "Frontier/Art/MossboundRaider"];
+        Animator.InjectWrongSpriteOnce=true;
+        Time.frameCount=1400;
+        bool fallback=(bool)method.Invoke(brokenActor,new object[]{
+            offender,4,6,9,new Point(200,220),96f,
+            new Color(1,1,1,1),false,0f});
+        var spriteLookup=typeof(FrontierRuntime).GetField(
+            "actorCaptureRenderer",BindingFlags.Instance|BindingFlags.NonPublic);
+        var animatorLookup=typeof(FrontierRuntime).GetField(
+            "actorCaptureAnimator",BindingFlags.Instance|BindingFlags.NonPublic);
+        var safe=(SpriteRenderer)spriteLookup.GetValue(brokenActor);
+        var stopped=(Animator)animatorLookup.GetValue(brokenActor);
+        Require(fallback&&safe.sprite!=null&&safe.sprite.texture==offender&&
+            !stopped.enabled,
+            "invalid native NPC/monster clip escaped exact full-body fallback");
+        release.Invoke(brokenActor,null);
         release.Invoke(runtime, null);
         Require(bossCapture.releaseCount >= 1 &&
             wideCapture.releaseCount >= 1,
@@ -139,7 +212,7 @@ public static class NativeNonheroCaptureChecks
             ((RenderTexture)second).releaseCount >= 1 &&
             ((RenderTexture)mirrored).releaseCount >= 1,
             "actor GPU targets leaked on runtime destruction");
-        Console.WriteLine("PASS nonhero capture: Boss/NPC/monster source pixels, atlas isolation, GPU failure cooldown and automatic recovery, target cleanup");
+        Console.WriteLine("PASS four native nonhero SpriteRenderer/Animator families, 12 authoritative row/frame samples, wrong-sprite fallback, GPU recovery and target cleanup");
         Console.WriteLine("NATIVE_UNVERIFIED: GPU pixels, Unity GameView and Animator");
     }
 }

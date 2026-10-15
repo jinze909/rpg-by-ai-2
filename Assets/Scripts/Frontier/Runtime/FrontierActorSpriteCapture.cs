@@ -30,6 +30,29 @@ namespace Starfall
             new Dictionary<string, CapturedActorFrame>();
         private readonly Dictionary<string, Sprite> actorFrameSprites =
             new Dictionary<string, Sprite>();
+        // An actual imported SpriteRenderer.m_Sprite curve can drive any
+        // verified four-column authored actor family. GameCore, not Animator,
+        // owns the row and exact frame (windup/release/hit/death/dialogue).
+        // Unknown art uses the already verified exact-cell Sprite fallback.
+        private static readonly string[] NativeActorFamilies =
+            {"MossboundRaider","CinderstoneGuard","BriarBeast","EmberfallResidents"};
+        private static readonly int[] NativeActorRowCounts = {6,6,18,4};
+        private static readonly int[] ActorPoseHashes = CreateActorPoseHashes();
+        private static int[] CreateActorPoseHashes()
+        {
+            int[] hashes = new int[18];
+            for (int i = 0; i < hashes.Length; i++)
+                hashes[i] = Animator.StringToHash("Base Layer.Pose_" + i);
+            return hashes;
+        }
+        private readonly Dictionary<string,RuntimeAnimatorController> actorNativeControllers =
+            new Dictionary<string,RuntimeAnimatorController>();
+        private readonly Dictionary<string,int> actorNativeRetryAt =
+            new Dictionary<string,int>();
+        private readonly Dictionary<string,int> actorNativeRejectedPoseUntil =
+            new Dictionary<string,int>();
+        private readonly Dictionary<string,Texture2D> actorNativeSource =
+            new Dictionary<string,Texture2D>();
         private bool actorCaptureBroken;
         // Recreating a lost render target should not require a scene reload.
         // Retry at most once per 120 frames; until then the SAME source
@@ -110,15 +133,21 @@ namespace Starfall
                 }
                 if (needsRender)
                 {
-                    actorCaptureRenderer.sprite = sprite;
+                    if (!TryPlayNativeActorPose(sheet, columns, rows, frame, sprite))
+                    {
+                        // True lossless fallback: never show an unrelated
+                        // imported animation sheet, stitched head or wrong pose.
+                        actorCaptureAnimator.enabled = false;
+                        actorCaptureRenderer.sprite = sprite;
+                    }
                     actorCaptureRenderer.flipX = flip;
                     // Legacy Actor() fills a square regardless of atlas cell
                     // aspect ratio. Preserve the exact foot/pivot position.
                     actorCaptureRenderer.transform.localScale =
                         new Vector3((float)height / width, 1f, 1f);
                     actorCaptureCamera.targetTexture = entry.texture;
-                    actorCaptureCamera.Render();
-                    actorCaptureCamera.targetTexture = null;
+                    try { actorCaptureCamera.Render(); }
+                    finally { actorCaptureCamera.targetTexture = null; }
                 }
                 Color previous = GUI.color;
                 try
@@ -142,6 +171,75 @@ namespace Starfall
                 ReleaseActorCapture();
                 return false;
             }
+        }
+
+        private bool TryPlayNativeActorPose(Texture2D source, int columns,
+            int rows, int frame, Sprite expected)
+        {
+            if (actorCaptureAnimator == null || source == null ||
+                columns != 4 || frame < 0) return false;
+            string family = source.name;
+            int kind = Array.IndexOf(NativeActorFamilies, family);
+            if (kind < 0 || rows != NativeActorRowCounts[kind]) return false;
+            Texture2D installed;
+            if (!actorNativeSource.TryGetValue(family, out installed) ||
+                installed != source)
+            {
+                installed = Resources.Load<Texture2D>("Frontier/Art/" + family);
+                if (installed != source) return false;
+                actorNativeSource[family] = installed;
+            }
+            RuntimeAnimatorController controller;
+            if (!actorNativeControllers.TryGetValue(family, out controller))
+            {
+                int retryAt;
+                if (actorNativeRetryAt.TryGetValue(family, out retryAt) &&
+                    Time.frameCount < retryAt) return false;
+                controller = Resources.Load<RuntimeAnimatorController>(
+                    "Frontier/Actors/Native/Actor_" + family);
+                if (controller == null)
+                {
+                    actorNativeRetryAt[family] = Time.frameCount + 120;
+                    return false;
+                }
+                actorNativeControllers[family] = controller;
+                actorNativeRetryAt.Remove(family);
+            }
+            int row = frame / columns;
+            string poseKey = family + ":" + row;
+            int rejectedUntil;
+            if (actorNativeRejectedPoseUntil.TryGetValue(poseKey, out rejectedUntil) &&
+                Time.frameCount < rejectedUntil) return false;
+            if (actorCaptureAnimator.runtimeAnimatorController != controller)
+                actorCaptureAnimator.runtimeAnimatorController = controller;
+            actorCaptureAnimator.enabled = true;
+            actorCaptureAnimator.speed = 0f;
+            actorCaptureAnimator.SetInteger("Pose", row);
+            // Always sample INSIDE the authoritative GameCore cell's 12fps
+            // interval. Never let Animator interpolate its own combat clock.
+            actorCaptureAnimator.Play(ActorPoseHashes[row], 0,
+                ((frame % columns) + .5f) / columns);
+            actorCaptureAnimator.Update(0f);
+            Sprite actual = actorCaptureRenderer.sprite;
+            if (actual != null && expected != null &&
+                actual.texture == source &&
+                Mathf.Abs(actual.rect.x - expected.rect.x) < .05f &&
+                Mathf.Abs(actual.rect.y - expected.rect.y) < .05f &&
+                Mathf.Abs(actual.rect.width - expected.rect.width) < .05f &&
+                Mathf.Abs(actual.rect.height - expected.rect.height) < .05f &&
+                Vector2.Distance(actual.pivot, expected.pivot) < .05f &&
+                Mathf.Abs(actual.pixelsPerUnit - expected.pixelsPerUnit) < .05f)
+            {
+                actorNativeRejectedPoseUntil.Remove(poseKey);
+                return true;
+            }
+            // A stale or cross-identity clip is a deterministic FAIL at
+            // runtime: hold the exact source Sprite, then permit bounded
+            // recovery following Unity asset reimport.
+            actorCaptureAnimator.enabled = false;
+            actorNativeRejectedPoseUntil[poseKey] = Time.frameCount + 120;
+            actorNativeControllers.Remove(family);
+            return false;
         }
 
         // Only recycle targets from a PREVIOUS frame. Never destroy a
@@ -211,6 +309,10 @@ namespace Starfall
             foreach (Sprite sprite in actorFrameSprites.Values)
                 if (sprite != null) Destroy(sprite);
             actorFrameSprites.Clear();
+            actorNativeControllers.Clear();
+            actorNativeSource.Clear();
+            actorNativeRetryAt.Clear();
+            actorNativeRejectedPoseUntil.Clear();
             if (actorCaptureCamera != null)
                 actorCaptureCamera.targetTexture = null;
             if (actorCaptureRoot != null) Destroy(actorCaptureRoot);
