@@ -24,8 +24,7 @@ def check():
     required = [
         "SpriteRenderer", "RenderTexture", "CameraClearFlags.SolidColor",
         "BakeCanonicalHeroFrame", "walkSheets[0]",
-        "Game.HeroAnimationState", "Game.HeroAnimationFrameCount(facing)",
-        "Game.HeroAnimationPlaybackPosition(facing)",
+        "ResolveFullBodyHeroFrame(locomotion,facing",
         "Animator.StringToHash", "heroCaptureAnimator.Play(", "heroCaptureAnimator.Update(0f)",
         "Production", "ProductionHeroClip",
         "foot.x - CanonicalHeroSpriteFactory.FootX * density",
@@ -40,7 +39,6 @@ def check():
         "heroCaptureRenderedSprite != heroCaptureRenderer.sprite",
         "heroCaptureRenderedFlip != flip",
         "heroCaptureTexture.IsCreated()",
-        "Mathf.FloorToInt(cellPosition + .20f)",
         "tint.a *= worldActorOpacity",
     ]
     for mark in required:
@@ -64,8 +62,8 @@ def check():
     continuity = (ROOT / "Assets/Scripts/Frontier/Core/ContinuityCore.cs").read_text()
     assert "public float WalkPosePhase" in continuity
     assert "if (state == 1) return WalkPosePhase;" in core
-    assert "cellPosition %= bakedFrames" in engine
-    assert "bool expanded = action >= 1 && action <= 5 && frames > 1;" in engine
+    assert "if(action==1)position%=frames;" in actor
+    assert "bool interpolate=action>=1&&action<=5&&authored>1;" in actor
     assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
     assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
@@ -114,9 +112,9 @@ def check():
     assert "if (File.Exists(installedPath))" in native
     assert "atlasPaths.Add(key, installedPath);" in native
     assert "installed.width != expectedCount * Cell" in native
-    for mark in ["ActorFrameRegistration.TryHead", "ActorFrameRegistration.TryStableHead",
-                 "new Vector2(FootX / (float)Cell, (Cell - FootTop) / (float)Cell)", "class CanonicalHeroSpriteFactory",
-                 "Sprite.Create(", "Point", "TextureFormat.RGBA32"]:
+    for mark in ["new Vector2(FootX / (float)Cell, (Cell - FootTop) / (float)Cell)",
+                 "class CanonicalHeroSpriteFactory", "Sprite.Create(",
+                 "Point", "TextureFormat.RGBA32"]:
         # 'Point' is expressed through pivot/identity, not a physical 3D rig.
         if mark == "Point":
             continue
@@ -152,8 +150,11 @@ def check():
         r"Game\.playerAction!=null\s*&&\s*"
         r'Game\.playerAction\.kind=="attack"\)', actor), (
         "Basic sword advances must use gait, but Vanguard Q keeps its own contact pose")
-    assert "UnifiedActionGait(sheet,4,3,frame,walkSheets[look]," in actor
+    assert "UnifiedActionGait(" not in actor
     assert "Game.ActuallyMoving" in actor
+    assert "DrawWholeBodyHeroOnGUI(sheet,frame,p,tint,flip," in actor
+    assert "ResolveFullBodyHeroFrame(moving,facing," in actor
+    assert '"Frontier/HeroAnimator/Canonical/"+key' in actor
     # Root-cause guard: the past stitched compositor copied the entire
     # lower 205..247px band from a walking atlas, splicing a different waist
     # and clothing onto the original attack torso. Never reintroduce that.
@@ -168,13 +169,18 @@ def check():
                       "Color[] composed=(Color[])source.Clone()",
                       "composed[y*cell+x]=source[y*cell+sample]"):
         assert necessary in gait, "Missing class-owned whole-body guarantee: " + necessary
-    assert "facingRow*4+Game.WalkFrame,look)" in actor
-    assert actor.count("DrawSpriteRendererHero(") == 2
-    assert actor.count("if (!captured)") == 2
-    assert "HumanActor(sheet,4,3,frame,p,.75f" in actor
+    assert actor.count("DrawSpriteRendererHero(") == 1
+    assert "if(!captured)" in actor
+    assert "DrawWholeBodyHeroOnGUI" in actor
+    assert "HumanActor(sheet,4,3,frame,p,.75f" not in actor
     assert "ReleaseHeroCapture();" in game
     assert "KeyCode.F8" in game and "Debug.isDebugBuild" in game
     assert "if (useSpriteRendererHero) heroCaptureBroken = false;" in game
+    assert "DrawWholeBodyHeroOnGUI" in actor
+    assert "ActorPart(" not in actor[actor.index("private void DrawPlayerActor()"):
+                                          actor.index("private int EnemyPose(")]
+    assert "colors[(Cell - 1 - row) * Cell + col]" not in compositor, (
+        "Runtime must not erase and reattach a different warrior head")
     assert 'Build Live SpriteRenderer State Bridge' in editor
     assert editor.count('"Hit", "Death"') >= 2
     # The root is top-origin (128,240), not Unity's bottom-origin (128,16).
