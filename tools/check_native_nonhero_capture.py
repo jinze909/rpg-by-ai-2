@@ -51,6 +51,19 @@ def main():
     actor = (RUNTIME / "FrontierActors.cs").read_text()
     scene = (RUNTIME / "FrontierRuntime.cs").read_text()
     native = CAPTURE.read_text()
+    # The Unity-only native clip builders must never preserve an old
+    # m_LocalScale/m_LocalPosition animation on an otherwise correct Sprite.
+    # This source contract supplements (not replaces) Editor PlayMode QA.
+    for builder_name in ("StarfallNativeActorAnimatorBuilder.cs",
+                         "StarfallAcceptedActorAnimatorBuilder.cs"):
+        builder = (ROOT / "Assets/Scripts/Frontier/Editor" /
+                   builder_name).read_text(encoding="utf-8")
+        for required in ("AnimationUtility.GetCurveBindings(clip)",
+                         "AnimationUtility.SetEditorCurve(clip,stale,null)",
+                         "AnimationUtility.GetObjectReferenceCurveBindings(clip)",
+                         "AnimationUtility.SetObjectReferenceCurve("):
+            assert required in builder, ("NONHERO_STALE_SCALE_GUARD_MISSING",
+                                         builder_name, required)
     assert "if (drawingOutline && sheet != null)" in actor
     assert "DrawSpriteRendererActor(sheet, columns, rows,\n                frame," in actor
     assert "if (nativeActorDrawn) return;" in actor

@@ -286,6 +286,20 @@ namespace Starfall.EditorTools
                     clip = new AnimationClip { frameRate = 12f };
                     AssetDatabase.CreateAsset(clip, clipPath);
                 }
+                // Keep existing .anim GUIDs but strip every legacy
+                // Transform scale/position and foreign object curve.
+                // Dynamic monsters, bosses and NPCs must use only their
+                // published full-body SpriteRenderer.m_Sprite sequence.
+                foreach(EditorCurveBinding stale in
+                        AnimationUtility.GetCurveBindings(clip))
+                    AnimationUtility.SetEditorCurve(clip,stale,null);
+                foreach(EditorCurveBinding stale in
+                        AnimationUtility.GetObjectReferenceCurveBindings(clip))
+                    if(stale.path!="" ||
+                        stale.type!=typeof(SpriteRenderer) ||
+                        stale.propertyName!="m_Sprite")
+                        AnimationUtility.SetObjectReferenceCurve(
+                            clip,stale,null);
                 // The old detailed Monsters.png has SIX different combat
                 // poses, and the north/south Archer THREE cells. GameCore
                 // still chooses the one exact source cell with no blending.
@@ -322,6 +336,10 @@ namespace Starfall.EditorTools
                     AnimationUtility.GetObjectReferenceCurve(clip,
                         new EditorCurveBinding {path = "",
                             type = typeof(SpriteRenderer), propertyName = "m_Sprite"});
+                if (AnimationUtility.GetCurveBindings(clip).Length!=0 ||
+                    AnimationUtility.GetObjectReferenceCurveBindings(clip).Length!=1)
+                    throw new InvalidOperationException(
+                        "Accepted actor Animator still changes Transform scale: " + clipPath);
                 if (keys == null || keys.Length != spec.columns + 1)
                     throw new InvalidOperationException(
                         "Missing production Sprite curve: " + clipPath);
