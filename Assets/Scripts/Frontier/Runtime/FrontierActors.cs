@@ -124,6 +124,14 @@ namespace Starfall
             // This is the production OnGUI FALLBACK, not the old HumanActor
             // puppet. Draw ONE complete, accepted RGBA sprite with one Pivot.
             // Never mix a warrior head overlay, action torso, and walking legs.
+            // Production Sprite PNGs are GPU-only (isReadable: 0). The
+            // outline system calls GetPixels, so sample the already-prewarmed
+            // readable original for that PASS, never the GPU-only PNG.
+            if(drawingOutline)
+            {
+                Actor(original,4,3,originalFrame,foot,192,tint,flip);
+                return;
+            }
             int action,frames,index;
             float position;
             bool standard=!(!moving&&(pose==6||pose==7)&&
@@ -143,9 +151,7 @@ namespace Starfall
                 }
                 if(atlas!=null&&atlas.width==frames*256&&atlas.height==256)
                 {
-                    Texture2D used=drawingOutline?art.OutlineMask(atlas):atlas;
-                    if(drawingOutline)tint=new Color(1,.56f,.35f,.9f);
-                    Atlas(used,frames,1,index,
+                    Atlas(atlas,frames,1,index,
                         new Rect(foot.x-96,foot.y-180,192,192),
                         tint,flip);
                     return;
