@@ -68,20 +68,14 @@ namespace Starfall
                 // All three renderer lanes sample the SAME movement/contact
                 // clock. Neither GPU Animator nor shipped-sheet playback
                 // invents damage, projectile or hit-stop timing.
-                int action = Game.HeroAnimationState;
-                int frames = Game.HeroAnimationFrameCount(facing);
-                if (action < 0 || action >= HeroLiveActions.Length || frames <= 0 ||
-                    facing < 0 || facing >= HeroLiveFacings.Length) return false;
-                float posePosition = Game.HeroAnimationPlaybackPosition(facing);
-                bool expanded = action >= 1 && action <= 5 && frames > 1;
-                int bakedFrames = expanded
-                    ? frames * 2 - (action == 1 ? 0 : 1) : frames;
-                // The original artist poses occupy even cells; calculated
-                // midpoints occupy odd cells. Death is non-looping.
-                float cellPosition = expanded ? posePosition * 2f : posePosition;
-                if (action == 1) cellPosition %= bakedFrames;
-                int publishedFrame = Mathf.Clamp(Mathf.FloorToInt(cellPosition + .20f),
-                    0, bakedFrames - 1);
+                int action, bakedFrames, publishedFrame;
+                float cellPosition;
+                if (!ResolveFullBodyHeroFrame(locomotion,facing,
+                        out action,out bakedFrames,out publishedFrame,
+                        out cellPosition))
+                    return false;
+                // This exact frame contract is also used by the live OnGUI
+                // fallback; no second clock or interpolated puppet anatomy.
                 // Heavy combo swings use the approved 6/7 sword poses,
                 // NOT the 4/5 normal-attack atlas. GameCore already
                 // differentiates them through PlayerPose. Preserve that
@@ -132,9 +126,9 @@ namespace Starfall
                     }
                     else
                     {
-                        // A moving attack's unified walking legs remain
-                        // authoritative. Missing/bad shipped atlases still
-                        // fall back to the established accepted compositor.
+                        // No dynamic torso/leg synthesis is permitted.
+                        // A missing published atlas uses only one ORIGINAL
+                        // full-body source pose with the immutable foot root.
                         Texture2D original = unifiedAction != null ? unifiedAction : sheet;
                         int spriteFrame = unifiedAction != null ? 0 : frame;
                         string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
