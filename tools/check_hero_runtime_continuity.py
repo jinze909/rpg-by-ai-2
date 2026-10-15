@@ -88,6 +88,16 @@ def fail_nonoptional(name, action, frames, obs, transitions):
         assert max(t["bbox_centre_distance"] for t in transitions) <= 28, (
             "RUN_BODY_POSITION_JUMP", name)
     if action in ("Attack", "Cast", "Dodge", "Hit"):
+        # Deliberate large weapon reaches are allowed, but teleporting the
+        # WHOLE body across >70-80 source pixels in a single Sprite change is
+        # not natural animation. This hard gate applies to production PNGs.
+        max_translation = 70 if action in ("Attack", "Cast") else 80
+        assert all(t["bbox_centre_distance"] <= max_translation
+                   for t in transitions), (
+            "SEVERE_ACTION_WHOLE_BODY_TELEPORT", name,
+            [t["bbox_centre_distance"] for t in transitions])
+        assert all(t["bbox_height_change"] <= 65 for t in transitions), (
+            "SEVERE_ACTION_BODY_SCALE_SNAP", name)
         # Native full-body action strips must not be blank repeats of
         # entire animations; allowed intentional start/end holds remain.
         assert sum(t["changed_pixels"] == 0 for t in transitions) <= 2, (
@@ -276,6 +286,10 @@ def verify_failure_gates():
     ImageDraw.Draw(left).rectangle((49,147,95,238),fill=(91,63,48,255))
     ImageDraw.Draw(right).rectangle((159,147,205,238),fill=(91,63,48,255))
     expect_failure("teleporting_run", [left,right]*2, "Run")
+    # This used to be diagnostic-only for Attack/Cast: a huge hit-contact
+    # position jump could get a green release even with 6 distinct rasters.
+    expect_failure("teleporting_attack", [left,right]*3, "Attack")
+    expect_failure("teleporting_cast", [left,right]*3, "Cast")
     # Regression-negative: even a canonically sized sequence must fail
     # when an action starts from another profession's or offset body.
     fake={action:[normal.copy()] for action in ACTIONS}

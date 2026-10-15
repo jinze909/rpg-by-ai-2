@@ -23,6 +23,15 @@ CODE = ROOT / "Assets/Scripts/Frontier/Runtime/CanonicalHeroSpriteFactory.cs"
 def check():
     spec = json.loads(SPEC.read_text(encoding="utf-8"))
     assert spec["unity_version"] == "2022.3.53f1"
+    assert spec["version"] >= 11
+    # The shipped spec must not quietly re-authorize retired body slicing
+    # or describe the actual scene's production SpriteRenderer as opt-in.
+    assert spec["animation_constraints"]["cast_expanded_frames"] == 6
+    assert spec["animation_constraints"]["moving_recovery"].startswith("FULL-BODY")
+    assert "SpriteRenderer" in spec["animation_constraints"]["safety_fallback"]
+    assert "default SpriteRenderer" in spec["runtime_transition"]["mode"]
+    assert "NOT populated" in spec["runtime_transition"]["art_provenance"]
+    assert "Do not generate playable pose intermediates" in spec["motion_registration"]["pixel_source_policy"]
     assert spec["canvas_px"] == [CELL, CELL]
     assert spec["pixels_per_unit"] == 128 and spec["gui_density"] == .75
     assert spec["foot_top_origin_px"] == [128, 240]

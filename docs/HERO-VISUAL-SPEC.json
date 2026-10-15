@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -166,12 +166,12 @@
       "accepted contact",
       "same accepted idle recovery"
     ],
-    "cast_expanded_frames": 7,
+    "cast_expanded_frames": 6,
     "cast_non_looping": true,
-    "source_motion": "One approved silhouette per generated in-between, locked blonde head and rooted boot contact",
+    "source_motion": "All currently published extra poses are complete source-authored full-body drawings, not algorithmic midpoints; 18 genuinely novel contact-transfer originals are still missing.",
     "timing_authority": "GameCore's ActorAction.released; never drive damage from Animator",
-    "moving_recovery": "Keep UnifiedActionGait authored walk legs and gameplay movement rules",
-    "safety_fallback": "Opt-in SpriteRenderer/Animator with existing OnGUI route on failure",
+    "moving_recovery": "FULL-BODY only: GameCore permits reduced-speed recovery to use the same-class complete Run pose, never independently graft moving legs onto a Cast/Attack upper body.",
+    "safety_fallback": "Production SpriteRenderer complete body capture is DEFAULT in the actual Frontier scene; F8 and native errors retain the full-body OnGUI fallback. Unity native PlayMode acceptance pending.",
     "final_gate": "Native Unity 2022.3.53f1 PlayMode + visually accepted frame-to-frame anatomy and weapon grips required",
     "reaction_expanded_frames": 5,
     "reaction_source_phases": [
@@ -238,7 +238,7 @@
         10
       ]
     },
-    "pixel_source_policy": "Nearest-neighbor resampling of the preceding accepted pose only: no two-pose color blend or alpha Bayer dither",
+    "pixel_source_policy": "Do not generate playable pose intermediates with alpha blends, midpoint pixel warps, nearest-neighbor limb transformations, head grafts or belt-row crops. Only class-owned complete original drawings or newly verified complete-body contact artwork.",
     "immutable_pixel_guards": {
       "blonde_identity_bottom_xyxy": [
         91,
@@ -251,7 +251,7 @@
         22
       ]
     },
-    "review_only": "Non-identical inbetween counts validate raster motion, not anatomical quality or authored keyframes"
+    "review_only": "Historical region displacement targets remain diagnostic references, NOT permission to synthesize anatomical animation."
   },
   "full_body_source_contract": {
     "canonical_protagonist": "Same approved golden-haired hero in every outfit; identity source exception is face/hair only, never torso or equipment",
@@ -283,7 +283,7 @@
       "hard_release_check": "Every approved authored keyframe must be byte-identical to crop_frame(original class-owned source atlas). Hair color, head dimensions and outfit socket are inspected per profession/facing."
     },
     "unity_runtime": "PRODUCTION: DrawPlayerActor samples one complete class-owned published Hero_{class}_{action}_{facing}.png Sprite per hero draw; no UnifiedActionGait, dynamic leg/hip warp or HumanActor head splice. Moving released recovery samples the complete class Walk/Run cell.",
-    "unity_safety": "Gameplay and Unity-native capture share ResolveFullBodyHeroFrame and one (128,240) original foot reference. If GPU path fails, OnGUI draws one complete published full-body frame; if a published atlas is missing, original class-owned full-body cell is used. OnGUI remains the verified default until native Unity QA.",
+    "unity_safety": "SpriteRenderer full-body capture is the default actual FrontierRuntime hero presentation; missing native clips use the same shipped published full-body Sprite, with OnGUI complete-body fallback on errors or F8 opt-out. This change has offline CI proof but is NATIVE_UNVERIFIED in PlayMode.",
     "exporter_release_gates": [
       "shared-row profession provenance",
       "single-source class palette",
@@ -294,7 +294,7 @@
     "native_verification": "Unity 2022.3.53f1 PlayMode and visual grip/waist inspection not yet run"
   },
   "runtime_transition": {
-    "mode": "FullBodyProductionSprites (OnGUI full-frame default, SpriteRenderer+Animator compatible F8 native lane)",
+    "mode": "FullBodyProductionSprites (default SpriteRenderer whole-body capture, full-body OnGUI on F8/exception)",
     "canonical_resources": "Assets/Resources/Frontier/HeroAnimator/Canonical/ (original class-owned blonde-haired full-body frames only; no runtime/offline graft)",
     "clip_matrix": {
       "classes": 3,
@@ -325,7 +325,7 @@
       "offline canonical_frame masks/cuts source head and overlays WalkVanguard face"
     ],
     "scene_binding": "FrontierRuntime.Boot() subscribes sceneLoaded and adds live MonoBehaviour for Assets/Scenes/Frontier.unity; FrontierEditor builds this scene",
-    "native_qa_status": "NATIVE_UNVERIFIED; do not enable native capture by default without actual Unity 2022.3.53f1 Game View + PlayMode",
+    "native_qa_status": "NATIVE_UNVERIFIED: default enabled for offline-tested source-safe full-body drawing with F8/exception fallback. Unity 2022.3.53f1 GameView/Animator/RenderTexture/FPS still requires native sign-off.",
     "runtime_art_gate": "tools/check_hero_runtime_continuity.py validates real 63 PNGs and emits 22 representative production filmstrips/GIFs/onion-skins; metrics alone do not approve authored animation",
     "full_body_source_qa": "Source-original RGBA crop vs generated full body byte exact, with per-class hair color/neck region checks (tools/check_hero_visual_spec.py, tools/check_hero_whole_body_integrity.py).",
     "run_policy": {
@@ -337,7 +337,7 @@
       "production_reason": "Rejected all four synthetic raster-warp midpoints per clip; whole-body authored Run has continuous class-owned head, hips, legs and foot root.",
       "native_validation": "NATIVE_UNVERIFIED"
     },
-    "art_provenance": "All 63 atlases / 279 full-body cells byte-exact original class-owned source rasters; 72 additional original transition poses, zero algorithmically warped cells. Native Unity art quality awaits validation.",
+    "art_provenance": "63 published atlases, 279 currently installed full-body cells, 72 original-source extra pose cells and no procedural leg/waist warps. Exactly 18 new full-body Attack/Cast contact transfers still require original artwork; atomic 297-frame rollout is supported but NOT populated.",
     "reaction_policy": {
       "actions": [
         "Dodge",
@@ -409,8 +409,12 @@
       "release_key_frame": 3,
       "contact_time": "GameCore HeroAnimationPlaybackPosition source phase >=2",
       "missing_key_art": "A truly drawn in-between connecting windup and release (formerly fake slot 3) is not yet available; no false interpolation or duplicates used",
-      "native_unity_verified": false
+      "native_unity_verified": false,
+      "future_frame_count": 7,
+      "future_contact_cells": 18,
+      "future_rollout": "Only when all 18 individually drawn/verified full-body contact-transfer PNGs exist and pass source + runtime anatomy + temporal + Unity-import checks; never fake by speed change or duplicate."
     },
-    "no_fake_motion_gate": "tools/check_hero_generated_motion.py rejects any production cell not pixel-identical to approved head-to-foot source; tools/check_hero_whole_body_integrity.py cross-checks source manifest, class, waist/hip, canvas and all 279 frames."
+    "no_fake_motion_gate": "tools/check_hero_generated_motion.py rejects any production cell not pixel-identical to approved head-to-foot source; tools/check_hero_whole_body_integrity.py cross-checks source manifest, class, waist/hip, canvas and all 279 frames.",
+    "hero_renderer_default": "True in FrontierHeroSpriteCapture.cs, production scene boot via FrontierRuntime.Boot(); GPU full-body sprite uses RenderTexture in otherwise OnGUI world (not yet direct world-camera SpriteRenderer)."
   }
 }
