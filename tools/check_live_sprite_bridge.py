@@ -141,20 +141,15 @@ def check():
     assert engine.startswith("#if UNITY_5_3_OR_NEWER")
     assert "useSpriteRendererHero;" in engine, "Not safe to silently replace accepted art"
     assert engine.count("return false;") >= 3, "Production must have a failure fallback"
-    # Live sword windup/contact can translate with AttackMovement, so
-    # both SpriteRenderer capture and proven OnGUI fallback must use the
-    # same original walking legs; collision/damage remain GameCore-owned.
-    assert re.search(
-        r"mobility==MobilityRule\.Reduced\s*\|\|\s*\("
-        r"mobility==MobilityRule\.AttackMovement\s*&&\s*"
-        r"Game\.playerAction!=null\s*&&\s*"
-        r'Game\.playerAction\.kind=="attack"\)', actor), (
-        "Basic sword advances must use gait, but Vanguard Q keeps its own contact pose")
-    assert "UnifiedActionGait(" not in actor
-    assert "Game.ActuallyMoving" in actor
-    assert "DrawWholeBodyHeroOnGUI(sheet,frame,p,tint,flip," in actor
-    assert "ResolveFullBodyHeroFrame(moving,facing," in actor
-    assert '"Frontier/HeroAnimator/Canonical/"+key' in actor
+    # Sword Q/ordinary attack contact remain full-body authored poses.
+    # Once GameCore genuinely permits recovery movement, we show an
+    # unspliced same-class RUN frame; no Q damage timing changes.
+    for mark in ("bool movingRecovery=!Game.Dying&&Game.ActuallyMoving&&",
+                 "Game.PlayerMobility==MobilityRule.Reduced&&",
+                 "pose>=4&&pose<=7;",
+                 "sheet=walkSheets[look];",
+                 "bool moving=pose>=2&&pose<=3||movingRecovery;"):
+        assert mark in actor, "Missing safe full-body recovery switch: " + mark
     # The entire old generated-parts compositor is retired, not only the
     # notorious waist scanline. Any new runtime leg-sampling/blending
     # implementation must be reviewed as a new algorithm before release.
