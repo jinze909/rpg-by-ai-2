@@ -9,6 +9,7 @@ import subprocess
 import sys
 from PIL import Image, ImageChops
 from generate_mossbound_raider import ROOT, STAGED, INSTALLED, CELL, PHASES, render
+from check_editable_visual_candidate import audit_retired_candidate, is_live
 
 def inspect(image):
     assert image.size==(512,768), ("MOSSBOUND_INVALID_ATLAS_SIZE",image.size)
@@ -47,6 +48,13 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--allow-unpublished",action="store_true")
     args=parser.parse_args()
+    if not is_live(ROOT,"MossboundRaider"):
+        assert 'monsterSheet = Resources.Load<Texture2D>(root + "Monsters")' in (
+            ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text(), (
+                "ORIGINAL_DETAILED_MONSTER_SOURCE_MISSING")
+        audit_retired_candidate(ROOT,"MossboundRaider",
+            "7cc097e40cd34f268b3d98217681c051",4096)
+        return
     render(STAGED/"MossboundRaider.png")
     with Image.open(STAGED/"MossboundRaider.png") as im:
         expected=im.convert("RGBA").copy()

@@ -3,6 +3,7 @@
 from pathlib import Path
 import hashlib
 from PIL import Image
+from check_editable_visual_candidate import audit_retired_candidate, is_live
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / "Assets/Resources/Frontier/Art/CinderstoneGuard.png"
@@ -39,6 +40,12 @@ def audit(image):
     return len(frames)
 
 def main():
+    if not is_live(ROOT,"CinderstoneGuard"):
+        assert 'monsterSheet = Resources.Load<Texture2D>(root + "Monsters")' in (
+            ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text(), (
+                "ORIGINAL_GUARD_ART_MISSING")
+        audit_retired_candidate(ROOT,"CinderstoneGuard",GUID,4096)
+        return
     assert ART.is_file() and ART.stat().st_size > 10000, (
         "CINDERSTONE_MISSING_OR_LFS_POINTER")
     with Image.open(ART) as image:

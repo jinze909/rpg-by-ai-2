@@ -8,6 +8,7 @@ from PIL import Image
 from generate_emberfall_residents import (
     ROOT,INSTALLED,STAGED,ACTIONS,SIZE,render
 )
+from check_editable_visual_candidate import audit_retired_candidate, is_live
 
 def inspect(atlas):
     assert atlas.mode=="RGBA" and atlas.size==(512,512),(
@@ -97,6 +98,14 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--allow-unpublished",action="store_true")
     args=p.parse_args()
+    if not is_live(ROOT,"EmberfallResidents"):
+        source_contract()
+        assert 'npcSheet = Resources.Load<Texture2D>(root + "Npcs")' in (
+            ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text(), (
+                "ORIGINAL_DETAILED_NPC_SOURCE_MISSING")
+        audit_retired_candidate(ROOT,"EmberfallResidents",
+            "0195faaf10444a4a9456b9fd983e8d22",2048)
+        return
     render(STAGED)
     with Image.open(STAGED) as original:
         expected=original.convert("RGBA").copy()

@@ -10,6 +10,7 @@ import argparse
 import hashlib
 from PIL import Image
 from generate_briar_beast import ROOT, STAGED, INSTALLED, ACTIONS, CELL, render
+from check_editable_visual_candidate import audit_retired_candidate, is_live
 
 def largest_solid_fraction(frame):
     # Sample only the 80x80 authored grid. Exclude the translucent root shadow.
@@ -109,6 +110,13 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--allow-unpublished",action="store_true")
     args=parser.parse_args()
+    if not is_live(ROOT,"BriarBeast"):
+        assert 'bossSheet = Resources.Load<Texture2D>(root + "Bosses")' in (
+            ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text(), (
+                "ORIGINAL_DETAILED_BOSS_SOURCE_MISSING")
+        audit_retired_candidate(ROOT,"BriarBeast",
+            "42df038f17c345c29de6a73bc5a9e820",8192)
+        return
     render(STAGED)
     with Image.open(STAGED) as raw:
         generated=raw.convert("RGBA")
