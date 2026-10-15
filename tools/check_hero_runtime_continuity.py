@@ -119,6 +119,50 @@ def preview(name, frames):
                      loop=0, optimize=True)
 
 
+def historical_splice_comparison():
+    """Reconstruct the removed 205..247 waist splice from accepted pixels.
+
+    This is a diagnostic RECONSTRUCTION of the old compositor algorithm,
+    *not* a screenshot captured in the old Unity Game View. New frames
+    come from the actual shipped canonical production Sprite resources.
+    """
+    from build_hero_animation_preview import (
+        imported_sheets, registered_heads, canonical_frame,
+    )
+    sheets, heads = imported_sheets(), registered_heads()
+    width = 2 * CELL
+    out = Image.new("RGB", (width, 3 * (CELL + 24)), (31, 36, 44))
+    labels = ImageDraw.Draw(out)
+    for row, profession in enumerate(CLASSES):
+        name = "Player" + profession
+        walk = "Walk" + profession
+        action = canonical_frame(sheets, heads, name, 5, "E", False)
+        step = canonical_frame(sheets, heads, walk, 2, "E", True)
+        old = action.copy()
+        pixels, walk_pixels = old.load(), step.load()
+        for top in range(205, 248):
+            y = top
+            left = 104 if top < 219 else 94 if top < 226 else 88
+            right = 153 if top < 219 else 162 if top < 226 else 175
+            for x in range(left, right + 1):
+                offset = abs(x - 128)
+                hem = 225 if offset < 16 else 222 if offset < 28 else 219
+                if top < hem:
+                    if pixels[x,y][3] < 20 and walk_pixels[x,y][3] > 20:
+                        pixels[x,y] = walk_pixels[x,y]
+                else:
+                    pixels[x,y] = walk_pixels[x,y]
+        new = frames_for("Hero_" + profession + "_Attack_E")[4]
+        for column, frame in enumerate((old,new)):
+            bg = Image.new("RGBA",(CELL,CELL),(31,36,44,255))
+            bg.alpha_composite(frame)
+            out.paste(bg.convert("RGB"),(column*CELL,row*(CELL+24)))
+        y = row * (CELL+24) + CELL + 4
+        labels.text((5,y),profession + " old splice (reconstruction)",fill=(246,207,154))
+        labels.text((CELL+5,y),"current shipped full-body frame",fill=(165,221,186))
+    out.save(DEST / "historical-splice-reconstruction-vs-production.png")
+
+
 def verify_failure_gates():
     """Prove these checks fail on broken production sprites, not just PASS."""
     def expect_failure(label, frames, action):
@@ -175,6 +219,7 @@ def run():
                 if face == "E" or name == "Hero_Arcanist_Run_S":
                     preview(name,seq)
     assert len(rows)==63 and frames_checked==333,(len(rows),frames_checked)
+    historical_splice_comparison()
     report={
         "status":"production_sprite_structure_checked_artist_review_open",
         "source":"Assets/Resources/Frontier/HeroAnimator/Canonical",
