@@ -58,7 +58,7 @@ def negative_controls(source):
 
 
 def check():
-    source, _ = imported_sheets()
+    source = imported_sheets()
     negative_controls(source)
     expected = {
         contact_key(profession, action, facing)
