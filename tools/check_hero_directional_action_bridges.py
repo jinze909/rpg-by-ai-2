@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Reject North/South Attack/Cast clips that flash a walking body for 1–2 frames.
+"""Reject East/North/South Attack/Cast clips flashing WALKING bodies.
 
-Audits the REAL 12 published 6-cell directional action Sprite sheets and
-generates honest 'old walk-bridge' versus 'planted guard' review strips.
+Audits ALL 18 real shipped 6-cell directional Attack/Cast Sprite sheets
+and generates honest 'old walking-body bridge' versus 'planted guard' strips.
 All accepted cells come from existing WHOLE-BODY class-matching paintings.
 This is not a new animation drawing or Unity GameView acceptance.
 """
@@ -19,7 +19,7 @@ from install_canonical_hero_atlases import ASSETS
 
 REPORT = ROOT / ".starfall-checks/hero-runtime-qa/directional-bridge-qa.json"
 ACTIONS = ("Attack", "Cast")
-DIRECTIONS = ("N", "S")
+DIRECTIONS = ("E", "N", "S")
 
 
 def pixels(frame):
@@ -32,8 +32,10 @@ def validate(klass, action, direction, source, manifest, installed, broken=None)
     frames = frame_plan(klass, action, direction,
                         source_indices(klass, action, direction), False)
     assert len(frames) == 6, ("MISSING_DIRECTIONAL_ACTION_SLOTS", key)
-    reaction = "PlayerReactionsRear" if direction == "N" else "PlayerReactionsSouth"
-    guard = (reaction, CLASSES.index(klass)*4+1)
+    reaction = ("Player"+klass if direction == "E" else
+                "PlayerReactionsRear" if direction == "N" else
+                "PlayerReactionsSouth")
+    guard = (reaction, 9 if direction == "E" else CLASSES.index(klass)*4+1)
     for i in (1, 4):
         assert frames[i][:2] == (guard, "curated"), (
             "WALK_FRAME_INSERTED_IN_ATTACK_CAST", key, i, frames[i])
@@ -60,10 +62,11 @@ def validate(klass, action, direction, source, manifest, installed, broken=None)
     # Before art: striding source poses at both positions. The new guard
     # is deliberately different, not a copied Walk pose or a fabricated
     # head/legs interpolation.
-    walk = source["Walk"+klass]
-    before = (4,6) if direction == "N" else (9,11)
+    source_sheet = source["Player"+klass] if direction == "E" else source["Walk"+klass]
+    before = ((2,3) if direction=="E" else
+              (4,6) if direction=="N" else (9,11))
     for stride in before:
-        assert crop_frame(walk,stride).tobytes() != expected.tobytes(), (
+        assert crop_frame(source_sheet,stride).tobytes() != expected.tobytes(), (
             "UNEXPECTED_IDENTICAL_OLD_ACTION_STRIDE", key, stride)
     return {"asset":key, "curated_full_body_guard":f"{reaction}:{guard[1]}",
             "replaced_original_walk_slots":[before[0], before[1]],
@@ -72,12 +75,12 @@ def validate(klass, action, direction, source, manifest, installed, broken=None)
 
 
 def diagnostic(klass, action, direction, sources, after, plan, out):
-    walk=sources["Walk"+klass]
+    old=sources["Player"+klass] if direction=="E" else sources["Walk"+klass]
     old_frames=[]
-    before=(4,6) if direction=="N" else (9,11)
+    before=(2,3) if direction=="E" else (4,6) if direction=="N" else (9,11)
     for i,((name,index),_,_) in enumerate(plan):
         if i in (1,4):
-            old_frames.append(crop_frame(walk,before[0] if i==1 else before[1]))
+            old_frames.append(crop_frame(old,before[0] if i==1 else before[1]))
         else:
             old_frames.append(crop_frame(sources[name],index))
     sheet=Image.new("RGB",(6*CELL,2*CELL+52),(24,29,38))
@@ -115,8 +118,9 @@ def check():
                 # guard with the OLD walking PNG at exactly the trigger
                 # frame. The SAME validator must abort with a hard failure.
                 bad=installed.copy()
-                frame=4 if direction=="N" else 9
-                bad.paste(crop_frame(source["Walk"+klass],frame),(CELL,0))
+                frame=2 if direction=="E" else 4 if direction=="N" else 9
+                sheet=("Player"+klass) if direction=="E" else ("Walk"+klass)
+                bad.paste(crop_frame(source[sheet],frame),(CELL,0))
                 try:
                     validate(klass,action,direction,source,manifest,installed,bad)
                 except AssertionError as e:
@@ -124,20 +128,20 @@ def check():
                 else:
                     raise AssertionError(("UNSAFE_CI_OLD_WALK_FLASH_ACCEPTED",key))
                 total+=1
-    assert total==12
+    assert total==18
     REPORT.write_text(json.dumps({
-        "status":"NO_OLD_WALK_FRAMES_IN_NORTH_SOUTH_ATTACK_OR_CAST",
-        "published_assets_checked":12,
-        "retired_flash_cells":24,
+        "status":"NO_OLD_WALK_OR_TRAVELLING_PLAYER_FRAMES_IN_ANY_ATTACK_OR_CAST",
+        "published_assets_checked":18,
+        "retired_flash_cells":36,
         "source_originality":"existing approved, complete-body reaction guard",
         "new_original_art_drawn":0,
         "native_unity_verified":False,
         "art_direction_approved":False,
         "diagnosis":checks,
     },ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print("PASS 12 REAL north/south Attack/Cast sheets; retired 24 old "
+    print("PASS 18 REAL three-direction Attack/Cast sheets; retired 36 old "
           "walking-body flashes; guarded actual 256px whole-body poses")
-    print("PASS 12 injected old-source flash regressions rejected")
+    print("PASS 18 injected old-source flash regressions rejected")
     print("ART_REVIEW_REQUIRED / NATIVE_UNVERIFIED: source-backed pose repair "
           "is not newly drawn motion or Unity PlayMode")
 
