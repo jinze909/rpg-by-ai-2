@@ -167,10 +167,32 @@ namespace Starfall
         private void DrawPlayerPreview(int equipment, float x, float y, float size)
         {
             int profession=(int)GameCore.Clamp(equipment,0,2);
-            // A preview is ONE class-owned full-body Sprite, not four cutouts
-            // with an independently attached warrior head.
-            Actor(playerSheets[profession],4,3,0,
-                new Point(x,y),size/192,Color.white,false);
+            // Loadout and inventory are PRODUCTION character appearances too:
+            // the same front-facing full-body, blonde identity and foot Pivot
+            // must appear here as in the world. Former code divided 'size'
+            // by 192 before calling Actor(), accidentally drawing a ~0.5px
+            // avatar for the inventory's 104px preview.
+            string key="Hero_"+FullHeroClasses[profession]+"_Idle_S";
+            Texture2D published;
+            if(!fullBodyHeroSheetCache.TryGetValue(key,out published))
+            {
+                published=Resources.Load<Texture2D>(
+                    "Frontier/HeroAnimator/Canonical/"+key);
+                fullBodyHeroSheetCache[key]=published;
+            }
+            Rect bounds=new Rect(x-size/2f,y-size*240f/256f,size,size);
+            if(published!=null&&published.width==256&&published.height==256
+                &&!drawingOutline)
+            {
+                Atlas(published,1,1,0,bounds,Color.white);
+                return;
+            }
+            // Offline GPU-only sheets are deliberately not readable for
+            // PixelArt.OutlineMask. Preserve a complete readable source
+            // silhouette for the outline-only or missing-atlas fallback.
+            Texture2D source=walkSheets!=null?walkSheets[profession]:null;
+            if(source!=null)
+                Actor(source,4,3,8,new Point(x,y),size,Color.white,false);
         }
 
         private void DrawPlayerActor()
