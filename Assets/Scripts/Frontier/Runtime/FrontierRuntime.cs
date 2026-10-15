@@ -536,7 +536,7 @@ namespace Starfall
                 // dulling authored road, snow and river textures.
                 DrawSurface(x, y, tile, p);
                 DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
-                if (tile == '~' && !Game.save.reducedMotion && Game.save.effectsQuality > 0) Box(p.x + 3 + (x * 5 + clock * 4) % 17, p.y + 12 + y % 5, 8, 1, new Color(.65f, .8f, .85f, .13f));
+                DrawAuthoredWaterShimmer(x,y,tile,p);
                 float reveal = TerrainTileOpacity(x, y);
                 if (reveal < .999f)
                     Box(p.x, p.y, Tile + .5f, Tile + .5f, new Color(fadeBase.r,fadeBase.g,fadeBase.b,

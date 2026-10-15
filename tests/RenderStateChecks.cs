@@ -747,10 +747,66 @@ public static class RenderStateChecks
         Console.WriteLine("PASS "+verified+
             " production lamplight/crystal/relay sources: attached illumination, stable motion and quality tiers");
     }
+    private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
+    {
+        app.BeginVisualReview(5,1);
+        var g=app.Game;
+        var sheet=Get<Texture2D>(app,"terrainVariants");
+        Check(sheet!=null&&sheet.width==192&&sheet.height==192,
+            "Detailed accepted TerrainVariants water source is required");
+        g.save.effectsQuality=2;
+        g.save.reducedMotion=false;
+        int x=-1,y=-1;
+        for(int yy=0;yy<60&&x<0;yy++)
+            for(int xx=0;xx<60;xx++)
+            {
+                int seed=(int)Call(app,"PreparedTileSeed",xx,yy);
+                if(seed%6==0){x=xx;y=yy;break;}
+            }
+        Check(x>=0,"Water shimmer stable seed sample unavailable");
+        var origin=new Point(210,250);
+        Set(app,"clock",3.4f);
+        Clear();Call(app,"DrawAuthoredWaterShimmer",x,y,'~',origin);
+        Check(GUI.textureCalls.Count==1,
+            "A valid deep-water tile should draw one AUTHOR water highlight");
+        var water=GUI.textureCalls[0];
+        Check(object.ReferenceEquals(water.texture,sheet)&&
+            Math.Abs(water.rect.width-25f)<.0001f&&
+            Math.Abs(water.rect.height-9f)<.0001f&&
+            Math.Abs(water.uv.width-25f/192f)<.0001f&&
+            Math.Abs(water.uv.height-9f/192f)<.0001f,
+            "Water must sample unscaled original water-paint pixels, not 8px bars");
+        Check(water.color.a>.05f&&water.color.a<.3f,
+            "Water glints must stay below the original illustrated water");
+        Set(app,"clock",5.7f);
+        Clear();Call(app,"DrawAuthoredWaterShimmer",x,y,'~',origin);
+        Check(GUI.textureCalls.Count==1&&
+            Math.Abs(GUI.textureCalls[0].color.a-water.color.a)>.00001f&&
+            Math.Abs(GUI.textureCalls[0].rect.x-water.rect.x)<.0001f&&
+            Math.Abs(GUI.textureCalls[0].uv.x-water.uv.x)<.0001f,
+            "Animate only light intensity; source UV and terrain root may not twitch");
+        g.save.reducedMotion=true;Clear();
+        Call(app,"DrawAuthoredWaterShimmer",x,y,'~',origin);
+        Check(GUI.textureCalls.Count==0,
+            "Reduced motion keeps all painted water static");
+        g.save.reducedMotion=false;
+        g.save.effectsQuality=0;Clear();
+        Call(app,"DrawAuthoredWaterShimmer",x,y,'~',origin);
+        Check(GUI.textureCalls.Count==0,
+            "Low-effects mode may not allocate new water glint draws");
+        g.save.effectsQuality=2;Clear();
+        // Only high tide at Farshore covers percent shoals with water.
+        g.save.totalTime=10f; // Core tide state may be room dependent.
+        Call(app,"DrawAuthoredWaterShimmer",x,y,'=',origin);
+        Check(GUI.textureCalls.Count==0,
+            "Road and bridge stones cannot acquire ocean highlights");
+        Console.WriteLine("PASS stable wave artwork UV, smooth low-alpha glints, reduced motion and dry-road safety");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

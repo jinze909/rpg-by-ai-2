@@ -45,6 +45,44 @@ namespace Starfall
                 if (y + 1 < Game.Map.rows.Length && Game.Map.rows[y + 1][x] == '.') Box(p.x, p.y + Tile - 2, Tile, 2, new Color(.17f, .22f, .15f, .28f));
             }
         }
+        // Source-preserving water animation: sample a small HAND-PAINTED
+        // passage of the actual 48px water terrain variant, not a fresh 8px
+        // rectangle or the rejected 32px CoastlineRemaster. The water tile
+        // itself never swaps frames or shifts UV, so shoreline seams remain
+        // stable. One rare light catch per seeded location; alpha changes
+        // continuously, not the detailed artwork or collision.
+        private void DrawAuthoredWaterShimmer(int x,int y,char tile,Point p)
+        {
+            if (terrainVariants == null ||
+                Game.save.reducedMotion || Game.save.effectsQuality==0 ||
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))
+                return;
+            int seed=PreparedTileSeed(x,y);
+            if(seed%6!=0)return;
+            const float sourceCell=48f;
+            float variant=(seed/7)%4;
+            // TerrainVariants.png is 192x192; its BOTTOM row contains
+            // four original richly painted cyan wave paintings. Crop only
+            // existing authored pixels. No low-res overlay atlas is used.
+            float opacity=.12f+.12f*(.5f+.5f*
+                (float)Math.Sin(clock*.89f+(seed%37)*.31f));
+            if(Game.save.effectsQuality==1)opacity*=.64f;
+            float xOffset=9f+(seed%9);
+            float yOffset=6f+(seed/13)%18;
+            Rect uv=new Rect((variant*sourceCell+11f)/192f,
+                17f/192f,25f/192f,9f/192f);
+            Color original=GUI.color;
+            try
+            {
+                GUI.color=new Color(1.05f,1.08f,1.13f,
+                    opacity*worldActorOpacity);
+                GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+xOffset,p.y+yOffset,25f,9f),
+                    terrainVariants,uv);
+            }
+            finally{GUI.color=original;}
+        }
+
         // Pixel-authored material accents from TerrainAccentRemaster.png:
         // additional vegetation clusters, snow crust, gravel and actual
         // water highlights. These overlay the original mature terrain atlas
