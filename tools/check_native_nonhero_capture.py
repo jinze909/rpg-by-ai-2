@@ -51,7 +51,7 @@ def main():
     scene = (RUNTIME / "FrontierRuntime.cs").read_text()
     native = CAPTURE.read_text()
     assert "if (drawingOutline && sheet != null)" in actor
-    assert "DrawSpriteRendererActor(sheet, columns, rows, frame," in actor
+    assert "DrawSpriteRendererActor(sheet, columns, rows,\n                frame," in actor
     assert "if (nativeActorDrawn) return;" in actor
     assert "ReleaseActorCapture();" in scene
     assert native.count("actorCaptureCamera.Render();") == 1
