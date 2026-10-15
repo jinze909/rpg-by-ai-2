@@ -102,9 +102,22 @@ public static class ActorRegistrationChecks
                 app.BeginVisualReview(0,0);var g=app.Game;g.save.companion=id;g.companionAim=Directions[direction];g.companionAction=null;g.companionMoving=state>=1&&state<=4;g.companionMoveTime=Math.Max(0,state-1)*GameCore.WalkStride/4;
                 if(state>=5)g.companionAction=new ActorAction{direction=Directions[direction],released=state==6,kind="attack"};
                 Point pixel=new Point(140+state*160,230+id*180);Place(app,g.companionPosition,pixel);var calls=Draw(app,"DrawCompanionActor");Density(calls,.75f);
+                var glows=calls.Where(c=>c.texture.name=="soft_glow").ToArray();
+                Check(glows.Length==2,"Companion must keep mature ground shadow and one soft ally marker");
+                var ally=glows[1];
+                Check(Math.Abs(ally.rect.width-48)<.0001f&&
+                    Math.Abs(ally.rect.height-12)<.0001f&&
+                    Math.Abs(ally.rect.x-(pixel.x-24))<1f&&
+                    Math.Abs(ally.rect.y-(pixel.y-6))<1f&&
+                    ally.color.g>ally.color.r&&
+                    ally.color.a<.45f,
+                    "Ally affiliation must read as subtle grounded light, not an opaque overpaint");
+                float expectedAlpha=state<5?.18f:state==6?.42f:.29f;
+                Check(Math.Abs(ally.color.a-expectedAlpha)<.00001f,
+                    "Companion contact glow must communicate actual windup/release state");
                 var face=calls.Where(ActorTexture).Last();Check(face.texture.name.EndsWith("/Walk"+names[id]),"Companion identity must match its own authored actor");Caption(pixel,"state "+state);total++;
             }GUI.Export(folder,"review-registered-companion-"+direction);
-        }Console.WriteLine("PASS "+total+" companion combinations: fixed density, own face and directional preparation/release");
+        }Console.WriteLine("PASS "+total+" companion bodies: same source face, fixed density and foot-rooted animated ally cue");
     }
     static void Enemies(FrontierRuntime app,string folder)
     {

@@ -23,6 +23,17 @@ namespace Starfall
             if (action != null)
                 frame = north ? (action.released ? 7 : 6) : south ? (action.released ? 10 : 9) : action.released && action.kind == "command" && id != 1 ? 5 : action.released ? 4 : 3;
             DrawActorContactShadow(p,38,14,4+id,.77f);
+            // The former 26x3 opaque mint Box sat ON TOP of finished boot
+            // pixels. Use the existing feathered, high-quality Glow() source
+            // beneath the full-body companion instead. Its single planted
+            // pivot shows friendly affiliation and real command state
+            // without masking feet, changing identity or animating physics.
+            if (!drawingOutline)
+            {
+                float allyAlpha=action==null?.18f:action.released?.42f:.29f;
+                Image(art.Glow(),p.x-24,p.y-6,48,12,
+                    new Color(.14f,.72f,.57f,allyAlpha));
+            }
             bool overlaps = Math.Abs(Game.companionPosition.x - Game.save.x) < .85f && Game.save.y <= Game.companionPosition.y && Game.save.y > Game.companionPosition.y - 1.8f;
             Color tint = overlaps ? new Color(1, 1, 1, .45f) : Color.white;
             // Companion models ALSO use the complete approved Sprite.
@@ -40,7 +51,6 @@ namespace Starfall
             else
                 Actor(companionSheets[id],3,4,frame,p,192f,tint,
                     !north&&!(south&&action!=null)&&direction.x<-.1f);
-            Box(p.x - 13, p.y + 1, 26, 3, mint);
         }
         private void DrawHazardWarnings()
         {
