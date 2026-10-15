@@ -436,3 +436,46 @@ transition poses, professional grip/foot animation and native Unity
 stating "Run has eight production cells" or "333 total production
 cells" refer to the PRIOR version, superseded here.
 **NATIVE_UNVERIFIED; ART_ACCEPTANCE_PENDING.**
+
+## 2026-10-15 — Replace all eighteen warped reaction clips with grounded source art
+
+The second stage removes the LAST artificial raster-motion midpoints
+from `Dodge` and `Hit`. Every one of the 3 professions × 3 facing
+directions × 2 actions has 5 complete-body Sprite cells, sourced as:
+
+- `0`: exact approved source idle.
+- `1`: exact EXISTING class-owned full-body guard/plant stance.
+- `2`: exact approved dodge or hit keypose.
+- `3`: the same existing whole-body guard/plant stance returning.
+- `4`: exact approved source idle.
+
+The guard art was inspected in the original class-specific
+`Player` and directional `PlayerReactionsRear/South` sheets:
+east `Player<class>:9`, north
+`PlayerReactionsRear:<class_index*4+1>`, south
+`PlayerReactionsSouth:<class_index*4+1>`.
+There is never a warping pelvis, frozen blonde head versus shifting
+body, replaced boots or a pasted opposite-class armor part. The
+positions are foot-registered to the same (128,240) artist canvas.
+Key timing, invulnerability, hit stuns and damage still belong to
+GameCore, not the image-generation script.
+
+The exporter records all source paths in `curated_full_body_slots`;
+both the midpoint QA and the independent full-body source audit
+require byte-identical pixels to their approved entire original
+Sprite, failing on any cross-class insertion or counterfeit pose.
+
+The release now contains **63 production Sprite strips with 297 frames**:
+9 Run strips of 4 unwarped original cells, 18 Attack/Cast of 7,
+18 Dodge/Hit of 5 source-curated cells, 9 Idle of 1,
+9 Death of 4. **72 curated transition cells are source-locked**
+(36 Attack/Cast, 36 Dodge/Hit); only the **18 middle
+Attack/Cast transition cells** remain unapproved procedural
+intermediates. This is a verifiable reduction in fake motion; it is
+NOT proof the reused guard stance looks artistically perfect
+in every class or that transitions were newly hand-drawn.
+
+Formal native Unity 2022.3.53f1 PlayMode/GPU captures and frame
+art-direction signoff remain **NATIVE_UNVERIFIED** and
+**ART_ACCEPTANCE_PENDING** respectively. CI will continue generating
+filmstrips/GIFs and native test scripts for review.
