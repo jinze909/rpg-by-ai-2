@@ -14,13 +14,32 @@ namespace Starfall
             float angle = (float)(Math.Atan2(projectile.velocity.y, projectile.velocity.x) * 180 / Math.PI);
             float size = arrow ? 30 : projectile.explosive ? 28 : 22;
             Color tint = projectile.friendly ? Color.white : BossEffectColor(projectile.theme);
-            if (Game.save.effectsQuality > 0)
-                for (int i = Math.Min(3, (int)(projectile.age * projectile.velocity.Length / .18f)); i > 0; i--)
+            // Tail cells are the original illustrated Effects.png pixels.
+            // Previously each ghost materialized at FULL alpha as soon as a
+            // discrete distance threshold was crossed: fast arrows showed
+            // three visible duplicate silhouettes in successive frames.
+            // Ease each independent tail IN over 0.18 world units. Nothing
+            // changes projectile collision, velocity or real emission time.
+            // Reduced motion never adds trailing moving silhouettes.
+            if(effectSheet!=null && Game.save.effectsQuality>0 &&
+                !Game.save.reducedMotion)
+            {
+                float travelled=projectile.age*projectile.velocity.Length;
+                int maxTrail=Game.save.effectsQuality==1?2:3;
+                for(int i=maxTrail;i>0;i--)
                 {
-                    Point tail = ScreenPoint(projectile.position - projectile.velocity.Normalized * i * .18f);
-                    tail.y -= height;
-                    Atlas(effectSheet, 4, 4, arrow ? 11 : 12, new Rect(tail.x - size / 2, tail.y - size / 2, size, size), new Color(tint.r, tint.g, tint.b, .42f / i), false, angle);
+                    float fade=Mathf.Clamp01(
+                        (travelled-i*.18f)/.18f);
+                    if(fade<=0f)continue;
+                    Point tail=ScreenPoint(projectile.position-
+                        projectile.velocity.Normalized*i*.18f);
+                    tail.y-=height;
+                    Atlas(effectSheet,4,4,arrow?11:12,
+                        new Rect(tail.x-size/2,tail.y-size/2,size,size),
+                        new Color(tint.r,tint.g,tint.b,
+                            .42f/i*fade),false,angle);
                 }
+            }
             if (effectSheet != null) Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2, size, size), tint, false, arrow ? angle : 0);
             else { Box(p.x - 4, p.y - 4, 8, 8, projectile.friendly ? gold : PixelArt.C("#e39382")); }
         }

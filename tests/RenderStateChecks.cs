@@ -930,6 +930,93 @@ public static class RenderStateChecks
         }
         Console.WriteLine("PASS authored original-water shoreline: four orientations, stable roots, quality/reduced-motion and no inland foam");
     }
+    private static void ProjectileTrailsGrowWithoutFramePopping(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        var originalQuality=g.save.effectsQuality;
+        var originalReduced=g.save.reducedMotion;
+        Matrix4x4 originalMatrix=GUI.matrix;
+        Color originalColor=GUI.color;
+        try
+        {
+            g.save.effectsQuality=2;
+            g.save.reducedMotion=false;
+            GUI.matrix=Matrix4x4.TRS(new Vector3(33,21,0),
+                Quaternion.identity,new Vector3(1.3f,1.3f,1));
+            GUI.color=new Color(.34f,.51f,.71f,.82f);
+            Projectile flight=new Projectile{
+                position=new Point(13,14),
+                velocity=new Point(10,0),
+                age=.019f,
+                friendly=true,
+                visual="arrow"
+            };
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==2,
+                "Newly born arrow trail must fade in before the second cell");
+            var early=GUI.textureCalls[0];
+            Check(early.texture.name=="resource:Frontier/Art/Effects"&&
+                early.color.a>0f&&early.color.a<.04f,
+                "First trail suddenly appeared at full opacity");
+            flight.age=.03f;
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==2&&
+                GUI.textureCalls[0].color.a>early.color.a&&
+                GUI.textureCalls[0].color.a<.42f,
+                "Original tail must grow smoothly on real travel distance");
+            flight.age=.09f;
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==4,
+                "Fully established authored arrow trail lost its three poses");
+            var head=GUI.textureCalls[3];
+            var expectedHead=(Point)Call(app,"ScreenPoint",flight.position);
+            Vector3 expected=GUI.matrix.MultiplyPoint3x4(new Vector3(
+                expectedHead.x,expectedHead.y-flight.height,0));
+            Near(Center(head),expected,
+                "Fading arrow ghosts shifted real projectile impact coordinates");
+            for(int i=0;i<3;i++)
+                Check(GUI.textureCalls[i].color.a>0f&&
+                    GUI.textureCalls[i].color.a<=.42f,
+                    "Established trail alpha outside source-approved bounds");
+            g.save.effectsQuality=1;
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==3,
+                "Medium quality must preserve arrow head and two source tails");
+            g.save.reducedMotion=true;
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==1&&
+                GUI.textureCalls[0].texture.name==
+                    "resource:Frontier/Art/Effects",
+                "Reduced-motion must keep authentic arrow head, without ghosts");
+            g.save.reducedMotion=false;
+            g.save.effectsQuality=0;
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==1,
+                "Low quality should retain actual flight but omit trail cost");
+            g.save.effectsQuality=2;
+            flight.velocity=new Point(0,0);
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==1,
+                "Stationary projectile must not create offset ghost sprites");
+            Same(GUI.matrix,Matrix4x4.TRS(new Vector3(33,21,0),
+                Quaternion.identity,new Vector3(1.3f,1.3f,1)),
+                "Projectile trail rotated unrelated canvas objects");
+            Same(GUI.color,new Color(.34f,.51f,.71f,.82f),
+                "Projectile fades leaked tint to HUD");
+        }
+        finally
+        {
+            g.save.effectsQuality=originalQuality;
+            g.save.reducedMotion=originalReduced;
+            GUI.matrix=originalMatrix;
+            GUI.color=originalColor;
+            Clear();
+        }
+        Console.WriteLine(
+            "PASS original 128px flight trail gradual emergence, true projectile anchor, 3 FX tiers and reduced motion");
+    }
     private static void CombatWarningUsesConnectedTrueRadiusGeometry(
         FrontierRuntime app)
     {
@@ -1306,7 +1393,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
