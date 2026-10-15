@@ -174,6 +174,15 @@ def check():
                       "Dictionary<string,Texture2D>"):
         assert forbidden not in gait, "Resurrected body puppetry: "+forbidden
     assert "private void ClearUnifiedActionGait() { }" in gait
+    preview_pipeline = (ROOT / "tools/build_hero_animation_preview.py").read_text()
+    # Production asset generation used to delete each source head and paste a
+    # separately positioned WalkVanguard face. Reject restoring that pathway.
+    baker = preview_pipeline[preview_pipeline.index("def canonical_frame("):
+                             preview_pipeline.index("def strip(")]
+    assert "return original" in baker
+    assert "canvas.paste" not in baker and "golden_head" not in baker
+    rig = (RUNTIME / "FrontierActorRig.cs").read_text()
+    assert "private void HumanActor(" not in rig and "private void ActorPart(" not in rig
     assert "UnifiedActionGait(" not in actor
     assert "DrawWholeBodyHeroOnGUI" in actor
     # Published canonical PNGs are isReadable: 0. World outline pass must
