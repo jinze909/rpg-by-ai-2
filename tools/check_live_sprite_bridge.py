@@ -124,6 +124,39 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_VISUAL_CI: invisible moving attack gait accepted")
+    # Native PlayMode contract must target Frontier.unity, not only a
+    # preview prefab or a spare SpriteRenderer. Native runner remains
+    # NATIVE_UNVERIFIED until Unity 2022.3 actually executes these checks.
+    native_qa = (ROOT / "Assets/Tests/PlayMode/VisualPlayModeTests.cs").read_text()
+    def check_native_scene_contract(source):
+        required = (
+            "ProductionFrontierSceneUsesTheLiveThreeClassHeroPath",
+            "EditorSceneManager.LoadSceneInPlayMode(",
+            '"Assets/Scenes/Frontier.unity"',
+            'Assert.AreEqual("Frontier", SceneManager.GetActiveScene().name)',
+            "Assert.IsTrue((bool)mode.GetValue(app)",
+            "SpriteRenderer renderer = capture.GetValue(app) as SpriteRenderer;",
+            "Assert.AreSame(atlas, renderer.sprite.texture,",
+            '"real-Frontier-scene-"',
+            "Native Animator MISSING: production PlayMode must FAIL",
+            "Released swing must remain one coherent full-body Attack, not Run",
+            "Do not play hidden footstep audio",
+        )
+        for item in required:
+            assert item in source, ("NATIVE_PRODUCTION_SCENE_COVERAGE_LOST",item)
+        assert "Assert.Ignore(" not in source, (
+            "NATIVE_ANIMATOR_MISSING_MUST_NOT_BE_IGNORED")
+    check_native_scene_contract(native_qa)
+    for item in ("EditorSceneManager.LoadSceneInPlayMode(",
+                 "Assert.IsTrue((bool)mode.GetValue(app)",
+                 "Assert.AreSame(atlas, renderer.sprite.texture,"):
+        try:
+            check_native_scene_contract(native_qa.replace(
+                item, "/* intentionally corrupted native path */", 1))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_CI: native scene/renderer parity check removed")
     assert "if(action==1)position%=frames;" in actor
     assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
     assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor

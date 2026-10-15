@@ -1,6 +1,10 @@
 #if UNITY_INCLUDE_TESTS
 using System.Collections;
 using System.IO;
+#if UNITY_EDITOR
+using UnityEditor.SceneManagement;
+using UnityEngine.SceneManagement;
+#endif
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -21,6 +25,68 @@ namespace Starfall.Tests
         }
         [UnityTearDown] public IEnumerator TearDown()
         { if (app != null) app.EndVisualReview(); if (host != null) Object.Destroy(host); yield return null; }
+        [UnityTest] public IEnumerator ProductionFrontierSceneUsesTheLiveThreeClassHeroPath()
+        {
+#if UNITY_EDITOR
+            // Do NOT create an isolated preview object and claim the real
+            // production scene has migrated. Boot Frontier.unity through
+            // Unity Editor's actual in-PlayMode scene-loading entry point.
+            var scene = EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Scenes/Frontier.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            host = null;  // earlier isolated fixture was replaced by scene load
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Assert.IsTrue(scene.IsValid() && scene.isLoaded);
+            Assert.AreEqual("Frontier", SceneManager.GetActiveScene().name);
+            app = Object.FindObjectOfType<FrontierRuntime>();
+            Assert.NotNull(app,
+                "Actual Frontier scene must boot production FrontierRuntime");
+            Assert.NotNull(app.Game,
+                "The real scene cannot silently fail Campaign/Save initialization");
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var mode = typeof(FrontierRuntime).GetField("useSpriteRendererHero", flags);
+            var capture = typeof(FrontierRuntime).GetField("heroCaptureRenderer", flags);
+            var texture = typeof(FrontierRuntime).GetField("heroCaptureTexture", flags);
+            var broken = typeof(FrontierRuntime).GetField("heroCaptureBroken", flags);
+            Assert.IsTrue((bool)mode.GetValue(app),
+                "Production Frontier scene must default to one full-body SpriteRenderer");
+            string folder = Path.GetFullPath(Path.Combine(Application.dataPath,
+                "../docs/native-captures"));
+            Directory.CreateDirectory(folder);
+            string[] classes = {"Vanguard", "Ranger", "Arcanist"};
+            for (int cls=0;cls<classes.Length;cls++)
+            {
+                app.BeginVisualReview(cls,1);
+                app.Game.SetAim(new Point(1,0));
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                Assert.IsFalse((bool)broken.GetValue(app),
+                    "Actual scene failed GPU hero capture: "+classes[cls]);
+                SpriteRenderer renderer = capture.GetValue(app) as SpriteRenderer;
+                RenderTexture gpu = texture.GetValue(app) as RenderTexture;
+                Assert.NotNull(renderer, "Missing live SpriteRenderer in Frontier");
+                Assert.NotNull(renderer.sprite, "Actual scene did not draw live hero");
+                Assert.NotNull(gpu, "Actual scene did not create hero capture target");
+                Assert.IsTrue(gpu.IsCreated());
+                Texture2D atlas = Resources.Load<Texture2D>(
+                    "Frontier/HeroAnimator/Canonical/Hero_"+classes[cls]+"_Idle_E");
+                Assert.AreSame(atlas, renderer.sprite.texture,
+                    "Production scene selected wrong character equipment/identity");
+                Assert.AreEqual(128f,renderer.sprite.pivot.x,.05f);
+                Assert.AreEqual(16f,renderer.sprite.pivot.y,.05f);
+                ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                    "real-Frontier-scene-"+classes[cls]+".png"));
+                yield return null;
+            }
+            app.EndVisualReview();
+#else
+            Assert.Fail("Native production scene verification requires Unity Editor");
+            yield break;
+#endif
+        }
+
         [UnityTest] public IEnumerator LiveSpriteRendererCapturesCanonicalHeroPixelsInGameView()
         {
             // This tests the actual FrontierRuntime renderer switch and
@@ -131,8 +197,11 @@ namespace Starfall.Tests
                                 "Frontier/HeroAnimator/Canonical/" + key);
                             Assert.IsNotNull(atlas, "Missing actual canonical resource " + key);
                             int expected = action == 0 ? 1 :
-                                action == 1 ? 4 : action == 2 || action == 3 ? 6 :
-                                action == 4 || action == 5 ? 5 : 4;
+                                action == 1 ? 4 : action == 4 || action == 5 ? 5 :
+                                action == 6 ? 4 : atlas.width / cell;
+                            if (action == 2 || action == 3)
+                                Assert.IsTrue(expected == 6 || expected == 7,
+                                    key + " incomplete or invented contact art");
                             Assert.AreEqual(expected * cell, atlas.width, key + " frame width");
                             Assert.AreEqual(cell, atlas.height, key + " frame height");
                             int state = Animator.StringToHash("Base Layer." +
@@ -243,8 +312,8 @@ namespace Starfall.Tests
             {
                 RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>(
                     "Frontier/HeroAnimator/Production" + classes[vocation]);
-                if (controller == null)
-                    Assert.Ignore("Native Animator assets not baked: first run Starfall/Animation/Bake Accepted Hero To Live 3-Class Animator");
+                Assert.IsNotNull(controller,
+                    "Native Animator MISSING: production PlayMode must FAIL, not silently IGNORE an unbaked controller");
                 var go = new GameObject("Hero native frame QA " + classes[vocation]);
                 var renderer = go.AddComponent<SpriteRenderer>();
                 var animator = go.AddComponent<Animator>();
@@ -303,7 +372,24 @@ namespace Starfall.Tests
                 Assert.IsTrue(vocation==0?(core.Position-start).Length>.1f:(core.Position-start).Length<.001f,"Full body bow/staff preparation plants the feet; sword contact advances the body");
                 yield return null;yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(folder,"continuity-contact-"+vocation+"-"+GameCore.DirectionRow(direction)+"-"+direction.x+".png"));yield return null;
                 while(core.playerAction!=null&&core.PlayerPhase!=ActionPhase.Recovery)app.AdvanceVisualReview(.01f,new Point());
-                app.AdvanceVisualReview(.01f,direction);Assert.IsTrue(core.ActuallyMoving&&core.PlayerPose>=2&&core.PlayerPose<=3,"Recovery returns to real locomotion");
+                float hiddenStride=core.walkDistance;
+                int oldFootsteps=core.footContacts;
+                app.AdvanceVisualReview(.01f,direction);
+                Assert.IsTrue(core.ActuallyMoving&&
+                    (core.PlayerPose==5||core.PlayerPose==7)&&
+                    core.HeroAnimationState==2,
+                    "Released swing must remain one coherent full-body Attack, not Run");
+                Assert.AreEqual(hiddenStride,core.walkDistance,.0001f,
+                    "Invisible Run steps cannot advance behind a rooted recovery pose");
+                Assert.AreEqual(oldFootsteps,core.footContacts,
+                    "Do not play hidden footstep audio under a static full-body Attack");
+                Assert.Less((core.VisualFacing-direction).Length,.001f);
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                    "continuity-moving-recovery-"+vocation+"-"+
+                    GameCore.DirectionRow(direction)+"-"+direction.x+".png"));
+                yield return null;
             }
         }
     }
