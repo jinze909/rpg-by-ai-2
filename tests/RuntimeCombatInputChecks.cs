@@ -237,6 +237,9 @@ public static class RuntimeCombatInputChecks
                 app.Game.HeroAnimationPlaybackPosition(facing);
             float progress=attackSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):
                 reactionFive?phase*2f:phase;
+            if(attackSix&&app.Game.playerAction!=null&&
+                !app.Game.playerAction.released)
+                progress=Math.Min(progress,2.60f);
             if(action==1)progress%=count;
             int expected=Math.Max(0,Math.Min(count-1,(int)Math.Floor(progress+.20f)));
             Check(DrawnFrame(rendered)==expected,
@@ -276,6 +279,70 @@ public static class RuntimeCombatInputChecks
             CheckPlayerDrawing(app, sheet, row == 0 ? 7 : profession * 4 + 3, direction);
         }
         Console.WriteLine("PASS Actual Q contact rendering at the 20ms float boundary for all class/direction selections");
+    }
+
+    private static void DirectionalLmbAndSkillContactNeverFlashBeforeRelease(
+        FrontierRuntime app)
+    {
+        // The old six-cell selector exposed contact frame #3 before
+        // ActorAction.released: it rounded a late windup near position 2.8
+        // into contact via +.20. Test both real actor Sprite samples and
+        // the exact GameCore physical release, including cross-class skills.
+        MethodInfo resolver=typeof(FrontierRuntime).GetMethod(
+            "ResolveFullBodyHeroFrame",Private);
+        Check(resolver!=null,"Missing real renderer frame selector");
+        int audited=0;
+        foreach(int vocation in new[]{0,1,2})
+        foreach(int equipment in new[]{0,1,2})
+        foreach(int command in new[]{0,1})
+        foreach(Point aim in new[]{new Point(0,-1),new Point(0,1)})
+        {
+            Prepare(app,vocation);
+            GameCore g=app.Game;
+            if(equipment>0&&!g.Has("weapon_"+equipment))
+                g.save.flags.Add("weapon_"+equipment);
+            g.Equip(equipment);
+            Check(g.save.weapon==equipment,"Cross-equipment setup failed");
+            g.SetAim(aim);
+            if(command==0)g.Attack(aim);else g.Skill(aim);
+            ActorAction selected=g.playerAction;
+            Check(selected!=null&&!selected.released,
+                "Actual LMB/Q must begin in the windup pose");
+            int facing=GameCore.DirectionRow(aim);
+            int expectedAction=command==0?2:3;
+            for(int stage=0;stage<2;stage++)
+            {
+                if(stage==1)selected.elapsed=
+                    Math.Max(0,selected.contact-.005f);
+                object[] args={false,facing,0,0,0,0f};
+                Check((bool)resolver.Invoke(app,args),"No published windup");
+                int state=(int)args[2],count=(int)args[3],
+                    frame=(int)args[4];
+                Check(state==expectedAction&&count==6&&frame<=2,
+                    "PRE_RELEASE_CONTACT_FLASH: "+vocation+"/"+equipment+
+                    "/"+command+"/"+facing+"/"+frame);
+                Check(g.AppearanceWeapon==equipment,
+                    "Windup changed outfit instead of obeying equipment");
+                CheckPlayerDrawing(app,"",0,aim);
+                audited++;
+            }
+            // Advance REAL combat simulation across the damage boundary.
+            g.Tick(.01f,new Point());
+            Check(selected.released&&g.playerAction==selected,
+                "Real damage/contact boundary was not reached");
+            object[] released={false,facing,0,0,0,0f};
+            Check((bool)resolver.Invoke(app,released),"No contact frame");
+            Check((int)released[2]==expectedAction&&(int)released[4]==3,
+                "Actual first released keypose must be whole-body contact #3");
+            Check(g.AppearanceWeapon==equipment,
+                "Released body changed equipment instead of skill mechanics");
+            CheckPlayerDrawing(app,"",0,aim);
+            audited++;
+        }
+        Check(audited==108,"All 108 north/south LMB/Q first/late/release "
+            +"frame probes must execute");
+        Console.WriteLine("PASS 108 north/south LMB/Q first, last windup "
+            +"and real released contact frames retain one whole-body identity");
     }
 
     private static void MoveDuringQRecovery(FrontierRuntime app, Point direction)
@@ -916,6 +983,8 @@ public static class RuntimeCombatInputChecks
                 {
                     Check(look==cls&&actionId==(cmd==0?2:3),
                         "Active action changed its class or entire body unexpectedly");
+                    if(!selected.released&&(actionId==2||actionId==3))
+                        Check(cell<3,"Old pre-release contact frame flashed");
                     if(rootMoving&&g.PlayerPhase==ActionPhase.Recovery)
                     {
                         movingRecoverySamples++;
@@ -1189,7 +1258,9 @@ public static class RuntimeCombatInputChecks
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
-            ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
+            ReleasedTechniqueDrawsContactFrame,
+            DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
+            ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
             AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,

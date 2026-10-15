@@ -318,6 +318,25 @@ def check():
     assert "heroContactFamilyChecked" in actor and "heroContactFamilyComplete" in actor
     assert "atlas.width!=7*256" in actor
     assert "phase<2f?Math.Min(3f,phase*2f):phase*2f" in actor
+    # Contact animation must be tied to GameCore's released flag,
+    # not only an interpolation cap that a later artist-timeline tweak
+    # could accidentally relax. This is defense in depth: the CURRENT
+    # six-cell phase is already capped at pre-contact index 2.
+    for token in (
+        "if((action==2||action==3)&&Game.playerAction!=null&&",
+        "!Game.playerAction.released)",
+        "int realContact=actionSeven?4:3;",
+        "position=Math.Min(position,realContact-.40f);",
+    ):
+        assert token in actor, ("RELEASE_EVENT_SPRITE_FENCE_MISSING",token)
+    mutation=actor.replace("position=Math.Min(position,realContact-.40f);",
+                           "/* gate erased on purpose */",1)
+    assert "position=Math.Min(position,realContact-.40f);" not in mutation
+    assert "position=Math.Min(position,realContact-.40f);" in actor
+    runtime=(ROOT/"tests/RuntimeCombatInputChecks.cs").read_text()
+    assert "DirectionalLmbAndSkillContactNeverFlashBeforeRelease" in runtime
+    assert "selected.released&&g.playerAction==selected" in runtime
+    assert "Check(audited==108," in runtime
     # Exact contact boundary, no early release frame even at maximal windup.
     def sampled_cell(phase, seven):
         pos = (min(3.,phase*2.) if phase<2 else phase*2) if seven else (

@@ -158,6 +158,21 @@ namespace Starfall
             position=actionSeven?(phase<2f?Math.Min(3f,phase*2f):phase*2f):
                 actionSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):
                 reactionFive?phase*2f:phase;
+            // Defensive invariant: even if future authored animation
+            // phases change the numeric interpolation, it is NEVER valid
+            // for Attack/Cast to display its contact pose before the REAL
+            // GameCore ActorAction.released event. The existing six-cell
+            // phase Math.Min(2f,...) already prevented the early hit; this
+            // additional state gate protects both native Animator sampling
+            // and a future 7-cell authored-contact upgrade from regression.
+            // The actual 1–2-frame North/South visual flash came from
+            // walking pose Sprites inserted at slot 1 and slot 4 (producer).
+            if((action==2||action==3)&&Game.playerAction!=null&&
+                !Game.playerAction.released)
+            {
+                int realContact=actionSeven?4:3;
+                position=Math.Min(position,realContact-.40f);
+            }
             if(action==1)position%=frames;
             index=Math.Max(0,Math.Min(frames-1,(int)Math.Floor(position+.20f)));
             return true;
