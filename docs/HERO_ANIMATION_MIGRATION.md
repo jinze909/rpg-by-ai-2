@@ -135,3 +135,20 @@ not newly drawn anatomy or expert approval. CI validates 63 atlases
 and 126 generated midpoints, including the 36 newly generated
 reaction transitions. Native Unity graphics/PlayMode, manual joint
 articulation and visual quality acceptance remain pending.
+
+### Proven offline QA and guarded Sprite publication
+
+Latest offline core run before publishing:
+- All 63 regenerated canonical sheets validated.
+- All **333** production Sprite frames validated against source poses and sheet dimensions.
+- **125/126** generated transitions differ pixel-for-pixel from the preceding
+  source (the remaining one is a known Run hold, explicitly reported).
+- All 63 existing .meta GUIDs verified stable; canonical head and foot root unchanged.
+- All 21/21 production combat input suites passed. New
+  `ReactionClockTraversesBothNewMotionCells` checks five Sprite
+  samples over unmodified authoritative dodge/hit clocks.
+
+The controlled `[publish-hero-art]` workflow will publish only generated
+Sprite PNGs to `chatgpt/dev` with a non-force fast-forward guard.
+Do not mark Unity PlayMode or hand-drawn art quality as accepted until
+the native test runner and Game View visual inspection actually pass.
