@@ -154,61 +154,84 @@ public static class ActorRegistrationChecks
     }
     static void UnifiedGaitComposites(FrontierRuntime app)
     {
-        // Synthetic opaque identities isolate *pixel replacement* from draw
-        // geometry: walking feet must change, but head/weapon/torso may not.
+        // Regression for the actual root cause: the old pixel compositor
+        // pasted walking boots and thighs from another original sheet at a
+        // hard 219px hem seam. Assert COMPLETE rendered provenance from the
+        // action atlas (and its profession), not just source registration.
         var action=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="PlayerVanguard"};
         var walk=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="WalkVanguard"};
+        var rival=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="WalkRanger"};
         var upper=new Color(.8f,.5f,.2f,1f);
-        var originalFoot=new Color(.6f,.3f,.1f,1f);
-        var firstStep=new Color(.1f,.7f,.3f,1f);
-        var nextStep=new Color(.15f,.35f,.9f,1f);
+        var foot=new Color(.6f,.3f,.1f,1f);
+        var wrongBoot=new Color(.1f,.7f,.3f,1f);
+        var belt=new Color(.9f,.12f,.08f,1f);
         var a=new Color[action.width*action.height];
         var w=new Color[walk.width*walk.height];
-        // PlayerVanguard action frame 4 is first cell of atlas row 1.
-        int ax=120,atop=180,afoot=230;
+        int ax=120,atop=180,footTop=230;
         a[(action.height-256-1-atop)*action.width+ax]=upper;
-        a[(action.height-256-1-afoot)*action.width+ax]=originalFoot;
-        // Core belt and side-seam are independent of gait phase. The old
-        // rectangular 217px crop would cut this authored waist in half.
-        var belt=new Color(.9f,.12f,.08f,1f);
+        a[(action.height-256-1-footTop)*action.width+ax]=foot;
         a[(action.height-256-1-222)*action.width+128]=belt;
-
-        // WalkVanguard frames 0 and 1 on atlas top row.
-        w[(walk.height-1-afoot)*walk.width+ax]=firstStep;
-        w[(walk.height-1-afoot)*walk.width+256+ax]=nextStep;
-        action.SetPixels(a);walk.SetPixels(w);
+        w[(walk.height-1-footTop)*walk.width+ax]=wrongBoot;
+        w[(walk.height-1-footTop)*walk.width+256+ax]=
+            new Color(.15f,.35f,.9f,1f);
+        action.SetPixels(a);walk.SetPixels(w);rival.SetPixels(w);
         var method=app.GetType().GetMethod("UnifiedActionGait",Private);
-        Check(method!=null,"Native actor compositor must be wired into the game runtime");
-        var a0=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0});
-        var a1=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,1});
-        var repeat=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0});
-        Check(a0!=null&&a1!=null&&a0.width==256&&a0.height==256&&
-            a0.filterMode==FilterMode.Point&&ReferenceEquals(a0,repeat),
-            "Unified frames retain identical 256px canvas, point-filtering and cache their real texture");
-        int ixTop=(255-atop)*256+ax,ixFoot=(255-afoot)*256+ax;
-        Check(Math.Abs(a0.pixels[ixTop].r-upper.r)<.001f&&
-            Math.Abs(a1.pixels[ixTop].r-upper.r)<.001f,
-            "Authored action's torso and weapon never pop between individual gait frames");
-        int beltIndex=(255-222)*256+128;
-        Check(Math.Abs(a0.pixels[beltIndex].r-belt.r)<.001f&&
-            Math.Abs(a1.pixels[beltIndex].r-belt.r)<.001f,
-            "Central belt remains attached through walking/casting transitions");
-        Check(Math.Abs(a0.pixels[ixFoot].g-firstStep.g)<.001f&&
-            Math.Abs(a1.pixels[ixFoot].b-nextStep.b)<.001f&&
-            Math.Abs(a0.pixels[ixFoot].b-a1.pixels[ixFoot].b)>.2f,
-            "Real authored gait frames change boot silhouettes while the one shared pivot remains fixed");
-        // A long session must not accumulate arbitrary per-weapon generated
-        // RGBA textures when switching all directions and action frames.
-        for(int actionFrame=0;actionFrame<12;actionFrame++)
-            for(int walkFrame=0;walkFrame<12;walkFrame++)
-                method.Invoke(app,new object[]{action,4,3,actionFrame,walk,walkFrame});
-        var cache=(System.Collections.IDictionary)app.GetType().
-            GetField("unifiedGaitCache",Private).GetValue(app);
-        Check(cache.Count<=96&&cache.Count>50,
-            "Runtime-generated hero gait textures need a bounded cache in long sessions");
-        Check(a0.destroyed,
-            "An old generated frame must be retired and returned to Unity memory");
-        Console.WriteLine("PASS unified animation pixels: 2 unique gait frames, fixed waist/weapon, one 256px pivot, cached Point texture");
+        var walkField=app.GetType().GetField("walkSheets",Private);
+        var playersField=app.GetType().GetField("playerSheets",Private);
+        Check(method!=null&&walkField!=null&&playersField!=null,
+            "Full-body gait must be wired into production, not a detached preview");
+        var originalWalks=(Texture2D[])walkField.GetValue(app);
+        var originalPlayers=(Texture2D[])playersField.GetValue(app);
+        try
+        {
+            walkField.SetValue(app,new[]{walk,rival,originalWalks[2]});
+            playersField.SetValue(app,new[]{action,originalPlayers[1],originalPlayers[2]});
+            var a0=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0,0});
+            var a2=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,2,0});
+            var repeat=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0,0});
+            Check(a0!=null&&a2!=null&&a0.width==256&&a0.height==256&&
+                a0.filterMode==FilterMode.Point&&ReferenceEquals(a0,repeat),
+                "Full-body class-owned Sprite keeps point filter, root and cache");
+            Check(!ReferenceEquals(a0,a2), "Distance-driven lower limb phases must change");
+            int upperIndex=(255-atop)*256+ax;
+            int waistIndex=(255-222)*256+128;
+            Check(a0.pixels[upperIndex].r==upper.r&&
+                a2.pixels[upperIndex].r==upper.r&&
+                a0.pixels[waistIndex].r==belt.r&&
+                a2.pixels[waistIndex].r==belt.r,
+                "Upper equipment, waist and head cannot be replaced by stride pixels");
+            bool motion=false,hasFoot=false;
+            for(int i=0;i<a0.pixels.Length;i++)
+            {
+                Color p=a0.pixels[i],q=a2.pixels[i];
+                // No supplied WALK palette pixel can enter the game output.
+                Check(!(p.g==wrongBoot.g&&p.r==wrongBoot.r)&&
+                      !(q.g==wrongBoot.g&&q.r==wrongBoot.r),
+                    "Foreign lower-body walk palette illegally entered the hero");
+                if(p.a>0f&&p.r==foot.r)hasFoot=true;
+                if(Math.Abs(p.r-q.r)>.01f||Math.Abs(p.a-q.a)>.01f)motion=true;
+            }
+            Check(hasFoot&&motion,"Motion must deform the accepted same-class boots");
+            Check(method.Invoke(app,new object[]{action,4,3,4,rival,0,0})==null,
+                "A wrong-profession walking atlas must fail closed");
+            Check(method.Invoke(app,new object[]{action,4,3,4,walk,0,1})==null,
+                "A Vanguard action cannot render as Ranger");
+            // Eviction also applies to source-only motion, with no LFS leak.
+            for(int actionFrame=0;actionFrame<12;actionFrame++)
+                for(int walkFrame=0;walkFrame<12;walkFrame++)
+                    method.Invoke(app,new object[]{action,4,3,actionFrame,walk,walkFrame,0});
+            var cache=(System.Collections.IDictionary)app.GetType().
+                GetField("unifiedGaitCache",Private).GetValue(app);
+            Check(cache.Count<=96&&cache.Count>50,
+                "Full-body motion textures must have bounded ownership");
+            Check(a0.destroyed,"Evicted full-body gait cannot leak textures");
+            Console.WriteLine("PASS full-body class provenance: single action palette, moving original boots, uncut belt, same-foot pivot, wrong-class rejection");
+        }
+        finally
+        {
+            walkField.SetValue(app,originalWalks);
+            playersField.SetValue(app,originalPlayers);
+        }
     }
 
     public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { UnifiedGaitComposites(app); }
