@@ -56,6 +56,10 @@ namespace Starfall
         private Sprite heroCaptureRenderedSprite;
         private bool heroCaptureRenderedFlip;
         private bool heroCaptureBroken;
+        // A transient failed GPU capture should never force the canonical
+        // hero onto the fallback lane for the entire gameplay session.
+        // RenderTexture/driver recovery is attempted only after cooldown.
+        private int heroCaptureRetryAt;
         private int heroCaptureProfession = -1;
         private bool heroProductionReady;
         // Unity may finish importing the production .controller after the
@@ -84,9 +88,16 @@ namespace Starfall
         private bool DrawSpriteRendererHero(Point foot, Color tint, bool flip,
             int facing, bool locomotion)
         {
-            if(!useSpriteRendererHero||heroCaptureBroken||drawingOutline||
+            if(!useSpriteRendererHero||drawingOutline||
                 Game==null||Game.mode=="title")
                 return false;
+            if(heroCaptureBroken)
+            {
+                // Keep showing the SAME full-body published OnGUI Sprite
+                // during cooldown. Do not spam GPU allocations each repaint.
+                if(Time.frameCount < heroCaptureRetryAt)return false;
+                heroCaptureBroken=false;
+            }
             if(Event.current.type!=EventType.Repaint)return true;
             try
             {
@@ -231,8 +242,10 @@ namespace Starfall
             catch (Exception error)
             {
                 heroCaptureBroken = true;
-                Debug.LogWarning("Starfall hero SpriteRenderer capture disabled, "
-                    + "using accepted OnGUI art: " + error.Message);
+                heroCaptureRetryAt = Time.frameCount + 120;
+                Debug.LogWarning("Starfall hero SpriteRenderer capture temporarily "
+                    + "unavailable; using exact full-body OnGUI art, retry in "
+                    + "120 frames: " + error.Message);
                 ReleaseHeroCapture();
                 return false;
             }
@@ -472,6 +485,8 @@ namespace Starfall
             heroCaptureProfession = -1;
             heroProductionReady = false;
             heroControllerRetryAt = 0;
+            // Do not clear heroCaptureBroken/retryAt here: the caller may be
+            // releasing after an exception, and must respect GPU cooldown.
         }
     }
 }

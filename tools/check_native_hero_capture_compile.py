@@ -162,6 +162,25 @@ def run():
         "UNSAFE_CI_ACCEPTED_UNRECOVERABLE_CONTROLLER_IMPORT",
         deniedOneShot.stdout)
     print("PASS one-shot native Controller import regression hard-FAIL")
+    # A lost GPU RenderTexture may recover at runtime. Returning false
+    # forever (old heroCaptureBroken latch) must fail executable C# tests.
+    gpuGuard="if(Time.frameCount < heroCaptureRetryAt)return false;"
+    assert original.count(gpuGuard)==1, "HERO_GPU_RECOVERY_GUARD_MISSING"
+    permanent=original.replace(gpuGuard,"if(true)return false;",1)
+    permanentPath=OUT/"broken-permanent-hero-gpu.cs"
+    permanentPath.write_text(permanent,encoding="utf-8")
+    permanentExe=OUT/"broken-permanent-hero-gpu.exe"
+    gpuCompile=subprocess.run(compiler()+[
+        "-define:UNITY_5_3_OR_NEWER","-out:"+str(permanentExe),
+        str(STUB),str(FACTORY),str(permanentPath),str(probe)],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert gpuCompile.returncode==0,(
+        "HERO_GPU_RECOVERY_MUTATION_INVALID",gpuCompile.stdout)
+    gpuDenied=subprocess.run([mono,str(permanentExe)],cwd=ROOT,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert gpuDenied.returncode!=0 and "HERO_CAPTURE_REGRESSION" in gpuDenied.stdout,(
+        "UNSAFE_CI_ACCEPTED_PERMANENT_GPU_FALLBACK",gpuDenied.stdout)
+    print("PASS permanent GPU fallback regression hard-FAIL")
     print("PASS actual UNITY_5_3_OR_NEWER SpriteRenderer + canonical "
           "Sprite factory compiled in separate C# assembly")
     print("PASS fault-injected invalid SpriteRenderer API rejected by mcs")

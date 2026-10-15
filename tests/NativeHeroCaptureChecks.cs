@@ -222,13 +222,51 @@ public static class NativeHeroCaptureChecks
                 Resources.RegisteredSprites[actionResource][2]),
             "class swap displayed an old/missing controller's wrong armor");
         release.Invoke(late,null);
+
+        // Native RenderTexture device/context failure can happen during an
+        // otherwise valid Animator frame. Keep the full-body fallback alive,
+        // then automatically resume the SAME pose/weapon without F8 toggling.
+        var device=new FrontierRuntime();
+        device.Game.AppearanceWeapon=0;
+        device.ProbeAction=2;
+        device.ProbeFrames=6;
+        device.ProbeFrame=2;
+        device.ProbePosition=2f;
+        var brokenField=typeof(FrontierRuntime).GetField(
+            "heroCaptureBroken",flags);
+        Require(brokenField!=null,"native GPU fault state not found");
+        Time.frameCount=2000;
+        Camera.InjectGpuFailureOnce=true;
+        bool failedDraw=(bool)draw.Invoke(device,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(!failedDraw&&(bool)brokenField.GetValue(device),
+            "broken GPU capture must request existing whole-body fallback");
+        var oldRenderCount=Camera.RenderedTargets.Count;
+        Time.frameCount=2001;
+        bool waitGpu=(bool)draw.Invoke(device,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(!waitGpu&&Camera.RenderedTargets.Count==oldRenderCount,
+            "GPU failures should not retry on every repaint");
+        Time.frameCount=2120;
+        bool recoveredGpu=(bool)draw.Invoke(device,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        var restoredRenderer=renderField.GetValue(device) as SpriteRenderer;
+        var restoredAnimator=animatorField.GetValue(device) as Animator;
+        Require(recoveredGpu&&!(bool)brokenField.GetValue(device)&&
+            restoredRenderer!=null&&restoredAnimator!=null&&
+            restoredAnimator.enabled&&
+            ReferenceEquals(restoredRenderer.sprite,
+                Resources.RegisteredSprites[actionResource][2])&&
+            Camera.RenderedTargets.Count>oldRenderCount,
+            "transient GPU loss permanently disabled live hero capture");
+        release.Invoke(device,null);
         release.Invoke(app,null);
         foreach(var target in textures)
             Require(target.releaseCount>0&&!target.IsCreated(),
                 "captured action GPU target leaked at shutdown");
         Require(contactTexture.releaseCount>0,
             "contact target leaked at shutdown");
-        Console.WriteLine("PASS 84 E/W/N/S class actions, late Controller import, bounded retry, same-body fallback, class-swap isolation, contact recovery, device loss and cleanup");
+        Console.WriteLine("PASS 84 E/W/N/S class actions, late Controller import, bounded retry, live GPU fault recovery, full-body fallback, class-swap isolation and cleanup");
         Console.WriteLine("NATIVE_UNVERIFIED: Unity GPU/GameView/Animator not executed");
     }
 }

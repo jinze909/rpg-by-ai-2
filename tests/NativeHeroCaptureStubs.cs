@@ -195,7 +195,16 @@ namespace UnityEngine
         public RenderTexture targetTexture;
         public static readonly List<RenderTexture> RenderedTargets =
             new List<RenderTexture>();
-        public void Render() { RenderedTargets.Add(targetTexture); }
+        public static bool InjectGpuFailureOnce;
+        public void Render()
+        {
+            if(InjectGpuFailureOnce)
+            {
+                InjectGpuFailureOnce=false;
+                throw new InvalidOperationException("simulated lost GPU target");
+            }
+            RenderedTargets.Add(targetTexture);
+        }
     }
     public static class Resources
     {

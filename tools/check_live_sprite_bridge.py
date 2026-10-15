@@ -586,7 +586,10 @@ def check():
     assert engine.startswith("#if UNITY_5_3_OR_NEWER")
     assert "private bool useSpriteRendererHero = true;" in engine, (
         "Production hero must default to unified SpriteRenderer; F8 opt-out retained")
-    assert "if(!useSpriteRendererHero||heroCaptureBroken||drawingOutline||" in engine
+    assert "if(!useSpriteRendererHero||drawingOutline||" in engine
+    assert "if(heroCaptureBroken)" in engine
+    assert "if(Time.frameCount < heroCaptureRetryAt)return false;" in engine
+    assert "heroCaptureRetryAt = Time.frameCount + 120;" in engine
     assert "if(!captured)" in actor and "DrawWholeBodyHeroOnGUI" in actor
     assert "KeyCode.F8" in game and "else ReleaseHeroCapture();" in game
     assert engine.count("return false;") >= 3, "Production must have a failure fallback"
