@@ -66,7 +66,12 @@ def curated_motion_source(profession, action, facing, source_index):
             return ("PlayerReactionsSouth", cls * 4 + 1)
     if action in ("Attack", "Cast") and source_index in (0, 2):
         if facing == "E":
-            return ("Player" + profession, 2 if source_index == 0 else 3)
+            # Player<class>:2/3 are the artist's TRAVELLING stride, not a
+            # planted attack/skill preparation. Showing either for a single
+            # frame causes the same old-walk-body flash as using Walk_N/S.
+            # The actual class-authored guard (frame 9) preserves outfit,
+            # handed weapon, foot root and standing silhouette.
+            return ("Player" + profession, 9)
         if facing in ("N", "S"):
             # Root cause of the 1–2-frame old-body flash: this slot used
             # WALK stride cells 4/6 or 9/11, even during a stationary LMB/Q
@@ -82,6 +87,34 @@ def curated_motion_source(profession, action, facing, source_index):
                      else "PlayerReactionsSouth")
             return (sheet, cls * 4 + 1)
     return None
+
+
+def assert_no_striding_action_insert(profession, action, facing, plan):
+    """Hard-gate a historical one/two-frame walking-body flash.
+
+    A "Player" source can ALSO be a travelling stride, so searching only
+    for atlas names beginning with Walk is insufficient. Guard both forms.
+    This is a source contract, not an artistic fluidity guarantee.
+    """
+    if action not in ("Attack", "Cast"):
+        return
+    cls = CLASSES.index(profession)
+    expected = (("Player" + profession, 9) if facing == "E"
+                else (("PlayerReactionsRear" if facing == "N"
+                       else "PlayerReactionsSouth"), cls * 4 + 1))
+    for i, (src, kind, ref_i) in enumerate(plan):
+        if kind != "curated":
+            continue
+        assert src == expected, (
+            "STRIDING_POSE_INSERTED_DURING_ROOTED_ATTACK_CAST",
+            profession, action, facing, i, src, expected)
+        assert not src[0].startswith("Walk"), (
+            "WALK_SHEET_USED_FOR_ROOTED_ATTACK", profession,action,facing,i)
+    curated = [i for i, (_, kind, _) in enumerate(plan) if kind == "curated"]
+    required = [1, 5] if any(kind == "hand_redrawn" for _,kind,_ in plan) else [1,4]
+    assert curated == required, (
+        "ATTACK_WINDUP_RECOVERY_SOURCE_SEQUENCE_DRIFT",
+        profession, action, facing, curated, required)
 
 
 def frame_plan(profession, action, facing, references, authored_contacts=False):
@@ -108,6 +141,7 @@ def frame_plan(profession, action, facing, references, authored_contacts=False):
         elif action in ("Dodge", "Hit"):
             raise AssertionError(("MISSING_AUTHORED_REACTION", profession,
                                   action, facing, i))
+    assert_no_striding_action_insert(profession, action, facing, plan)
     if len(plan) != expected_count(
             action, len(references), authored_contacts and
             action in ("Attack", "Cast")):
