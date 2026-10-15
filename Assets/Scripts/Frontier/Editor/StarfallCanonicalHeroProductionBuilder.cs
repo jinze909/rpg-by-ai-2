@@ -33,6 +33,49 @@ namespace Starfall.EditorTools
             public FrameSource(string name, int frame) { atlas = name; index = frame; }
         }
 
+        // The actual Frontier.unity is bootstrapped at runtime. A prefab-only
+        // Animator build is NOT enough: ensure published Sprite curves/controllers
+        // exist before its FIRST editor PlayMode, not only when BuildPlayer runs.
+        // Keep the human-review gate separate from native PlayMode verification.
+        [InitializeOnLoadMethod]
+        private static void RegisterProductionPlayModeBake()
+        {
+            EditorApplication.playModeStateChanged -= OnProductionPlayModeChanged;
+            EditorApplication.playModeStateChanged += OnProductionPlayModeChanged;
+            EditorApplication.delayCall += EnsureWhenEditorIdle;
+        }
+
+        private static void EnsureWhenEditorIdle()
+        {
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+                EnsurePublishedControllerAvailable();
+        }
+
+        private static void OnProductionPlayModeChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.ExitingEditMode)
+                EnsurePublishedControllerAvailable();
+        }
+
+        private static void EnsurePublishedControllerAvailable()
+        {
+            if (!File.Exists(Generated + "Hero_Vanguard_Idle_E.png"))
+            {
+                Debug.LogError("Starfall: production canonical hero PNGs missing. "+
+                    "SpriteRenderer will use intact original full-body art.");
+                return;
+            }
+            try { EnsureBuilt(); }
+            catch (Exception error)
+            {
+                // Safety fallback keeps the game playable. Never claim that
+                // the native Animator path was built or artist-verified.
+                Debug.LogError("Starfall: production hero Animator bake FAILED; "+
+                    "runtime SpriteRenderer will use shipped complete-body "+
+                    "frames without native Animator curves. " + error);
+            }
+        }
+
         /// <summary>
         /// A playable Unity project should not require an extra manual menu
         /// action to discover the already published three-profession sprites.
@@ -301,7 +344,7 @@ namespace Starfall.EditorTools
             Debug.Log("Production hero SpriteRenderer clips baked from ACCEPTED original atlases: "
                 + "3 classes x 7 actions x 3 facings, root=(128,240). "
                 + "The runtime F8 lane can now load real Sprite curves. "
-                + "Additional in-betweens are deterministic pixel-motion approximations, NOT hand-redrawn/artist-approved.");
+                + "Frames are full-body source-locked drawings; 18 central Attack/Cast contacts and native art acceptance remain separately unverified.");
         }
 
 

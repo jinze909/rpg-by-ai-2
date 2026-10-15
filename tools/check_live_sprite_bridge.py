@@ -115,6 +115,15 @@ def check():
     assert "installedSevenContacts != 0 && installedSevenContacts != 18" in native
     assert "contactSevenCount != 0 && contactSevenCount != 18" in native
     assert "public static void EnsureBuilt()" in native
+    # Editor play-mode must use the SAME 63 published action curves as a
+    # production build; a manual preview prefab/menu click is insufficient.
+    for signal in ("[InitializeOnLoadMethod]",
+                   "EditorApplication.playModeStateChanged +=",
+                   "PlayModeStateChange.ExitingEditMode",
+                   "EditorApplication.delayCall +=",
+                   "EnsurePublishedControllerAvailable();",
+                   "if (!ready) Build();"):
+        assert signal in native, ("NATIVE_PLAYMODE_HERO_ANIMATOR_NOT_WIRED", signal)
     assert "if (!ready) Build();" in native
     # Published Cast strips expanded from 3 to 7 frames; a native Clip
     # existing on disk is NOT proof that its Sprite curves are current.
