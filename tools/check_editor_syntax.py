@@ -42,6 +42,11 @@ def main():
             ROOT / "tests/UnityLayoutStubs.cs",
             ROOT / "tests/UnityEditorSyntaxStubs.cs",
             ROOT / "tests/OfflineJson.cs",
+            ROOT / "tests/RuntimePolishChecks.cs",
+            ROOT / "tests/VisualRuntimeChecks.cs",
+            ROOT / "tests/RenderStateChecks.cs",
+            ROOT / "tests/RuntimeContinuityChecks.cs",
+            ROOT / "tests/ActorRegistrationChecks.cs",
             checks / "CampaignFixture.cs",
             checks / "EditorAnimatorSignature.cs",
         ]

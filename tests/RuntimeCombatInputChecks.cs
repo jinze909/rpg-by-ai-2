@@ -502,6 +502,78 @@ public static class RuntimeCombatInputChecks
     }
 
 
+    private static void PortableSaveCommitNeverLosesLastGoodPrimary(FrontierRuntime app)
+    {
+        // Exercise the REAL fallback used when File.Replace is unsupported.
+        // The old fallback did File.Delete(primary) before File.Move(temp),
+        // leaving a crash window with no primary, and no restore path when
+        // a move failed. This test does actual disk I/O, not a mock store.
+        string previous = Application.persistentDataPath;
+        string folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+            "starfall-portable-save-" + Guid.NewGuid().ToString("N"));
+        Application.persistentDataPath = folder;
+        try
+        {
+            System.IO.Directory.CreateDirectory(folder);
+            var original = new SaveData { coins = 31 };
+            Check(SaveStore.Write(original, 1), "Initial valid save is written");
+            string path = SaveStore.PathFor(1);
+            string temp = path + ".tmp", backup = path + ".bak";
+            Func<int, string> encode = coins =>
+            {
+                var data = new SaveData { coins = coins,
+                    savedAtUtc = DateTime.UtcNow.AddSeconds(coins).ToString("o") };
+                string payload = JsonUtility.ToJson(data);
+                string sum;
+                using(var hash=System.Security.Cryptography.SHA256.Create())
+                    sum=BitConverter.ToString(hash.ComputeHash(
+                        System.Text.Encoding.UTF8.GetBytes(payload))).Replace("-","");
+                return JsonUtility.ToJson(
+                    new SaveEnvelope { payload = payload, checksum = sum });
+            };
+            var substitute = typeof(SaveStore).GetMethod("PortableReplace",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Check(substitute != null, "Portable safe save transaction is implemented");
+            System.IO.File.WriteAllText(temp, encode(52));
+            substitute.Invoke(null, new object[] { temp, path, backup });
+            string warning;
+            Check(SaveStore.Read(1, out warning).coins == 52 &&
+                warning == null && System.IO.File.Exists(backup) &&
+                !System.IO.File.Exists(path + ".precommit"),
+                "Portable save committed new primary without a stale displaced file");
+            // Force a second-stage rename failure. A failed transaction
+            // must restore the previous complete primary, not erase it.
+            bool rejected = false;
+            try { substitute.Invoke(null, new object[] {
+                temp + ".missing", path, backup }); }
+            catch(TargetInvocationException) { rejected = true; }
+            Check(rejected && SaveStore.Read(1, out warning).coins == 52 &&
+                warning == null && System.IO.File.Exists(path),
+                "A failed portable move leaves the last valid primary playable");
+            // Simulate process death AFTER the first move, BEFORE promoting
+            // the verified temp. Only .precommit remains; the recovery path
+            // must recognize it instead of constructing a blank new game.
+            if(System.IO.File.Exists(backup)) System.IO.File.Delete(backup);
+            System.IO.File.Move(path, path + ".precommit");
+            Check(!System.IO.File.Exists(path), "Crash simulation displaced the primary");
+            var recovered = SaveStore.Read(1, out warning);
+            Check(recovered != null && recovered.coins == 52 &&
+                warning == "Recovered backup." && SaveStore.Exists(1),
+                "An interrupted portable move recovers its verified .precommit");
+            System.IO.File.WriteAllText(temp, encode(63));
+            substitute.Invoke(null, new object[] { temp, path, backup });
+            Check(SaveStore.Read(1, out warning).coins == 63 && warning == null,
+                "A later portable write heals the displaced-primary crash state");
+            Console.WriteLine("PASS Atomic portable save: update, failed rename rollback, crash recovery and subsequent heal");
+        }
+        finally
+        {
+            Application.persistentDataPath = previous;
+            if(System.IO.Directory.Exists(folder))
+                System.IO.Directory.Delete(folder, true);
+        }
+    }
+
     private static void StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup(FrontierRuntime app)
     {
         Prepare(app);
@@ -934,6 +1006,7 @@ public static class RuntimeCombatInputChecks
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
+            PortableSaveCommitNeverLosesLastGoodPrimary,
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,

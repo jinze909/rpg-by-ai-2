@@ -82,7 +82,7 @@ namespace Starfall
             SaveData newest = null;
             DateTime newestTime = DateTime.MinValue;
             string recoveredFrom = null;
-            foreach (string path in new[] { main + ".tmp", main + ".bak" })
+            foreach (string path in new[] { main + ".tmp", main + ".bak", main + ".precommit" })
             {
                 if (!File.Exists(path)) continue;
                 try
@@ -106,7 +106,40 @@ namespace Starfall
                 warning = "Recovered " + (recoveredFrom.EndsWith(".tmp") ? "interrupted save" : "backup") + ".";
             return newest;
         }
-        public static bool Exists(int slot) { string path = PathFor(slot); return File.Exists(path) || File.Exists(path + ".bak") || File.Exists(path + ".tmp"); }
+        public static bool Exists(int slot) { string path = PathFor(slot); return File.Exists(path) || File.Exists(path + ".bak") || File.Exists(path + ".tmp") || File.Exists(path + ".precommit"); }
+        // Fallback for platforms/filesystems without File.Replace. Never
+        // DELETE the only primary save before installing its replacement:
+        // keep the former primary at .precommit until the verified temp is
+        // promoted. Read() can recover that file even after power loss.
+        private static void PortableReplace(string temp, string path, string backup)
+        {
+            string prior = path + ".precommit";
+            // When an earlier attempt died after displacement, restore its
+            // original before starting a new transaction. Do not overwrite
+            // the last recoverable primary with a stale temp or empty slot.
+            if (File.Exists(prior))
+            {
+                if (!File.Exists(path)) File.Move(prior, path);
+                else File.Delete(prior);
+            }
+            if (backup != null) File.Copy(path, backup, true);
+            File.Move(path, prior);
+            try { File.Move(temp, path); }
+            catch
+            {
+                if (!File.Exists(path) && File.Exists(prior))
+                    File.Move(prior, path);
+                throw;
+            }
+            try { File.Delete(prior); }
+            catch (IOException error)
+            {
+                // Current save is verified and committed. The stale prior
+                // can be cleaned later; failure to remove it is not failure
+                // to save the new data.
+                Debug.LogWarning("Starfall old save cleanup delayed: " + error.Message);
+            }
+        }
         public static bool Write(SaveData value) { return Write(value, -1); }
         public static bool Write(SaveData value, int slot)
         {
@@ -125,7 +158,7 @@ namespace Starfall
                     string backup = validOld ? path + ".bak" : null;
                     try { File.Replace(temp, path, backup); }
                     catch (PlatformNotSupportedException)
-                    { if (backup != null) File.Copy(path, backup, true); File.Delete(path); File.Move(temp, path); }
+                    { PortableReplace(temp, path, backup); }
                 }
                 return true;
             }
