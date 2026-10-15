@@ -13,7 +13,8 @@ public static class ActorRegistrationChecks
     static void Set(object app,string name,object value){app.GetType().GetField(name,Private).SetValue(app,value);}
     static void Clear(){GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();GUI.matrix=Matrix4x4.identity;GUI.color=Color.white;}
     static void Place(FrontierRuntime app,Point feet,Point pixel){Set(app,"camera",feet-new Point((pixel.x-640)/36,(pixel.y-390)/36));}
-    static bool ActorTexture(GUI.TextureCall c){return c.texture.name.StartsWith("resource:Frontier/Art/")&&
+    static bool ActorTexture(GUI.TextureCall c){return (c.texture.name.StartsWith("resource:Frontier/Art/")||
+        c.texture.name.StartsWith("resource:Frontier/HeroAnimator/Canonical/Hero_"))&&
         !c.texture.name.Contains("Effects")&&
         !c.texture.name.EndsWith("/HeroMotionAccents")&&
         !c.texture.name.EndsWith("/CoastlineRemaster")&&
@@ -44,13 +45,23 @@ public static class ActorRegistrationChecks
                 if(state==9){g.dashTime=.1f;Set(g,"dashDirection",Directions[direction]);}if(state==10)g.guardTime=1;if(state==11)g.playerHitTime=.1f;if(state==12)g.deathTime=.7f;
                 Point pixel=new Point(54+state*96,210+weapon*190);Place(app,g.Position,pixel);
                 var calls=Draw(app,"DrawPlayerActor");Density(calls,.75f);var actors=calls.Where(ActorTexture).ToArray();Check(actors.Length>0,"Playable actor has no visible pixels");
-                if(state!=12)
-                {
-                    var face=actors.Last();Check(face.texture.name.EndsWith("/WalkVanguard"),"All classes use the playable blonde identity");
-                    Check(Math.Abs(face.rect.width-42)<.001f&&Math.Abs(face.rect.height-42)<.001f,"Player face changes size across actions");
-                    if(state<=4)Check(Math.Abs(face.rect.x-(pixel.x-21))<1.1f&&Math.Abs(face.rect.y-(pixel.y-75))<1.1f,"Walking head cannot bob or shift between steps");
-                }
-                else Check(actors.All(c=>!c.texture.name.EndsWith("/WalkVanguard")),"A fallen body may not wear a floating standing head");
+                // One whole accepted 256px body, including hair and hips,
+                // is drawn on ONE atlas call at a constant 128/240 foot.
+                Check(actors.Length==1,
+                    "Player must not be split into torso, head, lower-leg draw calls");
+                var body=actors[0];
+                string profession=new[]{"Vanguard","Ranger","Arcanist"}[weapon];
+                Check(body.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+profession+"_"),
+                    "Real player must use its class-owned published full-body atlas");
+                Check(Math.Abs(body.rect.width-192)<.001f&&
+                    Math.Abs(body.rect.height-192)<.001f,
+                    "All protagonist poses use one 256px source and 0.75 density");
+                Check(Math.Abs(body.rect.x-(pixel.x-96))<1.1f&&
+                    Math.Abs(body.rect.y-(pixel.y-180))<1.1f,
+                    "Complete player feet cannot bob when switching full-body states");
+                Check(!body.texture.name.EndsWith("/WalkVanguard")||weapon==0,
+                    "Ranger/Arcanist may share GOLD hair pixels but never warrior armor");
                 Caption(pixel,states[state]);total++;
             }
             GUI.Export(folder,"review-registered-player-"+direction);
