@@ -152,3 +152,60 @@ The controlled `[publish-hero-art]` workflow will publish only generated
 Sprite PNGs to `chatgpt/dev` with a non-force fast-forward guard.
 Do not mark Unity PlayMode or hand-drawn art quality as accepted until
 the native test runner and Game View visual inspection actually pass.
+
+## 2026-10-15 — Root-cause elimination: one class owns the COMPLETE body
+
+**Diagnosed rendering defect (not a guess about a PNG):**
+`FrontierUnifiedActorGait.cs` copied the bottom 205–247px band from
+`WalkVanguard/WalkRanger/WalkArcanist` onto the active attack/cast
+`Player*/PlayerRear/PlayerSouth` action torso with a hard
+219–225px hem threshold. Even if both sheets were selected with the
+same class index, different body poses, cloth, waist armor, weapons and
+hip geometry caused a visible stitched mannequin at the belt. The
+renderer also intentionally copied ONLY the canonical 56px blonde
+face/hair source from `WalkVanguard`; that identity exception
+was misread as the entire warrior torso being the template.
+**The shared golden head is not permission to share warrior armor.**
+
+**Actual production runtime fix:** `UnifiedActionGait` is now a
+single-source whole-body pixel deformation. Every nontransparent
+torso, belt, sleeve, lower body and boot pixel comes exclusively from
+the ACTION frame belonging to the selected profession; walk sprites
+are used solely to choose the distance-based four-step gait phase.
+No second sheet is pasted onto the 256px source, no straight waist
+threshold exists, and the foot root remains (128,240).
+All shared north/south action-sheet frame indices must belong to
+the requested class's 4-cell row or composition refuses to run.
+The same composed whole-frame texture feeds both active
+`SpriteRenderer` fallback and mature OnGUI drawing; no changes
+to damage, cast timing, movement, quests or saves.
+
+**Hard pipeline guarantees:** Unity Editor `Build()` and
+`EnsureBuilt()` now reject foreign class-owned / shared-row
+frame sources. `tools/export_canonical_hero_atlases.py`
+executes a release-blocking integrity gate on all 63 production
+sheets and all 333 Sprite cells. This checks class/source ownership,
+no injected class palette colors, row-by-row waist occupancy,
+torso–hip registration and full-body silhouette height. CI and
+the guarded PNG publisher explicitly run the same gate.
+The gate's adversarial self-tests inject foreign-class pants,
+a transparent horizontal waist cut, and shifted hips: all three
+must be rejected. The real C# runtime test inserts synthetic
+walk colors and confirms no walk color enters the complete action
+frame, asserts fixed pelvis, moving original boots, wrong-class
+rejection, and bounded texture cache.
+
+**Materialized assets:** the 63 existing production PNGs were already
+full-body class-approved frames with only the canonical face/hair
+exception. The live split was caused by gameplay's dynamic cached
+`Unified_` textures, not corrupted source files. Existing production
+atlases are regenerated and byte-compared in CI; do not alter
+unaffected approved images merely to create a Git diff. Any actual
+asset change is published only by the safe, non-force
+`[publish-hero-art]` path after all gates pass.
+
+**Remaining acceptance:** a procedural source-only deformation does
+not prove artist-quality knees or hand-to-weapon grips.
+Native Unity 2022.3.53f1 EditMode, PlayMode screenshots, GPU
+compositing and frame-by-frame subjective assessment remain
+NATIVE_UNVERIFIED; stage three is NOT signed off.
