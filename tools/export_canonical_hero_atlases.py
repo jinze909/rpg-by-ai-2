@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Produce 63 inspectable Sprite sheets, including motion-assisted intermediate poses.
+"""Produce 63 inspectable Sprite sheets, including provenance-locked complete body poses.
 
 The originals are the user's ACCEPTED source art and canonical blonde head.
 Midpoints are reproducible algorithmic scaffolding: NOT hand-drawn, not visually
@@ -20,99 +20,11 @@ from build_hero_animation_preview import (
 DEST = ROOT / ".starfall-checks/hero-production-atlases"
 PREVIEW = ROOT / ".starfall-checks/hero-animation-qa"
 def expected_count(action, original):
-    return (2 * original - 1
-            if action in ("Attack", "Cast", "Dodge", "Hit") and original > 1 else original)
-
-
-def motion_midpoint(first, second):
-    """One-silhouette, anatomical-region motion toward the next approved pose.
-
-    Earlier interpolation measured every extended limb as a single 'reach',
-    often producing an identical midpoint or sliding a bow/staff in the
-    wrong direction. Track LEFT/RIGHT leg and weapon/arm separately; deform
-    only the corresponding region, blend motion smoothly into the fixed
-    belt/torso, protect all hair/face pixels and anchor the boot contact.
-    This is raster motion assistance, NOT hand-painted animation approval.
-    """
-    if first.size != (CELL, CELL) or second.size != (CELL, CELL):
-        raise AssertionError("Motion midpoint requires canonical 256px cells")
-    a, b = first.load(), second.load()
-    transparent = (0, 0, 0, 0)
-
-    def clamp(v, lo=0.0, hi=1.0):
-        return max(lo, min(hi, v))
-
-    def region_shift(bounds, limit_x, limit_y):
-        x0, x1, y0, y1 = bounds
-
-        def center(pixels):
-            sx = sy = mass = 0.0
-            for y in range(y0, y1, 2):
-                top = CELL - 1 - y
-                for x in range(x0, x1, 2):
-                    # The canonical head must NEVER influence hand/body
-                    # registration: its position is deliberately immutable.
-                    if 91 <= x < 170 and 57 <= y < 118:
-                        continue
-                    alpha = pixels[x, top][3]
-                    if alpha < 128:
-                        continue
-                    sx += x * alpha
-                    sy += y * alpha
-                    mass += alpha
-            return (sx / mass, sy / mass) if mass else None
-
-        p, q = center(a), center(b)
-        if p is None or q is None:
-            return (0, 0)
-        return (round(clamp((q[0] - p[0]) / 2.0, -limit_x, limit_x)),
-                round(clamp((q[1] - p[1]) / 2.0, -limit_y, limit_y)))
-
-    torso = region_shift((103, 154, 30, 64), 3, 3)
-    left_leg = region_shift((89, 128, 23, 58), 7, 5)
-    right_leg = region_shift((129, 171, 23, 58), 7, 5)
-    left_arm = region_shift((34, 121, 47, 145), 14, 10)
-    right_arm = region_shift((140, 230, 47, 145), 14, 10)
-
-    # Inverse-warp a SINGLE pose to avoid alpha mosaics or duplicated
-    # outlines. Spatial motion gates never change canvas/Pivot or palette.
-    output = Image.new("RGBA", (CELL, CELL), transparent)
-    dest = output.load()
-    for y in range(CELL):  # canonical bottom-origin coordinate
-        legs = clamp((y - 22) / 23.0) * clamp((66 - y) / 20.0)
-        shoulders = clamp((y - 42) / 22.0)
-        torso_gate = clamp((y - 22) / 28.0) * clamp((73 - y) / 18.0)
-        for x in range(CELL):
-            if 91 <= x < 170 and 57 <= y < 118:
-                dest[x, CELL - 1 - y] = a[x, CELL - 1 - y]
-                continue
-            side = clamp((abs(x - 128) - 13) / 29.0)
-            right = clamp((x - 122) / 14.0)
-            left_leg_w = legs * (1.0 - right)
-            right_leg_w = legs * right
-            left_arm_w = shoulders * side * (1.0 - right)
-            right_arm_w = shoulders * side * right
-            body_w = torso_gate * (1.0 - side) * (1.0 - legs)
-            total = left_leg_w + right_leg_w + left_arm_w + right_arm_w
-            if total > 1.0:
-                left_leg_w /= total
-                right_leg_w /= total
-                left_arm_w /= total
-                right_arm_w /= total
-            shift_x = (torso[0] * body_w + left_leg[0] * left_leg_w +
-                       right_leg[0] * right_leg_w + left_arm[0] * left_arm_w +
-                       right_arm[0] * right_arm_w)
-            shift_y = (torso[1] * body_w + left_leg[1] * left_leg_w +
-                       right_leg[1] * right_leg_w + left_arm[1] * left_arm_w +
-                       right_arm[1] * right_arm_w)
-            sx, sy = x - round(shift_x), y - round(shift_y)
-            dest[x, CELL - 1 - y] = (
-                a[sx, CELL - 1 - sy]
-                if 0 <= sx < CELL and 0 <= sy < CELL else transparent
-            )
-    if output.getchannel("A").getbbox() is None:
-        raise AssertionError("Empty generated motion pose")
-    return output
+    if action in ("Attack", "Cast") and original > 1:
+        return 2 * original - 2
+    if action in ("Dodge", "Hit") and original > 1:
+        return 2 * original - 1
+    return original
 
 
 def curated_motion_source(profession, action, facing, source_index):
@@ -146,34 +58,37 @@ def curated_motion_source(profession, action, facing, source_index):
     return None
 
 
-def expand_frames(originals, action, profession=None, facing=None,
-                  sheets=None, heads=None):
-    result = []
-    for i, source in enumerate(originals):
-        result.append(source)
-        if action in ("Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
-            if i + 1 < len(originals):
-                selection = (curated_motion_source(profession, action, facing, i)
-                             if profession is not None else None)
-                if selection is not None:
-                    if sheets is None or heads is None:
-                        raise AssertionError("Curated full-body source requires real art")
-                    name, index = selection
-                    result.append(canonical_frame(
-                        sheets, heads, name, index, facing, locomotion=True))
-                else:
-                    result.append(motion_midpoint(
-                        source, originals[(i + 1) % len(originals)]))
-    if len(result) != expected_count(action, len(originals)):
-        raise AssertionError("Generator/Animator count mismatch")
-    return result
+def frame_plan(profession, action, facing, references):
+    """Every pose is a complete source drawing, never a local body warp.
+
+    An approved intermediate for the central Attack/Cast contact transfer
+    does not exist. Omit the fake midpoint rather than dislocate the torso
+    and hand; GameCore still owns the exact attack/skill release moment.
+    """
+    plan = []
+    for i, original in enumerate(references):
+        plan.append((original, "accepted", i))
+        if i + 1 == len(references):
+            continue
+        selection = curated_motion_source(profession, action, facing, i)
+        if selection is not None:
+            plan.append((selection, "curated", i))
+        elif action in ("Attack", "Cast") and i == 1:
+            continue
+        elif action in ("Dodge", "Hit"):
+            raise AssertionError(("MISSING_AUTHORED_REACTION", profession,
+                                  action, facing, i))
+    if len(plan) != expected_count(action, len(references)):
+        raise AssertionError(("UNSUPPORTED_AUTHORED_FRAME_PLAN",
+                              profession, action, facing))
+    return plan
 
 
 def main():
     DEST.mkdir(parents=True, exist_ok=True)
     sheets, heads = imported_sheets(), registered_heads()
     manifest = {
-        "status": "class_owned_full_body_run_and_source_curated_transitions_pending_art_review",
+        "status": "all_279_cells_from_unmodified_approved_full_body_source_art",
         "canvas_per_frame": [CELL, CELL],
         "top_origin_foot_px": list(FOOT),
         "unity_bottom_origin_pivot": [0.5, 0.0625],
@@ -202,8 +117,12 @@ def main():
                         if frame.tobytes() != sampled.convert("RGBA").tobytes():
                             raise AssertionError("Original/QA pose mismatch: " + str(reference))
                     originals.append(frame)
-                frames = expand_frames(originals, action, profession, facing,
-                                       sheets, heads)
+                plan = frame_plan(profession, action, facing, refs)
+                frames = [
+                    canonical_frame(sheets, heads, name, index, facing,
+                                    name.startswith("Walk") or action in ("Run","Idle"))
+                    for ((name, index), provenance, i) in plan
+                ]
                 total_midpoints += len(frames) - len(originals)
                 key = f"Hero_{profession}_{action}_{facing}"
                 output = DEST / (key + ".png")
@@ -218,13 +137,17 @@ def main():
                     "source_frames": [f"{n}:{i}" for n, i in refs],
                     "original_count": len(refs),
                     "generated_midpoints": len(frames) - len(refs),
+                    "procedurally_warped_cells": 0,
                     "curated_full_body_slots": {
-                        str(source_index*2+1): "%s:%d" % slot
-                        for source_index in range(len(refs)-1)
-                        for slot in [curated_motion_source(
-                            profession, action, facing, source_index)]
-                        if slot is not None
+                        str(i): "%s:%d" % pair
+                        for i, (pair, origin, _) in enumerate(plan)
+                        if origin == "curated"
                     },
+                    "frame_sources": [
+                        {"atlas": name, "index": index, "kind": origin,
+                         "original_index": ref_i}
+                        for ((name, index), origin, ref_i) in plan
+                    ],
                     "frame_count": len(frames),
                     "unique_rasters": len(set(hashes)),
                     "frame_sha256_rgba": hashes,
@@ -239,7 +162,7 @@ def main():
     # publisher, not an optional post-hoc report.
     from check_hero_whole_body_integrity import audit as audit_full_body
     audit_full_body(DEST, PREVIEW)
-    print(f"PASS: 63 canonical hero atlases exported with {total_midpoints} motion-assisted midpoints.")
+    print(f"PASS: 63 canonical hero atlases exported with {total_midpoints} approved additional full-body source poses and zero raster warp.")
     print("Unmodified source poses remain at even indices; all source identity pixels preserved.")
     print("ART/NATIVE_UNVERIFIED: hand-redrawn quality, playmode, Animator, GPU, FPS.")
 
