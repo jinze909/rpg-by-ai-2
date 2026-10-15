@@ -201,12 +201,18 @@ def check():
             assert required in source, ("NATIVE_REAL_SCENE_CONTACT_GATE_MISSING", required)
         assert source.count("Assert.AreSame(atlas,renderer.sprite.texture,") >= 2, (
             "NATIVE_CONTACT_AND_MOVING_RECOVERY_BOTH_REQUIRE_SAME_AUTHORED_SPRITE")
-    verify_native_contact_probe(native_qa)
+    # Isolate the added real-production combat PlayMode test; the file
+    # contains other valid atlas parity assertions with identical wording.
+    # Mutation must target THIS test, not an unrelated older idle test.
+    start = native_qa.index("public IEnumerator ActualFrontierSceneAttackAndSkillContactFramesKeepOneBody()")
+    end = native_qa.index("public IEnumerator LiveSpriteRendererCapturesCanonicalHeroPixelsInGameView()")
+    actual_scene = native_qa[start:end]
+    verify_native_contact_probe(actual_scene)
     for required in ("Assert.AreSame(atlas,renderer.sprite.texture,",
                      "core.Attack(aim);else core.Skill(aim);",
                      'Assert.AreEqual(24,nativeProbes'):
         try:
-            verify_native_contact_probe(native_qa.replace(
+            verify_native_contact_probe(actual_scene.replace(
                 required, "/* injected broken live GPU test */", 1))
         except AssertionError:
             pass
