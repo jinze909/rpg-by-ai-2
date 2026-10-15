@@ -102,6 +102,23 @@ namespace Starfall
             float height = effect.kind == "impact" || effect.kind == "hurt" || effect.kind == "spark" || effect.kind == "slash" || effect.kind == "projectileImpact" || effect.kind == "magicImpact" || effect.kind == "release" || effect.kind == "heal" ? 30 : effect.kind == "defeat" ? 18 : effect.kind == "enemyRelease" && id != 7 ? 38 : 0;
             if (effect.height >= 0) height = effect.height;
             Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2 - height, size, size), color, false, angle);
+            // A spell currently has a fine, illustrated teal vortex but its
+            // point of contact looks static. Use the ORIGINAL authored
+            // Effects.png contact star (cell 13) as a short-lived second
+            // whole-Sprite light layer, on the SAME contact pivot and on the
+            // actual GameCore Effect clock. No new low-res particles, extra
+            // damage event, time offset, or free-running Animator is added.
+            if (effect.kind == "magicImpact" &&
+                Game.save.effectsQuality > 1 && !Game.save.reducedMotion &&
+                progress < .60f)
+            {
+                float sparkle = size * (.44f + progress * .12f);
+                float alpha = color.a * .68f * (1f - progress / .60f);
+                Atlas(effectSheet, 4, 4, 13,
+                    new Rect(p.x - sparkle / 2f,
+                        p.y - height - sparkle / 2f,sparkle,sparkle),
+                    new Color(.91f,1f,.92f,alpha));
+            }
             if (effect.kind == "danger" || effect.kind == "frost" || effect.kind == "burst" || effect.kind == "magicImpact" && effect.radius > 0)
             {
                 float radius = effect.kind == "frost" ? 4 : effect.kind == "burst" || effect.kind == "magicImpact" ? effect.radius : effect.radius > 0 ? effect.radius : .4f + progress * 1.3f;

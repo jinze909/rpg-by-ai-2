@@ -930,6 +930,62 @@ public static class RenderStateChecks
         }
         Console.WriteLine("PASS authored original-water shoreline: four orientations, stable roots, quality/reduced-motion and no inland foam");
     }
+    private static void MagicImpactHasARealContactLightAndStableAnchor(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        app.Game.save.reducedMotion=false;
+        app.Game.save.effectsQuality=2;
+        var source=Get<Texture2D>(app,"effectSheet");
+        Check(source!=null,"Combat magic must use published detailed Effects.png");
+        var effect=new Effect("magicImpact",new Point(13.5f,14f),.5f);
+        effect.height=46f;
+        effect.life=.44f;
+        GUI.matrix=Matrix4x4.identity;
+        GUI.color=Color.white;
+        Clear();Call(app,"DrawAuthoredEffect",effect);
+        Check(GUI.textureCalls.Count==2,
+            "High FX magic must combine original vortex and contact star");
+        var vortex=GUI.textureCalls[0];
+        var sparkle=GUI.textureCalls[1];
+        Check(object.ReferenceEquals(vortex.texture,source)&&
+            object.ReferenceEquals(sparkle.texture,source)&&
+            Math.Abs(vortex.uv.x-.25f)<.00001f&&
+            Math.Abs(vortex.uv.y-.5f)<.00001f&&
+            Math.Abs(sparkle.uv.x-.25f)<.00001f&&
+            Math.Abs(sparkle.uv.y)<.00001f,
+            "Magic cannot introduce a foreign or low-detail VFX texture");
+        Near(Center(vortex),Center(sparkle),
+            "Contact sparkle must share vortex's exact projectile anchor");
+        Check(sparkle.rect.width<vortex.rect.width*.65f&&
+            sparkle.color.a>0&&sparkle.color.a<vortex.color.a,
+            "Short contact light cannot wash out original spell silhouette");
+        float first=sparkle.color.a;
+        effect.life=.27f;
+        Clear();Call(app,"DrawAuthoredEffect",effect);
+        Check(GUI.textureCalls.Count==2&&
+            GUI.textureCalls[1].color.a<first&&
+            GUI.textureCalls[1].color.a>0,
+            "Contact light must fade along real effect lifetime");
+        Near(Center(GUI.textureCalls[0]),Center(GUI.textureCalls[1]),
+            "Spell impact must not slide during contact-to-recovery");
+        effect.life=.18f;Clear();
+        Call(app,"DrawAuthoredEffect",effect);
+        Check(GUI.textureCalls.Count==1,
+            "Late recovery must shed contact flash but keep vortex art");
+        effect.life=.44f;
+        app.Game.save.reducedMotion=true;Clear();
+        Call(app,"DrawAuthoredEffect",effect);
+        Check(GUI.textureCalls.Count==1,
+            "Reduced-motion keeps single original spell silhouette");
+        app.Game.save.reducedMotion=false;
+        app.Game.save.effectsQuality=1;Clear();
+        Call(app,"DrawAuthoredEffect",effect);
+        Check(GUI.textureCalls.Count==1,
+            "Medium quality should not allocate contact light draw");
+        Console.WriteLine(
+            "PASS original hand-painted magic vortex+contact star: one pivot, real lifecycle fade and reduced-motion/FX tiers");
+    }
     private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
     {
         app.BeginVisualReview(5,1);
@@ -1073,7 +1129,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
