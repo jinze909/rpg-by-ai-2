@@ -678,10 +678,79 @@ public static class RenderStateChecks
         Console.WriteLine("PASS "+count+
             " original full-body foliage variants: one draw, accurate pivots, reduced motion and preserved GUI state");
     }
+    private static void WorldLightsRemainAnchoredToDetailedProps(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        g.save.effectsQuality=2;
+        GUI.matrix=Matrix4x4.TRS(new Vector3(33,27,0),
+            Quaternion.identity,new Vector3(1.25f,1.25f,1));
+        Matrix4x4 canvas=GUI.matrix;
+        GUI.color=new Color(.3f,.5f,.7f,.9f);
+        Color incoming=GUI.color;
+        int verified=0;
+        foreach(string kind in new[]{"lamp","lighthouse","crystal","root",
+            "fire","brazier","outerrelay"})
+        {
+            g.save.reducedMotion=true;
+            var root=new Point(12.25f,14.5f);
+            Clear();Set(app,"clock",7.2f);
+            Call(app,"DrawWorldEmitter",root,kind,1f,229);
+            Check(GUI.textureCalls.Count==2,
+                "High-quality world emitter must have one halo and one tight authored glow");
+            var outer=GUI.textureCalls[0];var core=GUI.textureCalls[1];
+            Check(outer.texture!=null&&object.ReferenceEquals(
+                outer.texture,core.texture),
+                "Original illustrated glow remains the same in both layers");
+            Check(core.rect.width<outer.rect.width*.5f&&
+                core.rect.height<outer.rect.height*.5f,
+                "World lamps require a bounded core, not a massive flat overlay");
+            float offset=kind=="lighthouse"?1.95f:kind=="lamp"?1.12f:
+                kind=="crystal"?.65f:kind=="root"?.45f:
+                kind=="fire"||kind=="brazier"?.28f:.52f;
+            var at=(Point)Call(app,"ScreenPoint",root-new Point(0,offset));
+            Vector3 expected=canvas.MultiplyPoint3x4(
+                new Vector3(at.x,at.y,0));
+            Near(Center(outer),expected,
+                "Lighthouse/lamps/crystals need stable source pivots, not a 1-tile generic halo");
+            float stillAlpha=outer.color.a;
+            Clear();Set(app,"clock",39.1f);
+            Call(app,"DrawWorldEmitter",root,kind,1f,229);
+            Check(Math.Abs(GUI.textureCalls[0].color.a-stillAlpha)<.00001f,
+                "Reduced-motion visual setting must preserve static source illumination");
+            g.save.reducedMotion=false;Clear();
+            Set(app,"clock",7.2f);
+            Call(app,"DrawWorldEmitter",root,kind,1f,229);
+            float bright1=GUI.textureCalls[0].color.a;
+            Clear();Set(app,"clock",39.1f);
+            Call(app,"DrawWorldEmitter",root,kind,1f,229);
+            float bright2=GUI.textureCalls[0].color.a;
+            Check(Math.Abs(bright1-bright2)>.00001f&&
+                Math.Abs(bright1-bright2)<.04f,
+                "Environmental flicker should be deterministic, gentle and continuous");
+            g.save.effectsQuality=1;Clear();
+            Call(app,"DrawWorldEmitter",root,kind,.4f,229);
+            Check(GUI.textureCalls.Count==1&&
+                GUI.textureCalls[0].color.a < bright2,
+                "Medium-quality lighting preserves source halo with reduced cost");
+            g.save.effectsQuality=0;Clear();
+            Call(app,"DrawWorldEmitter",root,kind,1f,229);
+            Check(GUI.textureCalls.Count==0,
+                "Low effects quality must avoid optional emitter draws");
+            g.save.effectsQuality=2;
+            Same(GUI.matrix,canvas,
+                "World emitter must not leak its viewport transform");
+            Same(GUI.color,incoming,
+                "World emitter must not leak tint into HUD or next actor");
+            verified++;
+        }
+        Console.WriteLine("PASS "+verified+
+            " production lamplight/crystal/relay sources: attached illumination, stable motion and quality tiers");
+    }
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

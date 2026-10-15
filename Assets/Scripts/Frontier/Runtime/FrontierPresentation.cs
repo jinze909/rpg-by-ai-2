@@ -121,6 +121,49 @@ namespace Starfall
             finally { GUI.color = previous; }
         }
         private void Light(Point world, float size, Color c) { Point p = ScreenPoint(world); Image(art.Glow(), p.x - size / 2, p.y - size / 2, size, size, c); }
+
+        // Original WorldProps lamps, lanterns, crystals and lighthouse must
+        // read as actual emissive objects, not the old single fixed glow
+        // centred one whole floor tile above EVERY prop. The dual-radius
+        // illumination follows the authored world attachment and original
+        // soft pixel-art glow; never replaces any detailed Sprite.
+        private void DrawWorldEmitter(Point anchor,string kind,
+            float opacity,int stableSeed)
+        {
+            if (Game.save.effectsQuality==0 || opacity<=.001f) return;
+            bool signal=kind=="outerrelay";
+            bool cool=signal||kind=="crystal"||kind=="root";
+            float height=kind=="lighthouse"?1.95f:
+                kind=="lamp"?1.12f:
+                kind=="crystal"?.65f:
+                kind=="root"?.45f:
+                kind=="fire"||kind=="campfire"||kind=="brazier"?.28f:.52f;
+            Point flame=anchor-new Point(0,height);
+            float radius=kind=="lighthouse"?178:
+                kind=="lamp"?114:cool?106:96;
+            // Continuous, world-seeded flame rhythm. Animation never moves
+            // the light's attachment, so neighbouring actors do not strobe
+            // and camera pan/repaint cannot change its appearance.
+            float flicker=1f;
+            if (!Game.save.reducedMotion)
+                flicker=.965f+
+                    (float)Math.Sin(clock*2.3f+stableSeed*.071f)*.026f+
+                    (float)Math.Sin(clock*.79f+stableSeed*.137f)*.009f;
+            Color halo=cool?new Color(.38f,.79f,.84f,1f):
+                new Color(1f,.73f,.4f,1f);
+            if(signal)halo=new Color(.52f,.94f,.73f,1f);
+            float alpha=(Game.Night?.29f:.13f)*opacity*flicker;
+            if(signal)alpha=.27f*opacity*flicker;
+            halo.a=alpha;
+            Light(flame,radius,halo);
+            if(Game.save.effectsQuality>=2)
+            {
+                // Compact warm/cool core preserves hand-painted metal/stone
+                // texture. Secondary light never expands into a huge HUD wash.
+                halo.a=alpha*.38f;
+                Light(flame,radius*.43f,halo);
+            }
+        }
         private void DrawAtmosphere()
         {
             Color ambient = Game.save.room == 6 ? new Color(.7f, .48f, .2f, .035f) : Game.save.room == 7 ? new Color(.36f, .55f, .75f, .06f) : Game.save.room == 8 ? new Color(.13f, .18f, .35f, .15f) : Game.Night ? new Color(.06f, .1f, .26f, .24f) : new Color(.7f, .77f, .49f, .025f); Box(0, 0, Width, Height, ambient);
@@ -130,21 +173,19 @@ namespace Starfall
                     if ((d.kind=="lamp"||d.kind=="lighthouse"||d.kind=="crystal"||
                          d.kind=="root"||d.kind=="fire") && WorldDrawable(d.x,d.y,180,180))
                     {
-                        Color glow=d.kind=="crystal"||d.kind=="root" ?
-                            new Color(.4f,.8f,.8f,.2f) :
-                            new Color(1,.75f,.4f,Game.Night ? .32f : .13f);
-                        glow.a*=FadeWorldProp(d.x,d.y);
-                        Light(new Point(d.x,d.y-1),d.kind=="lighthouse"?170:105,glow);
+                        DrawWorldEmitter(new Point(d.x,d.y),d.kind,
+                            FadeWorldProp(d.x,d.y),
+                            (int)(d.x*31f+d.y*71f));
                     }
                 foreach (var o in Game.Map.objects)
                 {
                     bool warm=o.kind=="campfire"||o.kind=="brazier"&&Game.Has("warm_"+o.id);
                     bool signal=o.kind=="outerrelay"&&Game.OuterRelayRestored(Game.save.room);
                     if(!(warm||signal)||!WorldDrawable(o.x,o.y,180,180))continue;
-                    Color c=signal?new Color(.55f,.94f,.75f,.27f):
-                        new Color(1,.6f,.28f,.25f);
-                    c.a*=FadeWorldProp(o.x,o.y);
-                    Light(new Point(o.x,o.y-.3f),signal?145:130,c);
+                    DrawWorldEmitter(new Point(o.x,o.y),
+                        signal?"outerrelay":o.kind,
+                        FadeWorldProp(o.x,o.y),
+                        (int)(o.x*31f+o.y*71f));
                 }
                 if (Game.save.room == 5 && Game.save.effectsQuality == 2) for (int i = 0; i < 4; i++) Box(0, 150 + i * 116, Width, 24, new Color(.8f, .9f, .9f, .025f));
                 for (int i = 0; i < 10; i++) { float alpha = (10 - i) * .0025f; Box(i * 4, i * 4, Width - i * 8, 4, new Color(.02f, .04f, .08f, alpha)); Box(i * 4, Height - i * 4 - 4, Width - i * 8, 4, new Color(.02f, .04f, .08f, alpha)); }
