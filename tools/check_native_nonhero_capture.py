@@ -109,8 +109,13 @@ def main():
         ("WalkBossA", 4, 4, range(16)),
         ("WalkBossB", 4, 4, range(16)),
         ("EnemyArcherVertical", 3, 2, range(6)),
+        ("CinderstoneGuard", 4, 6, range(24)),
     ]
     count = sum(audit_art(*spec) for spec in atlases)
+    # Deterministic hard gate for all 24 shipped guard action cells, including
+    # a destructive missing-frame fault injection and live render mapping.
+    subprocess.run([sys.executable, str(ROOT / "tools/check_cinderstone_guard.py")],
+                   check=True, cwd=ROOT)
     # Core CI already installs Mono here. Run the actual production DrawNpc
     # regression as a mandatory hard gate, not merely a source-string check.
     # Keep the independent PNG-only art publisher free of Mono requirements.

@@ -10,6 +10,7 @@ namespace Starfall
         private Texture2D[] walkSheets, companionWalkSheets, bossWalkSheets;
         private Texture2D monsterWalkSheet;
         private Texture2D mossboundRaiderSheet;
+        private Texture2D cinderstoneGuardSheet;
         // Phase-entry cues are presentation-only and keyed by Enemy identity:
         // two bosses with the same numeric spawn ID never inherit a flash.
         // Weak keys prevent old save/review encounters from accumulating.
@@ -60,6 +61,7 @@ namespace Starfall
             bossWalkSheets = new[] { Resources.Load<Texture2D>(root + "WalkBossA"), Resources.Load<Texture2D>(root + "WalkBossB") };
             monsterWalkSheet = Resources.Load<Texture2D>(root + "WalkMonsters");
             mossboundRaiderSheet = Resources.Load<Texture2D>(root + "MossboundRaider");
+            cinderstoneGuardSheet = Resources.Load<Texture2D>(root + "CinderstoneGuard");
             briarBeastSheet = Resources.Load<Texture2D>(root + "BriarBeast");
             emberfallResidentsSheet = Resources.Load<Texture2D>(root + "EmberfallResidents");
             playerPortraits = Resources.Load<Texture2D>(root + "PlayerPortraits"); npcSheet = Resources.Load<Texture2D>(root + "Npcs");
@@ -84,6 +86,7 @@ namespace Starfall
                 art.FlashMask(mossboundRaiderSheet);
                 art.OutlineMask(mossboundRaiderSheet);
             }
+            if(cinderstoneGuardSheet!=null) { art.FlashMask(cinderstoneGuardSheet); art.OutlineMask(cinderstoneGuardSheet); }
             if(emberfallResidentsSheet!=null) { art.OutlineMask(emberfallResidentsSheet); }
             foreach(Texture2D sheet in new[]{playerRear,playerSouth,playerReactionsRear,playerReactionsSouth,enemyArcherVertical,monsterSheet,bossSheet,monsterWalkSheet})
                 if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
@@ -515,6 +518,24 @@ namespace Starfall
                     sheet = mossboundRaiderSheet; columns = 4; rows = 6;
                     frame = row * 4 + phase;
                 }
+                else if (e.kind == 2 && cinderstoneGuardSheet != null &&
+                    cinderstoneGuardSheet.width == 512 && cinderstoneGuardSheet.height == 768)
+                {
+                    // Full-body guard poses use the same authoritative GameCore
+                    // windup, release, hit and gait clocks as actual combat.
+                    int row = pose == 1 ? 1 : pose == 2 ? 2 :
+                        pose == 3 ? 3 : pose == 4 ? 4 : 0;
+                    float fraction = row == 2 ? 1f - e.timer /
+                        Math.Max(.01f, e.windupDuration) :
+                        row == 3 ? 1f - e.releaseTime / .24f :
+                        row == 4 ? 1f - e.hitTime / .18f : 0f;
+                    int phase = row == 1 ? GameCore.GaitFrame(e.moveTime, 1.8f) :
+                        row == 0 ? (int)(clock * 2.2f) % 4 :
+                        (int)GameCore.Clamp(fraction * 4f, 0f, 3f);
+                    if (phase < 0) phase += 4;
+                    sheet = cinderstoneGuardSheet; columns = 4; rows = 6;
+                    frame = row * 4 + phase;
+                }
                 else
                 {
                 if (pose == 1 && monsterWalkSheet != null) { sheet = monsterWalkSheet; columns = 4; rows = 3; int gait=GameCore.GaitFrame(e.moveTime,e.kind==0?1.35f:1.8f);frame=Math.Min(2,e.kind)*4+(e.backpedaling?(4-gait)%4:gait); }
@@ -589,6 +610,13 @@ namespace Starfall
             {
                 int phase = (int)GameCore.Clamp(progress * 4f, 0f, 3f);
                 Actor(mossboundRaiderSheet, 4, 6, 20 + phase, p, 96,
+                    tint, body.actor.VisualFlip);
+            }
+            else if (body.actor.kind == 2 && cinderstoneGuardSheet != null &&
+                cinderstoneGuardSheet.width == 512 && cinderstoneGuardSheet.height == 768)
+            {
+                int phase = (int)GameCore.Clamp(progress * 4f, 0f, 3f);
+                Actor(cinderstoneGuardSheet, 4, 6, 20 + phase, p, 106,
                     tint, body.actor.VisualFlip);
             }
             else Actor(monsterSheet, 6, 3, Math.Min(2, body.actor.kind) * 6 + 5, p, body.actor.kind == 2 ? 106 : 96, tint,body.actor.VisualFlip);
