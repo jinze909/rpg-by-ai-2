@@ -68,6 +68,30 @@ public static class ActorRegistrationChecks
         }
         Console.WriteLine("PASS "+total+" player combinations: exact foot/canvas density, fixed blonde head, four directions, contact, guard, recoil and death");
     }
+    static void ProductionLoadoutUsesFullBodyHero(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,0);
+        for(int profession=0;profession<3;profession++)
+        {
+            const float x=640f,y=400f,size=104f;
+            GUI.textureCalls.Clear();
+            var calls=Draw(app,"DrawPlayerPreview",
+                profession,x,y,size).Where(ActorTexture).ToArray();
+            Check(calls.Length==1,"Inventory preview must draw one complete body");
+            string cls=new[]{"Vanguard","Ranger","Arcanist"}[profession];
+            Check(calls[0].texture.name==
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"+cls+"_Idle_S",
+                "Inventory preview must use the actual class/blonde production Sprite");
+            Check(Math.Abs(calls[0].rect.width-size)<.01f&&
+                Math.Abs(calls[0].rect.height-size)<.01f,
+                "Loadout portrait should be 104px, not a 0.54px dot");
+            Check(Math.Abs(calls[0].rect.x-(x-size/2f))<.01f&&
+                Math.Abs(calls[0].rect.y-(y-size*240f/256f))<.01f,
+                "Inventory and world need the same canonical 128,240 foot anchor");
+        }
+        Console.WriteLine("PASS 3 true full-body inventory portraits at 104px with class outfit and blonde identity");
+    }
+
     static void Companions(FrontierRuntime app,string folder)
     {
         int total=0;string[] names={"Mira","Ivo","Sen"};
@@ -214,7 +238,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);Players(app,folder);Companions(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
