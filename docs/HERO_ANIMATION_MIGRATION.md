@@ -538,3 +538,48 @@ not prove subjective movement naturalness.
 `NATIVE_UNVERIFIED`; `ART_ACCEPTANCE_PENDING`.
 Earlier 333/297 frame counts and earlier 7-frame Attack/Cast
 claims are superseded by this 279/6-cell source-art release.
+
+## 2026-10-15 — Live audit of last one/two-frame LMB/Q walking-pose flash
+
+User supplied a screenshot of the earlier diagnosis: north/south
+Attack/Cast had previously used whole-body Walk cells in anticipation
+and recovery, and the authored hit pose could be selected before
+`ActorAction.released`. Compared against the REAL remote HEAD:
+
+* North and south had already been migrated to a same-class **planted
+  reaction guard** from `PlayerReactionsRear/South`, not Walk.
+  `ResolveFullBodyHeroFrame` already limits pre-release cell selection
+  based on the real `Game.playerAction.released` flag. Mono combat
+  checks cover 108 first/late/released LMB/Q directional states.
+* One root problem persisted on **east-facing** attacks/skills:
+  `curated_motion_source` used `Player<profession>:2` and
+  `Player<profession>:3`, which are visual walking/stepping bodies
+  in the original Player sheet even though the file is named Player,
+  not Walk. This caused the same unexpected full-body stride for
+  a single frame just before and after the combat keyposes.
+
+The exporter now selects exactly `Player<profession>:9`, a stationary
+same-class, complete-body defensive/ready stance, for slots 1 and 4
+of every east-facing Attack/Cast, preserving the same blonde
+identity, equipment, weapon and fixed foot anchor. N/S remain on
+the proven planted guard. The hard `assert_no_striding_action_insert`
+gate rejects **both** old kinds of walking-body source (Walk_*
+and Player_*:2/3), for all 18 action/direction/profession clips.
+`check_hero_generated_motion.py` injects 18 explicit historical bad
+pose plans that MUST fail; `check_hero_directional_action_bridges.py`
+does pixel-exact audits on ALL E/N/S real production PNG sheets and
+replaces the one inaccurate historical-only N/S coverage with
+18 before/after comparisons and 18 deliberate old-stride mutations.
+
+The unchanged GameCore damage clock still controls damage/projectile
+release and the renderer's contact slot remains unreachable until
+`ActorAction.released`. No saved-game fields, quest systems or
+collision/damage timing changed. The source poses are EXISTING
+artist-authored artwork, not 18 newly commissioned in-betweens.
+Native Unity 2022.3.53f1 Game View remains `NATIVE_UNVERIFIED`.
+
+A guarded source-provenance migration commit is needed because the
+committed pre-migration E sheets intentionally contain the old
+Player_2/3 pose. The publisher validates all regenerated clips
+first, then does a safe fast-forward PNG push; the pre-install audit
+will be restored as unconditional after the migration.
