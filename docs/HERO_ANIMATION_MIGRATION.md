@@ -316,3 +316,29 @@ of new artist-drawn frames or third-stage animation perfection.
 Other directions and reaction transitions still need genuine
 artist review and, where necessary, additional full-body art.
 Native Unity Editor/GameView remains NATIVE_UNVERIFIED.
+
+## 2026-10-15 — North/South complete-body phase publication
+
+After verifying the real E-facing Sprite results, the same class-locked
+artwork selection was extended to BOTH other gameplay facings.
+For `Attack` and `Cast`, each of Vanguard/Ranger/Arcanist now
+samples ONE approved full-body directional stride at slot 1 and
+ONE approved full-body directional recovery at slot 5:
+- East: `Player<class>:2` / `Player<class>:3`
+- North: `Walk<class>:4` / `Walk<class>:6`
+- South: `Walk<class>:9` / `Walk<class>:11`
+
+That is **36 fully artist-drawn, reused individual pose cells**
+across **18 live sheets** (3 classes × 3 facings × 2 actions).
+The old accepted action keys at slots 0,2,4,6 remain byte-identical.
+The actual contact/release is still at slot 4, managed by GameCore.
+No cross-class torso/leg cutting, independent face displacement,
+or new interpolated palette is introduced. Source identity and
+waist/hip/foot consistency gates compare every curated slot byte-for-byte
+to the approved class/direction original and reject substitutions.
+
+This stage reuses established high-quality pixel art and does not
+constitute a NEWLY hand-painted 36-frame commission. Slot 3 and some
+other actions continue to use mechanically assisted intermediary frames,
+so aesthetic animation acceptance remains OPEN. Unity graphics native
+PlayMode also remains NATIVE_UNVERIFIED.
