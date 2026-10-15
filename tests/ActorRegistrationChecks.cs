@@ -373,6 +373,36 @@ public static class ActorRegistrationChecks
                     Math.Abs(spoken.rect.x-body.rect.x)<.001f&&
                     Math.Abs(spoken.rect.y-body.rect.y)<.001f,
                     "Talking must not switch original NPC to a coarse or offset body");
+                // The same rich high-detail full-body source now has a
+                // tiny dialogue weight-shift around the correct planted foot.
+                // No Sprite cell, class face, render bounds or hitbox changes.
+                Set(app,"clock",.48f);
+                Clear();
+                var motion=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1);
+                var speaking=motion.First(c=>c.texture.name==original);
+                Check(Math.Abs(speaking.matrix.m01)>.0001f &&
+                    Math.Abs(speaking.matrix.m10)>.0001f &&
+                    Math.Abs(speaking.uv.x-body.uv.x)<.0001f,
+                    "Pinned speaker must tilt one original full-body Sprite");
+                Check(Math.Abs(GUI.matrix.m01)<.00001f &&
+                    Math.Abs(GUI.matrix.m10)<.00001f,
+                    "Dialogue motion leaked transform into subsequent actor/UI");
+                game.save.reducedMotion=true;
+                Clear();
+                var still=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1).First(c=>c.texture.name==original);
+                Check(Math.Abs(still.matrix.m01)<.00001f &&
+                    Math.Abs(still.matrix.m10)<.00001f,
+                    "Reduced-motion player preference must disable NPC body sway");
+                game.save.reducedMotion=false;
+                Set(app,"clock",1.25f);
+                Clear();
+                var later=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1).First(c=>c.texture.name==original);
+                Check(Math.Abs(later.matrix.m01-speaking.matrix.m01)>.0001f &&
+                    Math.Abs(later.uv.x-speaking.uv.x)<.0001f,
+                    "Dialogue animation must evolve without changing authored cells");
             }
             game.conversation=new Conversation("speaker","speaker","hello","hello");
             game.conversationSource=guild;
@@ -380,11 +410,14 @@ public static class ActorRegistrationChecks
             var bystander=Draw(app,"DrawNpc","guild",new Point(21,17),-1);
             Check(bystander.Any(c=>c.texture.name==original),
                 "Another guild member must not inherit a rejected dialogue avatar");
+            var other=bystander.First(c=>c.texture.name==original);
+            Check(Math.Abs(other.matrix.m01)<.00001f,
+                "A nearby same-kind bystander must not inherit conversation motion");
             Clear();
             var garden=Draw(app,"DrawNpc","garden",new Point(10,10),-1);
             Check(garden.Any(c=>c.texture.name==original),
                 "Unmodified rich source NPCs must stay on the accepted atlas");
-            Console.WriteLine("PASS guild/forge restored to rich original 16-NPC artwork in idle, dialogue and bystander views");
+            Console.WriteLine("PASS original 16-NPC sprites, pinned dialogue whole-body foot-lean, reduced motion and still bystanders");
         }
         finally
         {

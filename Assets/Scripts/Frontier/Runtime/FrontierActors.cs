@@ -709,7 +709,24 @@ namespace Starfall
             // the original per-person full-body atlas (and dialogue identity)
             // until a visually approved, truly higher-fidelity replacement
             // exists. The experimental resource is retained in Git, NOT drawn.
-            Actor(npcSheet, 4, 4, npcKey, p, 96, tint);
+            // Conversation now has an actual, source-preserving character
+            // response. Rotate the ONE authored full-body Sprite very gently
+            // around its planted foot; never rig a separate head/waist/arm.
+            // The animation belongs only to the pinned interlocutor. It is
+            // disabled in reduced-motion, outline and ordinary bystander
+            // views, and cannot shift a foot or dialogue/world hitbox.
+            Matrix4x4 originalMatrix = GUI.matrix;
+            try
+            {
+                if(isTalking && !Game.save.reducedMotion && !drawingOutline)
+                {
+                    float lean=.72f*(float)Math.Sin(clock*3.2f+npcKey*.37f);
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(originalMatrix,
+                        new Vector2(p.x,p.y),lean);
+                }
+                Actor(npcSheet, 4, 4, npcKey, p, 96, tint);
+            }
+            finally { GUI.matrix=originalMatrix; }
         }
     }
 }
