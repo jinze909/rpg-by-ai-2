@@ -136,7 +136,19 @@ namespace Starfall.EditorTools
                 throw new InvalidOperationException(
                     "No TextureImporter for accepted " + spec.name);
 
-            if (importer.textureType != TextureImporterType.Sprite)
+            // Keep the original importer restorable: this live project
+            // still uses Resources.Load<Texture2D>(...) throughout OnGUI
+            // and the fallback SpriteRenderer bridge.
+            TextureImporterType originalType = importer.textureType;
+            SpriteImportMode originalMode = importer.spriteImportMode;
+            float originalPpu = importer.spritePixelsPerUnit;
+            FilterMode originalFilter = importer.filterMode;
+            bool originalMipmaps = importer.mipmapEnabled;
+            TextureImporterCompression originalCompression =
+                importer.textureCompression;
+            bool originalAlpha = importer.alphaIsTransparency;
+            bool converted = importer.textureType != TextureImporterType.Sprite;
+            if (converted)
             {
                 // Preserve the ORIGINAL PNG file and meta GUID. Unity creates
                 // addressable Sprite sub-assets for Animator object curves,
@@ -174,9 +186,34 @@ namespace Starfall.EditorTools
             }
 
             source = AssetDatabase.LoadAssetAtPath<Texture2D>(png);
-            if (source == null || AssetDatabase.AssetPathToGUID(png) != guid)
+            Texture2D resourceTexture = Resources.Load<Texture2D>(
+                "Frontier/Art/" + spec.name);
+            if (source == null || resourceTexture == null ||
+                resourceTexture != source ||
+                AssetDatabase.AssetPathToGUID(png) != guid)
+            {
+                if (converted)
+                {
+                    // Better to abandon an optional native Animator than
+                    // destroy existing terrain, monster/NPC or old-save art.
+                    TextureImporter recover =
+                        AssetImporter.GetAtPath(png) as TextureImporter;
+                    if (recover != null)
+                    {
+                        recover.textureType = originalType;
+                        recover.spriteImportMode = originalMode;
+                        recover.spritePixelsPerUnit = originalPpu;
+                        recover.filterMode = originalFilter;
+                        recover.mipmapEnabled = originalMipmaps;
+                        recover.textureCompression = originalCompression;
+                        recover.alphaIsTransparency = originalAlpha;
+                        recover.SaveAndReimport();
+                    }
+                }
                 throw new InvalidOperationException(
-                    "Original Texture2D/GUID not preserved: " + spec.name);
+                    "Accepted original Texture2D or GUID would be lost on " +
+                    "Sprite import, restored prior importer: " + spec.name);
+            }
 
             Sprite[] imported = AssetDatabase.LoadAllAssetsAtPath(png)
                 .OfType<Sprite>().OrderBy(s => CellIndex(s.name)).ToArray();

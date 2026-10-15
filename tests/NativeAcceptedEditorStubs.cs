@@ -33,6 +33,10 @@ namespace UnityEngine
     public static class Mathf { public static float Abs(float v){return Math.Abs(v);} }
     public static class Debug { public static void LogWarning(object o){} }
     public static class JsonUtility { public static T FromJson<T>(string json){return default(T);} }
+    public static class Resources
+    {
+        public static T Load<T>(string path) where T:UnityEngine.Object{return null;}
+    }
 }
 namespace UnityEditor
 {
