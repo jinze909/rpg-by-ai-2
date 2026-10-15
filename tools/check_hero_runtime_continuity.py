@@ -212,6 +212,44 @@ def historical_splice_comparison():
     out.save(DEST / "historical-splice-reconstruction-vs-production.png")
 
 
+def reconstructed_head_swap_vs_whole_body():
+    """Recreate the RETIRED offline head graft for an honest A/B image.
+
+    Never label reconstructed legacy algorithms as Unity screenshots.
+    Old: delete source head then paste warrior head at rounded neck offset.
+    Current: actual shipped class-owned whole-body PNG frame.
+    """
+    from build_hero_animation_preview import (
+        imported_sheets, registered_heads, crop_frame, FACINGS,
+    )
+    sources, reg = imported_sheets(), registered_heads()
+    out=Image.new("RGB",(CELL*2,(CELL+26)*3),(30,35,43))
+    draw=ImageDraw.Draw(out)
+    for row, klass in enumerate(CLASSES):
+        source="Player"+klass
+        source_frame=4 # accepted real Attack anticipation, facing east
+        previous=crop_frame(sources[source],source_frame)
+        hx,hy,hw,hh=reg[source][source_frame]
+        warrior=crop_frame(sources["WalkVanguard"],0)
+        golden=warrior.crop((100,140,156,196))
+        previous.paste((0,0,0,0),(hx,hy,hx+hw,hy+hh))
+        dx=round(hx+hw/2-56/2)
+        dy=round(hy+hh-56)
+        previous.alpha_composite(golden,(dx,dy))
+        new=frames_for(f"Hero_{klass}_Attack_E")[2]
+        # Original approved keypose at index 2 MUST be the untouched source.
+        assert new.tobytes()==crop_frame(sources[source],source_frame).tobytes(), (
+            "PRODUCTION_HEAD_REPLACED_AGAIN", klass)
+        for i,pic in enumerate((previous,new)):
+            surface=Image.new("RGBA",(CELL,CELL),(30,35,43,255))
+            surface.alpha_composite(pic)
+            out.paste(surface.convert("RGB"),(CELL*i,row*(CELL+26)))
+        yy=row*(CELL+26)+CELL+3
+        draw.text((7,yy),klass+" / old HEAD-GRAFT reconstructed",fill=(249,195,151))
+        draw.text((CELL+7,yy),"current: original complete body",fill=(180,225,189))
+    out.save(DEST/"retired-head-graft-vs-production-full-body.png")
+
+
 def verify_failure_gates():
     """Prove these checks fail on broken production sprites, not just PASS."""
     def expect_failure(label, frames, action):
@@ -284,6 +322,7 @@ def run():
                     preview(name,seq)
     assert len(rows)==63 and frames_checked==333,(len(rows),frames_checked)
     historical_splice_comparison()
+    reconstructed_head_swap_vs_whole_body()
     report={
         "status":"production_sprite_structure_checked_artist_review_open",
         "source":"Assets/Resources/Frontier/HeroAnimator/Canonical",
