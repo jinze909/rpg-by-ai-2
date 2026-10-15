@@ -390,7 +390,15 @@ def check():
     assert "BuildPipeline.BuildPlayer(new[] { Scene }" in (
         (ROOT / "Assets/Editor/Frontier/FrontierEditor.cs").read_text())
     editor_boot = (ROOT / "Assets/Editor/Frontier/FrontierEditor.cs").read_text()
-    assert editor_boot.count("Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();") == 3
+    # Unity Editor / Play must not hard-fail when OPTIONAL Animator baking
+    # is broken: whole-body shipped Sprite resources still permit gameplay.
+    # Keep the strict Editor builder itself unchanged, but call via a
+    # try/catch in the Play + all three Build entrypoints.
+    assert editor_boot.count(
+        "Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();") == 1
+    assert editor_boot.count("PrepareHeroAnimationsOrUsePublishedFallback();") == 3
+    assert "catch (System.Exception error)" in editor_boot
+    assert "continuing with the already shipped complete-body Sprite" in editor_boot
     assert "if (File.Exists(installedPath))" in native
     assert "atlasPaths.Add(key, installedPath);" in native
     assert "installed.width != expectedCount * Cell" in native

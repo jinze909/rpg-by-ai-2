@@ -8,11 +8,30 @@ namespace Starfall.Editor
     public static class FrontierEditor
     {
         private const string Scene = "Assets/Scenes/Frontier.unity";
+        // The canonical Animator is an OPTIONAL optimized rendering lane.
+        // The shipped complete-body Resources Sprite atlases plus rooted OnGUI
+        // fallback still make a playable scene if Unity cannot import/bake
+        // a generated Controller. An Editor menu command must not abort Play
+        // or an entire player build solely because this optional art bake fails.
+        private static void PrepareHeroAnimationsOrUsePublishedFallback()
+        {
+            try
+            {
+                Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
+            }
+            catch (System.Exception error)
+            {
+                Debug.LogWarning("Starfall: native hero Animator preparation failed; " +
+                    "continuing with the already shipped complete-body Sprite " +
+                    "resources and safe runtime fallback. This is NOT native " +
+                    "Animator verification. Details: " + error);
+            }
+        }
         [MenuItem("Starfall/Play Adventure")]
         public static void Play()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-            Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
+            PrepareHeroAnimationsOrUsePublishedFallback();
             EditorSceneManager.OpenScene(Scene); EditorApplication.isPlaying = true;
         }
         [MenuItem("Starfall/Build/Windows")]
@@ -25,7 +44,7 @@ namespace Starfall.Editor
         {
             string folder = EditorUtility.SaveFolderPanel("Build Starfall Frontier", "", "StarfallFrontier");
             if (string.IsNullOrEmpty(folder)) return;
-            Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
+            PrepareHeroAnimationsOrUsePublishedFallback();
             var report = BuildPipeline.BuildPlayer(new[] { Scene }, Path.Combine(folder, filename), target, BuildOptions.None);
             Debug.Log("Starfall build: " + report.summary.result);
         }
@@ -33,7 +52,7 @@ namespace Starfall.Editor
         public static void BuildWindowsBatch()
         {
             Directory.CreateDirectory("Builds/Windows");
-            Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
+            PrepareHeroAnimationsOrUsePublishedFallback();
             var report = BuildPipeline.BuildPlayer(new[] { Scene }, "Builds/Windows/StarfallFrontier.exe", BuildTarget.StandaloneWindows64, BuildOptions.None);
             if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) throw new System.Exception("Unity player build failed.");
         }
