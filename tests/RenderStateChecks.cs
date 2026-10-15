@@ -1090,6 +1090,50 @@ public static class RenderStateChecks
                 Check(GUI.textureCalls.Count==0,
                     "Dry road cannot receive coastline movement");
             }
+            // A river bend exposes north AND east, not only the
+            // first branch of a four-way if/else. Both entire authored wave
+            // samples must be anchored independently, without passing a
+            // previous edge's matrix rotation into the following sample.
+            char[] cornerTop=original[0].ToCharArray();
+            char[] cornerMiddle=original[1].ToCharArray();
+            char[] cornerBottom=original[2].ToCharArray();
+            cornerTop[x]='.';
+            cornerMiddle[x-1]=cornerMiddle[x]=cornerBottom[x]='~';
+            cornerMiddle[x+1]='.';
+            map.rows[y-1]=new string(cornerTop);
+            map.rows[y]=new string(cornerMiddle);
+            map.rows[y+1]=new string(cornerBottom);
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==2,
+                "River corner must animate BOTH exposed banks");
+            var north=GUI.textureCalls[0];
+            var east=GUI.textureCalls[1];
+            Check(object.ReferenceEquals(north.texture,source)&&
+                object.ReferenceEquals(east.texture,source)&&
+                Math.Abs(north.matrix.m01)<.00001f&&
+                Math.Abs(east.matrix.m01)>.05f&&
+                Math.Abs(north.uv.x-east.uv.x)<.00001f&&
+                Math.Abs(north.color.a-east.color.a)<.00001f,
+                "Corner wave samples must share approved art, not stale rotation");
+            Same(GUI.matrix,canvas,
+                "Two-sided shoreline inherited its previous rotation");
+            Same(GUI.color,incoming,
+                "Corner wave paint leaked into later sprites");
+            cornerMiddle[x-1]='.';
+            cornerBottom[x]='.';
+            map.rows[y]=new string(cornerMiddle);
+            map.rows[y+1]=new string(cornerBottom);
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==4,
+                "Water island with four exposed banks must draw four valid crests");
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==0,
+                "Multiple-bank wave animation must obey reduced-motion preference");
+            game.save.reducedMotion=false;
             // Deep water has no adjacent shore, so cannot get fake foam.
             map.rows[y-1]=original[0].Substring(0,x)+"~"+
                 original[0].Substring(x+1);

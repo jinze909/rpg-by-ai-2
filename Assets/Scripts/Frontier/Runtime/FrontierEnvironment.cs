@@ -137,12 +137,6 @@ namespace Starfall
             bool north=!WaterAt(x,y-1),east=!WaterAt(x+1,y),
                 south=!WaterAt(x,y+1),west=!WaterAt(x-1,y);
             if(!north&&!east&&!south&&!west)return;
-            float cx=p.x+Tile*.5f,cy=p.y+Tile*.5f;
-            bool vertical=false;
-            if(north)cy=p.y+5f;
-            else if(east){cx=p.x+Tile-5f;vertical=true;}
-            else if(south)cy=p.y+Tile-5f;
-            else {cx=p.x+5f;vertical=true;}
             WorldVisualLook look=CurrentWorldVisualLook;
             float strength=Math.Min(.12f,look.waterGlintAlpha*.88f);
             float wave=(float)Math.Sin(clock*look.waterGlintRate+
@@ -152,17 +146,34 @@ namespace Starfall
             int variant=(seed/7)%4;
             Rect uv=new Rect((variant*48f+8f)/192f,
                 18f/192f,24f/192f,7f/192f);
-            Rect dest=new Rect(cx-12f,cy-3.5f,24f,7f);
             Matrix4x4 original=GUI.matrix;
             Color originalColor=GUI.color;
             try
             {
-                if(vertical)
-                    GUI.matrix=GuiGeometry.RotateAroundPivot(
-                        original,new Vector2(cx,cy),90f);
                 GUI.color=new Color(1.04f,1.09f,1.14f,
                     opacity*worldActorOpacity);
-                GUI.DrawTextureWithTexCoords(dest,terrainVariants,uv);
+                // The old first-match if/else left one edge of corner
+                // riverbanks dry. Each physically exposed side now has a
+                // separate authored wave sample, with one stable tile root.
+                // Individual edge transforms are RESET before the next
+                // sample so turns never inherit another edge's rotation.
+                for(int edge=0;edge<4;edge++)
+                {
+                    bool exposed=edge==0?north:edge==1?east:
+                        edge==2?south:west;
+                    if(!exposed)continue;
+                    float cx=p.x+Tile*.5f,cy=p.y+Tile*.5f;
+                    bool vertical=edge==1||edge==3;
+                    if(edge==0)cy=p.y+5f;
+                    else if(edge==1)cx=p.x+Tile-5f;
+                    else if(edge==2)cy=p.y+Tile-5f;
+                    else cx=p.x+5f;
+                    GUI.matrix=vertical?GuiGeometry.RotateAroundPivot(
+                        original,new Vector2(cx,cy),90f):original;
+                    GUI.DrawTextureWithTexCoords(
+                        new Rect(cx-12f,cy-3.5f,24f,7f),
+                        terrainVariants,uv);
+                }
             }
             finally
             {
