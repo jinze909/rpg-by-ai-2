@@ -108,10 +108,18 @@ namespace Starfall
             if(action<0||action>6||facing<0||facing>2)return false;
             int authored=moving?4:Game.HeroAnimationFrameCount(facing);
             if(authored<=0)return false;
-            bool interpolate=action>=2&&action<=5&&authored>1;
-            frames=interpolate?authored*2-1:authored;
-            position=(moving?Game.WalkPosePhase:
-                Game.HeroAnimationPlaybackPosition(facing))*(interpolate?2f:1f);
+            bool actionSix=(action==2||action==3)&&authored==4;
+            bool reactionFive=(action==4||action==5)&&authored==3;
+            frames=actionSix?6:reactionFive?5:authored;
+            float phase=moving?Game.WalkPosePhase:
+                Game.HeroAnimationPlaybackPosition(facing);
+            // Attack/Cast source pose #2 is the LAST windup pose. An
+            // artificial contact-transition has been removed: do not show
+            // the release keypose early just to conceal a missing drawing.
+            // The GameCore source phase >=2, not an interpolated limb,
+            // selects the actual contact frame.
+            position=actionSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):
+                reactionFive?phase*2f:phase;
             if(action==1)position%=frames;
             index=Math.Max(0,Math.Min(frames-1,(int)Math.Floor(position+.20f)));
             return true;
