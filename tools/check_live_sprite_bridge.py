@@ -182,6 +182,36 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_CI: detached or synthetic hero effect accepted")
+    # The graphics-only native Test Runner exercises REAL live actions
+    # in the PRODUCTION scene: 24 class/action/direction GPU probes,
+    # not just loading the generated Animator clips in an isolated object.
+    def verify_native_contact_probe(source):
+        for required in (
+            "ActualFrontierSceneAttackAndSkillContactFramesKeepOneBody",
+            "EditorSceneManager.LoadSceneInPlayMode(",
+            "core.Attack(aim);else core.Skill(aim);",
+            "Assert.AreSame(atlas,renderer.sprite.texture,",
+            "renderer.flipX",
+            "core.PlayerPhase==ActionPhase.Recovery",
+            "No invisible walk footsteps under action body",
+            "Strafing cannot rotate committed attack/cast grip",
+            'Assert.AreEqual(24,nativeProbes',
+            'real-scene-',
+        ):
+            assert required in source, ("NATIVE_REAL_SCENE_CONTACT_GATE_MISSING", required)
+        assert source.count("Assert.AreSame(atlas,renderer.sprite.texture,") >= 2, (
+            "NATIVE_CONTACT_AND_MOVING_RECOVERY_BOTH_REQUIRE_SAME_AUTHORED_SPRITE")
+    verify_native_contact_probe(native_qa)
+    for required in ("Assert.AreSame(atlas,renderer.sprite.texture,",
+                     "core.Attack(aim);else core.Skill(aim);",
+                     'Assert.AreEqual(24,nativeProbes'):
+        try:
+            verify_native_contact_probe(native_qa.replace(
+                required, "/* injected broken live GPU test */", 1))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_CI: removed real native scene combat QA accepted")
     assert "if(action==1)position%=frames;" in actor
     assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
     assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor
