@@ -66,6 +66,15 @@ jobs:
         run: python3 tools/check_hero_visual_spec.py
       - name: Compile nonhero SpriteRenderer and hard-gate Boss, monster, NPC production cells
         run: python3 tools/check_native_nonhero_capture.py
+      - name: Strictly audit original 24-frame nonhero art and its live GameCore mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=()
+          if git log -1 --format=%B | grep -Fq '[publish-mossbound-art]'; then
+            opts+=(--allow-unpublished)
+          fi
+          python3 tools/check_mossbound_raider.py "${opts[@]}"
       - name: Check live SpriteRenderer hero bridge and accepted sources
         run: python3 tools/check_live_sprite_bridge.py
       - name: Audit three-class animation frame continuity and provenance
@@ -141,4 +150,33 @@ jobs:
             echo "Remote advanced before upload: refusing force push."
             exit 1
           fi
+          git push origin HEAD:refs/heads/chatgpt/dev
+
+  publish-original-mossbound-art:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-mossbound-art]') }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Paint 24 approved source-code poses, enforce full-body visual hard gates
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil
+          python3 tools/generate_mossbound_raider.py --install
+          python3 tools/check_mossbound_raider.py
+      - name: Fast-forward publish PNG only to the authorized AI-2 branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Branch advanced; refusing stale art publication"; exit 1; }
+          git add -- Assets/Resources/Frontier/Art/MossboundRaider.png
+          git diff --cached --quiet && exit 0
+          git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(nonhero-art): publish 24 authored melee-raider frames [published-mossbound-art]'
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Concurrent branch advance; no force push"; exit 1; }
           git push origin HEAD:refs/heads/chatgpt/dev

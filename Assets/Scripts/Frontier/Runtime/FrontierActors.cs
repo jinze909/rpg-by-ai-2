@@ -8,6 +8,7 @@ namespace Starfall
         private Texture2D[] companionSheets;
         private Texture2D[] walkSheets, companionWalkSheets, bossWalkSheets;
         private Texture2D monsterWalkSheet;
+        private Texture2D mossboundRaiderSheet;
         // Real pixel-art accent sheet, drawn over the accepted imported terrain.
         private Texture2D terrainAccentRemaster;
         private Texture2D combatRhythmRemaster;
@@ -31,6 +32,7 @@ namespace Starfall
             companionWalkSheets = new[] { Resources.Load<Texture2D>(root + "WalkMira"), Resources.Load<Texture2D>(root + "WalkIvo"), Resources.Load<Texture2D>(root + "WalkSen") };
             bossWalkSheets = new[] { Resources.Load<Texture2D>(root + "WalkBossA"), Resources.Load<Texture2D>(root + "WalkBossB") };
             monsterWalkSheet = Resources.Load<Texture2D>(root + "WalkMonsters");
+            mossboundRaiderSheet = Resources.Load<Texture2D>(root + "MossboundRaider");
             playerPortraits = Resources.Load<Texture2D>(root + "PlayerPortraits"); npcSheet = Resources.Load<Texture2D>(root + "Npcs");
             playerRear = Resources.Load<Texture2D>(root + "PlayerRear");
             playerSouth = Resources.Load<Texture2D>(root + "PlayerSouth");
@@ -407,9 +409,32 @@ namespace Starfall
             else
             {
                 Texture2D sheet = monsterSheet; int columns = 6, rows = 3, frame = Math.Min(2, e.kind) * 6 + pose;
+                // Phase-2 original full-body art for common melee raiders.
+                // Authoritative GameCore intent and release time select every
+                // windup/contact frame; this never changes collision/damage.
+                if (e.kind == 0 && mossboundRaiderSheet != null &&
+                    mossboundRaiderSheet.width == 512 && mossboundRaiderSheet.height == 768)
+                {
+                    int row = pose == 1 ? 1 : pose == 2 ? 2 :
+                        pose == 3 ? 3 : pose == 4 ? 4 : 0;
+                    float fraction = row == 2 ? 1f - e.timer /
+                        Math.Max(.01f, e.windupDuration) :
+                        row == 3 ? 1f - e.releaseTime / .24f :
+                        row == 4 ? 1f - e.hitTime / .18f : 0f;
+                    int phase = row == 1 ?
+                        GameCore.GaitFrame(e.moveTime, 1.35f) :
+                        row == 0 ? (int)(clock * 2.8f) % 4 :
+                        (int)GameCore.Clamp(fraction * 4f, 0f, 3f);
+                    if (phase < 0) phase += 4;
+                    sheet = mossboundRaiderSheet; columns = 4; rows = 6;
+                    frame = row * 4 + phase;
+                }
+                else
+                {
                 if (pose == 1 && monsterWalkSheet != null) { sheet = monsterWalkSheet; columns = 4; rows = 3; int gait=GameCore.GaitFrame(e.moveTime,e.kind==0?1.35f:1.8f);frame=Math.Min(2,e.kind)*4+(e.backpedaling?(4-gait)%4:gait); }
                 bool vertical = e.kind == 1 && enemyArcherVertical != null && (pose == 2 || pose == 3) && Math.Abs(e.facing.y) > Math.Abs(e.facing.x);
                 if (vertical) { sheet = enemyArcherVertical; columns = 3; rows = 2; frame = (e.facing.y < 0 ? 0 : 2) + pose - 2; }
+                }
                 float canvas=ActorCanvas(sheet,columns,size/128);
                 Actor(sheet, columns, rows, frame, p + offset, canvas, tint, !vertical && e.VisualFlip);
                 if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, canvas, new Color(1, 1, 1, e.flash / .09f * .86f), !vertical && e.VisualFlip);
@@ -463,6 +488,13 @@ namespace Starfall
                 body.actor.boss?8:body.actor.kind==0?4:body.actor.kind==1?5:6,
                 tint.a*.84f);
             if (body.actor.boss) Actor(bossSheet, 4, 8, Math.Max(0, body.room - 1) * 4 + 3, p, BossCanvasSize(body.room), tint,body.actor.VisualFlip);
+            else if (body.actor.kind == 0 && mossboundRaiderSheet != null &&
+                mossboundRaiderSheet.width == 512 && mossboundRaiderSheet.height == 768)
+            {
+                int phase = (int)GameCore.Clamp(progress * 4f, 0f, 3f);
+                Actor(mossboundRaiderSheet, 4, 6, 20 + phase, p, 96,
+                    tint, body.actor.VisualFlip);
+            }
             else Actor(monsterSheet, 6, 3, Math.Min(2, body.actor.kind) * 6 + 5, p, body.actor.kind == 2 ? 106 : 96, tint,body.actor.VisualFlip);
             if (body.actor.boss && progress < .6f) Atlas(effectSheet, 4, 4, 15, new Rect(p.x - 52, p.y - 80 - progress * 40, 104, 104), new Color(.8f, .92f, .84f, .7f * (1 - progress)));
         }
