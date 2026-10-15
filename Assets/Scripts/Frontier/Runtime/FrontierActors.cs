@@ -89,80 +89,94 @@ namespace Starfall
                 new Color(.025f,.04f,.07f,.34f*opacity));
         }
         private void DrawPlayerPreview(int equipment, float x, float y, float size)
-        { HumanActor(playerSheets[(int)GameCore.Clamp(equipment,0,2)],4,3,0,new Point(x,y),size/192,Color.white,false,walkSheets[0],0,true); }
+        {
+            int profession=(int)GameCore.Clamp(equipment,0,2);
+            // A preview is ONE class-owned full-body Sprite, not four cutouts
+            // with an independently attached warrior head.
+            Actor(playerSheets[profession],4,3,0,
+                new Point(x,y),size/192,Color.white,false);
+        }
+
         private void DrawPlayerActor()
         {
             Point p = ScreenPoint(Game.Position);
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
-            if (Game.racing && !drawingOutline) PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);
-            int look = Game.AppearanceWeapon, pose = Game.PlayerPose;
-            if (playerSheets == null || playerSheets[look] == null) { DrawLegacyHero(); return; }
-            Point direction = Game.VisualFacing;
-            Color tint = Game.playerFlash > 0 ? new Color(1.5f, 1.5f, 1.5f) : Color.white;
-            if (Game.invulnerable > 0 && !Game.Dying && Game.playerFlash <= 0) tint.a = .65f + .35f * (float)Math.Abs(Math.Sin(clock * 16));
-            Texture2D sheet = playerSheets[look]; int frame = pose;
-            if (pose >= 2 && pose <= 3 && walkSheets[look] != null)
+            if (Game.racing && !drawingOutline)
+                PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);
+            int look=Game.AppearanceWeapon,pose=Game.PlayerPose;
+            if (look<0||look>=3||playerSheets==null||
+                playerSheets[look]==null)
             {
-                int row = GameCore.DirectionRow(direction);
-                sheet = walkSheets[look]; frame = row * 4 + Game.WalkFrame;
-                bool captured = false;
-#if UNITY_5_3_OR_NEWER
-                captured = DrawSpriteRendererHero(sheet,frame,p,tint,
-                    row==0&&direction.x<0,row,pose,true,false,null);
-#endif
-                if (!captured)
-                {
-                    HumanActor(sheet,4,3,frame,p,.75f,tint,row==0&&direction.x<0,walkSheets[0],row*4,true);
-                    if(!drawingOutline&&Game.playerFlash>0)HumanActor(sheet,4,3,frame,p,.75f,new Color(1,1,1,Game.playerFlash/.09f*.86f),row==0&&direction.x<0,walkSheets[0],row*4,true,true);
-                }
+                DrawLegacyHero();
+                return;
+            }
+            Point direction=Game.VisualFacing;
+            Color tint=Game.playerFlash>0 ?
+                new Color(1.5f,1.5f,1.5f) : Color.white;
+            if (Game.invulnerable>0&&!Game.Dying&&Game.playerFlash<=0)
+                tint.a=.65f+.35f*(float)Math.Abs(Math.Sin(clock*16));
+            int facing=GameCore.DirectionRow(direction);
+            // The authoritative released recovery moves with the COMPLETE
+            // same-class Walk sprite. Never weld an action torso to walking
+            // boots or warp one ankle while the pelvis stays frozen.
+            bool movingRecovery=!Game.Dying&&Game.ActuallyMoving&&
+                Game.PlayerMobility==MobilityRule.Reduced&&
+                pose>=4&&pose<=7;
+            bool moving=pose>=2&&pose<=3||movingRecovery;
+            bool rear=false,south=false,resting=!moving&&pose<=1;
+            Texture2D sheet=playerSheets[look];
+            int frame=pose;
+            if(moving&&walkSheets!=null&&walkSheets[look]!=null)
+            {
+                sheet=walkSheets[look];
+                frame=facing*4+Game.WalkFrame;
             }
             else
             {
-                int facingRow=GameCore.DirectionRow(direction);bool resting=pose<=1;
-                if(resting){frame=facingRow==1?1:0;if(facingRow==2&&walkSheets[look]!=null){sheet=walkSheets[look];frame=8;}}
-                bool rear = playerRear != null && direction.y < -Math.Abs(direction.x) && pose >= 2 && pose <= 7;
-                if (rear) { sheet = playerRear; frame = look * 4 + (pose < 4 ? pose - 2 : pose == 4 || pose == 6 ? 2 : 3); }
-                bool south = playerSouth != null && direction.y > Math.Abs(direction.x) && pose >= 4 && pose <= 7;
-                if (south)
+                if(resting)
                 {
-                    sheet = playerSouth; frame = look * 4 + pose - 4;
+                    frame=facing==1?1:0;
+                    if(facing==2&&walkSheets!=null&&walkSheets[look]!=null)
+                    {
+                        sheet=walkSheets[look];
+                        frame=8;
+                    }
                 }
-                if(pose>=8&&facingRow!=0){Texture2D reaction=facingRow==1?playerReactionsRear:playerReactionsSouth;if(reaction!=null){sheet=reaction;frame=look*4+(pose==8?0:pose==9?1:pose==10?2:3);}}
-                bool flip=!rear&&!south&&facingRow==0&&direction.x<-.1f;
-                // Attack/cast while actually translating needs the same
-                // walking legs as its movement state. Compose pixels on one
-                // atlas cell before drawing; never offset torso/head/weapon
-                // independently, which caused a detached waist.
-                // Sword attack windups/contacts translate under the real
-                // AttackMovement mobility rule. They MUST advance the same
-                // distance-driven walk legs as moving recovery or the hero
-                // slides along the floor with a frozen sword-attack stance.
-                // Spell/bow windups remain planted by GameCore's existing
-                // Stationary rule; never change collision/damage timing.
-                MobilityRule mobility = Game.PlayerMobility;
-                Texture2D unified = !Game.Dying && Game.ActuallyMoving &&
-                    (mobility==MobilityRule.Reduced ||
-                     (mobility==MobilityRule.AttackMovement &&
-                      Game.playerAction!=null &&
-                      Game.playerAction.kind=="attack")) &&
-                    pose>=4 && pose<=7 && walkSheets[look]!=null ?
-                    UnifiedActionGait(sheet,4,3,frame,walkSheets[look],
-                        facingRow*4+Game.WalkFrame,look) : null;
-                bool captured = false;
-#if UNITY_5_3_OR_NEWER
-                captured = DrawSpriteRendererHero(sheet,frame,p,tint,flip,
-                    facingRow,pose,resting,Game.Dying,unified);
-#endif
-                if (!captured)
+                rear=playerRear!=null&&facing==1&&pose>=4&&pose<=7;
+                if(rear)
                 {
-                    HumanActor(sheet,4,3,frame,p,.75f,tint,flip,walkSheets[0],
-                        facingRow*4,resting,false,Game.Dying,unified);
-                    if(!drawingOutline&&Game.playerFlash>0)
-                        HumanActor(sheet,4,3,frame,p,.75f,
-                            new Color(1,1,1,Game.playerFlash/.09f*.86f),
-                            flip,walkSheets[0],facingRow*4,false,true,Game.Dying,unified);
+                    sheet=playerRear;
+                    frame=look*4+(pose==4||pose==6?2:3);
+                }
+                south=playerSouth!=null&&facing==2&&pose>=4&&pose<=7;
+                if(south)
+                {
+                    sheet=playerSouth;
+                    frame=look*4+pose-4;
+                }
+                if(pose>=8&&facing!=0)
+                {
+                    Texture2D reaction=facing==1?playerReactionsRear:playerReactionsSouth;
+                    if(reaction!=null)
+                    {
+                        sheet=reaction;
+                        frame=look*4+(pose==8?0:pose==9?1:pose==10?2:3);
+                    }
                 }
             }
+            bool flip=!rear&&!south&&facing==0&&direction.x<-.1f;
+            // Full-frame authority: both native capture and legacy OnGUI
+            // sample the exact same class/action/facing published atlas.
+            // No Dynamic UnifiedActionGait, HumanActor head splice or
+            // independently translated body part participates in gameplay.
+            bool captured=false;
+#if UNITY_5_3_OR_NEWER
+            captured=DrawSpriteRendererHero(sheet,frame,p,tint,flip,
+                facing,pose,moving,Game.Dying,null);
+#endif
+            if(!captured)
+                DrawWholeBodyHeroOnGUI(sheet,frame,p,tint,flip,
+                    look,facing,pose,moving);
             // Real 32px authored accents track the SAME live action/release
             // timestamps as the composed body; not an independent decorative
             // animation clock. Every pose keeps the actor's ground pivot.
