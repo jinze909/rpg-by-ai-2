@@ -13,7 +13,7 @@ jobs:
       # its own publisher. The source art and meta GUIDs remain unchanged.
       - name: Build three-class canonical hero animation preview / QA matrix
         run: python3 tools/build_hero_animation_preview.py
-      - name: Export 63 class-owned full-body production hero sprite atlases
+      - name: Export 63 source-authored production hero Sprite atlases
         run: python3 tools/export_canonical_hero_atlases.py
       - name: Stage regenerated canonical hero Sprite resources for live bridge checks
         run: |
@@ -29,7 +29,7 @@ jobs:
         run: python3 tools/check_hero_whole_body_integrity.py
       - name: Audit production Sprite continuity and emit Game View comparison GIFs
         run: python3 tools/check_hero_runtime_continuity.py
-      - name: Verify generated hero action midpoints and original pose preservation
+      - name: Require byte-exact source-authored hero animations with zero body warps
         run: python3 tools/check_hero_generated_motion.py
       - name: Audit locked hero visual identity, registered hand hints and foot anchor
         run: python3 tools/check_hero_visual_spec.py
