@@ -54,8 +54,10 @@ namespace Starfall.EditorTools
                     for (int facing = 0; facing < Facings.Length; facing++)
                     {
                         string key = Key(profession, action, facing);
-                        int expected = ExpandedCount(FrameRefs(
-                            Array.IndexOf(Classes, profession), action, facing).Length, action);
+                        FrameSource[] approved = FrameRefs(
+                            Array.IndexOf(Classes, profession), action, facing);
+                        VerifySameProfessionBody(profession, approved);
+                        int expected = ExpandedCount(approved.Length, action);
                         // Existing .anim files are NOT necessarily current:
                         // Cast grew from 3 to 7 Sprite cells. A mere existence
                         // check silently left old curves active in gameplay.
