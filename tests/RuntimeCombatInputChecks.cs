@@ -1055,6 +1055,10 @@ public static class RuntimeCombatInputChecks
                 g.Equip(equipped);
                 Check(g.save.weapon==equipped,
                     "Equipped identity must be ready for missing-legacy test");
+                // The idle pre-attack sample must first face the same
+                // requested compass direction as the subsequent action.
+                // Otherwise its correct default East Idle is mislabelled N/S.
+                g.SetAim(direction);
                 Set(app,"playerSheets",null);
                 Set(app,"walkSheets",null);
                 CheckPlayerDrawing(app,"",0,direction);
