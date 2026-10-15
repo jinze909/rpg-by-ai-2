@@ -44,6 +44,18 @@ jobs:
         run: python3 tools/check_unity_assembly_graph.py
       - name: Run actual C# gameplay checks
         run: python3 tools/run_core_tests.py
+      - name: Stage only first-publish original NPC art before live C# draw verification
+        if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[publish-resident-art]') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f Assets/Resources/Frontier/Art/EmberfallResidents.png ]; then
+            # Never overwrite a committed broken sprite to camouflage regression.
+            python3 tools/check_emberfall_residents.py
+          else
+            python3 tools/generate_emberfall_residents.py --install
+            python3 tools/check_emberfall_residents.py
+          fi
       - name: Check production combat input with offline Unity declarations
         run: python3 tools/run_combat_input_checks.py
       - name: Compile Frontier Editor menu and importer code with offline declarations
