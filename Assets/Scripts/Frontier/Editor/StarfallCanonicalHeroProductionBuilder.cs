@@ -137,6 +137,46 @@ namespace Starfall.EditorTools
             if (!ready) Build();
         }
 
+        // Unity's Editor-on-load bake alone is insufficient: a headless
+        // Player build must never succeed with three absent native Animator
+        // controllers and 63 missing Sprite curves. Repair/validate ALL
+        // controller overrides and source-locked imported clips before the
+        // Player asset collection starts. This does not regenerate hero PNGs.
+        public static void RequireProductionAnimatorForBuild()
+        {
+            EnsureBuilt();
+            if (!NativeControllersMatchPublished())
+                throw new InvalidOperationException(
+                    "Native 3-class hero Animator controller/override mapping " +
+                    "is incomplete; cannot publish Sprite-only fallback.");
+            var binding = new EditorCurveBinding {
+                path = "", type = typeof(SpriteRenderer), propertyName = "m_Sprite"
+            };
+            for (int cls = 0; cls < Classes.Length; cls++)
+                for (int action = 0; action < Actions.Length; action++)
+                    for (int face = 0; face < Facings.Length; face++)
+                    {
+                        string key = Key(Classes[cls], action, face);
+                        string path = Generated + key + ".png";
+                        Texture2D atlas =
+                            AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                        int count = PublishedFrameCount(atlas,
+                            FrameRefs(cls, action, face).Length, action);
+                        AnimationClip clip =
+                            AssetDatabase.LoadAssetAtPath<AnimationClip>(
+                                Clips + key + ".anim");
+                        if (atlas == null || atlas.height != Cell ||
+                            atlas.width != count * Cell || clip == null ||
+                            !NativeClipMatchesPublished(
+                                AnimationUtility.GetObjectReferenceCurve(
+                                    clip, binding), path, count, action))
+                            throw new InvalidOperationException(
+                                "Native full-body Sprite curve failed " +
+                                "pre-build pixel/source/foot-pivot audit: " + key);
+                    }
+            AssetDatabase.SaveAssets();
+        }
+
         private static bool HasExactProductionTransition(
             AnimatorStateTransition transition, int action, int facing)
         {
@@ -547,6 +587,31 @@ namespace Starfall.EditorTools
                 };
             importer.spritesheet = sprites;
             importer.SaveAndReimport();
+        }
+    }
+
+    // Unity 2022.3 invokes this for Player builds, including headless builds.
+    // Unlike the opt-in Editor preview, this is mandatory production gating:
+    // a missing native Animator is a BUILD FAILURE, never a quiet warning.
+    internal sealed class StarfallHeroProductionBuildGate :
+        UnityEditor.Build.IPreprocessBuildWithReport
+    {
+        public int callbackOrder { get { return -1000; } }
+
+        public void OnPreprocessBuild(
+            UnityEditor.Build.Reporting.BuildReport report)
+        {
+            try
+            {
+                StarfallCanonicalHeroProductionBuilder
+                    .RequireProductionAnimatorForBuild();
+            }
+            catch (Exception error)
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    "Starfall hero Animator pre-build gate rejected incomplete " +
+                    "or stale class/direction action art: " + error.Message);
+            }
         }
     }
 }

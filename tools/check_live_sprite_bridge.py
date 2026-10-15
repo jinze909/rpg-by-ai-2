@@ -691,6 +691,53 @@ def check():
     assert int(2 * 2 + .20) == 4
     assert int(2 * 3 + .20) == 6
     assert int(3 + .20) == 3
+    # A Unity Player build is NOT the same as opening Editor PlayMode:
+    # all 63 actual Sprite curves + 3 controllers must be generated,
+    # source-verified and packaged before BuildPipeline runs.
+    def require_native_build_contract(code):
+        method = code.split("public static void RequireProductionAnimatorForBuild()")[1]
+        method = method.split("private static bool HasExactProductionTransition(")[0]
+        gate = code.split("internal sealed class StarfallHeroProductionBuildGate")[1]
+        for marker in (
+            "EnsureBuilt();",
+            "if (!NativeControllersMatchPublished())",
+            "NativeClipMatchesPublished(",
+            "AssetDatabase.LoadAssetAtPath<AnimationClip>",
+            "AssetDatabase.SaveAssets();",
+        ):
+            assert marker in method, ("HERO_PLAYER_BUILD_NOT_SOURCE_VERIFIED", marker)
+        for marker in (
+            "UnityEditor.Build.IPreprocessBuildWithReport",
+            "void OnPreprocessBuild(",
+            ".RequireProductionAnimatorForBuild();",
+            "UnityEditor.Build.BuildFailedException",
+        ):
+            assert marker in gate or marker in code.split(
+                "internal sealed class StarfallHeroProductionBuildGate")[0][-130:], (
+                "HERO_PLAYER_BUILD_GATE_BYPASS", marker)
+    require_native_build_contract(native)
+    for broken in (
+        native.replace(
+            "if (!NativeControllersMatchPublished())\n                throw",
+            "if (false)\n                throw", 1),
+        native.replace(
+            "            AssetDatabase.SaveAssets();\n        }\n\n        private static bool HasExactProductionTransition(",
+            "            // deliberately removed\n        }\n\n        private static bool HasExactProductionTransition(",1),
+        native.replace(".RequireProductionAnimatorForBuild();",
+                       ".EnsureBuilt();", 1),
+        native.replace("UnityEditor.Build.IPreprocessBuildWithReport",
+                       "System.IDisposable", 1),
+        native.replace("UnityEditor.Build.BuildFailedException",
+                       "System.Exception", 1),
+    ):
+        try:
+            require_native_build_contract(broken)
+        except (AssertionError, IndexError):
+            pass
+        else:
+            raise AssertionError(
+                "UNSAFE_CI_ACCEPTED_MISSING_MANDATORY_HERO_PLAYER_BUILD_GATE")
+    print("PASS mandatory Unity Player pre-build gate rejects missing 63 hero Sprite curves and 3 controllers")
     print("PASS: 63 checked shipped SpriteRenderer resources, three-class frame sampling, "
           "non-destructive Editor controller hookup and GameCore clock fallback.")
     print("PASS: production canonical compositor, approved atlas import, "
