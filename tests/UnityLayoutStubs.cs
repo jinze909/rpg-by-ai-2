@@ -175,7 +175,11 @@ class LayoutHarness
     {
         var app=new Starfall.FrontierRuntime();Invoke(app,"Awake");if(app.Game==null)return 1;
 #if RESIDENT_ONLY
-        ActorRegistrationChecks.VerifyResidentAnimation(app);return 0;
+        ActorRegistrationChecks.VerifyResidentAnimation(app);
+        // Mandatory nonhero CI must execute the real boss draw method too:
+        // phase thresholds, matched flash atlas cells and the GameCore clock.
+        ActorRegistrationChecks.VerifyBossMovingFlash(app);
+        return 0;
 #elif CONTINUITY_ONLY
         ActorRegistrationChecks.Run(app,args[0]);RuntimeContinuityChecks.Run(app,args[0]);return 0;
 #else
