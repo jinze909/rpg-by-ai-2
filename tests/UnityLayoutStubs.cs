@@ -174,7 +174,9 @@ class LayoutHarness
     static int Main(string[] args)
     {
         var app=new Starfall.FrontierRuntime();Invoke(app,"Awake");if(app.Game==null)return 1;
-#if CONTINUITY_ONLY
+#if RESIDENT_ONLY
+        ActorRegistrationChecks.VerifyResidentAnimation(app);return 0;
+#elif CONTINUITY_ONLY
         ActorRegistrationChecks.Run(app,args[0]);RuntimeContinuityChecks.Run(app,args[0]);return 0;
 #else
         Export(app,args[0],"title");app.Game.NewGame(0);app.Game.Close();Invoke(app,"Update");Export(app,args[0],"town");
