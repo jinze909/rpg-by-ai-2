@@ -108,8 +108,8 @@ namespace Starfall
             if(action<0||action>6||facing<0||facing>2)return false;
             int authored=moving?4:Game.HeroAnimationFrameCount(facing);
             if(authored<=0)return false;
-            bool interpolate=action>=1&&action<=5&&authored>1;
-            frames=interpolate?authored*2-(action==1?0:1):authored;
+            bool interpolate=action>=2&&action<=5&&authored>1;
+            frames=interpolate?authored*2-1:authored;
             position=(moving?Game.WalkPosePhase:
                 Game.HeroAnimationPlaybackPosition(facing))*(interpolate?2f:1f);
             if(action==1)position%=frames;
