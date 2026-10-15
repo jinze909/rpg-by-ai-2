@@ -18,7 +18,7 @@ ASSETS = ROOT / "Assets/Resources/Frontier/HeroAnimator/Canonical"
 
 def main():
     manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
-    if manifest["status"] != "accepted_source_plus_algorithmic_motion_midpoints_not_art_approved":
+    if manifest["status"] != "class_owned_full_body_run_and_source_curated_transitions_pending_art_review":
         raise AssertionError("Refusing unverified/replaced identity source")
     atlases = manifest["atlases"]
     if len(atlases) != 63:
