@@ -185,6 +185,10 @@ def main():
     if len(manifest["atlases"]) != 63 or total_midpoints <= 0:
         raise AssertionError("Hero export failed to generate all action sheets")
     (DEST / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    # Release-blocker in BOTH offline CI and the guarded GitHub PNG
+    # publisher, not an optional post-hoc report.
+    from check_hero_whole_body_integrity import audit as audit_full_body
+    audit_full_body(DEST, PREVIEW)
     print(f"PASS: 63 canonical hero atlases exported with {total_midpoints} motion-assisted midpoints.")
     print("Unmodified source poses remain at even indices; all source identity pixels preserved.")
     print("ART/NATIVE_UNVERIFIED: hand-redrawn quality, playmode, Animator, GPU, FPS.")
