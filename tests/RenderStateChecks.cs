@@ -618,6 +618,48 @@ public static class RenderStateChecks
             "Road cannot accidentally receive water animation");
         Console.WriteLine("PASS actual shared surface-water decision across low/high tide");
     }
+    private static void CoverOcclusionIncludesEveryLiveActor(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        var source=Get<Texture2D>(app,"worldProps");
+        Check(source!=null,"Accepted authored canopy atlas required");
+        var tree=new Decoration{kind="tree",x=12f,y=14f,variant=0};
+        // Start far from the cover. All snapshots use the real production
+        // DrawWorldDecoration -> DrawRootedPlant -> accepted WorldProps path.
+        g.save.x=30;g.save.y=30;g.save.companion=-1;
+        g.enemies.Clear();g.fallen.Clear();
+        Action<float,string> assertOpacity=(alpha,context)=>{
+            Clear();
+            Call(app,"DrawWorldDecoration",tree);
+            var draw=GUI.textureCalls.Find(t=>object.ReferenceEquals(t.texture,source));
+            Check(draw!=null,"Live full-body tree vanished: "+context);
+            Check(Math.Abs(draw.color.a-alpha)<.0001f,
+                "Canopy transparency lost actual actor occlusion: "+context);
+            Check(Math.Abs(draw.uv.x)<.0001f&&
+                Math.Abs(draw.uv.width-.25f)<.0001f,
+                "Occlusion cannot substitute original detailed tree pixels");
+        };
+        assertOpacity(1f,"empty");
+        g.save.companion=0;g.companionPosition=new Point(12,12);
+        assertOpacity(.4f,"companion");
+        g.companionPosition=new Point(25,20);
+        assertOpacity(1f,"companion outside canopy");
+        g.save.companion=-1;
+        var defeated=new Enemy(99881,0,12,12,10);
+        g.fallen.Add(new FallenActor{actor=defeated,room=g.save.room,
+            life=.4f,duration=.65f});
+        assertOpacity(.4f,"fallen actor");
+        g.fallen.Clear();
+        g.enemies.Add(new Enemy(99882,1,12,12,30));
+        assertOpacity(.4f,"living enemy unchanged");
+        g.enemies.Clear();
+        g.save.x=12;g.save.y=12;
+        assertOpacity(.4f,"hero unchanged");
+        g.save.x=30;g.save.y=30;
+        assertOpacity(1f,"restored full-opacity scenery");
+        Console.WriteLine("PASS live original-canopy occlusion for companion, fallen, enemy, hero and clear world");
+    }
     private static void WholeWorldPropsFoliageHasOneStableRoot(FrontierRuntime app)
     {
         Prepare(app);
@@ -890,7 +932,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

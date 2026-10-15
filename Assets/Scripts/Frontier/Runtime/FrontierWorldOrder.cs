@@ -103,6 +103,37 @@ namespace Starfall
             }
             finally{worldActorOpacity=1f;worldDrawEntries.Clear();}
         }
+        // Canopy/ruin occlusion is a presentation-only mask. Test every
+        // actor that actually enters the depth-sorted world pass; a companion
+        // or rescued civilian must never disappear behind opaque foliage
+        // while the player/enemies receive the readable translucent canopy.
+        private static bool BehindWorldCover(float x,float y,Decoration cover,
+            float reachX,float reachY)
+        {
+            return Math.Abs(x-cover.x)<reachX && y<cover.y &&
+                y>cover.y-reachY;
+        }
+        private bool WorldCoverOverlapsActor(Decoration cover)
+        {
+            if(BehindWorldCover(Game.save.x,Game.save.y,cover,1.4f,2.7f))
+                return true;
+            foreach(Enemy actor in Game.enemies)
+                if(BehindWorldCover(actor.x,actor.y,cover,1.6f,2.9f))
+                    return true;
+            if(Game.save.companion>=0 && BehindWorldCover(
+                Game.companionPosition.x,Game.companionPosition.y,
+                cover,1.4f,2.7f))
+                return true;
+            if(Game.ReliefCivilianVisible && BehindWorldCover(
+                Game.reliefFollowerPosition.x,Game.reliefFollowerPosition.y,
+                cover,1.4f,2.7f))
+                return true;
+            foreach(FallenActor fallen in Game.fallen)
+                if(fallen.actor!=null && BehindWorldCover(
+                    fallen.actor.x,fallen.actor.y,cover,1.6f,2.9f))
+                    return true;
+            return false;
+        }
         private void DrawWorldDecoration(Decoration prop)
         {
             Point p=ScreenPoint(new Point(prop.x,prop.y));
@@ -111,8 +142,7 @@ namespace Starfall
             if(prop.kind=="garden")variant=Game.save.plantedAt<0?0:Game.save.totalTime-Game.save.plantedAt>=60?2:1;
             float h=w*112/96;
             bool canopy=prop.kind=="tree"||prop.kind=="palm"||prop.kind=="snowpine",cover=canopy||prop.kind=="ruin";
-            bool occludes=cover&&Math.Abs(Game.save.x-prop.x)<1.4f&&Game.save.y<prop.y&&Game.save.y>prop.y-2.7f;
-            if(cover)foreach(Enemy actor in Game.enemies)occludes|=Math.Abs(actor.x-prop.x)<1.6f&&actor.y<prop.y&&actor.y>prop.y-2.9f;
+            bool occludes=cover&&WorldCoverOverlapsActor(prop);
             Color tint=occludes?new Color(1,1,1,.4f):Color.white;
             Rect rect=new Rect(p.x-w/2,p.y-h+8,w,h);
             // Depth-sort and ground both large scenery and standing props
