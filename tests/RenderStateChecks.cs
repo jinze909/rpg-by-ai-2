@@ -664,6 +664,27 @@ public static class RenderStateChecks
             added[added.Length-1]=person;
             map.objects=added;
             assertOpacity(.4f,"world NPC");
+            // This is the cached resident subset built exactly once per
+            // DrawOrderedWorld frame. The same production canopy reader
+            // must use this subset, not scan the complete Map on every tree.
+            var nearby=Get<System.Collections.Generic.List<WorldObject>>(
+                app,"coverResidentsInView");
+            nearby.Clear();
+            try
+            {
+                Set(app,"coverResidentsPrepared",true);
+                assertOpacity(1f,"frame-local empty visible resident list");
+                nearby.Add(person);
+                assertOpacity(.4f,"frame-local accepted NPC");
+                person.kind="barrel";
+                assertOpacity(1f,"filtered nonactor cached entry");
+            }
+            finally
+            {
+                Set(app,"coverResidentsPrepared",false);
+                nearby.Clear();
+                person.kind="guild";
+            }
             person.kind="barrel";
             assertOpacity(1f,"nonactor world prop");
         }
@@ -675,7 +696,7 @@ public static class RenderStateChecks
         assertOpacity(.4f,"hero unchanged");
         g.save.x=30;g.save.y=30;
         assertOpacity(1f,"restored full-opacity scenery");
-        Console.WriteLine("PASS live original-canopy occlusion for NPC, companion, fallen, enemy, hero, nonactor props and clear world");
+        Console.WriteLine("PASS original-canopy visibility including per-frame NPC cache, companion, corpse, enemy, hero, and unchanged props");
     }
     private static void WholeWorldPropsFoliageHasOneStableRoot(FrontierRuntime app)
     {

@@ -24,6 +24,12 @@ namespace Starfall
         }
         private static readonly WorldDepthComparer worldDepthComparer=new WorldDepthComparer();
         private readonly List<WorldDrawEntry> worldDrawEntries=new List<WorldDrawEntry>(256);
+        // The accepted NPC footprints visible in THIS world's depth pass.
+        // Collect once, not once for each swaying tree/ruin. The separate
+        // DrawWorldDecoration review entrypoint retains its safe map fallback.
+        private readonly List<WorldObject> coverResidentsInView=
+            new List<WorldObject>(64);
+        private bool coverResidentsPrepared;
         private void AddWorldEntry(WorldDrawEntry entry)
         {entry.order=worldDrawEntries.Count;worldDrawEntries.Add(entry);}
         private bool WorldDrawable(float x, float y, float horizontalMargin = 230,
@@ -46,6 +52,8 @@ namespace Starfall
         {
             // Reuse storage and explicit references. Captured per-actor callbacks
             // used to allocate on every IMGUI pass; equal-depth ties also flickered.
+            coverResidentsPrepared=false;
+            coverResidentsInView.Clear();
             worldDrawEntries.Clear();
             foreach(LightRay ray in Game.LightRays())DrawRay(ray.from,ray.to,gold);
             // Artwork is already loaded and nearby terrain prewarmed. Avoid
@@ -56,7 +64,11 @@ namespace Starfall
                     AddWorldEntry(new WorldDrawEntry{depth=d.y,kind=WorldDrawKind.Decoration,decoration=d});
             foreach(WorldObject o in Game.Map.objects)
                 if(WorldDrawable(o.x,o.y))
+                {
                     AddWorldEntry(new WorldDrawEntry{depth=o.y+.01f,kind=WorldDrawKind.Object,obj=o});
+                    if(IsCoverResident(o.kind) && Game.IsObjectPresent(o))
+                        coverResidentsInView.Add(o);
+                }
             foreach(Enemy e in Game.enemies)
             {
                 // Combat simulation remains active everywhere; visuals still
@@ -81,6 +93,7 @@ namespace Starfall
             worldDrawEntries.Sort(worldDepthComparer);
             try
             {
+                coverResidentsPrepared=true;
                 foreach(WorldDrawEntry entry in worldDrawEntries)
                 {
                     // No object blinks into being when its base tile first
@@ -101,7 +114,13 @@ namespace Starfall
                     }
                 }
             }
-            finally{worldActorOpacity=1f;worldDrawEntries.Clear();}
+            finally
+            {
+                coverResidentsPrepared=false;
+                coverResidentsInView.Clear();
+                worldActorOpacity=1f;
+                worldDrawEntries.Clear();
+            }
         }
         // Canopy/ruin occlusion is a presentation-only mask. Test every
         // actor that actually enters the depth-sorted world pass; a companion
@@ -141,11 +160,25 @@ namespace Starfall
                 Game.companionPosition.x,Game.companionPosition.y,
                 cover,1.4f,2.7f))
                 return true;
-            foreach(WorldObject resident in Game.Map.objects)
-                if(IsCoverResident(resident.kind) &&
-                    Game.IsObjectPresent(resident) &&
-                    BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
-                    return true;
+            if(coverResidentsPrepared)
+            {
+                // No allocation, no full-map scan per canopy; all candidates
+                // were verified present and on-screen in DrawOrderedWorld.
+                foreach(WorldObject resident in coverResidentsInView)
+                    if(IsCoverResident(resident.kind) &&
+                        BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
+                        return true;
+            }
+            else
+            {
+                // Single-actor Editor/review draws are not inside the sorted
+                // frame. Preserve their exact resident visibility semantics.
+                foreach(WorldObject resident in Game.Map.objects)
+                    if(IsCoverResident(resident.kind) &&
+                        Game.IsObjectPresent(resident) &&
+                        BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
+                        return true;
+            }
             if(Game.ReliefCivilianVisible && BehindWorldCover(
                 Game.reliefFollowerPosition.x,Game.reliefFollowerPosition.y,
                 cover,1.4f,2.7f))
