@@ -123,11 +123,18 @@ def curated_motion_source(profession, action, facing, source_index):
     carry the SAME character, equipment, waist, legs, ground root and hair
     as the four corresponding approved action source poses.
     """
-    if action in ("Attack", "Cast") and facing == "E":
-        if source_index == 0:
-            return ("Player" + profession, 2)
-        if source_index == 2:
-            return ("Player" + profession, 3)
+    if action not in ("Attack", "Cast") or source_index not in (0, 2):
+        return None
+    if facing == "E":
+        return ("Player" + profession, 2 if source_index == 0 else 3)
+    if facing == "N":
+        # North-facing class walk has artist-authored weight shifts 4 / 6.
+        # Neither shared PlayerRear row nor another class supplies the legs.
+        return ("Walk" + profession, 4 if source_index == 0 else 6)
+    if facing == "S":
+        # South-facing stride phases 9 / 11 preserve the exact class robe,
+        # waist/hip shape, weapon, blonde face and fixed foot origin.
+        return ("Walk" + profession, 9 if source_index == 0 else 11)
     return None
 
 
