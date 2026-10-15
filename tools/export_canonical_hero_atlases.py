@@ -115,13 +115,40 @@ def motion_midpoint(first, second):
     return output
 
 
-def expand_frames(originals, action):
+def curated_motion_source(profession, action, facing, source_index):
+    """Explicit artist-drawn FULL-BODY phase, not a warped duplicate.
+
+    Approved Player<Class> 2/3 are the actual planted/preparation and
+    recovering step poses for East-facing attacks and skills. Both frames
+    carry the SAME character, equipment, waist, legs, ground root and hair
+    as the four corresponding approved action source poses.
+    """
+    if action in ("Attack", "Cast") and facing == "E":
+        if source_index == 0:
+            return ("Player" + profession, 2)
+        if source_index == 2:
+            return ("Player" + profession, 3)
+    return None
+
+
+def expand_frames(originals, action, profession=None, facing=None,
+                  sheets=None, heads=None):
     result = []
     for i, source in enumerate(originals):
         result.append(source)
         if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
             if i + 1 < len(originals) or action == "Run":
-                result.append(motion_midpoint(source, originals[(i + 1) % len(originals)]))
+                selection = (curated_motion_source(profession, action, facing, i)
+                             if profession is not None else None)
+                if selection is not None:
+                    if sheets is None or heads is None:
+                        raise AssertionError("Curated full-body source requires real art")
+                    name, index = selection
+                    result.append(canonical_frame(
+                        sheets, heads, name, index, facing, locomotion=True))
+                else:
+                    result.append(motion_midpoint(
+                        source, originals[(i + 1) % len(originals)]))
     if len(result) != expected_count(action, len(originals)):
         raise AssertionError("Generator/Animator count mismatch")
     return result
@@ -160,7 +187,8 @@ def main():
                         if frame.tobytes() != sampled.convert("RGBA").tobytes():
                             raise AssertionError("Original/QA pose mismatch: " + str(reference))
                     originals.append(frame)
-                frames = expand_frames(originals, action)
+                frames = expand_frames(originals, action, profession, facing,
+                                       sheets, heads)
                 total_midpoints += len(frames) - len(originals)
                 key = f"Hero_{profession}_{action}_{facing}"
                 output = DEST / (key + ".png")
@@ -175,6 +203,13 @@ def main():
                     "source_frames": [f"{n}:{i}" for n, i in refs],
                     "original_count": len(refs),
                     "generated_midpoints": len(frames) - len(refs),
+                    "curated_full_body_slots": {
+                        str(source_index*2+1): "%s:%d" % slot
+                        for source_index in range(len(refs)-1)
+                        for slot in [curated_motion_source(
+                            profession, action, facing, source_index)]
+                        if slot is not None
+                    },
                     "frame_count": len(frames),
                     "unique_rasters": len(set(hashes)),
                     "frame_sha256_rgba": hashes,
