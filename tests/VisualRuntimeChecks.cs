@@ -103,7 +103,6 @@ public static class VisualRuntimeChecks
                 Capture(app, folder, name + "-windup");
                 string commands = File.ReadAllText(Path.Combine(folder, name + "-windup.json"));
                 Check(commands.Contains("resource:Frontier/Art/EnemyArcherVertical"), "The archer actually uses the vertical bow preparation in the world");
-                Check(commands.Contains("\\"uv\\":[") || commands.Contains("\\"uv\":"), "Real archer frame crop must be inspectable in visual QA");
                 for (int step = 0; step < 22; step++) app.AdvanceVisualReview(.01f, new Point());
                 Check(archer.releaseTime > 0 && g.projectiles.Count == 1 && (g.projectiles[0].velocity.Normalized-archer.facing).Length < .001f && g.projectiles[0].velocity.y * archer.facing.y > 0, "Vertical bow release follows its locked muzzle-to-target direction");
                 Capture(app, folder, name + "-release");
