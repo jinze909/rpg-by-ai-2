@@ -74,7 +74,8 @@ def pose(action, column):
         if top+dy<56:
             d.polygon(((cx+dx-3,top+dy),(cx+dx+2,top+dy-3),
                 (cx+dx+5,top+dy),(cx+dx+1,top+dy+5)),fill=LIT)
-    d.line((cx-2,top+14,cx+4,top+22),fill=INK,width=2)
+    if top+22<60:
+        d.line((cx-2,top+14,cx+4,top+22),fill=INK,width=2)
     hx,hy=(46,52) if fall else (min(49,48+axe_x),38+rise+axe_y)
     d.polygon(((cx+7,top+9),(cx+12,top+9),
         (hx+2,hy),(hx-3,hy+3),(cx+8,middle-5)),fill=INK)
