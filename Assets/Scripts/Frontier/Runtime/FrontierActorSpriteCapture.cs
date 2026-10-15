@@ -29,6 +29,16 @@ namespace Starfall
             internal bool nativeClipVerified;
         }
         private const int MaxCachedActorFrames = 192;
+        // Limit estimated color + 16-bit depth GPU targets as well as count.
+        // A 320/512px Boss pose costs much more than a 128px NPC pose.
+        // In-flight same-frame GUI submissions may transiently exceed this
+        // budget: those targets MUST remain intact until the next repaint.
+        private const long MaxCachedActorBytes = 64L * 1024L * 1024L;
+        private long actorCachedBytes;
+        private static long ActorCaptureCost(int width,int height)
+        {
+            return (long)width*height*6L;
+        }
         private readonly Dictionary<string, CapturedActorFrame> actorCapturedFrames =
             new Dictionary<string, CapturedActorFrame>();
         private readonly Dictionary<string, Sprite> actorFrameSprites =
@@ -124,7 +134,7 @@ namespace Starfall
                 bool needsRender = false;
                 if (!actorCapturedFrames.TryGetValue(captureKey, out entry))
                 {
-                    EvictUnusedActorCapture();
+                    EvictUnusedActorCapture(capturePixels);
                     entry = new CapturedActorFrame {
                         texture = new RenderTexture(capturePixels, capturePixels, 16,
                             RenderTextureFormat.ARGB32),
@@ -135,6 +145,7 @@ namespace Starfall
                     // Own the GPU target before Create/Render so an exception
                     // can safely release it in ReleaseActorCapture().
                     actorCapturedFrames.Add(captureKey, entry);
+                    actorCachedBytes += ActorCaptureCost(capturePixels,capturePixels);
                     entry.texture.Create();
                     needsRender = true;
                 }
@@ -284,26 +295,34 @@ namespace Starfall
         // Only recycle targets from a PREVIOUS frame. Never destroy a
         // texture that another actor's pending GUI command still references.
         // A single crowded repaint may exceed the soft limit temporarily.
-        private void EvictUnusedActorCapture()
+        private void EvictUnusedActorCapture(int requestedPixels)
         {
-            if (actorCapturedFrames.Count < MaxCachedActorFrames) return;
-            string oldestKey = null;
-            int oldestFrame = int.MaxValue;
-            foreach (var item in actorCapturedFrames)
-                if (item.Value.lastUsedFrame < Time.frameCount &&
-                    item.Value.lastUsedFrame < oldestFrame)
-                {
-                    oldestKey = item.Key;
-                    oldestFrame = item.Value.lastUsedFrame;
-                }
-            if (oldestKey == null) return;
-            RenderTexture old = actorCapturedFrames[oldestKey].texture;
-            actorCapturedFrames.Remove(oldestKey);
-            if (actorCaptureCamera != null &&
-                actorCaptureCamera.targetTexture == old)
-                actorCaptureCamera.targetTexture = null;
-            old.Release();
-            Destroy(old);
+            long incomingBytes = ActorCaptureCost(requestedPixels,requestedPixels);
+            while (actorCapturedFrames.Count >= MaxCachedActorFrames ||
+                   actorCachedBytes + incomingBytes > MaxCachedActorBytes)
+            {
+                string oldestKey = null;
+                int oldestFrame = int.MaxValue;
+                foreach (var item in actorCapturedFrames)
+                    if (item.Value.lastUsedFrame < Time.frameCount &&
+                        item.Value.lastUsedFrame < oldestFrame)
+                    {
+                        oldestKey = item.Key;
+                        oldestFrame = item.Value.lastUsedFrame;
+                    }
+                // All candidates may still be queued for THIS repaint.
+                // Never destroy a submitted frame to meet a memory target.
+                if (oldestKey == null) return;
+                RenderTexture old = actorCapturedFrames[oldestKey].texture;
+                actorCapturedFrames.Remove(oldestKey);
+                if (actorCaptureCamera != null &&
+                    actorCaptureCamera.targetTexture == old)
+                    actorCaptureCamera.targetTexture = null;
+                actorCachedBytes = Math.Max(0L, actorCachedBytes -
+                    ActorCaptureCost(old.width,old.height));
+                old.Release();
+                Destroy(old);
+            }
         }
 
         private void EnsureActorCapture()
@@ -362,6 +381,7 @@ namespace Starfall
                     Destroy(entry.texture);
                 }
             actorCapturedFrames.Clear();
+            actorCachedBytes = 0L;
             actorCaptureRoot = null;
             actorCaptureCamera = null;
             actorCaptureRenderer = null;

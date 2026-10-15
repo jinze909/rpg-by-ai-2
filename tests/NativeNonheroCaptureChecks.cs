@@ -296,6 +296,56 @@ public static class NativeNonheroCaptureChecks
             !stopped.enabled,
             "invalid native NPC/monster clip escaped exact full-body fallback");
         release.Invoke(brokenActor,null);
+        // Stress actual production RenderTexture allocation with authored-
+        // scale 512px actor frames. The former count-only cap held 192
+        // targets (~288 MiB estimated GPU color/depth for 512px sources).
+        // Verify both the byte budget and deferred GUI lifetime guarantee.
+        var limited=new FrontierRuntime();
+        var bytesField=typeof(FrontierRuntime).GetField(
+            "actorCachedBytes",BindingFlags.Instance|BindingFlags.NonPublic);
+        Require(bytesField!=null,"nonhero GPU byte-budget counter missing");
+        long budget=64L*1024L*1024L;
+        for(int frame=0;frame<70;frame++)
+        {
+            Time.frameCount=2400+frame;
+            var large=new Texture2D(2048,2048,TextureFormat.RGBA32,false);
+            bool ok=(bool)method.Invoke(limited,new object[]{
+                large,4,4,0,new Point(200,220),96f,
+                new Color(1,1,1,1),false,0f});
+            Require(ok,"native large frame dropped instead of LRU eviction");
+            Require((long)bytesField.GetValue(limited)<=budget,
+                "nonhero GPU cache exceeds 64MiB after an ordinary repaint");
+        }
+        var firstBatch=Camera.RenderedTargets[Camera.RenderedTargets.Count-70];
+        Require(firstBatch.releaseCount>=1,
+            "old large GPU captures were not evicted by byte pressure");
+        var burst=new FrontierRuntime();
+        Time.frameCount=3300;
+        int burstStart=Camera.RenderedTargets.Count;
+        for(int i=0;i<47;i++)
+        {
+            var large=new Texture2D(2048,2048,TextureFormat.RGBA32,false);
+            Require((bool)method.Invoke(burst,new object[]{
+                large,4,4,0,new Point(200,220),96f,
+                new Color(1,1,1,1),false,0f}),
+                "same-frame actor burst must not fall back or clip bodies");
+        }
+        for(int i=burstStart;i<Camera.RenderedTargets.Count;i++)
+            Require(Camera.RenderedTargets[i].releaseCount==0,
+                "evicted a target still referenced by this Repaint");
+        Time.frameCount=3301;
+        var oneMore=new Texture2D(2048,2048,TextureFormat.RGBA32,false);
+        Require((bool)method.Invoke(burst,new object[]{
+            oneMore,4,4,0,new Point(200,220),96f,
+            new Color(1,1,1,1),false,0f}),
+            "GPU actor cannot recover from same-frame burst");
+        Require((long)bytesField.GetValue(burst)<=budget,
+            "GPU byte pressure was never reclaimed on next repaint");
+        release.Invoke(burst,null);
+        release.Invoke(limited,null);
+        Require((long)bytesField.GetValue(limited)==0L &&
+                (long)bytesField.GetValue(burst)==0L,
+                "actor capture cleanup did not zero GPU cost accounting");
         release.Invoke(runtime, null);
         Require(bossCapture.releaseCount >= 1 &&
             wideCapture.releaseCount >= 1,

@@ -69,7 +69,9 @@ def main():
     assert "actorCapturedFrames" in native
     assert "actorCaptureCamera.targetTexture = entry.texture;" in native
     assert "entry.texture);" in native
-    assert "EvictUnusedActorCapture();" in native
+    assert "EvictUnusedActorCapture(capturePixels);" in native
+    assert "actorCachedBytes + incomingBytes > MaxCachedActorBytes" in native
+    assert "item.Value.lastUsedFrame < Time.frameCount" in native
     assert "actorCaptureTexture" not in native
     assert "new Vector2(.5f, 1f - 120f / 128f)" in native
     assert "new Vector3((float)height / width, 1f, 1f)" in native
@@ -100,6 +102,29 @@ def main():
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     assert executed.returncode == 0, ("NONHERO_PROBE_FAILED", executed.stdout)
     print(executed.stdout.strip())
+    # Memory-limit mutation: removing the actual GPU byte-pressure
+    # condition must fail the executed 512px multi-actor stress probe.
+    no_budget=native.replace(
+        "actorCachedBytes + incomingBytes > MaxCachedActorBytes",
+        "false",1)
+    assert no_budget!=native,"GPU_BYTE_BUDGET_SOURCE_GATE_MISSING"
+    no_budget_source=OUT/"faulted-uncapped-gpu.cs"
+    no_budget_source.write_text(no_budget)
+    no_budget_exe=OUT/"faulted-uncapped-gpu.exe"
+    no_budget_build=compile_source(no_budget_source,OUT/"faulted-uncapped-gpu.dll")
+    assert no_budget_build.returncode==0,(
+        "GPU_BYTE_BUDGET_MUTATION_BUILD_FAILED",no_budget_build.stdout)
+    unbounded=subprocess.run([os.environ.get("STARFALL_MCS",shutil.which("mcs")),
+        "-define:UNITY_5_3_OR_NEWER","-out:"+str(no_budget_exe),
+        str(STUB),str(no_budget_source),
+        str(ROOT/"tests/NativeNonheroCaptureChecks.cs")],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert unbounded.returncode==0,("GPU_BUDGET_PROBE_BUILD_FAILED",unbounded.stdout)
+    missed=subprocess.run([mono,str(no_budget_exe)],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert missed.returncode!=0 and "NONHERO_CAPTURE_REGRESSION" in missed.stdout,(
+        "NONHERO_GPU_BUDGET_MUTATION_FALSE_PASS",missed.stdout)
+    print("PASS GPU byte-budget removal mutation hard-fails actual 512px capture stress")
     # A historical fixed-size 256px framebuffer MUST cause this real
     # runtime probe to FAIL on the 320px Boss source, not warn-and-pass.
     downgraded = native.replace(
