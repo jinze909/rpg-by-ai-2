@@ -168,6 +168,9 @@ def main():
     assert refused.returncode!=0 and (
         "NONHERO_CAPTURE_REGRESSION" in refused.stdout),(
         "NONHERO_CI_ACCEPTED_INDEPENDENT_IDLE_ANIMATOR",refused.stdout)
+    subprocess.run([sys.executable,
+        str(ROOT/"tools/check_native_accepted_actor_builder.py")],
+        cwd=ROOT,check=True)
     print("PASS regression mutation: forced Idle Animator row hard-fails")
     # Regressing to the obsolete 4-column-only Animator loses the original
     # 6-column monster attacks and 3-column north/south archer poses.
