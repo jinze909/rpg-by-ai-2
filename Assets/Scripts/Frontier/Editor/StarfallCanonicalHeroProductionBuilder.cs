@@ -141,19 +141,6 @@ namespace Starfall.EditorTools
             Directory.CreateDirectory(Generated);
             Directory.CreateDirectory(Controllers);
             Directory.CreateDirectory(Clips);
-            string[] names = { "PlayerVanguard", "PlayerRanger", "PlayerArcanist",
-                "WalkVanguard", "WalkRanger", "WalkArcanist",
-                "PlayerRear", "PlayerSouth", "PlayerReactionsRear", "PlayerReactionsSouth" };
-            var textures = new Dictionary<string, Texture2D>();
-            foreach (string name in names)
-            {
-                Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(
-                    "Assets/Resources/Frontier/Art/" + name + ".png");
-                if (texture == null || texture.width != 1024 || texture.height != 768 ||
-                    !texture.isReadable)
-                    throw new InvalidOperationException("Accepted hero atlas missing, unreadable or resized: " + name);
-                textures.Add(name, texture);
-            }
             var atlasPaths = new Dictionary<string, string>();
             foreach (string profession in Classes)
                 for (int action = 0; action < Actions.Length; action++)
@@ -180,44 +167,15 @@ namespace Starfall.EditorTools
                             atlasPaths.Add(key, installedPath);
                             continue;
                         }
-                        // Legacy Editor-only recovery for projects predating
-                        // the published atlas handoff. Keep original art intact.
-                        var authored = new List<Color[]>(refs.Length);
-                        for (int sourceIndex = 0; sourceIndex < refs.Length; sourceIndex++)
-                        {
-                            FrameSource item = refs[sourceIndex];
-                            Sprite baked = CanonicalHeroSpriteFactory.Bake(
-                                textures[item.atlas], item.index,
-                                textures[item.atlas], item.index,
-                                facing, action == 0 || action == 1 ||
-                                    item.atlas.StartsWith("Walk") ||
-                                    (item.atlas == "Player" + profession && item.index <= 1),
-                                action == 6 && sourceIndex == refs.Length - 1,
-                                textures["WalkVanguard"]);
-                            if (baked == null)
-                                throw new InvalidOperationException("Accepted hero pose missing: " + key);
-                            try { authored.Add(baked.texture.GetPixels()); }
-                            finally
-                            {
-                                UnityEngine.Object.DestroyImmediate(baked.texture);
-                                UnityEngine.Object.DestroyImmediate(baked);
-                            }
-                        }
-                        List<Color[]> sequence = ExpandWithInbetweens(authored, action);
-                        var combined = new Texture2D(Cell * sequence.Count, Cell,
-                            TextureFormat.RGBA32, false);
-                        try
-                        {
-                            for (int i = 0; i < sequence.Count; i++)
-                                combined.SetPixels(i * Cell, 0, Cell, Cell, sequence[i]);
-                            combined.Apply(false, false);
-                            string path = Generated + key + ".png";
-                            byte[] bytes = combined.EncodeToPNG();
-                            if (!File.Exists(path) || !File.ReadAllBytes(path).SequenceEqual(bytes))
-                                File.WriteAllBytes(path, bytes);
-                            atlasPaths.Add(key, path);
-                        }
-                        finally { UnityEngine.Object.DestroyImmediate(combined); }
+                        // CI-approved, shipped complete-body RGBA is the
+                        // ONLY permitted animation source. Silently recreating
+                        // missing sheets using old mechanical limb interpolation
+                        // would restore the very splits/jitter rejected by QA.
+                        // Stop the build instead of inventing unreviewed art.
+                        throw new InvalidOperationException(
+                            "Missing approved full-body hero atlas: " + key +
+                            ". Run verified Sprite export/publish on chatgpt/dev " +
+                            "and preserve the established Sprite GUIDs.");
                     }
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             var clips = new Dictionary<string, AnimationClip>();
@@ -327,117 +285,6 @@ namespace Starfall.EditorTools
         {
             return original > 1 && action >= 1 && action <= 5
                 ? original * 2 - (action == 1 ? 0 : 1) : original;
-        }
-
-        private static List<Color[]> ExpandWithInbetweens(List<Color[]> original, int action)
-        {
-            var result = new List<Color[]>(ExpandedCount(original.Count, action));
-            bool interpolate = original.Count > 1 && action >= 1 && action <= 5;
-            for (int i = 0; i < original.Count; i++)
-            {
-                result.Add(original[i]);
-                if (interpolate && (i + 1 < original.Count || action == 1))
-                    result.Add(MotionMidpoint(original[i], original[(i + 1) % original.Count]));
-            }
-            if (result.Count != ExpandedCount(original.Count, action))
-                throw new InvalidOperationException("Hero frame count mismatch");
-            return result;
-        }
-
-        // Source-silhouette interpolation deliberately uses ONE accepted
-        // sprite for each generated midpoint. Mixing two distant raster
-        // silhouettes produced doubled legs, ghosted weapon outlines and
-        // fragmented checkerboard edges in Run/Attack/Cast.
-        // Mirror the production Python limb-registration baker when PNGs are
-        // absent. Separate left/right gait and hand/weapon trajectories so a
-        // single centroid never pulls both limbs or leaves a frozen midpoint.
-        private static bool MotionCentroid(Color[] pixels, int x0, int x1,
-            int y0, int y1, out Vector2 center)
-        {
-            float sx = 0f, sy = 0f, mass = 0f;
-            for (int y = y0; y < y1; y += 2)
-                for (int x = x0; x < x1; x += 2)
-                {
-                    if (x >= 91 && x < 170 && y >= 57 && y < 118) continue;
-                    float alpha = pixels[y * Cell + x].a;
-                    if (alpha < .5f) continue;
-                    sx += x * alpha;
-                    sy += y * alpha;
-                    mass += alpha;
-                }
-            center = mass > 0 ? new Vector2(sx / mass, sy / mass) : Vector2.zero;
-            return mass > 0;
-        }
-
-        private static Vector2 RegionShift(Color[] first, Color[] next,
-            int x0, int x1, int y0, int y1, int limitX, int limitY)
-        {
-            Vector2 a, b;
-            if (!MotionCentroid(first, x0, x1, y0, y1, out a) ||
-                !MotionCentroid(next, x0, x1, y0, y1, out b))
-                return Vector2.zero;
-            return new Vector2(
-                Mathf.RoundToInt(Mathf.Clamp((b.x - a.x) * .5f, -limitX, limitX)),
-                Mathf.RoundToInt(Mathf.Clamp((b.y - a.y) * .5f, -limitY, limitY)));
-        }
-
-        private static Color[] MotionMidpoint(Color[] first, Color[] next)
-        {
-            if (first.Length != Cell * Cell || next.Length != Cell * Cell)
-                throw new InvalidOperationException("Expected full canonical 256px frames");
-            Vector2 torso = RegionShift(first, next, 103, 154, 30, 64, 3, 3);
-            Vector2 leftLeg = RegionShift(first, next, 89, 128, 23, 58, 7, 5);
-            Vector2 rightLeg = RegionShift(first, next, 129, 171, 23, 58, 7, 5);
-            Vector2 leftArm = RegionShift(first, next, 34, 121, 47, 145, 14, 10);
-            Vector2 rightArm = RegionShift(first, next, 140, 230, 47, 145, 14, 10);
-            var output = new Color[Cell * Cell];
-            for (int y = 0; y < Cell; y++)
-            {
-                float legs = Mathf.Clamp01((y - 22f) / 23f) *
-                    Mathf.Clamp01((66f - y) / 20f);
-                float shoulders = Mathf.Clamp01((y - 42f) / 22f);
-                float torsoGate = Mathf.Clamp01((y - 22f) / 28f) *
-                    Mathf.Clamp01((73f - y) / 18f);
-                for (int x = 0; x < Cell; x++)
-                {
-                    int index = y * Cell + x;
-                    if (x >= 91 && x < 170 && y >= 57 && y < 118)
-                    {
-                        output[index] = first[index];
-                        continue;
-                    }
-                    float side = Mathf.Clamp01((Mathf.Abs(x - 128f) - 13f) / 29f);
-                    float right = Mathf.Clamp01((x - 122f) / 14f);
-                    float leftLegW = legs * (1f - right);
-                    float rightLegW = legs * right;
-                    float leftArmW = shoulders * side * (1f - right);
-                    float rightArmW = shoulders * side * right;
-                    float bodyW = torsoGate * (1f - side) * (1f - legs);
-                    float total = leftLegW + rightLegW + leftArmW + rightArmW;
-                    if (total > 1f)
-                    {
-                        leftLegW /= total;
-                        rightLegW /= total;
-                        leftArmW /= total;
-                        rightArmW /= total;
-                    }
-                    float dx = torso.x * bodyW + leftLeg.x * leftLegW +
-                        rightLeg.x * rightLegW + leftArm.x * leftArmW +
-                        rightArm.x * rightArmW;
-                    float dy = torso.y * bodyW + leftLeg.y * leftLegW +
-                        rightLeg.y * rightLegW + leftArm.y * leftArmW +
-                        rightArm.y * rightArmW;
-                    output[index] = Pixel(first, x - Mathf.RoundToInt(dx),
-                        y - Mathf.RoundToInt(dy));
-                }
-            }
-            return output;
-        }
-
-        private static Color Pixel(Color[] pixels, int x, int y)
-        {
-            return x >= 0 && x < Cell && y >= 0 && y < Cell
-                ? pixels[y * Cell + x] : Color.clear;
         }
 
         private static string Key(string profession, int action, int facing)
