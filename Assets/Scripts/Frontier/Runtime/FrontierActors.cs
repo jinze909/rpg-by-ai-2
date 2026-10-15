@@ -88,6 +88,76 @@ namespace Starfall
             else Box(foot.x-width/2,foot.y-3,width,7,
                 new Color(.025f,.04f,.07f,.34f*opacity));
         }
+        // Both the Unity SpriteRenderer capture and the OnGUI safety path
+        // use the same authoritative GameCore clock and published sprite cell.
+        // The row/column invariant is shared with the Editor production bake.
+        private static readonly string[] FullHeroClasses =
+            {"Vanguard","Ranger","Arcanist"};
+        private static readonly string[] FullHeroActions =
+            {"Idle","Run","Attack","Cast","Dodge","Hit","Death"};
+        private static readonly string[] FullHeroFacings = {"E","N","S"};
+        private readonly System.Collections.Generic.Dictionary<string,Texture2D>
+            fullBodyHeroSheetCache =
+            new System.Collections.Generic.Dictionary<string,Texture2D>();
+
+        private bool ResolveFullBodyHeroFrame(bool moving,int facing,
+            out int action,out int frames,out int index,out float position)
+        {
+            action=moving?1:Game.HeroAnimationState;
+            frames=0;index=0;position=0;
+            if(action<0||action>6||facing<0||facing>2)return false;
+            int authored=moving?4:Game.HeroAnimationFrameCount(facing);
+            if(authored<=0)return false;
+            bool interpolate=action>=1&&action<=5&&authored>1;
+            frames=interpolate?authored*2-(action==1?0:1):authored;
+            position=(moving?Game.WalkPosePhase:
+                Game.HeroAnimationPlaybackPosition(facing))*(interpolate?2f:1f);
+            if(action==1)position%=frames;
+            index=Mathf.Clamp(Mathf.FloorToInt(position+.20f),0,frames-1);
+            return true;
+        }
+
+        private void DrawWholeBodyHeroOnGUI(Texture2D original,int originalFrame,
+            Point foot,Color tint,bool flip,int profession,int facing,
+            int pose,bool moving)
+        {
+            // This is the production OnGUI FALLBACK, not the old HumanActor
+            // puppet. Draw ONE complete, accepted RGBA sprite with one Pivot.
+            // Never mix a warrior head overlay, action torso, and walking legs.
+            int action,frames,index;
+            float position;
+            bool standard=!(!moving&&(pose==6||pose==7)&&
+                Game.HeroAnimationState==2);
+            if(standard&&profession>=0&&profession<FullHeroClasses.Length&&
+                ResolveFullBodyHeroFrame(moving,facing,
+                    out action,out frames,out index,out position))
+            {
+                string key="Hero_"+FullHeroClasses[profession]+"_"+
+                    FullHeroActions[action]+"_"+FullHeroFacings[facing];
+                Texture2D atlas;
+                if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas))
+                {
+                    atlas=Resources.Load<Texture2D>(
+                        "Frontier/HeroAnimator/Canonical/"+key);
+                    fullBodyHeroSheetCache[key]=atlas;
+                }
+                if(atlas!=null&&atlas.width==frames*256&&atlas.height==256)
+                {
+                    Texture2D used=drawingOutline?art.OutlineMask(atlas):atlas;
+                    if(drawingOutline)tint=new Color(1,.56f,.35f,.9f);
+                    Atlas(used,frames,1,index,
+                        new Rect(foot.x-96,foot.y-180,192,192),
+                        tint,flip);
+                    return;
+                }
+            }
+            // Missing/stale resource or an unbaked heavy-combo motion:
+            // still a SINGLE complete class-owned original, never a
+            // composited upper/lower half or detached head Sprite.
+            if(original!=null)
+                Actor(original,4,3,originalFrame,foot,192,tint,flip);
+        }
+
         private void DrawPlayerPreview(int equipment, float x, float y, float size)
         {
             int profession=(int)GameCore.Clamp(equipment,0,2);
