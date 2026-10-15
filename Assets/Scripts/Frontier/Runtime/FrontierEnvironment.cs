@@ -157,27 +157,50 @@ namespace Starfall
         }
         private void DrawRootedPlant(Decoration prop, Rect rect, Color tint)
         {
-            if (worldProps == null) { PropImage(prop.kind, prop.variant, rect.x, rect.y, rect.width, rect.height, tint); return; }
-            float side=Math.Min(rect.width,rect.height); rect=new Rect(rect.x+(rect.width-side)/2,rect.y+rect.height-side,side,side);
-            int id = prop.kind == "palm" ? 5 : prop.kind == "snowpine" ? 6 : 0;
-            int seed = TileSeed((int)(prop.x * 7), (int)(prop.y * 7), Game.save.room);
-            float phase = seed % 997 * .01f, speed = .8f + seed % 7 * .07f, amplitude = .65f + seed % 5 * .12f;
-            Color previous = GUI.color;
+            if (worldProps == null)
+            {
+                PropImage(prop.kind,prop.variant,rect.x,rect.y,rect.width,rect.height,tint);
+                return;
+            }
+            // Keep the ACCEPTED tree/palm/snowpine painting intact. The
+            // previous 32 horizontal GUI slices shifted by different amounts
+            // and opened 31 body seams on every windy repaint. One complete
+            // original sprite means no split trunk, displaced branches,
+            // interpolated pixels or 32x overdraw per tree.
+            float side=Math.Min(rect.width,rect.height);
+            rect=new Rect(rect.x+(rect.width-side)*.5f,
+                rect.y+rect.height-side,side,side);
+            int id=prop.kind=="palm"?5:prop.kind=="snowpine"?6:0;
+            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),Game.save.room);
+            Matrix4x4 originalMatrix=GUI.matrix;
+            Color originalTint=GUI.color;
             try
             {
-                tint.a*=worldActorOpacity;
-                GUI.color = tint;
-                const int strips = 32;
-                for (int i = 0; i < strips; i++)
+                // Anchor all gentle foliage motion to the authored foot,
+                // NOT the painted canvas centre. The trunk/root must remain
+                // at the actual depth-sort/collision location during gusts.
+                if (!Game.save.reducedMotion && Game.save.effectsQuality>0)
                 {
-                    float y = i / (float)strips, next = (i + 1) / (float)strips;
-                    float weight = y < .65f ? (1 - y / .65f) * (1 - y / .65f) : 0;
-                    float wind = Game.save.reducedMotion || Game.save.effectsQuality == 0 ? 0 : (float)Math.Sin(clock * speed + phase + y * 2) * amplitude * weight;
-                    GUI.DrawTextureWithTexCoords(new Rect(rect.x + wind, rect.y + rect.height * y, rect.width, rect.height / strips), worldProps,
-                        new Rect(id % 4 / 4f, 1 - (id / 4 + next) / 2f, .25f, (next - y) / 2));
+                    float phase=(seed%997)*.01f;
+                    float gust=(float)(Math.Sin(clock*.82f+phase)*.72+
+                        Math.Sin(clock*1.43f+phase*1.73f)*.28);
+                    float strength=prop.kind=="palm"?1.35f:
+                        prop.kind=="snowpine"?.24f:.80f;
+                    Vector2 foot=new Vector2(rect.x+rect.width*.5f,
+                        rect.y+rect.height*(120f/128f));
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(
+                        originalMatrix,foot,gust*strength);
                 }
+                tint.a*=worldActorOpacity;
+                GUI.color=tint;
+                GUI.DrawTextureWithTexCoords(rect,worldProps,
+                    new Rect(id%4/4f,1f-(id/4+1)/2f,.25f,.5f));
             }
-            finally { GUI.color = previous; }
+            finally
+            {
+                GUI.color=originalTint;
+                GUI.matrix=originalMatrix;
+            }
         }
         private void DrawArenaBoundary()
         {

@@ -618,10 +618,70 @@ public static class RenderStateChecks
             "Road cannot accidentally receive water animation");
         Console.WriteLine("PASS actual shared surface-water decision across low/high tide");
     }
+    private static void WholeWorldPropsFoliageHasOneStableRoot(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        Matrix4x4 canvas=Matrix4x4.TRS(new Vector3(51,29,0),
+            Quaternion.identity,new Vector3(1.5f,1.5f,1));
+        Color incoming=new Color(.33f,.61f,.84f,.8f);
+        var original=Get<Texture2D>(app,"worldProps");
+        Check(original!=null,"Accepted rich WorldProps.png must be available");
+        int count=0;
+        foreach(string kind in new[]{"tree","palm","snowpine"})
+        foreach(bool reduced in new[]{false,true})
+        {
+            g.save.reducedMotion=reduced;g.save.effectsQuality=2;
+            var plant=new Decoration {kind=kind,x=12.4f,y=14.2f};
+            Rect area=new Rect(212,173,111,140);
+            float side=Math.Min(area.width,area.height);
+            Rect centered=new Rect(area.x+(area.width-side)*.5f,
+                area.y+area.height-side,side,side);
+            Vector3 foot=new Vector3(centered.x+side*.5f,
+                centered.y+side*120f/128f,0f);
+            var fixedScreen=canvas.MultiplyPoint3x4(foot);
+            GUI.matrix=canvas;GUI.color=incoming;
+            Set(app,"clock",7.1f);
+            Clear();
+            Call(app,"DrawRootedPlant",plant,area,
+                new Color(1f,.92f,.84f,.7f));
+            Check(GUI.textureCalls.Count==1,
+                "Every animated tree/palm/pine must use one WHOLE author Sprite, never 32 sewn strips");
+            var first=GUI.textureCalls[0];
+            Check(object.ReferenceEquals(first.texture,original),
+                "World tree/palm/snowpine must preserve the original detailed PNG");
+            Near(first.matrix.MultiplyPoint3x4(foot),fixedScreen,
+                "Plant root cannot slide through the terrain in a gust");
+            float expectedU=kind=="palm"?.25f:kind=="snowpine"?.5f:0f;
+            float expectedV=kind=="tree"?.5f:0f;
+            Check(Math.Abs(first.uv.x-expectedU)<.0001f&&
+                Math.Abs(first.uv.y-expectedV)<.0001f&&
+                Math.Abs(first.uv.width-.25f)<.0001f&&
+                Math.Abs(first.uv.height-.5f)<.0001f,
+                "Foliage samples wrong original WorldProps art");
+            Check(Math.Abs(first.color.a-.7f)<.0001f,
+                "Foliage opacity changed during single-Sprite conversion");
+            Same(GUI.matrix,canvas,"Whole original foliage must restore letterboxed GUI");
+            Same(GUI.color,incoming,"Whole original foliage must restore GUI color");
+            Set(app,"clock",9.8f);Clear();
+            Call(app,"DrawRootedPlant",plant,area,
+                new Color(1f,.92f,.84f,.7f));
+            var second=GUI.textureCalls[0];
+            Near(second.matrix.MultiplyPoint3x4(foot),fixedScreen,
+                "Foliage must keep the same root across animation frames");
+            bool changed=Math.Abs(first.matrix.m00-second.matrix.m00)+
+                Math.Abs(first.matrix.m01-second.matrix.m01)>.00001f;
+            Check(reduced?!changed:changed,
+                "Wind must sway a WHOLE painting, and stop with reduced motion");
+            count++;
+        }
+        Console.WriteLine("PASS "+count+
+            " original full-body foliage variants: one draw, accurate pivots, reduced motion and preserved GUI state");
+    }
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
