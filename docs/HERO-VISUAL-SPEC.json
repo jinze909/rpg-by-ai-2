@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -337,6 +337,39 @@
       "production_reason": "Rejected all four synthetic raster-warp midpoints per clip; whole-body authored Run has continuous class-owned head, hips, legs and foot root.",
       "native_validation": "NATIVE_UNVERIFIED"
     },
-    "art_provenance": "297 shipped cells: 9 Run sheets with four pixel-exact authored frames, plus 54 remaining action sheets retaining previously documented curated and synthetic transition details"
+    "art_provenance": "63 atlases, 297 frames: 36 exact authored Run cells, 36 curated Attack/Cast transitions, 36 curated Dodge/Hit reaction transitions; 18 Attack/Cast midpoints remain mechanical and require redraw.",
+    "reaction_policy": {
+      "actions": [
+        "Dodge",
+        "Hit"
+      ],
+      "professions": [
+        "Vanguard",
+        "Ranger",
+        "Arcanist"
+      ],
+      "facings": [
+        "E",
+        "N",
+        "S"
+      ],
+      "frame_count": 5,
+      "original_frames_at": [
+        0,
+        2,
+        4
+      ],
+      "curated_guard_slots": [
+        1,
+        3
+      ],
+      "curated_cells": 36,
+      "source_e": "Player<class>:9",
+      "source_n": "PlayerReactionsRear:(profession_index*4+1)",
+      "source_s": "PlayerReactionsSouth:(profession_index*4+1)",
+      "requirement": "All reaction transitions must equal accepted whole-body guard original pixels byte-for-byte and preserve original action keyposes.",
+      "algorithmic_reaction_frames": 0,
+      "native_unity_verified": false
+    }
   }
 }
