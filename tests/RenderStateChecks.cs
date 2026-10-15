@@ -864,14 +864,25 @@ public static class RenderStateChecks
         string[] names={"treeSwayDegrees","palmSwayDegrees",
             "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
             "lampRadius","nightLightAlpha","dayLightAlpha"};
-        float[] values={.80f,1.35f,.24f,.12f,.89f,114f,.29f,.13f};
+        var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
+        Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
+            "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
         for(int i=0;i<names.Length;i++)
         {
             var field=current.GetType().GetField(
                 names[i],BindingFlags.Public|BindingFlags.Instance);
-            Check(field!=null&&Math.Abs((float)field.GetValue(current)-
-                values[i])<.00001f,
-                "Edited Unity WorldLook TextAsset not loaded into production: "+names[i]);
+            string key=names[i];
+            string line=Array.Find(authored.text.Split('\n'),item=>
+                item.Trim().StartsWith(key+"=",StringComparison.Ordinal));
+            Check(field!=null&&line!=null,
+                "Unity editable world palette omitted visual parameter: "+key);
+            float expected;
+            Check(float.TryParse(line.Substring(line.IndexOf('=')+1).Trim(),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,out expected),
+                "World palette contains invalid authored numeric color/motion value: "+key);
+            Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
+                "Current runtime did not read an edited WorldLook value: "+key);
         }
         Console.WriteLine("PASS eight editable world visual-resource values load from real Unity text asset and drive accepted art");
     }
