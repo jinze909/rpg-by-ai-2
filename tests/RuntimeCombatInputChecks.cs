@@ -634,11 +634,12 @@ public static class RuntimeCombatInputChecks
                 "Moving cast holds original upper-body release while walking legs progress");
             GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
             string identity=vocation==1?"Ranger":"Arcanist";
-            Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith("Unified_")&&
+            Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith(
+                "FullBodyGait_Class"+vocation+"_")&&
                 t.texture.name.Contains("Player"+identity)&&
-                t.texture.name.Contains("Walk"+identity)&&
+                !t.texture.name.Contains("WalkVanguard")&&
                 t.texture.width==256&&t.texture.height==256),
-                "Actual rendering must draw cached one-root pixels for moving hero spell");
+                "Actual moving spell must use ONE profession-owned whole-body source");
             Check(GUI.textureCalls.Exists(t=>t.texture.name==
                 "resource:Frontier/Art/WalkVanguard"),
                 "Moving spells must preserve the same original blonde head across all outfits");
@@ -655,10 +656,9 @@ public static class RuntimeCombatInputChecks
             blade.PlayerPose==5,
             "Sword release has distinct moving recovery with authored upper frame");
         GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
-        Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith("Unified_")&&
-            t.texture.name.Contains("PlayerVanguard")&&
-            t.texture.name.Contains("WalkVanguard")),
-            "A real post-contact sword stride uses a single rooted authored composite");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith("FullBodyGait_Class0_")&&
+            t.texture.name.Contains("PlayerVanguard")),
+            "Sword recovery must deform the Vanguard whole-body action only");
         Prepare(app,0);
         var player=app.Game;
         player.enemies.Clear();
@@ -679,7 +679,7 @@ public static class RuntimeCombatInputChecks
         GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",boss);
         Check(GUI.textureCalls.Exists(x=>x.texture.name==key),
             "Actual boss windup uses its own rune sequence without changing the original boss sprite");
-        Console.WriteLine("PASS released cast→walking half-body continuity, original blond head, physical boss/enemy animated pixels");
+        Console.WriteLine("PASS full-body released spell/sword recovery with class-owned pixels, canonical blonde head and boss/enemy cues");
     }
 
     private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
