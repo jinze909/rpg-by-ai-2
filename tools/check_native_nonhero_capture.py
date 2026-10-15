@@ -53,6 +53,11 @@ def main():
     assert "if (drawingOutline && sheet != null)" in actor
     assert "DrawSpriteRendererActor(sheet, columns, rows,\n                frame," in actor
     assert "if (nativeActorDrawn) return;" in actor
+    # A live NPC dialogue must not light up every resident in talk radius.
+    assert "WorldObject interlocutor = Game.Nearest();" in actor
+    assert "interlocutor.kind == kind" in actor
+    assert "Math.Abs(interlocutor.x - position.x) < .05f" in actor
+    assert "Math.Abs(interlocutor.y - position.y) < .05f" in actor
     assert "ReleaseActorCapture();" in scene
     assert native.count("actorCaptureCamera.Render();") == 1
     assert "actorCapturedFrames" in native

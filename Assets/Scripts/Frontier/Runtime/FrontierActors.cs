@@ -519,15 +519,22 @@ namespace Starfall
             // Existing authored NPC body remains intact. A short, locally
             // tethered speaking sigil shows whose real-world interaction is
             // active; the NPC never floats, scales or changes identity.
-            if(!drawingOutline&&combatRhythmRemaster!=null&&
-                Game.conversation!=null&&
-                (position-Game.Position).Length<1.8f)
+            if (!drawingOutline && combatRhythmRemaster != null &&
+                Game.conversation != null)
             {
-                int phase=((int)(clock*6))%4;
-                if(phase<0)phase+=4;
-                Atlas(combatRhythmRemaster,4,4,12+phase,
-                    new Rect(p.x-11,p.y-105,22,22),
-                    new Color(1,1,1,.75f));
+                // Multiple residents can stand inside the talk radius.
+                // Only the actual nearest interlocutor gets the cue.
+                WorldObject interlocutor = Game.Nearest();
+                if (interlocutor != null && interlocutor.kind == kind &&
+                    Math.Abs(interlocutor.x - position.x) < .05f &&
+                    Math.Abs(interlocutor.y - position.y) < .05f)
+                {
+                    int phase = ((int)(clock * 6)) % 4;
+                    if (phase < 0) phase += 4;
+                    Atlas(combatRhythmRemaster, 4, 4, 12 + phase,
+                        new Rect(p.x - 11, p.y - 105, 22, 22),
+                        new Color(1, 1, 1, .75f));
+                }
             }
         }
     }
