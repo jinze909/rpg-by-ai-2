@@ -199,7 +199,7 @@ def check():
                 if action == "Attack" and klass == "Vanguard":
                     examples.append(key)
     assert tally == 63 and midpoints == 90, (tally, midpoints)
-    assert curated_count == 36, ("MISSING_36_AUTHORED_TRANSITIONS",curated_count)
+    assert curated_count == 72, ("MISSING_72_PROVENANCE_LOCKED_WHOLE_BODY_TRANSITIONS",curated_count)
     assert distinct_motion_cells + identical_motion_cells == midpoints, (
         "Motion cell audit missed a generated sprite")
     # A geometry pass should actually move most limbs; report any remaining
