@@ -18,7 +18,12 @@ from install_canonical_hero_atlases import ASSETS
 
 def check():
     manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "all_279_cells_from_unmodified_approved_full_body_source_art"
+    extra = manifest.get("hand_redrawn_contact_frames", 0)
+    assert extra in (0, 18)
+    assert manifest["status"] == (
+        "all_297_cells_source_locked_plus_18_hand_redrawn_contacts"
+        if extra else
+        "all_279_cells_from_unmodified_approved_full_body_source_art")
     assert manifest["top_origin_foot_px"] == [128, 240]
     assert manifest["unity_bottom_origin_pivot"] == [0.5, 0.0625]
     expected = {
@@ -51,7 +56,9 @@ def check():
             source.verify()
         with Image.open(path) as source:
             image = source.convert("RGBA")
-        count = expected_count(key.split("_")[2], row["original_count"])
+        action = key.split("_")[2]
+        count = expected_count(action, row["original_count"],
+                               bool(extra and action in ("Attack","Cast")))
         assert count == row["frame_count"], key
         assert image.size == (count * CELL, CELL), key
         assert len(row["frame_sha256_rgba"]) == count, key

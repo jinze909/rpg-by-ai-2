@@ -19,9 +19,23 @@ from build_hero_animation_preview import (
 
 DEST = ROOT / ".starfall-checks/hero-production-atlases"
 PREVIEW = ROOT / ".starfall-checks/hero-animation-qa"
-def expected_count(action, original):
+CONTACTS = ROOT / "Assets/ArtSource/Frontier/HeroContact"
+
+
+def contact_key(profession, action, facing):
+    return f"Hero_{profession}_{action}_{facing}"
+
+
+def contact_art_complete():
+    """Partial staging is allowed; do not publish mixed six/seven-cell art."""
+    return all((CONTACTS / (contact_key(cls, action, face) + ".png")).is_file()
+               for cls in CLASSES for action in ("Attack", "Cast")
+               for face in FACINGS)
+
+
+def expected_count(action, original, authored_contacts=False):
     if action in ("Attack", "Cast") and original > 1:
-        return 2 * original - 2
+        return 2 * original - 2 + int(authored_contacts)
     if action in ("Dodge", "Hit") and original > 1:
         return 2 * original - 1
     return original
@@ -58,7 +72,7 @@ def curated_motion_source(profession, action, facing, source_index):
     return None
 
 
-def frame_plan(profession, action, facing, references):
+def frame_plan(profession, action, facing, references, authored_contacts=False):
     """Every pose is a complete source drawing, never a local body warp.
 
     An approved intermediate for the central Attack/Cast contact transfer
@@ -74,11 +88,17 @@ def frame_plan(profession, action, facing, references):
         if selection is not None:
             plan.append((selection, "curated", i))
         elif action in ("Attack", "Cast") and i == 1:
+            # The EXTRA contact-transfer cell is real, staged full-body
+            # artwork. There is deliberately no procedural midpoint.
+            if authored_contacts:
+                plan.append((("@hand_redrawn", 0), "hand_redrawn", i))
             continue
         elif action in ("Dodge", "Hit"):
             raise AssertionError(("MISSING_AUTHORED_REACTION", profession,
                                   action, facing, i))
-    if len(plan) != expected_count(action, len(references)):
+    if len(plan) != expected_count(
+            action, len(references), authored_contacts and
+            action in ("Attack", "Cast")):
         raise AssertionError(("UNSUPPORTED_AUTHORED_FRAME_PLAN",
                               profession, action, facing))
     return plan
@@ -87,8 +107,12 @@ def frame_plan(profession, action, facing, references):
 def main():
     DEST.mkdir(parents=True, exist_ok=True)
     sheets, heads = imported_sheets(), registered_heads()
+    authored_contacts = contact_art_complete()
     manifest = {
-        "status": "all_279_cells_from_unmodified_approved_full_body_source_art",
+        "status": ("all_297_cells_source_locked_plus_18_hand_redrawn_contacts"
+                   if authored_contacts else
+                   "all_279_cells_from_unmodified_approved_full_body_source_art"),
+        "hand_redrawn_contact_frames": 18 if authored_contacts else 0,
         "canvas_per_frame": [CELL, CELL],
         "top_origin_foot_px": list(FOOT),
         "unity_bottom_origin_pivot": [0.5, 0.0625],
@@ -117,14 +141,26 @@ def main():
                         if frame.tobytes() != sampled.convert("RGBA").tobytes():
                             raise AssertionError("Original/QA pose mismatch: " + str(reference))
                     originals.append(frame)
-                plan = frame_plan(profession, action, facing, refs)
-                frames = [
-                    canonical_frame(sheets, heads, name, index, facing,
-                                    name.startswith("Walk") or action in ("Run","Idle"))
-                    for ((name, index), provenance, i) in plan
-                ]
+                plan = frame_plan(profession, action, facing, refs,
+                                  authored_contacts and action in ("Attack", "Cast"))
+                key = contact_key(profession, action, facing)
+                frames = []
+                for ((name, index), provenance, i) in plan:
+                    if provenance == "hand_redrawn":
+                        # Validation is repeated against the final assembled
+                        # sheets by check_hero_contact_art --release.
+                        with Image.open(CONTACTS / (key + ".png")) as source:
+                            if source.format != "PNG" or source.mode != "RGBA":
+                                raise AssertionError(("INVALID_STAGED_CONTACT", key))
+                            frame = source.copy()
+                        if frame.size != (CELL, CELL):
+                            raise AssertionError(("WRONG_CONTACT_CANVAS", key))
+                    else:
+                        frame = canonical_frame(
+                            sheets, heads, name, index, facing,
+                            name.startswith("Walk") or action in ("Run", "Idle"))
+                    frames.append(frame)
                 total_midpoints += len(frames) - len(originals)
-                key = f"Hero_{profession}_{action}_{facing}"
                 output = DEST / (key + ".png")
                 atlas = strip(frames)
                 atlas.save(output, optimize=True)
@@ -151,7 +187,9 @@ def main():
                     "frame_count": len(frames),
                     "unique_rasters": len(set(hashes)),
                     "frame_sha256_rgba": hashes,
-                    "needs_hand_redrawn_art": action in ("Attack", "Cast", "Dodge", "Hit", "Death"),
+                    "needs_hand_redrawn_art": (
+                        action in ("Dodge", "Hit", "Death") or
+                        (action in ("Attack", "Cast") and not authored_contacts)),
                     "native_unity_verified": False,
                 }
 
@@ -162,7 +200,13 @@ def main():
     # publisher, not an optional post-hoc report.
     from check_hero_whole_body_integrity import audit as audit_full_body
     audit_full_body(DEST, PREVIEW)
-    print(f"PASS: 63 canonical hero atlases exported with {total_midpoints} approved additional full-body source poses and zero raster warp.")
+    if authored_contacts:
+        from check_hero_contact_art import audit as audit_contact
+        audit_contact(release=True, atlas_dir=DEST, staged_dir=CONTACTS)
+    print(f"PASS: 63 canonical hero atlases exported with "
+          f"{total_midpoints} source-backed complete-body extra poses, "
+          f"{18 if authored_contacts else 0} newly-authored contacts "
+          "and zero raster warp.")
     print("Unmodified source poses remain at even indices; all source identity pixels preserved.")
     print("ART/NATIVE_UNVERIFIED: hand-redrawn quality, playmode, Animator, GPU, FPS.")
 

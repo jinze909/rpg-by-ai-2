@@ -70,6 +70,8 @@ def fail_nonoptional(name, action, frames, obs, transitions):
         "Idle": 1, "Run": 4, "Attack": 6, "Cast": 6,
         "Dodge": 5, "Hit": 5, "Death": 4
     }[action]
+    if action in ("Attack", "Cast") and len(frames) == 7:
+        expected = 7  # Only after 18 source-authored contact transfers ship.
     assert len(frames) == expected, ("RUNTIME_FRAME_COUNT", name, len(frames))
     assert all(o["bbox"][2] <= 256 and o["bbox"][3] <= 256 for o in obs), (
         "OUT_OF_CANVAS_BODY", name)
@@ -320,7 +322,11 @@ def run():
                 # builder's approved source cells.
                 if face == "E" or name == "Hero_Arcanist_Run_S":
                     preview(name,seq)
-    assert len(rows)==63 and frames_checked==279,(len(rows),frames_checked)
+    seven = sum(r["frames"] == 7 for r in rows
+                if "_Attack_" in r["resource"] or "_Cast_" in r["resource"])
+    assert seven in (0,18), ("PARTIAL_PRODUCTION_CONTACT_RELEASE", seven)
+    assert len(rows)==63 and frames_checked==279+seven,(
+        len(rows),frames_checked,seven)
     historical_splice_comparison()
     reconstructed_head_swap_vs_whole_body()
     report={
@@ -328,6 +334,7 @@ def run():
         "source":"Assets/Resources/Frontier/HeroAnimator/Canonical",
         "clip_count":len(rows),"frame_count":frames_checked,
         "same_raster_adjacent_pairs":repeated,
+        "hand_redrawn_contact_sheets":seven,
         "boundary_contracts":transitions,
         "native_unity_verified":False,"hand_art_approved":False,
         "clips":rows,

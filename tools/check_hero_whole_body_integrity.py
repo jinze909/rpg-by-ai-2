@@ -150,7 +150,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
     audit_rows = []
     from build_hero_animation_preview import (
         imported_sheets, registered_heads, canonical_frame, crop_frame)
-    from export_canonical_hero_atlases import frame_plan
+    from export_canonical_hero_atlases import frame_plan, CONTACTS
     sheets, heads = imported_sheets(), registered_heads()
     checked_frames = 0
     curated_count = 0
@@ -177,7 +177,10 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                         "DESTRUCTIVE_HEAD_OR_BODY_RECOMPOSITION",
                         profession, action, facing, source_name, source_index)
                     baselines.append(preview)
-                plan = frame_plan(profession, action, facing, references)
+                plan = frame_plan(
+                    profession, action, facing, references,
+                    bool(manifest.get("hand_redrawn_contact_frames", 0) and
+                         action in ("Attack", "Cast")))
                 assert len(plan) == row["frame_count"] and len(row["frame_sources"]) == len(plan), (
                     "MISSING_AUTHORED_CELLS", key)
                 assert row["procedurally_warped_cells"] == 0, (
@@ -185,12 +188,20 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                 with Image.open(atlas_dir / row["path"]) as f:
                     sheet = f.convert("RGBA").copy()
                 for index, ((name, source_frame), origin, reference_index) in enumerate(plan):
-                    assert_class_source(profession, name, source_frame)
                     cropped = sheet.crop((index * CELL, 0, (index+1) * CELL, CELL))
-                    expected = crop_frame(sheets[name], source_frame)
-                    # All 279 production cells must be WHOLE approved
-                    # drawings, pixel for pixel. The previous mid-pose
-                    # waiver could conceal a warped boot/waist/weapon.
+                    if origin == "hand_redrawn":
+                        assert name == "@hand_redrawn" and index == 3 and source_frame == 0
+                        with Image.open(CONTACTS / (key + ".png")) as f:
+                            assert f.format == "PNG" and f.mode == "RGBA"
+                            expected = f.copy()
+                        # Genuine authoring must still pass connected whole
+                        # body and identity QA on installed RGBA, not loose
+                        # hand/head overlays. See production-anatomy gate.
+                    else:
+                        assert_class_source(profession, name, source_frame)
+                        expected = crop_frame(sheets[name], source_frame)
+                    # Every production cell is source-provenance locked;
+                    # no gameplay body-part compositor is allowed.
                     assert cropped.tobytes() == expected.tobytes(), (
                         "NOT_A_SINGLE_AUTHORED_WHOLE_BODY", key, index,
                         name, source_frame)
@@ -204,18 +215,21 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                             f"{name}:{source_frame}"), (
                             "CURATED_SOURCE_MANIFEST_MISMATCH", key, index)
                         curated_count += 1
-                    else:
+                    elif origin == "accepted":
                         assert cropped.tobytes() == baselines[reference_index].tobytes(), (
                             "ACCEPTED_FULL_BODY_CHANGED", key, index)
+                    else:
+                        assert origin == "hand_redrawn"
                     _verify_waist_and_ratio(cropped, expected, key, index)
                     checked_frames += 1
                 audit_rows.append({"key": key, "frames": row["frame_count"],
                                    "source_classes": [n for n,_ in references]})
     assert curated_count == 72, ("CURATED_MOTION_COUNT", curated_count)
-    assert len(audit_rows) == 63 and checked_frames == 279, (
+    assert len(audit_rows) == 63 and checked_frames == (
+        279 + manifest.get("hand_redrawn_contact_frames", 0)), (
         "INCOMPLETE_CLASS_AUDIT",len(audit_rows),checked_frames)
     report = {
-        "status":"all_frames_are_approved_unmodified_complete_body_source_rasters",
+        "status":"all_frames_source_locked_full_body_no_puppet_synthesis",
         "hero_atlases":len(audit_rows),
         "checked_frames":checked_frames,
         "artist_drawn_whole_body_transitions":curated_count,
