@@ -60,20 +60,40 @@ namespace Starfall
             bool walking = Game.ReliefEscortActive && Game.reliefFollowerMoving &&
                 !Game.save.reducedMotion;
             float cycle = Game.reliefFollowerWalkDistance * 8.2f;
-            float step = walking ? (float)Math.Abs(Math.Sin(cycle)) : 0;
-            float bob = step * 3.2f;
-            float lean = walking ? (float)Math.Sin(cycle) * 2.5f : 0;
-            if (Game.ReliefEscortUnderAttack) lean = -4f;
-            DrawActorContactShadow(p,34,13,7,.78f);
-            // Frame 14 is the canonical rescue civilian, not an animation
-            // sheet. Procedural footfall bounce and tiny body lean preserve
-            // visual identity and follow distance, without changing frames.
+            float lean = walking ? (float)Math.Sin(cycle) * 1.15f : 0f;
+            if (Game.ReliefEscortUnderAttack && !Game.save.reducedMotion)
+                lean = -1.2f;
             bool justHit = Game.reliefCivilianHitTime > 0;
-            Color tint = justHit ? PixelArt.C("#ffe2bd") : Color.white;
-            float reaction = justHit && !Game.save.reducedMotion ?
-                Game.reliefCivilianHitTime * 7f : 0;
-            Actor(npcSheet, 4, 4, 14, new Point(p.x, p.y - bob - reaction), 96,
-                tint, Game.reliefFollowerFacingLeft, lean);
+            if (justHit && !Game.save.reducedMotion)
+                lean = -1.35f * (float)GameCore.Clamp(
+                    Game.reliefCivilianHitTime * 5f,0f,1f);
+            DrawActorContactShadow(p,34,13,7,.78f);
+            // The prior "bob + hit reaction" moved a SINGLE painted
+            // civilian 3–5 px above her grounded shadow. A nonzero Actor
+            // angle also forced the native GPU SpriteRenderer off into GUI
+            // fallback, and rotated around canvas CENTRE rather than boots.
+            // Both movement and injury must now keep their planted root.
+            Color tint=justHit ? PixelArt.C("#ffe2bd") : Color.white;
+            DrawRootedCivilianBody(p,lean,tint,Game.reliefFollowerFacingLeft);
+        }
+
+        // Shared by the production survivor draw and direct render QA.
+        // Whole authored Npcs.png cell 14 (including hair, feet and clothes)
+        // remains one Sprite; visual-only, no hitbox or save mutation.
+        private void DrawRootedCivilianBody(Point foot,float lean,
+            Color tint,bool flip)
+        {
+            Matrix4x4 original=GUI.matrix;
+            try
+            {
+                if(!Game.save.reducedMotion && Math.Abs(lean)>.001f)
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(original,
+                        new Vector2(foot.x,foot.y),lean);
+                // angle=0 means the SAME native SpriteRenderer-first path
+                // as any other complete-body NPC, even while moving.
+                Actor(npcSheet,4,4,14,foot,96,tint,flip);
+            }
+            finally {GUI.matrix=original;}
         }
         private void DrawExpansionWorld()
         {

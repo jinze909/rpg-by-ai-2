@@ -1042,6 +1042,75 @@ public static class RenderStateChecks
         Console.WriteLine("PASS stable wave artwork UV, smooth low-alpha glints, reduced motion and dry-road safety");
     }
 
+    private static void RootedRescueSurvivorHasOneGroundedSprite(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        Texture2D atlas=Get<Texture2D>(app,"npcSheet");
+        Check(atlas!=null,"Original 16-NPC civilian atlas required");
+        var g=app.Game;
+        bool oldReduced=g.save.reducedMotion;
+        Matrix4x4 oldMatrix=GUI.matrix;
+        Color oldColor=GUI.color;
+        var canvas=Matrix4x4.TRS(new Vector3(19,35,0),
+            Quaternion.identity,new Vector3(1.25f,1.25f,1));
+        Point planted=new Point(280,330);
+        try
+        {
+            g.save.reducedMotion=false;
+            GUI.matrix=canvas;GUI.color=new Color(.5f,.6f,.7f,.83f);
+            Clear();
+            Call(app,"DrawRootedCivilianBody",planted,1.15f,
+                Color.white,false);
+            Check(GUI.textureCalls.Count==1,
+                "Escort body must be one original complete-body Sprite");
+            var body=GUI.textureCalls[0];
+            Check(object.ReferenceEquals(body.texture,atlas)&&
+                Math.Abs(body.rect.width-96)<.0001f&&
+                Math.Abs(body.uv.x-.5f)<.00001f&&
+                Math.Abs(body.uv.y)<.00001f&&
+                Math.Abs(body.uv.width-.25f)<.00001f,
+                "Walking survivor changed identity or source atlas cell 14");
+            Vector3 root=body.matrix.MultiplyPoint3x4(
+                new Vector3(planted.x,planted.y,0));
+            Vector3 expected=canvas.MultiplyPoint3x4(
+                new Vector3(planted.x,planted.y,0));
+            Near(root,expected,
+                "Survivor's boots must stay welded to ground when leaning");
+            Check(Math.Abs(body.matrix.m01)>.001f,
+                "Real rooted body lean must respond to escort movement");
+            Same(GUI.matrix,canvas,"Survivor rotated later HUD/NPCs");
+            Color prior=GUI.color;
+            Set(app,"clock",17.3f);
+            Clear();Call(app,"DrawRootedCivilianBody",planted,-1.35f,
+                Color.white,true);
+            var hurt=GUI.textureCalls[0];
+            Near(hurt.matrix.MultiplyPoint3x4(
+                new Vector3(planted.x,planted.y,0)),expected,
+                "Hit reaction must not levitate or slide planted survivor");
+            Check(hurt.uv.width<0f&&
+                Math.Abs(hurt.uv.x-.75f)<.00001f,
+                "Flipping on injury must keep original civilian face");
+            g.save.reducedMotion=true;
+            Clear();Call(app,"DrawRootedCivilianBody",planted,2f,
+                Color.white,false);
+            Check(GUI.textureCalls.Count==1,
+                "Reduced motion must preserve visible civilian identity");
+            Same(GUI.textureCalls[0].matrix,canvas,
+                "Reduced-motion setting did not stop procedural lean");
+            Same(GUI.matrix,canvas,"Animation leaked its viewport transform");
+            Same(GUI.color,prior,"Civilian body animation leaked its tint");
+        }
+        finally
+        {
+            g.save.reducedMotion=oldReduced;
+            GUI.matrix=oldMatrix;
+            GUI.color=oldColor;
+        }
+        Console.WriteLine(
+            "PASS source-preserved rescued civilian body: no levitating boot, anchored hit lean, mirroring and native-friendly Sprite path");
+    }
+
     private static void GroundedActorsHaveContinuousAcceptedSoftShadows(FrontierRuntime app)
     {
         Prepare(app);
@@ -1129,7 +1198,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
