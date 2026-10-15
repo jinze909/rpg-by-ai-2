@@ -16,6 +16,7 @@ namespace UnityEngine
     }
     public class SpriteRenderer : Object { }
     public class AnimationClip : Object { public float frameRate; }
+    public class AnimationCurve { }
     public struct Vector2
     {
         public float x,y;
@@ -100,6 +101,13 @@ namespace UnityEditor
     }
     public static class AnimationUtility
     {
+        public static EditorCurveBinding[] GetCurveBindings(AnimationClip clip)
+        { return new EditorCurveBinding[0]; }
+        public static EditorCurveBinding[] GetObjectReferenceCurveBindings(
+            AnimationClip clip)
+        { return new EditorCurveBinding[0]; }
+        public static void SetEditorCurve(
+            AnimationClip clip,EditorCurveBinding binding,AnimationCurve curve){}
         public static ObjectReferenceKeyframe[] GetObjectReferenceCurve(
             AnimationClip clip,EditorCurveBinding binding){return null;}
         public static void SetObjectReferenceCurve(
