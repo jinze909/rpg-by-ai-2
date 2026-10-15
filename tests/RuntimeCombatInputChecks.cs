@@ -230,11 +230,13 @@ public static class RuntimeCombatInputChecks
                 "Production player used another class/animation/facing: expected "+prefix+
                 " actual "+rendered.texture.name);
             int authored=locomotion?4:app.Game.HeroAnimationFrameCount(facing);
-            bool expanded=action>=2&&action<=5&&authored>1;
-            int count=expanded?2*authored-1:authored;
-            float progress=locomotion?app.Game.WalkPosePhase:
+            bool attackSix=(action==2||action==3)&&authored==4;
+            bool reactionFive=(action==4||action==5)&&authored==3;
+            int count=attackSix?6:reactionFive?5:authored;
+            float phase=locomotion?app.Game.WalkPosePhase:
                 app.Game.HeroAnimationPlaybackPosition(facing);
-            progress*=expanded?2f:1f;
+            float progress=attackSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):
+                reactionFive?phase*2f:phase;
             if(action==1)progress%=count;
             int expected=Math.Max(0,Math.Min(count-1,(int)Math.Floor(progress+.20f)));
             Check(DrawnFrame(rendered)==expected,
