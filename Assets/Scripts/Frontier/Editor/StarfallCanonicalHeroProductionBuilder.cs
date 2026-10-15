@@ -110,6 +110,29 @@ namespace Starfall.EditorTools
             return true;
         }
 
+        private static void VerifySameProfessionBody(string profession, FrameSource[] frames)
+        {
+            // Python's release guard is not enough: the fallback Unity Editor
+            // baker must independently refuse the wrong profession's body
+            // source, even when the frame canvas and pivot happen to match.
+            int cls = Array.IndexOf(Classes, profession);
+            if (cls < 0) throw new InvalidOperationException(
+                "Unknown hero outfit: " + profession);
+            foreach (FrameSource src in frames)
+            {
+                bool native = src.atlas == "Player" + profession ||
+                    src.atlas == "Walk" + profession;
+                bool shared = src.atlas == "PlayerRear" ||
+                    src.atlas == "PlayerSouth" ||
+                    src.atlas == "PlayerReactionsRear" ||
+                    src.atlas == "PlayerReactionsSouth";
+                if (!native && !(shared && src.index / 4 == cls))
+                    throw new InvalidOperationException(
+                        "Cross-profession body source blocked: " + profession +
+                        " attempted " + src.atlas + ":" + src.index);
+            }
+        }
+
         [MenuItem("Starfall/Animation/Bake Accepted Hero To Live 3-Class Animator")]
         public static void Build()
         {
@@ -137,6 +160,7 @@ namespace Starfall.EditorTools
                         string key = Key(profession, action, facing);
                         FrameSource[] refs = FrameRefs(Array.IndexOf(Classes, profession),
                             action, facing);
+                        VerifySameProfessionBody(profession, refs);
                         // Published, CI-checked PNGs are authoritative. An
                         // Editor Animator bake must NOT silently regenerate
                         // their accepted pixels with different C# rounding.
@@ -202,6 +226,7 @@ namespace Starfall.EditorTools
                         string key = Key(profession, action, facing);
                         FrameSource[] refs = FrameRefs(Array.IndexOf(Classes, profession),
                             action, facing);
+                        VerifySameProfessionBody(profession, refs);
                         string path = atlasPaths[key];
                         ImportCanonicalSheet(path, key, ExpandedCount(refs.Length, action));
                         Sprite[] frames = AssetDatabase.LoadAllAssetsAtPath(path)
