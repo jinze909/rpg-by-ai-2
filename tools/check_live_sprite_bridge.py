@@ -336,7 +336,9 @@ def check():
     runtime=(ROOT/"tests/RuntimeCombatInputChecks.cs").read_text()
     assert "DirectionalLmbAndSkillContactNeverFlashBeforeRelease" in runtime
     assert "selected.released&&g.playerAction==selected" in runtime
-    assert "Check(audited==108," in runtime
+    assert "Check(audited==216," in runtime
+    assert "new Point(1,0),new Point(-1,0)" in runtime
+    assert "new Point(0,-1),new Point(0,1)" in runtime
     # Exact contact boundary, no early release frame even at maximal windup.
     def sampled_cell(phase, seven):
         pos = (min(3.,phase*2.) if phase<2 else phase*2) if seven else (
