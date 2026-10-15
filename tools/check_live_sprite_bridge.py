@@ -91,8 +91,11 @@ def check():
                  "public const int IdentityHeadX = 100;", "public const int IdentityHeadTop = 140;",
                  "public const int IdentityHeadSize = 56;", "public const float GuiDensity = .75f;"]:
         assert mark in spec_cs, "Canonical code profile mismatch " + mark
-    assert "MotionMidpoint(" in native
-    assert "ExpandWithInbetweens(" in native
+    # Native Editor must NEVER synthesize unverified limb motion if a
+    # shipped atlas is absent. The Python producer plus release QA owns art.
+    assert "MotionMidpoint(" not in native
+    assert "ExpandWithInbetweens(" not in native
+    assert "Missing approved full-body hero atlas: " in native
     assert "ExpandedCount(refs.Length, action)" in native
     assert "public static void EnsureBuilt()" in native
     assert "if (!ready) Build();" in native
@@ -133,7 +136,6 @@ def check():
             continue
         assert mark in compositor, f"Shared canonical compositor lost invariant {mark!r}"
     for mark in ["Bake Accepted Hero To Live 3-Class Animator",
-                 "CanonicalHeroSpriteFactory.Bake(",
                  "AnimationUtility.SetObjectReferenceCurve",
                  "typeof(SpriteRenderer)", 'propertyName = "m_Sprite"',
                  "AnimatorOverrideController", "AssetDatabase.SaveAssets",
