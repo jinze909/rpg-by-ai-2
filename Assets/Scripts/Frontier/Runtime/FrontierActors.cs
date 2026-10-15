@@ -147,7 +147,7 @@ namespace Starfall
                       Game.playerAction.kind=="attack")) &&
                     pose>=4 && pose<=7 && walkSheets[look]!=null ?
                     UnifiedActionGait(sheet,4,3,frame,walkSheets[look],
-                        facingRow*4+Game.WalkFrame) : null;
+                        facingRow*4+Game.WalkFrame,look) : null;
                 bool captured = false;
 #if UNITY_5_3_OR_NEWER
                 captured = DrawSpriteRendererHero(sheet,frame,p,tint,flip,
