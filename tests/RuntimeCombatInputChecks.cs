@@ -244,6 +244,13 @@ public static class RuntimeCombatInputChecks
             int expected=Math.Max(0,Math.Min(count-1,(int)Math.Floor(progress+.20f)));
             Check(DrawnFrame(rendered)==expected,
                 "Full-body frame must match authoritative release/dash/death clock");
+            // West has no independent atlas: the actual GUI cell must be
+            // mirrored, not simply selected from the same East resource.
+            // North/South must NOT inherit the horizontal weapon flip.
+            bool expectedMirror=facing==0&&direction.x<-.1f;
+            Check((rendered.uv.width<0f)==expectedMirror,
+                "HERO_FACING_FLIP_REGRESSION: wrong source UV for "+
+                klass+"/"+animation+"/"+direction.x+","+direction.y);
         }
         Check(Math.Abs(rendered.rect.width-192)<.01f&&
             Math.Abs(rendered.rect.height-192)<.01f,
