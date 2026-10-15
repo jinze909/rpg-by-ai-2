@@ -336,7 +336,7 @@ def run():
         json.dumps(report,indent=2)+"\n",encoding="utf-8")
     print("PASS: 63 real production Sprite atlases / 279 canvas, root and "
           "frame-boundary-checked cells; filmstrips/GIFs saved to "+str(DEST))
-    print("ART_REVIEW_REQUIRED; NATIVE_UNVERIFIED: mechanical interpolation "
+    print("ART_REVIEW_REQUIRED; NATIVE_UNVERIFIED: additional artist-authored contact keys "
           "and actual native Game View not certified.")
 
 
