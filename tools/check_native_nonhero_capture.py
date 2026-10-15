@@ -55,6 +55,11 @@ def main():
     assert "if (nativeActorDrawn) return;" in actor
     assert "ReleaseActorCapture();" in scene
     assert native.count("actorCaptureCamera.Render();") == 1
+    assert "actorCapturedFrames" in native
+    assert "actorCaptureCamera.targetTexture = entry.texture;" in native
+    assert "entry.texture);" in native
+    assert "EvictUnusedActorCapture();" in native
+    assert "actorCaptureTexture" not in native
     assert "new Vector2(.5f, 1f - 120f / 128f)" in native
     assert "new Vector3((float)height / width, 1f, 1f)" in native
     assert "actorCaptureRenderer.flipX = flip;" in native
@@ -70,6 +75,20 @@ def main():
     failed = compile_source(broken, OUT / "faulted.dll")
     assert failed.returncode != 0 and "CS1061" in failed.stdout, (
         "NONHERO_INVALID_RENDERER_API_WAS_ACCEPTED", failed.stdout)
+    # Exercise the REAL #if UNITY_5_3_OR_NEWER production method with
+    # instrumented render targets, not just grep or compile-only success.
+    mono = os.environ.get("STARFALL_MONO", shutil.which("mono"))
+    assert mono, "NONHERO_RUNTIME_PROBE_REQUIRES_MONO"
+    probe = subprocess.run([os.environ.get("STARFALL_MCS", shutil.which("mcs")),
+        "-define:UNITY_5_3_OR_NEWER", "-out:" + str(OUT / "nonhero-probe.exe"),
+        str(STUB), str(CAPTURE),
+        str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert probe.returncode == 0, ("NONHERO_PROBE_COMPILE", probe.stdout)
+    executed = subprocess.run([mono, str(OUT / "nonhero-probe.exe")],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert executed.returncode == 0, ("NONHERO_PROBE_FAILED", executed.stdout)
+    print(executed.stdout.strip())
     # Each indexed atlas listed below is ACTUALLY sampled in FrontierActors.
     atlases = [
         ("Npcs", 4, 4, range(16)),

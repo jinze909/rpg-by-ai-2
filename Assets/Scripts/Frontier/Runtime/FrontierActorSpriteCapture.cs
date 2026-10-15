@@ -16,13 +16,21 @@ namespace Starfall
         private Camera actorCaptureCamera;
         private SpriteRenderer actorCaptureRenderer;
         private Animator actorCaptureAnimator;
-        private RenderTexture actorCaptureTexture;
+        // GUI.DrawTexture commands may be deferred within one repaint.
+        // Reusing one mutable RenderTexture for multiple actors lets later
+        // captures overwrite the pixels sampled by earlier GUI commands.
+        // Each unique complete-body pose/flip therefore owns a stable target.
+        private sealed class CapturedActorFrame
+        {
+            internal RenderTexture texture;
+            internal int lastUsedFrame;
+        }
+        private const int MaxCachedActorFrames = 192;
+        private readonly Dictionary<string, CapturedActorFrame> actorCapturedFrames =
+            new Dictionary<string, CapturedActorFrame>();
         private readonly Dictionary<string, Sprite> actorFrameSprites =
             new Dictionary<string, Sprite>();
         private bool actorCaptureBroken;
-        private int actorRenderedFrame = -1;
-        private Sprite actorRenderedSprite;
-        private bool actorRenderedFlip;
 
         // Returns false on a recoverable/native failure, so the EXACT same
         // whole source cell can still be drawn by the existing GUI fallback.
@@ -56,25 +64,45 @@ namespace Starfall
                         height, 0, SpriteMeshType.FullRect);
                     actorFrameSprites.Add(key, sprite);
                 }
-                actorCaptureRenderer.sprite = sprite;
-                actorCaptureRenderer.flipX = flip;
-                // Legacy Actor() fills a square irrespective of original
-                // atlas cell aspect ratio. Scale only the renderer child,
-                // never the camera/root or the foot/pivot world position.
-                actorCaptureRenderer.transform.localScale =
-                    new Vector3((float)height / width, 1f, 1f);
-                if (!actorCaptureTexture.IsCreated())
+                string captureKey = key + (flip ? ":flipped" : ":normal");
+                CapturedActorFrame entry;
+                bool needsRender = false;
+                if (!actorCapturedFrames.TryGetValue(captureKey, out entry))
                 {
-                    actorCaptureTexture.Create();
-                    actorRenderedFrame = -1;
+                    EvictUnusedActorCapture();
+                    entry = new CapturedActorFrame {
+                        texture = new RenderTexture(256, 256, 16,
+                            RenderTextureFormat.ARGB32),
+                        lastUsedFrame = Time.frameCount
+                    };
+                    entry.texture.filterMode = FilterMode.Point;
+                    entry.texture.useMipMap = false;
+                    // Own the GPU target before Create/Render so an exception
+                    // can safely release it in ReleaseActorCapture().
+                    actorCapturedFrames.Add(captureKey, entry);
+                    entry.texture.Create();
+                    needsRender = true;
                 }
-                if (actorRenderedFrame != Time.frameCount ||
-                    actorRenderedSprite != sprite || actorRenderedFlip != flip)
+                else
                 {
+                    entry.lastUsedFrame = Time.frameCount;
+                    if (!entry.texture.IsCreated())
+                    {
+                        entry.texture.Create();
+                        needsRender = true; // device/context loss
+                    }
+                }
+                if (needsRender)
+                {
+                    actorCaptureRenderer.sprite = sprite;
+                    actorCaptureRenderer.flipX = flip;
+                    // Legacy Actor() fills a square regardless of atlas cell
+                    // aspect ratio. Preserve the exact foot/pivot position.
+                    actorCaptureRenderer.transform.localScale =
+                        new Vector3((float)height / width, 1f, 1f);
+                    actorCaptureCamera.targetTexture = entry.texture;
                     actorCaptureCamera.Render();
-                    actorRenderedFrame = Time.frameCount;
-                    actorRenderedSprite = sprite;
-                    actorRenderedFlip = flip;
+                    actorCaptureCamera.targetTexture = null;
                 }
                 Color previous = GUI.color;
                 try
@@ -83,7 +111,7 @@ namespace Starfall
                     GUI.color = tint;
                     GUI.DrawTexture(new Rect(foot.x - size * .5f,
                         foot.y - size * 120f / 128f, size, size),
-                        actorCaptureTexture);
+                        entry.texture);
                 }
                 finally { GUI.color = previous; }
                 return true;
@@ -97,6 +125,31 @@ namespace Starfall
                 ReleaseActorCapture();
                 return false;
             }
+        }
+
+        // Only recycle targets from a PREVIOUS frame. Never destroy a
+        // texture that another actor's pending GUI command still references.
+        // A single crowded repaint may exceed the soft limit temporarily.
+        private void EvictUnusedActorCapture()
+        {
+            if (actorCapturedFrames.Count < MaxCachedActorFrames) return;
+            string oldestKey = null;
+            int oldestFrame = int.MaxValue;
+            foreach (var item in actorCapturedFrames)
+                if (item.Value.lastUsedFrame < Time.frameCount &&
+                    item.Value.lastUsedFrame < oldestFrame)
+                {
+                    oldestKey = item.Key;
+                    oldestFrame = item.Value.lastUsedFrame;
+                }
+            if (oldestKey == null) return;
+            RenderTexture old = actorCapturedFrames[oldestKey].texture;
+            actorCapturedFrames.Remove(oldestKey);
+            if (actorCaptureCamera != null &&
+                actorCaptureCamera.targetTexture == old)
+                actorCaptureCamera.targetTexture = null;
+            old.Release();
+            Destroy(old);
         }
 
         private void EnsureActorCapture()
@@ -118,11 +171,6 @@ namespace Starfall
             actorCaptureAnimator = body.AddComponent<Animator>();
             actorCaptureAnimator.enabled = false;
             actorCaptureAnimator.speed = 0f;
-            actorCaptureTexture = new RenderTexture(
-                256, 256, 16, RenderTextureFormat.ARGB32);
-            actorCaptureTexture.filterMode = FilterMode.Point;
-            actorCaptureTexture.useMipMap = false;
-            actorCaptureTexture.Create();
             GameObject camera = new GameObject("Nonhero Actor Capture Camera");
             camera.hideFlags = HideFlags.HideAndDontSave;
             camera.layer = ActorCaptureLayer;
@@ -137,7 +185,6 @@ namespace Starfall
             actorCaptureCamera.clearFlags = CameraClearFlags.SolidColor;
             actorCaptureCamera.backgroundColor = new Color(0, 0, 0, 0);
             actorCaptureCamera.cullingMask = 1 << ActorCaptureLayer;
-            actorCaptureCamera.targetTexture = actorCaptureTexture;
             actorCaptureCamera.allowHDR = false;
             actorCaptureCamera.allowMSAA = false;
         }
@@ -150,19 +197,17 @@ namespace Starfall
             if (actorCaptureCamera != null)
                 actorCaptureCamera.targetTexture = null;
             if (actorCaptureRoot != null) Destroy(actorCaptureRoot);
-            if (actorCaptureTexture != null)
-            {
-                actorCaptureTexture.Release();
-                Destroy(actorCaptureTexture);
-            }
+            foreach (CapturedActorFrame entry in actorCapturedFrames.Values)
+                if (entry.texture != null)
+                {
+                    entry.texture.Release();
+                    Destroy(entry.texture);
+                }
+            actorCapturedFrames.Clear();
             actorCaptureRoot = null;
             actorCaptureCamera = null;
             actorCaptureRenderer = null;
             actorCaptureAnimator = null;
-            actorCaptureTexture = null;
-            actorRenderedFrame = -1;
-            actorRenderedSprite = null;
-            actorRenderedFlip = false;
         }
     }
 }

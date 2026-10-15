@@ -99,10 +99,12 @@ namespace UnityEngine
     {
         public FilterMode filterMode;
         public bool useMipMap;
+        public bool created;
+        public int releaseCount;
         public RenderTexture(int width,int height,int depth,RenderTextureFormat format) { }
-        public bool IsCreated() { return true; }
-        public void Create() { }
-        public void Release() { }
+        public bool IsCreated() { return created; }
+        public void Create() { created=true; }
+        public void Release() { created=false; releaseCount++; }
     }
     public class Behaviour : Component { public bool enabled; }
     public class SpriteRenderer : Behaviour
@@ -129,7 +131,9 @@ namespace UnityEngine
         public CameraClearFlags clearFlags;
         public Color backgroundColor;
         public RenderTexture targetTexture;
-        public void Render() { }
+        public static readonly List<RenderTexture> RenderedTargets =
+            new List<RenderTexture>();
+        public void Render() { RenderedTargets.Add(targetTexture); }
     }
     public static class Resources
     {
@@ -146,7 +150,10 @@ namespace UnityEngine
     public static class GUI
     {
         public static Color color;
-        public static void DrawTexture(Rect target,Texture image) { }
+        public static readonly List<Texture> DrawnTextures =
+            new List<Texture>();
+        public static void DrawTexture(Rect target,Texture image)
+        { DrawnTextures.Add(image); }
     }
     public static class Time { public static int frameCount; }
     public static class Mathf
