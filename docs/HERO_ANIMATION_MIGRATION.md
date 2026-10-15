@@ -342,3 +342,53 @@ constitute a NEWLY hand-painted 36-frame commission. Slot 3 and some
 other actions continue to use mechanically assisted intermediary frames,
 so aesthetic animation acceptance remains OPEN. Unity graphics native
 PlayMode also remains NATIVE_UNVERIFIED.
+
+## 2026-10-15 — Retire ALL head-swapping (offline and gameplay)
+
+The audit found one surviving ROOT-LEVEL split after the previous
+gameplay compositor retirement. Production asset generation still
+called `canonical_frame`, deleted `ActorFrameRegistration.TryHead`'s
+entire head rectangle, then pasted a separate `WalkVanguard` golden
+head at an ad hoc x/y position. **This even modified Vanguard's own
+accepted keyposes**, and could cut attached collars/neck outlines,
+create a head-to-shoulder gap or cause hair/helmet silhouette jumps.
+The original `PlayerVanguard`, `PlayerRanger`, `PlayerArcanist`,
+`Walk<profession>` and directional shared reaction art already depict
+the same blonde protagonist with coherent full bodies. There was no
+need to transplant the warrior head.
+
+**Permanent full-body solution:**
+- `tools/build_hero_animation_preview.py:canonical_frame` now
+  returns the ORIGINAL registered 256x256 source crop, pixel-for-pixel.
+  It does not erase/translate/composite ANY head or other body layer.
+- `tools/check_hero_whole_body_integrity.py` independently checks
+  every source pose against its raw original PNG crop (not just an
+  intermediate preview), and rejects any future destructive
+  `DESTRUCTIVE_HEAD_OR_BODY_RECOMPOSITION`.
+- `tools/check_hero_visual_spec.py` validates class-specific
+  registered blonde hair, physical head dimensions, 9 profile
+  silhouettes, real equipment socket proximity and original full
+  sprite bytes; a synthetic dyed/non-blonde head must be rejected.
+  It does **not** require all hair pixels to be the warrior's pixels.
+- `FrontierActorRig.cs` permanently removes the unused five-piece
+  `HumanActor` cutout compositor. Remaining live Companion UI calls
+  were migrated to single full-body Actor frames too; monster
+  dimensions retain only a simple noncompositing `ActorCanvas`
+  helper. The hero remains on the class-owned full-body production
+  asset path.
+- The CI static gate rejects restored five-piece rendering and
+  `canonical_frame` head erasure. Every changed production atlas
+  preserves its original meta GUID, foot Pivot and GameCore timings.
+- The visual artifact
+  `hero-runtime-qa/retired-head-graft-vs-production-full-body.png`
+  labels the left image as **legacy algorithm reconstruction**, not a
+  fake screenshot, and shows 3 professions against the actual final
+  shipped PNGs, in addition to the previous waist-splice A/B.
+
+This supersedes all EARLIER notes saying "canonical warrior blonde
+head is pasted offline": that previous procedure was defective
+and is no longer a release requirement. The user's same-hero identity
+is now established using approved existing blonde art, not an
+isolated moving head. CI/mono tests alone do not certify game art.
+No native Unity 2022.3.53f1 editor, GPU Game View or PlayMode suite
+was run; native testing remains `NATIVE_UNVERIFIED`.
