@@ -21,7 +21,7 @@ DEST = ROOT / ".starfall-checks/hero-production-atlases"
 PREVIEW = ROOT / ".starfall-checks/hero-animation-qa"
 def expected_count(action, original):
     return (2 * original - (0 if action == "Run" else 1)
-            if action in ("Run", "Attack", "Cast") and original > 1 else original)
+            if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and original > 1 else original)
 
 
 def motion_midpoint(first, second):
@@ -119,7 +119,7 @@ def expand_frames(originals, action):
     result = []
     for i, source in enumerate(originals):
         result.append(source)
-        if action in ("Run", "Attack", "Cast") and len(originals) > 1:
+        if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
             if i + 1 < len(originals) or action == "Run":
                 result.append(motion_midpoint(source, originals[(i + 1) % len(originals)]))
     if len(result) != expected_count(action, len(originals)):
