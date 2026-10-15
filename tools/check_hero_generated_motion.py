@@ -6,8 +6,11 @@ Does not pretend to certify motion anatomy, quality, Unity import or PlayMode.
 import json
 from pathlib import Path
 from PIL import Image
-from build_hero_animation_preview import CLASSES, FACINGS, ACTIONS, CELL, ROOT, source_indices
-from export_canonical_hero_atlases import DEST, PREVIEW, expected_count, motion_midpoint
+from build_hero_animation_preview import (
+    CLASSES, FACINGS, ACTIONS, CELL, ROOT, source_indices,
+    imported_sheets, registered_heads, canonical_frame)
+from export_canonical_hero_atlases import (
+    DEST, PREVIEW, expected_count, motion_midpoint, curated_motion_source)
 
 def check_solid_midpoint_synthetic():
     """Prove the replacement actually moves pixels without mixing silhouettes."""
@@ -87,6 +90,8 @@ def check():
     distinct_motion_cells = 0
     identical_by_action = {}
     identical_holds = []
+    curated_count = 0
+    sheets, heads = imported_sheets(), registered_heads()
     examples = []
     # Preserve intent of the actual authored source pose slots:
     # 4/5 normal attack, 6/7 class skill, south 0/1 normal, 2/3 skill.
@@ -156,26 +161,45 @@ def check():
                                     "facing":facing, "source_index":original_index})
                             else:
                                 distinct_motion_cells += 1
-                            # Bottom-origin y 57..117 -> Pillow top y 138..198.
-                            # The FULL canonical head guard must be unchanged,
-                            # including transparent bangs/head silhouette edges.
-                            box = (91, 138, 170, 199)
-                            assert midpoint.crop(box).tobytes() == extracted.crop(box).tobytes(), (
-                                key, original_index, "canonical blonde head altered")
-                            # One approved silhouette only: no checkerboard splice
-                            # of two weapons/legs or synthetic blended colors.
-                            assert set(midpoint.getdata()) <= (
-                                set(extracted.getdata()) | {(0, 0, 0, 0)}
-                            ), (key, original_index, "non-source colors / raster ghosting")
-                            # Boots + contact shadow always use the original root.
-                            assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == extracted.crop(
-                                (0, 233, CELL, CELL)).tobytes(), (
+                            # A curated midpoint MUST match a full
+                            # artist-drawn body belonging to this class,
+                            # not an invented blend, missing foot or head.
+                            selection = curated_motion_source(
+                                klass, action, facing, original_index)
+                            if selection is not None:
+                                name, source_frame = selection
+                                drawn = canonical_frame(
+                                    sheets, heads, name, source_frame,
+                                    facing, locomotion=True)
+                                assert midpoint.tobytes() == drawn.tobytes(), (
+                                    "CURATED_TRANSITION_NOT_AUTHORED_SOURCE",
+                                    key, original_index)
+                                assert row["curated_full_body_slots"][
+                                    str(index + 1)] == f"{name}:{source_frame}", (
+                                    "CURATED_TRANSITION_MANIFEST_DRIFT",key)
+                                curated_count += 1
+                            else:
+                                # Algorithmic midpoints are UNAPPROVED
+                                # assistance; never mix palette from
+                                # another profession or displace rooted feet.
+                                box = (91, 138, 170, 199)
+                                assert midpoint.crop(box).tobytes() == (
+                                    extracted.crop(box).tobytes()), (
+                                    key, original_index,
+                                    "canonical blonde head altered")
+                                assert set(midpoint.getdata()) <= (
+                                    set(extracted.getdata()) | {(0, 0, 0, 0)}
+                                ), (key, original_index,
+                                    "non-source colors / raster ghosting")
+                                assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == (
+                                    extracted.crop((0, 233, CELL, CELL)).tobytes()), (
                                     key, original_index, "foot-band slide")
                 tally += 1
                 midpoints += row["generated_midpoints"]
                 if action == "Attack" and klass == "Vanguard":
                     examples.append(key)
     assert tally == 63 and midpoints == 126, (tally, midpoints)
+    assert curated_count == 12, ("MISSING_12_AUTHORED_TRANSITIONS",curated_count)
     assert distinct_motion_cells + identical_motion_cells == midpoints, (
         "Motion cell audit missed a generated sprite")
     # A geometry pass should actually move most limbs; report any remaining
@@ -186,6 +210,7 @@ def check():
         "status": "offline_raster_invariants_only",
         "clip_count": tally,
         "generated_midpoints": midpoints,
+        "curated_existing_artist_drawn_transitions": curated_count,
         "distinct_generated_midpoints": distinct_motion_cells,
         "identical_hold_midpoints": identical_motion_cells,
         "identical_hold_by_action": identical_by_action,
