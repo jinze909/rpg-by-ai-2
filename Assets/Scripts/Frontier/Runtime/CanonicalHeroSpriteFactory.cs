@@ -4,9 +4,9 @@ using UnityEngine;
 namespace Starfall
 {
     /// <summary>
-    /// One approved blonde identity for all three equipment/profession atlases.
+    /// One complete accepted body per class, with the same blonde protagonist.
     /// Shared by production runtime capture and the Editor-only Sprite bake.
-    /// The approved original sprites, not the rejected generated sheets, are
+    /// The accepted whole-body originals, not generated puppet pieces, are
     /// the only pixel input. All frames share a 256-square canvas, 128 PPU and
     /// one bottom-origin (128,16) foot pivot.
     /// </summary>
@@ -34,63 +34,14 @@ namespace Starfall
             if (index < 0 || index >= cols * (source.height / Cell)) return null;
             Color[] colors = source.GetPixels(index % cols * Cell,
                 source.height - (index / cols + 1) * Cell, Cell, Cell);
-            if (!death && identity != null && registration != null)
-            {
-                Rect head, stable;
-                if (ActorFrameRegistration.TryHead(registration, registrationIndex, out head))
-                {
-                    if (locomotion && ActorFrameRegistration.TryStableHead(registration,
-                        registrationIndex / 4, out stable)) head = stable;
-                    Rect reference;
-                    if (ActorFrameRegistration.TryStableHead(identity, facing, out reference))
-                    {
-                        // The registered golden hair/face must stay the same
-                        // size and source on all three equipment variants.
-                        // Reject unexpected reimports instead of resizing it.
-                        if (Mathf.RoundToInt(reference.x) != IdentityHeadX ||
-                            Mathf.RoundToInt(reference.y) != IdentityHeadTop ||
-                            Mathf.RoundToInt(reference.width) != IdentityHeadSize ||
-                            Mathf.RoundToInt(reference.height) != IdentityHeadSize)
-                            return null;
-                        int hx = Mathf.RoundToInt(head.x), hy = Mathf.RoundToInt(head.y);
-                        int hw = Mathf.RoundToInt(head.width), hh = Mathf.RoundToInt(head.height);
-                        if (hx < 0 || hy < 0 || hx + hw > Cell || hy + hh > Cell)
-                            return null;
-                        for (int row = hy; row < hy + hh; row++)
-                            for (int col = hx; col < hx + hw; col++)
-                                colors[(Cell - 1 - row) * Cell + col] = Color.clear;
-
-                        int w = Mathf.RoundToInt(reference.width);
-                        int h = Mathf.RoundToInt(reference.height);
-                        int canonicalIndex = facing * 4;
-                        Color[] hair = identity.GetPixels((canonicalIndex % 4) * Cell
-                            + Mathf.RoundToInt(reference.x),
-                            identity.height - (canonicalIndex / 4 + 1) * Cell
-                            + Cell - Mathf.RoundToInt(reference.y + reference.height), w, h);
-                        int destX = locomotion ? (Cell - w) / 2 :
-                            Mathf.RoundToInt(head.x + head.width / 2f - w / 2f);
-                        int destY = locomotion ? Mathf.RoundToInt(reference.y) :
-                            Mathf.RoundToInt(head.y + head.height - h);
-                        for (int row = 0; row < h; row++)
-                            for (int col = 0; col < w; col++)
-                            {
-                                int px = destX + col, py = destY + row;
-                                if (px < 0 || px >= Cell || py < 0 || py >= Cell) continue;
-                                Color upper = hair[(h - 1 - row) * w + col];
-                                if (upper.a <= 0f) continue;
-                                int pos = (Cell - 1 - py) * Cell + px;
-                                Color lower = colors[pos];
-                                float alpha = upper.a + lower.a * (1 - upper.a);
-                                colors[pos] = alpha > 0
-                                    ? new Color((upper.r * upper.a + lower.r * lower.a * (1 - upper.a)) / alpha,
-                                        (upper.g * upper.a + lower.g * lower.a * (1 - upper.a)) / alpha,
-                                        (upper.b * upper.a + lower.b * lower.a * (1 - upper.a)) / alpha, alpha)
-                                    : Color.clear;
-                            }
-                    }
-                }
-            }
-
+            // Full-body-only native fallback. The canonical identity is
+            // already present in each accepted Ranger/Vanguard/Arcanist
+            // source. NEVER erase and reattach a separate warrior head in
+            // gameplay: the old movable head mask introduced a neck gap,
+            // facial bobbing and class/body pose mismatch. The published
+            // PNG pipeline retains approved face pixels upstream.
+            // Keeping the legacy method signature preserves editor callers,
+            // but registration/identity must not change the body raster.
             var texture = new Texture2D(Cell, Cell, TextureFormat.RGBA32, false);
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;
