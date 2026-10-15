@@ -63,7 +63,7 @@ def check():
     assert "public float WalkPosePhase" in continuity
     assert "if (state == 1) return WalkPosePhase;" in core
     assert "if(action==1)position%=frames;" in actor
-    assert "bool interpolate=action>=1&&action<=5&&authored>1;" in actor
+    assert "bool interpolate=action>=2&&action<=5&&authored>1;" in actor
     assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
     assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
