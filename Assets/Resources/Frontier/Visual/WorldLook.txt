@@ -13,3 +13,10 @@ waterGlintRate=0.89
 lampRadius=114
 nightLightAlpha=0.29
 dayLightAlpha=0.13
+
+# Native-friendly single-Sprite actor gestures. All movement is tiny,
+# pivoted about the existing painted boot, and honors reducedMotion.
+# Neither setting edits saved actors or invents missing animation frames.
+npcTalkLeanDegrees=0.72
+escortWalkLeanDegrees=1.15
+escortHitLeanDegrees=1.35

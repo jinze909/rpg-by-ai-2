@@ -19,6 +19,9 @@ namespace Starfall
             public float lampRadius=114f;
             public float nightLightAlpha=.29f;
             public float dayLightAlpha=.13f;
+            public float npcTalkLeanDegrees=.72f;
+            public float escortWalkLeanDegrees=1.15f;
+            public float escortHitLeanDegrees=1.35f;
         }
         private WorldVisualLook worldVisualLook;
 
@@ -74,6 +77,17 @@ namespace Starfall
                             case "dayLightAlpha":
                                 if(value>=0f&&value<=.20f)
                                     settings.dayLightAlpha=value;break;
+                            // Whole-body NPC movement never changes the
+                            // underlying 128px source painting or world root.
+                            case "npcTalkLeanDegrees":
+                                if(value>=0f&&value<=1.5f)
+                                    settings.npcTalkLeanDegrees=value;break;
+                            case "escortWalkLeanDegrees":
+                                if(value>=0f&&value<=1.8f)
+                                    settings.escortWalkLeanDegrees=value;break;
+                            case "escortHitLeanDegrees":
+                                if(value>=0f&&value<=2f)
+                                    settings.escortHitLeanDegrees=value;break;
                         }
                     }
                 }

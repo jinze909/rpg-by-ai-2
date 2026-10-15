@@ -70,12 +70,14 @@ namespace Starfall
             bool walking = Game.ReliefEscortActive && Game.reliefFollowerMoving &&
                 !Game.save.reducedMotion;
             float cycle = Game.reliefFollowerWalkDistance * 8.2f;
-            float lean = walking ? (float)Math.Sin(cycle) * 1.15f : 0f;
+            float walkLean=CurrentWorldVisualLook.escortWalkLeanDegrees;
+            float lean = walking ? (float)Math.Sin(cycle) * walkLean : 0f;
             if (Game.ReliefEscortUnderAttack && !Game.save.reducedMotion)
-                lean = -1.2f;
+                lean = -walkLean;
             bool justHit = Game.reliefCivilianHitTime > 0;
             if (justHit && !Game.save.reducedMotion)
-                lean = -1.35f * (float)GameCore.Clamp(
+                lean = -CurrentWorldVisualLook.escortHitLeanDegrees *
+                    (float)GameCore.Clamp(
                     Game.reliefCivilianHitTime * 5f,0f,1f);
             DrawActorContactShadow(p,34,13,7,.78f);
             // The prior "bob + hit reaction" moved a SINGLE painted

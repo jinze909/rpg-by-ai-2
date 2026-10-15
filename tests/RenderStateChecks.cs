@@ -1171,7 +1171,9 @@ public static class RenderStateChecks
         var current=profile.GetValue(app,null);
         string[] names={"treeSwayDegrees","palmSwayDegrees",
             "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
-            "lampRadius","nightLightAlpha","dayLightAlpha"};
+            "lampRadius","nightLightAlpha","dayLightAlpha",
+            "npcTalkLeanDegrees","escortWalkLeanDegrees",
+            "escortHitLeanDegrees"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -1192,7 +1194,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS eight editable world visual-resource values load from real Unity text asset and drive accepted art");
+        Console.WriteLine("PASS eleven source-controlled WorldLook values: terrain, light, water and foot-rooted NPC/escort gestures");
     }
 
     public static void Run(FrontierRuntime app,string folder)

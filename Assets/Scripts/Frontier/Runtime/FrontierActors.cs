@@ -720,7 +720,8 @@ namespace Starfall
             {
                 if(isTalking && !Game.save.reducedMotion && !drawingOutline)
                 {
-                    float lean=.72f*(float)Math.Sin(clock*3.2f+npcKey*.37f);
+                    float lean=CurrentWorldVisualLook.npcTalkLeanDegrees*
+                        (float)Math.Sin(clock*3.2f+npcKey*.37f);
                     GUI.matrix=GuiGeometry.RotateAroundPivot(originalMatrix,
                         new Vector2(p.x,p.y),lean);
                 }
