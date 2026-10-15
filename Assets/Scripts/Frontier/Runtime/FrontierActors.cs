@@ -409,6 +409,7 @@ namespace Starfall
             else
             {
                 Texture2D sheet = monsterSheet; int columns = 6, rows = 3, frame = Math.Min(2, e.kind) * 6 + pose;
+                bool vertical = false;
                 // Phase-2 original full-body art for common melee raiders.
                 // Authoritative GameCore intent and release time select every
                 // windup/contact frame; this never changes collision/damage.
@@ -432,7 +433,7 @@ namespace Starfall
                 else
                 {
                 if (pose == 1 && monsterWalkSheet != null) { sheet = monsterWalkSheet; columns = 4; rows = 3; int gait=GameCore.GaitFrame(e.moveTime,e.kind==0?1.35f:1.8f);frame=Math.Min(2,e.kind)*4+(e.backpedaling?(4-gait)%4:gait); }
-                bool vertical = e.kind == 1 && enemyArcherVertical != null && (pose == 2 || pose == 3) && Math.Abs(e.facing.y) > Math.Abs(e.facing.x);
+                vertical = e.kind == 1 && enemyArcherVertical != null && (pose == 2 || pose == 3) && Math.Abs(e.facing.y) > Math.Abs(e.facing.x);
                 if (vertical) { sheet = enemyArcherVertical; columns = 3; rows = 2; frame = (e.facing.y < 0 ? 0 : 2) + pose - 2; }
                 }
                 float canvas=ActorCanvas(sheet,columns,size/128);
