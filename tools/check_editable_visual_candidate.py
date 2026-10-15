@@ -38,7 +38,9 @@ def audit_retired_candidate(root, name, guid, max_texture_size):
     ):
         assert item in metadata, ("ARCHIVED_UNITY_META_REGRESSION", name, item)
     attrs = (root / BLOB_RULES).read_text()
-    assert "/Assets/Resources/Frontier/Art/" + name + ".png -filter -diff -merge" in attrs, (
+    explicit = "/Assets/Resources/Frontier/Art/" + name + ".png -filter -diff -merge"
+    wildcard = "/Assets/Resources/Frontier/Art/*.png -filter -diff -merge"
+    assert explicit in attrs or wildcard in attrs, (
         "ARCHIVED_CANDIDATE_MUST_HAVE_REAL_GIT_PNG", name)
     print("PASS editable retired candidate "+name+
           ": valid transparent PNG, Unity GUID, import settings and Git blob")
