@@ -54,7 +54,7 @@ def main():
         raise AssertionError("CINDERSTONE_MUTATION_NOT_REJECTED")
     runtime = SOURCE.read_text()
     for fragment in (
-        'Resources.Load<Texture2D>(root + "CinderstoneGuard")',
+        'monsterSheet = Resources.Load<Texture2D>(root + "Monsters")',
         "e.kind == 2 && cinderstoneGuardSheet != null",
         "GameCore.GaitFrame(e.moveTime, 1.8f)",
         "frame = row * 4 + phase;",
@@ -66,7 +66,7 @@ def main():
     for fragment in (f"guid: {GUID}", "enableMipMap: 0",
                      "filterMode: 0", "textureCompression: 0", "isReadable: 1"):
         assert fragment in meta, ("CINDERSTONE_IMPORTER", fragment)
-    print(f"PASS {count} shipped Cinderstone full-body action cells and GameCore mapping")
+    print(f"PASS {count} editable Cinderstone candidate cells; original Monsters atlas is the current game default")
     print("PASS injected missing frame rejected (hard FAIL)")
     print("NATIVE_UNVERIFIED / ART_REVIEW_REQUIRED: Unity Animator and GameView not run")
 

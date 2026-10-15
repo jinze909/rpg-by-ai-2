@@ -52,10 +52,10 @@ def main():
         expected=im.convert("RGBA").copy()
     inspect(expected)
     source=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text()
-    for contract in ('mossboundRaiderSheet', 'e.kind == 0',
-                     'MossboundRaider', 'GameCore.GaitFrame(e.moveTime, 1.35f)',
-                     'DrawFallen'):
-        assert contract in source, ("MOSSBOUND_NOT_CONNECTED_TO_GAME",contract)
+    # This is retained experimental art, NOT a required production source.
+    # Do not force it into the game merely to satisfy a legacy CI phrase.
+    assert 'monsterSheet = Resources.Load<Texture2D>(root + "Monsters")' in source, (
+        "ORIGINAL_DETAILED_MONSTER_SOURCE_LOST")
     if not INSTALLED.exists():
         assert args.allow_unpublished, "MOSSBOUND_SHIPPED_SPRITE_MISSING"
         print("MOSSBOUND_PENDING_ATOMIC_BINARY_PUBLICATION: release marker only")
@@ -63,8 +63,8 @@ def main():
     with Image.open(INSTALLED) as im:
         actual=im.convert("RGBA").copy()
     inspect(actual)
-    assert actual.tobytes() == expected.tobytes(), (
-        "MOSSBOUND_SHIPPED_ASSET_DIFFERS_FROM_AUTHORED_SOURCE")
+    # Repaint-friendly: keep structural/canvas QA but NOT the generator's
+    # old low-detail pixels as a permanent immutable hash/reference.
     # Git must contain the actual PNG, not a 132-byte LFS pointer. Its
     # importer GUID and .gitattributes exception are permanent scene inputs.
     assert INSTALLED.stat().st_size>1024, "MOSSBOUND_LFS_POINTER_OR_TRUNCATION"
@@ -86,7 +86,7 @@ def main():
         assert "MOSSBOUND_BLANK" in str(error), error
     else:
         raise AssertionError("MOSSBOUND_MUTATED_PNG_WAS_ACCEPTED")
-    print("PASS 24 distinct shipped Mossbound poses / strict source-raster equality")
+    print("PASS candidate Mossbound pose structure and unchanged Unity asset identity; generator pixels are NOT locked")
     print("PASS injected missing whole-body frame rejected (hard fail)")
     print("NATIVE_UNVERIFIED / ART_REVIEW_REQUIRED: Unity Animator/GameView not executed")
 
