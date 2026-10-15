@@ -22,6 +22,8 @@ namespace Starfall
             public float npcTalkLeanDegrees=.72f;
             public float escortWalkLeanDegrees=1.15f;
             public float escortHitLeanDegrees=1.35f;
+            public float combatWarningStrokePixels=1.8f;
+            public float projectileTrailFadeDistance=.18f;
         }
         private WorldVisualLook worldVisualLook;
 
@@ -88,6 +90,12 @@ namespace Starfall
                             case "escortHitLeanDegrees":
                                 if(value>=0f&&value<=2f)
                                     settings.escortHitLeanDegrees=value;break;
+                            case "combatWarningStrokePixels":
+                                if(value>=1.25f&&value<=2.7f)
+                                    settings.combatWarningStrokePixels=value;break;
+                            case "projectileTrailFadeDistance":
+                                if(value>=.08f&&value<=.32f)
+                                    settings.projectileTrailFadeDistance=value;break;
                         }
                     }
                 }

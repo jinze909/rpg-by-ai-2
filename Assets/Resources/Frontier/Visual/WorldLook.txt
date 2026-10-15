@@ -20,3 +20,7 @@ dayLightAlpha=0.13
 npcTalkLeanDegrees=0.72
 escortWalkLeanDegrees=1.15
 escortHitLeanDegrees=1.35
+
+# Whole-Sprite combat readability; bounds enforced at runtime.
+combatWarningStrokePixels=1.80
+projectileTrailFadeDistance=0.18

@@ -29,7 +29,8 @@ namespace Starfall
                 for(int i=maxTrail;i>0;i--)
                 {
                     float fade=Mathf.Clamp01(
-                        (travelled-i*.18f)/.18f);
+                        (travelled-i*.18f)/
+                        CurrentWorldVisualLook.projectileTrailFadeDistance);
                     if(fade<=0f)continue;
                     Point tail=ScreenPoint(projectile.position-
                         projectile.velocity.Normalized*i*.18f);
@@ -169,8 +170,10 @@ namespace Starfall
             {
                 GUI.matrix=GuiGeometry.RotateAroundPivot(original,
                     new Vector2(mid.x,mid.y),theta);
-                Box(mid.x-length*.5f-.5f,mid.y-.9f,
-                    length+1f,1.8f,color);
+                float width=CurrentWorldVisualLook.combatWarningStrokePixels;
+                Box(mid.x-length*.5f-width*.25f,
+                    mid.y-width*.5f,
+                    length+width*.5f,width,color);
             }
             finally {GUI.matrix=original;}
         }
