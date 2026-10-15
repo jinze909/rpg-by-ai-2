@@ -21,6 +21,8 @@ jobs:
         run: |
           python3 tools/install_canonical_hero_atlases.py
           python3 tools/check_installed_hero_atlases.py
+      - name: Enforce single-class waist/palette/proportion QA for all Sprite cells
+        run: python3 tools/check_hero_whole_body_integrity.py
       - name: Verify generated hero action midpoints and original pose preservation
         run: python3 tools/check_hero_generated_motion.py
       - name: Audit locked hero visual identity, registered hand hints and foot anchor
@@ -58,6 +60,7 @@ jobs:
           python3 tools/build_hero_animation_preview.py
           python3 tools/export_canonical_hero_atlases.py
           python3 tools/check_hero_generated_motion.py
+          python3 tools/check_hero_whole_body_integrity.py
           python3 tools/check_hero_visual_spec.py
           python3 tools/install_canonical_hero_atlases.py
           # The checkout intentionally does not hydrate unrelated Git LFS art.
