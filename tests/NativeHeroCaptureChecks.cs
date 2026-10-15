@@ -163,13 +163,72 @@ public static class NativeHeroCaptureChecks
             ReferenceEquals(liveRenderer.sprite,
                 Resources.RegisteredSprites[actionResource][3]),
             "native Animator stayed permanently disabled after transient import mismatch");
+        // Controller hot-import regression: opening Frontier before Unity
+        // finishes baking Ranger's Controller used to lock that class to the
+        // fallback for this entire session. The exact SAME scene instance
+        // must switch from safe full-body Sprite to live Animator once ready.
+        const string lateController="Frontier/HeroAnimator/ProductionRanger";
+        RuntimeAnimatorController rangerController =
+            (RuntimeAnimatorController)Resources.Registered[lateController];
+        Resources.Registered.Remove(lateController);
+        var late=new FrontierRuntime();
+        late.Game.AppearanceWeapon=1; // Ranger outfit: do NOT show Vanguard
+        late.ProbeAction=2;
+        late.ProbeFrames=6;
+        late.ProbeFrame=2;
+        late.ProbePosition=2f;
+        Time.frameCount=1300;
+        bool first=(bool)draw.Invoke(late,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        var delayedAnimator=animatorField.GetValue(late) as Animator;
+        var delayedRenderer=renderField.GetValue(late) as SpriteRenderer;
+        string rangerKey="Frontier/HeroAnimator/Canonical/Hero_Ranger_Attack_E";
+        Require(first&&delayedAnimator!=null&&delayedRenderer!=null&&
+            !delayedAnimator.enabled&&
+            ReferenceEquals(delayedRenderer.sprite,
+                Resources.RegisteredSprites[rangerKey][2]),
+            "missing native Controller must keep exact Ranger full-body Sprite");
+        int nativeCalls=delayedAnimator.sampleCount;
+        Resources.Registered.Add(lateController,rangerController);
+        Time.frameCount=1301;
+        bool waiting=(bool)draw.Invoke(late,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(waiting&&!delayedAnimator.enabled&&
+            delayedAnimator.sampleCount==nativeCalls&&
+            ReferenceEquals(delayedRenderer.sprite,
+                Resources.RegisteredSprites[rangerKey][2]),
+            "missing controller should avoid reimport checks every Repaint");
+        Time.frameCount=1420;
+        bool nativeRestored=(bool)draw.Invoke(late,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(nativeRestored&&delayedAnimator.enabled&&
+            delayedAnimator.sampleCount>nativeCalls&&
+            ReferenceEquals(delayedAnimator.runtimeAnimatorController,
+                rangerController)&&
+            ReferenceEquals(delayedRenderer.sprite,
+                Resources.RegisteredSprites[rangerKey][2]),
+            "late-imported controller did not recover live native Animator");
+        // Even during a previous class's missing-controller cooldown, an
+        // actual equipment swap should load the new class immediately.
+        late.Game.AppearanceWeapon=0;
+        Time.frameCount=1421;
+        bool switched=(bool)draw.Invoke(late,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(switched&&delayedAnimator.enabled&&
+            ReferenceEquals(delayedAnimator.runtimeAnimatorController,
+                Resources.Registered[
+                    "Frontier/HeroAnimator/ProductionVanguard"])&&
+            ReferenceEquals(delayedRenderer.sprite,
+                Resources.RegisteredSprites[actionResource][2]),
+            "class swap displayed an old/missing controller's wrong armor");
+        release.Invoke(late,null);
         release.Invoke(app,null);
         foreach(var target in textures)
             Require(target.releaseCount>0&&!target.IsCreated(),
                 "captured action GPU target leaked at shutdown");
         Require(contactTexture.releaseCount>0,
             "contact target leaked at shutdown");
-        Console.WriteLine("PASS 84 E/W/N/S three-class all-action native captures (24 LMB/Q), left flip, E-W-E, windup-contact, transient bad-clip recovery, device loss and cleanup");
+        Console.WriteLine("PASS 84 E/W/N/S class actions, late Controller import, bounded retry, same-body fallback, class-swap isolation, contact recovery, device loss and cleanup");
         Console.WriteLine("NATIVE_UNVERIFIED: Unity GPU/GameView/Animator not executed");
     }
 }

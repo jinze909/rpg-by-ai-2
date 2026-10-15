@@ -137,6 +137,31 @@ def run():
     assert rejectedStuck.returncode!=0 and "HERO_CAPTURE_REGRESSION" in rejectedStuck.stdout,(
         "UNSAFE_CI_ACCEPTED_PERMANENT_ANIMATOR_DISABLE",rejectedStuck.stdout)
     print("PASS permanently disabled Animator retry mutation hard-FAIL")
+    # Mutate the new controller loader into the historical one-shot loading
+    # behaviour: initial class selection still works, but a Controller that
+    # appears after the first failed read can never recover. CI MUST reject.
+    controllerCondition="Time.frameCount >= heroControllerRetryAt"
+    assert original.count(controllerCondition)==1, (
+        "MISSING_HERO_CONTROLLER_IMPORT_RETRY_GUARD")
+    oneShot=original.replace(controllerCondition,
+        "(Time.frameCount >= heroControllerRetryAt && heroControllerRetryAt == 0)",
+        1)
+    oneShotPath=OUT/"broken-hero-controller-one-shot.cs"
+    oneShotPath.write_text(oneShot,encoding="utf-8")
+    oneShotExe=OUT/"broken-hero-controller-one-shot.exe"
+    builtOneShot=subprocess.run(compiler()+[
+        "-define:UNITY_5_3_OR_NEWER","-out:"+str(oneShotExe),
+        str(STUB),str(FACTORY),str(oneShotPath),str(probe)],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert builtOneShot.returncode==0,(
+        "HERO_CONTROLLER_RETRY_MUTATION_INVALID",builtOneShot.stdout)
+    deniedOneShot=subprocess.run([mono,str(oneShotExe)],cwd=ROOT,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert deniedOneShot.returncode!=0 and (
+        "HERO_CAPTURE_REGRESSION" in deniedOneShot.stdout), (
+        "UNSAFE_CI_ACCEPTED_UNRECOVERABLE_CONTROLLER_IMPORT",
+        deniedOneShot.stdout)
+    print("PASS one-shot native Controller import regression hard-FAIL")
     print("PASS actual UNITY_5_3_OR_NEWER SpriteRenderer + canonical "
           "Sprite factory compiled in separate C# assembly")
     print("PASS fault-injected invalid SpriteRenderer API rejected by mcs")

@@ -448,6 +448,10 @@ def check():
         "bool recentlyRejected =",
         "bool nativeReady=available && !recentlyRejected &&",
         "TryUseProductionHeroClip(facing);",
+        "heroControllerRetryAt = Time.frameCount + 120;",
+        "Time.frameCount >= heroControllerRetryAt",
+        "heroCaptureAnimator.runtimeAnimatorController = null;",
+        "heroProductionReady = controller != null;",
     ]:
         assert mark in engine, "Missing native Animator pixel-parity fallback: " + mark
     assert "bool available=TryUsePublishedHeroFrame(equipment,action," in engine

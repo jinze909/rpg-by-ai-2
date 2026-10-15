@@ -58,6 +58,10 @@ namespace Starfall
         private bool heroCaptureBroken;
         private int heroCaptureProfession = -1;
         private bool heroProductionReady;
+        // Unity may finish importing the production .controller after the
+        // first GameView draw. Missing controllers require the same bounded
+        // recovery as published sprites, not a permanent per-class fallback.
+        private int heroControllerRetryAt;
         private static readonly string[] HeroLiveActions =
             { "Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death" };
         private static readonly string[] HeroLiveFacings = { "E", "N", "S" };
@@ -345,11 +349,24 @@ namespace Starfall
             if (heroCaptureProfession != profession)
             {
                 heroCaptureProfession = profession;
+                // Never leave the old outfit's controller bound while its new
+                // class resources are missing or waiting for import.
+                heroProductionReady = false;
+                heroControllerRetryAt = 0;
+                heroCaptureAnimator.runtimeAnimatorController = null;
+            }
+            if (!heroProductionReady && Time.frameCount >= heroControllerRetryAt)
+            {
                 RuntimeAnimatorController controller =
-                    Resources.Load<RuntimeAnimatorController>("Frontier/HeroAnimator/Production"
-                        + HeroLiveProfessions[profession]);
+                    Resources.Load<RuntimeAnimatorController>(
+                        "Frontier/HeroAnimator/Production" +
+                        HeroLiveProfessions[profession]);
                 heroCaptureAnimator.runtimeAnimatorController = controller;
                 heroProductionReady = controller != null;
+                // No per-repaint Resources calls when a controller is absent;
+                // once Unity imports it, native Animator playback resumes
+                // without changing the equipped class or restarting the game.
+                heroControllerRetryAt = Time.frameCount + 120;
             }
             if (!heroProductionReady) return false;
             if (!heroCaptureAnimator.enabled) heroCaptureAnimator.enabled = true;
@@ -454,6 +471,7 @@ namespace Starfall
             heroCaptureRenderedFlip = false;
             heroCaptureProfession = -1;
             heroProductionReady = false;
+            heroControllerRetryAt = 0;
         }
     }
 }
