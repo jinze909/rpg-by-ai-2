@@ -128,6 +128,9 @@ def check():
                     sheet = raw.convert("RGBA")
                 assert sheet.size == (expected * CELL, CELL), key
                 assert sheet.mode == "RGBA", key
+                if action in ("Dodge", "Hit"):
+                    assert len(originals) == 3 and expected == 5, key
+                    assert row["generated_midpoints"] == 2, key
                 if action == "Cast":
                     assert len(originals) == 4 and expected == 7, key
                     # The final pose EXACTLY rejoins the accepted rooted idle.
@@ -138,11 +141,11 @@ def check():
                     cell = sheet.crop((i * CELL, 0, (i + 1) * CELL, CELL))
                     assert cell.getchannel("A").getbbox() is not None, (key, i)
                 for original_index in range(len(originals)):
-                    index = original_index * 2 if action in ("Run", "Attack", "Cast") and len(originals) > 1 else original_index
+                    index = original_index * 2 if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and len(originals) > 1 else original_index
                     extracted = sheet.crop((index * CELL, 0, (index + 1) * CELL, CELL))
                     with Image.open(PREVIEW / klass / action / f"{facing}_{original_index:02}.png") as source:
                         assert extracted.tobytes() == source.convert("RGBA").tobytes(), (key, original_index)
-                    if action in ("Run", "Attack", "Cast") and len(originals) > 1:
+                    if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
                         if original_index < len(originals) - 1 or action == "Run":
                             midpoint = sheet.crop(((index + 1) * CELL, 0, (index + 2) * CELL, CELL))
                             if midpoint.tobytes() == extracted.tobytes():
@@ -169,7 +172,7 @@ def check():
                 midpoints += row["generated_midpoints"]
                 if action == "Attack" and klass == "Vanguard":
                     examples.append(key)
-    assert tally == 63 and midpoints > 60, (tally, midpoints)
+    assert tally == 63 and midpoints == 126, (tally, midpoints)
     assert distinct_motion_cells + identical_motion_cells == midpoints, (
         "Motion cell audit missed a generated sprite")
     # A geometry pass should actually move most limbs; report any remaining
