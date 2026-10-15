@@ -276,6 +276,19 @@ public static class ActorRegistrationChecks
         var priorConversation=g.conversation;
         var priorSource=g.conversationSource;
         const string atlas="resource:Frontier/Art/EmberfallResidents";
+        // The shipped raider is hit-flashed in actual combat; its mask must
+        // already exist before a hit, not be built in a Repaint callback.
+        var art=(PixelArt)typeof(FrontierRuntime).GetField("art",Private).GetValue(app);
+        var cache=(System.Collections.IDictionary)typeof(PixelArt).GetField(
+            "cache",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(art);
+        Check(cache.Keys.Cast<object>().Any(key=>
+            key.ToString().Contains("flash_")&&
+            key.ToString().Contains("MossboundRaider")),
+            "Mossbound first-hit flash must be prepared at startup");
+        Check(cache.Keys.Cast<object>().Any(key=>
+            key.ToString().Contains("outline_")&&
+            key.ToString().Contains("MossboundRaider")),
+            "Mossbound outline must be prepared before world drawing");
         try
         {
             foreach(var npc in new [] {guild,smith})
@@ -301,6 +314,18 @@ public static class ActorRegistrationChecks
                     Math.Abs(idle.rect.y-spoken.rect.y)<.001f,
                     "NPC talk must not shift whole-body foot anchor");
             }
+            // Nearby identical residents have independently phased idle
+            // bodies, rather than synchronized clock-driven puppet motion.
+            g.conversation=null;g.conversationSource=null;
+            Clear();
+            var phaseA=Draw(app,"DrawNpc","guild",
+                new Point(17,17),-1).First(c=>c.texture.name==atlas);
+            Clear();
+            var phaseB=Draw(app,"DrawNpc","guild",
+                new Point(18,17),-1).First(c=>c.texture.name==atlas);
+            Check(Math.Abs(phaseA.uv.x-phaseB.uv.x)>.01f,
+                "Two distinct residents must not breathe in lockstep");
+            g.conversation=new Conversation("speaker","speaker","hello","hello");
             g.conversationSource=guild;
             Clear();
             var bystander=Draw(app,"DrawNpc","guild",

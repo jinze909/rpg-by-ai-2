@@ -51,6 +51,14 @@ namespace Starfall
             foreach(Texture2D sheet in companionWalkSheets) if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             foreach(Texture2D sheet in bossWalkSheets) if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             if(briarBeastSheet!=null) { art.FlashMask(briarBeastSheet); art.OutlineMask(briarBeastSheet); }
+            // The first raider hit must not synchronously read and repaint a
+            // 512x768 atlas while GameCore is dispatching combat contact.
+            // Match the other production actors: prepare both reusable masks
+            // during visual load, before the first gameplay frame.
+            if(mossboundRaiderSheet!=null) {
+                art.FlashMask(mossboundRaiderSheet);
+                art.OutlineMask(mossboundRaiderSheet);
+            }
             if(emberfallResidentsSheet!=null) { art.OutlineMask(emberfallResidentsSheet); }
             foreach(Texture2D sheet in new[]{playerRear,playerSouth,playerReactionsRear,playerReactionsSouth,enemyArcherVertical,monsterSheet,bossSheet,monsterWalkSheet})
                 if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
@@ -579,8 +587,14 @@ namespace Starfall
             {
                 // Four authored whole-body poses per action, same fixed foot.
                 // Guild [0,1], forge [2,3]; talk only for real interlocutor.
-                int pose = (int)(clock * (isTalking ? 5.5f : 2.4f)) % 4;
-                if (pose < 0) pose += 4;
+                // Separate residents must not breathe in perfect lockstep.
+                // A position-derived phase is deterministic across repaints,
+                // scene reloads and save/load; it never mutates GameCore.
+                // Speaking keeps the authored faster four-frame talk loop.
+                int phaseOffset = ((int)Math.Floor(position.x * 7f) +
+                    (int)Math.Floor(position.y * 11f)) & 3;
+                int pose = ((int)Math.Floor(clock *
+                    (isTalking ? 5.5f : 2.4f)) + phaseOffset) & 3;
                 int row = (npcKey == 0 ? 0 : 2) + (isTalking ? 1 : 0);
                 int frame = row * 4 + pose;
                 Actor(emberfallResidentsSheet, 4, 4, frame, p, 96, tint);
