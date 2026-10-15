@@ -65,8 +65,18 @@ namespace Starfall.EditorTools
 
         private static void BeforePlay(PlayModeStateChange state)
         {
-            if (state == PlayModeStateChange.ExitingEditMode)
-                TryBakeAfterImport();
+            if (state != PlayModeStateChange.ExitingEditMode) return;
+            // Unity already sets isPlayingOrWillChangePlaymode during this
+            // callback. Calling TryBakeAfterImport() here silently SKIPPED
+            // the mandatory Play-mode import, so real imported Animator
+            // assets were only ready on later sessions.
+            try { EnsureBuilt(); }
+            catch (Exception error)
+            {
+                Debug.LogWarning("Starfall accepted Animator could not prepare " +
+                    "before Play; retaining original full-body Sprite fallback: " +
+                    error.Message);
+            }
         }
 
         [MenuItem("Starfall/Art/Rebuild Accepted Detailed Actor Animators")]

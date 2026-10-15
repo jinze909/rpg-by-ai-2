@@ -47,6 +47,8 @@ def ensure_builder_contract(code):
         "AnimationUtility.GetObjectReferenceCurve(clip,",
         "keys[col].value != imported[spriteIndex]",
         "UnityEditor.Build.IPreprocessBuildWithReport",
+        "if (state != PlayModeStateChange.ExitingEditMode) return;",
+        "try { EnsureBuilt(); }",
         "StarfallAcceptedActorAnimatorBuilder.EnsureBuilt();",
         "UnityEditor.Build.BuildFailedException",
     ):
@@ -71,6 +73,8 @@ def main():
                        "StarfallAcceptedActorAnimatorBuilder.ToString();",1),
         source.replace("if (source == null || AssetDatabase.AssetPathToGUID(png) != guid)",
                        "if (source == null)",1),
+        source.replace("if (state != PlayModeStateChange.ExitingEditMode) return;",
+                       "if (false) return;",1),
     ):
         try: ensure_builder_contract(dangerous)
         except AssertionError: pass
