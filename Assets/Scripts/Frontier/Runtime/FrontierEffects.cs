@@ -6,6 +6,7 @@ namespace Starfall
     {
         private void DrawProjectileVisual(Projectile projectile)
         {
+            if (effectSheet == null) RecoverPublishedVisualAtlases();
             Point p = ScreenPoint(projectile.position); string visual = projectile.visual ?? (projectile.friendly ? projectile.explosive ? "starfire" : "arrow" : "enemyOrb");
             float height = projectile.height; p.y -= height;
             bool arrow = visual == "arrow" || visual == "enemyArrow";
@@ -13,34 +14,85 @@ namespace Starfall
             float angle = (float)(Math.Atan2(projectile.velocity.y, projectile.velocity.x) * 180 / Math.PI);
             float size = arrow ? 30 : projectile.explosive ? 28 : 22;
             Color tint = projectile.friendly ? Color.white : BossEffectColor(projectile.theme);
-            if (Game.save.effectsQuality > 0)
-                for (int i = Math.Min(3, (int)(projectile.age * projectile.velocity.Length / .18f)); i > 0; i--)
+            // Tail cells are the original illustrated Effects.png pixels.
+            // Previously each ghost materialized at FULL alpha as soon as a
+            // discrete distance threshold was crossed: fast arrows showed
+            // three visible duplicate silhouettes in successive frames.
+            // Ease each independent tail IN over 0.18 world units. Nothing
+            // changes projectile collision, velocity or real emission time.
+            // Reduced motion never adds trailing moving silhouettes.
+            if(effectSheet!=null && Game.save.effectsQuality>0 &&
+                !Game.save.reducedMotion)
+            {
+                float travelled=projectile.age*projectile.velocity.Length;
+                int maxTrail=Game.save.effectsQuality==1?2:3;
+                for(int i=maxTrail;i>0;i--)
                 {
-                    Point tail = ScreenPoint(projectile.position - projectile.velocity.Normalized * i * .18f);
-                    tail.y -= height;
-                    Atlas(effectSheet, 4, 4, arrow ? 11 : 12, new Rect(tail.x - size / 2, tail.y - size / 2, size, size), new Color(tint.r, tint.g, tint.b, .42f / i), false, angle);
+                    float fade=Mathf.Clamp01(
+                        (travelled-i*.18f)/
+                        CurrentWorldVisualLook.projectileTrailFadeDistance);
+                    if(fade<=0f)continue;
+                    Point tail=ScreenPoint(projectile.position-
+                        projectile.velocity.Normalized*i*.18f);
+                    tail.y-=height;
+                    Atlas(effectSheet,4,4,arrow?11:12,
+                        new Rect(tail.x-size/2,tail.y-size/2,size,size),
+                        new Color(tint.r,tint.g,tint.b,
+                            .42f/i*fade),false,angle);
                 }
+            }
             if (effectSheet != null) Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2, size, size), tint, false, arrow ? angle : 0);
             else { Box(p.x - 4, p.y - 4, 8, 8, projectile.friendly ? gold : PixelArt.C("#e39382")); }
         }
         private bool DrawAuthoredEffect(Effect effect)
         {
-            if (effectSheet == null || effect.kind == "number" || effect.kind == "break") return false;
+            if (effectSheet == null || iconSheet == null)
+                RecoverPublishedVisualAtlases();
+            if (effect.kind == "number" || effect.kind == "break") return false;
+            // Loot needs Icons.png, not Effects.png. A missing VFX atlas
+            // must not suppress an otherwise valid detailed item icon.
+            if (effect.kind != "loot" && effectSheet == null) return false;
+            if (effect.kind == "loot" && iconSheet == null &&
+                effectSheet == null) return false;
             Point p = ScreenPoint(effect.position); float progress = Mathf.Clamp01(1 - effect.life / Math.Max(.001f, effect.maxLife));
             if (effect.kind == "loot")
             {
                 int item = effect.variant == 5 ? 9 : effect.variant == 4 ? 8 : effect.variant == 1 ? 5 : 6;
                 float lift = (float)Math.Sin(progress * Math.PI) * 25;
-                Atlas(iconSheet, 4, 4, item, new Rect(p.x + 12, p.y - 15 - lift, 24, 24), new Color(1, 1, 1, Math.Min(1, (1 - progress) * 2)));
+                Rect destination = new Rect(p.x + 12, p.y - 15 - lift, 24, 24);
+                Color tint = new Color(1, 1, 1, Math.Min(1, (1 - progress) * 2));
+                if (iconSheet != null)
+                    Atlas(iconSheet, 4, 4, item, destination, tint);
+                else
+                    // Previously this silently submitted a NULL texture and
+                    // returned success, making a pickup effect invisible.
+                    // Retain an original authored Effects.png sparkle until
+                    // the illustrated inventory atlas is imported.
+                    Atlas(effectSheet, 4, 4, 13, destination, tint);
                 return true;
             }
             int id; float size = 45, angle = 0;
             switch (effect.kind)
             {
-                case "slash": id = 0; size = effect.variant == 2 ? 100 : 78; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
+                // Two real hand-painted contact silhouettes, NOT a moving
+                // billboard of the same static frame. The GameCore event
+                // still owns timing and damage; only the visual FX lifetime
+                // chooses anticipation -> follow-through.
+                case "slash":
+                    id = progress < .38f ? 0 : 1;
+                    size = effect.variant == 2 ? 100 : 78;
+                    angle = (float)(Math.Atan2(effect.direction.y,
+                        effect.direction.x) * 180 / Math.PI); break;
                 case "spark": id = 3; size = 42; break;
-                case "impact": case "hurt": id = 2; size = 38; break;
-                case "projectileImpact": id = 4; size = 35; break;
+                // The source Effects.png already contains a luminous
+                // contact spark (cell 3) and weighted dust/splinter burst
+                // (cell 2). Keep the same world pivot through the transition.
+                case "impact": case "hurt":
+                    id = progress < .32f ? 3 : 2;
+                    size = 38; break;
+                case "projectileImpact":
+                    id = progress < .32f ? 3 : 4;
+                    size = 35; break;
                 case "projectileFade": id = effect.variant; size = 26; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
                 case "magicImpact": id = 5; size = effect.radius > 0 ? effect.radius * Tile * 2 : 67; break;
                 case "release": id = 13; size = 33; break;
@@ -70,6 +122,23 @@ namespace Starfall
             float height = effect.kind == "impact" || effect.kind == "hurt" || effect.kind == "spark" || effect.kind == "slash" || effect.kind == "projectileImpact" || effect.kind == "magicImpact" || effect.kind == "release" || effect.kind == "heal" ? 30 : effect.kind == "defeat" ? 18 : effect.kind == "enemyRelease" && id != 7 ? 38 : 0;
             if (effect.height >= 0) height = effect.height;
             Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2 - height, size, size), color, false, angle);
+            // A spell currently has a fine, illustrated teal vortex but its
+            // point of contact looks static. Use the ORIGINAL authored
+            // Effects.png contact star (cell 13) as a short-lived second
+            // whole-Sprite light layer, on the SAME contact pivot and on the
+            // actual GameCore Effect clock. No new low-res particles, extra
+            // damage event, time offset, or free-running Animator is added.
+            if (effect.kind == "magicImpact" &&
+                Game.save.effectsQuality > 1 && !Game.save.reducedMotion &&
+                progress < .60f)
+            {
+                float sparkle = size * (.44f + progress * .12f);
+                float alpha = color.a * .68f * (1f - progress / .60f);
+                Atlas(effectSheet, 4, 4, 13,
+                    new Rect(p.x - sparkle / 2f,
+                        p.y - height - sparkle / 2f,sparkle,sparkle),
+                    new Color(.91f,1f,.92f,alpha));
+            }
             if (effect.kind == "danger" || effect.kind == "frost" || effect.kind == "burst" || effect.kind == "magicImpact" && effect.radius > 0)
             {
                 float radius = effect.kind == "frost" ? 4 : effect.kind == "burst" || effect.kind == "magicImpact" ? effect.radius : effect.radius > 0 ? effect.radius : .4f + progress * 1.3f;
@@ -84,43 +153,125 @@ namespace Starfall
         { return room == 1 ? 1 : room == 2 ? 12 : room == 3 ? 7 : room == 4 ? 5 : room == 5 ? 12 : room == 6 ? 7 : room == 7 ? 6 : room == 8 ? 5 : 7; }
         private static Color BossEffectColor(int room)
         { return room == 2 || room == 5 ? new Color(.7f, .9f, .82f) : room == 7 ? new Color(.75f, .87f, 1) : room == 4 || room == 8 ? new Color(.87f, .81f, 1) : room == 6 ? new Color(1, .83f, .6f) : new Color(1, .9f, .78f); }
+        // One continuous, thin alert stroke instead of widely separated
+        // 2x2 white GUI pixels. Line endpoints are placed in the same
+        // GameCore world-space damage geometry as the old warning. Rotating
+        // the complete segment in logical-canvas space also works with
+        // letterboxing/ultrawide GameView and never mutates collision.
+        private void DrawWarningStroke(Point a, Point b, Color color)
+        {
+            Point delta=b-a;
+            float length=delta.Length;
+            if(length<.001f)return;
+            float theta=(float)(Math.Atan2(delta.y,delta.x)*180/Math.PI);
+            Point mid=(a+b)*.5f;
+            Matrix4x4 original=GUI.matrix;
+            try
+            {
+                GUI.matrix=GuiGeometry.RotateAroundPivot(original,
+                    new Vector2(mid.x,mid.y),theta);
+                float width=CurrentWorldVisualLook.combatWarningStrokePixels;
+                Box(mid.x-length*.5f-width*.25f,
+                    mid.y-width*.5f,
+                    length+width*.5f,width,color);
+            }
+            finally {GUI.matrix=original;}
+        }
+        private void DrawWarningArc(Point location,float radius,
+            float initial,float sweep,Color color,int segments)
+        {
+            if(radius<=0f||segments<1)return;
+            Point center=ScreenPoint(location);
+            float pixels=radius*Tile;
+            float step=sweep/segments;
+            Point prior=new Point(center.x+(float)Math.Cos(initial)*pixels,
+                center.y+(float)Math.Sin(initial)*pixels);
+            for(int i=1;i<=segments;i++)
+            {
+                float next=initial+i*step;
+                Point end=new Point(center.x+(float)Math.Cos(next)*pixels,
+                    center.y+(float)Math.Sin(next)*pixels);
+                DrawWarningStroke(prior,end,color);
+                prior=end;
+            }
+        }
         private void DrawTelegraph(Enemy enemy)
         {
             float radius = GameCore.EnemyAreaRadius(enemy);
             float duration = enemy.windupDuration > 0 ? enemy.windupDuration : enemy.boss ? 1.1f : .65f;
             float progress = Mathf.Clamp01(1 - enemy.timer / duration);
             Color warning = PixelArt.C("#df8a68");
-            if (enemy.boss && (enemy.target - enemy.Position).Length > 3) DrawRay(enemy.Position, enemy.target, new Color(warning.r, warning.g, warning.b, .18f + progress * .15f));
-            Ring(enemy.target, radius, new Color(warning.r, warning.g, warning.b, .85f), 48);
-            Ring(enemy.target, radius * (.2f + progress * .8f), new Color(warning.r, warning.g, warning.b, .35f + progress * .35f), 32);
+            if(enemy.boss && (enemy.target-enemy.Position).Length>3)
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(enemy.target),
+                    new Color(warning.r,warning.g,warning.b,.18f+progress*.15f));
+            DrawWarningArc(enemy.target,radius,0f,
+                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,.85f),36);
+            DrawWarningArc(enemy.target,radius*(.2f+progress*.8f),0f,
+                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,
+                .35f+progress*.35f),24);
             Point p = ScreenPoint(enemy.target);
             Atlas(effectSheet, 4, 4, 14, new Rect(p.x - radius * Tile, p.y - radius * Tile, radius * Tile * 2, radius * Tile * 2), new Color(warning.r, warning.g, warning.b, .1f + progress * .13f));
         }
         private void DrawEnemyWarning(Enemy enemy)
         {
             if(enemy.state!=1)return;
+            // A civilian-targeted strike (traveler or rescue) uses the same
+            // locked simulation target as its actual damage or projectile.
+            // Draw a slender, always-visible interception lane even in reduced
+            // motion; never flood the arena with an opaque HUD.
+            bool targetedCivilian =
+                enemy.targetingWayfarer && Game.WayfarerEncounterRoom == Game.save.room ||
+                enemy.targetingReliefCivilian &&
+                    Game.reliefMissionRoom == Game.save.room &&
+                    (Game.reliefMissionWave >= 1 && Game.reliefMissionWave <= 3);
+            if (targetedCivilian)
+            {
+                float laneProgress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
+                Color tether = PixelArt.C("#f4b58b");
+                float opacity = Game.save.reducedMotion ? .4f : .24f + laneProgress * .25f;
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(enemy.target),
+                    new Color(tether.r,tether.g,tether.b,opacity));
+                DrawWarningArc(enemy.target,.34f,0f,(float)(Math.PI*2),
+                    new Color(tether.r,tether.g,tether.b,.65f),16);
+                if (enemy.targetingReliefCivilian && enemy.kind == 1)
+                {
+                    // The projectile can be blocked mid-flight; warn about
+                    // the arrow's actual shot lane, not a ground shockwave.
+                    Point muzzle = GameCore.WeaponOrigin(enemy.Position, 1, enemy.facing);
+                    DrawWarningStroke(ScreenPoint(muzzle),
+                        ScreenPoint(enemy.target),
+                        new Color(tether.r,tether.g,tether.b,
+                            Game.save.reducedMotion ? .6f :
+                            .35f+laneProgress*.4f));
+                }
+            }
             if(enemy.boss||enemy.kind==2){DrawTelegraph(enemy);return;}
             float progress=Mathf.Clamp01(1-enemy.timer/Math.Max(.01f,enemy.windupDuration));
             Color color=new Color(.875f,.54f,.408f,.35f+progress*.4f);
             if(enemy.kind==1)
             {
                 Point muzzle=GameCore.WeaponOrigin(enemy.Position,1,enemy.facing),lift=new Point(0,GameCore.WeaponHeight(1,enemy.facing)/Tile);
-                DrawRay(muzzle-lift,enemy.target-lift,color);return;
+                DrawWarningStroke(ScreenPoint(muzzle-lift),
+                    ScreenPoint(enemy.target-lift),color);
+                return;
             }
             // Readability uses the same center, radius and angular bound as damage.
             // This thin open sector supplements the claw wind-up without covering it.
             float angle=(float)Math.Atan2(enemy.facing.y,enemy.facing.x),half=(float)Math.Acos(GameCore.EnemyMeleeCosine);
-            Point center=ScreenPoint(enemy.Position);float radius=GameCore.EnemyMeleeRadius*Tile;
-            for(int i=0;i<=32;i++)
-            {
-                float a=angle-half+half*2*i/32;
-                Box(center.x+(float)Math.Cos(a)*radius-1,center.y+(float)Math.Sin(a)*radius-1,2,2,color);
-            }
+            // The previous 33 disconnected square dots flickered into a
+            // jagged, barely legible arc. The new stitched stroke follows the
+            // identical GameCore melee cosine/radius and facing.
+            DrawWarningArc(enemy.Position,GameCore.EnemyMeleeRadius,
+                angle-half,half*2f,color,24);
             for(int side=-1;side<=1;side+=2)
             {
                 float a=angle+half*side;
                 Point edge=enemy.Position+new Point((float)Math.Cos(a),(float)Math.Sin(a))*GameCore.EnemyMeleeRadius;
-                DrawRay(enemy.Position,edge,new Color(color.r,color.g,color.b,color.a*.45f));
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(edge),
+                    new Color(color.r,color.g,color.b,color.a*.45f));
             }
         }
     }

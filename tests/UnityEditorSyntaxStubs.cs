@@ -21,7 +21,7 @@ namespace UnityEditor
     public static class BuildPipeline {public static Build.Reporting.BuildReport BuildPlayer(string[] scenes,string path,BuildTarget target,BuildOptions options){return new Build.Reporting.BuildReport();} }
     public class AssetImporter {}
     public class AssetPostprocessor {public string assetPath="";public AssetImporter assetImporter;}
-    public enum TextureImporterType {Default} public enum TextureImporterNPOTScale {None} public enum TextureImporterCompression {Uncompressed}
+    public enum TextureImporterType {Default,Sprite} public enum TextureImporterNPOTScale {None} public enum TextureImporterCompression {Uncompressed}
     public class TextureImporter:AssetImporter {public TextureImporterType textureType;public UnityEngine.FilterMode filterMode;public bool mipmapEnabled,alphaIsTransparency,isReadable;public TextureImporterNPOTScale npotScale;public int maxTextureSize;public TextureImporterCompression textureCompression;}
     public class TrueTypeFontImporter:AssetImporter {public bool includeFontData;}
 }

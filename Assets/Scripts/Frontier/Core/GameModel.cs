@@ -27,6 +27,14 @@ namespace Starfall
     [Serializable] public class BossData { public string name, en; public float hp; }
     [Serializable] public class LoreData { public string title, en, zh, text; }
 
+    // Optional, version-2-compatible checkpoint for a completed rescue
+    // ambush. Old saves deserialize this as null.
+    [Serializable] public class RescueCheckpoint
+    {
+        public int room;
+        public float x, y, time, safety;
+        public bool waiting, treated, escortGuardUsed, hurryUsed, climateKitUsed;
+    }
     [Serializable] public class SaveData
     {
         public int version = 2, room, stage, coins = 25, level = 1, xp, weapon, upgrades, ending, profession, skillPoints;
@@ -56,6 +64,7 @@ namespace Starfall
         public float musicVolume = .65f, effectsVolume = .8f, ambienceVolume = .5f;
         public int[] weaponStyles = { 0, 0, 0 };
         public EnemyRecord[] worldEnemies;
+        public RescueCheckpoint rescueCheckpoint;
         public int savedRunes;
         public string savedAtUtc, lastFailureZh, lastFailureEn;
         public List<JournalMoment> moments = new List<JournalMoment>();
@@ -80,6 +89,8 @@ namespace Starfall
     {
         public int id, kind, state, cycle;
         public bool boss, moving;
+        // Ephemeral combat intent: roadside raiders may target the protected traveler.
+        public bool targetingWayfarer, targetingReliefCivilian;
         public float x, y, hp, maxHp, timer, stun, flash, stagger, staggerRecovery;
         public Point target, attackOrigin, attackDestination;
         public Point facing = new Point(1, 0);
@@ -91,7 +102,15 @@ namespace Starfall
         public void Face(Point direction)
         { if(direction.Length<.001f)return;if(Math.Abs(facing.x)>.25f)lookLeft=facing.x<0;facing=direction.Normalized;if(Math.Abs(facing.x)>.25f)lookLeft=facing.x<0; }
         public Enemy(int id, int kind, float x, float y, float hp, bool boss = false)
-        { this.id = id; this.kind = kind; this.x = x; this.y = y; this.hp = maxHp = hp; this.boss = boss; timer = 1.3f + id * .13f; }
+        {
+            this.id = id; this.kind = kind; this.x = x; this.y = y;
+            this.hp = maxHp = hp; this.boss = boss;
+            // Spawn identity is not elapsed time. Large restored/procedural IDs
+            // must not postpone the very first AI attack for minutes or hours.
+            // Keep the original delays for the ordinary first eight enemies.
+            int openingSlot = id > 0 ? (id - 1) % 8 + 1 : 1;
+            timer = 1.3f + openingSlot * .13f;
+        }
         public Point Position { get { return new Point(x, y); } }
         public int BossPhase { get { return hp > maxHp * .66f ? 1 : hp > maxHp * .33f ? 2 : 3; } }
     }
@@ -107,6 +126,8 @@ namespace Starfall
         public float life = 3, damage;
         public bool friendly, explosive, piercing;
         public bool slowing, technique, blockedAtSpawn;
+        // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
+        public bool roadTrialOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned;
         public string source, visual;
         public float age, height = 32, launchHeight = -1, flightHeight = -1;
         public ImpactProfile impact;
@@ -121,6 +142,9 @@ namespace Starfall
         public float life, maxLife, radius, height = -1;
         public Point direction;
         public int variant;
+        // Only encounter-owned warnings retire when an optional rescue ends.
+        // Ordinary combat effects are preserved.
+        public bool reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned;
         public Effect(string kind, Point position, float life, string text = "")
         { this.kind = kind; this.position = position; this.life = maxLife = life; this.text = text; }
     }
@@ -129,6 +153,8 @@ namespace Starfall
         public Point position;
         public float timer, radius, damage;
         public string kind;
+        // Transient ownership prevents encounter hazards surviving retirement.
+        public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned, civicConduitOwned;
     }
     public struct LightRay
     {

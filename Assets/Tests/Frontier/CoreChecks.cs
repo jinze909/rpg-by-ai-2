@@ -22,6 +22,63 @@ namespace Starfall.Tests
                 if (g.conversation.choices[i].action == action) { g.Choose(i); return; }
             throw new Exception("Missing action " + action);
         }
+        public static void SealedPursuitRoutesToLegalFrontierAndReopensImmediately(Campaign data)
+        {
+            // Keep all authored campaign maps and story objects unchanged.
+            // Temporarily substitute a miniature blocked arena for a real
+            // GameCore to exercise the production DirectionTo + Fits path.
+            MapData original = data.maps[0];
+            try
+            {
+                string[] rows = new string[16];
+                for (int y = 0; y < rows.Length; y++)
+                {
+                    char[] cells = new string('.', 16).ToCharArray();
+                    for (int x = 0; x < 16; x++)
+                        if (x < 2 || x >= 14 || y < 2 || y >= 14) cells[x] = '#';
+                    if (y >= 2 && y < 14) cells[7] = '#';
+                    rows[y] = new string(cells);
+                }
+                data.maps[0] = new MapData {
+                    id = 0, spawnX = 4.5f, spawnY = 8.5f,
+                    rows = rows, objects = new WorldObject[0],
+                    decor = new Decoration[0]
+                };
+                GameCore g = new GameCore(data);
+                Point target = new Point(10.5f, 8.5f);
+                Point approach = g.DirectionTo(new Point(4.5f, 8.5f), target);
+                Check(approach.x > .9f && Math.Abs(approach.y) < .1f,
+                    "Sealed target first draws pursuit toward the nearest reachable legal frontier");
+                Point waiting = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                Check(waiting.Length < .001f,
+                    "At a sealed frontier the pursuer must not walk straight into the wall or jitter");
+                Check(g.NavigationPath(target).Count == 0,
+                    "Navigation HUD cannot draw a physically false route through a sealed wall");
+
+                char[] doorway = rows[12].ToCharArray(); doorway[7] = '.';
+                rows[12] = new string(doorway);
+                Point detour = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                Check(detour.y > .9f && Math.Abs(detour.x) < .1f,
+                    "Opening a distant legal corridor immediately makes AI seek its detour");
+                for (int pass = 0; pass < 4; pass++)
+                {
+                    List<Point> route = g.NavigationPath(target);
+                    Check(route.Count > 6 &&
+                        (route[route.Count - 1] - target).Length < 1.2f,
+                        "Shared HUD and combat BFS workspace must not retain stale parent links, pass " + pass);
+                    Point again = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                    Check(again.y > .9f,
+                        "Shared BFS generations must never corrupt the following enemy detour");
+                }
+                char[] crossing = rows[8].ToCharArray(); crossing[7] = '.';
+                rows[8] = new string(crossing);
+                Point direct = g.DirectionTo(new Point(6.5f, 8.5f), target);
+                Check(direct.x > .9f && Math.Abs(direct.y) < .1f,
+                    "Opening a direct bridge immediately replaces the detour without stale navigation");
+            }
+            finally { data.maps[0] = original; }
+        }
+
         public static void ClassesAndPause(Campaign data)
         {
             for (int i = 0; i < 3; i++)
@@ -33,6 +90,41 @@ namespace Starfall.Tests
                 g.Close(); g.save.energy = 100; g.Skill(); Check(g.save.energy == 60 && g.skillCooldown > 0, "Class skill cost");
                 g.Skill(); Check(g.save.energy == 60, "Skill cannot repeat during cooldown");
             }
+        }
+        public static void RepeatablePurchasesCannotConsumeResourcesPastSavedStackCaps(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.coins=500;
+            g.save.inventory[0]=9997;g.save.inventory[7]=9998;
+            g.save.inventory[6]=9999;g.save.inventory[2]=20;
+            g.save.inventory[3]=20;g.save.inventory[1]=20;g.save.tea=999;
+            int cash=g.save.coins,wood=g.save.inventory[0],
+                seeds=g.save.inventory[7],herbs=g.save.inventory[2],
+                fish=g.save.inventory[3],crystal=g.save.inventory[1];
+            Action(g,"cook","buywood");
+            Action(g,"garden","seeds");
+            Action(g,"cook","buymeal");
+            Action(g,"cook","cook");
+            Action(g,"cook","tea");
+            Check(g.save.coins==cash&&g.save.inventory[0]==wood&&
+                  g.save.inventory[7]==seeds&&g.save.inventory[6]==9999&&
+                  g.save.inventory[2]==herbs&&g.save.inventory[3]==fish&&
+                  g.save.inventory[1]==crystal&&g.save.tea==999,
+                "Full saved stacks reject timber, seeds, purchased/cooked stew and tea before deducting any ingredients or coins");
+            g.save.inventory[0]=9995;g.save.inventory[7]=9996;
+            g.save.inventory[6]=9998;g.save.tea=998;
+            Action(g,"cook","buywood");
+            Action(g,"garden","seeds");
+            Action(g,"cook","buymeal");
+            Action(g,"cook","tea");
+            Check(g.save.inventory[0]==9999&&g.save.inventory[7]==9999&&
+                  g.save.inventory[6]==9999&&g.save.tea==999&&
+                  g.save.coins==cash-g.ShopTimberCost-5-g.ShopStewCost&&
+                  g.save.inventory[2]==herbs-2&&g.save.inventory[1]==crystal-1,
+                "Exact last available storage space still permits legitimate paid purchases with correct resource costs");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.inventory[0]==9999&&loaded.save.inventory[7]==9999&&
+                  loaded.save.inventory[6]==9999&&loaded.save.tea==999,
+                "Full-stack purchases survive v2 save/load without losing paid inventory");
         }
         public static void Transactions(Campaign data)
         {
@@ -85,25 +177,54 @@ namespace Starfall.Tests
             {
                 g.save.stage = 3; g.save.flags.Add("seal_" + room); g.Enter(room);
                 var queue = new Queue<int>(); var seen = new HashSet<int>();
-                int start = (int)g.save.y * 36 + (int)g.save.x; queue.Enqueue(start); seen.Add(start);
+                int width = g.Map.rows[0].Length, height = g.Map.rows.Length;
+                int start = (int)g.save.y * width + (int)g.save.x; queue.Enqueue(start); seen.Add(start);
                 while (queue.Count > 0)
                 {
-                    int cell = queue.Dequeue(), x = cell % 36, y = cell / 36;
+                    int cell = queue.Dequeue(), x = cell % width, y = cell / width;
                     int[,] offsets = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
                     for (int i = 0; i < 4; i++)
                     {
-                        int xx = x + offsets[i, 0], yy = y + offsets[i, 1], next = yy * 36 + xx;
-                        if (xx < 0 || xx >= 36 || yy < 0 || yy >= 24 || g.Blocked(xx + .5f, yy + .5f) || seen.Contains(next)) continue;
+                        int xx = x + offsets[i, 0], yy = y + offsets[i, 1], next = yy * width + xx;
+                        if (xx < 0 || xx >= width || yy < 0 || yy >= height || g.Blocked(xx + .5f, yy + .5f) || seen.Contains(next)) continue;
                         seen.Add(next); queue.Enqueue(next);
                     }
                 }
                 foreach (var o in g.Map.objects)
                 {
                     bool reachable = false;
-                    foreach (int cell in seen) if ((new Point(cell % 36 + .5f, cell / 36 + .5f) - new Point(o.x, o.y)).Length < 1.7f) { reachable = true; break; }
+                    foreach (int cell in seen) if ((new Point(cell % width + .5f, cell / width + .5f) - new Point(o.x, o.y)).Length < 1.7f) { reachable = true; break; }
                     Check(reachable, "Unreachable object in room " + room + ": " + o.id);
                 }
             }
+        }
+        public static void CorruptEnemySnapshotsCannotInjectOrHideValidPatrols(Campaign data)
+        {
+            var old=new SaveData {
+                room=1,snapshotRoom=1,
+                worldEnemies=new [] {
+                    new EnemyRecord { id=5,kind=0,x=float.NaN,y=14,hp=30,maxHp=30 },
+                    new EnemyRecord { id=5,kind=0,x=13,y=14,hp=20,maxHp=30 },
+                    new EnemyRecord { id=6,kind=1,x=9999,y=9999,hp=30,maxHp=30 },
+                    new EnemyRecord { id=7,kind=2,x=14,y=14,hp=65,maxHp=80 }
+                }
+            };
+            var restored=new GameCore(data,old);
+            Check(restored.enemies.Count==3,
+                "Malformed duplicate loses to a valid same-ID record while the old safe-location recovery still saves isolated off-map actors");
+            Enemy valid=restored.enemies.Find(e=>e.id==5);
+            Check(valid!=null&&valid.hp==20&&valid.maxHp==30&&
+                  (valid.Position-new Point(13,14)).Length<.001f,
+                "A malformed duplicate cannot reserve an ID before its genuine original saved entry");
+            Enemy rescued=restored.enemies.Find(e=>e.id==6);
+            Check(restored.enemies.Exists(e=>e.id==7)&&rescued!=null&&
+                  rescued.hp==30&&restored.CanStand(rescued.Position),
+                "An isolated damaged-position enemy still recovers with its saved identity and health");
+            restored.PrepareSave();
+            var again=new GameCore(data,CloneSave(restored.save));
+            Check(again.enemies.Count==3&&again.enemies.Exists(e=>e.id==5)&&
+                  again.enemies.Exists(e=>e.id==6)&&again.enemies.Exists(e=>e.id==7),
+                "Deduplicated and rescued patrols persist normally across the next old-format save and reload");
         }
         public static void SaveValidation(Campaign data)
         {
@@ -111,6 +232,41 @@ namespace Starfall.Tests
             var g = new GameCore(data, bad); Check(g.save.room == 0 && g.save.x == 18 && g.save.coins == 0 && g.save.health == 120, "Damaged saves are sanitized");
             bool rejected = false; try { new GameCore(data, new SaveData { version = 900 }); } catch (ArgumentException) { rejected = true; }
             Check(rejected, "Unsupported save schema is rejected");
+            var legacyClass=new SaveData {
+                profession=500,weapon=2,technique=1,
+                flags=new List<string> { "weapon_2", "technique_2" }
+            };
+            var corrected=new GameCore(data,legacyClass);
+            Check(corrected.save.profession==2&&corrected.save.weapon==2&&
+                  corrected.save.technique==1,
+                "A corrupted profession number is repaired before validating a legitimately unlocked alternate skill");
+            var noUnlock=new SaveData { profession=500,technique=1 };
+            var denied=new GameCore(data,noUnlock);
+            Check(denied.save.profession==2&&denied.save.technique==0,
+                "Early class correction must never unlock an absent alternate profession skill");
+
+            var negativeXp=new GameCore(data,new SaveData{level=6,xp=-900});
+            Check(negativeXp.save.level==6&&negativeXp.save.xp==0,
+                "Negative XP cannot persist in a valid old v2 save");
+            var levelCap=new GameCore(data,new SaveData{level=30,xp=int.MaxValue});
+            Check(levelCap.save.level==30&&levelCap.save.xp==0,
+                "Already-maxed legacy saves cannot preserve overflowing XP");
+            var justBefore=new GameCore(data,new SaveData{level=29,xp=1159});
+            Check(justBefore.save.xp==1159,
+                "Ordinary near-level progress is preserved byte-for-byte on load");
+            justBefore.enemies.Clear();
+            var finalFoe=new Enemy(88131,0,18,14,30);
+            justBefore.enemies.Add(finalFoe);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            hit.Invoke(justBefore,new object[]{finalFoe,99999f,false,null,null});
+            Check(justBefore.save.level==30&&justBefore.save.xp==0,
+                "Real combat reaching level 30 resets obsolete excess XP");
+            var grant=typeof(GameCore).GetMethod("AddXp",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            grant.Invoke(justBefore,new object[]{int.MaxValue});
+            Check(justBefore.save.level==30&&justBefore.save.xp==0,
+                "At the cap huge quest/bounty payouts cannot overflow or unlock phantom levels");
             g.Enter(1); g.save.x = 2.3f; g.save.y = 14; g.Dash(new Point(-1, 0));
             for (int i = 0; i < 20; i++) g.Tick(.02f, new Point(-1, 0));
             Check(g.save.x >= 2.2f, "Dash cannot tunnel through the map boundary");
@@ -176,5 +332,1036 @@ namespace Starfall.Tests
             for (int i = 0; i < g.conversation.choices.Length; i++) if (g.conversation.choices[i].action == "ending2") { g.Choose(i); break; }
             Check(g.save.ending == 2, "Second ending");
         }
+
+
+        public static void ExpandedHearthInnArchiveIsConnectedAndRewardsVerifiedExploration(Campaign data)
+        {
+            MapData inn=data.maps[9];
+            Check(inn.rows.Length==40&&inn.rows[0].Length==60,"Expanded Hearth Inn preserves rooms while adding public archive wings");
+            GameCore game=new GameCore(data);game.save.room=9;
+            var queue=new System.Collections.Generic.Queue<int>();
+            var visited=new System.Collections.Generic.HashSet<int>();
+            int w=inn.rows[0].Length,h=inn.rows.Length;
+            int start=(int)inn.spawnY*w+(int)inn.spawnX;
+            queue.Enqueue(start);visited.Add(start);
+            int[,] offsets={{1,0},{-1,0},{0,1},{0,-1}};
+            while(queue.Count>0)
+            {
+                int cell=queue.Dequeue(),x=cell%w,y=cell/w;
+                for(int d=0;d<4;d++)
+                {
+                    int xx=x+offsets[d,0],yy=y+offsets[d,1],next=yy*w+xx;
+                    if(xx<0||xx>=w||yy<0||yy>=h||visited.Contains(next)||
+                        !game.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                    visited.Add(next);queue.Enqueue(next);
+                }
+            }
+            WorldObject archive=Array.Find(inn.objects,o=>o.kind=="annexinnarchive");
+            WorldObject letter=Array.Find(inn.objects,o=>o.kind=="annexinnmessage");
+            Check(archive!=null&&letter!=null&&visited.Contains((int)archive.y*w+(int)archive.x)&&
+                visited.Contains((int)letter.y*w+(int)letter.x),
+                "Both new inn annex rooms connect to original spawn through real collision");
+            game.save.x=archive.x;game.save.y=archive.y;
+            game.Talk(archive);
+            int idx=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_archive_file");
+            Check(idx>=0,"Inn archive can be filed with a real interactable action");
+            int coins=game.save.coins;game.Choose(idx);
+            Check(!game.Has("annex_archive_complete")&&game.save.coins==coins,
+                "Incomplete outdoor discovery cannot falsely claim the published atlas");
+            for(int room=0;room<8;room++)
+            {
+                game.save.flags.Add("annex_camp_annex_camp_"+room);
+                game.save.flags.Add("annex_vista_annex_vista_"+room);
+                game.save.flags.Add("annex_cache_annex_cache_"+room+"_a");
+                game.save.flags.Add("annex_cache_annex_cache_"+room+"_b");
+            }
+            game.Talk(archive);
+            idx=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_archive_file");
+            game.Choose(idx);
+            Check(game.Has("annex_archive_complete")&&game.save.coins==coins+60&&
+                game.GetQuest("annex_explorer").complete,
+                "Physically filing the complete atlas rewards real resources and finishes the quest");
+            SaveData save=game.save;
+            GameCore loaded=new GameCore(data,save);
+            Check(save.version==2&&loaded.Has("annex_archive_complete"),
+                "Public atlas persists in old save slots");
+            game.Talk(archive);
+            idx=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_archive_file");
+            game.Choose(idx);
+            Check(game.save.coins==save.coins,"Published atlas cannot be farmed by rereading");
+        }
+
+        public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
+        {
+            for(int region=0;region<8;region++)
+            {
+                MapData m=data.maps[region];
+                GameCore g=new GameCore(data);g.save.room=region;
+                g.save.flags.Add("gate_"+region);
+                Check(!g.InProtectedArena(new Point(65,9)), "Boss arena must remain at its original x-coordinate");
+                int count=0;foreach(WorldObject o in m.objects)
+                    if(o.kind=="annexcache"||o.kind=="annexcamp"||o.kind=="annexvista")
+                    {count++;Check(g.CanStand(new Point(o.x,o.y)), "New site must occupy real walkable tile: "+o.id);}
+                Check(count==4,"Two caches, one camp, one vista per outdoor map");
+            }
+            GameCore game=new GameCore(data);
+            WorldObject cache=Array.Find(data.maps[0].objects,o=>o.id=="annex_cache_0_a");
+            game.save.x=cache.x;game.save.y=cache.y;
+            int coins=game.save.coins;
+            game.Talk(cache);Check(game.save.coins==coins+7 && game.Has("annex_cache_"+cache.id),"Looting physical cache grants once");
+            game.Close();game.Talk(cache);game.Close();
+            Check(game.save.coins==coins+7,"Cache cannot duplicate real loot");
+            WorldObject vista=Array.Find(data.maps[0].objects,o=>o.id=="annex_vista_0");
+            game.save.x=vista.x;game.save.y=vista.y;game.Talk(vista);game.Close();
+            Check(game.Has("annex_vista_"+vista.id)&&game.Explored(0,65,40),"Lookout records its nearby 6x6 fog cells");
+            WorldObject camp=Array.Find(data.maps[0].objects,o=>o.id=="annex_camp_0");
+            game.save.x=camp.x;game.save.y=camp.y;game.Talk(camp);
+            int choice=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_rest");
+            Check(choice>=0,"Real camp offers rest interaction");
+            int wood=game.save.inventory[0];
+            game.save.health=30;game.save.energy=8;
+            game.Choose(choice);
+            Check(game.save.inventory[0]==wood-1&&game.save.health==70&&game.save.energy==100,
+                "Camp consumes actual timber, restores HP and energy");
+            GameCore reload=new GameCore(data,game.save);
+            Check(reload.save.version==2&&reload.Has("annex_camp_"+camp.id)&&reload.Has("annex_cache_"+cache.id)&&reload.Has("annex_vista_"+vista.id),
+                "All exploration progress remains in v2 save");
+        }
+
+        public static void EightCircuitRoutesUseActualWalkingOrderAndPersist(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                MapData m=data.maps[room];
+                Check(m.rows.Length==80&&m.rows[0].Length==120,
+                    "Sixth-ring terrain preserves earlier exploration sites");
+                GameCore g=new GameCore(data);
+                g.save.room=room;g.save.flags.Add("seal_"+room);
+                int width=m.rows[0].Length,height=m.rows.Length;
+                var visited=new System.Collections.Generic.HashSet<int>();
+                var queue=new System.Collections.Generic.Queue<int>();
+                int start=(int)m.spawnY*width+(int)m.spawnX;
+                queue.Enqueue(start);visited.Add(start);
+                int[,] dir={{1,0},{-1,0},{0,1},{0,-1}};
+                while(queue.Count>0)
+                {
+                    int at=queue.Dequeue(),x=at%width,y=at/width;
+                    for(int k=0;k<4;k++)
+                    {
+                        int xx=x+dir[k,0],yy=y+dir[k,1],key=yy*width+xx;
+                        if(xx<0||yy<0||xx>=width||yy>=height||visited.Contains(key)||
+                            !g.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                        visited.Add(key);queue.Enqueue(key);
+                    }
+                }
+                WorldObject[] sites=new WorldObject[3];
+                for(int k=1;k<=3;k++)
+                {
+                    sites[k-1]=Array.Find(m.objects,o=>o.id=="trailcircuit_"+room+"_"+k);
+                    Check(sites[k-1]!=null &&
+                        visited.Contains((int)sites[k-1].y*width+(int)sites[k-1].x),
+                        "Real collision and traversal reach every landmark in room "+room);
+                }
+                g.save.x=sites[2].x;g.save.y=sites[2].y;int startCoins=g.save.coins;
+                g.Talk(sites[2]);g.Close();
+                Check(g.TrailCircuitProgress(room)==0,"Third landmark cannot bypass first two");
+                for(int k=0;k<3;k++)
+                {
+                    g.save.x=sites[k].x;g.save.y=sites[k].y;
+                    g.Talk(sites[k]);
+                    Check(g.conversation!=null&&g.conversation.text.Length>55&&
+                        g.conversation.textEn.Length>55,
+                        "Every visited physical waypoint provides real bilingual lore");
+                    g.Close();
+                    Check(g.TrailCircuitProgress(room)==k+1,"Each visited stop records real ordered progress");
+                }
+                Check(g.TrailCircuitComplete(room)&&g.save.coins==startCoins+24,
+                    "Third distinct visit grants lasting local route completion");
+                g.Talk(sites[2]);g.Close();
+                Check(g.save.coins==startCoins+24,"Rereading completed circuit cannot farm rewards");
+                GameCore restored=new GameCore(data,g.save);
+                Check(restored.save.version==2&&restored.TrailCircuitComplete(room),
+                    "Existing SaveData v2 reload preserves circuit milestones");
+            }
+            GameCore all=new GameCore(data);
+            for(int r=0;r<8;r++)for(int k=1;k<=3;k++)
+                all.save.flags.Add("trail_circuit_"+r+"_"+k);
+            Check(all.TrailCircuitCount==8&&all.GetQuest("trail_circuits").complete,
+                "Independent eight-area map quest reflects real stage flags");
+        }
+
+        public static void ThirdRingResourcePocketsUseRealRenewableHarvesting(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore region=new GameCore(data);
+                region.save.room=room;
+                int count=0;
+                foreach(WorldObject o in data.maps[room].objects)
+                    if(o.id.StartsWith("trail_forager_"+room+"_"))
+                    {
+                        count++;
+                        Check(region.CanStand(new Point(o.x,o.y)),
+                            "Every new gatherable site remains on actual playable terrain");
+                    }
+                Check(count==3,"Each of eight third-ring maps gets three actual field resources");
+            }
+            GameCore g=new GameCore(data);
+            WorldObject node=Array.Find(data.maps[0].objects,o=>o.id=="trail_forager_0_0");
+            int herbs=g.save.inventory[2];
+            g.save.x=node.x;g.save.y=node.y;g.Talk(node);
+            Check(g.Has("node_"+node.id)&&g.save.inventory[2]==herbs+3,
+                "New outdoor node yields actual resource through existing gathering code");
+            g.Talk(node);
+            Check(g.save.inventory[2]==herbs+3,"Second gather cannot duplicate resource");
+            g.save.flags.RemoveAll(flag=>flag.StartsWith("node_"));
+            g.Talk(node);
+            Check(g.save.inventory[2]==herbs+6,
+                "Existing rest refresh makes the new site renewable without new save format");
+        }
+
+        public static void CachedHouseCollidersRemainCorrectAcrossMapSwitches(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            int tested=0;
+            for(int room=0;room<8;room++)
+            {
+                g.save.room=room;
+                foreach(Decoration d in data.maps[room].decor)
+                    if(d.kind=="house")
+                    {
+                        tested++;
+                        Check(g.Blocked(d.x,d.y-.7f),
+                            "Solid house footprint remains blocked after world-decoration caching");
+                    }
+                foreach(WorldObject o in data.maps[room].objects)
+                    if(o.kind=="trailcircuit")
+                        Check(g.CanStand(new Point(o.x,o.y)),
+                            "Third-ring site remains walkable when switching collision maps");
+            }
+            Check(tested>=4,"World collision regression exercises existing authored houses");
+            g.save.room=0;
+            Check(g.Blocked(7,5.3f),"Returning to town restores its original solid house colliders");
+        }
+
+        public static void FourthRingRescueSignalsRequireRealSurveyAndParts(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                MapData m=data.maps[room];
+                Check(m.rows.Length==80&&m.rows[0].Length==120,
+                    "Expanded sixth-ring geometry retains existing rescue locations");
+                GameCore g=new GameCore(data);
+                g.save.room=room;
+                g.save.inventory[4]=5;
+                WorldObject[] sites=new WorldObject[3];
+                for(int i=0;i<3;i++)
+                {
+                    int stage=i;
+                    sites[i]=Array.Find(m.objects,o=>o.id=="outer_"+room+"_"+stage);
+                    Check(sites[i]!=null&&g.CanStand(new Point(sites[i].x,sites[i].y)),
+                        "Every fourth-ring rescue object stands on actual accessible terrain");
+                }
+                int width=m.rows[0].Length,height=m.rows.Length;
+                var queue=new System.Collections.Generic.Queue<int>();
+                var seen=new System.Collections.Generic.HashSet<int>();
+                int spawn=(int)m.spawnY*width+(int)m.spawnX;
+                queue.Enqueue(spawn);seen.Add(spawn);
+                int[,] dirs={{1,0},{-1,0},{0,1},{0,-1}};
+                while(queue.Count>0)
+                {
+                    int at=queue.Dequeue(),x=at%width,y=at/width;
+                    for(int direction=0;direction<4;direction++)
+                    {
+                        int xx=x+dirs[direction,0],yy=y+dirs[direction,1];
+                        if(xx<0||yy<0||xx>=width||yy>=height)continue;
+                        int key=yy*width+xx;
+                        if(seen.Contains(key)||!g.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                        seen.Add(key);queue.Enqueue(key);
+                    }
+                }
+                foreach(WorldObject site in sites)
+                    Check(seen.Contains((int)site.y*width+(int)site.x),
+                        "New signal route must be reachable from original spawn using real collision");
+                int coins=g.save.coins,parts=g.save.inventory[4];
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);g.Close();
+                Check(!g.OuterCacheRecovered(room)&&g.save.coins==coins,
+                    "Relief cache cannot be taken before the signal is repaired");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;
+                g.Talk(sites[1]);g.Close();
+                Check(!g.OuterRelayRestored(room)&&g.save.inventory[4]==parts,
+                    "Beacon cannot be repaired without the original field log");
+                g.save.x=sites[0].x;g.save.y=sites[0].y;
+                g.Talk(sites[0]);g.Close();
+                Check(g.OuterLogFound(room),"Reading the southern evidence advances the real quest");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;
+                g.Talk(sites[1]);
+                int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_repair");
+                Check(choice>=0,"Physical repair offers a real material-consuming choice");
+                g.Choose(choice);
+                Check(g.OuterRelayRestored(room)&&g.save.inventory[4]==parts-1,
+                    "One actual spare part is consumed when the physical beacon is repaired");
+                g.Talk(sites[1]);g.Close();
+                Check(g.save.inventory[4]==parts-1,"Replaying a repaired signal cannot double-charge");
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);g.Close();
+                Check(g.OuterCacheRecovered(room)&&g.save.coins==coins+18,
+                    "Final physical relief chest pays the correct one-time reward");
+                g.Talk(sites[2]);g.Close();
+                Check(g.save.coins==coins+18,"Relief chest cannot pay twice");
+                GameCore restored=new GameCore(data,g.save);
+                Check(restored.save.version==2&&restored.OuterLogFound(room)&&
+                    restored.OuterRelayRestored(room)&&restored.OuterCacheRecovered(room),
+                    "All three rescue stages survive a legacy SaveData v2 reload");
+            }
+            GameCore all=new GameCore(data);
+            for(int room=0;room<8;room++)all.save.flags.Add("outer_cache_"+room);
+            Check(all.OuterRescueCount==8&&all.GetQuest("outer_rescue").complete,
+                "The tracked field mission finishes only after eight genuine chests");
+        }
+
+        public static void SmoothTerrainAndPropsRemainContinuousAcrossChunkBorders(Campaign data)
+        {
+            Check(WorldStreaming.Smooth01(-1)==0&&WorldStreaming.Smooth01(2)==1,
+                "Streaming fades clamp safely outside their range");
+            Check(Math.Abs(WorldStreaming.Smooth01(.5f)-.5f)<.0001f,
+                "Chunk readiness uses symmetric smoothstep");
+            for(int i=0;i<100;i++)
+            {
+                float t=i/100f, v=WorldStreaming.Blend(.15f,.3f,.6f,.9f,t,.45f);
+                float u=WorldStreaming.Blend(.15f,.3f,.6f,.9f,t+.0001f,.45f);
+                Check(v>=0&&v<=1&&Math.Abs(u-v)<.001f,
+                    "Chunk blending stays continuous without square block seams");
+            }
+            float old=-1;
+            for(int px=-130;px<=130;px+=5)
+            {
+                float opacity=WorldStreaming.EdgeOpacity(px,360,1280,720);
+                Check(opacity>=0&&opacity<=1&&opacity>=old,
+                    "Scenery gradually fades in on approach without a viewport pop-in");
+                old=opacity;
+            }
+            Check(WorldStreaming.EdgeOpacity(-150,360,1280,720)==0,
+                "Distant scenery is completely transparent beyond its prewarm apron");
+            Check(WorldStreaming.EdgeOpacity(640,360,1280,720)==1,
+                "Center-screen scenery stays fully visible");
+        }
+
+        public static void OutdoorRescueWatchStartsRealCombatAndOnlyRewardsRealWins(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                MapData map=data.maps[room];
+                WorldObject o=Array.Find(map.objects,x=>x.id=="outer_watch_"+room);
+                GameCore g=new GameCore(data);g.save.room=room;
+                Check(o!=null&&g.CanStand(new Point(o.x,o.y)),
+                    "Every optional watchpost must be on a walkable physical tile");
+                g.save.x=o.x;g.save.y=o.y;
+                g.enemies.Clear();
+                g.Talk(o);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start")<0,
+                    "Outpost cannot be started without first retrieving the relief supplies");
+                g.Close();
+                g.save.flags.Add("outer_cache_"+room);
+                int coins=g.save.coins;
+                g.Talk(o);
+                int start=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start");
+                Check(start>=0,"Completed exploration unlocks the voluntary real combat choice");
+                g.Choose(start);
+                Check(g.OuterPatrolActive&&g.enemies.Count==2&&
+                    !g.OuterPatrolDone(room),"Defense uses actual two spawned enemies, not a text-only battle");
+                int id0=g.enemies[0].id,id1=g.enemies[1].id;
+                Check(id0!=id1&&g.enemies[0].hp>0&&g.enemies[1].hp>0,
+                    "Distinct attackers spawn with real combat health");
+                g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolDone(room)&&g.save.coins==coins,
+                    "Unbeaten enemies cannot award any defense completion");
+                // Regression: forcibly removing actors from the list is NOT
+                // damage, and must never counterfeit a successful clear.
+                g.enemies.Clear();g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolDone(room)&&!g.OuterPatrolActive&&g.save.coins==coins,
+                    "Enemy despawn must abort rather than award a counterfeit win");
+                g.Talk(o);
+                start=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start");
+                Check(start>=0,"Aborted encounter can be retried safely");
+                g.Choose(start);
+                Check(g.enemies.Count==2,"Retry spawns two live combat actors");
+                Enemy attackerA=g.enemies[0],attackerB=g.enemies[1];
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"Exercise real combat Hit transaction, not a simulated flag");
+                hit.Invoke(g,new object[]{attackerA,10000f,true,null,null});
+                // Hit-stop is part of actual combat and temporarily defers
+                // quest ticks. Run normal real frames, not a magic giant dt.
+                for(int frame=0;frame<10;frame++)g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolDone(room)&&g.OuterPatrolActive,
+                    "Defeating one real attacker is not enough to clear the defense");
+                hit.Invoke(g,new object[]{attackerB,10000f,true,null,null});
+                for(int frame=0;frame<10;frame++)g.Tick(.02f,new Point());
+                Check(g.OuterPatrolDone(room)&&g.save.coins==coins+14,
+                    "Both true lethal Hit transactions award the single defense reward");
+                GameCore reload=new GameCore(data,g.save);
+                Check(reload.save.version==2&&reload.OuterPatrolDone(room),
+                    "Defended watchposts persist with original v2 flags");
+                g.Talk(o);
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start")<0,
+                    "Completed post remains readable, never starts a duplicating fight");
+                g.Close();
+                Check(g.save.coins==coins+14,"Repeating a defended post cannot farm rewards");
+            }
+        }
+
+        public static void ContinuousBiomeNoiseAvoidsSquareMaterialBoundaries(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                float first=WorldStreaming.BiomeVariation(44,56,room);
+                Check(first>=0&&first<=1&&
+                    first==WorldStreaming.BiomeVariation(44,56,room),
+                    "Biome tint is deterministic for a given saved map coordinate");
+                for(int y=48;y<60;y++)
+                    for(int x=69;x<89;x++)
+                    {
+                        float a=WorldStreaming.BiomeVariation(x,y,room);
+                        float b=WorldStreaming.BiomeVariation(x+1,y,room);
+                        float c=WorldStreaming.BiomeVariation(x,y+1,room);
+                        Check(a>=0&&a<=1&&Math.Abs(a-b)<.3f&&Math.Abs(a-c)<.3f,
+                            "Adjacent material tints blend gradually rather than popping at eight-tile edges");
+                    }
+            }
+            Check(Math.Abs(WorldStreaming.BiomeVariation(54,52,1)-
+                WorldStreaming.BiomeVariation(54,52,7))>.0001f,
+                "Forest and frost maps do not reuse identical material clusters");
+        }
+
+        public static void EightRidgeRoutesNeedBothPhysicalLandmarksAndSafeTravel(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                MapData map=data.maps[room];
+                WorldObject east=Array.Find(map.objects,o=>o.id=="ridge_route_"+room+"_0");
+                WorldObject south=Array.Find(map.objects,o=>o.id=="ridge_route_"+room+"_1");
+                Check(east!=null&&south!=null&&g.CanStand(new Point(east.x,east.y))&&
+                    g.CanStand(new Point(south.x,south.y)),
+                    "Fifth ring links use two real standable authored locations");
+                int coins=g.save.coins,shards=g.save.shards;
+                g.save.x=east.x;g.save.y=east.y;
+                g.Talk(east);
+                Check(g.RidgeSeen(room,0)&&!g.RidgeLinked(room),
+                    "Visiting only one marker never unlocks a free crossing");
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel")<0,
+                    "An incomplete survey offers no teleport");
+                g.Close();
+                g.save.x=south.x;g.save.y=south.y;g.Talk(south);
+                Check(g.RidgeLinked(room)&&g.save.coins==coins+20&&
+                    g.save.shards==shards+1,"Second distinct physical visit enables permanent safe shortcut");
+                int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel");
+                Check(choice>=0,"Completed survey offers actionable crossing choice");
+                g.save.energy=36;g.Choose(choice);
+                Check(Math.Abs(g.save.x-east.x)<.01f&&Math.Abs(g.save.y-east.y)<.01f&&
+                    Math.Abs(g.save.energy-24)<.01f,"Crossing moves the actual player and costs real energy");
+                g.Talk(east);choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel");
+                g.save.energy=3;g.Choose(choice);
+                Check(Math.Abs(g.save.x-east.x)<.01f,
+                    "Insufficient energy cannot cross the ridge");
+                g.Talk(east);g.Close();
+                Check(g.save.coins==coins+20,
+                    "Revisiting completed markers never duplicates quest rewards");
+                GameCore saved=new GameCore(data,g.save);
+                Check(saved.save.version==2&&saved.RidgeLinked(room)&&
+                    saved.save.coins==coins+20,
+                    "New ridge progress restores from old SaveData v2");
+            }
+            GameCore all=new GameCore(data);
+            for(int i=0;i<8;i++)
+            {all.save.flags.Add("ridge_seen_"+i+"_0");all.save.flags.Add("ridge_seen_"+i+"_1");}
+            Check(all.RidgeLinkedCount==8&&all.GetQuest("ridge_routes").complete,
+                "All eight distinct ridge paths finish the tracked exploration quest");
+        }
+
+        public static void FifthRingWildlifeSpawnsAsActualCombatAwayFromQuestMarkers(Campaign data)
+        {
+            var spawn=typeof(GameCore).GetMethod("SpawnRoom",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(spawn!=null,"Use the real room-spawn transaction");
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);
+                g.save.room=room;
+                spawn.Invoke(g,null);
+                int unlinkedFar=0;
+                foreach(Enemy e in g.enemies)if(e.x>=74&&e.y>=60)unlinkedFar++;
+                Check(unlinkedFar==0,
+                    "Original quest rooms retain their pre-expansion enemy requirements");
+                if(room>0)
+                {
+                    g.save.flags.Add("ridge_seen_"+room+"_0");
+                    g.save.flags.Add("ridge_seen_"+room+"_1");
+                    spawn.Invoke(g,null);
+                    int early=0;
+                    foreach(Enemy e in g.enemies)if(e.x>=74&&e.y>=60)early++;
+                    Check(early==0,
+                        "Early ridge discovery must never expand uncleared guardian encounters");
+                    g.save.flags.Add("boss_"+room);
+                    spawn.Invoke(g,null);
+                }
+                int far=0;
+                foreach(Enemy e in g.enemies)
+                    if(e.x>=74&&e.y>=60)
+                    {
+                        far++;
+                        Check(g.CanStand(e.Position),
+                            "New fifth-ring wildlife has physical passable collision");
+                        foreach(WorldObject o in data.maps[room].objects)
+                            Check((e.Position-new Point(o.x,o.y)).Length>=8,
+                                "New wildlife remains away from real interaction points");
+                        Check(e.hp>0&&e.maxHp>0,
+                            "New wildlife consists of actual combat actors with hitpoints");
+                    }
+                if(room==0)Check(far==0,"Original town remains peaceful");
+                else Check(far==3,"All seven dangerous regions gain three remote encounters");
+            }
+        }
+
+        public static void TerrainVeilNeverCreatesOpaqueLoadingSquares(Campaign data)
+        {
+            Check(WorldStreaming.TerrainVeilOpacity(0)==.3f,
+                "Newly entered world chunks show their actual terrain behind a light atmospheric veil");
+            Check(WorldStreaming.TerrainVeilOpacity(1)==0,
+                "Fully prewarmed terrain draws without an extra mask");
+            float previous=1;
+            for(int i=0;i<=100;i++)
+            {
+                float alpha=WorldStreaming.TerrainVeilOpacity(i/100f);
+                Check(alpha>=0&&alpha<=.3f&&alpha<=previous,
+                    "Chunk transitions never render opaque blank tiles or increase masking over time");
+                previous=alpha;
+            }
+            for(int region=0;region<8;region++)
+                Check(WorldStreaming.BiomeVariation(98,65,region)>=0&&
+                    WorldStreaming.BiomeVariation(98,65,region)<=1,
+                    "Static biome cache receives legal deterministic material values");
+        }
+
+        public static void SixthRingWeatherDialUnlocksRealSheltersAndPreservesSaveV2(Campaign data)
+        {
+            int[] answers={1,2,0,2,1,0,1,2};
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                MapData m=data.maps[room];
+                WorldObject[] sites=new WorldObject[3];
+                for(int i=0;i<3;i++)
+                {
+                    int stage=i;
+                    sites[i]=Array.Find(m.objects,o=>o.id=="farsignal_"+room+"_"+stage);
+                    Check(sites[i]!=null&&g.CanStand(new Point(sites[i].x,sites[i].y)),
+                        "All new sixth-ring weather sites occupy actual passable map tiles");
+                }
+                g.save.inventory[0]=5;g.save.inventory[4]=5;
+                int coins=g.save.coins;
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);g.Close();
+                Check(!g.FarShelterBuilt(room),"Untuned refuge cannot be rebuilt");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;g.Talk(sites[1]);g.Close();
+                Check(!g.FarDialReady(room),"An unread log forbids calibration");
+                g.save.x=sites[0].x;g.save.y=sites[0].y;
+                g.Talk(sites[0]);g.Close();
+                Check(g.FarLogFound(room),"Real east field log unlocks clue");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;
+                g.Talk(sites[1]);
+                int wrong=(answers[room]+1)%3;
+                int idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_dial_"+wrong);
+                Check(idx>=0,"Real three-choice puzzle displays incorrect options");
+                g.Choose(idx);
+                Check(!g.FarDialReady(room),"Incorrect observation cannot unlock shared refuge");
+                g.Talk(sites[1]);
+                idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_dial_"+answers[room]);
+                Check(idx>=0,"Real field log's answer exists among the choices");
+                g.Choose(idx);
+                Check(g.FarDialReady(room),"Correct local glyph genuinely calibrates the dial");
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
+                g.Talk(sites[2]);
+                idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_build");
+                Check(idx>=0,"Calibrated shelter offers actual build action");
+                g.Choose(idx);
+                Check(g.FarShelterBuilt(room)&&g.save.inventory[0]==4&&
+                    g.save.inventory[4]==4&&g.save.coins==coins+22,
+                    "Building refuge consumes real materials and pays once");
+                g.save.health=Math.Max(1,g.save.maxHealth-50);g.save.energy=4;g.save.cold=40;
+                g.Talk(sites[2]);
+                idx=Array.FindIndex(g.conversation.choices,c=>c.action=="far_rest");
+                Check(idx>=0,"Completed real shelter offers reusable warmth");
+                g.Choose(idx);
+                Check(g.save.inventory[0]==3&&g.save.energy==100&&
+                    g.save.cold==15&&g.save.health>g.save.maxHealth-50,
+                    "Timber-fed warm shelter restores real player stats");
+                GameCore loaded=new GameCore(data,g.save);
+                Check(loaded.save.version==2&&loaded.FarShelterBuilt(room)&&
+                    loaded.save.coins==coins+22,
+                    "Old save v2 persists the actual field puzzle and construction");
+                loaded.save.x=sites[2].x;loaded.save.y=sites[2].y;
+                loaded.Talk(sites[2]);
+                Check(Array.FindIndex(loaded.conversation.choices,c=>c.action=="far_build")<0,
+                    "Reading a restored shelter cannot farm the one-time build reward");
+            }
+            GameCore full=new GameCore(data);
+            for(int room=0;room<8;room++)full.save.flags.Add("far_shelter_"+room);
+            Check(full.FarShelterCount==8&&!full.GetQuest("far_refuges").complete,
+                "Eight restored shelters still need real public filing at the Inn");
+            full.save.room=9;
+            MapData inn=data.maps[9];
+            Check(inn.rows.Length==40&&inn.rows[0].Length==60,
+                "Expanded Inn adds a real southern public records wing");
+            var reach=new System.Collections.Generic.HashSet<int>();
+            var queue=new System.Collections.Generic.Queue<int>();
+            int w=inn.rows[0].Length,h=inn.rows.Length;
+            int first=(int)inn.spawnY*w+(int)inn.spawnX;
+            queue.Enqueue(first);reach.Add(first);
+            int[,] dir={{1,0},{-1,0},{0,1},{0,-1}};
+            while(queue.Count>0)
+            {
+                int cell=queue.Dequeue(),x=cell%w,y=cell/w;
+                for(int k=0;k<4;k++)
+                {
+                    int xx=x+dir[k,0],yy=y+dir[k,1],key=yy*w+xx;
+                    if(xx<0||yy<0||xx>=w||yy>=h||reach.Contains(key)||
+                        !full.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                    reach.Add(key);queue.Enqueue(key);
+                }
+            }
+            WorldObject atlas=Array.Find(inn.objects,o=>o.kind=="faratlasdesk");
+            WorldObject guest=Array.Find(inn.objects,o=>o.kind=="farrefugerecord");
+            Check(atlas!=null&&guest!=null&&
+                reach.Contains((int)atlas.y*w+(int)atlas.x)&&
+                reach.Contains((int)guest.y*w+(int)guest.x),
+                "Both Inn annex chambers are physically connected through real collision");
+            full.save.x=atlas.x;full.save.y=atlas.y;
+            int startCoins=full.save.coins;
+            full.Talk(atlas);
+            Check(full.conversation.text.IndexOf('\n')>=0&&
+                full.conversation.textEn.IndexOf('\n')>=0,
+                "Public inn atlas dialogue must format paragraphs as genuine newlines");
+            int publish=Array.FindIndex(full.conversation.choices,c=>c.action=="far_publish");
+            Check(publish>=0,"An actual Inn desk offers civic publication");
+            full.Choose(publish);
+            Check(full.Has("far_refuge_atlas")&&full.GetQuest("far_refuges").complete&&
+                full.save.coins==startCoins+80,
+                "In-person publication finishes quest with authentic once-only reward");
+            GameCore reloaded=new GameCore(data,full.save);
+            Check(reloaded.save.version==2&&reloaded.Has("far_refuge_atlas"),
+                "Public civic atlas persists in legacy save slots");
+            full.Talk(atlas);publish=Array.FindIndex(full.conversation.choices,
+                c=>c.action=="far_publish");
+            full.Choose(publish);
+            Check(full.save.coins==startCoins+80,"Publishing twice cannot farm another grant");
+        }
+
+        public static void CameraLeadPrewarmsMovementWithoutUnboundedMapScans(Campaign data)
+        {
+            Check(WorldStreaming.PredictPrewarmLead(0)==0,
+                "Still camera requests no unneeded directional prewarm");
+            Check(WorldStreaming.PredictPrewarmLead(3)==4,
+                "Following camera prepares forward chunks before arrival");
+            Check(WorldStreaming.PredictPrewarmLead(-4)==-6,
+                "Backward movement prepares the trailing viewport side");
+            Check(WorldStreaming.PredictPrewarmLead(1000)==8&&
+                WorldStreaming.PredictPrewarmLead(-1000)==-8,
+                "Teleport or huge map never launches unbounded preloading");
+            Check(WorldStreaming.PredictPrewarmLead(float.NaN)==0&&
+                WorldStreaming.PredictPrewarmLead(float.PositiveInfinity)==0,
+                "Bad camera input cannot corrupt streamed terrain bounds");
+        }
+
+        public static void SixthRingHiddenSuppliesAndLookoutsActuallyRevealMapSectors(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                var hidden=Array.Find(data.maps[room].objects,o=>o.kind=="farhidden");
+                var vista=Array.Find(data.maps[room].objects,o=>o.kind=="farlookout");
+                Check(hidden!=null&&vista!=null&&
+                    g.CanStand(new Point(hidden.x,hidden.y))&&
+                    g.CanStand(new Point(vista.x,vista.y)),
+                    "Every sixth-ring secret must be physically accessible");
+                Check(!g.Explored(room,83,75)&&!g.Explored(room,115,58),
+                    "Remote viewpoints and hidden cache begin unexplored");
+                g.save.x=vista.x;g.save.y=vista.y;g.Talk(vista);g.Close();
+                Check(g.Explored(room,83,75)&&g.Explored(room,80,70)&&
+                    !g.Explored(room,115,58),
+                    "Real lookout reveals a bounded surrounding region without discovering distant secrets");
+                int coins=g.save.coins,resources=g.save.inventory[room%3];
+                g.save.x=hidden.x;g.save.y=hidden.y;g.Talk(hidden);g.Close();
+                Check(g.save.coins==coins+9&&g.save.inventory[room%3]==resources+2,
+                    "Remote concealed supplies pay actual one-time materials");
+                g.Talk(hidden);g.Close();
+                Check(g.save.coins==coins+9,"Hidden cache cannot duplicate rewards");
+                GameCore loaded=new GameCore(data,g.save);
+                Check(loaded.save.version==2&&loaded.Has("far_secret_"+room)&&
+                    loaded.Has("far_vista_"+room)&&loaded.Explored(room,83,75),
+                    "Hidden sixth-ring exploration survives legacy v2 save reload");
+            }
+        }
+
+        public static void MapPreviewScalesToRealDynamicFloorAndRegionDimensions(Campaign data)
+        {
+            Check(Math.Abs(WorldStreaming.PreviewScale(120,80,306,207)-2.55f)<.001f,
+                "Large sixth-ring map fits its world-map preview panel");
+            Check(Math.Abs(WorldStreaming.PreviewScale(66,44,306,207)-
+                (306f/66f))<.001f,
+                "Runtime 66x44 abyss floor uses its real dimensions instead of old stub");
+            Check(WorldStreaming.PreviewScale(0,44,306,207)==0,
+                "Corrupt map dimensions cannot force an infinite texture allocation");
+        }
+
+        private static int BridgeDistance(GameCore g,int sx,int sy,int gx,int gy)
+        {
+            int w=g.Map.rows[0].Length,h=g.Map.rows.Length;
+            var distances=new Dictionary<int,int>();var queue=new Queue<int>();
+            int start=sy*w+sx;distances[start]=0;queue.Enqueue(start);
+            int[,] directions={{1,0},{-1,0},{0,1},{0,-1}};
+            while(queue.Count>0)
+            {
+                int current=queue.Dequeue(),x=current%w,y=current/w;
+                if(x==gx&&y==gy)return distances[current];
+                for(int k=0;k<4;k++)
+                {
+                    int xx=x+directions[k,0],yy=y+directions[k,1],at=yy*w+xx;
+                    if(xx<2||yy<2||xx>=w-2||yy>=h-2||distances.ContainsKey(at)||
+                        !g.CanStand(new Point(xx+.5f,yy+.5f)))continue;
+                    distances[at]=distances[current]+1;queue.Enqueue(at);
+                }
+            }
+            return -1;
+        }
+        public static void RepairedBridgesOpenRealTerrainAndShortenWalkingDistance(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                var g=new GameCore(data);g.save.room=room;
+                var bridge=Array.Find(g.Map.objects,o=>o.id=="far_bridge_"+room);
+                Check(bridge!=null&&g.CanStand(new Point(bridge.x,bridge.y)),
+                    "All bridge repair posts are physically accessible");
+                Check(g.Blocked(111.5f,52.5f),"Broken spans block actual collision");
+                int longRoute=BridgeDistance(g,111,49,112,73);
+                Check(longRoute>0,"The old long route is not destructively removed");
+                g.save.inventory[0]=5;g.save.inventory[4]=5;g.save.x=bridge.x;g.save.y=bridge.y;
+                g.Talk(bridge);
+                int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="far_bridge_repair");
+                Check(choice>=0,"Bridge has a legitimate material-consuming interaction");
+                g.Choose(choice);
+                Check(g.FarBridgeOpen(room)&&!g.Blocked(111.5f,52.5f)&&
+                    g.save.inventory[0]==3&&g.save.inventory[4]==4,
+                    "One repair consumes the actual resources and unlocks actual terrain");
+                int shortRoute=BridgeDistance(g,111,49,112,73);
+                Check(shortRoute>0&&shortRoute<longRoute/2,
+                    "Repair creates a physically shorter route, not a fake quest reward");
+                g.Talk(bridge);
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_bridge_repair")<0,
+                    "Bridge repair cannot duplicate materials or rewards");
+                var reload=new GameCore(data,g.save);
+                Check(reload.save.version==2&&reload.FarBridgeOpen(room),
+                    "Old v2 save reload preserves the constructed bridge flag even if story gates redirect the player");
+                // In an unprogressed test save the normal story gates may
+                // return to the safe town; only test collision after entering
+                // the matching author's region again.
+                reload.save.room=room;
+                Check(!reload.Blocked(111.5f,52.5f),
+                    "Returning to the reconstructed region restores real walkable collision");
+            }
+        }
+
+        public static void AllEightRepairedBridgesAppearInQuestTracking(Campaign data)
+        {
+            var g=new GameCore(data);
+            Check(Array.IndexOf(GameCore.QuestIds,"far_bridges")>=0,
+                "Real bridge construction has a separate selectable journal quest");
+            Check(!g.GetQuest("far_bridges").complete,
+                "A new save has never repaired any bridge");
+            for(int room=0;room<8;room++)g.save.flags.Add("far_bridge_"+room);
+            Check(g.FarBridgeCount==8&&g.GetQuest("far_bridges").complete,
+                "All eight repaired routes finish the tracked journal");
+        }
+
+        public static void InstantTravelPreparesVisibleWorldWithoutColdChunkPopin(Campaign data)
+        {
+            Check(!WorldStreaming.LargeCameraJump(1,2),
+                "Ordinary walking still uses softened chunk transitions");
+            Check(WorldStreaming.LargeCameraJump(20,0)&&
+                WorldStreaming.LargeCameraJump(-12,-6),
+                "Cross-map and ridge jumps immediately prime visible props");
+            Check(!WorldStreaming.LargeCameraJump(float.NaN,0)&&
+                !WorldStreaming.LargeCameraJump(float.PositiveInfinity,2),
+                "Bad camera state never triggers unbounded terrain work");
+        }
+
+        public static void BridgeParcelNeedsRealTravelAndOnlyRewardsDelivery(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.save.room=room;
+                WorldObject bridge=Array.Find(g.Map.objects,o=>o.kind=="farbridge");
+                WorldObject shelter=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
+                Check(bridge!=null&&shelter!=null,
+                    "Courier actually uses existing physical bridge and refuge");
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                g.Talk(bridge);
+                Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start")<0,
+                    "Unbuilt bridge or shelter cannot create supply rewards");
+                g.Close();g.save.flags.Add("far_bridge_"+room);
+                g.save.flags.Add("far_shelter_"+room);
+                int coins=g.save.coins,shards=g.save.shards;
+                float unloadedSpeed=g.Speed;
+                g.Talk(bridge);
+                int choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start");
+                Check(choose>=0,"Repaired bridge offers a physical parcel trip");
+                g.Choose(choose);
+                Check(g.FarCourierActive&&g.Speed<unloadedSpeed,
+                    "A real carried parcel visibly affects character speed");
+                g.save.x=shelter.x;g.save.y=shelter.y;
+                g.Talk(shelter);g.Close();
+                Check(!g.FarCourierDelivered(room)&&g.save.coins==coins,
+                    "Teleporting to the shelter cannot fake the foot journey");
+                g.Tick(.02f,new Point());
+                Check(!g.FarCourierActive&&!g.FarCourierDelivered(room),
+                    "Long position jump invalidates transient cargo");
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                g.Talk(bridge);
+                choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start");
+                g.Choose(choose);
+                for(int step=0;step<100&&g.save.y<61.35f;step++)
+                    g.Tick(.045f,new Point(0,1));
+                Check(g.FarCourierActive&&g.FarCourierCrossed,
+                    "Engine ticks record actual southbound contact with rebuilt bridge tiles");
+                WorldObject post=Array.Find(g.Map.objects,o=>o.kind=="farcheck");
+                Check(post!=null&&g.CanStand(new Point(post.x,post.y))&&
+                    (g.Position-new Point(post.x,post.y)).Length<2.2f,
+                    "Intermediate cargo inspection is a reachable real-world station");
+                g.Talk(post);
+                int seal=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="far_courier_stamp");
+                Check(seal>=0,"Checkpoint offers a genuine physical seal action");
+                g.Choose(seal);
+                Check(g.FarCourierStamped,"Civilian inspector actually stamps the carried cargo");
+                for(int step=0;step<110&&g.save.y<73.2f;step++)
+                    g.Tick(.045f,new Point(0,1));
+                Check((g.Position-new Point(shelter.x,shelter.y)).Length<2.2f,
+                    "Normal real movement reaches the distant shelter before timeout");
+                g.Talk(shelter);
+                choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_deliver");
+                Check(choose>=0,"Actual refuge dialogue offers parcel delivery");
+                g.Choose(choose);
+                Check(g.FarCourierDelivered(room)&&!g.FarCourierActive&&
+                    g.save.coins==coins+25&&g.save.shards==shards+1,
+                    "Only legitimate foot delivery grants one real permanent reward");
+                GameCore reload=new GameCore(data,g.save);
+                Check(reload.save.version==2&&reload.FarCourierDelivered(room)&&
+                    !reload.FarCourierActive,
+                    "Old save v2 restores delivery only, never an invented held parcel");
+                g.Talk(shelter);g.Close();
+                Check(g.save.coins==coins+25,"Parcel delivery rewards cannot repeat");
+            }
+            GameCore all=new GameCore(data);
+            for(int i=0;i<8;i++)all.save.flags.Add("far_courier_"+i);
+            Check(!all.GetQuest("far_couriers").complete&&all.FarCourierDeliveredCount==8,
+                "Eight delivered parcels still require formal publication at the existing Inn");
+        }
+
+        public static void PublicParcelCharterRequiresEveryGenuineDeliveryAndImprovesShelters(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.save.flags.Add("far_refuge_atlas");
+            g.save.room=9;
+            WorldObject desk=Array.Find(g.Map.objects,o=>o.kind=="faratlasdesk");
+            Check(desk!=null,"Original inn atlas remains an actual interactable desk");
+            g.save.x=desk.x;g.save.y=desk.y;
+            g.Talk(desk);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_charter")<0,
+                "Cannot publish civic supply charter without physical deliveries");
+            g.Close();
+            for(int room=0;room<8;room++)g.save.flags.Add("far_courier_"+room);
+            int coins=g.save.coins;
+            g.Talk(desk);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="far_courier_charter");
+            Check(option>=0,"Completing all deliveries unlocks public filing at the actual inn");
+            g.Choose(option);
+            Check(g.Has("far_courier_charter")&&g.save.coins==coins+65&&
+                g.GetQuest("far_couriers").complete,
+                "Real public filing grants a single permanent network upgrade");
+            GameCore reload=new GameCore(data,g.save);
+            Check(reload.save.version==2&&reload.Has("far_courier_charter"),
+                "Completed charter remains in old SaveData v2 after reload");
+            g.Talk(desk);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_charter")<0&&
+                g.save.coins==coins+65,
+                "Publishing civic accounts twice never duplicates rewards");
+            g.Close();
+            g.save.room=0;g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_dial_0"); // a shelter cannot be built without its earlier real calibration
+            WorldObject shelter=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.save.inventory[0]=3;g.save.health=Math.Max(1,g.save.maxHealth-75);
+            g.save.energy=8;g.save.cold=60;
+            g.Talk(shelter);
+            option=Array.FindIndex(g.conversation.choices,c=>c.action=="far_rest");
+            Check(option>=0,"Existing public refuge still offers a repeatable physical rest");
+            g.Choose(option);
+            Check(g.save.energy==100&&g.save.cold==20&&
+                g.save.health>=g.save.maxHealth-20&&g.save.inventory[0]==2,
+                "Charter materially improves real healing and cold relief for the old wood price");
+        }
+
+        public static void NewTrailRamblingsKeepSaveV2AndPermanentRewards(Campaign data)
+        {
+            for (int room = 0; room < 8; room++)
+            {
+                MapData map = data.maps[room];
+                Check(map.rows.Length == 80 && map.rows[0].Length == 120,
+                    "Outdoor sixth-ring dimensions must be 120x80 in room " + room);
+                foreach (string row in map.rows)
+                    Check(row.Length == 120, "Every terrain row remains rectangular");
+                Check(map.rows[13][17] == '=' && map.rows[14][18] == '=',
+                    "Original central campaign road is retained");
+                foreach (WorldObject o in map.objects)
+                    if (o.kind == "waytrail")
+                    {
+                        Check(o.x >= 14 && o.y >= 22,
+                            "New exploration marker stays beyond the old central authored area");
+                        int x = (int)o.x, y = (int)o.y;
+                        Check(map.rows[y][x] != '#' && map.rows[y][x] != '~' &&
+                            map.rows[y][x] != 'f', "Trail marker is not walled into impassable terrain");
+                    }
+                Check(Array.FindAll(map.objects, o => o.kind == "waytrail").Length == 2,
+                    "Each outdoor region gets two distinct readable waypoints");
+            }
+            GameCore game = new GameCore(data);
+            WorldObject landmark = Array.Find(data.maps[0].objects, o => o.id == "waytrail0s");
+            int coins = game.save.coins, shards = game.save.shards;
+            game.Talk(landmark);
+            Check(game.Has("waytrail_waytrail0s") &&
+                game.save.coins == coins + 8 && game.save.shards == shards + 1,
+                "Recording a real waypoint grants a one-time survey reward");
+            game.Close(); game.Talk(landmark);
+            Check(game.save.coins == coins + 8 && game.save.shards == shards + 1,
+                "Rereading a waypoint never duplicates rewards");
+            SaveData stored = game.save;
+            Check(stored.version == 2, "Waypoint flags must not alter SaveData version");
+            // Annex fog has independent 6x6 flags; legacy 24-bit interior
+            // exploration remains unchanged after the world expands.
+            game.Close();
+            game.save.x = 14.5f; game.save.y = 30.5f;
+            Check(!game.Explored(0, 14, 30), "Unknown annex stays fogged before walking there");
+            game.Tick(.02f, new Point());
+            Check(game.Explored(0, 14, 30) && !game.Explored(0, 47, 23),
+                "Visiting one annex must not reveal the distant eastern branch");
+            GameCore loaded = new GameCore(data, stored);
+            Check(loaded.Explored(0, 14, 30) && !loaded.Explored(0, 47, 23),
+                "Annex exploration persists in existing save string flags");
+            Check(loaded.Has("waytrail_waytrail0s") &&
+                loaded.save.coins == coins + 8 && loaded.save.shards == shards + 1,
+                "Waypoint discovery and rewards survive a normal save reload");
+        }
+
+        public static void ChapterEightRoadCharterUsesNewMapsAndChangesActualProgression(Campaign data)
+        {
+            var g = new GameCore(data);
+            g.mode = "world";
+            g.save.stage = 3; g.save.ending = 1; g.save.level = 10;
+            WorldObject guild = Array.Find(data.maps[0].objects, o => o.kind == "guild");
+            g.save.x = guild.x; g.save.y = guild.y;
+            g.Talk(guild);
+            Check(Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild") < 0,
+                "Chapter Eight remains locked before the Chapter Seven hearing");
+            g.Close();
+            g.save.flags.Add("hearing_complete");
+            g.save.flags.Add("hearing_orrin_aid");
+            Check(g.RoadCharterReady && !g.RoadCharterStarted, "Signed hearing unlocks the road chapter");
+            g.Talk(guild);
+            int idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild");
+            Check(idx >= 0, "Guild presents a new chapter without removing prior dialogue choices");
+            g.Choose(idx);
+            Check(g.mode == "dialog", "Chapter Eight introduction is playable dialogue");
+            idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_begin");
+            Check(idx >= 0, "Lyra offers real expedition acceptance");
+            g.Choose(idx);
+            Check(g.RoadCharterStarted && g.save.trackedQuest == "roadcharter" &&
+                g.RoadCharterReports == 0, "Starting new main chapter records a trackable objective");
+            int preCoins = g.save.coins, preShards = g.save.shards;
+            for (int room = 1; room <= 3; room++)
+            {
+                WorldObject marker = Array.Find(data.maps[room].objects,
+                    o => o.id == "waytrail" + room + "e");
+                g.save.room = room; g.save.x = marker.x; g.save.y = marker.y;
+                g.mode = "world";
+                g.Talk(marker);
+                Check(g.RoadCharterReports == room &&
+                    g.Has("roadcharter_report_" + room),
+                    "Physical eastern survey advances exactly one regional main-story report");
+                g.Close();
+                g.Talk(marker); g.Close();
+                Check(g.RoadCharterReports == room, "Rereading one marker cannot duplicate evidence");
+            }
+            Check(g.GetQuest("roadcharter").room == 0 &&
+                g.GetQuest("roadcharter").target.x == guild.x,
+                "Three surveyed regions route player back to Lyra");
+            g.save.room = 0; g.save.x = guild.x; g.save.y = guild.y;
+            g.Talk(guild); idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild");
+            Check(idx >= 0, "Guild retains Chapter Eight resolution");
+            g.Choose(idx);
+            float priorSpeed = g.Speed;
+            idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_public");
+            Check(idx >= 0, "Civilian priority is a real player decision");
+            g.Choose(idx);
+            Check(g.RoadCharterComplete && g.Has("roadcharter_public") &&
+                Math.Abs(g.Speed - priorSpeed - .25f) < .001f &&
+                g.save.coins == preCoins + 3 * 8 + 45 &&
+                g.save.shards == preShards + 3 + 3,
+                "Chapter Eight's first ending rewards once and grants a real speed upgrade");
+            SaveData snapshot = g.save;
+            var loaded = new GameCore(data, snapshot);
+            Check(snapshot.version == 2 && loaded.RoadCharterComplete &&
+                loaded.Has("roadcharter_public") && loaded.RoadCharterReports == 3,
+                "Road charter and collected testimony persist without a SaveData migration");
+            g.Talk(guild);
+            idx = Array.FindIndex(g.conversation.choices, c => c.action == "roadcharter_guild");
+            g.Choose(idx); g.Close();
+            Check(g.save.coins == snapshot.coins && g.save.shards == snapshot.shards,
+                "Rereading completed public roads cannot farm the main-story payout");
+
+            var reserve = new GameCore(data);
+            reserve.save.flags.Add("hearing_complete");
+            reserve.save.flags.Add("hearing_orrin_patrol");
+            reserve.save.flags.Add("roadcharter_started");
+            for (int room = 1; room <= 3; room++)
+                reserve.save.flags.Add("roadcharter_report_" + room);
+            reserve.save.stage = 3; reserve.save.ending = 1; reserve.save.level = 10;
+            reserve.save.x = guild.x; reserve.save.y = guild.y;
+            reserve.mode = "world";
+            float speedBefore = reserve.Speed;
+            reserve.Talk(guild);
+            idx = Array.FindIndex(reserve.conversation.choices, c => c.action == "roadcharter_guild");
+            reserve.Choose(idx);
+            idx = Array.FindIndex(reserve.conversation.choices, c => c.action == "roadcharter_reserve");
+            reserve.Choose(idx);
+            Check(reserve.Has("roadcharter_reserve") && reserve.RoadCharterComplete &&
+                Math.Abs(reserve.Speed - speedBefore) < .001f &&
+                reserve.save.version == 2,
+                "Alternative ending grants a distinct choice without quietly changing movement");
+            float startEnergy = 15f;
+            reserve.save.energy = startEnergy;
+            // The production simulation deliberately clamps each frame to
+            // 50 ms. Ten ordinary frames, not one artificial 500 ms tick,
+            // must accumulate half a second of real regeneration.
+            for (int frame = 0; frame < 10; frame++)
+                reserve.Tick(.05f, new Point());
+            Check(reserve.save.energy >= startEnergy + 8.4f &&
+                reserve.save.energy < startEnergy + 8.7f,
+                "Emergency-road charter adds +3 per second to real frame-by-frame stamina recovery");
+        }
+
     }
 }

@@ -22,24 +22,24 @@ namespace Starfall
                 Text(299, y + 46, 548, 26, description, 15, paper);
                 DateTime time; string stamp = s != null && DateTime.TryParse(s.savedAtUtc, out time) ? time.ToLocalTime().ToString("yyyy/MM/dd HH:mm") : "—";
                 Text(299, y + 79, 548, 20, stamp + (s != null && slotWarnings[i] != null ? Game.L(" · 将恢复备份", " · backup recovery") : ""), 12, muted);
-                if (Button(869, y + 23, 144, 55, Game.L("保存到这里", "Save here"), false, slot >= 0 && Game.Has("intro"))) { confirmationSlot = slot; if (SaveStore.Exists(slot)) saveConfirmation = "write"; else WriteSlot(slot); }
+                if (Button(869, y + 23, 144, 55, Game.L("保存到这里", "Save here"), false, slot >= 0 && settingsParent != "title" && Game.Has("intro"))) { confirmationSlot = slot; if (SaveStore.Exists(slot)) saveConfirmation = "write"; else WriteSlot(slot); }
                 if (Button(1029, y + 23, 161, 55, Game.L("读取旅程", "Load journey"), false, s != null)) { confirmationSlot = slot; saveConfirmation = "read"; }
             }
             if (saveConfirmation != null)
             {
                 drawingModal = true; drawnControls.Clear(); Dim(); Card(365, 275, 550, 244); Text(390, 294, 500, 43, Game.L(saveConfirmation == "write" ? "覆盖这个手动存档？" : "读取这个旅程？", saveConfirmation == "write" ? "Replace this manual save?" : "Load this journey?"), 25, gold);
-                Text(390, 354, 500, 65, Game.L(saveConfirmation == "write" ? "其他存档保持独立，旧版本将保留为备份。" : "当前旅程会先自动保存，然后读取所选进度。", saveConfirmation == "write" ? "Other slots stay independent. The previous version becomes a backup." : "Your current journey will autosave before the selected progress loads."), 18, paper);
+                Text(390, 354, 500, 65, Game.L(saveConfirmation == "write" ? "其他存档保持独立，旧版本将保留为备份。" : settingsParent == "title" ? "从此旅程开始游戏；自动存档与其他位置不受影响。" : "当前旅程会先自动保存，然后读取所选进度。", saveConfirmation == "write" ? "Other slots stay independent. The previous version becomes a backup." : settingsParent == "title" ? "Start this journey; your autosave and other slots stay unchanged." : "Your current journey will autosave before the selected progress loads."), 18, paper);
                 if (Button(390, 441, 242, 49, Game.L("确认", "Confirm"), true)) { string action = saveConfirmation; saveConfirmation = null; if (action == "write") WriteSlot(confirmationSlot); else LoadSlot(confirmationSlot); }
                 if (Button(649, 441, 241, 49, Game.L("取消", "Cancel"))) saveConfirmation = null;
             }
         }
         private void WriteSlot(int slot)
-        { if (VisualReviewActive) { Game.Notify("视觉测试场不会写入存档。", "The visual review lab does not write saves."); return; } Game.PrepareSave(); bool ok = SaveStore.Write(Game.save, slot); RefreshSlots(); Game.Notify(ok ? "手动存档完成。" : "保存失败，旧存档仍保留。", ok ? "Manual save complete." : "Save failed; the previous save is retained."); Game.sound = ok ? "save" : "deny"; }
+        { if (settingsParent == "title") { Game.Notify("请先进入游戏，才能保存到手动存档。", "Start playing before writing a manual save."); return; } if (VisualReviewActive) { Game.Notify("视觉测试场不会写入存档。", "The visual review lab does not write saves."); return; } Game.PrepareSave(); bool ok = SaveStore.Write(Game.save, slot); RefreshSlots(); Game.Notify(ok ? "手动存档完成。" : "保存失败，旧存档仍保留。", ok ? "Manual save complete." : "Save failed; the previous save is retained."); Game.sound = ok ? "save" : "deny"; }
         private void LoadSlot(int slot)
         {
             if (VisualReviewActive) { Game.Notify("请先退出视觉测试场。", "Exit the visual review lab first."); return; }
             string warning; SaveData saved = SaveStore.Read(slot, out warning); if (saved == null) { Game.Notify("无法读取这个存档。", "This save cannot be read."); return; }
-            if (Game.Has("intro") && !Save()) { Game.Notify("当前旅程保存失败，读取已取消。", "Current journey could not save; loading canceled."); return; }
+            if (settingsParent != "title" && Game.Has("intro") && !Save()) { Game.Notify("当前旅程保存失败，读取已取消。", "Current journey could not save; loading canceled."); return; }
             Game.Load(saved); Game.Start(); camera = CameraTarget(); dialogParent = null; settingsParent = "world"; resumeBrief = Game.GuidanceHint(); resumeTime = 8; Game.sound = "travel";
             if (warning != null) Game.Notify("已恢复备份进度。", "Backup progress recovered.");
         }
@@ -52,8 +52,17 @@ namespace Starfall
             for (int i = 0; i < 3; i++) if (Button(294 + i * 199, 539, 187, 28, Game.L(new[] { "均衡", "蓄势", "流转" }[i], new[] { "Balanced", "Focused", "Flow" }[i]), inspectedStyle == i)) inspectedStyle = i;
             bool owned = inspectedWeapon == 0 || Game.Has("weapon_" + inspectedWeapon), unlocked = inspectedStyle == 0 || Game.Has("core_1") || Game.MasteryRank(inspectedWeapon) >= 1;
             string stats = Game.L("伤害 / 间隔 / 耗能：", "Damage / interval / energy: ") + candidate.damage.ToString("0") + " / " + candidate.interval.ToString("0.00") + "s / " + candidate.energy + "\n" + Game.L("当前：", "Equipped: ") + current.damage.ToString("0") + " / " + current.interval.ToString("0.00") + "s / " + current.energy;
-            Text(297, 577, 389, 59, stats, 13, paper);
-            if (Button(710, 580, 174, 52, Game.L("装备此打法", "Equip style"), true, owned && unlocked)) { Game.Equip(inspectedWeapon); Game.SetStyle(inspectedStyle); }
+            string finisher = inspectedWeapon == 0 ?
+                Game.L("第三击：+25%伤害，增加挥砍范围", "Third hit: +25% damage and extended sword reach") :
+                inspectedWeapon == 1 ?
+                Game.L("第三箭：+15%伤害；均衡流派穿透", "Third shot: +15% damage; Balanced pierces") :
+                Game.L("第三发：+12%伤害，短暂减速", "Third cast: +12% damage and a brief slow");
+            Text(297, 577, 389, 59, stats + "\n" + finisher, 12, paper);
+            bool equipped = owned && inspectedWeapon == Game.save.weapon && inspectedStyle == Game.Style;
+            if (Button(710, 580, 174, 52, equipped ?
+                Game.L("当前已装备", "Already equipped") : Game.L("装备此打法", "Equip style"),
+                equipped, owned && unlocked && !equipped))
+            { Game.Equip(inspectedWeapon); Game.SetStyle(inspectedStyle); }
             Text(297, 642, 583, 41, !owned ? Game.L("先去铁匠处制作武器。", "Craft this weapon at the blacksmith first.") : !unlocked ? Game.L("第一星核或本武器熟练度1解锁打法。", "First core or weapon mastery rank 1 unlocks styles.") : candidate.benefit + " · " + candidate.cost, 12, muted);
         }
         private void DrawJourney()
@@ -65,7 +74,92 @@ namespace Starfall
         private bool DrawPolishObject(WorldObject o)
         {
             Point p = ScreenPoint(new Point(o.x, o.y));
-            if (o.kind == "mentor" || o.kind == "returnscout") { if (o.kind == "returnscout" && !Game.Has("scout_saved")) return true; DrawNpc(o.kind, new Point(o.x, o.y)); Text(p.x - 55, p.y - 89, 110, 24, o.kind == "mentor" ? Game.L("训练场", "PRACTICE") : Game.L("已归来", "HOME"), 12, mint, TextAnchor.MiddleCenter); return true; }
+
+
+            if (o.kind == "rootlistener")
+            {
+                DrawNpc(o.kind, new Point(o.x, o.y));
+                Color hue = Game.Has("root_harmony_complete") ? mint : gold;
+                Ring(new Point(o.x, o.y), .42f, hue, 16);
+                Text(p.x - 54, p.y - 84, 108, 24,
+                    Game.L("星根听纹", "ROOT SONG"), 11, hue, TextAnchor.MiddleCenter);
+                return true;
+            }
+            if (o.kind.StartsWith("rootcounter"))
+            {
+                int region;
+                if (!int.TryParse(o.kind.Substring("rootcounter".Length), out region)) return false;
+                bool sealedNode = Game.Has("root_harmony_" + region);
+                bool inTrial = Game.RootHarmonyRoom == region;
+                Color color = sealedNode ? mint : inTrial ? PixelArt.C("#f3a57a") : gold;
+                PropImage("column", 0, p.x - 31, p.y - 69, 62, 74);
+                Ring(new Point(o.x, o.y), .48f, color, 20);
+                Text(p.x - 50, p.y - 80, 100, 22,
+                    sealedNode ? Game.RootHarmonyRestoring ?
+                        Game.L("安全休整", "RESTORING") : Game.L("已归档", "SEALED") :
+                        inTrial ? Game.L("守卫 " , "DEFEND ") +
+                            (int)Math.Ceiling(Game.RootHarmonyTime) + "s" :
+                            Game.L("聆听音纹", "LISTEN"),
+                    11, color, TextAnchor.MiddleCenter);
+                return true;
+            }
+            if (o.kind == "worldchronicle")
+            {
+                PropImage("bookshelf", 0, p.x - 29, p.y - 64, 58, 68, Color.white);
+                // A small persistent location cue, with no large text HUD.
+                Ring(new Point(o.x, o.y), .43f, mint, 16);
+                Text(p.x - 52, p.y - 84, 104, 21,
+                    Game.L("世界档案", "WORLD LORE"), 11, mint, TextAnchor.MiddleCenter);
+                return true;
+            }
+
+            if (o.kind.StartsWith("wayfarer"))
+            {
+                int region;
+                if (!int.TryParse(o.kind.Substring(8), out region) || region < 1 || region > 3) return false;
+                bool done = Game.Has("wayfarer_" + region), active = Game.WayfarerEncounterRoom == region;
+                DrawNpc(o.kind, new Point(o.x, o.y), 11 + region);
+                Color accent = done ? mint : active ? PixelArt.C("#f3a57a") : gold;
+                Ring(new Point(o.x, o.y), .38f, accent, 16);
+                Text(p.x - 44, p.y - 91, 88, 24, done ? "✓" :
+                    active ? Game.L("保护！", "DEFEND!") : "!", 15, accent, TextAnchor.MiddleCenter);
+                if (active)
+                {
+                    Color safety = Game.WayfarerIntegrity <= 35 ? PixelArt.C("#f27d7d") : mint;
+                    // Readable beside the actual NPC, without a full-screen HUD.
+                    Bar(p.x - 35, p.y + 11, 70, Game.WayfarerIntegrity / 100f, safety, 6);
+                    Text(p.x - 42, p.y + 17, 84, 18, Game.L("安全 ", "SAFE ") +
+                        (int)Math.Ceiling(Game.WayfarerIntegrity) + "%", 10, safety, TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
+            if (o.kind.StartsWith("survey"))
+            {
+                bool desk = o.kind == "surveyDesk";
+                bool found = desk ? Game.Has("survey_complete") : Game.Has("survey_" + o.kind.Substring(6));
+                bool defending = !desk && Game.RoadwardenTrialRoom == Game.save.room;
+                bool defended = !desk && Game.Has("road_trial_" + o.kind.Substring(6));
+                Color accent = defending ? (Game.RoadwardenTrialVeteran ? PixelArt.C("#b9a4ed") : PixelArt.C("#e69d83")) : defended ? gold : found ? mint : gold;
+                PropImage(desk ? "bookshelf" : "column", 0, p.x - 27, p.y - 62, 54, 68, found ? muted : Color.white);
+                float pulse = found || Game.save.reducedMotion ? 0 : Mathf.Sin(clock * 2.6f) * .05f;
+                Ring(new Point(o.x, o.y), .36f + pulse, accent, 16);
+                string label = desk ? Game.L("归乡星图", "ROAD CHART") :
+                    defending ? Game.L(Game.RoadwardenTrialVeteran ? "精英 " : "守望 ", Game.RoadwardenTrialVeteran ? "ELITE " : "WAVE ") + Game.RoadwardenTrialWave + "/" + Game.RoadwardenTrialTotalWaves :
+                    defended ? Game.L("已守住", "GUARDED") : found ? "✓" : o.kind.Substring(6);
+                Text(p.x - 46, p.y - 72, 92, 24, label, 12, accent, TextAnchor.MiddleCenter);
+                if (defending)
+                {
+                    Color wardColor = Game.RoadwardenWardIntegrity < 30 ? PixelArt.C("#f27d7d") :
+                        Game.RoadwardenWardUnderAttack ? PixelArt.C("#f4b16c") : mint;
+                    // Fixed, motion-independent integrity readout at the actual
+                    // protected beacon; no extra overlay across the combat arena.
+                    Bar(p.x - 35, p.y + 11, 70, Game.RoadwardenWardIntegrity / 100f, wardColor, 6);
+                    Text(p.x - 42, p.y + 17, 84, 18, Game.L("护盾 ", "WARD ") +
+                        (int)Math.Ceiling(Game.RoadwardenWardIntegrity) + "%", 10, wardColor, TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
+            if (o.kind == "mentor" || o.kind == "returnscout") { DrawNpc(o.kind, new Point(o.x, o.y)); Text(p.x - 55, p.y - 89, 110, 24, o.kind == "mentor" ? Game.L("训练场", "PRACTICE") : Game.L("已归来", "HOME"), 12, mint, TextAnchor.MiddleCenter); return true; }
             if (o.kind.StartsWith("seal")) { bool open = Game.Has("seal_" + Game.save.room); Ring(new Point(o.x, o.y), .4f, open ? mint : gold, 16); if (!open) { Icon("relic", p.x - 18, p.y - 38, 36); Text(p.x - 44, p.y + 14, 88, 23, ControlKey("R / E", "B"), 12, gold, TextAnchor.MiddleCenter); } return true; }
             if (o.kind.StartsWith("cache")) { bool found = Game.Has("cache_" + Game.save.room); PropImage("cache", 0, p.x - 26, p.y - 42, 52, 61, found ? muted : Color.white); return true; }
             return false;
@@ -78,6 +172,16 @@ namespace Starfall
             if (near != null && !Game.practicing) { Panel(24, 228, 298, 90, new Color(.06f, .08f, .13f, .88f), PixelArt.C("#b37c6a")); Text(40, 241, 266, 68, Game.EnemyHint(near), 13, paper, TextAnchor.MiddleCenter); }
             if (Game.practicing) { Panel(348, 190, 584, 104, panel, mint); Text(365, 206, 549, 34, Game.L("安全练习 ", "Safe practice ") + (Game.practiceStage + 1) + "/3", 20, gold); Text(365, 250, 390, 31, PracticeInputHint, 16, paper); if (Button(785, 246, 130, 34, Game.L("结束练习", "End practice"))) Game.EndPractice(); }
             if (resumeTime > 0 && !Game.practicing) { Panel(352, 205, 576, 98, panel, gold); Text(369, 219, 542, 27, Game.L("欢迎回来 · 接下来", "Welcome back · next step"), 19, gold); Text(369, 255, 542, 40, resumeBrief, 14, paper); }
+            // Keep the unmarked escape bearing legible even in reduced-motion
+            // mode, using a small in-world ring rather than another HUD panel.
+            if (Game.AtlasEchoRoom == Game.save.room && Game.AtlasEchoOpenTime > 0)
+            {
+                Point openBearing = Game.AtlasEchoOpenBearing;
+                Point screenBearing = ScreenPoint(openBearing);
+                Ring(openBearing, .55f, mint, 18);
+                Text(screenBearing.x - 48, screenBearing.y - 57, 96, 25,
+                    Game.L("空方位", "OPEN BEARING"), 11, mint, TextAnchor.MiddleCenter);
+            }
             if (Game.save.reducedMotion || Game.save.effectsQuality == 0) return;
             if (Game.save.room == 5) for (int i = 0; i < 24; i++) { float x = (i * 71 + clock * 27) % Width, y = (i * 53 + clock * 135) % Height; Box(x, y, 1, 6, new Color(.71f, .82f, .91f, .22f)); }
         }

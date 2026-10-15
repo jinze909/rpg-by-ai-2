@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "mine_convoy", "frost_signal", "sword_lesson" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -35,11 +35,35 @@ namespace Starfall
         {
             save.tutorialDistance = Math.Min(4, save.tutorialDistance + (Position - before).Length);
             if (save.tutorialDistance >= 3) TutorialAction(0); if (save.room == 1) TutorialAction(7);
-            int bit = 1 << Sector(save.x, save.y);
-            if ((save.explored[save.room] & bit) == 0) { save.explored[save.room] |= bit; revision++; }
+            // Legacy sectors track the original 36x24 area only.
+            if (save.x < 36 && save.y < 24)
+            {
+                int bit = 1 << Sector(save.x, save.y);
+                if ((save.explored[save.room] & bit) == 0) { save.explored[save.room] |= bit; revision++; }
+            }
+            // Preserve all legacy 36x24 fog bits. Annex discoveries use the
+            // existing string flags instead of widening the SaveData v2 schema.
+            if (save.room < 10 && (save.x >= 36 || save.y >= 24))
+            {
+                string key = AnnexSectorKey(save.room, save.x, save.y);
+                if (!Has(key)) { save.flags.Add(key); revision++; }
+            }
         }
         private static int Sector(float x, float y) { return (int)Clamp(x / 6, 0, 5) + (int)Clamp(y / 6, 0, 3) * 6; }
-        public bool Explored(int room, float x, float y) { return (save.explored[room] & (1 << Sector(x, y))) != 0; }
+        private string AnnexSectorKey(int room, float x, float y)
+        {
+            // The procedural abyss must not leak discovery across different
+            // seeds or floors; outdoor flags retain their legacy v2 IDs.
+            string prefix=room==8?"abyss_annex_seen_"+save.abyssSeed+"_"+save.abyssFloor+"_":
+                "annex_seen_"+room+"_";
+            return prefix+(int)Math.Floor(x/6)+"_"+(int)Math.Floor(y/6);
+        }
+        public bool Explored(int room, float x, float y)
+        {
+            if (room >= 0 && room < 10 && (x >= 36 || y >= 24))
+                return Has(AnnexSectorKey(room, x, y));
+            return (save.explored[room] & (1 << Sector(x, y))) != 0;
+        }
         public void TrackQuest(string id)
         { if (Array.IndexOf(QuestIds, id) < 0 || GetQuest(id).locked) return; save.trackedQuest = id; save.frontierFocus = id == "shore"; TutorialAction(2); revision++; }
         private Point ObjectPoint(int room, string kind, Point fallback)
@@ -58,6 +82,1523 @@ namespace Starfall
         {
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
+
+
+
+
+            if(id=="sword_lesson")
+            {
+                q.title=L("余烬镇 · 诺尔的三箭考核","Emberfall · Noll's Three Arrows");
+                q.category=L("剑盾训练 · 实弹弹反","SWORD-GUARD TRAINING · LIVE ARROWS");
+                q.description=L(
+                    "回城向铁匠诺尔学习战士剑盾技术。领取48秒练习，面对东方发箭器，使用Q技能正面接触并反弹三支实际飞来的箭。需要保持耐力与正确的技能时机；失败可重新练习，奖励只能获得一次。",
+                    "Practice with Noll at the original town smithy: a 48s live-arrow drill. Face the eastern launcher and use the warrior's Q guard to physically reflect three arrows. Manage timing and energy; retries are free and the reward is one-time.");
+                q.room=0;q.target=ObjectPoint(0,"forge",new Point(7,8));
+                q.locked=save.profession!=0;
+                q.complete=SwordLessonComplete;
+                q.steps.Add(new QuestStep(L("在诺尔铁匠铺启动试炼","Start at Noll's blacksmith shop"),
+                    q.complete||SwordLessonActive));
+                q.steps.Add(new QuestStep(L("正面弹回三支实际飞来的箭矢",
+                    "Face and reflect three actual hostile arrows"),q.complete));
+                q.next=q.locked?L("此训练属于战士职业","The drill is for the warrior class"):
+                    q.complete?L("诺尔已公布你的剑盾训练记录","Noll has published your sword-guard record"):
+                    SwordLessonActive?L("弹反 "+SwordLessonHits+"/3 · 剩余 "+
+                        SwordLessonTime.ToString("0")+" 秒",
+                        "Reflections "+SwordLessonHits+"/3 · "+
+                        SwordLessonTime.ToString("0")+"s left"):
+                    L("回城与诺尔对话，开始三箭实战练习","Talk to Noll to start three real-arrow reflections");
+                q.reward=L("首次30硬币、1碎片、50经验；城镇正式训练记录",
+                    "First clear: 30 coins, 1 shard, 50 XP and permanent training record");
+                return q;
+            }
+            if(id=="frost_signal")
+            {
+                q.title=L("霜钟高原 · 公共余火","Frostchime · The Civic Ember");
+                q.category=L("护火实战 · 严寒生存","EMBER RUN · COLD SURVIVAL");
+                q.description=L(
+                    "原有高原守护者失去控制后，将民用火种由西岗送往南侧暖站。严寒使余温衰减，转折台仍有旧守卫。亲自抵达并解决战斗，可选择消耗月光草、耐力或不使用补给，最终决定建立居民疗养点或巡路补给点。",
+                    "After defeating the original highland guardian, carry a civilian ember from the west to southern shelter. Real cold erodes warmth and two guards contest the middle station. Choose herbs, energy or no supplies before commissioning a clinic or road-crew supply fire.");
+                q.room=7;q.locked=!Has("boss_7")||!CanEnter(7);
+                q.complete=FrostSignalComplete;
+                q.steps.Add(new QuestStep(L("在西部领取余火","Collect the original western ember"),
+                    Has("frostsignal_started")));
+                q.steps.Add(new QuestStep(L("守卫实战与补给抉择","Overcome the middle guards and select supplies"),
+                    q.complete||FrostSignalStage>=3));
+                q.steps.Add(new QuestStep(L("送达南方并选择公共用途","Deliver south and choose a civic purpose"),
+                    q.complete));
+                int post=FrostSignalStage==2?2:FrostSignalStage==3?3:1;
+                foreach(WorldObject o in data.maps[7].objects)
+                    if(o.id=="frostsignal_"+post){q.target=new Point(o.x,o.y);break;}
+                q.next=q.locked?L("先击败高原守护者","First defeat the original Frostchime guardian"):
+                    q.complete?L("民用火堆已重燃","Public hearth restored"):
+                    FrostSignalActive?L("余温 "+FrostSignalFlame.ToString("0")+
+                        " · 剩余 "+FrostSignalTime.ToString("0")+" 秒",
+                        "Ember "+FrostSignalFlame.ToString("0")+
+                        " · "+FrostSignalTime.ToString("0")+"s remain"):
+                    L("前往西部守灯岗领取火种","Collect ember at the west signal");
+                q.reward=L("首次55硬币、2碎片、85经验；余温50以上额外10硬币；永久暖站服务",
+                    "First clear: 55 coins, 2 shards, 85 XP; 10 extra coins at 50+ flame; permanent local shelter service");
+                return q;
+            }
+            if(id=="mine_convoy")
+            {
+                q.title=L("矿工的最后一班车","The Miners' Last Shift");
+                q.category=L("护送、战斗与资源选择","ESCORT, COMBAT & RESOURCE CHOICE");
+                q.description=L(
+                    "矿场监工倒台后，从西北矿车岗亲自护送最后一班矿工。始终跟在矿车附近；在转轨台击退两名袭击者，选择消耗零件修复或保留材料。避开沿途蒸汽预警，将矿车送到南侧矿棚。失败可免费重试。",
+                    "After defeating the overseer, physically escort the workers' cart from western dispatch. Stay nearby, defeat two real raiders at the switchyard, choose spare-part reinforcement or conserve resources, dodge steam and deliver to southern shelter. Retries are free.");
+                q.room=3;q.locked=!Has("boss_3")||!CanEnter(3);
+                q.complete=MineConvoyComplete;
+                q.steps.Add(new QuestStep(L("在西北发车岗启动护送","Start the western cart dispatch"),
+                    Has("mineconvoy_started")));
+                q.steps.Add(new QuestStep(L("击退转轨台袭击者并重新放行",
+                    "Defeat switchyard raiders and release the cart"),
+                    q.complete||MineConvoyStage>=3));
+                q.steps.Add(new QuestStep(L("将最后一班矿工送到南侧矿棚",
+                    "Deliver the workers at southern shelter"),q.complete));
+                int target=MineConvoyStage==2?2:MineConvoyStage>=3?3:1;
+                foreach(WorldObject post in data.maps[3].objects)
+                    if(post.id=="mineconvoy_"+target)
+                    {q.target=new Point(post.x,post.y);break;}
+                q.next=q.complete?L("撤离完成，南侧矿棚提供安全休息","Evacuation complete; the shelter now offers safe rest"):
+                    q.locked?L("先完成矿场的原始守护者战斗","Defeat Ironreach's original guardian"):
+                    MineConvoyActive?L("剩余"+MineConvoyTime.ToString("0")+"秒 · 车厢"+
+                        MineConvoyIntegrity.ToString("0")+"/80 · "+MineConvoyStage+"/4",
+                        MineConvoyTime.ToString("0")+"s · Hull "+MineConvoyIntegrity.ToString("0")+
+                        "/80 · "+MineConvoyStage+"/4"):
+                    L("前往西北矿车岗启动撤离","Begin evacuation at western dispatch");
+                q.reward=L("首次60硬币、2碎片、80经验、矿棚安全疗养、强化木料成本永久-1",
+                    "First clear: 60 coins, 2 shards, 80 XP, safe depot healing and -1 timber per future upgrade");
+                return q;
+            }
+
+            if(id=="flood_archive")
+            {
+                q.title=L("沉没遗迹 · 被抹去的渡船","Drowned Ruins · The Erased Ferries");
+                q.category=L("潮汐探索 · 民用抉择","TIDE EXPLORATION · CIVILIAN CHOICE");
+                q.description=L(
+                    "失踪侦察员归来后，调查沉桥深处真实存在的高水尺与低潮名册。依潮位实地记录两份证据，在公议台决定优先救治伤者还是培训摆渡人；两种决定改变潮标附近的安全补给。",
+                    "After the scout returns, recover a high-water gauge and a low-tide roster at actual river landmarks. Reconcile the records at the public desk and decide whether to treat survivors or train ferry pilots. Each choice changes local safe refuge services.");
+                q.room=2;q.locked=!Has("scout_saved")||!CanEnter(2);q.complete=FloodArchiveComplete;
+                string[] labelsZh={"涨潮时抄录旧桥水尺","退潮时找回摆渡名册","在公共渡口决定档案用途"};
+                string[] labelsEn={"Read the bridge gauge at high tide","Recover the ferry roster at low tide","Decide the archive's use at the public ferry"};
+                int next=FloodArchiveProgress+1;
+                for(int i=1;i<=3;i++)
+                {
+                    q.steps.Add(new QuestStep(L(labelsZh[i-1],labelsEn[i-1]),i<=FloodArchiveProgress));
+                    if(i==next)
+                        foreach(WorldObject site in data.maps[2].objects)
+                            if(site.id=="floodarchive_"+i)
+                            {q.target=new Point(site.x,site.y);break;}
+                }
+                if(q.complete)q.target=new Point(79.5f,35.5f);
+                q.next=q.locked?(!Has("scout_saved")?
+                    L("先救回荆棘密林的侦察员","First rescue the Thornwood scout"):
+                    L("先交回第一枚星核，解锁沉没遗迹","Deliver the first starcore to unlock Drowned Ruins")):
+                    q.complete?FloodArchiveChoice==1?
+                    L("伤者名册已公开，安全潮标提供疗养","Public roster published; safe tideposts provide recovery"):
+                    L("原始水图已保留，潮标培训渡船","Original tide charts saved; pilots now train at tideposts"):
+                    next==1?L("寻找旧桥水尺，等待涨潮","Find the upper gauge and wait for high tide"):
+                    next==2?L("寻找摆渡名册，等待退潮","Find the submerged roster at low tide"):
+                    L("抵达议事台，决定如何使用证据","Choose the outcome at the public ferry desk");
+                q.reward=L("两份证据各12经验；终点50硬币、2碎片、80经验，以及地区安全补给",
+                    "Two records: 12 XP each; final 50 coins, 2 shards, 80 XP and local safe support");
+                return q;
+            }
+
+            if(id=="rootsong")
+            {
+                q.title=L("荆棘密林 · 古根三声","Thornwood · Three Root Voices");
+                q.category=L("林地实地解谜","EXPLORATION · TIMED ROOT CIPHER");
+                q.description=L("救出侦察员，深入密林寻找三根古树。根据庇护、摆渡与归乡三段历史，依次奏出低、中、高音调；必须等待各自绿光窗口。",
+                    "Rescue the scout and find three ancient trunks. Follow the history of shelter, ferry and homecoming with Low, Middle and High tones in the green windows.");
+                q.room=1;q.target=new Point(62.5f,34.5f);
+                q.locked=!Has("scout_saved");q.complete=RootsongComplete;
+                string[] namesZh={"庇护之根 · 低音","摆渡之根 · 中音","归乡之根 · 高音"};
+                string[] namesEn={"Shelter Root · Low","Ferryman Root · Middle","Homeward Root · High"};
+                for(int i=1;i<=3;i++)
+                {
+                    q.steps.Add(new QuestStep(L(namesZh[i-1],namesEn[i-1]),Has("rootsong_"+i)));
+                    if(i==RootsongProgress+1)
+                        foreach(WorldObject stone in data.maps[1].objects)
+                            if(stone.id=="rootsong_"+i){q.target=new Point(stone.x,stone.y);break;}
+                }
+                q.next=q.locked?L("先救回密林侦察员","First rescue the Thornwood scout"):
+                    q.complete?L("古根三声已经归一","All three root voices are restored"):
+                    L("前往下一根古树，观察绿光并选择正确音调",
+                      "Reach the next root, wait for green and play its correct tone");
+                q.reward=L("每段15经验；终点45硬币、2碎片、75经验，安全树旁额外耐力恢复",
+                    "15 XP per earlier note; final 45 coins, 2 shards, 75 XP and safe energy refuge");
+                return q;
+            }
+
+            if(id=="civic_conduit")
+            {
+                q.title=L("第十一章 · 公共电网调谐","Chapter Eleven · The Civic Conduit");
+                q.category=L("战后电路 · 行走、相位与避让","POSTWAR GRID · MOVEMENT, TIMING & DODGING");
+                q.description=L("最后一道军令公开后，在堡垒南部真路捐献一枚零件，带着临时导体，80秒内依次走访三个阀门。每个阀门只在自己的绿色稳定窗口开放；旧网格会定期释放真实的延迟电弧。完成后，八地建好的避险棚获得与你在第十章所选民用政策对应的服务。",
+                    "After publishing the Last Directive, donate one fuse part at the western citadel desk, then physically walk east and time three distinct green valve windows within 80s. Dodge real telegraphed grid arcs. All rebuilt refuges gain a persistent service based on your Chapter Ten policy.");
+                q.locked=!LastDirectiveComplete;
+                q.complete=CivicConduitComplete;
+                q.steps.Add(new QuestStep(L("在西端控制台捐献熔断器并开始调谐",
+                    "Donate a fuse at the western terminal and begin the run"),CivicConduitStarted));
+                for(int i=0;i<3;i++)
+                {
+                    bool done=CivicConduitComplete || CivicConduitActive&&CivicConduitStage>i;
+                    q.steps.Add(new QuestStep(L("实地调谐第 "+(i+1)+" 处稳定阀门",
+                        "Physically tune valve "+(i+1)),done));
+                }
+                if(CivicConduitActive)
+                {
+                    q.room=4;
+                    q.target=CivicConduitTarget(CivicConduitStage);
+                    q.next=L("第 "+(CivicConduitStage+1)+"/3 阀门 · "+
+                        (CivicConduitWindowOpen?"绿色窗口！":"等待相位变绿")+" · "+
+                        (int)Math.Ceiling(CivicConduitTimeLeft)+"秒",
+                        "Valve "+(CivicConduitStage+1)+"/3 · "+
+                        (CivicConduitWindowOpen?"GREEN NOW":"Wait for green")+
+                        " · "+(int)Math.Ceiling(CivicConduitTimeLeft)+"s");
+                }
+                else
+                {
+                    q.room=4;q.target=ObjectPoint(4,"civicconduitmaster",new Point(95.5f,74.5f));
+                    q.next=q.complete?L("三处开关已经校准，各地公共供能持续生效",
+                        "Three valves are tuned; the public network now supports regional refuges"):
+                        q.locked?L("先完成第十章的公开民用决议",
+                            "Publish Chapter Ten's civic decision first"):
+                        L("前往堡垒南侧西端熔断台，真实启动电网",
+                            "Go to the western citadel fuse desk to energize the grid");
+                }
+                q.reward=L("熔断器一枚仅首次消耗；真正完成后硬币65、碎片2、经验95；八地修复避险棚新增永久民用服务",
+                    "Fuse charged only once; first clear 65 coins, 2 shards, 95 XP, and a lasting new service at every rebuilt regional refuge");
+                return q;
+            }
+
+            if(id=="last_directive")
+            {
+                q.title=L("第十章 · 最后指令","Chapter Ten · The Last Directive");
+                q.category=L("主线余波 · 原始证词、破译与守卫战",
+                    "STORY AFTERMATH · TESTIMONY, CIPHER & COMBAT");
+                q.description=L("三地公共服务名册公开后，在余烬镇接到最后一道未署名的军用指令调查。亲自前往堡垒外围寻找矿工、船工和巡路队的原始证词，依真实时间顺序解除封锁，击败两波实体守卫，选定居民权利，再回城公布。现有主线与结局不会被覆盖。",
+                    "After publishing the regional service ledger, investigate an unsigned citadel order. Read three genuine clues across the far citadel, solve their historical sequence, defeat two real guardian waves, choose civic rights, then publish the final order in town. Original endings remain intact.");
+                q.locked=!Has("civic_response_ledger");
+                q.complete=LastDirectiveComplete;
+                q.steps.Add(new QuestStep(L("到余烬镇居民议事台开启调查",
+                    "Open the inquiry at Emberfall's public council"),LastDirectiveStarted));
+                string[] clueZh={"矿工的停机请求","船工的失联名单","巡路队的最后炉火"};
+                string[] clueEn={"Miners' shutdown petition","Ferrymen's lost names","Roadwardens' last hearth"};
+                for(int i=0;i<3;i++)
+                    q.steps.Add(new QuestStep(L(clueZh[i],clueEn[i]),
+                        Has("last_directive_clue_"+i)));
+                q.steps.Add(new QuestStep(L("破解终端并击退两道实体封锁",
+                    "Decode the terminal and defeat both real security waves"),
+                    LastDirectiveChoice>0));
+                q.steps.Add(new QuestStep(L("向余烬镇公开最后指令",
+                    "Publish the final order in Emberfall"),LastDirectiveComplete));
+                if(!LastDirectiveStarted||LastDirectiveChoice>0)
+                {
+                    q.room=0;q.target=ObjectPoint(0,"lastdirectiveboard",new Point(19.5f,15.5f));
+                    q.next=q.complete?L("最后指令已经公开；永久民用权限持续有效",
+                        "Last directive published; permanent civilian rights are active"):
+                        !LastDirectiveStarted?L("在余烬镇居民议事台接取调查",
+                            "Begin the inquiry at Emberfall's public council"):
+                            L("返回议事台把新权限公开给所有居民",
+                                "Return to the public council and publish the new rights");
+                }
+                else
+                {
+                    q.room=4;
+                    int next=0;while(next<3&&Has("last_directive_clue_"+next))next++;
+                    string obj=next<3?"lastdirectiveclue"+next:"lastdirectivecore";
+                    q.target=ObjectPoint(4,obj,new Point(100.5f,73.5f));
+                    q.next=next<3?L("亲自访问下一处堡垒外环证词","Reach the next physical citadel testimony"):
+                        LastDirectiveWave==1||LastDirectiveWave==3?
+                            L("击败守卫，实际战斗不可跳过","Defeat real guardians in combat"):
+                        LastDirectiveWave==2?L("回终端投入25耐力开启二级封锁",
+                            "At the terminal spend 25 energy to release the second lock"):
+                        LastDirectiveWave==4?L("在终端确定最后一道公共权利",
+                            "Choose lasting public rights at the terminal"):
+                            L("根据证词时间顺序破解终端","Decode the terminal from the historical testimony");
+                }
+                q.reward=L("原始证词各经验14；最终公开硬币95、碎片5、技能点1、经验140，选择永久监督恢复耐力或避难疗伤",
+                    "Each testimony +14 XP; publication +95 coins, 5 shards, 1 talent, 140 XP, plus a lasting choice between public energy or emergency healing");
+                return q;
+            }
+
+            if(id=="civic_services")
+            {
+                q.title=L("第九章续篇 · 三地公共服务实地考验",
+                    "Chapter Nine Aftermath · Live Civic Service Trials");
+                q.category=L("医疗护送与守路防卫","MEDICAL TRANSPORT & REAL DEFENSE");
+                q.description=L("三地审计公开后，每座居民选择的公共避险棚仍有真正的工作：医疗点需要从避险棚护送药包到北方检查台；守路岗必须真实击退两名袭击者。完成提高服务恢复效率。每地区只能领取一次首次完成奖励。",
+                    "After the public inquest, clinics need a real timed medicine walk to the northern checkpoint; lookout stations must defeat two real raiders. Each earned trial improves the region's refuge recovery; rewards are once only.");
+                q.locked=!CivicSupplyComplete;
+                q.complete=Has("civic_response_ledger");
+                int[] sites={0,3,5};
+                int next=-1;
+                string[] placeZh={"引水渠","赤铁矿场","雾港"};
+                string[] placeEn={"Canal","Ironreach","Mistport"};
+                for(int i=0;i<sites.Length;i++)
+                {
+                    int room=sites[i],done=CivicResponseDone(room)?1:0;
+                    q.steps.Add(new QuestStep(L(placeZh[i],placeEn[i])+
+                        (done==1?" ✓":" · 0/1"),done==1));
+                    if(next<0&&done==0&&CanEnter(room))next=room;
+                }
+                q.steps.Add(new QuestStep(L("炉火旅店公开三地应急名册",
+                    "Publish the response ledger at Hearth Inn"),
+                    Has("civic_response_ledger")));
+                if(CivicResponseActive)
+                {
+                    q.room=save.room;
+                    q.target=CivicResponseClinicRun?
+                        ObjectPoint(save.room,"farcheck",new Point(111.5f,61.5f)):
+                        ObjectPoint(save.room,"farshelter",new Point(112.5f,73.5f));
+                    q.next=CivicResponseClinicRun?
+                        L("亲自把药包送到检查台，剩余 "+(int)CivicResponseTimeLeft+" 秒",
+                          "Deliver medicine to checkpoint · "+(int)CivicResponseTimeLeft+"s left"):
+                        CivicResponseEnemiesAlive>0?
+                        L("击败守路岗前两名真实袭击者","Defeat both real lookout raiders"):
+                        L("返回避险棚签署守路记录","Return to refuge and certify defense");
+                }
+                else
+                {
+                    q.room=next<0?9:next;
+                    q.target=next<0?
+                        ObjectPoint(9,"farrefugerecord",new Point(22.5f,33.5f)):
+                        ObjectPoint(q.room,"farshelter",new Point(112.5f,73.5f));
+                    q.next=q.complete?L("三处公共服务已经实地完成","All three civilian services verified"):
+                        q.locked?L("先公开第九章的三地救援审计",
+                            "First publish the Chapter Nine civic inquest"):
+                        next<0?L("三地救援已实地验证，回旅店公开公共应急名册",
+                            "Return to Hearth Inn's guest registry and publish the response ledger"):
+                        CivicSupplyClinic(next)?
+                            L("到南端避险棚领取医药并步行送到北方检查站",
+                                "Collect medical supplies at southern refuge; walk to checkpoint"):
+                            L("在南端避险棚启动守路防卫并击败实际敌人",
+                                "Start the lookout defense and defeat real attackers");
+                }
+                q.reward=L("每地硬币24、碎片1、经验42、服务升级；三地完成技能点1；名册公开硬币40、碎片2、经验55并解锁八地基础疗养",
+                    "Each region 24 coins, 1 shard, 42 XP, improved service; all three +1 talent; ledger publication +40 coins, 2 shards, 55 XP and basic care in every rebuilt refuge");
+                return q;
+            }
+
+            if(id=="civic_supply")
+            {
+                q.title=L("第九章 · 居民补给审计","Chapter Nine · The People's Supply Inquest");
+                q.category=L("后日谈 · 分支抉择与持续服务",
+                    "AFTERMATH · COMMUNITY CHOICES");
+                q.description=L(
+                    "真正送达第一份救援包后，重访炉火旅店的居民住客名单。在引水渠、赤铁矿场和雾港的检查台，为已收货的居民选择医疗点或守路岗。材料只能投入其中一项，避险棚的实际恢复能力随选择改变。三地决定完毕后，返回旅店公开账目。",
+                    "After your first authentic parcel delivery, revisit Hearth Inn's guest registry. At the canal, Ironreach and Mistport checkpoints, let communities choose medical care or route watching. Both cost real materials and change their refuge's live recovery. Return to the Inn to publish all three decisions.");
+                q.locked=FarCourierDeliveredCount==0;
+                q.complete=CivicSupplyComplete;
+                q.steps.Add(new QuestStep(L("从旅店居民名单开启审计",
+                    "Open the inquest at the guest registry"),CivicSupplyStarted));
+                string[] regionsZh={"引水渠","赤铁矿场","雾港"};
+                string[] regionsEn={"Canal","Ironreach","Mistport"};
+                int[] sites={0,3,5};
+                int next=-1;
+                for(int i=0;i<sites.Length;i++)
+                {
+                    int room=sites[i];bool done=CivicSupplyResolved(room);
+                    string chosen=done?CivicSupplyClinic(room)?
+                        L(" · 医疗点"," · Clinic"):L(" · 守路岗"," · Lookout"):"";
+                    q.steps.Add(new QuestStep(L(regionsZh[i],regionsEn[i])+chosen,done));
+                    if(next<0&&!done)next=room;
+                }
+                q.steps.Add(new QuestStep(L("返回旅店公开三地共同账目",
+                    "Publish the three-region public accounts"),CivicSupplyComplete));
+                if(!CivicSupplyStarted || next<0)
+                {
+                    q.room=9;
+                    q.target=ObjectPoint(9,"farrefugerecord",new Point(22.5f,33.5f));
+                    q.next=q.complete?L("三地社区继续维持各自选择的救援服务",
+                        "All three communities maintain their chosen refuge services"):
+                        !CivicSupplyStarted?L("重访炉火旅店的居民名单，接取三地审计",
+                            "Revisit Hearth Inn's guest registry to begin"):
+                            L("三地决定齐备，回旅店居民名单签发审计公报",
+                                "Return to the guest registry and publish the inquest");
+                }
+                else
+                {
+                    q.room=next;
+                    q.target=ObjectPoint(next,
+                        FarCourierDelivered(next)?"farcheck":"farbridge",
+                        new Point(111.5f,61.5f));
+                    q.next=!CanEnter(next)?
+                        L("继续主线以开放下一片地区","Advance the story to unlock this region"):
+                        !FarCourierDelivered(next)?
+                        L("先在该地区修桥、送货，再与居民决定公共维护方案",
+                            "Rebuild its bridge, deliver a parcel, then choose local services"):
+                        L("到居民检查站选择医疗或守路，并付出真实材料",
+                            "Choose a clinic or lookout at the checkpoint using real materials");
+                }
+                q.reward=L("三地服务各获独立永久效果；每地经验 +22；公开后硬币48、碎片2、技能点1、经验70",
+                    "Three lasting local service upgrades, +22 XP per site; publication: 48 coins, 2 shards, 1 talent and 70 XP");
+                return q;
+            }
+
+            if(id=="far_couriers")
+            {
+                q.title=L("归乡送达 · 八地居民救援包","Homeward Deliveries · Eight Civilian Parcels");
+                q.category=L("真实步行运输 · 修桥后的生活","ACTUAL WALKING · LIFE AFTER REPAIR");
+                q.description=L("先修好同一地区的桥和避险棚，在95秒内背包步行过桥。桥南有两名真正出击的劫匪，受击会损坏物资。检查站可消耗零件修补或花30耐力开启护送结界。传送或超时不能代替亲手交付。",
+                    "Repair the bridge and remote shelter, then carry aid on foot across the span within 95 seconds. Two real raiders intercept the southbound route. Enemy hits tear the parcel; the checkpoint can repair it for one spare part or ward it for 30 energy. Teleports cannot substitute for real delivery.");
+                q.locked=!Has("intro");q.complete=FarCourierDeliveredCount==8;
+                int region=-1;
+                for(int i=0;i<8;i++)
+                {
+                    bool done=FarCourierDelivered(i);
+                    q.steps.Add(new QuestStep(L(data.maps[i].name,data.maps[i].en),done));
+                    if(region<0&&!done&&CanEnter(i)&&FarBridgeOpen(i)&&FarShelterBuilt(i))region=i;
+                }
+                if(FarCourierActive)
+                {
+                    q.room=save.room;q.target=!FarCourierCrossed?new Point(111.5f,53.5f):
+                        !FarCourierStamped?new Point(111.5f,61.5f):new Point(112.5f,73.5f);
+                    if(FarCourierStamped)foreach(WorldObject obj in Map.objects)
+                        if(obj.kind=="farshelter"){q.target=new Point(obj.x,obj.y);break;}
+                    q.next=!FarCourierCrossed?L("真正背包从北向南过桥","Cross the real bridge on foot"):
+                        !FarCourierStamped?L("在中途居民检查台核验封条","Verify the parcel at the checkpoint"):
+                        L("前往避险棚，剩余 "+(int)FarCourierTimeLeft+" 秒",
+                            "Deliver at refuge · "+(int)FarCourierTimeLeft+"s left");
+                }
+                else
+                {
+                    q.room=region<0?0:region;q.target=new Point(111.5f,49.5f);
+                    q.next=q.complete?L("八地全部实地送达","All eight parcels delivered on foot"):
+                        region<0?L("先修好至少一处桥和远端避险棚","Repair a bridge and distant refuge first"):
+                        L("到修好的桥头背上居民救援包","Collect a parcel at the rebuilt bridge");
+                }
+                q.steps.Add(new QuestStep(L("在炉火旅店签发公开补给公约","Publish the public supply charter at the Hearth Inn"),
+                    Has("far_courier_charter")));
+                q.complete=Has("far_courier_charter");
+                if(FarCourierDeliveredCount==8&&!Has("far_courier_charter"))
+                {
+                    q.room=9;q.target=new Point(22.5f,36.5f);
+                    q.next=L("前往旅店制图室公开八份补给回执","Publish the signed manifests at the Hearth Inn");
+                }
+                q.reward=L("八次真实送达各得硬币25、碎片1、经验38；八地技能点1；公布公约后全面提升避险棚治疗和御寒",
+                    "Each real delivery: 25 coins, 1 shard, 38 XP; all eight: +1 talent. Publishing the charter upgrades every refuge.");
+                return q;
+            }
+
+            if(id=="far_bridges")
+            {
+                q.title=L("八地民用补给桥 · 恢复实际步行近路","Eight Civilian Bridges · Reopen Real Trails");
+                q.category=L("实地建设 · 永久改变地形","FIELD CONSTRUCTION · PERMANENT TERRAIN");
+                q.description=L("在八个第六圈地图的北侧断桥处，消耗木材2与零件1修桥。修复会将原本无法站立的桥面变成真正可行走的地形；之前的绕路仍可用。",
+                    "At each remote sixth-ring crossing, spend 2 timber and 1 spare part. Repair turns genuinely blocked bridge tiles into a permanent walkable shortcut, while preserving the old detour.");
+                q.locked=!Has("intro");q.complete=FarBridgeCount==8;
+                int target=-1;
+                for(int room=0;room<8;room++)
+                {
+                    bool opened=FarBridgeOpen(room);
+                    q.steps.Add(new QuestStep(L(data.maps[room].name,data.maps[room].en),opened));
+                    if(target<0&&!opened&&CanEnter(room))target=room;
+                }
+                q.room=target<0?0:target;q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject station in data.maps[target].objects)
+                        if(station.kind=="farbridge")
+                        {q.target=new Point(station.x,station.y);break;}
+                q.next=q.complete?L("所有民用桥已重新开放","All civilian crossings reopened"):
+                    target<0?L("先解锁其余地区","Unlock the remaining regions"):
+                    L("寻找北侧真实断桥修复点","Find the actual northern repair post");
+                q.reward=L("每桥经验24；修完八桥再获得技能点1，实际缩短路线",
+                    "24 XP per bridge and 1 talent after all eight; shorter walkable routes");
+                return q;
+            }
+
+            if(id=="far_refuges")
+            {
+                q.title=L("远地气象与共用避险棚","Far Weather Logs · Shared Refuges");
+                q.category=L("实地谜题 · 可用营地","FIELD PUZZLES · LIVE SHELTERS");
+                q.description=L("第六圈每片地区有三处真正可到访的站点：读东部气象记录得到符号，在南部校准盘选择正确符号，再消耗木材和零件修复公共避险棚。修好后可反复消耗木材恢复生命、耐力并驱寒。",
+                    "Each sixth-ring region has three physical sites. Read the eastern weather record, choose its correct glyph at the southern dial, then spend timber and a spare part to rebuild a public refuge. An open shelter provides repeatable rest.");
+                q.locked=!Has("intro");q.complete=Has("far_refuge_atlas");
+                int next=-1,step=0;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    int found=FarLogFound(i)?1:0;
+                    if(FarDialReady(i))found++;
+                    if(FarShelterBuilt(i))found++;
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+found+"/3",found==3));
+                    if(next<0&&found<3&&CanEnter(i)){next=i;step=found;}
+                }
+                q.steps.Add(new QuestStep(L("回旅店档案室签发公共总图","Publish the civic atlas at the Inn"),
+                    Has("far_refuge_atlas")));
+                q.room=next<0?9:next;q.target=next<0?new Point(22.5f,36.5f):new Point(18,15);
+                if(next>=0)foreach(WorldObject station in data.maps[next].objects)
+                    if(station.id=="farsignal_"+next+"_"+step)
+                    {q.target=new Point(station.x,station.y);break;}
+                q.next=q.complete?L("八座避险棚与公共总图全部完成","All eight shelters and public atlas complete"):
+                    next<0?L("前往旅店新制图档案室签发公共总图",
+                        "Publish the civic atlas in the expanded Inn archive"):
+                    step==0?L("实地寻找最东侧气象手记","Find the eastern weather log"):
+                    step==1?L("去南侧校准盘核对记录符号","Match the reading at the southern dial"):
+                    L("去最远端建成开放的公共避险棚","Restore the outermost civilian shelter");
+                q.reward=L("每地硬币22、碎片1、经验60与永久暖棚；八地技能点1，旅店归档再得硬币80、碎片3、经验50",
+                    "Each: 22 coins, 1 shard, 60 XP and refuge; eight: +1 talent. Inn publication: 80 coins, 3 shards, 50 XP.");
+                return q;
+            }
+
+            if(id=="ridge_routes")
+            {
+                q.title=L("高地联络线 · 远端重连","Outer Ridge Links · Survey and Reconnect");
+                q.category=L("开放地图 · 安全捷径","OPEN WORLD · SAFE SHORTCUTS");
+                q.description=L("第五圈的高地与南部河湾各有一座旧地标。必须亲自走到两个端点，联通居民的安全巡路。联通后可在不受追击时消耗耐力往返。",
+                    "The new ridge and southern basin each hold a forgotten marker. Visit both physically to reopen a civilian crossing. Afterward, spend stamina to travel between them outside combat.");
+                q.locked=!Has("intro");q.complete=RidgeLinkedCount==8;
+                int target=-1,side=0;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Drowned Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    bool first=RidgeSeen(i,0),second=RidgeSeen(i,1);
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+
+                        "  "+((first?1:0)+(second?1:0))+"/2",first&&second));
+                    if(target<0&&!RidgeLinked(i)&&CanEnter(i))
+                    {
+                        target=i;side=first?1:0;
+                    }
+                }
+                q.room=target<0?0:target;q.target=new Point(18,15);
+                if(target>=0)
+                {
+                    string idTarget="ridge_route_"+target+"_"+side;
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.id==idTarget){q.target=new Point(o.x,o.y);break;}
+                }
+                q.next=q.complete?L("八处高地联络线全部开通","All eight outer ridge links restored"):
+                    target<0?L("解锁其余地区后继续巡路","Unlock remaining regions"):
+                    L("亲自到访另一端的高地地标","Walk to the next distant ridge marker");
+                q.reward=L("各地奖励硬币20、碎片1、经验42；可使用双端安全捷径；八地技能点+1",
+                    "Per region: 20 coins, 1 shard, 42 XP and fast crossing; all eight: +1 talent");
+                return q;
+            }
+
+            if(id=="outer_watch")
+            {
+                q.title=L("八地守望 · 救援物资保卫战","Eight Relief Watches · Secure the Supplies");
+                q.category=L("开放地图 · 真实战斗","EXPLORATION · FIELD COMBAT");
+                q.description=L("找回第四圈的救援箱后，在附近的哨岗主动开始防卫。击退实际出现的两只敌人，保护运往居民避难所的物资。离开或战败不会消耗未完成的挑战。",
+                    "After recovering a fourth-ring relief chest, choose to defend its nearby watchpost. Defeat two actual enemies. Leaving or losing cancels that attempt without destroying earlier progress.");
+                q.locked=OuterRescueCount==0;
+                q.complete=OuterPatrolWins==8;
+                int target=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int room=0;room<8;room++)
+                {
+                    q.steps.Add(new QuestStep(L(zh[room],en[room])+
+                        (OuterPatrolDone(room)?" ✓":" · 0/1"),OuterPatrolDone(room)));
+                    if(target<0&&!OuterPatrolDone(room)&&
+                        OuterCacheRecovered(room)&&CanEnter(room))target=room;
+                }
+                q.room=target<0?0:target;
+                q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.kind=="outerwatch")
+                        {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("全部八处救援岗已守住","All eight relief outposts defended"):
+                    target<0?L("先找回至少一处外环救援箱","Recover an outer-ring rescue chest first"):
+                    L("走到救援岗主动发起防卫","Reach the watchpost and start the defense");
+                q.reward=L("每岗硬币 +14、碎片 +1、经验 +28；八岗全守住再得1技能点",
+                    "Each defense: +14 coins, +1 shard, +28 XP; all eight: +1 talent point");
+                return q;
+            }
+
+            if(id=="outer_rescue")
+            {
+                q.title=L("边境求援灯 · 遗失的信号","Frontier Rescue Lights · Lost Signals");
+                q.category=L("探索支线 · 野外修复","EXPLORATION · FIELD REPAIRS");
+                q.description=L("每片边境的第四圈都有南侧的遇险记录、东部失明的信号灯和救援物资。先调查记录，消耗一枚零件修复信号，再领取未送出的救援箱。",
+                    "The outer fourth ring holds a lost log, a dark eastern relay and a relief cache. Recover the log, repair the relay with one spare part, then retrieve its relief supplies.");
+                q.locked=!Has("intro");q.complete=OuterRescueCount==8;
+                int room=-1,phase=0;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach","Citadel","Mistport","Glasswind","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    int stage=OuterCacheRecovered(i)?3:OuterRelayRestored(i)?2:OuterLogFound(i)?1:0;
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+stage+"/3",stage==3));
+                    if(room<0 && stage!=3 && CanEnter(i)){room=i;phase=stage;}
+                }
+                q.room=room<0?0:room;
+                q.target=new Point(18,15);
+                if(room>=0)
+                    foreach(WorldObject point in data.maps[room].objects)
+                        if(point.id=="outer_"+room+"_"+phase)
+                        {q.target=new Point(point.x,point.y);break;}
+                q.next=q.complete?L("八座求援灯与救援箱全部确认","Eight rescue stations restored"):
+                    room<0?L("继续解锁地区后调查余下的旧信号","Unlock the remaining regions to continue"):
+                    phase==0?L("前往南部外环寻找书面证据","Find the southern outer-ring log"):
+                    phase==1?L("抵达东侧信号灯并使用一枚零件","Repair the eastern beacon using one part"):
+                    L("寻找东南救援箱，领取救援物资","Recover the southeastern relief cache");
+                q.reward=L("各地硬币18、材料2、经验22；八地全修复获得额外技能点",
+                    "Each region: 18 coins, 2 materials, 22 XP; all eight: +1 talent point");
+                return q;
+            }
+
+            if (id == "trail_circuits")
+            {
+                q.title=L("巡路队 · 八地长路","Roadwardens · Eight Long Routes");
+                q.category=L("开放地图 · 实地探路","EXPLORATION · FIELD ROUTES");
+                q.description=L("八处室外地区各有三个分散的旧路标，必须按编号实际走到。记录失落的公共路线，恢复新支路的耐力补给。",
+                    "Eight outdoor regions each have three separated ancient waymarks. Walk them in order to restore the lost civilian routes and their local stamina support.");
+                int next=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Drowned Ruins","Ironreach","Citadel","Mistport","Glass Desert","Frostchime"};
+                for(int i=0;i<8;i++)
+                {
+                    q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+TrailCircuitProgress(i)+"/3",TrailCircuitComplete(i)));
+                    if(next<0&&!TrailCircuitComplete(i)&&CanEnter(i))next=i;
+                }
+                q.locked=!Has("intro");q.complete=TrailCircuitCount==8;
+                q.room=next<0?0:next;
+                q.target=new Point(18,15);
+                int stage=next<0?3:TrailCircuitProgress(next)+1;
+                if(next>=0)foreach(WorldObject o in data.maps[next].objects)
+                    if(o.id=="trailcircuit_"+next+"_"+stage)
+                    {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("八条实地长路已全部测绘","All eight physical routes surveyed"):
+                    next<0?L("先解锁剩余区域，再补完长路","Unlock the remaining regions"):
+                    L("依照指引前往下一个编号旧路标","Follow the next numbered waymark");
+                q.reward=L("每地硬币 +24、碎片 +2、经验 +35、区域耐力补给；全八地技能点 +1",
+                    "Each: +24 coins, +2 shards, +35 XP, local energy recovery; all eight: +1 talent point");
+                return q;
+            }
+
+            if (id == "annex_explorer")
+            {
+                q.title=L("边境探路者 · 归乡星图","Frontier Pathfinder · Homeward Atlas");
+                q.category=L("探索收集 · 真实足迹","EXPLORATION · LIVING ROUTES");
+                q.locked=!Has("intro");q.complete=Has("annex_archive_complete");
+                q.description=L("走访八个室外地区的新支路，打开遗失补给、登上观景点并造访营火，再去炉火旅店的扩建档案室发布真正的公共星图。",
+                    "Find both supply caches, the outlook and the camp in each of eight outdoor regions. Return to the expanded Hearth Inn archive to publish your living atlas.");
+                int camps=0,caches=0,vistas=0,targetRoom=-1;
+                WorldObject next=null;
+                for(int region=0;region<8;region++)
+                {
+                    string[] ids={"annex_cache_"+region+"_a","annex_cache_"+region+"_b","annex_vista_"+region,"annex_camp_"+region};
+                    for(int j=0;j<4;j++)
+                    {
+                        string kind=j<2?"annex_cache_":j==2?"annex_vista_":"annex_camp_";
+                        if(Has(kind+ids[j]))
+                        {if(j<2)caches++;else if(j==2)vistas++;else camps++;}
+                        else if(targetRoom<0&&CanEnter(region))
+                        {
+                            targetRoom=region;
+                            foreach(WorldObject o in data.maps[region].objects)
+                                if(o.id==ids[j]){next=o;break;}
+                        }
+                    }
+                }
+                q.steps.Add(new QuestStep(L("找到全部营火 ","Visit all camps ")+camps+"/8",camps==8));
+                q.steps.Add(new QuestStep(L("确认所有观景点 ","Survey all lookouts ")+vistas+"/8",vistas==8));
+                q.steps.Add(new QuestStep(L("找回所有补给 ","Recover all caches ")+caches+"/16",caches==16));
+                q.steps.Add(new QuestStep(L("前往旅店公开归乡星图","Publish the atlas at Hearth Inn"),q.complete));
+                q.room=targetRoom<0?9:targetRoom;
+                q.target=next==null?ObjectPoint(9,"annexinnarchive",new Point(18.5f,27.5f)):
+                    new Point(next.x,next.y);
+                q.next=q.complete?L("归乡图已公开；所有地区的旧路均已记录",
+                    "Public atlas complete; old trails are permanently recorded"):
+                    targetRoom<0?L("前往炉火旅店的新档案室，按 E 公开星图",
+                        "Visit the Hearth Inn's new archive and publish the chart"):
+                    L("实地到访新支路里的营火、观景台或隐藏补给",
+                        "Reach the new trail campsite, lookout or hidden supplies");
+                q.reward=L("归档奖励：硬币 +60、碎片 +3、技能点 +1",
+                    "Atlas reward: +60 coins, +3 shards, +1 talent point");
+                return q;
+            }
+
+            if (id == "roadcharter")
+            {
+                q.title = L("第八章 · 共同行路", "Chapter Eight · Roads for Everyone");
+                q.category = L("主线 · 战后公共道路", "STORY · CIVILIAN ROADS");
+                q.description = L(
+                    "公开听证之后，真正的公共道路必须从居民走过的路径里重新绘制。带回密林、遗迹、矿场三份东部支路证据，再与莉雅决定未来的交通优先级。",
+                    "After the public hearing, public roads must be charted from paths residents actually use. Survey three eastern branches and bring the field evidence to Lyra for a lasting civic choice.");
+                q.locked = !RoadCharterReady;
+                q.complete = RoadCharterComplete;
+                q.steps.Add(new QuestStep(L("与莉雅开启道路实地测绘", "Begin Lyra's road survey"), RoadCharterStarted));
+                for (int region = 1; region <= 3; region++)
+                    q.steps.Add(new QuestStep(L(new[] { "", "核对密林东部路标", "核对沉没遗迹东部路标", "核对矿场东部路标" }[region],
+                        new[] { "", "Verify Thornwood's eastern route", "Verify the Ruins' eastern route", "Verify Ironreach's eastern route" }[region]),
+                        Has("roadcharter_report_" + region)));
+                q.steps.Add(new QuestStep(L("公会公布真实道路公约", "Enact the guild's public road charter"),
+                    RoadCharterComplete));
+                int nextRegion = -1;
+                if (RoadCharterStarted)
+                    for (int region = 1; region <= 3; region++)
+                        if (!Has("roadcharter_report_" + region)) { nextRegion = region; break; }
+                q.room = nextRegion < 0 ? 0 : nextRegion;
+                q.target = nextRegion < 0 ? ObjectPoint(0, "guild", new Point(18, 17)) :
+                    ObjectPoint(nextRegion, "waytrail", new Point(47.5f, 23.5f));
+                // Multiple branch objects share "waytrail"; select the east marker by ID.
+                if (nextRegion > 0)
+                    foreach (WorldObject marker in data.maps[nextRegion].objects)
+                        if (marker.id == "waytrail" + nextRegion + "e")
+                            { q.target = new Point(marker.x, marker.y); break; }
+                q.next = q.locked ? L("先完成第七章听证和厄洛的民用责任协议",
+                    "Finish Chapter Seven and Orrin's civilian responsibility pledge") :
+                    q.complete ? L("旧路公约公开；所有原有结局和地区选择保留",
+                        "Road charter published; previous endings and regional choices remain") :
+                    !RoadCharterStarted ? L("返回余烬镇，与公会莉雅谈第八章",
+                        "Speak to Lyra in Emberfall about Chapter Eight") :
+                    nextRegion > 0 ? L("实地走到东部新支路，阅读原始测绘石碑",
+                        "Explore the eastern annex and read the old survey marker") :
+                        L("三份实地证据齐备；返回公会与莉雅签署公约",
+                            "All three reports collected; return to Lyra to enact the charter");
+                q.reward = L("完成获得45硬币、3碎片、60经验，并选择永久步速或耐力恢复",
+                    "45 coins, 3 shards, 60 XP and a permanent walking-speed or stamina-regeneration benefit");
+                return q;
+            }
+
+            if (id == "waytrails")
+            {
+                q.title = L("巡路队的十六道回声", "Sixteen Echoes of the Roadwardens");
+                q.category = L("探索地图 · 旧路", "EXPLORATION · OLD ROADS");
+                q.description = L(
+                    "每片室外区域有南部与东部两处旧路石碑。寻找路标、读懂留下的证词；所有发现会保存在原有的旅行记录中。",
+                    "Every outdoor region hides one southern trace and one eastern lookout. Discover the roadwardens' testimony; each survey is kept in your existing travel record.");
+                q.complete = Has("waytrail_complete");
+                q.locked = !Has("intro");
+                int inner = 0, outer = 0, destination = -1;
+                WorldObject nextMarker = null;
+                for (int room = 0; room < 8; room++)
+                {
+                    string suffix = "";
+                    for (int branch = 0; branch < 2; branch++)
+                    {
+                        string mark = "waytrail" + room + (branch == 0 ? "s" : "e");
+                        if (Has("waytrail_" + mark))
+                        {
+                            if (room < 4) inner++; else outer++;
+                        }
+                        else if (destination < 0 && CanEnter(room))
+                        {
+                            destination = room;
+                            foreach (WorldObject o in data.maps[room].objects)
+                                if (o.id == mark) { nextMarker = o; break; }
+                        }
+                    }
+                }
+                q.steps.Add(new QuestStep(L("近境路标 ", "Inner routes ") + inner + "/8", inner == 8));
+                q.steps.Add(new QuestStep(L("远岸路标 ", "Farshore routes ") + outer + "/8", outer == 8));
+                q.steps.Add(new QuestStep(L("修复十六道坐标", "Restore all sixteen bearings"), q.complete));
+                q.room = destination < 0 ? 0 : destination;
+                q.target = nextMarker == null ? new Point(14.5f, 31.5f)
+                    : new Point(nextMarker.x, nextMarker.y);
+                q.next = q.complete ? L("十六道旧路均已记录；可返回任何石碑重读",
+                    "All sixteen routes charted; revisit any marker to reread") :
+                    destination < 0 ? L("完成前置地区的调查，解锁余下路线",
+                        "Complete earlier regional stories to unlock the remaining routes") :
+                    L("前往新支路，调查尚未记录的旧路石碑",
+                        "Explore a new branch and read its uncharted waypoint");
+                q.reward = L("每处首次发现：8硬币、1碎片；全16处再得1技能点",
+                    "Each first discovery: 8 coins, 1 shard; all 16: +1 talent point");
+                return q;
+            }
+
+            if (id == "relief_rescue")
+            {
+                q.title = L("远岸居民撤离", "Farshore Civilian Rescue");
+                q.category = L("限时战斗救援", "TIMED RESCUE COMBAT");
+                q.locked = !Has("farshore_relief_5") && !Has("farshore_relief_6") &&
+                    !Has("farshore_relief_7");
+                q.description = L("从建成的民用避难站出发，在120秒内抵达巡测点、击退两波敌人并返回站台。战斗敌人不计主线击杀或普通战利品，失败可免费重试。",
+                    "From a rebuilt shelter, reach the surveyed landmark, defeat two enemy waves and return in 120 seconds. No ordinary loot or story kill farming; retries cost nothing.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool done = Has("relief_rescue_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "救出雾港滩涂居民", "救出沙海行路者", "救出霜钟雪道旅人" }[region - 5],
+                        new[] { "Evacuate Mistport travelers", "Rescue desert wanderers", "Escort Frostchime travelers" }[region - 5]), done));
+                    if (!done && next == 0 && Has("farshore_relief_" + region)) next = region;
+                }
+                q.complete = Has("relief_rescue_complete");
+                q.steps.Add(new QuestStep(L("全三地居民安全抵达", "Bring all civilians home"), q.complete));
+                q.room = reliefMissionRoom != 0 ? reliefMissionRoom : next == 0 ? 5 : next;
+                q.target = reliefMissionRoom != 0 && reliefMissionWave <= 2 ?
+                    FieldSurveyTarget(reliefMissionRoom) :
+                    reliefMissionRoom != 0 && reliefMissionWave == 3 &&
+                        (reliefFollowerWaiting || ReliefEscortGap > 6.5f) ?
+                    reliefFollowerPosition :
+                    ObjectPoint(q.room, "fieldstation" + q.room, new Point(12, 12));
+                q.next = q.complete ? L("三地居民已获救，救援可无奖励重演", "Three regions safe; replay with no rewards") :
+                    reliefMissionRoom != 0 ? L(reliefMissionWave == 0 ? "先到巡测地标找到失联居民" :
+                            reliefMissionWave == 3 && reliefFollowerWaiting ? "回到居民身旁，按E继续护送" :
+                            reliefMissionWave == 3 && ReliefEscortGap > 6.5f ? "不要走得太远，等待幸存者赶上" :
+                            reliefMissionWave == 3 ? "带领居民返回气象站" : "击退巡测地点的袭击者",
+                        reliefMissionWave == 0 ? "Reach the survey marker to find civilians" :
+                            reliefMissionWave == 3 && reliefFollowerWaiting ? "Return to the civilian and press E to resume following" :
+                            reliefMissionWave == 3 && ReliefEscortGap > 6.5f ? "Wait for your survivor to catch up" :
+                            reliefMissionWave == 3 ? "Return survivors to the weather station" : "Defeat raiders near the landmark") +
+                        " · " + (int)Math.Ceiling(reliefMissionTime) + "s" :
+                    next == 0 ? L("先建设一处远岸避难站", "Build a farshore civilian shelter") :
+                        L("前往已建成的站台接取居民救援", "Start a rescue at a finished shelter");
+                q.reward = L("每地首次45硬币、3碎片、50经验；三地额外技能点1、凉茶2",
+                    "First clear each: 45 coins, 3 shards, 50 XP; all three: one talent and two teas");
+                return q;
+            }
+
+            if (id == "farshore_relief")
+            {
+                q.title = L("远岸平民避难网", "Civilian Farshore Refuges");
+                q.category = L("灾后重建", "CIVILIAN RELIEF");
+                q.locked = save.frontierEnding == 0;
+                q.description = L("三方协定已经签署。先修复远岸观测站，完成当地90秒环境巡测，随后投入物资建设浮桥、遮阳道和防寒补给棚。工程将永久延长低潮或扩大气候庇护范围。",
+                    "After the council covenant, repair regional stations and complete their 90-second field surveys. Then supply rescue pontoons, a shaded lane and a warming depot for lasting tide and climate protection.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool complete = Has("farshore_relief_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "建设雾港救援浮桥", "建设沙海遮阳道", "建设高原防寒补给棚" }[region - 5],
+                        new[] { "Build Mistport rescue pontoons", "Build the desert shaded lane", "Build Frostchime's warming depot" }[region - 5]), complete));
+                    if (!complete && next == 0) next = region;
+                }
+                q.complete = Has("farshore_relief_complete");
+                q.steps.Add(new QuestStep(L("贯通三地平民避难网", "Connect all civilian shelters"), q.complete));
+                q.room = next == 0 ? 5 : next;
+                q.target = ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
+                q.next = q.complete ? L("三地站台可缓慢疗伤，并通过炉火旅店星图桌安全往返", "Shelters heal outside combat and link safely to the Hearth Inn chart") :
+                    !Has("fieldstation_" + q.room) ? L("先维修本地气象站", "Repair this region's weather station first") :
+                    !Has("fieldstation_survey_" + q.room) ? L("先完成本站90秒环境巡测", "Complete this station's 90-second survey first") :
+                    !CanEnter(q.room) ? L("先完成前一地区主线", "Complete the preceding region first") :
+                    L("带物资到安全的站台建设平民避难通道", "Bring supplies to the safe station and build the civilian refuge");
+                q.reward = L("每处30硬币、2碎片、35经验；三处另得技能点1、凉茶2，并永久增强安全区",
+                    "Each: 30 coins, 2 shards, 35 XP. All three: 1 talent, 2 teas and permanent stronger refuges");
+                return q;
+            }
+
+            if (id == "archive_echo")
+            {
+                q.title = L("测绘师的回声", "The Surveyor's Echo");
+                q.category = L("精英战斗", "ELITE COMBAT");
+                q.locked = !Has("archive_complete");
+                q.description = L("星图指向矿场的旧方位校准台。与回声守卫交战时会出现三条紫色范围预警，留下一条空白方位。观察预警闪避，守卫虚弱后注意延迟中心爆发。",
+                    "The completed atlas reveals an echo guardian in Rediron. Three purple area tells leave one clear cardinal exit. Dodge toward it; at low health the center also erupts after a delay.");
+                q.steps.Add(new QuestStep(L("修复失落测绘师的星图", "Restore the Lost Surveyor's Atlas"),
+                    Has("archive_complete")));
+                q.complete = Has("archive_echo_complete");
+                q.steps.Add(new QuestStep(L("击败回声守卫", "Defeat the echo guardian"), q.complete));
+                q.room = 3; q.target = ObjectPoint(3, "archiveecho", new Point(23, 11));
+                q.next = q.locked ? L("先完成琳的星图委托", "Complete Lin's atlas commission first") :
+                    q.complete ? L("回声已平息，矿场方位重新校准", "Echo silenced and the compass is aligned") :
+                    atlasEchoRoom == 3 ? L("观察紫圈，前往绿色空方位再反击", "Read violet strikes, move toward the green bearing, then counterattack") :
+                    L("前往赤铁矿场的旧校准台", "Visit the calibrator in Rediron Mine");
+                q.reward = L("首次胜利85硬币、5碎片、90经验；不可重复领取",
+                    "First clear: 85 coins, 5 shards and 90 XP; cannot repeat");
+                return q;
+            }
+
+
+
+            if(id=="hearing")
+            {
+                q.title=L("第七章 · 众人的晨钟","Chapter Seven · The People's Dawn");
+                q.category=L("战后主线 · 公开听证与独立公民誓言",
+                    "POST-FINALE MAIN STORY · PUBLIC HEARING");
+                q.locked=!HearingReady;
+                q.complete=HearingComplete;
+                q.description=L("星雨、公开重建和厄洛的民用余量协议已经完成，但居民没有放弃自己说话的权利。在镇内公开听证台接下新章，分别去密林、遗迹与矿场，让莫芽、阿菱、维恩亲自选择各地区公共服务重点。三位签名后回镇作出真正的医疗开放或紧急储备取舍，获得会在现场产生效果的公共设施。已有证词、救助与旧结局不会被重新覆盖。",
+                    "After the first storm, open reconstruction and Orrin's civilian accord, the three living witnesses deserve independent voices. Start the hearing in Emberfall, return physically to Moya, Arin and Venn for their own choices, and publish either open medical access or emergency energy reserves. New regional public services actually function; older stories and endings remain intact.");
+                q.steps.Add(new QuestStep(L("接受余烬镇公开听证","Open the Emberfall public hearing"),
+                    Has("hearing_started")));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"由莫芽决定林道的未来","由阿菱决定渡口的未来","由维恩决定矿机的未来"}[i-1],
+                          new[]{"Moya chooses the grove's future","Arin chooses the public crossing","Venn chooses workers' safety"}[i-1]),
+                        HearingVoice(i)!=0));
+                q.steps.Add(new QuestStep(L("公布公民公约并启用永久设施",
+                    "Publish a civic verdict and bring public services online"),
+                    HearingComplete));
+                q.room=0;q.target=ObjectPoint(0,"hearingdais",new Point(10.5f,7.5f));
+                q.next=HearingComplete?
+                    L("第七章完成：三地誓言和公民公约已经生效","Chapter Seven complete: regional oaths and civic verdict are live"):
+                    !HearingReady?
+                    L("先完成第六章并在堡垒与厄洛签署民用余量协议",
+                        "Finish Chapter Six and Orrin's civilian reserve accord"):
+                    !Has("hearing_started")?
+                    L("去余烬镇东北方公开听证台接取主线",
+                        "Start the public hearing at the Emberfall dais"):
+                    HearingSignatures==3?
+                    L("返回余烬镇，公布医疗开放或公用储备公约",
+                        "Return to choose open access or emergency reserve"):
+                    L("亲自访问未签字的地区居民","Visit an unsigned regional resident in person");
+                if(Has("hearing_started") && HearingSignatures<3)
+                {
+                    int next=0;
+                    if(save.room>=1&&save.room<=3 && HearingVoice(save.room)==0)
+                        next=save.room;
+                    else for(int i=1;i<=3;i++)
+                        if(HearingVoice(i)==0){next=i;break;}
+                    if(next!=0)
+                    {
+                        q.room=next;
+                        q.target=ObjectPoint(next,"witnessnpc"+next,new Point(12,14));
+                    }
+                }
+                q.reward=L("85硬币、2碎片、100经验；各地区永久服务与镇内医疗或应急耐力站",
+                    "85 coins, 2 shards, 100 XP; real regional services and a civic health or energy lantern");
+                return q;
+            }
+
+            if(id=="storm_commons")
+            {
+                q.title=L("第六章 · 公约第一夜","Chapter Six · First Night of the Commons");
+                q.category=L("战后主线 · 星雨与公共能源分配",
+                    "POST-FINALE STORY · PUBLIC GRID DURING THE STARSTORM");
+                q.locked=!StormReady;
+                q.complete=Has("storm_complete");
+                q.description=L("战后第一场星雨迫近，八单位公共储备必须供三个地区分配。庇护优先3单位，基础供能2单位，实际使用木材、月光草、星晶和零件。没稳定的地区会受到可闪避的星雨冲击。三地修复后回镇，依你原先的结局顺序亲自走到三座分散的星灯处完成95秒调谐，再回议事台公布公约。各地区的选择会永久影响疗养、耐力与工房制作成本。",
+                    "A real starstorm strikes the restored frontier. Allocate eight civic reserve units among three living districts: shelter-first uses three, essential utilities use two and each consumes actual repair materials. Unstable regions are struck by dodgeable arcs. After every region is stabilized, physically tune three dispersed town lamps in the order determined by your original ending, within 95 seconds. Finish at the council to publish the charter. Shelter, stamina and crafting costs change permanently according to your public decisions.");
+                q.steps.Add(new QuestStep(
+                    L("在公约议事台正式迎接第一场星雨",
+                        "Begin the first starstorm at the public council"),
+                    Has("storm_started")));
+                for(int i=1;i<=3;i++)
+                {
+                    q.steps.Add(new QuestStep(L(
+                        new[]{"密林 · 为受伤根系与行路者分配电力","遗迹 · 决定渡口与避难人群的供能","矿场 · 建立公开的安全工房配额"}[i-1],
+                        new[]{"Thornwood · roots and roads reserve","Ruins · crossing and emergency reserve","Ironreach · safe working reserves"}[i-1]),
+                        StormPolicy(i)!=0));
+                }
+                q.steps.Add(new QuestStep(L("在城镇依次激活三处公共星灯",
+                    "Physically tune three dispersed town public lamps"),Has("storm_tuned")));
+                q.steps.Add(new QuestStep(L("返回议事台公开真正经受星雨检验的公约",
+                    "Return to publish the storm-tested public charter"),q.complete));
+                int target=0;
+                if(!Has("storm_started") || q.complete || StormAllocations>=3)
+                    target=0;
+                else if(save.room>=1&&save.room<=3 && StormPolicy(save.room)==0)
+                    target=save.room;
+                else for(int i=1;i<=3;i++)
+                    if(StormPolicy(i)==0){target=i;break;}
+                q.room=target;
+                if(q.complete || !Has("storm_started") || StormAllocations<3 ||
+                    Has("storm_tuned") || !stormTuning)
+                    q.target=target==0?StormPoint(0,"stormcouncil"):
+                        StormPoint(target,"stormrelay"+target);
+                else
+                    q.target=StormPoint(0,"stormnode"+StormNextNode);
+                q.next=q.complete?L("六章主线结束 · 公开星雨配电公约已经生效",
+                    "Chapter Six complete · The first-storm charter is in effect"):
+                    q.locked?L("先完成第五章的公共设施与居民维护承诺",
+                    "First complete Chapter Five, public facilities and resident stewardship"):
+                    !Has("storm_started")?L("在余烬镇公共议事台召开星雨会议",
+                    "Begin the starstorm council at Emberfall"):
+                    StormAllocations<3?L("前往未稳定地区，分配8单位公共储备中的真实额度",
+                    "Visit an unstable region and allocate part of the real eight-unit civic reserve"):
+                    Has("storm_tuned")?L("三座镇内星灯已调谐，返回议事台公布公约",
+                    "All three town lamps are tuned; return and publish the civic charter"):
+                    stormTuning?L("限时依序操作下一座镇内星灯："+StormOrder(false),
+                    "Physically tune the next lamp in order: "+StormOrder(true)):
+                    L("回议事台启动95秒镇内公共星灯调谐",
+                    "Return to the council and begin 95-second civic lamp tuning");
+                q.reward=L("星雨后的三地永久设施升级；完成后110硬币、3碎片、110经验、1技能点",
+                    "Three permanent post-storm public services; 110 coins, 3 shards, 110 XP and 1 skill point");
+                return q;
+            }
+
+            if(id=="afterlight")
+            {
+                q.title=L("第五章 · 余光重建","Chapter Five · Afterlight Reconstruction");
+                q.category=L("战后主线 · 三地公共设施","POST-FINALE MAIN STORY · THREE PUBLIC SITES");
+                q.locked=save.ending==0;
+                q.complete=Has("afterlight_complete");
+                q.description=L("星核结局已经落定，却不是每条回家路都恢复了。与莉雅商议，在荆棘密林、沉没遗迹与赤铁矿场分别校准旧锚点，自主决定如何服务居民，然后在90秒内把负载亲自送至另一个场景物件，真正消耗木材、药草或星晶与零件后建立永久公共设施。三地完成后返回公会公开战后公约。原有结局、Boss、远岸功能全部保留。",
+                    "The core ending has been decided, but damaged roads remain. Choose civic designs with Lyra, calibrate source anchors in Thornwood, Drowned Ruins and Ironreach, then personally carry live charges to distant receivers within 90 seconds. Genuine repair materials fund three useful permanent regional services. Publish a final public recovery charter without replacing the existing ending, boss or farshore routes.");
+                q.steps.Add(new QuestStep(L("到余烬镇公会加入重建议事","Join the Emberfall reconstruction council"),Has("afterlight_started")));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"密林 · 恢复活根与安全林道","遗迹 · 让渡口属于活着的人","矿场 · 将安全停机写入机器"}[i-1],
+                          new[]{"Thornwood · living roots and safe roads","Ruins · public crossing and water safety","Ironreach · workers' control of machinery"}[i-1]),
+                        Has("afterlight_done_"+i)));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"请莫芽签署苗圃或林灯维护责任","请阿菱签署公共渡口维护责任","请维恩签署安全工房维护责任"}[i-1],
+                          new[]{"Moya signs root or lantern stewardship","Arin signs crossing stewardship","Venn signs foundry stewardship"}[i-1]),
+                        Has("afterlight_steward_"+i)));
+                q.steps.Add(new QuestStep(L("返回公会，发布三地重建公约","Publish the three-region civic charter"),q.complete));
+                int next=0;
+                if(AfterlightChargeRegion!=0)next=AfterlightChargeRegion;
+                else if(save.room>=1&&save.room<=3 && Has("afterlight_started") &&
+                    (!Has("afterlight_done_"+save.room)||!Has("afterlight_steward_"+save.room)))next=save.room;
+                else for(int i=1;i<=3;i++)
+                    if(!Has("afterlight_done_"+i)||!Has("afterlight_steward_"+i)){next=i;break;}
+                q.room=!Has("afterlight_started")||q.complete||next==0?0:next;
+                string kind=q.room==0?"afterlightcouncil":
+                    AfterlightChargeRegion==next?"afterlightoutlet"+next:
+                    Has("afterlight_done_"+next) && !Has("afterlight_steward_"+next)?"witnessnpc"+next:
+                    "afterlightanchor"+next;
+                q.target=ObjectPoint(q.room,kind,new Point(16,18));
+                q.next=q.complete?L("第五章完成 · 重建公约已公开","Chapter Five complete · Charter published"):
+                    q.locked?L("先完成厄洛的星核主线结局","Finish the original starcore ending first"):
+                    !Has("afterlight_started")?L("去公会重建议事台接受战后任务","Accept the reconstruction mission at the guild council"):
+                    AfterlightChargeRegion!=0?L("90秒内将稳定余光送到远端公共接收台","Deliver the charge to the distant receiver within 90 seconds"):
+                    next==0?L("回公会正式发布三地公约","Publish the public charter back at the guild"):
+                    Has("afterlight_done_"+next) && !Has("afterlight_steward_"+next)?
+                        L("回到当地证人身边，亲自签署设施维护责任","Return to the living witness to sign regional stewardship"):
+                    AfterlightMode(next)==0?L("在当地旧锚点选择不可反悔的公共用途","Choose a lasting civic purpose at the regional anchor"):
+                    L("到当地锚点启动负载传输","Start the physical transfer at the local anchor");
+                q.reward=L("各地区真实恢复设施功能；章节完结120硬币、4碎片、100经验、1技能点",
+                    "Three functional public sites; final reward 120 coins, 4 shards, 100 XP and one skill point");
+                return q;
+            }
+
+            if(id=="blackout")
+            {
+                q.title=L("第四章关键事件 · 长夜撤离","Chapter Four · The Night the Shield Failed");
+                q.category=L("主线抉择 · 真实居民护送","MAIN STORY · CIVILIAN EVACUATION");
+                q.locked=!Has("triad_complete");
+                q.complete=Has("blackout_complete");
+                q.room=4;
+                q.description=L("三枚星核把堡垒供能压成一条不可中断的屏障，备用照明故障。亲自在180秒内找到莱娜、伊恩、奥姆，一次护送一人走回公共避难所，避开真实电弧与沿途敌人。完成后，若三位旧章节证人和镇民盟友都支持，你可以凭实际救援方案说服厄洛停战。旧档原有 Boss 战和协定对话仍开放。",
+                    "The single shield feed has blacked out the citadel's civilian lights. Physically escort Lena, Ian and Orme one by one to public shelter within 180 seconds, dodging real arcs and existing enemies. With three signed witnesses and three town allies, your rescue can support a local ceasefire. Original boss and treaty routes remain available.");
+                q.steps.Add(new QuestStep(L("完成三核审计并到堡垒公共避难所","Complete audit and reach the citadel shelter"),
+                    Has("triad_complete") && Has("blackout_started")));
+                for(int i=1;i<=3;i++)q.steps.Add(new QuestStep(
+                    L(new[]{"安全带回莱娜","安全带回伊恩","安全带回奥姆"}[i-1],
+                      new[]{"Escort Lena home","Escort Ian home","Escort Orme home"}[i-1]),
+                    q.complete || BlackoutActive && (blackoutRescued & (1<<(i-1)))!=0));
+                q.steps.Add(new QuestStep(L("公布避难名单","Publish evacuation roster"),q.complete));
+                q.target=BlackoutPoint("blackoutshelter");
+                if(BlackoutActive && blackoutFollowing!=0)
+                    q.target=BlackoutPoint("blackoutshelter");
+                else if(BlackoutActive)
+                {
+                    for(int i=1;i<=3;i++)
+                        if((blackoutRescued&(1<<(i-1)))==0)
+                        {q.target=BlackoutPoint("blackoutcivilian"+i);break;}
+                    if(blackoutRescued==7)q.target=BlackoutPoint("blackoutshelter");
+                }
+                q.next=q.complete?L("救援成功；居民名单可成为民用停战依据","Rescue complete; the roster can support civilian ceasefire"):
+                    q.locked?L("先完成并公开莉雅的第四章三核审计","First complete and publish Lyra's Chapter Four audit"):
+                    BlackoutActive && blackoutFollowing!=0?
+                        L("把正在跟随的居民亲自送到公共避难所","Escort your following civilian to public shelter"):
+                    BlackoutActive && blackoutRescued==7?
+                        L("返回避难所公布三名居民名单","Return to publish the roster at the shelter"):
+                    BlackoutActive?L("找到下一名居民，按E让其跟随","Find the next citizen and press E to escort"):
+                    L("在堡垒西南侧公共避难所启动长夜救援","Begin the evacuation at the citadel's southwest shelter");
+                q.reward=L("80硬币、3碎片、90经验；可获得民用停战剧情路线",
+                    "80 coins, 3 shards, 90 XP; potential civilian ceasefire story route");
+                return q;
+            }
+
+            if (id == "campaign_witness")
+            {
+                q.title=L("主线证词 · 未被计入的人","Main Story · The Uncounted Witnesses");
+                q.category=L("前三章关键人物与实战","ACT I–III · LIVING TESTIMONY");
+                q.description=L("三位居民亲自见证旧星核命令的损失。密林的疗养根系、遗迹的公共渡口与矿场的过热停机记录都被当成损耗。每章先正确恢复现场记录，再保护另一处证据免受真实守卫封锁，返回证人签署。这些证词会实质帮助第四章的三核审计。旧章节与旧存档的原有进度仍有效。",
+                    "Three living witnesses document what obsolete starcore orders erased: healing roots, public sluices and miners' emergency shutdown. Restore a first field record, physically defeat security at the second site, then return to its witness for a signed account. All three make Chapter Four's audit fight easier. Original campaign gates remain intact.");
+                int next=0;
+                for(int i=1;i<=3;i++)
+                {
+                    bool complete=Has("witness_complete_"+i);
+                    q.steps.Add(new QuestStep(L(new[]{"莫芽 · 密林里的根","阿菱 · 沉没遗迹的渡口","维恩 · 矿场的停机"}[i-1],
+                        new[]{"Moya · injured grove roots","Arin · a public river crossing","Venn · workers' right to stop"}[i-1]),complete));
+                    if(!complete && next==0)next=i;
+                }
+                q.complete=next==0;
+                q.locked=!Has("scout_saved");
+                // The chapter actively accepted by the player takes priority
+                // over earlier unfiled accounts. Never navigate a new witness
+                // backward to a quest the player has not begun yet.
+                if(!q.complete)
+                {
+                    int here=save.room;
+                    if(here>=1 && here<=3 && !Has("witness_complete_"+here) &&
+                        Has("witness_started_"+here))next=here;
+                    else
+                        for(int i=3;i>=1;i--)
+                            if(Has("witness_started_"+i) &&
+                                !Has("witness_complete_"+i))
+                            {next=i;break;}
+                }
+                q.room=q.complete?0:next;
+                string kind="witnessnpc"+next;
+                if(!q.complete && Has("witness_started_"+next))
+                    kind=Has("witness_sealed_"+next)?"witnessnpc"+next:
+                        !Has("witness_read_"+next)?"witnesssite1"+next:
+                        "witnesssite2"+next;
+                q.target=q.complete?ObjectPoint(0,"guild",new Point(18,17)):
+                    ObjectPoint(next,kind,new Point(11,12));
+                q.next=q.complete?L("三位证人均已署名；第四章审计卫兵防卫减弱",
+                        "All witnesses signed; Chapter Four's audit guardian is weakened"):
+                    q.locked?L("先救出荆棘密林的失踪侦察员",
+                        "First rescue the missing Thornwood scout"):
+                    !WitnessEligible(next)?L("先开启下一章的原有故事道路与机关",
+                        "First open the next chapter's original story gate"):
+                    !Has("witness_started_"+next)?L("在本地区找到活着的证人",
+                        "Find the living witness in this region"):
+                    !Has("witness_read_"+next)?L("调查第一处原始记录并恢复它的用途",
+                        "Read the first site and restore its true purpose"):
+                    !Has("witness_sealed_"+next)?L("击退第二处现场封锁守卫并保全证据",
+                        "Defeat the guards and preserve the second site"):
+                    L("返回证人身边亲自签署记录",
+                        "Return for the witness's signed testimony");
+                q.reward=L("每章一次性硬币25/35/45、碎片1、经验25/30/35；三章可削弱第四章审计守卫",
+                    "Per chapter: 25/35/45 coins, 1 shard, 25/30/35 XP; all three weaken Chapter Four audit security");
+                return q;
+            }
+
+            if (id == "triad_reckoning")
+            {
+                q.title=L("主线第四章 · 三核审计","Chapter Four · Three-Core Reckoning");
+                q.category=L("星陨主线 · 关键剧情事件","MAIN STORY · KEY EVENT");
+                q.locked=!TriadEligible;
+                q.description=L("莉雅要求查明三枚星核改供堡垒屏障前的用途。进入星陨堡垒核对三份实地记录，击败中央保密守卫，亲手保全审计，然后把真相带回公会。此事改变厄洛的最终战，但不会锁死旧档。",
+                    "Lyra asks you to reconstruct the original uses of the three cores before the citadel rewired them. Recover three physical ledgers in the citadel, defeat actual audit security, preserve the log, then publish it with the guild. It affects Orrin, without locking older saves.");
+                q.steps.Add(new QuestStep(L("到公会接受莉雅的第四章调查",
+                    "Accept Lyra's Chapter Four investigation"),Has("triad_started")));
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(L(new[]{"森林再生记录","遗迹水位记录","矿工作业记录"}[i-1],
+                        new[]{"Forest renewal","Ruins tide passages","Mine rest protocol"}[i-1]),
+                        Has("triad_evidence_"+i)));
+                q.steps.Add(new QuestStep(L("击败保密卫兵并保全日志",
+                    "Defeat the guard and preserve the audit"),Has("triad_sealed")));
+                q.complete=Has("triad_complete");
+                q.steps.Add(new QuestStep(L("将审计结果公开交给莉雅",
+                    "Publish the audit with Lyra"),q.complete));
+                q.room=q.locked || !Has("triad_started") || Has("triad_sealed")?0:4;
+                string kind=TriadEvidence<3?
+                    !Has("triad_evidence_1")?"triadmemory1":
+                    !Has("triad_evidence_2")?"triadmemory2":"triadmemory3":"triadnexus";
+                q.target=ObjectPoint(q.room,q.room==0?"guild":kind,new Point(18,11));
+                q.next=q.complete?L("公开的星核支出将改变厄洛的决战",
+                    "The public ledger changes Orrin's confrontation"):
+                    q.locked?L("先取回三枚原始星核并交给莉雅",
+                        "First deliver three original starcores to Lyra"):
+                    !Has("triad_started")?L("去余烬镇公会找莉雅接受调查",
+                        "Visit Lyra at the Emberfall guild"):
+                    TriadEvidence<3?L("到堡垒读取下一份原始供能账",
+                        "Read the next original supply ledger in the citadel"):
+                    !Has("triad_sealed")?L("挑战中央审计守卫，保全日志",
+                        "Defeat central audit security and preserve the log"):
+                    L("将保全的三核证据送回公会",
+                        "Deliver the three-core evidence to the guild");
+                q.reward=L("一次性55硬币、2碎片、65经验；堡垒统领生命降低15%",
+                    "One-time 55 coins, 2 shards, 65 XP; Orrin's HP reduced 15%");
+                return q;
+            }
+
+            if (id == "iron_temper")
+            {
+                q.title=L("余烬回火","Ember Temper");
+                q.category=L("矿场高温管线 · 真实战斗与压力控制",
+                    "FOUNDRY PRESSURE · LIVE COMBAT & VENTS");
+                q.locked=!Has("boss_3");
+                q.description=L("矿场的军用锻炉将矿工锁在永不停止的热压循环中。击退真实守卫，在110秒与95压力上限内打开西北及东侧两座泄压阀，躲避延迟蒸汽冲击，战胜重装监工，返回主炉公开回火配方。",
+                    "The military furnace trapped miners in an endless pressure cycle. Clear real enemy waves, open both vents below 95 pressure in 110 seconds, dodge delayed steam bursts, defeat the armored overseer, then return to publish the temper recipe.");
+                q.steps.Add(new QuestStep(L("排除锻炉首批守卫，打开西北阀",
+                    "Defeat guards and release northwest vent"),
+                    Has("iron_temper_complete") || TemperStage>=2));
+                q.steps.Add(new QuestStep(L("击退增援，打开东侧泄压阀",
+                    "Defeat reinforcements and open east vent"),
+                    Has("iron_temper_complete") || TemperStage>=3));
+                q.complete=Has("iron_temper_complete");
+                q.steps.Add(new QuestStep(L("击败重装监工并向工房交付配方",
+                    "Defeat armored overseer and publish the recipe"),q.complete));
+                q.room=3;
+                q.target=TemperPoint(TemperStage==1?"ironvent1":TemperStage==2?
+                    "ironvent2":"ironfoundry");
+                q.next=q.complete?L("公共回火技术已传给诺尔，强化材料永久减少",
+                    "Noll now uses the cheaper public temper recipe"):
+                    q.locked?L("先击败矿场原来的星核守卫",
+                    "Defeat the original Ironreach starcore guardian first"):
+                    !TemperActive?L("到赤铁矿场旧工房启动回火",
+                    "Begin the operation at Ironreach's old foundry"):
+                    TemperStage==3?L("击退重装监工，返回工房结束军用指令",
+                    "Defeat the armored overseer; return to the foundry"):
+                    L("击败守卫后操作下一处泄压阀，注意热压与范围预告",
+                    "Clear guards, operate the next vent and dodge pressure warnings");
+                q.reward=L("首次完成75硬币、3碎片、1天赋点、85经验；锻造升级永久减耗",
+                    "First clear: 75 coins, 3 shards, 1 talent, 85 XP and permanent upgrade-material savings");
+                return q;
+            }
+
+            if (id == "glasswind")
+            {
+                q.title=L("玻璃风脉","Glasswind Circuit");
+                q.category=L("沙海争夺 · 限时守点","DESERT CONTROL · TIMED DEFENSE");
+                q.locked=!Has("glasswind_started");
+                q.description=L("沙海三座风压阀被旧货运网独占。靠近风圈完成八秒校准，击退两波守卫，再手动封存中继。",
+                    "The old freight network controls three desert wind valves. Hold the capture ring for eight seconds, defeat two security waves, then manually seal each relay.");
+                int next=0;
+                for(int i=1;i<=3;i++)
+                {
+                    bool done=Has("glasswind_"+i);
+                    q.steps.Add(new QuestStep(L("恢复第 "+i+" 座风脉","Restore wind relay "+i),done));
+                    if(!done && next==0)next=i;
+                }
+                q.complete=Has("glasswind_complete");
+                q.steps.Add(new QuestStep(L("向米娅公开风路图","Publish the wind chart with Mia"),q.complete));
+                q.room=q.locked || Has("glasswind_all_sealed")?0:6;
+                q.target=ObjectPoint(q.room,q.room==0?"glasswindkeeper":
+                    "glasswindrelay"+(GlasswindSite>0?GlasswindSite:Math.Max(1,next)),new Point(18,12));
+                q.next=q.complete?L("全部中继已变成公共避暑地","All relays provide public shade"):
+                    q.locked?L("完成沙海调查后找测绘员米娅","Finish the desert report and find Mia"):
+                    Has("glasswind_all_sealed")?L("返回余烬镇公开风路图","Publish the chart in Emberfall"):
+                    GlasswindSite!=0?L("守住风圈击退两波敌人，再按E封存","Hold the ring, defeat both waves and press E to seal"):
+                    L("前往沙海中继站开始守点","Start a desert relay defense");
+                q.reward=L("每站15硬币、1碎片、20经验与避暑圈；最终65硬币、2碎片、1天赋点、70经验",
+                    "Each: 15 coins, 1 shard, 20 XP and shade; final: 65 coins, 2 shards, 1 talent, 70 XP");
+                return q;
+            }
+            if (id == "tide_salvage")
+            {
+                q.title=L("潮缚货单","Tidebound Manifest");
+                q.category=L("潮汐探险 · 限时打捞","TIDE EXPEDITION · TIMED SALVAGE");
+                q.locked=!Has("harbor_report");
+                q.description=L("托兰要将被旧物流网注销的药品、粮食和航海图交还居民。利用低潮走到三处真实潮滩，依序收回货单，途中击退真实掠夺者，再在100秒内回到码头。",
+                    "Tolan asks you to restore medicine, food and passage records erased by the freight network. Explore three real shoals at low tide in order, fight live raiders, and return to the dock within 100 seconds.");
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(L(new[]{"西侧药品货单","内湾粮食货单","南岛潮汐模型"}[i-1],
+                        new[]{"West shoal medicine","Inner bay provisions","Southern tide model"}[i-1]),
+                        Has("tide_salvage_complete") || TideSalvagePhase>i));
+                q.complete=Has("tide_salvage_complete");
+                q.steps.Add(new QuestStep(L("回码头交付公开货单","Return cargo to the dock"),q.complete));
+                q.room=5;
+                q.target=ObjectPoint(5,!TideSalvageActive || TideSalvagePhase==4?
+                    "tidedock":"tidecargo"+TideSalvagePhase,new Point(10.5f,14.5f));
+                q.next=q.complete?L("公共稳潮模型已安装，观测站的控潮延长15秒","Public tide model extends Tidewatch holds by 15 seconds"):
+                    q.locked?L("先完成雾港事故调查并提交米拉","First finish and file Mistport's tide investigation"):
+                    !TideSalvageActive?L("到渡船码头趁低潮发起打捞","Launch at the ferry dock during low tide"):
+                    TideSalvagePhase==4?L("击退掠夺者后回码头交付全部货物","Defeat the raiders and return all cargo"):
+                    L("前往下一处潮滩货箱，等待低潮后按E打捞","Reach the next crate; recover it at low tide");
+                q.reward=L("一次性60硬币、3碎片、1天赋点、75经验；永久稳潮+15秒",
+                    "One-time 60 coins, 3 shards, 1 talent, 75 XP and +15s Tidewatch holds");
+                return q;
+            }
+            if (id == "skywatch")
+            {
+                q.title=L("霜钟夜空","Frostchime Skywatch");
+                q.category=L("高原观测 · 星象谜题与精英战","HIGHLAND OBSERVATION · PUZZLE AND ELITE");
+                q.locked=!Has("skywatch_started");
+                q.description=L(
+                    "观星师伊澜请你读取北方霜、东方光、南方炉火的三枚古棱镜，再停止仍将暴风雪当作敌袭的自动守卫，把真实天气预报公之于众。",
+                    "Yilan asks you to calibrate the northern frost, eastern light and southern hearth prisms, defeat the obsolete skywatch guardian and publish an honest weather forecast.");
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"北方霜棱镜","东方光棱镜","南方炉火棱镜"}[i-1],
+                            new[]{"North frost prism","East light prism","South hearth prism"}[i-1]),
+                        Has("skywatch_prism_"+i)));
+                q.steps.Add(new QuestStep(L("击败古观星守卫","Defeat the observatory guardian"),
+                    Has("skywatch_defeated")));
+                q.complete=Has("skywatch_complete");
+                q.steps.Add(new QuestStep(L("返回余烬镇公开观测记录","Publish the forecast in Emberfall"),q.complete));
+                int next=1;
+                while(next<=3 && Has("skywatch_prism_"+next))next++;
+                q.room=q.locked || Has("skywatch_defeated")?0:7;
+                q.target=ObjectPoint(q.room,q.room==0?"skywatcher":
+                    next<=3?"skyprism"+next:"skyobservatory",new Point(18,12));
+                q.next=q.complete?L("观星台已对旅人开放避寒穹顶","The observatory now shelters travelers"):
+                    q.locked?L("完成高原记录后在镇里寻找观星师伊澜","Finish the mountain report, then speak to Yilan"):
+                    Has("skywatch_defeated")?L("回镇向伊澜交付真实光谱","Return the spectrum to Yilan"):
+                    next<=3?L("前往下一座棱镜读取地貌线索","Read and tune the next prism"):
+                    SkywatchRoom==7?L("观察冰光预警并击败守卫","Dodge the frost warnings and defeat the guardian"):
+                    L("前往东南的古观星台启动守卫试炼","Activate the southeastern observatory");
+                q.reward=L("首次归档：95硬币、3碎片、1天赋点、100经验；高原避寒穹顶",
+                    "First clear: 95 coins, 3 shards, 1 talent, 100 XP, and a sheltered observatory");
+                return q;
+            }
+            if (id == "skywatch_afterglow")
+            {
+                q.title=L("三枚余辉","Three Afterglows");
+                q.category=L("战后调查 · 高原避寒网络",
+                    "AFTERMATH · HIGHLAND REFUGE NETWORK");
+                q.locked=!Has("skywatch_complete");
+                q.description=L(
+                    "观星师伊澜公开了气候光谱，但北、东、南三座棱镜仍保存最后的旅人记录。回收后在观星台归档，为夜归者点亮三处避寒信标。",
+                    "After Yilan publishes the spectrum, return to the north, east and south lenses to recover lost travelers' last records. Archive them at the observatory to activate warming beacons.");
+                int next=1;
+                for(int i=1;i<=3;i++)
+                {
+                    bool done=Has("skywatch_afterglow_"+i);
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"北方余辉","东方余辉","南方余辉"}[i-1],
+                            new[]{"Northern afterglow","Eastern afterglow","Southern afterglow"}[i-1]),done));
+                    if(done && next==i)next++;
+                }
+                q.complete=Has("skywatch_afterglow_complete");
+                q.steps.Add(new QuestStep(L("在古观星台公开最终余辉",
+                    "Archive the last afterglows at the observatory"),q.complete));
+                q.room=7;
+                q.target=ObjectPoint(7,next<=3?"skyprism"+next:"skyobservatory",
+                    new Point(25.5f,12.5f));
+                q.next=q.locked?L("先完成霜钟夜空的公开观测委托",
+                        "Publish Yilan's original skywatch spectrum first"):
+                    q.complete?L("三处棱镜已成为永久避寒信标",
+                        "All three lenses are now permanent warming refuges"):
+                    next<=3?L("调查下一枚棱镜中的余辉",
+                        "Recover the next lens afterglow"):
+                        L("回东南古观星台归档三道余辉",
+                          "Archive the three echoes at the southeastern observatory");
+                q.reward=L("一次性：45硬币、2碎片、60经验；三处永久避寒地点",
+                    "One time: 45 coins, 2 shards, 60 XP and three permanent warming sites");
+                return q;
+            }
+            if (id == "commons_relay")
+            {
+                q.title = L("堡垒公共信标", "Citadel Commons Relay");
+                q.category = L("后日谈 · 战斗重连", "AFTERMATH · COMBAT RESTORATION");
+                q.locked = !Has("commons_relay_started");
+                q.description = L(
+                    "堡垒旧调度仍把粮路、医护与撤离灯线分作三套封闭权限。跟随证词保管员艾拉调查堡垒，亲自连通三座信标，打退自动防御，再将公开授权交回城镇。",
+                    "The citadel still keeps food, medical care and evacuation lamps behind separate private permissions. Reconnect three real consoles, defeat their obsolete security, then return the public key to Ayla.");
+                for (int i = 1; i <= 3; i++)
+                    q.steps.Add(new QuestStep(
+                        L(new[] { "粮路通道", "医护通道", "撤离灯线" }[i-1],
+                          new[] { "Food routes", "Medical channel", "Evacuation lamps" }[i-1]),
+                        Has("commons_relay_sealed") || commonsRelayRoom == 4 && commonsRelayStep > i));
+                q.complete = Has("commons_relay_complete");
+                q.steps.Add(new QuestStep(L("公开移交通道密钥", "Return the public access key"), q.complete));
+                q.room = q.locked || Has("commons_relay_sealed") ? 0 : 4;
+                int next = commonsRelayRoom == 4 ? Math.Min(3, commonsRelayStep) : 1;
+                q.target = ObjectPoint(q.room, q.room == 0 ? "commonswitness" :
+                    "commonsrelay" + next, new Point(18, 12));
+                q.next = q.complete ? L("民用线路已经开放，守护所有人共享的归路",
+                                          "Civilian circuits remain available to every traveler") :
+                    q.locked ? L("击败堡垒守卫后，找镇里的艾拉查阅公共供给记录",
+                                 "Defeat the citadel guardian, then talk to Ayla in town") :
+                    Has("commons_relay_sealed") ?
+                        L("回余烬镇向艾拉公开移交信标密钥",
+                          "Return to Emberfall and publish the relay key with Ayla") :
+                    commonsRelayRoom != 0 && enemies.Exists(IsCommonsRelayEnemy) ?
+                        L("击退本段信标的自动防御守卫", "Defeat this circuit's active security") :
+                    L("前往堡垒下一个信标，按 E 重新连通",
+                      "Visit the next citadel relay and press E to reconnect it");
+                q.reward = L("线路重连60硬币、3碎片、75经验；归档再获80硬币、1技能点、90经验，永久耐力恢复+2/秒",
+                    "Reconnect: 60 coins, 3 shards and 75 XP; publication: 80 coins, 1 talent, 90 XP and +2 energy/sec permanently");
+                return q;
+            }
+            if (id == "root_harmony")
+            {
+                q.title = L("星根失谐", "Starroot Counterpoint");
+                q.category = L("调谐谜题 · 实战", "RESONANCE PUZZLE · COMBAT");
+                q.locked = !Has("root_harmony_started");
+                q.description = L("听纹师芮请你调谐密林、遗迹和矿场的三处星根共鸣石。阅读地貌线索选择对应音节，击败三名真实失谐守卫，再返回封存数据。挑战失败可重新尝试，完成奖励不可刷取。",
+                    "Rui asks you to tune three starroot listening stones. Read the landscape clues, choose the correct note, defeat three dissonant sentinels, then seal the reading. Retries are free; rewards are once only.");
+                for (int region = 1; region <= 3; region++)
+                    q.steps.Add(new QuestStep(L(new[] { "密林的根音", "遗迹的潮音", "矿场的铁音" }[region-1],
+                        new[] { "Root note in Thornwood", "Tide note in the Ruins", "Iron note in Ironreach" }[region-1]),
+                        Has("root_harmony_" + region)));
+                q.complete = Has("root_harmony_complete");
+                q.steps.Add(new QuestStep(L("向芮归档三段和声", "Archive all three readings with Rui"), q.complete));
+                int next = RootHarmonyNext();
+                q.room = q.locked || next == 0 ? 0 : next;
+                q.target = ObjectPoint(q.room,
+                    next == 0 || q.locked ? "rootlistener" : "rootcounter" + next,
+                    new Point(20, 12));
+                q.next = q.complete ? L("三道和声已经归档", "The three harmonies are archived") :
+                    q.locked ? L("救回密林侦察员后在余烬镇寻找听纹师芮", "Rescue the forest scout, then speak to Rui in Emberfall") :
+                    next == 0 ? L("返回余烬镇，把三段读数交给芮", "Return to Emberfall and report to Rui") :
+                    RootHarmonyRoom == next ?
+                        enemies.Exists(IsRootHarmonyEnemy) ?
+                            L("击退共鸣石附近的失谐守卫", "Defeat the sentinels guarding the node") :
+                            L("靠近共鸣石按 E 封存读数", "Press E at the node to seal the reading") :
+                        !CanEnter(next) ? L("先解锁下一章的地区", "Unlock the next campaign region") :
+                            L("前往共鸣石，依据地貌选择音纹并守住阵地",
+                              "Visit the stone, tune its landscape note and defend the site");
+                q.reward = L("每区25硬币、2碎片、35经验与永久休整点；完成另得75硬币、1技能点、70经验",
+                    "Each node: 25 coins, 2 shards, 35 XP and permanent safe rest; final: 75 coins, 1 talent, 70 XP");
+                return q;
+            }
+
+            if (id == "archive_trail")
+            {
+                q.title = L("失落测绘师的星图", "The Lost Surveyor's Atlas");
+                q.category = L("遗迹调查", "LOST CARTOGRAPHY");
+                q.locked = !Has("archive_started");
+                q.description = L("镇上的修复师琳发现三份被拆散的远征测绘记录。先在密林找残图，再按残图线索去沉没遗迹，最后回收矿场的测距仪，将记录交回镇上。",
+                    "Lin needs three lost expedition records. Find the woodland chart, follow its clue into the ruins, then recover the mine rangefinder and return to town.");
+                for (int i = 1; i <= 3; i++)
+                    q.steps.Add(new QuestStep(L(new[] { "找回林地航图", "读取遗迹潮刻", "回收矿场测距仪" }[i - 1],
+                        new[] { "Recover the woodland chart", "Read the ruins' tide inscription", "Retrieve the mine rangefinder" }[i - 1]), Has("archive_fragment_" + i)));
+                q.complete = Has("archive_complete");
+                q.steps.Add(new QuestStep(L("回到余烬镇交付完整星图", "Return the restored atlas to Lin"), q.complete));
+                int next = !Has("archive_fragment_1") ? 1 : !Has("archive_fragment_2") ? 2 :
+                    !Has("archive_fragment_3") ? 3 : 0;
+                q.room = next; q.target = next == 0 ? ObjectPoint(0, "archivekeeper", new Point(14, 11)) :
+                    ObjectPoint(next, "archivefragment" + next, new Point(18, 11));
+                q.next = q.complete ? L("星图已归档，测绘师的故事终于完整", "Atlas archived; the surveyor's story is complete") :
+                    q.locked ? L("与余烬镇的修复师琳交谈", "Speak with Lin in Emberfall") :
+                    next == 0 ? L("回镇上把三份记录交给琳", "Deliver all three records to Lin") :
+                    !CanEnter(next) ? L("先完成当前章节，解锁下一片地区", "Progress the story to unlock the next region") :
+                    L("调查地图上的失落测绘物件", "Investigate the marked lost survey artifact");
+                q.reward = L("每份记录20硬币、2碎片、20经验；归档再得技能点1、硬币60",
+                    "Each artifact: 20 coins, 2 shards, 20 XP; completion: 1 talent point and 60 coins");
+                return q;
+            }
+
+            if (id == "station_patrol")
+            {
+                q.title = L("远岸环境巡测", "Farshore Field Surveys");
+                q.category = L("限时探索", "TIMED EXPLORATION");
+                q.locked = !CanEnter(5) || (!Has("fieldstation_5") && !Has("fieldstation_6") && !Has("fieldstation_7"));
+                q.description = L("在修好的观测站接下90秒巡测：跑到当地标记记录潮汐、热度或寒意，然后及时返回。失败无损失。",
+                    "Start a 90-second survey at a restored station. Read the tide, heat or cold at the landmark, then return before time expires. Retries are free.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool done = Has("fieldstation_survey_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "雾港低潮巡测", "沙海热度巡测", "高原寒意巡测" }[region - 5],
+                        new[] { "Harbor low-tide reading", "Desert heat reading", "Highland cold reading" }[region - 5]), done));
+                    if (!done && next == 0 && Has("fieldstation_" + region)) next = region;
+                }
+                q.complete = Has("fieldstation_survey_complete");
+                q.steps.Add(new QuestStep(L("归档三份巡测数据", "Archive all three readings"), q.complete));
+                q.room = fieldSurveyRoom != 0 ? fieldSurveyRoom : next != 0 ? next : 5;
+                q.target = fieldSurveyRoom != 0 && fieldSurveyPhase == 1 ? FieldSurveyTarget(fieldSurveyRoom) :
+                    ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
+                q.next = q.complete ? L("三地巡测完成，观测报告已归档", "All field surveys archived") :
+                    fieldSurveyRoom != 0 ?
+                        L(fieldSurveyPhase == 1 ? "前往地图标记，读取气象信号" : "返回观测站交付读数",
+                          fieldSurveyPhase == 1 ? "Reach the landmark to take a reading" : "Return to the station to deliver the reading") +
+                        " · " + (int)Math.Ceiling(fieldSurveyTime) + "s" :
+                    next != 0 ? L("前往已修复的站台，接取90秒巡测", "Visit a repaired station to start a 90s survey") :
+                        L("先维修任意远岸观测站", "Restore a farshore station first");
+                q.reward = L("每站24硬币、2碎片、30经验；三站额外凉茶2",
+                    "Each: 24 coins, 2 shards, 30 XP; all three: +2 tea");
+                return q;
+            }
+
+            if (id == "stations")
+            {
+                q.title = L("远岸风暴观测网", "The Farshore Stormwatch");
+                q.category = L("环境探索", "ENVIRONMENTAL EXPLORATION");
+                q.locked = !CanEnter(5);
+                q.description = L("修复雾港潮汐站、沙海降温站与高原保暖站。利用各地的潮汐、镜面光路和火盆，建立安全的远岸补给路线。",
+                    "Restore a tidewatch, cooling and warming station. Read the tides, route the desert mirrors and kindle a highland brazier.");
+                int next = 0;
+                for (int region = 5; region <= 7; region++)
+                {
+                    bool done = Has("fieldstation_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "启动雾港潮汐站", "启动沙海降温站", "启动高原保暖站" }[region - 5],
+                        new[] { "Repair the harbor tidewatch", "Repair the desert cooler", "Repair the frost shelter" }[region - 5]), done));
+                    if (!done && next == 0) next = region;
+                }
+                q.complete = Has("fieldstation_complete");
+                q.steps.Add(new QuestStep(L("建立三地安全观测网", "Connect all three weather stations"), q.complete));
+                q.room = next == 0 ? 5 : next;
+                q.target = ObjectPoint(q.room, "fieldstation" + q.room, new Point(10, 14));
+                q.next = q.locked ? L("推进主线，开启远岸雾港", "Advance the story and unlock Mistport") :
+                    q.complete ? L("三地避险站已连通，可在站点之间快速旅行", "All three refuges linked for direct station-to-station travel") :
+                    !CanEnter(q.room) ? L("先完成上一地区的调查报告", "Complete the previous regional report") :
+                    q.room == 5 ? L("在低潮时维修，之后可随时固定45秒低潮", "Repair at low tide; then hold it for 45 seconds") :
+                    q.room == 6 ? L("先接通三面镜子的光路，再维修降温站", "Connect the mirror light channel before repairing") :
+                    L("点燃西侧火盆后维修保暖站", "Light the western brazier before repairing");
+                q.reward = L("每站18硬币、2碎片、20经验；全修额外技能点1、凉茶2",
+                    "Each: 18 coins, 2 shards, 20 XP; all three: +1 talent point, +2 tea");
+                return q;
+            }
+
+            if (id == "wayfarers")
+            {
+                q.title = L("失联旅人的归途", "The Missing Travelers");
+                q.category = L("旅途支线", "ROADSIDE STORY");
+                q.locked = !Has("scout_saved");
+                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份材料，或保护旅人安全度并击退两名掠夺者。受伤后可花一份材料紧急援助一次。",
+                    "Three travelers need help in Thornwood, the Ruins and the Mine. Donate two supplies, or protect their safety meter while defeating two raiders. Spend one supply for a single emergency aid after injury.");
+                int next = 0;
+                for (int region = 1; region <= 3; region++)
+                {
+                    bool done = Has("wayfarer_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "", "帮助林间药师", "帮助遗迹摆渡人", "帮助矿道修理匠" }[region],
+                        new[] { "", "Help the woodland healer", "Help the ferryman", "Help the mine mechanic" }[region]), done));
+                    if (!done && next == 0) next = region;
+                }
+                q.complete = Has("wayfarer_complete");
+                q.steps.Add(new QuestStep(L("三名旅人重归旅途", "All three travelers back on the road"), q.complete));
+                q.room = wayfarerEncounterRoom != 0 ? wayfarerEncounterRoom : next == 0 ? 1 : next;
+                q.target = ObjectPoint(q.room, "wayfarer" + q.room, new Point(15, 14));
+                q.next = q.locked ? L("先救回密林的公会侦察员", "Rescue the guild scout first") :
+                    q.complete ? L("三名旅人已经平安出发", "All three travelers are safe") :
+                    wayfarerEncounterRoom != 0 ? L("保护旅人安全度，击退两名伏击者", "Keep the traveler safe; defeat both raiders") :
+                    L("找旅人交谈：物资援助或战斗守护", "Talk to the traveler: donate supplies or defend");
+                q.reward = L("每人20硬币、1碎片、25经验；全部完成额外技能点1、炖汤1",
+                    "Each: 20 coins, 1 shard, 25 XP; all three: 1 talent point and 1 stew");
+                return q;
+            }
+
+            if (id == "vigil")
+            {
+                q.title = L("巡路信标守望", "Roadwarden Vigil");
+                q.category = L("战斗挑战", "COMBAT CHALLENGE");
+                q.locked = !Has("dispatch_complete");
+                q.description = L("巡路誓言不只是地图：在密林、遗迹与矿场保护信标护盾，阻止敌人靠近侵蚀，并守住两波袭击。",
+                    "Protect each beacon ward from attackers who drain it up close; hold two waves in each region to keep the homeward road safe.");
+                int next = 0;
+                for (int region = 1; region <= 3; region++)
+                {
+                    bool done = Has("road_trial_" + region);
+                    q.steps.Add(new QuestStep(L(new[] { "", "守住苔根信标", "守住潮痕信标", "守住矿灯信标" }[region],
+                        new[] { "", "Defend Mossroot beacon", "Defend Tidemark beacon", "Defend Minelight beacon" }[region]), done));
+                    if (!done && next == 0) next = region;
+                }
+                q.complete = Has("road_trial_complete");
+                q.room = roadTrialRoom != 0 ? roadTrialRoom : next == 0 ? 9 : next;
+                q.target = ObjectPoint(q.room, roadTrialRoom != 0 ? "survey" + roadTrialRoom :
+                    next == 0 ? "surveyDesk" : "survey" + next, new Point(15, 14));
+                q.next = q.locked ? L("先解读三封巡路旧信", "Decode the three roadwarden letters first") :
+                    roadTrialRoom != 0 ? L("击退第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波敌人", "Defeat wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves) :
+                    q.complete ? L("三座信标已守住；信标可重玩三波精英试炼", "All beacons defended; replay three-wave veteran challenges") :
+                    L("在信标处开始双波守路试炼", "Begin the two-wave defense at the beacon");
+                q.reward = L("每座35硬币、2碎片、40经验；全部完成额外技能点1、碎片3",
+                    "Each: 35 coins, 2 shards, 40 XP; all three: bonus 1 talent point, 3 shards");
+                return q;
+            }
+
+            if (id == "dispatches")
+            {
+                q.title = L("巡路队的未寄之信", "The Wardens' Unsent Letters");
+                q.category = L("巡路探索", "ROADWARDEN DISCOVERY");
+                q.locked = !Has("survey_complete");
+                q.description = L("归乡星图指向密林、遗迹和矿场的三封未寄之信。重读旧信，解开隐藏的巡路誓言。",
+                    "The homeward chart points to three unsent letters in Thornwood, the Drowned Ruins and Ironreach. Reread them and decode the wardens' promise.");
+                int next = 0;
+                for (int idLetter = 6; idLetter <= 8; idLetter++)
+                {
+                    bool done = Has("dispatch_" + idLetter);
+                    q.steps.Add(new QuestStep(L(new[] { "解读密林旧信", "解读遗迹船票", "解读矿场图纸" }[idLetter - 6],
+                        new[] { "Decode forest letter", "Decode ferry ticket", "Decode mine blueprint" }[idLetter - 6]), done));
+                    if (!done && next == 0) next = idLetter;
+                }
+                q.complete = Has("dispatch_complete");
+                q.steps.Add(new QuestStep(L("拼合巡路队的誓言", "Reassemble the wardens' promise"), q.complete));
+                q.room = next == 0 ? 9 : next - 5;
+                q.target = ObjectPoint(q.room, next == 0 ? "surveyDesk" : "history" + next, new Point(15, 14));
+                q.next = q.locked ? L("先恢复三座信标并完成归乡星图", "Restore the beacons and complete the chart") :
+                    q.complete ? L("巡路队的誓言已传承", "The wardens' promise lives on") :
+                    L("重读旧信并解读暗号", "Reread the letter and decode its cipher");
+                q.reward = L("每封20硬币、1碎片、25经验；全解额外40硬币、技能点1、热汤减价2",
+                    "Each: 20 coins, 1 shard, 25 XP; all three: 40 coins, 1 talent point, stew -2 coins");
+                return q;
+            }
+            if (id == "signals")
+            {
+                q.title = L("归乡的三段信号", "Three Signals Home"); q.category = L("巡路探索", "ROADWARDEN DISCOVERY");
+                q.description = L("密林、沉没遗迹和矿场留下了三段失联的巡路信号。将它们带回炉火旅店，拼出一条真正属于旅人的安全归途。", "Recover three lost roadwarden signals across Thornwood, the Drowned Ruins and Ironreach. Assemble them at the Hearth Inn to chart a safe way home.");
+                int next = 0;
+                for (int i = 1; i <= 3; i++)
+                {
+                    bool done = Has("survey_" + i);
+                    q.steps.Add(new QuestStep(L(new[] { "", "恢复密林信号", "恢复遗迹信号", "恢复矿场信号" }[i], new[] { "", "Restore forest signal", "Restore ruins signal", "Restore mine signal" }[i]), done));
+                    if (!done && next == 0) next = i;
+                }
+                q.complete = Has("survey_complete"); q.steps.Add(new QuestStep(L("在炉火旅店拼合归乡星图", "Assemble the chart at the Hearth Inn"), q.complete));
+                q.room = next == 0 ? 9 : next; q.target = ObjectPoint(q.room, next == 0 ? "surveyDesk" : "survey" + next, new Point(18, 14));
+                q.next = q.complete ? L("在炉火旅店星图桌快速前往三座信标；靠近信标可返回旅店", "Use the Hearth Inn chart to travel to three beacons; return from any beacon") : next == 0 ? L("三段信号已齐，去炉火旅店的星图桌", "All signals found; visit the chart table in the Hearth Inn") : L("调查第 ", "Investigate signal ") + next + L(" 座旧信标", " at the old beacon");
+                q.reward = L("每座12硬币/1碎片；完工60硬币、5碎片、技能点1、移速+0.25、信标往返", "Each: 12 coins/1 shard; final: 60 coins, 5 shards, 1 point, +0.25 speed and beacon travel");
+                return q;
+            }
             if (id == "secrets")
             {
                 q.title = L("旧路的新光", "Light on Old Roads"); q.category = L("探索发现", "DISCOVERY"); q.description = L("巡路队的补给留在六条封闭支路里。用星核能力重访旧地，把他们的故事带回来。", "Six sealed paths hold road-warden caches. Return with core powers and recover their stories.");
@@ -104,7 +1645,7 @@ namespace Starfall
             }
             if (id == "shore")
             {
-                q.title = L("远岸来信", "Letters from Afar"); q.category = L("远岸剧情", "DISTANT SHORES"); q.description = L("港口的水位、沙海的调度、高原的名字。把三份原始记录带到同一张桌前。", "Tide levels, allocations and names. Bring the original records to one council table."); q.locked = save.stage < 1; q.complete = save.frontierEnding > 0;
+                q.title = L("远岸来信", "Letters from Afar"); q.category = L("远岸剧情", "DISTANT SHORES"); q.description = L("星根失衡不止发生在堡垒附近。雾港的水位、沙海九年前的配给命令与高原被封存的遇难者名单，记录了谁在为屏障付出代价。把三份原始证词带到议事厅，让每一方亲自参与修复。", "The shield's cost reaches beyond the citadel: falsified harbor tides, a nine-year-old desert allocation order and names sealed beneath the mountain bells. Bring the three original records to the council so every community can decide what to repair."); q.locked = save.stage < 1; q.complete = save.frontierEnding > 0;
                 foreach (string flag in new[] { "harbor_report", "desert_report", "mountain_report", "frontier_settled" }) q.steps.Add(new QuestStep(L(new[] { "雾港调查", "沙海调查", "高原调查", "达成三方协定" }[q.steps.Count], new[] { "Mistport report", "Desert report", "Mountain report", "Council covenant" }[q.steps.Count]), Has(flag)));
                 if (q.complete) { q.next = L("协定已达成，自由探索远岸", "Covenant settled; explore the distant shores"); return q; }
                 if (!Has("exp_intro")) { q.target = new Point(26, 9); q.next = L("找露恩接取调查；先交回第一枚星核", "Meet Lune; deliver the first starcore first"); return q; }
@@ -126,10 +1667,23 @@ namespace Starfall
                 else if (!Has("boss_" + region)) { q.target = new Point(30, 8); q.next = L("前往祭坛挑战地区守护者", "Challenge the regional guardian at the altar"); }
                 else q.next = L("与当地同伴交谈，提交调查", "Speak to the local companion and file the report"); return q;
             }
-            q.title = L("星陨主线", "The Fallen Star"); q.description = L("找到边境的星核，追查堡垒屏障背后的代价。", "Recover the frontier's starcores and uncover the shield's cost."); q.complete = save.ending > 0;
+            q.title = L("星陨主线", "The Fallen Star"); q.description = L(
+                save.stage == 0 ? "星陨第七天，巡路队失踪，密林里的侦察员仍在等待救援。救回他，找到第一枚星核，同时查清森林为何开始封路。" :
+                save.stage == 1 ? "第一枚星核已由公会保管，森林的伤口却没有愈合。遗迹水闸被旧命令困住，解开日、月、潮的机关，寻找下一份供能真相。" :
+                save.stage == 2 ? "两枚星核被汇入堡垒，矿场却没有停止抽取。修复升降机，查清不停运转的机器究竟为谁工作。" :
+                "三枚星核已汇集到堡垒。厄洛的屏障保护了城内，也抽走城外的生机。对峙后决定力量的归属；远岸证词可能证明还有替代之路。",
+                save.stage == 0 ? "Day seven after Starfall: the roadwardens are missing and the forest scout waits for rescue. Find him, reach the first core and learn why the roots barricaded the road." :
+                save.stage == 1 ? "The first core is in guild custody, but the forest is not healed. A forgotten order locks the ruined sluices; restore Sun, Moon and Tide to expose its cost." :
+                save.stage == 2 ? "Two cores now feed the citadel, and the mines refuse to stop. Repair the elevator and discover whom the tireless machines serve." :
+                "Three cores feed Orrin's shield, protecting those inside while draining the outer land. Confront him and choose where their power belongs. Farshore testimony can reveal another path.");
+            q.complete = save.ending > 0;
             int chapter = save.stage + 1; q.room = chapter; q.target = new Point(29, 8);
             bool gateOpen = chapter == 4 || chapter == 1 && Has("scout_saved") || Has("gate_" + chapter);
             q.steps.Add(new QuestStep(L(chapter == 1 ? "解救侦察员" : chapter == 2 ? "破解遗迹石碑" : chapter == 3 ? "修复矿场升降机" : "抵达统领所在祭坛", chapter == 1 ? "Rescue the scout" : chapter == 2 ? "Solve the tablets" : chapter == 3 ? "Repair the elevator" : "Reach the warden's altar"), gateOpen));
+            if(chapter<=3)
+                q.steps.Add(new QuestStep(L("可选：留下本章居民的真实证词",
+                    "Optional: obtain living testimony this chapter"),
+                    Has("witness_complete_"+chapter)));
             q.steps.Add(new QuestStep(L("击败守护者或达成和平解决", "Defeat the guardian or negotiate peace"), Has("boss_" + chapter)));
             q.steps.Add(new QuestStep(L(chapter == 4 ? "决定边境的未来" : "回收星核并交回公会", chapter == 4 ? "Choose the frontier's future" : "Recover the core and deliver to the guild"), q.complete));
             if (!gateOpen)
@@ -141,6 +1695,21 @@ namespace Starfall
             }
             else if (Has("core_" + chapter) && chapter < 4) { q.room = 0; q.target = new Point(18, 17); q.next = L("把星核交给莉雅", "Deliver the starcore to Lyra"); }
             else q.next = Has("boss_" + chapter) ? L("与祭坛互动，完成本章", "Interact with the altar to finish this chapter") : L("前往祭坛，准备守护者挑战", "Approach the altar and prepare for the guardian");
+            if (chapter == 4 && !Has("boss_4"))
+            {
+                q.steps.Insert(0,new QuestStep(L("莉雅的第四章调查 · 三核审计",
+                    "Lyra's Chapter Four investigation"),Has("triad_started")));
+                for(int site=1;site<=3;site++)
+                    q.steps.Insert(site,new QuestStep(L(new[]{"森林的再生账","遗迹的通行账","矿场的休息账"}[site-1],
+                        new[]{"Forest renewal ledger","Ruins passage ledger","Mine workers' rest ledger"}[site-1]),
+                        Has("triad_evidence_"+site)));
+                q.steps.Insert(4,new QuestStep(L("击败堡垒保密卫兵并保全日志",
+                    "Defeat audit security and preserve records"),Has("triad_sealed")));
+                q.steps.Insert(5,new QuestStep(L("返回莉雅身边，公开三核真相",
+                    "Publish the three-core truth with Lyra"),Has("triad_complete")));
+                q.description+=L("\\n\\n第四章加入三核审计：莉雅将在公会提供一条可以主动追踪、会改变最终对峙的主线调查。旧存档仍可直接完成原有决战。",
+                    "\\n\\nChapter Four now includes Lyra's three-core audit, a tracked campaign investigation that changes the confrontation. Existing saves retain the original finale route.");
+            }
             if (q.complete) { q.room = 0; q.target = new Point(10, 11); q.next = L("故事已完成，自由探索边境", "Story complete; explore the frontier freely"); } return q;
         }
         private string GameItemsZh(int item) { return data.items[item].name; }
@@ -148,6 +1717,16 @@ namespace Starfall
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
+            // While actually carrying civilian aid, the live crossing, seal
+            // check and shelter must outrank an unrelated pinned quest. The
+            // player's original tracked quest is never modified.
+            if(SwordLessonActive)return SwordLessonLauncher;
+            if(FrostSignalActive)return GetQuest("frost_signal").target;
+            if(MineConvoyActive)return MineConvoyStage==2||
+                MineConvoyStage==4?GetQuest("mine_convoy").target:MineCartPosition;
+            if(FarCourierActive) return GetQuest("far_couriers").target;
+            if(CivicResponseActive) return GetQuest("civic_services").target;
+            if(CivicConduitActive) return GetQuest("civic_conduit").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return new Point(31, 14);
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
@@ -161,13 +1740,13 @@ namespace Starfall
         {
             int w = Map.rows[0].Length, h = Map.rows.Length, sx = (int)Position.x, sy = (int)Position.y, start = sy * w + sx;
             var path = new List<Point>(); if (sx < 0 || sx >= w || sy < 0 || sy >= h) return path;
-            PreparePathSearch(w * h, -2);
-            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; parent[start] = -1; int end = start; float best = (Position - target).Length;
+            PreparePathSearch(w * h);
+            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, -1); int end = start; float best = (Position - target).Length;
             while (head < tail)
             {
                 int n = pathQueue[head++], x = n % w, y = n / w; float d = (new Point(x + .5f, y + .5f) - target).Length;
                 if (d < best) { best = d; end = n; } if (d <= 1.2f) { end = n; break; }
-                for (int i = 0; i < 4; i++) { int xx = x + guidanceSteps[i, 0], yy = y + guidanceSteps[i, 1]; if (xx < 0 || xx >= w || yy < 0 || yy >= h) continue; int next = yy * w + xx; if (parent[next] != -2 || !Fits(new Point(xx + .5f, yy + .5f))) continue; parent[next] = n; pathQueue[tail++] = next; }
+                for (int i = 0; i < 4; i++) { int xx = x + guidanceSteps[i, 0], yy = y + guidanceSteps[i, 1]; if (xx < 0 || xx >= w || yy < 0 || yy >= h) continue; int next = yy * w + xx; if (PathVisited(next) || !Fits(new Point(xx + .5f, yy + .5f))) continue; VisitPath(next, n); pathQueue[tail++] = next; }
             }
             if (best > 1.8f && (new Point(end % w + .5f, end / w + .5f) - target).Length > 1.8f) return path;
             for (int n = end; n != start && n >= 0; n = parent[n]) path.Add(new Point(n % w + .5f, n / w + .5f)); path.Reverse(); return path;

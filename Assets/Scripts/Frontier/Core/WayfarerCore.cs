@@ -1,0 +1,271 @@
+using System;
+using System.Collections.Generic;
+
+namespace Starfall
+{
+    public sealed partial class GameCore
+    {
+        // Rescue flags persist; abandoned or interrupted ambushes do not.
+        private int wayfarerEncounterRoom;
+        private float wayfarerIntegrity;
+        private bool wayfarerWarned;
+        private bool wayfarerAidUsed;
+        public int WayfarerEncounterRoom { get { return wayfarerEncounterRoom; } }
+        public float WayfarerIntegrity { get { return wayfarerIntegrity; } }
+        private static bool IsWayfarerEnemy(Enemy e) { return e != null && e.id >= 82000 && e.id < 82100; }
+        private void ResetWayfarerEncounter()
+        { wayfarerEncounterRoom = 0; wayfarerIntegrity = 0; wayfarerWarned = wayfarerAidUsed = false; }
+        private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
+        private bool TalkWayfarer(WorldObject o)
+        {
+            if (!o.kind.StartsWith("wayfarer")) return false;
+            int room;
+            if (!int.TryParse(o.kind.Substring(8), out room) || room < 1 || room > 3 || room != save.room) return true;
+            if (!Has("scout_saved"))
+            {
+                Dialog(o.name, o.en, "先救回被困密林的公会侦察员，我们才有机会重开这条道路。",
+                    "Rescue the guild scout from Thornwood first; then the road can reopen.",
+                    C("明白", "Understood", "close"));
+                return true;
+            }
+            if (Has("wayfarer_" + room))
+            {
+                string[] defendedZh = { "",
+                    "你替我挡住掠夺者，我终于把药袋重新扎好。伤者们已经能继续赶路。",
+                    "你守住渡口时，我把信号灯重新挂回河岸。今晚的船终于有了归途。",
+                    "你守住矿道，我把散落的零件装回运输车。下一班工人不必摸黑回家。" };
+                string[] defendedEn = { "",
+                    "You held off the raiders while I secured the medicine. The wounded can travel again.",
+                    "You guarded the crossing while I relit the river signal. Tonight's boats have a way home.",
+                    "You held the mine passage while I repaired the cart. The next shift can return safely." };
+                string[] suppliedZh = { "",
+                    "你送来的药草救了伤者，也让我能带着药袋重新上路。",
+                    "你送来的星晶点亮了渡口信号，涨水时也能看清安全航道。",
+                    "你送来的零件修好了运输车，矿道补给终于重新流动。" };
+                string[] suppliedEn = { "",
+                    "Your Moonherbs helped the wounded and put my medicine bag back on the road.",
+                    "Your starcrystals lit the crossing signal, even when the river rises.",
+                    "Your spare parts repaired the cart and restored the mine supply route." };
+                string responseZh = Has("wayfarer_defended_" + room) ? defendedZh[room] :
+                    Has("wayfarer_supplied_" + room) ? suppliedZh[room] :
+                    "多亏你的帮助，我能继续赶路了。";
+                string responseEn = Has("wayfarer_defended_" + room) ? defendedEn[room] :
+                    Has("wayfarer_supplied_" + room) ? suppliedEn[room] :
+                    "Thanks to you, I can travel again.";
+                Dialog(o.name, o.en, responseZh +
+                    (room==3&&MineConvoyComplete?
+                        " 南侧矿棚最后一班矿工已经平安归来，矿工不再需要军用货运许可。":"")+
+                    " 其他旅人也许还在等待救援。" + FloodArchiveWayfarerNote(false),
+                    responseEn +
+                    (room==3&&MineConvoyComplete?
+                        " The last-shift miners returned safely; they no longer need a military cargo permit.":"")+
+                    " Others may still be stranded." + FloodArchiveWayfarerNote(true),
+                    C("旅途平安", "Safe travels", "close"));
+                return true;
+            }
+            if (wayfarerEncounterRoom == room)
+            {
+                var options = new List<Choice> { C("继续守护", "Keep defending", "close") };
+                if (wayfarerIntegrity < 100 && !wayfarerAidUsed)
+                    options.Add(C("紧急援助：1份物资恢复35安全度", "Field aid: 1 supply restores 35 safety", "wayfarer_aid"));
+                options.Add(C("撤离战斗", "Withdraw", "wayfarer_abandon"));
+                Dialog(o.name, o.en, "伏击者正试图袭击旅人！旅人安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。即使敌人已蓄力，也可站到敌人与旅人之间挡下攻击。安全度归零即失败；受伤后可紧急援助一次。",
+                    "Raiders are attacking the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Stand between a raider and me to intercept even a committed strike. Reaching zero fails the rescue; one field aid is available after injury.",
+                    options.ToArray());
+                return true;
+            }
+            string[] zh = { "",
+                "我的药袋被掠夺者打散了。两份药草能帮助伤者；你也可以替我击退追兵。",
+                "洪水卷走了渡口信号灯。两块星晶能点亮安全河道；你也可以帮我击退劫路者。",
+                "矿道运输车坏了。两份备用零件可以修好；否则我们得先击退趁乱袭来的掠夺者。" };
+            string[] en = { "",
+                "Raiders scattered my medicines. Two Moonherbs can help the wounded, or you can fight the pursuers.",
+                "The flood carried away our ferry lamp. Two starcrystals can restore the crossing, or we must repel raiders.",
+                "The supply cart broke down. Two spare parts will repair it, or we can fight the ambushers." };
+            string[] supplyZh = { "", "药草×2 · 当地声望+1", "星晶×2 · 当地声望+1", "零件×2 · 当地声望+1" };
+            string[] supplyEn = { "", "2 Moonherbs · trust +1", "2 starcrystals · trust +1", "2 spare parts · trust +1" };
+            Dialog(o.name, o.en, zh[room]+FloodArchiveWayfarerNote(false), en[room]+FloodArchiveWayfarerNote(true),
+                C(supplyZh[room], supplyEn[room], "wayfarer_supply_" + room),
+                C("守护旅人 · 武器熟练度+4", "Defend traveler · mastery +4", "wayfarer_defend_" + room),
+                C("稍后再说", "Prepare first", "close"));
+            return true;
+        }
+        private bool ChooseWayfarer(string action)
+        {
+            if (action == "wayfarer_aid")
+            {
+                if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
+                    wayfarerAidUsed || wayfarerIntegrity >= 100 || Dying || practicing) return true;
+                Point aidTarget = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
+                if ((Position - aidTarget).Length > 2.1f) return true;
+                int item = WayfarerItem(wayfarerEncounterRoom);
+                if (save.inventory[item] < 1)
+                {
+                    Notify("缺少紧急援助所需的物资。", "No supplies left for field aid."); return true;
+                }
+                save.inventory[item]--;
+                wayfarerIntegrity = Math.Min(100, wayfarerIntegrity + 35);
+                wayfarerAidUsed = true; sound = "reward"; revision++;
+                effects.Add(new Effect("discover", aidTarget, .5f));
+                Notify("紧急援助成功！旅人最多恢复35点安全度（每次伏击限一次）。",
+                    "Field aid applied! Restored up to 35 safety (once per ambush).");
+                return true;
+            }
+            if (action == "wayfarer_abandon")
+            {
+                if (wayfarerEncounterRoom != 0)
+                {
+                    enemies.RemoveAll(IsWayfarerEnemy);
+                    ResetWayfarerEncounter(); revision++;
+                    Notify("伏击已结束，之后可以重新尝试。", "Ambush ended. You can retry.");
+                }
+                return true;
+            }
+            bool donation = action.StartsWith("wayfarer_supply_");
+            bool fight = action.StartsWith("wayfarer_defend_");
+            if (!donation && !fight) return false;
+            int room;
+            if (!int.TryParse(action.Substring(16), out room) || room < 1 || room > 3 ||
+                save.room != room || !Has("scout_saved") || Has("wayfarer_" + room) ||
+                wayfarerEncounterRoom != 0 || roadTrialRoom != 0 ||
+                atlasEchoRoom != 0 || practicing || Dying) return true;
+            Point npc = ObjectPoint(room, "wayfarer" + room, new Point(-100, -100));
+            if ((Position - npc).Length > 2.1f) return true;
+            if (donation)
+            {
+                int item = WayfarerItem(room);
+                if (save.inventory[item] < 2)
+                {
+                    Notify("缺少两份所需材料，也可以选择击退伏击者。",
+                        "Not enough supplies. You can fight the ambushers instead.");
+                    return true;
+                }
+                save.inventory[item] -= 2; CompleteWayfarer(room); return true;
+            }
+            if (!SafeTravel)
+            {
+                Notify("先清理附近的普通敌人。", "Clear nearby patrols first."); return true;
+            }
+            var positions = new List<Point>();
+            for (int radius = 3; radius <= 7 && positions.Count < 2; radius++)
+            for (int dx = -radius; dx <= radius && positions.Count < 2; dx++)
+            for (int dy = -radius; dy <= radius && positions.Count < 2; dy++)
+            {
+                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
+                Point p = new Point(npc.x + dx, npc.y + dy);
+                if (!CanStand(p) || (p - Position).Length < 2.7f ||
+                    positions.Exists(other => (other - p).Length < 3) ||
+                    enemies.Exists(e => (e.Position - p).Length < 2.1f) ||
+                    NavigationPath(p).Count == 0) continue;
+                positions.Add(p);
+            }
+            if (positions.Count != 2)
+            {
+                Notify("附近没有足够安全的战斗空间；可选择物资救助。",
+                    "Not enough clear space for an ambush; try donating supplies.");
+                return true;
+            }
+            wayfarerEncounterRoom = room;
+            wayfarerIntegrity = 100;
+            wayfarerWarned = wayfarerAidUsed = false;
+            for (int slot = 0; slot < 2; slot++)
+            {
+                var e = new Enemy(82000 + room * 10 + slot, slot == 0 ? 0 : 2,
+                    positions[slot].x, positions[slot].y, 50 + room * 16);
+                // Reserved high IDs must never become multi-hour opening cooldowns.
+                e.timer = .9f + slot * .3f; enemies.Add(e);
+                effects.Add(new Effect("discover", positions[slot], .6f));
+            }
+            TrackQuest("wayfarers"); sound = "quest"; revision++;
+            Notify("守住旅人安全度！敌人会冲向旅人，拦截并击退他们。",
+                "Protect the traveler! Raiders will rush them; intercept and defeat both.");
+            return true;
+        }
+        // The player can physically bodyguard a committed traveler strike.
+        // Interception only succeeds inside the actual enemy contact area:
+        // it never makes the traveler invulnerable from behind a wall or at range.
+        private bool InterceptWayfarerStrike(Enemy attacker, Point traveler)
+        {
+            Point lane = traveler - attacker.Position;
+            Point blocker = Position - attacker.Position;
+            float length = lane.Length;
+            float radius = attacker.kind == 2 ? EnemyAreaRadius(attacker) : EnemyMeleeRadius;
+            if (length < .7f || blocker.Length >= radius) return false;
+            float forward = (blocker.x * lane.x + blocker.y * lane.y) / length;
+            float lateral = Math.Abs(blocker.x * lane.y - blocker.y * lane.x) / length;
+            if (forward < .3f || forward > length + .05f || lateral > .75f ||
+                !ClearAttackPath(attacker.Position, Position)) return false;
+            // The original release has already resolved the hero's real hit.
+            // Heavy sweeps require the hero to be inside the warned area too.
+            if (attacker.kind == 2
+                ? (Position - attacker.target).Length >= radius
+                : !InEnemyMeleeArc(attacker, Position)) return false;
+            effects.Add(new Effect("number", Position, .7f, L("护卫拦截", "INTERCEPT")));
+            effects.Add(new Effect("discover", traveler, .35f));
+            return true;
+        }
+        // A traveler is a real defendable objective, not a passive kill counter.
+        // Raider strikes require both proximity and an unobstructed attack path.
+        private void DamageWayfarer(Enemy attacker)
+        {
+            if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
+                !IsWayfarerEnemy(attacker)) return;
+            Point npc = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
+            if ((attacker.Position - npc).Length > 2.2f || !ClearAttackPath(attacker.Position, npc)) return;
+            if (InterceptWayfarerStrike(attacker, npc)) return;
+            wayfarerIntegrity = Math.Max(0, wayfarerIntegrity - (attacker.kind == 2 ? 24 : 18));
+            effects.Add(new Effect("danger", npc, .35f) { radius = .55f });
+            if (wayfarerIntegrity <= 0)
+            {
+                enemies.RemoveAll(IsWayfarerEnemy);
+                ResetWayfarerEncounter(); sound = "hurt"; revision++;
+                Notify("旅人受伤，救援失败。没有损失物资，可以重新守护或改用补给。",
+                    "The traveler was overwhelmed. No supplies lost; retry the defense or donate.");
+            }
+            else if (wayfarerIntegrity <= 35 && !wayfarerWarned)
+            {
+                wayfarerWarned = true;
+                Notify("旅人陷入危险！迅速拦截剩余敌人。",
+                    "Traveler in danger! Intercept the remaining raiders.");
+            }
+        }
+        private void TickWayfarerEncounter()
+        {
+            if (wayfarerEncounterRoom == 0) return;
+            if (save.room != wayfarerEncounterRoom || Dying || practicing)
+            { ResetWayfarerEncounter(); return; }
+            if (enemies.Exists(IsWayfarerEnemy)) return;
+            int room = wayfarerEncounterRoom; ResetWayfarerEncounter(); CompleteWayfarer(room, true);
+        }
+        private void CompleteWayfarer(int room, bool defended = false)
+        {
+            if (Has("wayfarer_" + room)) return;
+            Flag("wayfarer_" + room);
+            // Existing string flags persist the chosen rescue method without
+            // changing the save schema or overwriting older completed saves.
+            Flag((defended ? "wayfarer_defended_" : "wayfarer_supplied_") + room);
+            // Material generosity earns faction trust; fighting develops mastery.
+            if (defended)
+                save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 4);
+            else
+                Reputation(room == 1 ? 2 : room == 2 ? 1 : 0, 1);
+            save.coins += 20; save.shards++; AddXp(25); revision++;
+            RecordMoment("帮助第 " + room + " 位失联旅人：获得20硬币、1碎片、25经验。",
+                "Helped traveler " + room + ": 20 coins, 1 shard, 25 XP.");
+            if (Has("wayfarer_1") && Has("wayfarer_2") && Has("wayfarer_3") && !Has("wayfarer_complete"))
+            {
+                Flag("wayfarer_complete"); save.skillPoints++; save.inventory[6]++;
+                RecordMoment("三段归途重归安全：技能点1、炖汤1。",
+                    "All three roadside journeys secured: 1 talent point and 1 stew.");
+                Notify("三位旅人平安出发！额外技能点1、炖汤1。",
+                    "All three travelers safe! Bonus: 1 talent point and 1 stew.");
+            }
+            else Notify(defended ?
+                    "守护成功！20硬币、1碎片、25经验；当前武器熟练度+4。" :
+                    "补给成功！20硬币、1碎片、25经验；当地阵营声望+1。",
+                defended ? "Defense complete! 20 coins, 1 shard, 25 XP; weapon mastery +4." :
+                    "Supplies delivered! 20 coins, 1 shard, 25 XP; local faction trust +1.");
+            TrackQuest("wayfarers"); sound = "reward";
+        }
+    }
+}

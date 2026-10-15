@@ -20,20 +20,45 @@ namespace Starfall
         { aimTarget=target.HasValue&&Finite(target.Value.x)&&Finite(target.Value.y)?target:null; }
         public bool ActuallyMoving { get { return movementDirection.Length > .001f; } }
         public int WalkFrame { get { return GaitFrame(walkDistance, WalkStride); } }
+        // Native sprites need the fraction BETWEEN the four distance-driven
+        // poses. This is read-only and uses the same accumulated distance as
+        // OnGUI, footsteps, collision and the original integer walk frame.
+        // No free-running Animator or save schema is introduced.
+        public float WalkPosePhase
+        {
+            get
+            {
+                double distance = Math.Max(0, walkDistance);
+                double stride = Math.Max(.1, WalkStride);
+                double cycle = (distance / stride * 4.0) % 4.0;
+                return (float)cycle;
+            }
+        }
         public static int GaitFrame(float distance, float stride)
         { return ((int)Math.Floor(Math.Max(0, distance) / Math.Max(.1f, stride) * 4)) % 4; }
         public static int DirectionRow(Point direction)
         { return Math.Abs(direction.y) > Math.Abs(direction.x) ? direction.y < 0 ? 1 : 2 : 0; }
         public ActionPhase PlayerPhase
         {
-            get { return playerAction == null ? ActionPhase.None : playerAction.elapsed < playerAction.contact ? ActionPhase.Windup : playerAction.elapsed < playerAction.contact + .1f ? ActionPhase.Active : ActionPhase.Recovery; }
+            // TickAction's release event is the shared truth for both damage and
+            // animation, including contacts reached through its float tolerance.
+            get { return playerAction == null ? ActionPhase.None : !playerAction.released ? ActionPhase.Windup : playerAction.elapsed + .00001f < playerAction.contact + .1f ? ActionPhase.Active : ActionPhase.Recovery; }
         }
+        public bool RecoveryWalking
+        { get { return playerAction != null && PlayerPhase == ActionPhase.Recovery && ActuallyMoving && !Dying && dashTime <= 0 && playerHitTime <= 0; } }
         public MobilityRule PlayerMobility
         {
             get
             {
-                if (Dying || playerHitTime > 0 || playerAction != null && playerAction.kind == "skill" && playerAction.weapon != 0) return MobilityRule.Stationary;
+                if (Dying || playerHitTime > 0) return MobilityRule.Stationary;
                 if (playerAction == null) return MobilityRule.Full;
+                // Spell/bow windups and actual contact still plant the feet.
+                // Only after release may the HERO move and finish the cast
+                // with its ONE complete action sprite moving at the root;
+                // never graft Walk legs onto the active attack/skill body.
+                if(playerAction.kind=="skill"&&playerAction.weapon!=0)
+                    return PlayerPhase==ActionPhase.Recovery ?
+                        MobilityRule.Reduced : MobilityRule.Stationary;
                 if (playerAction.weapon == 0) return PlayerPhase == ActionPhase.Recovery ? MobilityRule.Reduced : MobilityRule.AttackMovement;
                 return PlayerPhase == ActionPhase.Recovery ? MobilityRule.Reduced : MobilityRule.Stationary;
             }
@@ -45,7 +70,10 @@ namespace Starfall
                 if(Dying&&fallenPlayerWeapon>=0)return fallenPlayerFacing;
                 if(playerHitTime>0&&playerHitFacing.Length>.05f)return playerHitFacing;
                 if(dashTime>0)return dashDirection;
-                if(playerAction!=null&&!(PlayerPhase==ActionPhase.Recovery&&ActuallyMoving))return playerAction.direction;
+                // The released weapon/bow/cast keypose faces its locked
+                // contact direction throughout moving recovery. Root movement
+                // may strafe independently; no mid-cast facing snap.
+                if(playerAction!=null)return playerAction.direction;
                 return ActuallyMoving?locomotionFacing:aim;
             }
         }
@@ -64,7 +92,17 @@ namespace Starfall
             Point start = Position; bool wasDashing = dashTime > 0;
             if (explicitAim.HasValue) SetAim(explicitAim.Value);
             else if (movement.Length > .1f && (playerAction == null || PlayerPhase == ActionPhase.Recovery)) SetAim(movement);
-            if (dashTime > 0) { dashTime = Math.Max(0, dashTime - dt); Move(dashDirection * dt * 15); }
+            if (dashTime > 0)
+            {
+                // Consume only the remaining dash interval: a coarse final tick
+                // must not add extra travel beyond the authored 0.18 seconds.
+                float dashStep = Math.Min(dt, dashTime);
+                dashTime = Math.Max(0, dashTime - dt);
+                // Avoid a phantom sub-microsecond dash tick from float rounding:
+                // the final visible translation must also finish the dodge.
+                if (dashTime < .00001f) dashTime = 0;
+                Move(dashDirection * dashStep * 15);
+            }
             else if (playerHitTime > 0) Move(playerRecoil * dt * recoilSpeed);
             else
             {
@@ -83,13 +121,27 @@ namespace Starfall
             }
             Point actual = Position - start;
             movementDirection = actual;
-            bool walking = actual.Length > .001f && !wasDashing && playerHitTime <= 0 && (playerAction == null || PlayerPhase == ActionPhase.Recovery);
-            if (walking)
+            // The final dodge tick still draws moving legs after dashTime reaches zero.
+            // Carry the dodge heading into that frame instead of an older walk heading.
+            if (wasDashing && dashTime <= 0 && actual.Length > .001f)
+                locomotionFacing = dashDirection;
+            bool translating = actual.Length > .001f && !wasDashing &&
+                playerHitTime <= 0 && (playerAction == null ||
+                PlayerPhase == ActionPhase.Recovery);
+            if (translating)
             {
+                // The *world root* can move during recovery while the complete
+                // authored Attack/Cast body stays visibly planted. Do NOT
+                // advance an INVISIBLE Run animation or emit footsteps from
+                // unanimated legs; that phase previously reappeared suddenly
+                // at an arbitrary foot position when the action ended.
                 locomotionFacing = actual.Normalized;
-                int before = (int)Math.Floor(walkDistance / (WalkStride / 2));
-                walkDistance += actual.Length;
-                footContacts += (int)Math.Floor(walkDistance / (WalkStride / 2)) - before;
+                if (playerAction == null)
+                {
+                    int before = (int)Math.Floor(walkDistance / (WalkStride / 2));
+                    walkDistance += actual.Length;
+                    footContacts += (int)Math.Floor(walkDistance / (WalkStride / 2)) - before;
+                }
             }
         }
         private void MoveAttackStep(Point delta)
@@ -102,7 +154,7 @@ namespace Starfall
         public bool HasArenaBoundary { get { return save.room == 1 || save.room == 2 || save.room == 3 || save.room == 5 || save.room == 6 || save.room == 7; } }
         public bool GateBarrierActive { get { return HasArenaBoundary && (!GateOpen || gateOpeningTime > 0); } }
         public bool InProtectedArena(Point p)
-        { return HasArenaBoundary && p.x >= 26 && p.x < Map.rows[0].Length - 2 && p.y >= 2 && p.y < 14; }
+        { return HasArenaBoundary && p.x >= 26 && p.x < 34 && p.y >= 2 && p.y < 14; }
         private void TickGate(float dt) { if (gateOpeningTime > 0) gateOpeningTime = Math.Max(0, gateOpeningTime - dt); }
 
         // Ground-space origin plus a fixed draw height. Both release sparks and

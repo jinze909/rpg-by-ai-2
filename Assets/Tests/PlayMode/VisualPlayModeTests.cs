@@ -1,6 +1,10 @@
 #if UNITY_INCLUDE_TESTS
 using System.Collections;
 using System.IO;
+#if UNITY_EDITOR
+using UnityEditor.SceneManagement;
+using UnityEngine.SceneManagement;
+#endif
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -21,6 +25,451 @@ namespace Starfall.Tests
         }
         [UnityTearDown] public IEnumerator TearDown()
         { if (app != null) app.EndVisualReview(); if (host != null) Object.Destroy(host); yield return null; }
+        [UnityTest] public IEnumerator ProductionFrontierSceneUsesTheLiveThreeClassHeroPath()
+        {
+#if UNITY_EDITOR
+            // Do NOT create an isolated preview object and claim the real
+            // production scene has migrated. Boot Frontier.unity through
+            // Unity Editor's actual in-PlayMode scene-loading entry point.
+            var scene = EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Scenes/Frontier.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            host = null;  // earlier isolated fixture was replaced by scene load
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Assert.IsTrue(scene.IsValid() && scene.isLoaded);
+            Assert.AreEqual("Frontier", SceneManager.GetActiveScene().name);
+            app = Object.FindObjectOfType<FrontierRuntime>();
+            Assert.NotNull(app,
+                "Actual Frontier scene must boot production FrontierRuntime");
+            Assert.NotNull(app.Game,
+                "The real scene cannot silently fail Campaign/Save initialization");
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var mode = typeof(FrontierRuntime).GetField("useSpriteRendererHero", flags);
+            var capture = typeof(FrontierRuntime).GetField("heroCaptureRenderer", flags);
+            var texture = typeof(FrontierRuntime).GetField("heroCaptureTexture", flags);
+            var broken = typeof(FrontierRuntime).GetField("heroCaptureBroken", flags);
+            Assert.IsTrue((bool)mode.GetValue(app),
+                "Production Frontier scene must default to one full-body SpriteRenderer");
+            string folder = Path.GetFullPath(Path.Combine(Application.dataPath,
+                "../docs/native-captures"));
+            Directory.CreateDirectory(folder);
+            string[] classes = {"Vanguard", "Ranger", "Arcanist"};
+            for (int cls=0;cls<classes.Length;cls++)
+            {
+                app.BeginVisualReview(cls,1);
+                app.Game.SetAim(new Point(1,0));
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                Assert.IsFalse((bool)broken.GetValue(app),
+                    "Actual scene failed GPU hero capture: "+classes[cls]);
+                SpriteRenderer renderer = capture.GetValue(app) as SpriteRenderer;
+                RenderTexture gpu = texture.GetValue(app) as RenderTexture;
+                Assert.NotNull(renderer, "Missing live SpriteRenderer in Frontier");
+                Assert.NotNull(renderer.sprite, "Actual scene did not draw live hero");
+                Assert.NotNull(gpu, "Actual scene did not create hero capture target");
+                Assert.IsTrue(gpu.IsCreated());
+                Texture2D atlas = Resources.Load<Texture2D>(
+                    "Frontier/HeroAnimator/Canonical/Hero_"+classes[cls]+"_Idle_E");
+                Assert.AreSame(atlas, renderer.sprite.texture,
+                    "Production scene selected wrong character equipment/identity");
+                Assert.AreEqual(128f,renderer.sprite.pivot.x,.05f);
+                Assert.AreEqual(16f,renderer.sprite.pivot.y,.05f);
+                ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                    "real-Frontier-scene-"+classes[cls]+".png"));
+                yield return null;
+            }
+            app.EndVisualReview();
+#else
+            Assert.Fail("Native production scene verification requires Unity Editor");
+            yield break;
+#endif
+        }
+
+        [UnityTest] public IEnumerator ActualFrontierSceneAttackAndSkillContactFramesKeepOneBody()
+        {
+#if UNITY_EDITOR
+            // This is the ACTUAL production scene, live action clock, live
+            // GPU SpriteRenderer and body selection — never a preview prefab.
+            var scene = EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Scenes/Frontier.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            host = null;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Assert.IsTrue(scene.isLoaded);
+            app = Object.FindObjectOfType<FrontierRuntime>();
+            Assert.IsNotNull(app,"Live FrontierRuntime must boot in production scene");
+            Assert.IsNotNull(app.Game);
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var capture = typeof(FrontierRuntime).GetField("heroCaptureRenderer", flags);
+            var target = typeof(FrontierRuntime).GetField("heroCaptureTexture", flags);
+            var broken = typeof(FrontierRuntime).GetField("heroCaptureBroken", flags);
+            var mode = typeof(FrontierRuntime).GetField("useSpriteRendererHero",flags);
+            string[] classes={"Vanguard","Ranger","Arcanist"};
+            string[] commands={"Attack","Cast"};
+            var directions=new[]{new Point(1,0),new Point(-1,0),
+                new Point(0,-1),new Point(0,1)};
+            var labels=new[]{"E","W","N","S"};
+            int nativeProbes=0, rootedRecovery=0;
+            string folder=Path.GetFullPath(Path.Combine(Application.dataPath,
+                "../docs/native-captures"));
+            Directory.CreateDirectory(folder);
+            for(int vocation=0;vocation<3;vocation++)
+            for(int command=0;command<2;command++)
+            for(int orientation=0;orientation<4;orientation++)
+            {
+                app.BeginVisualReview(vocation,1);
+                var core=app.Game;
+                core.enemies.Clear();
+                core.save.companion=-1;
+                core.save.energy=100;
+                core.save.x=12;core.save.y=14;
+                Point aim=directions[orientation];
+                core.SetAim(aim);
+                Assert.IsTrue((bool)mode.GetValue(app),
+                    "Production SpriteRenderer must remain default");
+                if(command==0)core.Attack(aim);else core.Skill(aim);
+                ActorAction action=core.playerAction;
+                Assert.IsNotNull(action,"Actual game action failed to launch");
+                int steps=0;
+                while(core.playerAction==action&&!action.released&&steps++<60)
+                    app.AdvanceVisualReview(.02f,new Point());
+                Assert.IsTrue(action.released&&core.playerAction==action,
+                    "Contact must precede recovery and follow real GameCore time");
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                Assert.IsFalse((bool)broken.GetValue(app),
+                    "Full-body GPU capture failed for "+classes[vocation]);
+                SpriteRenderer renderer=capture.GetValue(app) as SpriteRenderer;
+                RenderTexture gpu=target.GetValue(app) as RenderTexture;
+                Assert.IsNotNull(renderer);Assert.IsNotNull(renderer.sprite);
+                Assert.IsNotNull(gpu);Assert.IsTrue(gpu.IsCreated());
+                string facing=orientation==2?"N":orientation==3?"S":"E";
+                string key="Hero_"+classes[vocation]+"_"+commands[command]+
+                    "_"+facing;
+                Texture2D atlas=Resources.Load<Texture2D>(
+                    "Frontier/HeroAnimator/Canonical/"+key);
+                Assert.IsNotNull(atlas);
+                Assert.AreSame(atlas,renderer.sprite.texture,
+                    "Live body must remain the same class/action/facing at contact: "+key);
+                Assert.AreEqual(orientation==1,renderer.flipX,
+                    "West uses original east body mirrored as ONE Sprite");
+                Assert.AreEqual(128f,renderer.sprite.pivot.x,.05f);
+                Assert.AreEqual(16f,renderer.sprite.pivot.y,.05f);
+                nativeProbes++;
+                steps=0;
+                while(core.playerAction==action&&
+                    core.PlayerPhase!=ActionPhase.Recovery&&steps++<60)
+                    app.AdvanceVisualReview(.02f,new Point());
+                Assert.IsTrue(core.playerAction==action&&
+                    core.PlayerPhase==ActionPhase.Recovery);
+                Point move=new Point(-aim.y,aim.x);
+                if(!core.CanStand(core.Position+move*.1f))move=move*-1;
+                float oldStep=core.walkDistance;int oldAudio=core.footContacts;
+                app.AdvanceVisualReview(.02f,move);
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                Assert.IsFalse((bool)broken.GetValue(app));
+                renderer=capture.GetValue(app) as SpriteRenderer;
+                Assert.IsNotNull(renderer);
+                Assert.IsNotNull(renderer.sprite);
+                Assert.AreSame(atlas,renderer.sprite.texture,
+                    "Moving recovery must keep WHOLE authored class action, not Run: "+key);
+                Assert.AreEqual(oldStep,core.walkDistance,.0001f,
+                    "No invisible foot-gait cycle under action body");
+                Assert.AreEqual(oldAudio,core.footContacts,
+                    "No invisible walk footsteps under action body");
+                Assert.Less((core.VisualFacing-aim).Length,.001f,
+                    "Strafing cannot rotate committed attack/cast grip");
+                if(core.ActuallyMoving)rootedRecovery++;
+                if(orientation==0||orientation==3)
+                {
+                    ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                        "real-scene-"+classes[vocation]+"-"+commands[command]+
+                        "-"+labels[orientation]+"-moving-recovery.png"));
+                    yield return null;
+                }
+            }
+            Assert.AreEqual(24,nativeProbes,
+                "All 3 classes x 2 actions x 4 facings must reach GPU contact");
+            Assert.Greater(rootedRecovery,0,
+                "Need actual root-motion evidence in contact-anchored recovery");
+#else
+            Assert.Fail("Native full-body action/scene QA requires Unity Editor");
+            yield break;
+#endif
+        }
+
+        [UnityTest] public IEnumerator ProductionSceneKeepsEquippedHeroUnderEveryCrossSkillAndAttack()
+        {
+#if UNITY_EDITOR
+            // Run the REAL Frontier scene + GPU SpriteRenderer, never an
+            // isolated preview or old Animator-only prefab. Test 3 combat
+            // professions x 3 equipment sets x LMB/Q x 4 actual directions.
+            var scene=EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Scenes/Frontier.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            host=null;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Assert.IsTrue(scene.isLoaded);
+            app=Object.FindObjectOfType<FrontierRuntime>();
+            Assert.IsNotNull(app);
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var type=typeof(FrontierRuntime);
+            var capture=type.GetField("heroCaptureRenderer",flags);
+            var broken=type.GetField("heroCaptureBroken",flags);
+            var mode=type.GetField("useSpriteRendererHero",flags);
+            var oldPlayers=type.GetField("playerSheets",flags);
+            var oldWalks=type.GetField("walkSheets",flags);
+            Assert.IsNotNull(capture);Assert.IsNotNull(broken);
+            Assert.IsNotNull(oldPlayers);Assert.IsNotNull(oldWalks);
+            object savedPlayers=oldPlayers.GetValue(app);
+            object savedWalks=oldWalks.GetValue(app);
+            string[] classes={"Vanguard","Ranger","Arcanist"};
+            var aims=new[]{new Point(1,0),new Point(-1,0),
+                new Point(0,-1),new Point(0,1)};
+            string folder=Path.GetFullPath(Path.Combine(
+                Application.dataPath,"../docs/native-captures"));
+            Directory.CreateDirectory(folder);
+            int verified=0;
+            try
+            {
+                for(int vocation=0;vocation<3;vocation++)
+                for(int equipped=0;equipped<3;equipped++)
+                for(int command=0;command<2;command++)
+                for(int f=0;f<4;f++)
+                {
+                    app.BeginVisualReview(vocation,1);
+                    var g=app.Game;
+                    g.enemies.Clear();
+                    g.save.companion=-1;g.save.energy=100;
+                    g.save.x=12;g.save.y=14;
+                    if(equipped>0&&!g.Has("weapon_"+equipped))
+                        g.save.flags.Add("weapon_"+equipped);
+                    g.Equip(equipped);
+                    Assert.AreEqual(equipped,g.save.weapon);
+                    // Deliberately remove ALL old readable actor source art.
+                    // The normal player, LMB and Q MUST NOT depend on it.
+                    oldPlayers.SetValue(app,null);
+                    oldWalks.SetValue(app,null);
+                    mode.SetValue(app,true);
+                    broken.SetValue(app,false);
+                    Point aim=aims[f];
+                    g.SetAim(aim);
+                    if(command==0)g.Attack(aim);
+                    else g.Skill(aim);
+                    ActorAction selected=g.playerAction;
+                    Assert.IsNotNull(selected);
+                    Assert.AreEqual(command==0?equipped:vocation,
+                        selected.weapon,"Skill mechanic stays vocation-specific");
+                    Assert.AreEqual(equipped,selected.equippedWeapon,
+                        "Skill appearance stays equipment-specific");
+                    int n=0;
+                    while(g.playerAction==selected&&!selected.released&&n++<80)
+                        app.AdvanceVisualReview(.01f,new Point());
+                    Assert.IsTrue(selected.released&&g.playerAction==selected,
+                        "Actual damage release must precede the visual contact");
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                    Assert.IsFalse((bool)broken.GetValue(app));
+                    var renderer=capture.GetValue(app) as SpriteRenderer;
+                    Assert.IsNotNull(renderer);
+                    Assert.IsNotNull(renderer.sprite);
+                    string key="Hero_"+classes[equipped]+"_"+
+                        (command==0?"Attack":"Cast")+"_"+(f==2?"N":f==3?"S":"E");
+                    Texture2D shipped=Resources.Load<Texture2D>(
+                        "Frontier/HeroAnimator/Canonical/"+key);
+                    Assert.IsNotNull(shipped);
+                    Assert.AreSame(shipped,renderer.sprite.texture,
+                        "Actual scene resurrected old actor or skill vocation: "+key);
+                    Assert.AreEqual(f==1,renderer.flipX,
+                        "Canonical body must mirror west as a single Sprite");
+                    Assert.AreEqual(128f,renderer.sprite.pivot.x,.05f);
+                    Assert.AreEqual(16f,renderer.sprite.pivot.y,.05f);
+                    Assert.AreEqual(128f,renderer.sprite.pixelsPerUnit,.05f);
+                    verified++;
+                    if(command==1&&f==0)
+                    {
+                        ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                            "real-equipment-"+classes[equipped]+"-skill-"+
+                            classes[vocation]+".png"));
+                        yield return null;
+                    }
+                }
+            }
+            finally
+            {
+                oldPlayers.SetValue(app,savedPlayers);
+                oldWalks.SetValue(app,savedWalks);
+                app.EndVisualReview();
+            }
+            Assert.AreEqual(72,verified,
+                "3 professions x 3 equipment x LMB/Q x 4 directions required");
+#else
+            Assert.Fail("Cross-equipped production GPU verification requires Unity Editor");
+            yield break;
+#endif
+        }
+
+        [UnityTest] public IEnumerator LiveSpriteRendererCapturesCanonicalHeroPixelsInGameView()
+        {
+            // This tests the actual FrontierRuntime renderer switch and
+            // GPU RenderTexture, not just isolated AnimationClips. The
+            // original OnGUI lane is restored in finally even on failure.
+            var flags = System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic;
+            var mode = typeof(FrontierRuntime).GetField("useSpriteRendererHero", flags);
+            var textureField = typeof(FrontierRuntime).GetField("heroCaptureTexture", flags);
+            var rendererField = typeof(FrontierRuntime).GetField("heroCaptureRenderer", flags);
+            var brokenField = typeof(FrontierRuntime).GetField("heroCaptureBroken", flags);
+            Assert.IsNotNull(mode);
+            Assert.IsNotNull(textureField);
+            Assert.IsNotNull(rendererField);
+            Assert.IsNotNull(brokenField);
+            bool previous = (bool)mode.GetValue(app);
+            string folder = Path.GetFullPath(Path.Combine(Application.dataPath,
+                "../docs/native-captures"));
+            Directory.CreateDirectory(folder);
+            try
+            {
+                string[] classes = { "Vanguard", "Ranger", "Arcanist" };
+                for (int vocation = 0; vocation < 3; vocation++)
+                {
+                    app.BeginVisualReview(vocation, 1, false);
+                    app.Game.SetAim(new Point(1, 0)); // deterministic E idle probe
+                    mode.SetValue(app, true);
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                    Assert.IsFalse((bool)brokenField.GetValue(app),
+                        classes[vocation] + " native capture must not fail to OnGUI");
+                    var texture = textureField.GetValue(app) as RenderTexture;
+                    var renderer = rendererField.GetValue(app) as SpriteRenderer;
+                    Assert.IsNotNull(texture, "No live GPU output for " + classes[vocation]);
+                    Assert.IsTrue(texture.IsCreated(), "GPU texture lost");
+                    Assert.IsNotNull(renderer);
+                    Assert.IsNotNull(renderer.sprite, "No live character frame");
+                    Texture2D published = Resources.Load<Texture2D>(
+                        "Frontier/HeroAnimator/Canonical/Hero_" +
+                        classes[vocation] + "_Idle_E");
+                    Assert.IsNotNull(published);
+                    Assert.AreSame(published, renderer.sprite.texture,
+                        "Live native character cannot show another profession");
+                    var readback = new Texture2D(256, 256,
+                        TextureFormat.RGBA32, false);
+                    var active = RenderTexture.active;
+                    try
+                    {
+                        RenderTexture.active = texture;
+                        readback.ReadPixels(new Rect(0, 0, 256, 256), 0, 0);
+                        readback.Apply();
+                        int visible = 0;
+                        foreach (Color32 pixel in readback.GetPixels32())
+                            if (pixel.a > 0) visible++;
+                        Assert.Greater(visible, 100,
+                            "SpriteRenderer camera produced an invisible hero");
+                    }
+                    finally
+                    {
+                        RenderTexture.active = active;
+                        Object.Destroy(readback);
+                    }
+                    ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                        "native-canonical-" + classes[vocation] + ".png"));
+                    yield return null;
+                }
+            }
+            finally
+            {
+                mode.SetValue(app, previous);
+                app.EndVisualReview();
+            }
+        }
+
+        [UnityTest] public IEnumerator CanonicalHeroAnimatorMatchesEveryPublishedSprite()
+        {
+            // Native PlayMode acceptance: sample the real Animator graph,
+            // not synthetic off-line key values. Failed profession overrides,
+            // wrong frame sampling and wrong foot pivots become test failures.
+            const int cell = 256;
+            string[] classes = { "Vanguard", "Ranger", "Arcanist" };
+            string[] actions = { "Idle", "Run", "Attack", "Cast",
+                "Dodge", "Hit", "Death" };
+            string[] facings = { "E", "N", "S" };
+            var probe = new GameObject("Starfall 63-clip native animation probe");
+            probe.transform.position = new Vector3(9000, 9000, 0);
+            SpriteRenderer renderer = probe.AddComponent<SpriteRenderer>();
+            Animator animator = probe.AddComponent<Animator>();
+            try
+            {
+                yield return null;
+                for (int cls = 0; cls < classes.Length; cls++)
+                {
+                    var controller = Resources.Load<RuntimeAnimatorController>(
+                        "Frontier/HeroAnimator/Production" + classes[cls]);
+                    Assert.IsNotNull(controller, "Missing native Animator " + classes[cls]);
+                    animator.runtimeAnimatorController = controller;
+                    animator.enabled = true;
+                    animator.speed = 0;
+                    animator.Rebind();
+                    animator.Update(0f);
+                    for (int action = 0; action < actions.Length; action++)
+                        for (int facing = 0; facing < facings.Length; facing++)
+                        {
+                            string key = "Hero_" + classes[cls] + "_" +
+                                actions[action] + "_" + facings[facing];
+                            Texture2D atlas = Resources.Load<Texture2D>(
+                                "Frontier/HeroAnimator/Canonical/" + key);
+                            Assert.IsNotNull(atlas, "Missing actual canonical resource " + key);
+                            int expected = action == 0 ? 1 :
+                                action == 1 ? 4 : action == 4 || action == 5 ? 5 :
+                                action == 6 ? 4 : atlas.width / cell;
+                            if (action == 2 || action == 3)
+                                Assert.IsTrue(expected == 6 || expected == 7,
+                                    key + " incomplete or invented contact art");
+                            Assert.AreEqual(expected * cell, atlas.width, key + " frame width");
+                            Assert.AreEqual(cell, atlas.height, key + " frame height");
+                            int state = Animator.StringToHash("Base Layer." +
+                                actions[action] + "_" + facings[facing]);
+                            for (int index = 0; index < expected; index++)
+                            {
+                                // The Editor bakes each key at index/12 fps,
+                                // plus a final closure/hold at expected/12.
+                                animator.SetInteger("Action", action);
+                                animator.SetInteger("Facing", facing);
+                                animator.Play(state, 0, (index + .2f) / expected);
+                                animator.Update(0f);
+                                Sprite sprite = renderer.sprite;
+                                Assert.IsNotNull(sprite, key + " at frame " + index);
+                                Assert.AreSame(atlas, sprite.texture,
+                                    key + " has wrong class/direction atlas");
+                                Assert.AreEqual(index * cell, sprite.rect.x, .05f,
+                                    key + " wrong frame");
+                                Assert.AreEqual(0f, sprite.rect.y, .05f,
+                                    key + " sprite vertical offset");
+                                Assert.AreEqual(cell, sprite.rect.width, .05f, key);
+                                Assert.AreEqual(cell, sprite.rect.height, .05f, key);
+                                Assert.AreEqual(128f, sprite.pivot.x, .05f,
+                                    key + " root x changed");
+                                Assert.AreEqual(16f, sprite.pivot.y, .05f,
+                                    key + " foot changed");
+                                Assert.AreEqual(128f, sprite.pixelsPerUnit, .05f,
+                                    key + " class scale changed");
+                            }
+                        }
+                }
+            }
+            finally
+            {
+                animator.runtimeAnimatorController = null;
+                Object.Destroy(probe);
+            }
+        }
+
         [UnityTest] public IEnumerator ClassesRegionsAndNativeFrames()
         {
             GameCore original = app.Game;
@@ -81,6 +530,62 @@ namespace Starfall.Tests
                 yield return null; yield return new WaitForEndOfFrame(); ScreenCapture.CaptureScreenshot(Path.Combine(folder, "boss-" + room + "-death.png")); yield return null;
             }
         }
+        [UnityTest] public IEnumerator CanonicalProductionAnimatorFramesAndPivot()
+        {
+            // Run only after the Editor production bake. An unbaked checkout
+            // remains playable via OnGUI, but must NOT be marked native-verified.
+            var classes = new[] { "Vanguard", "Ranger", "Arcanist" };
+            var directions = new[] { "E", "N", "S" };
+            var actions = new[] { "Idle", "Run", "Attack", "Cast", "Dodge", "Hit", "Death" };
+            for (int vocation = 0; vocation < classes.Length; vocation++)
+            {
+                RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>(
+                    "Frontier/HeroAnimator/Production" + classes[vocation]);
+                Assert.IsNotNull(controller,
+                    "Native Animator MISSING: production PlayMode must FAIL, not silently IGNORE an unbaked controller");
+                var go = new GameObject("Hero native frame QA " + classes[vocation]);
+                var renderer = go.AddComponent<SpriteRenderer>();
+                var animator = go.AddComponent<Animator>();
+                animator.runtimeAnimatorController = controller;
+                animator.speed = 0f; // GameCore supplies the action/attack clock
+                for (int facing = 0; facing < directions.Length; facing++)
+                {
+                    for (int action = 0; action < actions.Length; action++)
+                    {
+                        int hash = Animator.StringToHash("Base Layer." + actions[action] + "_" + directions[facing]);
+                        animator.SetInteger("Action", action);
+                        animator.SetInteger("Facing", facing);
+                        animator.Play(hash, 0, .1f);
+                        animator.Update(0f);
+                        Sprite sprite = renderer.sprite;
+                        Assert.NotNull(sprite, classes[vocation] + "/" + actions[action] + "/" + directions[facing]);
+                        Assert.AreEqual(256f, sprite.rect.width, .01f);
+                        Assert.AreEqual(256f, sprite.rect.height, .01f);
+                        Assert.AreEqual(128f, sprite.pixelsPerUnit, .01f);
+                        Assert.AreEqual(128f, sprite.pivot.x, .01f);
+                        Assert.AreEqual(16f, sprite.pivot.y, .01f);
+                    }
+                    // The four-frame loop MUST sample all four COMPLETE
+                    // class-authored Run bodies and NO mechanically warped cells.
+                    var steps = new System.Collections.Generic.HashSet<Sprite>();
+                    int runHash = Animator.StringToHash("Base Layer.Run_" + directions[facing]);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        animator.SetInteger("Action", 1);
+                        animator.SetInteger("Facing", facing);
+                        animator.Play(runHash, 0, (i + .2f) / 4f);
+                        animator.Update(0f);
+                        Assert.NotNull(renderer.sprite);
+                        steps.Add(renderer.sprite);
+                    }
+                    Assert.AreEqual(4, steps.Count, classes[vocation] + "/" + directions[facing] +
+                        ": native Run samples must reach every new cell");
+                }
+                Object.Destroy(go);
+                yield return null;
+            }
+        }
+
         [UnityTest] public IEnumerator NativeWalkingAndPlantedAttackTransitions()
         {
             string folder=Path.GetFullPath(Path.Combine(Application.dataPath,"../docs/native-captures"));Directory.CreateDirectory(folder);
@@ -96,7 +601,24 @@ namespace Starfall.Tests
                 Assert.IsTrue(vocation==0?(core.Position-start).Length>.1f:(core.Position-start).Length<.001f,"Full body bow/staff preparation plants the feet; sword contact advances the body");
                 yield return null;yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(folder,"continuity-contact-"+vocation+"-"+GameCore.DirectionRow(direction)+"-"+direction.x+".png"));yield return null;
                 while(core.playerAction!=null&&core.PlayerPhase!=ActionPhase.Recovery)app.AdvanceVisualReview(.01f,new Point());
-                app.AdvanceVisualReview(.01f,direction);Assert.IsTrue(core.ActuallyMoving&&core.PlayerPose>=2&&core.PlayerPose<=3,"Recovery returns to real locomotion");
+                float hiddenStride=core.walkDistance;
+                int oldFootsteps=core.footContacts;
+                app.AdvanceVisualReview(.01f,direction);
+                Assert.IsTrue(core.ActuallyMoving&&
+                    (core.PlayerPose==5||core.PlayerPose==7)&&
+                    core.HeroAnimationState==2,
+                    "Released swing must remain one coherent full-body Attack, not Run");
+                Assert.AreEqual(hiddenStride,core.walkDistance,.0001f,
+                    "Invisible Run steps cannot advance behind a rooted recovery pose");
+                Assert.AreEqual(oldFootsteps,core.footContacts,
+                    "Do not play hidden footstep audio under a static full-body Attack");
+                Assert.Less((core.VisualFacing-direction).Length,.001f);
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                    "continuity-moving-recovery-"+vocation+"-"+
+                    GameCore.DirectionRow(direction)+"-"+direction.x+".png"));
+                yield return null;
             }
         }
     }

@@ -28,6 +28,54 @@ namespace Starfall.Tests
                 }
                 Check(phases.Count==4&&walked>110&&Math.Abs(g.walkDistance-walked)<.02f,"All four gait phases follow 30 seconds of real travel");
                 Check(g.footContacts==(int)Math.Floor(g.walkDistance/(GameCore.WalkStride/2)),"Foot contacts come from the same gait clock");
+                // Previously the new SpriteRenderer animator sampled only the
+                // four integer key poses, so ALL newly authored intermediate
+                // walking frames were silently skipped.
+                var sampling = Quiet(data,profession);
+                sampling.movementDirection = new Point(1,0);
+                sampling.locomotionFacing = new Point(1,0);
+                for (int eighth=0;eighth<8;eighth++)
+                {
+                    sampling.walkDistance = GameCore.WalkStride * eighth / 8f;
+                    float expected = eighth * .5f;
+                    Check(sampling.HeroAnimationState==1
+                        && Math.Abs(sampling.HeroAnimationPlaybackPosition(0)-expected)<.001f,
+                        "SpriteRenderer distance sampler reaches midpoint " + eighth);
+                    Check(sampling.WalkFrame==(int)expected,
+                        "Legacy integer walk and native subframe share one stride phase");
+                }
+                sampling.walkDistance = GameCore.WalkStride;
+                Check(Math.Abs(sampling.WalkPosePhase)<.001f,
+                    "Run loop returns to the exact same foot contact after one stride");
+                // Three-phase reactions derive from the existing clock; do
+                // not move damage, dash distance, or persistent save schema.
+                sampling.movementDirection = new Point();
+                sampling.dashTime = .18f;
+                Check(sampling.HeroAnimationState==4 &&
+                      sampling.HeroAnimationFrameCount(0)==3 &&
+                      Math.Abs(sampling.HeroAnimationPlaybackPosition(0))<.001f,
+                      "Dodge begins upright on the original dash clock");
+                sampling.dashTime = .09f;
+                Check(Math.Abs(sampling.HeroAnimationPlaybackPosition(0)-1f)<.01f,
+                      "Dodge middle cell follows the physical dash interval");
+                sampling.dashTime = 0f;
+                sampling.playerHitTime = .18f;
+                Check(sampling.HeroAnimationState==5 &&
+                      sampling.HeroAnimationFrameCount(0)==3 &&
+                      Math.Abs(sampling.HeroAnimationPlaybackPosition(0))<.01f,
+                      "Hit begins upright without inventing a separate damage clock");
+                sampling.playerHitTime = 0f;
+                sampling.deathTime = .9f;
+                Check(sampling.HeroAnimationState==6 &&
+                      sampling.HeroAnimationFrameCount(0)==4 &&
+                      sampling.HeroAnimationFrame(0)==0,
+                      "Death starts upright before recoil, crouch and grounded final frame");
+                sampling.deathTime = .70f;
+                Check(sampling.HeroAnimationPlaybackPosition(0)>1f,
+                      "Death progresses into the existing fall pose");
+                sampling.deathTime = .45f;
+                Check(sampling.HeroAnimationFrame(0)==3,
+                      "Death holds the original authored grounded corpse until recovery");
                 g.Tick(.02f,new Point());float stopped=g.walkDistance;Advance(g,.6f);Check(!g.ActuallyMoving&&g.walkDistance==stopped,"Stopping cannot keep cycling the legs");
                 Point wall=WallStand(g);g.save.x=wall.x;g.save.y=wall.y;
                 for(int i=0;i<20;i++)g.Tick(.02f,new Point(-1,0));float distanceAtWall=g.walkDistance;int contacts=g.footContacts;
@@ -55,10 +103,14 @@ namespace Starfall.Tests
                 }
                 while(g.playerAction!=null&&g.PlayerPhase!=ActionPhase.Recovery)g.Tick(.01f,new Point());
                 Point recovery=g.Position;g.Tick(.01f,new Point(0,1));
-                Check((g.Position-recovery).Length>.001f&&g.PlayerPose>=2&&g.PlayerPose<=3,"Recovery restores movement together with walking legs");
+                Check((g.Position-recovery).Length>.001f&&g.PlayerMobility==MobilityRule.Reduced&&
+                    (g.PlayerPose==5||g.PlayerPose==7||g.PlayerPose>=2&&g.PlayerPose<=3),
+                    "Recovery restores true translation with authored attack upper pose and unified leg gait");
                 g.playerAction=null;g.skillCooldown=0;g.save.energy=100;g.Skill(direction);a=g.playerAction;start=g.Position;
                 while(g.playerAction!=null)g.Tick(.02f,new Point(1,0),direction*-1);
-                if(weapon>0) Check((g.Position-start).Length<.001f,"Powerful ranged Q intentionally stays planted through recovery");
+                if(weapon>0)
+                    Check((g.Position-start).Length>.03f,
+                        "Spell and bow Q anchor the real contact but then allow reduced-speed moving recovery");
                 g.Tick(.02f,new Point(1,0));Check(g.ActuallyMoving&&g.PlayerPose>=2&&g.PlayerPose<=3,"A completed Q returns to locomotion without a frozen full-body pose");
             }
             var blocked=Quiet(data);Point approach=WallStand(blocked);blocked.save.x=approach.x;blocked.save.y=approach.y;blocked.Attack(new Point(-1,0));Advance(blocked,.6f);
@@ -148,7 +200,7 @@ namespace Starfall.Tests
             for(int profession=0;profession<3;profession++)for(int equipped=0;equipped<3;equipped++)
             {
                 var g=Quiet(data,profession);g.save.weapon=equipped;g.Skill(new Point(0,-1));ActorAction action=g.playerAction;Point before=g.Position;
-                Check(action.weapon==profession&&action.equippedWeapon==equipped&&g.AppearanceWeapon==profession,"Class technique presents its actual weapon, separately from equipped damage stats");
+                Check(action.weapon==profession&&action.equippedWeapon==equipped&&g.AppearanceWeapon==equipped,"Class technique retains actual equipped hero while skill mechanics remain discipline-owned");
                 while(!action.released)g.Tick(.01f,new Point(1,0));
                 Check(action.released&&(profession!=1||g.projectiles.Count==5),"A cross-equipped class Q remains functional and releases on contact");
                 if(profession>0)Check((g.Position-before).Length<.001f,"Ranged class Q stays planted even when a sword is equipped");

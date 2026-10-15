@@ -9,22 +9,33 @@ namespace Starfall
         {
             int room = Game.save.room;
             if (tile == '~') return 8;
-            if (tile == '%') return Game.save.room == 5 && !Game.LowTide ? 8 : 13;
+            if (tile == '%') return IsSurfaceWater(tile,room,Game.LowTide) ? 8 : 13;
             if (tile == '#') return room == 3 || room == 6 ? 10 : room == 7 ? 14 : 9;
             if (room == 9) return 11;
             if (tile == '=') return room == 5 ? 11 : room == 6 ? 2 : room == 3 ? 6 : room == 4 ? 12 : room == 8 ? 7 : room == 2 ? 15 : 3;
             return room == 1 ? 1 : room == 2 ? 15 : room == 3 ? 6 : room == 4 ? 12 : room == 5 ? 13 : room == 6 ? 4 : room == 7 ? 5 : room == 8 ? 7 : 0;
+        }
+        // All water FX must agree with the SAME actual tide state used
+        // for tile visuals and traversal. Percent cells turn into walkable
+        // land at low tide, so neither foam nor shimmer may appear there.
+        private static bool IsSurfaceWater(char tile,int room,bool lowTide)
+        {
+            return tile=='~'||(tile=='%'&&room==5&&!lowTide);
         }
         private static int TileSeed(int x, int y, int room)
         { unchecked { int n = x * 73856093 ^ y * 19349663 ^ (room + 1) * 83492791; return n & 0x7fffffff; } }
         private void DrawSurface(int x, int y, char tile, Point p)
         {
             if (terrainSheet == null) { Image(art.Tile(Game.save.room, tile, (x * 7 + y * 11) % 4, PixelArt.C(Game.Map.color)), p.x, p.y, Tile + .5f, Tile + .5f); return; }
-            int seed = TileSeed(x, y, Game.save.room), id = SurfaceId(tile);
+            int seed = PreparedTileSeed(x, y), id = SurfaceId(tile);
             float value = .97f + seed % 5 * .014f;
             int row = id == 0 ? 0 : id == 1 ? 1 : id == 3 ? 2 : id == 8 ? 3 : -1;
             if (row >= 0 && terrainVariants != null) Atlas(terrainVariants, 4, 4, row * 4 + seed % 4, new Rect(p.x, p.y, Tile, Tile), new Color(value, value, value), (seed & 4) == 0);
             else Atlas(terrainSheet, 8, 2, id, new Rect(p.x, p.y, Tile, Tile), new Color(value, value, value), id != 11 && id != 9 && (seed & 1) == 1);
+            // VISUAL ROLLBACK: the low-detail 32px accent/foam strips
+            // overpainted the finely rendered original terrain and river
+            // atlas. Retain both experimental resources for future review,
+            // but display the unchanged rich Terrain/TerrainVariants art.
             if (tile == '=' && Game.save.room < 2)
             {
                 // Dark, narrow soil edges make the road shape read above busy grass.
@@ -34,14 +45,201 @@ namespace Starfall
                 if (y + 1 < Game.Map.rows.Length && Game.Map.rows[y + 1][x] == '.') Box(p.x, p.y + Tile - 2, Tile, 2, new Color(.17f, .22f, .15f, .28f));
             }
         }
+        // Source-preserving water animation: sample a small HAND-PAINTED
+        // passage of the actual 48px water terrain variant, not a fresh 8px
+        // rectangle or the rejected 32px CoastlineRemaster. The water tile
+        // itself never swaps frames or shifts UV, so shoreline seams remain
+        // stable. One rare light catch per seeded location; alpha changes
+        // continuously, not the detailed artwork or collision.
+        private void DrawAuthoredWaterShimmer(int x,int y,char tile,Point p)
+        {
+            if (terrainVariants == null ||
+                Game.save.reducedMotion || Game.save.effectsQuality==0 ||
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))
+                return;
+            int seed=PreparedTileSeed(x,y);
+            if(seed%6!=0)return;
+            const float sourceCell=48f;
+            float variant=(seed/7)%4;
+            // TerrainVariants.png is 192x192; its BOTTOM row contains
+            // four original richly painted cyan wave paintings. Crop only
+            // existing authored pixels. No low-res overlay atlas is used.
+            WorldVisualLook visual=CurrentWorldVisualLook;
+            float opacity=visual.waterGlintAlpha+
+                visual.waterGlintAlpha*(.5f+.5f*
+                    (float)Math.Sin(clock*visual.waterGlintRate+
+                        (seed%37)*.31f));
+            if(Game.save.effectsQuality==1)opacity*=.64f;
+            float xOffset=9f+(seed%9);
+            float yOffset=6f+(seed/13)%18;
+            Rect uv=new Rect((variant*sourceCell+11f)/192f,
+                17f/192f,25f/192f,9f/192f);
+            Color original=GUI.color;
+            try
+            {
+                GUI.color=new Color(1.05f,1.08f,1.13f,
+                    opacity*worldActorOpacity);
+                GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+xOffset,p.y+yOffset,25f,9f),
+                    terrainVariants,uv);
+            }
+            finally{GUI.color=original;}
+        }
+
+        // Source-preserving shoreline animation: one subdued crest sampled
+        // from the existing high-detail 48px water painting, never a coarse
+        // newly drawn rectangle. Its center stays anchored to the authored
+        // water tile. Side-facing crests rotate as a SINGLE complete sample.
+        // Reduced-motion/low-FX modes never receive moving embellishment.
+        private void DrawAuthoredShorelineWash(int x,int y,char tile,Point p)
+        {
+            if(terrainVariants==null || Game.save.reducedMotion ||
+                Game.save.effectsQuality==0 ||
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))
+                return;
+            int seed=PreparedTileSeed(x,y);
+            // Sparse stable shorebreak instead of a solid bright tile border.
+            if((seed&1)!=0)return;
+            bool north=!WaterAt(x,y-1),east=!WaterAt(x+1,y),
+                south=!WaterAt(x,y+1),west=!WaterAt(x-1,y);
+            if(!north&&!east&&!south&&!west)return;
+            float cx=p.x+Tile*.5f,cy=p.y+Tile*.5f;
+            bool vertical=false;
+            if(north)cy=p.y+5f;
+            else if(east){cx=p.x+Tile-5f;vertical=true;}
+            else if(south)cy=p.y+Tile-5f;
+            else {cx=p.x+5f;vertical=true;}
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float strength=Math.Min(.12f,look.waterGlintAlpha*.88f);
+            float wave=(float)Math.Sin(clock*look.waterGlintRate+
+                (seed%37)*.31f);
+            float opacity=strength*(.72f+.16f*wave);
+            if(Game.save.effectsQuality==1)opacity*=.64f;
+            int variant=(seed/7)%4;
+            Rect uv=new Rect((variant*48f+8f)/192f,
+                18f/192f,24f/192f,7f/192f);
+            Rect dest=new Rect(cx-12f,cy-3.5f,24f,7f);
+            Matrix4x4 original=GUI.matrix;
+            Color originalColor=GUI.color;
+            try
+            {
+                if(vertical)
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(
+                        original,new Vector2(cx,cy),90f);
+                GUI.color=new Color(1.04f,1.09f,1.14f,
+                    opacity*worldActorOpacity);
+                GUI.DrawTextureWithTexCoords(dest,terrainVariants,uv);
+            }
+            finally
+            {
+                GUI.matrix=original;
+                GUI.color=originalColor;
+            }
+        }
+
+        // Pixel-authored material accents from TerrainAccentRemaster.png:
+        // additional vegetation clusters, snow crust, gravel and actual
+        // water highlights. These overlay the original mature terrain atlas
+        // rather than recoloring its authored roads or altering collision.
+        private void DrawRemasteredMaterial(int x,int y,char tile,Point p,int seed)
+        {
+            if(terrainAccentRemaster==null||tile=='#'||tile=='f'||
+                tile=='v'||tile=='w'||tile=='b'||seed%7!=0)return;
+            int region=Game.save.room;
+            int row=IsSurfaceWater(tile,region,Game.LowTide)?3:
+                region==7?1:region==3||region==6||tile=='='?2:
+                region==5?3:region==0||region==1?0:2;
+            int variant=(seed/7)%4;
+            Atlas(terrainAccentRemaster,4,4,row*4+variant,
+                new Rect(p.x,p.y,Tile,Tile),new Color(1,1,1,.82f));
+        }
+
+        // A shoreline is defined by a real water/land neighbor, never a
+        // pseudo-random foam tile in the middle of an ocean. Use the same
+        // current tide rule as SurfaceId, preserving walkability unchanged.
+        private bool WaterAt(int x,int y)
+        {
+            if(y<0||y>=Game.Map.rows.Length)return true;
+            string row=Game.Map.rows[y];
+            if(x<0||x>=row.Length)return true;
+            char tile=row[x];
+            return IsSurfaceWater(tile,Game.save.room,Game.LowTide);
+        }
+        private void DrawRemasteredCoastline(int x,int y,char tile,Point p,int seed)
+        {
+            if(coastlineRemaster==null||
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))return;
+            int variant=(seed/11)%4;
+            Rect area=new Rect(p.x,p.y,Tile,Tile);
+            Color tide=new Color(1,1,1,Game.save.room==7?.77f:.88f);
+            // Four individually painted border orientations. The source
+            // canvas and renderer are tile-anchored; no stretching a free
+            // floating decoration around NPCs, buildings or actors.
+            if(!WaterAt(x,y-1))
+                Atlas(coastlineRemaster,4,4,variant,area,tide);
+            if(!WaterAt(x+1,y))
+                Atlas(coastlineRemaster,4,4,4+variant,area,tide);
+            if(!WaterAt(x,y+1))
+                Atlas(coastlineRemaster,4,4,8+variant,area,tide);
+            if(!WaterAt(x-1,y))
+                Atlas(coastlineRemaster,4,4,12+variant,area,tide);
+        }
+
+        // Hand-authored regions now carry subtle clusters of moss, gravel,
+        // salt, snow and wind-worn sediment across the NEW atlas only. These
+        // overlays never alter tile collisions or original campaign artwork.
+        // A coarse deterministic field gives continuous 5-tile patches rather
+        // than noisy single-tile polygons that resemble loading pop-in.
+        private void DrawAnnexBiomeLayers(int x, int y, char tile, Point p)
+        {
+            int region=Game.save.room;
+            if(region<0||region>7||(x<36&&y<24))return;
+            if(tile=='#'||tile=='f'||tile=='v'||tile=='w'||tile=='b')return;
+            int patch=TileSeed(x/5,y/5,region),individual=PreparedTileSeed(x,y);
+            if(IsSurfaceWater(tile,region,Game.LowTide))
+            {
+                // A deterministic waterline shimmer is optional animation,
+                // without any changing collision or procedural tile creation.
+                if(individual%6!=0)return;
+                float wave=Game.save.reducedMotion||Game.save.effectsQuality==0?0:
+                    (float)Math.Sin(clock*1.4f+(patch%17)*.42f)*2;
+                Box(p.x+7,p.y+Tile*.54f+wave,Tile*.43f,1.5f,
+                    new Color(.75f,.87f,.93f,.15f));
+                return;
+            }
+            // Adjacent authored tiles share a continuous gradient, rather
+            // than the hard 5x5 material squares of the old static overlay.
+            float biome=PreparedBiomeVariation(x,y);
+            if(biome<.38f)return;
+            float opacity=.04f+.16f*WorldStreaming.Smooth01(
+                (biome-.38f)/.62f);
+            Color earth=region==0?new Color(.35f,.37f,.19f,opacity):
+                region==1?new Color(.13f,.32f,.19f,opacity):
+                region==2?new Color(.35f,.45f,.47f,opacity):
+                region==3?new Color(.48f,.23f,.17f,opacity):
+                region==4?new Color(.45f,.44f,.38f,opacity):
+                region==5?new Color(.18f,.38f,.45f,opacity):
+                region==6?new Color(.64f,.43f,.20f,opacity):
+                new Color(.72f,.84f,.93f,opacity);
+            Box(p.x+2,p.y+2,Tile-4,Tile-4,earth);
+            if(individual%11==0)
+            {
+                Color vein=region==7?new Color(.87f,.94f,1f,.22f):
+                    region==6?new Color(.47f,.30f,.12f,.24f):
+                    region==1?new Color(.24f,.42f,.17f,.23f):
+                    new Color(.66f,.65f,.52f,.17f);
+                Box(p.x+5+individual%8,p.y+Tile*.67f,Tile*.25f,1.5f,vein);
+                if(tile=='=')
+                    Box(p.x+Tile*.54f,p.y+Tile*.3f,Tile*.19f,1f,vein);
+            }
+        }
+
         private void DrawGroundDetail(int x, int y, char tile, Point p)
         {
             if (detailSheet == null || Game.save.room == 9 || tile != '.' && tile != '%') return;
-            int seed = TileSeed(x, y, Game.save.room);
-            if (seed % 17 != 0) return;
+            int seed = PreparedTileSeed(x, y);
+            if (seed % 17 != 0 || GroundDetailOccluded(x, y)) return;
             Point world = new Point(x + .35f + seed % 5 * .07f, y + .65f);
-            // Persistent world decoration: approaching actors cannot erase tiles.
-            foreach (WorldObject item in Game.Map.objects) if ((world - new Point(item.x, item.y)).Length < 1.4f) return;
             int room = Game.save.room;
             int[] options = room == 6 || room == 3 || room == 8 ? dryDetails : room == 7 ? snowDetails : room == 2 || room == 4 ? ruinDetails : greenDetails;
             int id = options[(seed / 17) % options.Length];
@@ -51,33 +249,59 @@ namespace Starfall
         }
         private void DrawRootedPlant(Decoration prop, Rect rect, Color tint)
         {
-            if (worldProps == null) { PropImage(prop.kind, prop.variant, rect.x, rect.y, rect.width, rect.height, tint); return; }
-            float side=Math.Min(rect.width,rect.height); rect=new Rect(rect.x+(rect.width-side)/2,rect.y+rect.height-side,side,side);
-            int id = prop.kind == "palm" ? 5 : prop.kind == "snowpine" ? 6 : 0;
-            int seed = TileSeed((int)(prop.x * 7), (int)(prop.y * 7), Game.save.room);
-            float phase = seed % 997 * .01f, speed = .8f + seed % 7 * .07f, amplitude = .65f + seed % 5 * .12f;
-            Color previous = GUI.color;
+            if (worldProps == null)
+            {
+                PropImage(prop.kind,prop.variant,rect.x,rect.y,rect.width,rect.height,tint);
+                return;
+            }
+            // Keep the ACCEPTED tree/palm/snowpine painting intact. The
+            // previous 32 horizontal GUI slices shifted by different amounts
+            // and opened 31 body seams on every windy repaint. One complete
+            // original sprite means no split trunk, displaced branches,
+            // interpolated pixels or 32x overdraw per tree.
+            float side=Math.Min(rect.width,rect.height);
+            rect=new Rect(rect.x+(rect.width-side)*.5f,
+                rect.y+rect.height-side,side,side);
+            int id=prop.kind=="palm"?5:prop.kind=="snowpine"?6:0;
+            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),Game.save.room);
+            Matrix4x4 originalMatrix=GUI.matrix;
+            Color originalTint=GUI.color;
             try
             {
-                GUI.color = tint;
-                const int strips = 32;
-                for (int i = 0; i < strips; i++)
+                // Anchor all gentle foliage motion to the authored foot,
+                // NOT the painted canvas centre. The trunk/root must remain
+                // at the actual depth-sort/collision location during gusts.
+                if (!Game.save.reducedMotion && Game.save.effectsQuality>0)
                 {
-                    float y = i / (float)strips, next = (i + 1) / (float)strips;
-                    float weight = y < .65f ? (1 - y / .65f) * (1 - y / .65f) : 0;
-                    float wind = Game.save.reducedMotion || Game.save.effectsQuality == 0 ? 0 : (float)Math.Sin(clock * speed + phase + y * 2) * amplitude * weight;
-                    GUI.DrawTextureWithTexCoords(new Rect(rect.x + wind, rect.y + rect.height * y, rect.width, rect.height / strips), worldProps,
-                        new Rect(id % 4 / 4f, 1 - (id / 4 + next) / 2f, .25f, (next - y) / 2));
+                    float phase=(seed%997)*.01f;
+                    float gust=(float)(Math.Sin(clock*.82f+phase)*.72+
+                        Math.Sin(clock*1.43f+phase*1.73f)*.28);
+                    WorldVisualLook visual=CurrentWorldVisualLook;
+                    float strength=prop.kind=="palm"?visual.palmSwayDegrees:
+                        prop.kind=="snowpine"?visual.snowpineSwayDegrees:
+                        visual.treeSwayDegrees;
+                    Vector2 foot=new Vector2(rect.x+rect.width*.5f,
+                        rect.y+rect.height*(120f/128f));
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(
+                        originalMatrix,foot,gust*strength);
                 }
+                tint.a*=worldActorOpacity;
+                GUI.color=tint;
+                GUI.DrawTextureWithTexCoords(rect,worldProps,
+                    new Rect(id%4/4f,1f-(id/4+1)/2f,.25f,.5f));
             }
-            finally { GUI.color = previous; }
+            finally
+            {
+                GUI.color=originalTint;
+                GUI.matrix=originalMatrix;
+            }
         }
         private void DrawArenaBoundary()
         {
             if (!Game.GateBarrierActive) return;
             float opacity = !Game.GateOpen ? 1 : Math.Max(.12f, Game.gateOpeningTime / .55f);
             for (int y = 2; y < 14; y++) DrawBarrierCell(26, y, opacity);
-            for (int x = 27; x < Game.Map.rows[0].Length - 2; x++) DrawBarrierCell(x, 13, opacity);
+            for (int x = 27; x < 34; x++) DrawBarrierCell(x, 13, opacity);
         }
         private void DrawBarrierCell(int x, int y, float opacity)
         {

@@ -31,6 +31,142 @@ namespace Starfall.Tests
             foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report", "mountain_report", "gate_5", "gate_6", "gate_7", "companion_0", "companion_1", "companion_2", "seal_5", "seal_6", "seal_7" }) g.save.flags.Add(flag);
             g.save.frontierEnding = 1; return g;
         }
+        public static void RegionalBossesSweepAlternatingLanes(Campaign data)
+        {
+            var g = Unlocked(data);
+            MethodInfo release = typeof(GameCore).GetMethod("BossExpansionAttack", BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(release != null, "Regional Boss attacks must use the live production release");
+            foreach (int room in new[] { 5, 6 })
+            {
+                g.Enter(room);
+                var boss = new Enemy(901, 3, 29, 9, 600, true) { target = new Point(20, 12) };
+                for (int phase = 1; phase <= 3; phase++)
+                for (int cycle = 1; cycle <= 2; cycle++)
+                {
+                    boss.hp = phase == 1 ? 500 : phase == 2 ? 300 : 100;
+                    boss.cycle = cycle;
+                    g.hazards.Clear();
+                    release.Invoke(g, new object[] { boss });
+                    Check(g.hazards.Count == 3, "Regional release must warn all three lane contacts");
+                    bool horizontal = room == 5 ? phase == 1 || cycle % 2 == 1
+                                                : phase > 1 && cycle % 2 == 0;
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        Hazard h = g.hazards[i + 1];
+                        float expectedX = 20 + (horizontal ? i * 2 : 0);
+                        float expectedY = 12 + (horizontal ? 0 : i * 2);
+                        float expectedDelay = (room == 5 ? 1.2f : .9f) + (phase == 3 ? (i + 1) * .22f : 0);
+                        Check(Math.Abs(h.position.x - expectedX) < .001f && Math.Abs(h.position.y - expectedY) < .001f,
+                            "The warning lane must rotate around the locked attack target");
+                        Check(Math.Abs(h.timer - expectedDelay) < .001f && Math.Abs(h.radius - (room == 5 ? 1.35f : 1.1f)) < .001f,
+                            "Each phase uses visible, dodgeable, correctly timed warning circles");
+                        Check(h.kind == (room == 5 ? "tide" : "glass") && Math.Abs(h.damage - (room == 5 ? 17 : 18)) < .001f,
+                            "Regional hazard identity and damage remain compatible");
+                    }
+                    Check(phase != 3 || g.hazards[0].timer < g.hazards[1].timer && g.hazards[1].timer < g.hazards[2].timer,
+                        "Final-phase sweeps release in a visible sequence");
+                }
+            }
+        }
+        public static void FrostPrelateRotatesSafeBellExit(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.Enter(7);
+            g.save.x = 20; g.save.y = 12;
+            MethodInfo release = typeof(GameCore).GetMethod("BossExpansionAttack", BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(release != null, "Frost Prelate must use the live regional Boss attack");
+            var boss = new Enemy(902, 3, 29, 9, 600, true) { target = new Point(15, 8) };
+            Point[] directions = { new Point(1, 0), new Point(0, 1), new Point(-1, 0), new Point(0, -1) };
+            for (int phase = 1; phase <= 3; phase++)
+            for (int cycle = 1; cycle <= 4; cycle++)
+            {
+                boss.hp = phase == 1 ? 500 : phase == 2 ? 300 : 100;
+                boss.cycle = cycle;
+                g.hazards.Clear();
+                release.Invoke(g, new object[] { boss });
+                Check(g.hazards.Count == (phase == 1 ? 1 : 4),
+                    "First phase preserves one frost mark; later phases add three bells");
+                Hazard mark = g.hazards[0];
+                Check(mark.kind == "rift" && Math.Abs(mark.position.x - 20) < .001f &&
+                      Math.Abs(mark.position.y - 12) < .001f && Math.Abs(mark.radius - 2) < .001f &&
+                      Math.Abs(mark.timer - 1.5f) < .001f && Math.Abs(mark.damage - (20 + phase * 2)) < .001f,
+                    "The original frost mark and damage remain intact");
+                if (phase == 1) continue;
+                int safe = (cycle - 1) % 4, strike = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i == safe) continue;
+                    Hazard bell = g.hazards[++strike];
+                    Point expected = new Point(20, 12) + directions[i] * 3.5f;
+                    float delay = 1.75f + (phase == 3 ? (strike - 1) * .22f : 0);
+                    Check(Math.Abs(bell.position.x - expected.x) < .001f &&
+                          Math.Abs(bell.position.y - expected.y) < .001f,
+                        "The unmarked safe exit rotates through all four directions");
+                    Check(bell.kind == "bell" && GameCore.HazardTheme(bell) == 7 &&
+                          Math.Abs(bell.radius - 1.1f) < .001f &&
+                          Math.Abs(bell.timer - delay) < .001f && Math.Abs(bell.damage - 14) < .001f,
+                        "Blue bell warnings keep their timing and damage");
+                }
+                if (phase == 3)
+                    Check(g.hazards[1].timer < g.hazards[2].timer &&
+                          g.hazards[2].timer < g.hazards[3].timer,
+                        "Final phase bell strikes must ring one after another");
+            }
+        }
+        public static void RootReaperClosesRootPincers(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.StartAbyss(0);
+            g.save.abyssFloor = 6;
+            g.save.x = 29; g.save.y = 9;
+            MethodInfo release = typeof(GameCore).GetMethod("BossExpansionAttack", BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(release != null, "Root Reaper uses the production Boss attack release");
+            var boss = new Enemy(903, 3, 29, 9, 680, true) { target = new Point(29, 9) };
+            for (int risk = 0; risk <= 2; risk++)
+            for (int phase = 1; phase <= 3; phase++)
+            for (int cycle = 1; cycle <= 2; cycle++)
+            {
+                g.save.abyssRisk = risk;
+                boss.hp = phase == 1 ? 680 : phase == 2 ? 340 : 120;
+                boss.cycle = cycle;
+                g.hazards.Clear();
+                release.Invoke(g, new object[] { boss });
+                Check(g.hazards.Count == (phase == 1 ? 1 : phase == 2 ? 3 : 5),
+                    "The Reaper gains two outer roots and then two inward roots");
+                Hazard mark = g.hazards[0];
+                Check(mark.kind == "rift" && Math.Abs(mark.timer - 1.5f) < .001f &&
+                      Math.Abs(mark.radius - 2) < .001f && Math.Abs(mark.damage - (20 + phase * 2)) < .001f,
+                    "The existing abyss mark is preserved");
+                if (phase == 1) continue;
+                Point axis = cycle % 2 == 1 ? new Point(1, 0) : new Point(0, 1);
+                int index = 1;
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Point outer = new Point(29, 9) + axis * (side * 2.8f);
+                    Hazard h = g.hazards[index++];
+                    Check(h.kind == "root" && GameCore.HazardTheme(h) == 8 &&
+                          Math.Abs(h.position.x - outer.x) < .001f && Math.Abs(h.position.y - outer.y) < .001f &&
+                          Math.Abs(h.radius - 1.05f) < .001f && Math.Abs(h.timer - 1.85f) < .001f &&
+                          Math.Abs(h.damage - (16 + risk * 3)) < .001f,
+                        "Outer roots alternate axes with a warning and risk-scaled damage");
+                    if (phase == 3)
+                    {
+                        Point inner = new Point(29, 9) + axis * (side * 1.5f);
+                        Hazard h2 = g.hazards[index++];
+                        Check(h2.kind == "root" && Math.Abs(h2.position.x - inner.x) < .001f &&
+                              Math.Abs(h2.position.y - inner.y) < .001f &&
+                              Math.Abs(h2.radius - .9f) < .001f && Math.Abs(h2.timer - 2.25f) < .001f &&
+                              Math.Abs(h2.damage - (16 + risk * 3)) < .001f,
+                            "Final-phase roots close inward after the first warning");
+                    }
+                }
+            }
+            g.save.abyssFloor = 5;
+            boss.hp = 120;
+            g.hazards.Clear();
+            release.Invoke(g, new object[] { boss });
+            Check(g.hazards.Count == 1, "Other floors never spawn final Boss root pincers");
+        }
         public static void MigrationAndBuilds(Campaign data)
         {
             var old = new SaveData { version = 1, stage = 1, room = 1, x = 5, y = 14, coins = 91, health = 72, kills = new[] { 0, 6, 0, 0, 0 }, flags = new List<string> { "intro", "scout_saved", "core_1", "lore_1" } };
@@ -181,6 +317,94 @@ namespace Starfall.Tests
         { foreach (WorldObject o in g.Map.objects) if (o.kind == "wood" || o.kind == "ore" || o.kind == "herb") g.Talk(o); }
         public static void DistantCampaign(Campaign data)
         { for (int i = 0; i < 3; i++) ShoreRun(data, i, i + 1, i + 1); }
+
+        public static void ExpandedRootAbyssHasRealDetoursAndUnbankedRewards(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.save.frontierEnding=1;
+            g.StartAbyss(0);
+            Check(g.InAbyss&&g.Map.rows.Length==44&&g.Map.rows[0].Length==66,
+                "Every newly generated abyss floor has expanded playable galleries");
+            WorldObject cache=null,survey=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.kind=="abyssCache")cache=o;
+                if(o.kind=="abyssSurvey")survey=o;
+            }
+            Check(cache!=null&&survey!=null&&g.CanStand(new Point(cache.x,cache.y))&&
+                g.CanStand(new Point(survey.x,survey.y)),
+                "Both real annex points are reachable standable world objects");
+            int startCoins=g.save.coins,startShards=g.save.shards;
+            g.save.x=survey.x;g.save.y=survey.y;
+            int startRunXp=g.save.runXp;g.Talk(survey);
+            Check(g.save.runXp==startRunXp+15,"Survey awards unbanked experience only");
+            g.Close();g.Talk(survey);g.Close();
+            Check(g.save.runXp==startRunXp+15,"Abyss survey cannot mint XP twice");
+            Check(!g.Explored(8,cache.x,cache.y),
+                "Procedural annex begins unknown before visiting the side corridor");
+            g.save.x=cache.x;g.save.y=cache.y;
+            g.Tick(.02f,new Point());
+            Check(g.Explored(8,cache.x,cache.y)&&!g.Explored(8,12,28),
+                "Abyss fog tracks actual distant rooms separately");
+            int runCoins=g.save.runCoins,runShards=g.save.runShards;
+            g.Talk(cache);
+            Check(g.save.runCoins==runCoins+18&&g.save.runShards==runShards+2&&
+                g.save.coins==startCoins&&g.save.shards==startShards,
+                "New cache follows the actual expedition banking rules");
+            g.Close();
+            GameCore reloaded=new GameCore(data,g.save);
+            Check(reloaded.InAbyss&&reloaded.save.version==2&&
+                reloaded.Map.rows.Length==44&&reloaded.Map.rows[0].Length==66&&
+                reloaded.Has("abyss_annex_cache_1")&&
+                reloaded.Explored(8,cache.x,cache.y)&&reloaded.save.runCoins==g.save.runCoins,
+                "Legacy v2 mid-expedition save restores expanded geometry and pending loot");
+            reloaded.StartAbyss(1);
+            Check(reloaded.save.runCoins==g.save.runCoins,
+                "Cannot restart another expedition while already in the abyss");
+        }
+
+        public static void ExpandedLowerAbyssGalleriesHaveRealBandedLootAndSafeV2Reload(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.save.frontierEnding=1;g.StartAbyss(0);
+            Check(g.InAbyss&&g.Map.rows.Length==44&&g.Map.rows[0].Length==66,
+                "Procedural abyss expands to 66x44 without moving its original boss route");
+            var cells=Reachable(g);int width=g.Map.rows[0].Length;
+            WorldObject survey=Array.Find(g.Map.objects,o=>o.kind=="abyssFarSurvey");
+            WorldObject cache=Array.Find(g.Map.objects,o=>o.kind=="abyssFarCache");
+            WorldObject echo=Array.Find(g.Map.objects,o=>o.kind=="abyssFarEcho");
+            Check(survey!=null&&cache!=null&&echo!=null,
+                "Abyss has three actual new optional lower-gallery interactions");
+            foreach(WorldObject point in new[]{survey,cache,echo})
+                Check(cells.Contains((int)point.y*width+(int)point.x)&&
+                    g.CanStand(new Point(point.x,point.y)),
+                    "Real abyss collisions allow the hero to reach every new gallery");
+            int coins=g.save.coins,shards=g.save.shards,oldXP=g.save.runXp;
+            g.save.x=echo.x;g.save.y=echo.y;g.Talk(echo);g.Close();
+            Check(g.save.runXp==oldXP&&
+                !g.Has("abyss_annex_far_echo_1"),
+                "Echo cannot be opened without actually finding lower testimony");
+            g.save.x=survey.x;g.save.y=survey.y;g.Talk(survey);g.Close();
+            Check(g.save.runXp==oldXP+25&&
+                g.Has("abyss_annex_far_survey_1"),"Physical testimony grants pending XP");
+            g.Talk(survey);g.Close();
+            Check(g.save.runXp==oldXP+25,"Reading the same tablet never duplicates loot");
+            g.save.x=cache.x;g.save.y=cache.y;g.Talk(cache);g.Close();
+            Check(g.save.runCoins>=30&&g.save.runShards>=1&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Lower gallery supplies follow existing unbanked expedition rules");
+            g.save.x=echo.x;g.save.y=echo.y;g.Talk(echo);g.Close();
+            Check(g.save.runXp==oldXP+45,"Echo grants pending XP only after prior physical survey");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,g.save);
+            Check(restored.InAbyss&&restored.save.version==2&&
+                restored.Map.rows.Length==44&&restored.Map.rows[0].Length==66&&
+                restored.Has("abyss_annex_far_survey_1")&&
+                restored.Has("abyss_annex_far_echo_1")&&
+                restored.save.runXp==oldXP+45,
+                "Mid-floor old-format save restores new gallery geometry and pending loot");
+        }
+
         public static void AbyssExpeditions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)

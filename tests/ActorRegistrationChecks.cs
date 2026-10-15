@@ -13,7 +13,12 @@ public static class ActorRegistrationChecks
     static void Set(object app,string name,object value){app.GetType().GetField(name,Private).SetValue(app,value);}
     static void Clear(){GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();GUI.matrix=Matrix4x4.identity;GUI.color=Color.white;}
     static void Place(FrontierRuntime app,Point feet,Point pixel){Set(app,"camera",feet-new Point((pixel.x-640)/36,(pixel.y-390)/36));}
-    static bool ActorTexture(GUI.TextureCall c){return c.texture.name.StartsWith("resource:Frontier/Art/")&&!c.texture.name.Contains("Effects");}
+    static bool ActorTexture(GUI.TextureCall c){return (c.texture.name.StartsWith("resource:Frontier/Art/")||
+        c.texture.name.StartsWith("resource:Frontier/HeroAnimator/Canonical/Hero_"))&&
+        !c.texture.name.Contains("Effects")&&
+        !c.texture.name.EndsWith("/HeroMotionAccents")&&
+        !c.texture.name.EndsWith("/CoastlineRemaster")&&
+        !c.texture.name.EndsWith("/ActorContactShadows");}
     static void Density(GUI.TextureCall[] calls,float density)
     {
         foreach(var c in calls.Where(ActorTexture))
@@ -40,19 +45,53 @@ public static class ActorRegistrationChecks
                 if(state==9){g.dashTime=.1f;Set(g,"dashDirection",Directions[direction]);}if(state==10)g.guardTime=1;if(state==11)g.playerHitTime=.1f;if(state==12)g.deathTime=.7f;
                 Point pixel=new Point(54+state*96,210+weapon*190);Place(app,g.Position,pixel);
                 var calls=Draw(app,"DrawPlayerActor");Density(calls,.75f);var actors=calls.Where(ActorTexture).ToArray();Check(actors.Length>0,"Playable actor has no visible pixels");
-                if(state!=12)
-                {
-                    var face=actors.Last();Check(face.texture.name.EndsWith("/WalkVanguard"),"All classes use the playable blonde identity");
-                    Check(Math.Abs(face.rect.width-42)<.001f&&Math.Abs(face.rect.height-42)<.001f,"Player face changes size across actions");
-                    if(state<=4)Check(Math.Abs(face.rect.x-(pixel.x-21))<1.1f&&Math.Abs(face.rect.y-(pixel.y-75))<1.1f,"Walking head cannot bob or shift between steps");
-                }
-                else Check(actors.All(c=>!c.texture.name.EndsWith("/WalkVanguard")),"A fallen body may not wear a floating standing head");
+                // One whole accepted 256px body, including hair and hips,
+                // is drawn on ONE atlas call at a constant 128/240 foot.
+                Check(actors.Length==1,
+                    "Player must not be split into torso, head, lower-leg draw calls");
+                var body=actors[0];
+                string profession=new[]{"Vanguard","Ranger","Arcanist"}[weapon];
+                Check(body.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+profession+"_"),
+                    "Real player must use its class-owned published full-body atlas");
+                Check(Math.Abs(body.rect.width-192)<.001f&&
+                    Math.Abs(body.rect.height-192)<.001f,
+                    "All protagonist poses use one 256px source and 0.75 density");
+                Check(Math.Abs(body.rect.x-(pixel.x-96))<1.1f&&
+                    Math.Abs(body.rect.y-(pixel.y-180))<1.1f,
+                    "Complete player feet cannot bob when switching full-body states");
+                Check(!body.texture.name.EndsWith("/WalkVanguard")||weapon==0,
+                    "Ranger/Arcanist may share GOLD hair pixels but never warrior armor");
                 Caption(pixel,states[state]);total++;
             }
             GUI.Export(folder,"review-registered-player-"+direction);
         }
         Console.WriteLine("PASS "+total+" player combinations: exact foot/canvas density, fixed blonde head, four directions, contact, guard, recoil and death");
     }
+    static void ProductionLoadoutUsesFullBodyHero(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,0);
+        for(int profession=0;profession<3;profession++)
+        {
+            const float x=640f,y=400f,size=104f;
+            GUI.textureCalls.Clear();
+            var calls=Draw(app,"DrawPlayerPreview",
+                profession,x,y,size).Where(ActorTexture).ToArray();
+            Check(calls.Length==1,"Inventory preview must draw one complete body");
+            string cls=new[]{"Vanguard","Ranger","Arcanist"}[profession];
+            Check(calls[0].texture.name==
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"+cls+"_Idle_S",
+                "Inventory preview must use the actual class/blonde production Sprite");
+            Check(Math.Abs(calls[0].rect.width-size)<.01f&&
+                Math.Abs(calls[0].rect.height-size)<.01f,
+                "Loadout portrait should be 104px, not a 0.54px dot");
+            Check(Math.Abs(calls[0].rect.x-(x-size/2f))<.01f&&
+                Math.Abs(calls[0].rect.y-(y-size*240f/256f))<.01f,
+                "Inventory and world need the same canonical 128,240 foot anchor");
+        }
+        Console.WriteLine("PASS 3 true full-body inventory portraits at 104px with class outfit and blonde identity");
+    }
+
     static void Companions(FrontierRuntime app,string folder)
     {
         int total=0;string[] names={"Mira","Ivo","Sen"};
@@ -63,9 +102,22 @@ public static class ActorRegistrationChecks
                 app.BeginVisualReview(0,0);var g=app.Game;g.save.companion=id;g.companionAim=Directions[direction];g.companionAction=null;g.companionMoving=state>=1&&state<=4;g.companionMoveTime=Math.Max(0,state-1)*GameCore.WalkStride/4;
                 if(state>=5)g.companionAction=new ActorAction{direction=Directions[direction],released=state==6,kind="attack"};
                 Point pixel=new Point(140+state*160,230+id*180);Place(app,g.companionPosition,pixel);var calls=Draw(app,"DrawCompanionActor");Density(calls,.75f);
+                var glows=calls.Where(c=>c.texture.name=="soft_glow").ToArray();
+                Check(glows.Length==2,"Companion must keep mature ground shadow and one soft ally marker");
+                var ally=glows[1];
+                Check(Math.Abs(ally.rect.width-48)<.0001f&&
+                    Math.Abs(ally.rect.height-12)<.0001f&&
+                    Math.Abs(ally.rect.x-(pixel.x-24))<1f&&
+                    Math.Abs(ally.rect.y-(pixel.y-6))<1f&&
+                    ally.color.g>ally.color.r&&
+                    ally.color.a<.45f,
+                    "Ally affiliation must read as subtle grounded light, not an opaque overpaint");
+                float expectedAlpha=state<5?.18f:state==6?.42f:.29f;
+                Check(Math.Abs(ally.color.a-expectedAlpha)<.00001f,
+                    "Companion contact glow must communicate actual windup/release state");
                 var face=calls.Where(ActorTexture).Last();Check(face.texture.name.EndsWith("/Walk"+names[id]),"Companion identity must match its own authored actor");Caption(pixel,"state "+state);total++;
             }GUI.Export(folder,"review-registered-companion-"+direction);
-        }Console.WriteLine("PASS "+total+" companion combinations: fixed density, own face and directional preparation/release");
+        }Console.WriteLine("PASS "+total+" companion bodies: same source face, fixed density and foot-rooted animated ally cue");
     }
     static void Enemies(FrontierRuntime app,string folder)
     {
@@ -85,6 +137,137 @@ public static class ActorRegistrationChecks
             }GUI.Export(folder,"review-registered-enemies-"+batch);
         }Screen.width=1280;Screen.height=800;Console.WriteLine("PASS "+total+" enemy/Boss combinations: gait, wind-up, release, flash, recoil and retained death density");
     }
+    static void VerticalArcherKeepsFacingThroughContact(FrontierRuntime app,string folder)
+    {
+        // Inspect the ACTUAL FrontierActors.DrawEnemyActor path using the
+        // original 3x2 full-body EnemyArcherVertical.png, not an isolated
+        // sprite-sheet calculator. All poses share the same grounded rect.
+        app.BeginVisualReview(0,1);
+        for(int heading=0;heading<2;heading++)
+        {
+            Point face=new Point(0,heading==0?-1:1);
+            var foe=new Enemy(88810+heading,1,12,14,120){
+                facing=face,state=1,timer=.18f,windupDuration=.65f,
+                flash=.04f
+            };
+            GUI.TextureCall previous=null;
+            for(int phase=0;phase<2;phase++)
+            {
+                if(phase==1) {
+                    foe.state=0;foe.timer=0;foe.releaseTime=.12f;
+                }
+                Clear();Place(app,foe.Position,new Point(410+heading*300,350));
+                var calls=Draw(app,"DrawEnemyActor",foe);
+                var body=calls.FirstOrDefault(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical");
+                Check(body!=null,"Vertical archer must render original whole-body art");
+                int index=(heading==0?0:3)+phase;
+                float expectedU=(index%3)/3f;
+                float expectedV=1f-(index/3+1)/2f;
+                Check(Math.Abs(body.uv.x-expectedU)<.00001f &&
+                    Math.Abs(body.uv.y-expectedV)<.00001f &&
+                    Math.Abs(body.uv.width-1f/3f)<.00001f &&
+                    Math.Abs(body.uv.height-.5f)<.00001f,
+                    "Archer north/south windup and release crossed Sprite rows");
+                Check(Math.Abs(body.rect.x-(410+heading*300-body.rect.width/2))<1.1f &&
+                    Math.Abs(body.rect.y-(350-body.rect.height*120f/128f))<1.1f,
+                    "Directional archer foot moved on contact");
+                var flash=calls.FirstOrDefault(c=>c.texture.name.Contains(
+                    "flash_EnemyArcherVertical")||c.texture.name.Contains(
+                    "flash_resource_Frontier_Art_EnemyArcherVertical"));
+                Check(flash!=null&&
+                    Math.Abs(flash.uv.x-body.uv.x)<.00001f&&
+                    Math.Abs(flash.uv.y-body.uv.y)<.00001f&&
+                    Math.Abs(flash.rect.y-body.rect.y)<.001f,
+                    "Archer hit flash and source body disagree on facing");
+                if(previous!=null)
+                    Check(Math.Abs(previous.uv.y-body.uv.y)<.00001f &&
+                        Math.Abs(previous.rect.y-body.rect.y)<.001f,
+                        "Vertical combat crosses character identity row");
+                previous=body;
+                GUI.Export(folder,"review-archer-"+heading+"-action-"+phase);
+            }
+            // The sixth cell on the same accepted atlas is a genuine
+            // authored fallen archer. Death must not turn into a generic
+            // monster/another face when live hitboxes are removed.
+            Clear();
+            var fallen=new FallenActor{actor=foe,room=1,life=.36f,duration=.65f};
+            var corpse=Draw(app,"DrawFallen",fallen);
+            var death=corpse.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/EnemyArcherVertical");
+            Check(death!=null&&
+                Math.Abs(death.uv.x-2f/3f)<.00001f&&
+                Math.Abs(death.uv.y)<.00001f&&
+                Math.Abs(death.uv.width-1f/3f)<.00001f&&
+                Math.Abs(death.uv.height-.5f)<.00001f,
+                "Archer corpse must use its original full-body fallen cell 5");
+            Check(!corpse.Any(c=>c.texture.name=="resource:Frontier/Art/Monsters"),
+                "Death must not change archer into a generic monster");
+            Check(Math.Abs(death.rect.y-(350-death.rect.height*120f/128f))<1.1f,
+                "Fallen archer cannot slide away from its fixed foot root");
+            GUI.Export(folder,"review-archer-"+heading+"-death");
+        }
+        Console.WriteLine("PASS 6 real archer windup/contact/death poses, facing-locked rows, full-body foot and hit flash");
+    }
+    static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
+    {
+        // Restored published high-detail Bosses/WalkBoss art. Keep all real
+        // GameCore windup/release and moving hit-flash behaviour, but do not
+        // require the rejected low-detail Briar candidate to appear live.
+        app.BeginVisualReview(0,1);
+        var g=app.Game;g.enemies.Clear();
+        var boss=new Enemy(93000,0,g.Position.x,g.Position.y,150,true){
+            facing=new Point(1,0),moving=true,moveTime=.8f,flash=.045f};
+        Func<GUI.TextureCall[],string,GUI.TextureCall> actor=(draws,name)=>
+            draws.FirstOrDefault(c=>c.texture.name=="resource:Frontier/Art/"+name);
+        Func<GUI.TextureCall[],string,GUI.TextureCall> mask=(draws,name)=>
+            draws.FirstOrDefault(c=>
+                c.texture.name=="resource:Frontier/Art/ActorMasks/flash_"+name||
+                c.texture.name=="flash_resource_Frontier_Art_"+name);
+        Action<GUI.TextureCall,GUI.TextureCall> sameFrame=(body,flash)=>{
+            Check(body!=null&&flash!=null,
+                "Detailed walking Boss sprite and hit mask must both exist");
+            Check(Math.Abs(body.rect.x-flash.rect.x)<.001f&&
+                  Math.Abs(body.rect.y-flash.rect.y)<.001f&&
+                  Math.Abs(body.rect.width-flash.rect.width)<.001f&&
+                  Math.Abs(body.rect.height-flash.rect.height)<.001f&&
+                  Math.Abs(body.uv.x-flash.uv.x)<.0001f&&
+                  Math.Abs(body.uv.y-flash.uv.y)<.0001f,
+                "Existing detailed Boss hit-flash must follow actual frame/root");
+        };
+        Clear();var moving=Draw(app,"DrawEnemyActor",boss);
+        sameFrame(actor(moving,"WalkBossA"),mask(moving,"WalkBossA"));
+        Check(!moving.Any(c=>c.texture.name==
+            "resource:Frontier/Art/BriarBeast"),
+            "Unapproved prototype Boss displaced the detailed production body");
+        // The original authored Bosses atlas must not show release art during
+        // the final 0.1 seconds of still-active GameCore windup.
+        boss.moving=false;boss.flash=0;boss.state=1;
+        boss.timer=.10f;boss.windupDuration=1.02f;boss.releaseTime=0f;
+        Clear();var pending=actor(Draw(app,"DrawEnemyActor",boss),"Bosses");
+        Check(pending!=null&&Math.Abs(pending.uv.x-.25f)<.0001f,
+            "Original Boss windup art may not expose contact before release");
+        boss.state=0;boss.releaseTime=.31f;
+        Clear();var contact=actor(Draw(app,"DrawEnemyActor",boss),"Bosses");
+        Check(contact!=null&&Math.Abs(contact.uv.x-.5f)<.0001f,
+            "Original Boss contact must follow GameCore's released state");
+        // Later regions must retain their own original moving Boss and
+        // HP-stage palette feedback. Recolour never changes body source.
+        app.BeginVisualReview(0,2);
+        var other=new Enemy(93020,0,g.Position.x,g.Position.y,150,true){
+            moving=true,moveTime=.8f,flash=.045f};
+        Clear();var firstDraw=Draw(app,"DrawEnemyActor",other);
+        sameFrame(actor(firstDraw,"WalkBossA"),mask(firstDraw,"WalkBossA"));
+        var first=actor(firstDraw,"WalkBossA");
+        other.hp=75f;
+        Clear();var nextDraw=Draw(app,"DrawEnemyActor",other);
+        sameFrame(actor(nextDraw,"WalkBossA"),mask(nextDraw,"WalkBossA"));
+        var second=actor(nextDraw,"WalkBossA");
+        Check(second.color.g<first.color.g&&second.color.b<first.color.b,
+            "Original moving Boss must retain visible later HP phases");
+        Console.WriteLine("PASS detailed original Bosses/WalkBoss bodies, flash, winding/release and room-2 HP tint");
+    }
+
     static void PreparedMasks()
     {
         var source=Resources.Load<Texture2D>("Frontier/Art/Bosses");Check(source!=null&&source.isReadable,"Actual metadata must keep source alpha readable after import");
@@ -107,9 +290,160 @@ public static class ActorRegistrationChecks
             Caption(pixel,"release "+direction);
         }GUI.Export(folder,"review-registered-muzzles");
     }
+    static void FullBodyHeroProductionFrames(FrontierRuntime app)
+    {
+        // Unlike the removed UnifiedActionGait synthetic-leg test, this
+        // exercises the REAL world DrawPlayerActor() method and the actual
+        // canonical PNGs shipped under Assets/Resources. A body needs one
+        // draw, one 256px sheet cell and a fixed (128,240) foot Pivot.
+        var classes=new[]{"Vanguard","Ranger","Arcanist"};
+        int checkedFrames=0;
+        foreach(int profession in new[]{0,1,2})
+        foreach(Point direction in Directions)
+        {
+            app.BeginVisualReview(profession,0);
+            var g=app.Game;
+            g.enemies.Clear();g.save.companion=-1;g.save.upgrades=0;
+            g.SetAim(direction);
+            g.movementDirection=direction;
+            g.locomotionFacing=direction;
+            for(int step=0;step<4;step++)
+            {
+                g.walkDistance=step*GameCore.WalkStride/4;
+                Point location=new Point(480+step*5,300+profession*5);
+                Place(app,g.Position,location);
+                var calls=Draw(app,"DrawPlayerActor");
+                var parts=calls.Where(ActorTexture).ToArray();
+                Check(parts.Length==1,"A playable hero may NEVER be drawn "+
+                    "as a separately attached head, torso or boot");
+                var sprite=parts[0];
+                string prefix="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    classes[profession]+"_";
+                Check(sprite.texture.name.StartsWith(prefix),
+                    "Published body must belong to the active class");
+                Check(Math.Abs(sprite.rect.width-192)<.01f&&
+                    Math.Abs(sprite.rect.height-192)<.01f,
+                    "Full-body source cell and density must remain 256*.75");
+                Check(Math.Abs(sprite.rect.x-location.x+96)<1.2f&&
+                    Math.Abs(sprite.rect.y-location.y+180)<1.2f,
+                    "One root/pivot must not move during the four walk phases");
+                Check(!calls.Any(c=>c.texture.name=="resource:Frontier/Art/WalkVanguard"),
+                    "No extra warrior head may be drawn over Ranger or Arcanist");
+                checkedFrames++;
+            }
+        }
+        Console.WriteLine("PASS "+checkedFrames+
+            " real full-body player draws: one published class-owned Sprite, "+
+            "canonical scale/root, no torso/head/leg puppetry");
+    }
+
+    public static void VerifyResidentAnimation(FrontierRuntime app)
+    {
+        // VISUAL FIDELITY ROLLBACK: the older Npcs.png contains the carefully
+        // shaded guild and forge bodies. The unapproved tiny-pixel replacement
+        // must not appear in ANY dialogue state or on another bystander.
+        app.BeginVisualReview(0,0);
+        var game=app.Game;
+        var guild=new WorldObject {id="guild",kind="guild",x=17,y=17};
+        var smith=new WorldObject {id="smith",kind="forge",x=6,y=8};
+        var savedConversation=game.conversation;
+        var savedSource=game.conversationSource;
+        const string original="resource:Frontier/Art/Npcs";
+        var art=(PixelArt)typeof(FrontierRuntime).GetField("art",Private).GetValue(app);
+        var cache=(System.Collections.IDictionary)typeof(PixelArt).GetField(
+            "cache",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(art);
+        Check(cache.Keys.Cast<object>().Any(key=>
+            key.ToString().Contains("flash_")&&
+            key.ToString().Contains("Monsters")),
+            "Original raider first-hit flash must remain prewarmed");
+        try
+        {
+            foreach(var npc in new[]{guild,smith})
+            {
+                int expectedIndex=npc.kind=="guild"?0:2;
+                game.conversation=null;
+                game.conversationSource=null;
+                Clear();
+                var idle=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1);
+                var body=idle.FirstOrDefault(c=>c.texture.name==original);
+                Check(body!=null,
+                    "Current guild/forge render must use the original illustrated source");
+                Check(body.rect.width==96&&body.rect.height==96&&
+                    Math.Abs(body.uv.x-expectedIndex*.25f)<.0001f&&
+                    Math.Abs(body.uv.width-.25f)<.0001f&&
+                    Math.Abs(body.uv.height-.25f)<.0001f,
+                    "Guild/forge must draw the intact original high-detail source cell");
+                game.conversation=new Conversation("speaker","speaker","hello","hello");
+                game.conversationSource=npc;
+                Clear();
+                var talking=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1);
+                var spoken=talking.FirstOrDefault(c=>c.texture.name==original);
+                Check(spoken!=null&&
+                    Math.Abs(spoken.uv.x-body.uv.x)<.0001f&&
+                    Math.Abs(spoken.uv.y-body.uv.y)<.0001f&&
+                    Math.Abs(spoken.rect.x-body.rect.x)<.001f&&
+                    Math.Abs(spoken.rect.y-body.rect.y)<.001f,
+                    "Talking must not switch original NPC to a coarse or offset body");
+                // The same rich high-detail full-body source now has a
+                // tiny dialogue weight-shift around the correct planted foot.
+                // No Sprite cell, class face, render bounds or hitbox changes.
+                Set(app,"clock",.48f);
+                Clear();
+                var motion=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1);
+                var speaking=motion.First(c=>c.texture.name==original);
+                Check(Math.Abs(speaking.matrix.m01)>.0001f &&
+                    Math.Abs(speaking.matrix.m10)>.0001f &&
+                    Math.Abs(speaking.uv.x-body.uv.x)<.0001f,
+                    "Pinned speaker must tilt one original full-body Sprite");
+                Check(Math.Abs(GUI.matrix.m01)<.00001f &&
+                    Math.Abs(GUI.matrix.m10)<.00001f,
+                    "Dialogue motion leaked transform into subsequent actor/UI");
+                game.save.reducedMotion=true;
+                Clear();
+                var still=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1).First(c=>c.texture.name==original);
+                Check(Math.Abs(still.matrix.m01)<.00001f &&
+                    Math.Abs(still.matrix.m10)<.00001f,
+                    "Reduced-motion player preference must disable NPC body sway");
+                game.save.reducedMotion=false;
+                Set(app,"clock",1.25f);
+                Clear();
+                var later=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1).First(c=>c.texture.name==original);
+                Check(Math.Abs(later.matrix.m01-speaking.matrix.m01)>.0001f &&
+                    Math.Abs(later.uv.x-speaking.uv.x)<.0001f,
+                    "Dialogue animation must evolve without changing authored cells");
+            }
+            game.conversation=new Conversation("speaker","speaker","hello","hello");
+            game.conversationSource=guild;
+            Clear();
+            var bystander=Draw(app,"DrawNpc","guild",new Point(21,17),-1);
+            Check(bystander.Any(c=>c.texture.name==original),
+                "Another guild member must not inherit a rejected dialogue avatar");
+            var other=bystander.First(c=>c.texture.name==original);
+            Check(Math.Abs(other.matrix.m01)<.00001f,
+                "A nearby same-kind bystander must not inherit conversation motion");
+            Clear();
+            var garden=Draw(app,"DrawNpc","garden",new Point(10,10),-1);
+            Check(garden.Any(c=>c.texture.name==original),
+                "Unmodified rich source NPCs must stay on the accepted atlas");
+            Console.WriteLine("PASS original 16-NPC sprites, pinned dialogue whole-body foot-lean, reduced motion and still bystanders");
+        }
+        finally
+        {
+            game.conversation=savedConversation;
+            game.conversationSource=savedSource;
+        }
+    }
+
+    public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { FullBodyHeroProductionFrames(app); ProductionLoadoutUsesFullBodyHero(app); }
+    public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();Players(app,folder);Companions(app,folder);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }

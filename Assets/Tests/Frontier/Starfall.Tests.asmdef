@@ -1,8 +1,15 @@
 {
   "name": "Starfall.Tests",
   "rootNamespace": "Starfall.Tests",
-  "references": ["Starfall.Core"],
-  "includePlatforms": ["Editor"],
-  "optionalUnityReferences": ["TestAssemblies"],
+  "references": [
+    "Starfall.Core",
+    "Starfall.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
   "autoReferenced": false
 }

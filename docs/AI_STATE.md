@@ -1,0 +1,19 @@
+> **历史分支／其他开发团队的状态快照，不是 AI-2 当前指令。** 本文件描述旧 `jinze909/rpg-by-ai` 与 `codex-cli/dev` 工作记录，其中旧 Player/Walk/分部件绘制叙述已经与 AI-2 正式主角管线不符。AI-2 请改读 [AGENTS.md](../AGENTS.md)、[AI2-STATUS.md](AI2-STATUS.md)、[GITHUB-OPERATIONS.md](GITHUB-OPERATIONS.md)。保留以下原始内容仅供比对历史，不可据此改写 `chatgpt/dev`。\n\n---\n\n# Starfall Frontier — CLI state
+
+- Contract: `docs/AI_CONTRACT.md` v1.5 was read completely on 2026-10-11; do not repeat initialization.
+- Branch: `codex-cli/dev`, origin `jinze909/rpg-by-ai`; main remains `b0aae3d329c5b0b200b30b1457d0f692257b9f06`.
+- Last trusted gameplay commit: the commit containing this state (`git log -1 --format=%H -- docs/AI_STATE.md`). This iteration started clean at `6d6d95d7712551f2e0405c476d7a904bb1101525`, with both previous CI runs successful.
+- Recovery: `refs/codex/checkpoints/2026-10-11-animation-baseline` retains `6d6d95d`; `refs/codex/checkpoints/2026-10-11-initialized` retains `f86b618`. Ordinary pushes only.
+- Completed goal: align hero walk → attack/cast → recovery → walk with actual contact and visible equipment. Q release now drives both phase and pose; actual recovery walking selects equipped appearance; real recoil/death captures the outfit visible at impact. Production edits are limited to `ContinuityCore`, `CombatPresentation`, and `GameCore.Hurt`; movement, durations, damage snapshots, input buffering and saved data remain unchanged. Ranged Q retains its intentional planted recovery.
+
+| Production frames | Actual selection / ownership |
+| --- | --- |
+| Walking | `FrontierActors.DrawPlayerActor`: `WalkVanguard/Ranger/Arcanist`, direction row × 4 + distance-driven gait frame. `RecoveryWalking` restores the equipped weapon here. |
+| Attack / Q | Side: `PlayerVanguard/Ranger/Arcanist`, preparation/contact 4/5 or 6/7. North: `PlayerRear`, weapon × 4 + 2/3. South: `PlayerSouth`, weapon × 4 + pose − 4. Q weapon remains profession-owned until actual recovery walking. |
+| Canonical head | `FrontierActorRig.HumanActor`: `WalkVanguard`, direction row × 4; head composition and foot/root geometry unchanged. |
+| Hit / death | Existing side sheets or `PlayerReactionsRear/South`; displayed weapon is captured by `Hurt`, with death retaining its own snapshot. Load/travel resets the transient reaction state. |
+
+- Art evidence: all 22 runtime atlas hashes match `ACTOR-REGISTRATION.json`; all 243 art/resource/registration fingerprints stayed unchanged. `POSE-REPAIRS.json` identifies registered repair provenance (including Ranger south and Arcanist rear); it does not prove user acceptance. `RECOVERY-STATE.json` and `CANDIDATE-DECISIONS.json` are absent from this checkout. No art, fonts, Campaign, GUIDs or registration data were replaced.
+- Verification: mandatory `tools/run_core_tests.py` passed 71/71 groups and `tools/check_editor_syntax.py` passed. Production Runtime input/draw checks passed 8/8 groups. Three new core witnesses and three new renderer groups fail against pre-fix code. Targeted `sprite-animation-qa` production filmstrips/onions were visually inspected; 34-frame production GIFs retain 50ms sample timing. Previews remain disposable, outside tracked assets. Independent code/boundary review found no remaining defect in this change group.
+- Native status: `NATIVE_UNVERIFIED` for Unity compilation/playback, GPU output, audio, feel and user art acceptance. Offline registration/selection checks do not certify anatomy. Push/CI status is recorded by Git/GitHub; require a clean tree and successful CI for the iteration marker.
+- Remaining / next: no implementation remains on this group. A separately reproduced final-dodge frame can still show stale locomotion facing; investigate that transition independently before altering dash timing. Preserve the prior Q buffering/contact and scout presence fixes, rejected north-Ranger constraints and all existing content/saves.

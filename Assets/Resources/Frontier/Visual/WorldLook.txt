@@ -1,0 +1,26 @@
+# Starfall Frontier / Accepted World Look
+# Live Unity TextAsset resource. Values tune the EXISTING approved detailed
+# WorldProps, TerrainVariants and soft_glow sources. No new coarse PNGs.
+# Sprite identity, GUID, feet and GameCore actions never depend on these values.
+# Degrees are rooted rotations (not split-sprite displacement).
+treeSwayDegrees=0.80
+palmSwayDegrees=1.35
+snowpineSwayDegrees=0.24
+# Fractional alpha of a source-pixel water sample; not an opaque tile overlay.
+waterGlintAlpha=0.12
+waterGlintRate=0.89
+# Ambient light stays secondary to the detailed painted lamp/roof/metal pixels.
+lampRadius=114
+nightLightAlpha=0.29
+dayLightAlpha=0.13
+
+# Native-friendly single-Sprite actor gestures. All movement is tiny,
+# pivoted about the existing painted boot, and honors reducedMotion.
+# Neither setting edits saved actors or invents missing animation frames.
+npcTalkLeanDegrees=0.72
+escortWalkLeanDegrees=1.15
+escortHitLeanDegrees=1.35
+
+# Whole-Sprite combat readability; bounds enforced at runtime.
+combatWarningStrokePixels=1.80
+projectileTrailFadeDistance=0.18

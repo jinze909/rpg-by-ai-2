@@ -8,10 +8,30 @@ namespace Starfall.Editor
     public static class FrontierEditor
     {
         private const string Scene = "Assets/Scenes/Frontier.unity";
+        // The canonical Animator is an OPTIONAL optimized rendering lane.
+        // The shipped complete-body Resources Sprite atlases plus rooted OnGUI
+        // fallback still make a playable scene if Unity cannot import/bake
+        // a generated Controller. An Editor menu command must not abort Play
+        // or an entire player build solely because this optional art bake fails.
+        private static void PrepareHeroAnimationsOrUsePublishedFallback()
+        {
+            try
+            {
+                Starfall.EditorTools.StarfallCanonicalHeroProductionBuilder.EnsureBuilt();
+            }
+            catch (System.Exception error)
+            {
+                Debug.LogWarning("Starfall: native hero Animator preparation failed; " +
+                    "continuing with the already shipped complete-body Sprite " +
+                    "resources and safe runtime fallback. This is NOT native " +
+                    "Animator verification. Details: " + error);
+            }
+        }
         [MenuItem("Starfall/Play Adventure")]
         public static void Play()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            PrepareHeroAnimationsOrUsePublishedFallback();
             EditorSceneManager.OpenScene(Scene); EditorApplication.isPlaying = true;
         }
         [MenuItem("Starfall/Build/Windows")]
@@ -24,6 +44,7 @@ namespace Starfall.Editor
         {
             string folder = EditorUtility.SaveFolderPanel("Build Starfall Frontier", "", "StarfallFrontier");
             if (string.IsNullOrEmpty(folder)) return;
+            PrepareHeroAnimationsOrUsePublishedFallback();
             var report = BuildPipeline.BuildPlayer(new[] { Scene }, Path.Combine(folder, filename), target, BuildOptions.None);
             Debug.Log("Starfall build: " + report.summary.result);
         }
@@ -31,16 +52,44 @@ namespace Starfall.Editor
         public static void BuildWindowsBatch()
         {
             Directory.CreateDirectory("Builds/Windows");
+            PrepareHeroAnimationsOrUsePublishedFallback();
             var report = BuildPipeline.BuildPlayer(new[] { Scene }, "Builds/Windows/StarfallFrontier.exe", BuildTarget.StandaloneWindows64, BuildOptions.None);
             if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) throw new System.Exception("Unity player build failed.");
         }
     }
     public sealed class FrontierImports : AssetPostprocessor
     {
+        // Only these published, source-preserved atlas families may stay
+        // Sprite/Multiple while the accepted Animator builder imports them.
+        // Every other gameplay/experimental image remains a Default Texture2D.
+        private static bool IsAcceptedNativeActor(string name)
+        {
+            switch (name)
+            {
+                case "Monsters":
+                case "WalkMonsters":
+                case "Bosses":
+                case "WalkBossA":
+                case "WalkBossB":
+                case "Npcs":
+                case "EnemyArcherVertical":
+                case "CompanionMira":
+                case "CompanionIvo":
+                case "CompanionSen":
+                case "WalkMira":
+                case "WalkIvo":
+                case "WalkSen":
+                    return true;
+                default: return false;
+            }
+        }
         private void OnPreprocessTexture()
         {
             if (assetPath.StartsWith("Assets/Resources/Frontier/Art/") && assetPath.EndsWith(".png") && !assetPath.EndsWith("TitleVista.png") && !assetPath.EndsWith("/Portraits.png"))
-            { var atlas = (TextureImporter)assetImporter; string name = Path.GetFileNameWithoutExtension(assetPath); atlas.textureType = TextureImporterType.Default; atlas.filterMode = FilterMode.Point; atlas.mipmapEnabled = false; atlas.npotScale = TextureImporterNPOTScale.None; atlas.maxTextureSize = 4096; atlas.alphaIsTransparency = true; atlas.textureCompression = TextureImporterCompression.Uncompressed; atlas.isReadable = (name.StartsWith("Player") && name != "PlayerPortraits") || name.StartsWith("Walk") || name.StartsWith("Companion") || name == "Monsters" || name == "Bosses" || name == "EnemyArcherVertical"; return; }
+            { var atlas = (TextureImporter)assetImporter; string name = Path.GetFileNameWithoutExtension(assetPath); if (!IsAcceptedNativeActor(name) ||
+                    atlas.textureType != TextureImporterType.Sprite)
+                    atlas.textureType = TextureImporterType.Default;
+                atlas.filterMode = FilterMode.Point; atlas.mipmapEnabled = false; atlas.npotScale = TextureImporterNPOTScale.None; atlas.maxTextureSize = 4096; atlas.alphaIsTransparency = true; atlas.textureCompression = TextureImporterCompression.Uncompressed; atlas.isReadable = (name.StartsWith("Player") && name != "PlayerPortraits") || name.StartsWith("Walk") || name.StartsWith("Companion") || name == "Monsters" || name == "Bosses" || name == "EnemyArcherVertical"; return; }
             if (assetPath == "Assets/Resources/Frontier/Art/TitleVista.png" || assetPath == "Assets/Resources/Frontier/Art/Portraits.png")
             { var art = (TextureImporter)assetImporter; art.textureType = TextureImporterType.Default; art.filterMode = FilterMode.Bilinear; art.mipmapEnabled = false; art.npotScale = TextureImporterNPOTScale.None; art.maxTextureSize = 2048; return; }
             if (assetPath != "Assets/Resources/Frontier/ViolaMoves.png") return;

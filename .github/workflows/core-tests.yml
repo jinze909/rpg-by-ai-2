@@ -1,11 +1,276 @@
 name: Starfall core checks
 on: [push, pull_request]
+# Read-only default token; only the carefully guarded publisher may write.
+permissions:
+  contents: read
 jobs:
   core:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify AI-2 repository contracts, docs and release protections
+        run: python3 tools/check_repository_maintenance.py
       - name: Install Mono
-        run: sudo apt-get update && sudo apt-get install -y mono-mcs
+        run: sudo apt-get update && sudo apt-get install -y mono-mcs python3-pil
+      # Always test the same fully regenerated candidate textures that the
+      # guarded publication job will ship. Otherwise a Sprite frame-count
+      # migration would fail against the stale committed PNGs and deadlock
+      # its own publisher. The source art and meta GUIDs remain unchanged.
+      - name: Build three-class canonical hero animation preview / QA matrix
+        run: python3 tools/build_hero_animation_preview.py
+      # The files in git MUST be checked BEFORE the producer overwrites
+      # them; otherwise even a broken committed avatar can get a green CI.
+      - name: Hard-gate 63 actual checkout Sprite PNGs before regeneration
+        # Now that the verified E/N/S guard migration is PUBLISHED, restore
+        # unconditional auditing of ALL committed production pixels on every
+        # subsequent build, including explicit future art release commits.
+        run: python3 tools/check_committed_hero_production.py
+      - name: Export 63 source-authored production hero Sprite atlases
+        run: python3 tools/export_canonical_hero_atlases.py
+      - name: Hard-gate fake/reused Attack and Cast contact drawings; report 18 missing art slots
+        run: python3 tools/check_hero_contact_art.py
+      - name: Enforce 18 unique integrated contacts for an explicit art-release candidate
+        if: ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release(hero-contacts):') }}
+        run: python3 tools/check_hero_contact_art.py --release
+      - name: Stage regenerated canonical hero Sprite resources for live bridge checks
+        run: |
+          python3 tools/install_canonical_hero_atlases.py
+          python3 tools/check_installed_hero_atlases.py
+      - name: Reject N/S walking action flashes and preserve source-frame comparison
+        run: python3 tools/check_hero_directional_action_bridges.py
+      # Unity builds asmdefs as separate DLLs. Mono's one-file-list compile
+      # can pass even when Editor tests reference Starfall.Runtime illegally.
+      - name: Fail on missing Unity assembly dependencies before game tests
+        run: python3 tools/check_unity_assembly_graph.py
       - name: Run actual C# gameplay checks
         run: python3 tools/run_core_tests.py
+      - name: Stage only first-publish original NPC art before live C# draw verification
+        if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[publish-resident-art]') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f Assets/Resources/Frontier/Art/EmberfallResidents.png ]; then
+            # Never overwrite a committed broken sprite to camouflage regression.
+            python3 tools/check_emberfall_residents.py
+          else
+            python3 tools/generate_emberfall_residents.py --install
+            python3 tools/check_emberfall_residents.py
+          fi
+      - name: Check production combat input with offline Unity declarations
+        run: python3 tools/run_combat_input_checks.py
+      - name: Compile Frontier Editor menu and importer code with offline declarations
+        run: python3 tools/check_editor_syntax.py
+      - name: Compile actual UNITY_5_3_OR_NEWER hero SpriteRenderer and inject invalid API
+        run: python3 tools/check_native_hero_capture_compile.py
+      - name: Reconstruct actual three-class action frame traces into GPU-free review filmstrips
+        run: python3 tools/render_hero_gameplay_traces.py
+      - name: Sprite animation QA - original hero, Boss cues and remastered PNGs
+        run: python3 tools/check_visual_sprites.py
+      - name: Enforce single-class waist/palette/proportion QA for all Sprite cells
+        run: python3 tools/check_hero_whole_body_integrity.py
+      - name: Hard-fail real installed full-body connectedness, boots, gold identity and Sprite GUID regressions
+        run: python3 tools/check_hero_production_anatomy.py
+      - name: Audit production Sprite continuity and emit offline frame comparison GIFs
+        run: python3 tools/check_hero_runtime_continuity.py
+      - name: Require byte-exact source-authored hero animations with zero body warps
+        run: python3 tools/check_hero_generated_motion.py
+      - name: Audit locked hero visual identity, registered hand hints and foot anchor
+        run: python3 tools/check_hero_visual_spec.py
+      - name: Compile nonhero SpriteRenderer and hard-gate Boss, monster, NPC production cells
+        run: python3 tools/check_native_nonhero_capture.py
+      - name: Strictly audit original 24-frame nonhero art and its live GameCore mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=()
+          if git log -1 --format=%B | grep -Fq '[publish-mossbound-art]'; then
+            opts+=(--allow-unpublished)
+          fi
+          python3 tools/check_mossbound_raider.py "${opts[@]}"
+      - name: Verify three Briar Beast stages and 72 whole-body Boss cells
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=()
+          if git log -1 --format=%B | grep -Fq '[publish-briar-art]'; then
+            opts+=(--allow-unpublished)
+          fi
+          python3 tools/check_briar_beast.py "${opts[@]}"
+      - name: Hard-gate original Emberfall guild and forge NPC action sprites
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=()
+          if git log -1 --format=%B | grep -Fq '[publish-resident-art]'; then
+            opts+=(--allow-unpublished)
+          fi
+          python3 tools/check_emberfall_residents.py "${opts[@]}"
+      - name: Check live SpriteRenderer hero bridge and accepted sources
+        run: python3 tools/check_live_sprite_bridge.py
+      - name: Audit three-class animation frame continuity and provenance
+        run: python3 tools/check_hero_temporal_qa.py
+      - name: Preserve sprite QA filmstrips, onion-skins and GIFs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-sprite-qa
+          path: |
+            .starfall-checks/sprite-qa/
+            .starfall-checks/hero-animation-qa/
+            .starfall-checks/hero-production-atlases/
+            .starfall-checks/hero-runtime-qa/
+            .starfall-checks/hero-committed-qa/
+            .starfall-checks/hero-gameplay-traces/
+            .starfall-checks/phase2-mossbound/
+            .starfall-checks/phase2-briar/
+            .starfall-checks/phase2-residents/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish-approved-hero-sprites:
+    # One-shot, explicitly marked development handoff. A GITHUB_TOKEN push
+    # does not spawn another CI run. Do not create an autonomous commit loop.
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && (contains(github.event.head_commit.message, '[publish-hero-art]') || startsWith(github.event.head_commit.message, 'release(hero-contacts):')) }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and inspect actual three-class production sheets
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil python3-fonttools
+          python3 tools/build_hero_animation_preview.py
+          python3 tools/export_canonical_hero_atlases.py
+          python3 tools/check_hero_generated_motion.py
+          python3 tools/check_hero_whole_body_integrity.py
+          python3 tools/check_hero_visual_spec.py
+          python3 tools/install_canonical_hero_atlases.py
+          # The checkout intentionally does not hydrate unrelated Git LFS art.
+          # Validate the 63 freshly installed production textures instead.
+          python3 tools/check_installed_hero_atlases.py
+          python3 tools/check_hero_runtime_continuity.py
+          python3 tools/check_hero_directional_action_bridges.py
+      - name: Enforce 18 installed original-contact drawings for final art-release tag
+        if: ${{ startsWith(github.event.head_commit.message, 'release(hero-contacts):') }}
+        run: python3 tools/check_hero_contact_art.py --release
+      - name: Safe fast-forward publish into the ONLY writable branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          current="$(git rev-parse refs/remotes/origin/chatgpt/dev)"
+          if [ "$current" != "$GITHUB_SHA" ]; then
+            echo "Concurrent developer advanced chatgpt/dev: refusing stale asset publication."
+            exit 1
+          fi
+          git add -- Assets/Resources/Frontier/HeroAnimator.meta \
+            Assets/Resources/Frontier/HeroAnimator/Canonical.meta \
+            Assets/Resources/Frontier/HeroAnimator/Canonical/
+          if git diff --cached --quiet; then
+            echo "All production sheets already published; nothing to commit."
+            exit 0
+          fi
+          git -c user.name='Starfall AI-2' \
+              -c user.email='71573141+jinze909@users.noreply.github.com' \
+            commit -m 'feat(hero-art): integrate 63 verified Sprite sheets and Unity meta [published-hero-art]'
+          git fetch --no-tags origin chatgpt/dev
+          refreshed="$(git rev-parse refs/remotes/origin/chatgpt/dev)"
+          if [ "$refreshed" != "$current" ]; then
+            echo "Remote advanced before upload: refusing force push."
+            exit 1
+          fi
+          git push origin HEAD:refs/heads/chatgpt/dev
+
+  publish-original-mossbound-art:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-mossbound-art]') }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Paint 24 approved source-code poses, enforce full-body visual hard gates
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil
+          python3 tools/generate_mossbound_raider.py --install
+          python3 tools/check_mossbound_raider.py
+      - name: Fast-forward publish PNG only to the authorized AI-2 branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Branch advanced; refusing stale art publication"; exit 1; }
+          git add -- Assets/Resources/Frontier/Art/MossboundRaider.png
+          git diff --cached --quiet && exit 0
+          git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(nonhero-art): publish 24 authored melee-raider frames [published-mossbound-art]'
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Concurrent branch advance; no force push"; exit 1; }
+          git push origin HEAD:refs/heads/chatgpt/dev
+
+  publish-original-briar-beast:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-briar-art]') }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rasterize and hard-audit 72 phase-specific Boss poses
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil
+          python3 tools/generate_briar_beast.py --install
+          python3 tools/check_briar_beast.py
+      - name: Safe fast-forward publish real Boss PNG only to chatgpt/dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Concurrent head advanced, refusing art publish"; exit 1; }
+          git add -- Assets/Resources/Frontier/Art/BriarBeast.png
+          git diff --cached --quiet && exit 0
+          git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(boss-art): integrate 72 Briar Beast phase Sprite cells [published-briar-art]'
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "No force push; remote changed"; exit 1; }
+          git push origin HEAD:refs/heads/chatgpt/dev
+
+  publish-emberfall-residents:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-resident-art]') }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rasterize and validate 16 entire resident action poses
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil
+          python3 tools/generate_emberfall_residents.py --install
+          python3 tools/check_emberfall_residents.py
+      - name: Guarded real Git PNG publication exclusively to chatgpt/dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Head changed, refusing stale NPC publish"; exit 1; }
+          git add -- Assets/Resources/Frontier/Art/EmberfallResidents.png
+          git diff --cached --quiet && exit 0
+          git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(npc-art): publish 16 whole-body Emberfall guild/forge action frames [published-resident-art]'
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Concurrent changes, refusing non-fast-forward"; exit 1; }
+          git push origin HEAD:refs/heads/chatgpt/dev

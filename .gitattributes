@@ -58,3 +58,15 @@
 /docs/previews/*.png -filter -diff -merge
 
 /Assets/Resources/Frontier/Art/*.png -filter -diff -merge
+
+# Real production sprite sheets generated from approved blonde source art.
+/Assets/Resources/Frontier/HeroAnimator/Canonical/*.png -filter -diff -merge
+
+# Original phase-2 runtime nonhero animation atlas (not an LFS pointer).
+/Assets/Resources/Frontier/Art/MossboundRaider.png -filter -diff -merge
+
+# Authored three-stage Thornwood Boss: 72 complete 320px Sprite cells.
+/Assets/Resources/Frontier/Art/BriarBeast.png -filter -diff -merge
+
+# Phase-2 authored guild/forge full-body sprite sheet (real PNG, no LFS pointer).
+/Assets/Resources/Frontier/Art/EmberfallResidents.png -filter -diff -merge

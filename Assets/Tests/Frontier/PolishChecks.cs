@@ -15,6 +15,33 @@ namespace Starfall.Tests
             g.save.x = 15; g.save.y = 13; g.aim = new Point(1, 0); g.Skill(); for (int i = 0; i < 40 && g.practicing; i++) g.Tick(.05f, new Point());
             Check(!g.practicing && g.save.practiceBits == 7, "Actual Q impact completes practice");
         }
+        public static void PracticeExitRetiresDummyHazardsAndEarnedCounter(Campaign data)
+        {
+            var g=Fresh(data);
+            g.enemies.Clear();g.save.x=17;g.save.y=15;
+            Point exit=g.Position;float health=g.save.health;
+            g.StartPractice();
+            Check(g.practicing&&g.enemies.Count==1,
+                "Entering authentic practice creates the temporary dummy");
+            var warning=new Hazard{position=exit,radius=1.5f,timer=1.4f,damage=999,kind="rift"};
+            g.hazards.Add(warning);
+            g.perfectDodgeArmed=true;g.combo=2;g.comboTimer=1f;
+            g.riposteTime=1.5f;g.playerFlash=.4f;g.impactShake=.2f;
+            g.EndPractice();
+            Check(!g.practicing&&g.mode=="world"&&g.hazards.Count==0&&
+                  g.enemies.Count==0&&g.projectiles.Count==0&&
+                  (g.Position-exit).Length<.001f,
+                "Aborting a genuine dummy session restores town location without leaking timed danger");
+            Check(g.combo==0&&g.comboTimer==0&&g.riposteTime==0&&
+                  !g.perfectDodgeArmed&&g.playerFlash==0&&g.impactShake==0,
+                "No fake combo/temporary perfect-dodge or hit-reaction bonus survives exiting practice");
+            for(int i=0;i<35;i++)g.Tick(.05f,new Point());
+            Check(g.save.health==health&&!g.Dying,
+                "Town travel after practice cannot be struck by a retired training explosion");
+            PracticeRun(g);
+            Check(g.hazards.Count==0&&!g.practicing&&g.riposteTime==0,
+                "Completing the entire actual combat tutorial also retires its own red circles");
+        }
         public static void InteractivePracticeAndReplay(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
@@ -79,6 +106,26 @@ namespace Starfall.Tests
             var controls = new[] { new FocusControl { id = "left", x = 0, y = 0, w = 100, h = 40, enabled = true }, new FocusControl { id = "disabled", x = 110, y = 0, w = 100, h = 40, enabled = false }, new FocusControl { id = "right", x = 220, y = 0, w = 100, h = 40, enabled = true }, new FocusControl { id = "down", x = 0, y = 60, w = 100, h = 40, enabled = true } };
             n.SetControls(controls); n.Move(new Point(1, 0)); Check(n.focused == "right" && !n.CanActivate("disabled"), "Arrow navigation skips disabled controls"); n.Move(new Point(-1, 0)); n.Move(new Point(0, 1)); Check(n.focused == "down", "Focus follows visual geometry"); n.Cycle(1); Check(n.focused == "left", "Sequential navigation wraps predictably");
             n.Select("right"); n.Scope("map"); n.SetControls(controls); n.Scope("inventory"); n.SetControls(controls); Check(n.focused == "right", "Returning to a menu restores its focus");
+            // Runtime InputScope includes conversation.GetHashCode() and page.
+            // Visiting hundreds of NPCs must neither retain one-use pages
+            // indefinitely nor steal the currently selected inventory action.
+            var cache = (Dictionary<string, string>)typeof(MenuNavigation)
+                .GetField("remembered", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic).GetValue(n);
+            for (int dialog = 0; dialog < 500; dialog++)
+            {
+                n.Scope("dialog/" + dialog + "/0"); n.SetControls(controls);
+                Check(n.focused == "left",
+                    "Each new dialogue starts with fresh focus rather than a previous speaker's choice");
+                n.Select("down");
+                n.Scope("dialog/" + dialog + "/1"); n.SetControls(controls);
+                n.Scope("inventory"); n.SetControls(controls);
+                Check(n.focused == "right",
+                    "NPC dialogue never steals the last selected permanent menu control");
+            }
+            Check(cache.Count <= 3,
+                "One-use conversation identities must not accumulate forever in the focus cache");
+
         }
         public static void SoundFeedbackAndRegionalScores(Campaign data)
         {
@@ -86,5 +133,328 @@ namespace Starfall.Tests
             foreach (int room in new[] { 0, 1, 5, 6, 7, 8 }) { var music = AudioSynthesis.Music(AudioSynthesis.Theme(room, false)); Check(music.Length == AudioSynthesis.Rate * 16 && Math.Abs(music[0]) < .01f && Math.Abs(music[music.Length - 1]) < .01f, "Regional music fades cleanly at loop boundaries"); }
             var g = Fresh(data); g.sounds.Clear(); g.sound = "hit"; g.sound = "quest"; Check(g.sounds.Count == 2 && g.sounds.Dequeue() == "hit", "Multiple events in one frame retain their audio cues");
         }
+        public static void TravelClearanceAndCivicEnemyHudUseExactRealDistances(Campaign data)
+        {
+            var g=Fresh(data);
+            g.enemies.Clear();g.save.x=12;g.save.y=12;
+            var foe=new Enemy(454,0,17.999f,12,25);
+            g.enemies.Add(foe);
+            Check(!g.SafeTravel,"An enemy just inside the normal six-tile safety range blocks travel");
+            foe.x=18;
+            Check(g.SafeTravel,"An enemy exactly at the six-tile limit permits travel");
+            foe.x=17;foe.y=15;
+            Check(!g.SafeTravel,"Diagonal enemies use actual two-axis distance, not a box");
+            foe.x=17;foe.y=16;
+            Check(g.SafeTravel,"Out-of-range diagonal enemies do not block travel");
+            g.save.frontierEnding=2;
+            foe.x=15.999f;foe.y=12;
+            Check(!g.SafeTravel,"The established four-tile ending still uses the smaller warning range");
+            foe.x=16;
+            Check(g.SafeTravel,"Four-tile range retains its exact exclusive boundary");
+            g.enemies.Clear();
+            Check(g.SafeTravel,"A cleared battlefield restores ordinary safe travel");
+            // The shooter may be outside aggro range while its live arrow
+            // remains dangerous next to the player.
+            var arrow=new Projectile { position=new Point(13,12),
+                velocity=new Point(-6,0),damage=12,life=2,source="shot" };
+            g.projectiles.Add(arrow);
+            Check(!g.SafeTravel,"A live hostile projectile near the hero blocks instant escape");
+            arrow.friendly=true;
+            Check(g.SafeTravel,"Our own projectile never locks unrelated fast travel");
+            arrow.friendly=false;arrow.life=0;
+            Check(g.SafeTravel,"Expired hostile projectile does not block safe travel");
+            arrow.life=2;arrow.damage=0;
+            Check(g.SafeTravel,"Harmless preview projectiles do not create false travel danger");
+            arrow.damage=12;arrow.position=new Point(16,12);
+            Check(g.SafeTravel,"Active arrow at the exact four-tile boundary remains outside danger radius");
+            arrow.position=new Point(15.99f,12);
+            Check(!g.SafeTravel,"Approaching arrow is blocked with the same radius as local enemies");
+            g.projectiles.Clear();
+            var watch=Fresh(data);watch.save.stage=4;
+            watch.save.flags.Add("exp_intro");
+            watch.save.flags.Add("civic_supply_complete");
+            watch.save.flags.Add("harbor_report");
+            watch.save.flags.Add("civic_supply_watch_3");
+            watch.save.flags.Add("far_shelter_3");
+            watch.Enter(3);watch.enemies.Clear();
+            var refuge=Object(watch,"farshelter");
+            watch.save.x=refuge.x;watch.save.y=refuge.y;
+            Action(watch,"farshelter","civic_response_start");
+            Check(watch.CivicResponseEnemiesAlive==2,
+                "Actual live road-watch correctly counts both mission attackers");
+            var unrelated=new Enemy(455,0,refuge.x+20,refuge.y,20);
+            watch.enemies.Add(unrelated);
+            Check(watch.CivicResponseEnemiesAlive==2,
+                "Unrelated regional patrols cannot inflate the transient objective HUD");
+            watch.enemies.RemoveAll(e=>e.id==90206);
+            Check(watch.CivicResponseEnemiesAlive==1,
+                "Mission count changes immediately when a real watch actor retires");
+            watch.enemies.Clear();
+            Check(watch.CivicResponseEnemiesAlive==0,
+                "Zero surviving mission attackers shows zero without a stale display cache");
+        }
+
+        public static void FieldCampMenuShowsRestOnlyWhenActuallyAvailable(Campaign data)
+        {
+            var g=Unlocked(data);g.Enter(5);g.enemies.Clear();
+            WorldObject fire=Object(g,"campfire");
+            g.save.projects[1]=0;g.Talk(fire);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")<0&&g.conversation.textEn.Contains("Build the Emberfall"),
+                "An unbuilt waystation cannot advertise free camp rest");
+            g.Close();g.save.projects[1]=1;g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")>=0,
+                "Unlocked and peaceful camp offers its real twenty-second rest action");
+            g.Close();
+            var enemy=new Enemy(843,0,g.save.x+1,g.save.y,80){timer=99};
+            g.enemies.Add(enemy);g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")<0&&g.conversation.textEn.Contains("unsafe"),
+                "Active nearby enemies hide the rest choice and explain the danger in the existing dialog");
+            g.Close();g.enemies.Clear();
+            var warning=new Hazard{position=g.Position,radius=2,damage=10,timer=.2f,kind="rift"};
+            g.hazards.Add(warning);g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")<0,
+                "A live damaging red circle also hides resting rather than advertising a denied action");
+            g.Close();g.hazards.Clear();g.Talk(fire);
+            Check(Array.FindIndex(g.conversation.choices,
+                  c=>c.action=="fieldrest")>=0,
+                "The normal camp rest option returns as soon as combat ends");
+        }
+        public static void LiveGlasswindTrialCannotSkipTheFieldRestClock(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"harbor_report","desert_report","gate_6"})
+                g.save.flags.Add(flag);
+            WorldObject mia=Object(g,"glasswindkeeper");
+            g.save.x=mia.x;g.save.y=mia.y;
+            Action(g,"glasswindkeeper","glasswind_accept");
+            Check(g.Has("glasswind_started"),
+                "Test starts the actual accepted optional relay campaign at the town NPC");
+            g.Enter(6);g.enemies.Clear();
+            var valve=Object(g,"glasswindrelay1");
+            g.save.x=valve.x;g.save.y=valve.y;
+            Action(g,valve.kind,"glasswind_start_1");
+            Check(g.GlasswindSite==1,
+                "A physical relay valve starts the timed capture encounter");
+            // Captured wave transitions briefly leave no active hostiles;
+            // safety alone cannot authorize skipping a still-running mission.
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            g.save.projects[1]=2;
+            Check(g.SafeTravel,"The crafted gap between waves has no nearby combat pressure");
+            float time=g.save.totalTime,health=g.save.health,relayTime=g.GlasswindTime;
+            g.conversation=new Conversation("营地","Camp","休整","Rest",
+                new Choice("休整","Rest","fieldrest"));g.mode="dialog";g.Choose(0);
+            Check(g.GlasswindSite==1&&g.GlasswindTime==relayTime&&
+                  g.save.totalTime==time&&g.save.health==health,
+                "Field rest cannot advance or erase a paid real-time relay capture between combat waves");
+        }
+        public static void FieldCampRestAdvancesCombatTimeAndCannotSkipLiveCivilianWork(Campaign data)
+        {
+            var g=Unlocked(data);g.save.projects[1]=2;g.Enter(5);g.enemies.Clear();
+            g.save.flags.Add("companion_0");g.SelectCompanion(0);
+            g.save.health=23;g.save.energy=100;g.Skill();g.CommandCompanion();
+            Check(g.skillCooldown>0&&g.companionCooldown>0,
+                "Real camp setup begins two independent skill cooldowns");
+            var shortShot=new Projectile{position=g.Position,friendly=true,
+                velocity=new Point(1,0),damage=0,life=4};
+            var longShot=new Projectile{position=g.Position,friendly=true,
+                velocity=new Point(1,0),damage=0,life=48};
+            var hazard=new Hazard{position=g.Position,radius=1,timer=.5f,damage=0,kind="rift"};
+            g.projectiles.Add(shortShot);g.projectiles.Add(longShot);g.hazards.Add(hazard);
+            float before=g.save.totalTime;
+            Action(g,"campfire","fieldrest");
+            Check(g.save.totalTime==before+20&&g.save.health==g.save.maxHealth&&
+                  g.save.energy==100&&g.skillCooldown==0&&g.companionCooldown==0&&
+                  g.playerAction==null&&g.companionAction==null,
+                "Actual 20-second field rest ends active skills and their elapsed cooldowns");
+            Check(!g.projectiles.Contains(shortShot)&&g.projectiles.Contains(longShot)&&
+                  Math.Abs(longShot.life-28)<.001f&&!g.hazards.Contains(hazard),
+                "Field camp correctly expires a 4-second shot and red circle while ageing a persistent missile by 20 seconds");
+            g.save.tea=999;
+            string ration="camptea_"+g.Day;
+            g.save.flags.Remove(ration);
+            Action(g,"campfire","fieldrest");
+            Check(g.save.tea==999&&!g.Has("camptea_"+g.Day),
+                "A full saved tea stack does not consume its once-per-day ration");
+            g.DrinkTea();
+            Action(g,"campfire","fieldrest");
+            Check(g.save.tea==999&&g.Has("camptea_"+g.Day),
+                "An unclaimed daily camp ration can be collected after making room");
+
+            var mission=Fresh(data);mission.save.stage=4;
+            mission.save.flags.Add("last_directive_complete");
+            mission.save.flags.Add("last_directive_open");
+            mission.Enter(4);mission.enemies.Clear();
+            var terminal=Object(mission,"civicconduitmaster");
+            mission.save.x=terminal.x;mission.save.y=terminal.y;
+            Action(mission,"civicconduitmaster","civic_conduit_start");
+            Check(mission.CivicConduitActive,"A real paid conduit must start before testing time-skip exploits");
+            mission.save.projects[1]=2;
+            float missionTime=mission.save.totalTime,health=mission.save.health;
+            mission.conversation=new Conversation("营地","Camp","休整","Rest",
+                new Choice("休整","Rest","fieldrest"));mission.mode="dialog";
+            mission.Choose(0);
+            Check(mission.CivicConduitActive&&mission.save.totalTime==missionTime&&
+                  mission.save.health==health,
+                "Even a stale field-camp rest command cannot skip the live conductor's timer or silently abort the paid mission");
+        }
+        public static void InnRestActuallyClearsExpiredCombatCooldowns(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);
+            g.enemies.Clear();
+            g.save.energy=100;
+            g.Skill(new Point(1,0));
+            Check(g.skillCooldown>0,"A real Q cast starts its usual combat cooldown");
+            g.CommandCompanion();
+            Check(g.companionCooldown>0,"A real companion order starts a separate cooldown");
+            g.dashCooldown=.4f;
+            g.attackCooldown=.3f;
+            g.guardTime=.5f;
+            var ordinaryShot=new Projectile { friendly=true,
+                position=g.Position, velocity=new Point(1,0),damage=5,life=3 };
+            var persistentShot=new Projectile { friendly=true,
+                position=g.Position, velocity=new Point(0,1),damage=0,life=90 };
+            g.projectiles.Add(ordinaryShot);
+            g.projectiles.Add(persistentShot);
+            var flash=new Effect("release",g.Position,.25f);
+            g.effects.Add(flash);
+            // Harmless expired warning tests time-skip cleanup; the separate
+            // area-combat test verifies damaging warnings correctly deny rest.
+            var warning=new Hazard{position=g.Position,radius=1.5f,timer=.3f,damage=0,kind="rift"};
+            var lasting=new Hazard{position=g.Position+new Point(20,0),radius=1,timer=90,damage=0,kind="rift"};
+            g.hazards.Add(warning);g.hazards.Add(lasting);
+            g.perfectDodgeArmed=true;
+            g.invulnerable=.3f;g.playerFlash=.2f;g.impactShake=.1f;
+            g.Close();
+            float before=g.save.totalTime;
+            Action(g,"rest","rest");
+            Check(Math.Abs(g.save.totalTime-before-45)<.001f&&
+                  g.skillCooldown==0&&g.dashCooldown==0&&g.attackCooldown==0&&
+                  g.companionCooldown==0&&g.guardTime==0&&g.playerAction==null,
+                "A 45-second bed rest restores skill, companion, dodge and attack readiness");
+            Check(!g.projectiles.Contains(ordinaryShot) &&
+                  g.projectiles.Contains(persistentShot) && persistentShot.life==45&&
+                  !g.effects.Contains(flash),
+                "45-second rest expires short shots and deducts actual elapsed time from longer scripted projectile lifetimes");
+            Check(!g.hazards.Contains(warning)&&g.hazards.Contains(lasting)&&
+                  lasting.timer==45&&g.invulnerable==0&&!g.perfectDodgeArmed&&
+                  g.playerFlash==0&&g.impactShake==0,
+                "Real rest expires near-term red warnings, invulnerability and dodge feedback, preserving only long-lived hazards");
+            g.save.energy=100;
+            g.Skill(new Point(1,0));
+            Check(g.skillCooldown>0,
+                "The same skill can be used normally after the player has rested");
+        }
+
+        public static void CombatCannotBeSkippedThroughInnHealing(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.x=18;g.save.y=15;
+            var inn=Object(g,"rest");
+            g.save.health=18;g.save.energy=11;
+            float time=g.save.totalTime;
+            var near=new Enemy(9119,0,g.save.x+1,g.save.y,40);
+            g.enemies.Add(near);
+            g.Talk(inn);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rest")<0,
+                "Inn menu refuses to advertise free healing while enemies are within the safe-travel radius");
+            g.Close();
+            g.conversation=new Conversation("旅店","Inn","休息","Rest",
+                new Choice("休息","Rest","rest"));g.mode="dialog";g.Choose(0);
+            Check(g.save.health==18&&g.save.energy==11&&g.save.totalTime==time,
+                "A stale rest command cannot heal during combat or skip world time");
+            g.enemies.Clear();
+            var arrow=new Projectile{position=g.Position+new Point(1,0),
+                velocity=new Point(-5,0),friendly=false,damage=10,life=2};
+            g.projectiles.Add(arrow);
+            g.Talk(inn);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rest")<0,
+                "An incoming hostile arrow is also a real rest interruption");
+            g.Close();
+            g.projectiles.Clear();
+            g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);
+            g.save.energy=100;g.CommandCompanion();
+            Check(g.companionAction!=null,"A real companion cast is awaiting release");
+            Action(g,"rest","rest");
+            Check(g.save.totalTime==time+45&&g.save.health==g.save.maxHealth&&
+                  g.save.energy==100&&g.companionAction==null,
+                "Clearing combat restores normal rest and cancels obsolete companion spell release");
+        }
+
+        public static void TalentRefundCannotOverflowSavedSkillPoints(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.coins=75;
+            g.save.skillPoints=95;
+            g.save.talents[0]=5;g.save.talents[1]=5;
+            g.save.maxHealth=100+g.save.upgrades*20+60+
+                (g.save.profession==0?20:0);
+            g.save.health=g.save.maxHealth;
+            int originalHealth=(int)g.save.health,coins=g.save.coins;
+            Check(!g.CanResetTalents,
+                "UI correctly disables a respec whose ten-point refund would exceed the v2 99-point save limit");
+            g.ResetTalents();
+            Check(g.save.coins==coins&&g.save.skillPoints==95&&
+                g.save.talents[0]==5&&g.save.talents[1]==5&&
+                g.save.health==originalHealth&&g.toast.Contains("99"),
+                "Even a direct respec call must not charge coins, alter stats or discard invested skills on overflow");
+            g.save.skillPoints=89;
+            Check(g.CanResetTalents,"A complete refund exactly to the 99-point cap is allowed");
+            g.ResetTalents();
+            Check(g.save.coins==coins-20&&g.save.skillPoints==99&&
+                g.save.talents[0]==0&&g.save.talents[1]==0&&
+                g.save.health<=g.save.maxHealth,
+                "Valid exact-cap respec refunds every point without truncation");
+            var reloaded=new GameCore(data,g.save);
+            Check(reloaded.save.skillPoints==99&&reloaded.save.talents[0]==0,
+                "Saved v2 progression retains the full refunded total after reloading");
+        }
+
+        public static void LiveAreaWarningsBlockVoluntaryEscapeAndRest(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.x=18;g.save.y=15;
+            var inn=Object(g,"rest");
+            g.save.health=37;g.save.energy=21;
+            float start=g.save.totalTime;
+            var hazard=new Hazard { position=g.Position+new Point(6.4f,0),
+                radius=1.1f,damage=20,timer=.8f,kind="rift" };
+            g.hazards.Add(hazard);
+            Check(!g.SafeTravel,"The edge of an active damaging blast intersects the player's travel safety circle");
+            g.Talk(inn);
+            Check(g.mode=="dialog"&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rest")<0,
+                "Inn menu cannot skip the active area-warning telegraph");
+            g.Close();
+            g.conversation=new Conversation("旅店","Inn","休息","Rest",
+                new Choice("休息","Rest","rest"));g.mode="dialog";g.Choose(0);
+            Check(g.save.health==37&&g.save.energy==21&&g.save.totalTime==start,
+                "Forged/stale rest action cannot heal or erase a warning mid-combat");
+            g.ReturnToTown();
+            Check(g.save.room==0&&g.hazards.Contains(hazard),
+                "Town rest/fast-return rejection retains the actual warning");
+            hazard.position=g.Position+new Point(7.1f,0);
+            Check(g.SafeTravel,"A warning outside the combined blast and safety range does not block travel");
+            hazard.position=g.Position;hazard.damage=0;
+            Check(g.SafeTravel,"Non-damaging tutorial decals cannot block travel");
+            hazard.damage=20;hazard.timer=0;
+            Check(!g.SafeTravel,"A zero-timer contact stays dangerous until world simulation retires it");
+            hazard.timer=-.1f;
+            Check(!g.SafeTravel,"Overdue but not yet delivered area damage cannot be bypassed by travel");
+            g.hazards.Clear();
+            Check(g.SafeTravel,"Removing a resolved warning immediately restores normal travel clearance");
+            Action(g,"rest","rest");
+            Check(g.save.totalTime==start+45&&g.save.health==g.save.maxHealth,
+                "Once danger has actually ended, normal 45-second inn recovery still works");
+        }
+
     }
 }

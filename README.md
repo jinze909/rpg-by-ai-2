@@ -8,11 +8,23 @@
 
 本轮继续检查延迟伤害与恢复状态，修复 Q 前摇/连锁击杀后属性变化、冰霜借用后来装备与位置、某些帧间隔多一次冰霜伤害、同伴替玩家完成教学，以及深渊操作打断死亡恢复。62组生产核心回归通过，含三职业18,000帧组合操作。复现与修复见 [DELAYED-SKILL-RECOVERY-BUGFIX.md](docs/DELAYED-SKILL-RECOVERY-BUGFIX.md)，最终验证见 [QA-REPORT.json](docs/QA-REPORT.json)。此前状态边界修复和全项目逐项复查继续保留。
 
-上一版建立的人物256图格、固定脚底、独立头部、22张角色图集注册和44张预生成遮罩继续保留。没有新增职业、地图或玩法。尺寸、握持与逐帧预览记录见 [FRAME-CONTINUITY-POLISH.md](docs/FRAME-CONTINUITY-POLISH.md)。
+历史登记的 256 图格、22 张角色原始注册和 44 张预生成遮罩资料仍保留，供审计参考；**旧独立头部、腰部拼接算法已退出当前主角正式运行时**。真实迁移状态及未完成原画见 [动画根因与现状](docs/HERO-ANIMATION-ROOT-CAUSE-2026-10.md)，早期尺寸／握持修复记录见 [FRAME-CONTINUITY-POLISH.md](docs/FRAME-CONTINUITY-POLISH.md)。
+
+## 当前 AI-2 开发版本（2026-10-15）
+
+**真实开发仓库：** [`jinze909/rpg-by-ai-2`](https://github.com/jinze909/rpg-by-ai-2)，**活跃工作分支：`chatgpt/dev`**。GitHub 默认 `main` 仍是旧基线，`codex-cli/dev` 是另一条开发流；不要把默认 main 的页面误当作 AI-2 最新游戏。使用本项目时应从 `chatgpt/dev` 拉取完整工程。
+
+当前三职业（先锋、游侠、星术师）共享**同一金发主角**。正式运行时采用 63 张已发布的完整身体动作图集（256×256 单帧、脚底 `(128,240)`、128 PPU），`SpriteRenderer` 是默认绘制路线，安全 OnGUI 回退也使用相同的完整身体动作帧；左键攻击、Q、闪避、受击、死亡、轮廓和背包装备预览**不会故意退回旧 Player/Walk 人物**。**职业决定技能机制，装备决定可见外观**。这仍不代表艺术质量完全验收：18 张真正新绘制的 Attack/Cast 接触过渡原画、移动恢复期自然腿部步态，以及原生 Unity GameView 验收仍未完成，分别标记 `ART_REVIEW_REQUIRED`、`NATIVE_UNVERIFIED`。
+
+**开始开发：** [AI-2 约束](AGENTS.md) · [当前 AI-2 状态](docs/AI2-STATUS.md) · [GitHub CI／安全发布](docs/GITHUB-OPERATIONS.md) · [Unity 原生 QA](docs/UNITY-NATIVE-QA.md) · [提交贡献要求](CONTRIBUTING.md) · [动画真实根因](docs/HERO-ANIMATION-ROOT-CAUSE-2026-10.md)。
+
+**最新 CI 结果不要按本文中的历史数量推算**，应查看 [`chatgpt/dev` Actions](https://github.com/jinze909/rpg-by-ai-2/actions/workflows/core-tests.yml)。本页其余章节含早期版本的功能/迭代叙述，**不是新版本 CI 或美术验收证明**。
+
+---
 
 ## 启动
 
-1. **升级现有项目**：关闭 Unity，备份项目，覆盖包内 `Assets`、`Packages` 与 `ProjectSettings`；本轮也请更新 `ProjectSettings/ProjectVersion.txt`，清除旧的 C1 和 revision 信息。
+1. **获取正确分支**：备份旧工程，克隆／拉取本仓库 **`chatgpt/dev`**，从其包含 `Assets`、`Packages`、`ProjectSettings` 的工程根目录打开，保留原 `.meta` GUID 与 Git LFS 素材。不要把过期 ZIP 或 `main` 全量覆盖较新的 `chatgpt/dev`。
 2. 用国际版 **Unity 2022.3.53f1** 打开项目。版本文件只保留一行 `m_EditorVersion: 2022.3.53f1`。新建项目时选择 **2D / Built-In** 后关闭，再覆盖上述文件。若已能运行的国际版 2022.3 LTS 是其他补丁号，这一行填写它的真实版本号。
 3. 导入结束后双击 `Assets/Scenes/Frontier.unity`，点击 Play；也可用 **Starfall → Play Adventure**。
 4. 新游戏带八步入门与镇内三阶段实战练习；旧存档可直接继续，F1 随时查看十二类冒险指南。
@@ -115,11 +127,11 @@
 
 ## 验证与当前限制
 
-`python3 tools/run_core_tests.py` 会编译实际 C# 游戏核心，执行50组回归检查；Unity EditMode 提供对应包装和额外原生 JSON 检查。需要 Python 3 和 Mono (`mono-mcs`)。包含原主线三职业标准难度通关、港口三个方案与三个协定、三职业六层深渊、和平解决原主线、地图可达性、潮汐安全、气候与凉茶、竞速、遗物取舍、专精、每日赠礼、交易、生活、旧存档迁移与深渊断点恢复。还包含实战教学、能力支路、武器打法、遭遇快照、菜单焦点、声音规则、接触时序、飞行物、死亡途中恢复、室内碰撞、同伴动作同步、物理攻击/闪避阻挡，以及本轮出生脚底、涨潮前置、状态停止和历史缓存回归。
+`python3 tools/run_core_tests.py` 会编译实际 C# 游戏核心并执行当前回归检查；测试组数量会随开发变化，以实际输出和最新 Actions 为准。Unity EditMode 有对应包装与额外原生 JSON 检查，但不在普通 Mono CI 中执行。需要 Python 3 和 Mono (`mono-mcs`)。包含原主线三职业标准难度通关、港口三个方案与三个协定、三职业六层深渊、和平解决原主线、地图可达性、潮汐安全、气候与凉茶、竞速、遗物取舍、专精、每日赠礼、交易、生活、旧存档迁移与深渊断点恢复。还包含实战教学、能力支路、武器打法、遭遇快照、菜单焦点、声音规则、接触时序、飞行物、死亡途中恢复、室内碰撞、同伴动作同步、物理攻击/闪避阻挡，以及本轮出生脚底、涨潮前置、状态停止和历史缓存回归。
 
 也可在 Unity Test Runner 的 EditMode 中运行 `Starfall.Tests`。
 
-`Starfall → Visual QA → Open Review Lab` 提供独立的职业/地区/Boss测试场，可冻结、逐帧推进、实战与原生截图；测试场不写入旅程存档。Test Runner 的 PlayMode 中另有 `Starfall.VisualTests`。本环境未执行这些原生测试。`python3 tools/check_editor_syntax.py` 只检查其离线 C# 语法。
+`Starfall → Visual QA → Open Review Lab` 提供独立的职业/地区/Boss测试场，可冻结、逐帧推进、实战与原生截图；测试场不写入旅程存档。Test Runner 的 PlayMode 中另有 `Starfall.VisualTests`。本环境未执行这些原生测试。`python3 tools/check_editor_syntax.py` 只对 Editor 菜单／导入代码使用离线声明进行编译；`python3 tools/check_native_hero_capture_compile.py` 对真实 Unity 条件编译的主角 SpriteRenderer C# 进行独立离线编译及无效 API 故障注入。两者**均不是原生 Unity Editor PlayMode 验收**。
 
 开发环境没有 Unity 编辑器或 Player。核心检查已经执行；运行时 C# 的离线语法与布局检查已执行。**这不是 Unity 编辑器编译、真实窗口试玩、音频试听或平台构建验证**。请打开上述场景完成这一步。
 

@@ -11,6 +11,9 @@ namespace Starfall
         public float companionCooldown, raceTime, comboTimer, riposteTime;
         public int raceCheckpoint, combo;
         public bool racing, perfectDodgeArmed;
+        // Short-lived dodge escape proof, never serialized into old save files.
+        private Point dashOrigin;
+        private float dodgeEscapeTime;
         private float companionAttack, climateTimer, stormTimer;
         private MapData abyssMap;
         private bool previousLowTide;
@@ -32,7 +35,48 @@ namespace Starfall
         public int Proofs { get { return (Has("harbor_report") ? 1 : 0) + (Has("desert_report") ? 1 : 0) + (Has("mountain_report") ? 1 : 0); } }
         public int ProjectTiers { get { return save.projects[0] + save.projects[1] + save.projects[2]; } }
         public int CompanionCount { get { int n = 0; for (int i = 0; i < 3; i++) if (Has("companion_" + i)) n++; return n; } }
-        public bool SafeTravel { get { return !enemies.Exists(e => (e.Position - Position).Length < (save.frontierEnding == 2 ? 4 : 6)); } }
+        public bool SafeTravel
+        {
+            get
+            {
+                // This hot-path guard is queried by travel UI and many field
+                // interactions. Avoid a capturing predicate and repeated sqrt.
+                float dangerRadius = save.frontierEnding == 2 ? 4f : 6f;
+                float rangeSquared = dangerRadius * dangerRadius;
+                float x = save.x, y = save.y;
+                foreach (Enemy foe in enemies)
+                {
+                    float dx = foe.x - x, dy = foe.y - y;
+                    if (dx * dx + dy * dy < rangeSquared) return false;
+                }
+                // A nearby hostile shot can arrive after its archer has moved
+                // beyond the safety radius. A travel shortcut must not make
+                // an incoming arrow disappear while normal enemy travel gates
+                // are satisfied. Friendly shots do not block their caster.
+                foreach (Projectile shot in projectiles)
+                {
+                    if (shot.friendly || shot.life <= 0 || shot.damage <= 0)
+                        continue;
+                    float dx = shot.position.x - x, dy = shot.position.y - y;
+                    if (dx * dx + dy * dy < rangeSquared) return false;
+                }
+                // A live telegraphed explosion is also combat. Previously
+                // resting or quick travel could erase its pending contact
+                // even when its blast circle already covered the hero.
+                // Use circle intersection, including the damage radius.
+                foreach (Hazard warning in hazards)
+                {
+                    // A zero/negative timer is a pending contact, not a
+                    // retired warning: TickExpansion removes it only after
+                    // delivering its real area hit on the next world step.
+                    if (warning.damage <= 0) continue;
+                    float dx = warning.position.x - x, dy = warning.position.y - y;
+                    float reach = dangerRadius + Math.Max(0, warning.radius);
+                    if (dx * dx + dy * dy < reach * reach) return false;
+                }
+                return true;
+            }
+        }
         public int MasteryRank(int weapon) { return weapon < 0 || weapon > 2 ? 0 : Math.Min(5, save.mastery[weapon] / 20); }
         public bool Relic(int id) { return save.relics[0] == id || save.relics[1] == id; }
         public bool CanEnter(int room)
@@ -101,8 +145,8 @@ namespace Starfall
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
-            climateTimer = 1; stormTimer = 6; ClearFrost();
-            combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; previousLowTide = LowTide;
+            climateTimer = 1; stormTimer = 6; ClearFrost(); ResetFieldStationSurvey();
+            combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; dashOrigin = new Point(); dodgeEscapeTime = 0; previousLowTide = LowTide;
         }
         private bool SpawnExpansionRoom()
         {
@@ -137,6 +181,7 @@ namespace Starfall
         public void PrepareSave()
         {
             CaptureWorld();
+            CaptureReliefCheckpoint();
             if (!InAbyss) return;
             save.abyssSnapshotFloor = save.abyssFloor; save.abyssEnemies = new EnemyRecord[enemies.Count];
             for (int i = 0; i < enemies.Count; i++)
@@ -172,11 +217,24 @@ namespace Starfall
                 PrepareSave();
             }
         }
-        private void AddXp(int amount)
+        private void AddXp(int amount) { GrantXp(amount, false); }
+        private void GrantXp(int amount, bool announce)
         {
-            save.xp += amount;
-            while (save.xp >= save.level * 40 && save.level < 30)
-            { save.xp -= save.level * 40; save.level++; save.skillPoints++; save.health = save.maxHealth; }
+            if (save.level >= 30) { save.xp = 0; return; }
+            // Both combat and quest payouts share a saturating integer path.
+            // Normal gameplay cannot overflow XP after extended max-level play.
+            if (amount > 0)
+                save.xp = (int)Math.Min((long)int.MaxValue,
+                    (long)Math.Max(0, save.xp) + amount);
+            while (save.level < 30 && save.xp >= save.level * 40)
+            {
+                save.xp -= save.level * 40;
+                save.level++; save.skillPoints++; save.health = save.maxHealth;
+                if (announce)
+                    Notify("升级！生命回满，获得 1 技能点。按 K 分配。",
+                        "Level up! Health restored, +1 skill point. Open K to spend it.");
+            }
+            if (save.level >= 30) save.xp = 0;
         }
         private void Reputation(int faction, int amount) { save.reputation[faction] = Math.Min(10, save.reputation[faction] + amount); revision++; }
         private void RewardRelic(int id) { Flag("relic_" + id); sound = "reward"; }
@@ -188,7 +246,12 @@ namespace Starfall
         }
         public void SelectCompanion(int id)
         {
-            if (id < -1 || id > 2 || (id >= 0 && !Has("companion_" + id)) || !SafeTravel) return;
+            if (id < -1 || id > 2 || (id >= 0 && !Has("companion_" + id))) return;
+            // A repeated selection is not a party swap. Do not interrupt the
+            // current heal/volley, snap the ally back to the hero or postpone
+            // its next automatic action just because the same icon was tapped.
+            if (id == save.companion) return;
+            if (!SafeTravel) return;
             save.companion = id; companionAction = null; companionPosition = CompanionFollowTarget(); companionAttack = 1; revision++;
         }
         public void CompanionStory(int id)
@@ -199,9 +262,20 @@ namespace Starfall
         public void CommandCompanion()
         {
             if (mode != "world" || Dying || practicing || save.companion < 0 || companionCooldown > 0) return;
+            Point? target = aimTarget;
+            Point direction = aim;
+            if (target.HasValue)
+            {
+                Point toTarget = target.Value - companionPosition;
+                if (toTarget.Length > .05f) direction = toTarget.Normalized;
+                // Pointing at Ivo's own feet is not a firing direction.
+                // Fall back to the player's real facing instead of creating
+                // zero-speed arrows and wasting an 18-second command.
+                else target = null;
+            }
             companionCooldown = save.frontierEnding == 3 ? 12 : 18;
             companionAction = new ActorAction { kind = "command", weapon = save.companion, combo = save.relationships[save.companion], damage = Damage,
-                direction = aimTarget.HasValue?(aimTarget.Value-companionPosition).Normalized:aim, target=aimTarget, duration = .52f, contact = .2f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
+                direction = direction, target=target, duration = .52f, contact = .2f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
             companionAim = companionAction.direction;
         }
         private void ReleaseCompanionCommand(ActorAction action)
@@ -297,8 +371,19 @@ namespace Starfall
             }
             else if (save.profession == 1)
             {
-                effects.Add(new Effect("release", WeaponOrigin(Position, 1, aim), .18f) { direction = aim, variant = 1, height = WeaponHeight(1, aim) });
-                Projectile shot = FriendlyShot(Position, 1, aim, 17, action.damage * 3.4f, false, action.target, action.impact); shot.life = 2.5f; shot.piercing = shot.technique = true; projectiles.Add(shot);
+                // Charged Ranger skill with a sword/staff must still use
+                // the CURRENT equipped actor and muzzle, not bow cosplay.
+                int visualWeapon = action.equippedWeapon;
+                effects.Add(new Effect("release",
+                    WeaponOrigin(Position, visualWeapon, action.direction), .18f)
+                    { direction = action.direction, variant = visualWeapon,
+                      height = WeaponHeight(visualWeapon, action.direction) });
+                Projectile shot = FriendlyShot(Position, visualWeapon,
+                    action.direction, 17, action.damage * 3.4f, false,
+                    action.target, action.impact);
+                shot.life = 2.5f;
+                shot.piercing = shot.technique = true;
+                projectiles.Add(shot);
             }
             else { BeginFrost(Position,action.damage,action.impact??CaptureImpact(2)); }
         }
@@ -314,14 +399,174 @@ namespace Starfall
             TickCompanion(dt);
             TickFrost(dt);
             if(Dying||mode!="world")return;
+            // The tactical root pulse only cools down in the real world clock.
+            RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
+            if(FrostSignalRefuge&&SafeTravel&&!practicing&&!racing)
+            {
+                if(FrostSignalOutcome==1&&save.health>0&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.35f);
+                else if(FrostSignalOutcome==2)
+                    save.energy=Math.Min(100,save.energy+dt*3.6f);
+            }
+            if(MineConvoyRefuge&&!practicing&&!racing&&SafeTravel&&
+                save.health>0&&save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.7f);
+            // The Drowned Ruins civilian decision changes what real, local
+            // and safe ferry tideposts provide, never a map-wide passive buff.
+            if(FloodArchiveRefuge && SafeTravel && !practicing && !racing)
+            {
+                if(FloodArchiveChoice==1&&save.health>0&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.8f);
+                else if(FloodArchiveChoice==2)
+                    save.energy=Math.Min(100,save.energy+dt*3.2f);
+            }
+            // Persistent forest roots are safe, proximity-gated places to recover.
+            if(RootsongRefuge && SafeTravel && !practicing && !racing)
+                save.energy=Math.Min(100,save.energy+dt*2.3f);
             bool tea = save.teaUntil > save.totalTime;
-            save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) && !racing ? 1.3f : -10), 0, 100);
-            bool warm = false;
+            save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
+                !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
+                !GlasswindRefuge && !racing ? 1.3f : -10), 0, 100);
+            bool warm = FrostSignalRefuge;
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
-            save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm ? 1.1f : -8), 0, 100);
+            if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
+            save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
+                !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // Civilian supply decisions are *physical* services at the
+            // existing southern refuge, not unconditional global stat buffs.
+            // A distant shelter cannot heal the player in an active fight.
+            if(CivicSupplySite(save.room)&&FarShelterBuilt(save.room)&&
+                !Dying&&!practicing&&!racing&&SafeTravel&&
+                NearKind("farshelter",3.2f))
+            {
+                if(CivicSupplyClinic(save.room)&&save.health>0&&
+                    save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*(CivicResponseDone(save.room)?2.8f:1.9f));
+                if(CivicSupplyWatch(save.room))
+                    save.energy=Math.Min(100,save.energy+dt*(CivicResponseDone(save.room)?6.5f:4.5f));
+            }
+            // Signed service records circulate usable basic care among
+            // *all* repaired refuges. No regeneration from a map menu or
+            // from distant buildings; active combat always suspends it.
+            if(Has("civic_response_ledger")&&save.room>=0&&save.room<8&&
+                FarShelterBuilt(save.room)&&!Dying&&!practicing&&!racing&&
+                SafeTravel&&NearKind("farshelter",3.2f)&&
+                save.health>0&&save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*.75f);
+            // Chapter Ten's signed choice works at the original public town council
+            // or the reclaimed citadel terminal, never as a global cheat.
+            if(LastDirectiveChoice>0&&!Dying&&!practicing&&SafeTravel){
+                if(LastDirectiveChoice==1&&save.room==0&&
+                    NearKind("lastdirectiveboard",3.1f))
+                    save.energy=Math.Min(100,save.energy+dt*3.5f);
+                if(LastDirectiveChoice==2&&save.room==4&&
+                    NearKind("lastdirectivecore",3.1f)&&save.health>0&&
+                    save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*2.4f);
+            }
+            // The completed public grid routes one persistent, choice-specific
+            // service to every *actually rebuilt* shelter across all regions.
+            // Safe and physical proximity gates prevent remote/under-attack gains.
+            if(CivicConduitComplete&&save.room>=0&&save.room<8&&
+                FarShelterBuilt(save.room)&&!Dying&&!practicing&&!racing&&
+                SafeTravel&&NearKind("farshelter",3.2f))
+            {
+                if(LastDirectiveChoice==1)
+                    save.energy=Math.Min(100,save.energy+dt*2.7f);
+                else if(LastDirectiveChoice==2&&save.health>0&&
+                    save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*.85f);
+            }
+            // The first real starstorm changes regional public services.
+            // No remote regeneration, no healing under live enemy attack.
+            if(HearingOrrinResponsibility!=0 && save.room==4 &&
+                !Dying && !practicing && SafeTravel)
+            {
+                if(HearingOrrinResponsibility==1 &&
+                    NearKind("blackoutshelter",3.25f) && save.health>0 &&
+                    save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.6f);
+                if(HearingOrrinResponsibility==2 &&
+                    NearKind("shrine",3.15f))
+                    save.energy=Math.Min(100,save.energy+dt*4.4f);
+            }
+            if(HearingComplete && save.room>=1 && save.room<=3 &&
+                !Dying && !practicing && !racing && SafeTravel &&
+                NearKind("hearingplaque"+save.room,3.0f))
+            {
+                if(HearingHealthSite && save.health>0 && save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.55f);
+                if(HearingEnergySite)
+                    save.energy=Math.Min(100,save.energy+dt*3.8f);
+            }
+            if(HearingComplete && save.room==0 && !Dying &&
+                !practicing && SafeTravel && NearKind("hearingdais",3.1f))
+            {
+                if(HearingVerdict==1 && save.health>0 && save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.9f);
+                if(HearingVerdict==2)
+                    save.energy=Math.Min(100,save.energy+dt*5.2f);
+            }
+            if(StormShelterNearby && SafeTravel && !practicing && !racing &&
+                save.health>0 && save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*2.1f);
+            if(StormGridNearby && SafeTravel && !practicing && !racing)
+                save.energy=Math.Min(100,save.energy+dt*4.5f);
+            if(StormChapterComplete && save.room==0 && SafeTravel &&
+                !practicing && !racing && save.health>0 &&
+                save.health<save.maxHealth &&
+                NearKind("stormcouncil",3.1f))
+                save.health=Math.Min(save.maxHealth,
+                    save.health+dt*(1.2f+StormBudgetLeft*.35f+(StormReliefAll?.75f:0f)+
+                        (Has("storm_orrin_open")?StormBudgetLeft*.55f:0f)));
+            // A finished reconstruction actually changes what the region
+            // can do, without impacting boss combat or distant locations.
+            if(AfterlightRefuge(save.room) && !practicing && !racing &&
+                SafeTravel && !Dying && save.health>0 &&
+                save.health<save.maxHealth &&
+                NearKind("afterlightoutlet"+save.room,3.1f))
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.7f);
+            if(AfterlightEnergyPost && SafeTravel && !practicing &&
+                NearKind("afterlightoutlet1",3.1f))
+                save.energy=Math.Min(100,save.energy+dt*3.0f);
+            // The defeated former Warden now maintains actual civilian
+            // backup lighting, only if the player entrusted unused reserve to
+            // citadel shelters after the published first-storm charter.
+            if(save.room==4 && Has("storm_orrin_guard") &&
+                SafeTravel && !practicing && !racing &&
+                save.health>0 && save.health<save.maxHealth &&
+                NearKind("blackoutshelter",3.0f))
+                save.health=Math.Min(save.maxHealth,
+                    save.health+dt*(1.1f+StormBudgetLeft*.5f));
+            // The blackout roster creates a working, publicly maintained
+            // refuge in the Citadel. Combat and an active evacuation suppress
+            // this modest healing; a story reward is not a global regen buff.
+            if(save.room==4 && Has("blackout_complete") &&
+                !BlackoutActive && SafeTravel && !practicing &&
+                NearKind("blackoutshelter",3.0f) &&
+                save.health>0 && save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.5f);
+            // Signed living testimony turns its physically defended site into
+            // a modest safe refuge, without negating any campaign gate.
+            if (save.room>=1 && save.room<=3 &&
+                Has("witness_complete_"+save.room) &&
+                NearKind("witnesssite2"+save.room,2.65f) &&
+                SafeTravel && save.health>0 && save.health<save.maxHealth &&
+                !practicing && witnessDefenseRoom==0)
+                save.health=Math.Min(save.maxHealth,save.health+dt*1.4f);
+            // Civilian relief posts double as modest field hospitals.  They
+            // work only beyond nearby combat, without erasing the hazards on
+            // the exposed roads or restoring health during an active trial.
+            if (save.room >= 5 && save.room <= 7 &&
+                Has("farshore_relief_" + save.room) && !practicing && !racing &&
+                SafeTravel && save.health > 0 && save.health < save.maxHealth &&
+                NearActiveFieldStation(save.room,
+                    save.room == 5 ? 4.2f : FieldStationRefugeRadius(save.room)))
+                save.health = Math.Min(save.maxHealth, save.health + dt * 1.25f);
             climateTimer -= dt;
             if (climateTimer <= 0) { climateTimer = 1; if (save.heat >= 85 || save.cold >= 90) Hurt(4); }
             if (Dying) return;
+            TickFieldStationSurvey(dt);
             if (racing)
             {
                 raceTime += dt;
@@ -343,30 +588,174 @@ namespace Starfall
                 if (Dying) break;
                 h.timer -= dt;
                 if (h.timer > 0) continue;
-                hazards.Remove(h); effects.Add(new Effect("danger", h.position, .45f) { radius = h.radius, variant = HazardTheme(h) });
+                hazards.Remove(h); effects.Add(new Effect("danger", h.position, .45f) {
+                    radius = h.radius, variant = HazardTheme(h),
+                    rootHarmonyOwned = h.rootHarmonyOwned,
+                    commonsRelayOwned = h.commonsRelayOwned,
+                    glasswindOwned = h.glasswindOwned, temperOwned = h.temperOwned,
+                    triadOwned = h.triadOwned, stormOwned = h.stormOwned,
+                    lastDirectiveOwned = h.lastDirectiveOwned,
+                    civicConduitOwned = h.civicConduitOwned });
                 if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
+                else TryRewardEscapedWarning(h.position, h.radius);
             }
             tickingHazards.Clear();
         }
         private void AddHazard(Point p, float radius, float delay, float damage, string kind)
         { hazards.Add(new Hazard { position = p, radius = radius, timer = delay, damage = damage, kind = kind }); }
         public static int HazardTheme(Hazard hazard)
-        { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : 8; }
+        { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : hazard.kind == "bell" ? 7 : 8; }
         private void BossExpansionAttack(Enemy e)
         {
-            if (save.room == 5)
-            { for (int i = -1; i <= 1; i++) AddHazard(e.target + new Point(i * 2, 0), 1.35f, 1.2f, 17, "tide"); }
-            if (save.room == 6)
-            { for (int i = -1; i <= 1; i++) AddHazard(e.target + new Point(0, i * 2), 1.1f, .9f, 18, "glass"); }
+            // The harbor beast and glass guardian learn to sweep the other axis
+            // as their armor breaks. Warnings remain visible Hazard objects.
+            if (save.room == 5 || save.room == 6)
+            {
+                bool harbor = save.room == 5;
+                bool horizontal = harbor ? e.BossPhase == 1 || e.cycle % 2 == 1
+                                         : e.BossPhase > 1 && e.cycle % 2 == 0;
+                float radius = harbor ? 1.35f : 1.1f;
+                float delay = harbor ? 1.2f : .9f;
+                float damage = harbor ? 17 : 18;
+                string kind = harbor ? "tide" : "glass";
+                for (int i = -1; i <= 1; i++)
+                {
+                    Point offset = horizontal ? new Point(i * 2, 0) : new Point(0, i * 2);
+                    // Final-phase contacts travel along the lane in sequence;
+                    // each circle is warned before its own delayed impact.
+                    float sweepDelay = e.BossPhase == 3 ? (i + 1) * .22f : 0;
+                    AddHazard(e.target + offset, radius, delay + sweepDelay, damage, kind);
+                }
+            }
             if (save.room == 7 || save.room == 8)
-            { AddHazard(Position, 2, 1.5f, 20 + e.BossPhase * 2, "rift"); }
+            {
+                Point center = Position;
+                AddHazard(center, 2, 1.5f, 20 + e.BossPhase * 2, "rift");
+                if (save.room == 8 && InAbyss && save.abyssFloor == 6 && e.BossPhase >= 2)
+                {
+                    // Paired roots close on the player; alternate the axis each release.
+                    Point axis = e.cycle % 2 == 1 ? new Point(1, 0) : new Point(0, 1);
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        Point outer = center + axis * (side * 2.8f);
+                        if (Fits(outer)) AddHazard(outer, 1.05f, 1.85f, 16 + save.abyssRisk * 3, "root");
+                        if (e.BossPhase == 3)
+                        {
+                            Point inner = center + axis * (side * 1.5f);
+                            if (Fits(inner)) AddHazard(inner, .9f, 2.25f, 16 + save.abyssRisk * 3, "root");
+                        }
+                    }
+                }
+                if (save.room == 7 && e.BossPhase >= 2)
+                {
+                    // Three blue bell strikes surround the frost mark,
+                    // leaving one rotating cardinal exit unmarked.
+                    Point[] directions = { new Point(1, 0), new Point(0, 1),
+                                           new Point(-1, 0), new Point(0, -1) };
+                    int safeExit = (e.cycle - 1) % directions.Length;
+                    int strike = 0;
+                    for (int i = 0; i < directions.Length; i++)
+                    {
+                        if (i == safeExit) continue;
+                        float delay = 1.75f + (e.BossPhase == 3 ? strike * .22f : 0);
+                        AddHazard(center + directions[i] * 3.5f, 1.1f, delay, 14, "bell");
+                        strike++;
+                    }
+                }
+            }
         }
         public string Conditions()
         {
+            if(CivicConduitActive)
+                return L("公共电网 · ","CIVIC GRID · ")+
+                    (int)Math.Ceiling(CivicConduitTimeLeft)+"s · "+
+                    (int)Math.Ceiling(CivicConduitIntegrity)+"%\n"+
+                    L("阀门 ","VALVE ")+(CivicConduitStage+1)+"/3 · "+
+                    (CivicConduitWindowOpen?
+                        L("绿色稳定 · 现在操作","GREEN PHASE · TUNE NOW"):
+                        L("闭锁 · 等待绿色窗口","LOCKED · WAIT FOR GREEN"));
+            if(LastDirectiveWave==1||LastDirectiveWave==3)
+                return L("最后指令 · 保密卫队","LAST DIRECTIVE · SECURITY")+
+                    "\n"+L("击败实体守卫 ","REAL GUARDIANS LEFT ")+LastDirectiveEnemies;
+            if (StormTuning)
+                return L("公共星灯调谐 ", "CIVIC GRID TUNING ") +
+                    (int)Math.Ceiling(StormTuneTime) + "s · " +
+                    StormTuneStep + "/3  ·  " +
+                    L("剩余公共储备 ", "RESERVE LEFT ") + StormBudgetLeft;
             if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " + L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards;
+            // Reuse the existing conditions HUD slot: a timed survey remains legible
+            // even if the player temporarily tracks a different journal quest.
+            if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
+                return L("救援 ", "RESCUE ") + (int)Math.Ceiling(reliefMissionTime) + "s · " +
+                    (reliefMissionWave == 3 ?
+                        L(reliefFollowerWaiting ? "等候 " : "护送 ",
+                            reliefFollowerWaiting ? "WAITING " : "ESCORT ") +
+                        (int)Math.Ceiling(reliefFollowerSafety) + "% · " +
+                        L("相距 ", "GAP ") + ReliefEscortGap.ToString("0.0") :
+                        L(reliefMissionWave == 0 ? "寻找居民" : "击退伏击",
+                            reliefMissionWave == 0 ? "FIND CIVILIANS" : "DEFEAT RAIDERS") +
+                        (reliefMissionWave >= 1 && reliefMissionWave <= 2 ?
+                            " · " + L("安全 ", "SAFE ") +
+                                (int)Math.Ceiling(reliefFollowerSafety) + "%" : ""));
+            // A carried civilian parcel is a real 95-second world objective,
+            // including in the four early outdoor regions whose conditions
+            // panel is normally hidden. Its stages must remain visible even
+            // when another journal quest is tracked.
+            if(CivicResponseActive)
+                return L("居民服务行动 · ","CIVIC SERVICE · ")+
+                    (int)Math.Ceiling(CivicResponseTimeLeft)+"s\n"+
+                    (CivicResponseClinicRun?
+                        L("步行送药  "+(int)Math.Ceiling(CivicResponseIntegrity)+"%",
+                          "DELIVER MEDICINE  "+(int)Math.Ceiling(CivicResponseIntegrity)+"%"):
+                        CivicResponseEnemiesAlive>0?
+                        L("击败袭击者 "+CivicResponseEnemiesAlive+" 名",
+                            "DEFEAT RAIDERS · "+CivicResponseEnemiesAlive+" LEFT"):
+                        L("回避险棚登记胜利","SIGN OFF AT REFUGE"));
+            if(FarCourierActive)
+                return L("居民救援包 · ", "RELIEF PARCEL · ") +
+                    (int)Math.Ceiling(FarCourierTimeLeft) + "s · " +
+                    (int)Math.Ceiling(FarCourierIntegrity) + "%\n" +
+                    (!FarCourierCrossed ? L("步行过桥", "CROSS BRIDGE ON FOOT") :
+                     !FarCourierStamped ? L("检查站核验封条", "VERIFY SEAL AT CHECKPOINT") :
+                         L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));
+            if(TideSalvageActive && save.room==5)
+                return L("潮滩打捞 ", "SALVAGE ") +
+                    (int)Math.Ceiling(TideSalvageTime) + "s · " +
+                    (TideSalvagePhase-1) + "/3\n" +
+                    (LowTide?L("低潮 ", "LOW TIDE "):L("高潮 ", "HIGH TIDE ")) +
+                    "· " + TideSalvageTideHint;
+            if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
+                return L("巡测 ", "SURVEY ") + (int)Math.Ceiling(fieldSurveyTime) + "s · " +
+                    (save.room == 5 ? (LowTide ? L("低潮", "LOW TIDE") : L("高潮", "HIGH TIDE")) :
+                     save.room == 6 ? L("热度 ", "HEAT ") + (int)save.heat + "/100" :
+                     L("寒意 ", "COLD ") + (int)save.cold + "/100");
+            if (BlackoutActive && save.room==4)
+                return L("长夜撤离 ", "BLACKOUT EVACUATION ") +
+                    (int)Math.Ceiling(BlackoutTime) + "s · " +
+                    L("获救 ", "SAFE ") + BlackoutCount + "/3" +
+                    (BlackoutFollowing!=0?L(" · 护送中"," · ESCORTING"):"");
+            if (witnessDefenseRoom!=0 && save.room==witnessDefenseRoom)
+                return L("居民证词保全 ", "WITNESS DEFENSE ") +
+                    (int)Math.Ceiling(witnessDefenseTime) + "s · " +
+                    L("击败两名封锁卫兵","DEFEAT TWO SECURITY GUARDS");
+            if (TriadBossInterruptReady && save.room==4)
+                return L("三核证据已公开 · 中央审计台可按E中断屏障（25耐力）",
+                    "THREE-CORE AUDIT · press E at central console to interrupt shield (25 EN)");
+            if (TriadDefenseActive && save.room==4)
+                return L("三核审计 ", "CORE AUDIT ") + (int)Math.Ceiling(TriadTime) +
+                    "s · " + L("击败保密守卫","DEFEAT SECURITY");
+            if (TemperActive && save.room==3)
+                return L("回火 ", "TEMPER ") + (int)Math.Ceiling(TemperTime) +
+                    "s · " + L("热压 ", "PRESSURE ") +
+                    (int)Math.Ceiling(TemperPressure) + "/95 · " +
+                    L("泄压阀 ", "VALVES ") + (TemperStage-1) + "/2";
             if (save.room == 5) return LowTide ? L("低潮 · 潮滩可通行", "LOW TIDE · shoals open") : L("高潮 · 等待退潮或使用闸门", "HIGH TIDE · wait or use the sluice");
-            if (save.room == 6) return L("热度 ", "HEAT ") + (int)save.heat + "/100 · " + L("绿洲降温 / 凉茶免疫", "shade cools / tea protects");
-            if (save.room == 7) return L("寒意 ", "COLD ") + (int)save.cold + "/100 · " + L("点燃火盆 / 凉茶抗寒", "light braziers / tea protects");
+            if (save.room == 6) return L("热度 ", "HEAT ") + (int)save.heat + "/100 · " +
+                (NearActiveFieldStation(6, FieldStationRefugeRadius(6)) ? L("气象站正在降温", "STATION COOLING") :
+                    L("绿洲降温 / 凉茶免疫", "shade cools / tea protects"));
+            if (save.room == 7) return L("寒意 ", "COLD ") + (int)save.cold + "/100 · " +
+                (NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? L("气象站正在供暖", "STATION WARMING") :
+                    L("点燃火盆 / 凉茶抗寒", "light braziers / tea protects"));
             return L("第 ", "DAY ") + Day + L(" 日 · ", " · ") + (Night ? L("星夜", "STARLIT NIGHT") : L("日照", "DAYLIGHT"));
         }
         public void DrinkTea()
@@ -453,11 +842,12 @@ namespace Starfall
         }
         private bool TalkExpansion(WorldObject o)
         {
+            if (TalkFieldStation(o)) return true;
             string kind = o.kind;
             if (kind == "envoy")
             {
                 if (save.stage < 1) { Dialog(o.name, o.en, "我是雾港的信使露恩。先完成你的第一份星核委托，再来找我。有人在等一封永远送不到的回信。", "I am Lune, Mistport's courier. Finish your first core commission, then find me. Someone is waiting for a reply that will never arrive.", C("我会回来", "I will return", "close")); return true; }
-                Dialog(o.name, o.en, "堡垒的水位记录被改过。雾港为堡垒守灯，却每年少一批摆渡人；沙海的机器仍在为一个死去的主人蓄光；高原的钟声压住的，也许不是暴风雪。\n\n去见船长米拉。把每一地的证词带回港口，让三方坐到同一张桌边。", "The citadel's water records were altered. Mistport loses ferrymen while keeping its lights; the desert stores light for a dead master; the mountain bells may be hiding more than storms.\n\nMeet Captain Mira. Bring each region's testimony to one council table.", C(Has("exp_intro") ? "前往雾港" : "接取远岸来信", Has("exp_intro") ? "Travel to Mistport" : "Accept Letters from Afar", Has("exp_intro") ? "goto5" : "exp_begin"), C("打开建设与委托簿", "Open town projects and contracts", "camp"), C("稍后再来", "Later", "close")); return true;
+                Dialog(o.name, o.en, "堡垒的水位记录被改过。雾港每一次守灯，都有人从乘客名册上消失；玻璃沙海九年前的供水命令至今还在运行；霜钟高原的钟声则把一场撤离事故压在冰下。\n\n这不是三场互不相干的灾害。星根原本负责让各地共享水与光，现在谁都不知道屏障抽取了多少。先见米拉船长，取得三份原始记录，把所有人的代价放在同一张议事桌上。", "The citadel's tide ledger was altered. Mistport loses names from its manifest whenever the lighthouse surges; the Glass Desert still obeys a water order from nine years ago; Frostchime's bells hide an evacuation beneath the ice.\n\nThese are not separate disasters. Starroot once shared water and light between the regions, and no one knows what the shield has taken. Meet Captain Mira, recover all three original records, and bring their costs to one council table.", C(Has("exp_intro") ? "前往雾港" : "接取远岸来信", Has("exp_intro") ? "Travel to Mistport" : "Accept Letters from Afar", Has("exp_intro") ? "goto5" : "exp_begin"), C("打开建设与委托簿", "Open town projects and contracts", "camp"), C("稍后再来", "Later", "close")); return true;
             }
             if (kind == "townboard" || kind == "contract") { mode = kind == "contract" ? "bounties" : "camp"; conversation = null; return true; }
             if (kind == "captain") { CaptainConversation(o); return true; }
@@ -489,10 +879,33 @@ namespace Starfall
             }
             if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。站在附近能迅速消除寒意。" : "木材两份能点燃火盆。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Stand near it to warm up." : "Two timber light the brazier. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "暖一会儿" : "点火 · 木材2", Has("warm_" + o.id) ? "Warm up" : "Light · 2 timber", Has("warm_" + o.id) ? "close" : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
             if (kind == "keeper") { KeeperConversation(o); return true; }
-            if (kind == "campfire") { Dialog(o.name, o.en, "星薄荷凉茶用药草2、星晶1制作。远行驿站建成后，可以在野外营地免费休整；完整升级的驿站还会赠送一杯凉茶。", "Star-mint tea needs 2 herbs and 1 crystal. A town waystation enables free rest at field camps; a full upgrade adds one tea per day.", C("营地休整", "Rest at camp", "fieldrest"), C("制作凉茶", "Brew tea", "tea"), C("喝凉茶", "Drink tea", "drinktea"), C("查看同伴", "Manage companions", "companions"), C("离开", "Leave", "close")); return true; }
+            if (kind == "campfire")
+            {
+                bool built = save.projects[1] > 0;
+                bool safe = !FieldWorkPreventsRest && SafeTravel;
+                var choices = new List<Choice>();
+                if (built && safe) choices.Add(C("营地休整", "Rest at camp", "fieldrest"));
+                choices.Add(C("制作凉茶", "Brew tea", "tea"));
+                choices.Add(C("喝凉茶", "Drink tea", "drinktea"));
+                choices.Add(C("查看同伴", "Manage companions", "companions"));
+                choices.Add(C("离开", "Leave", "close"));
+                string statusZh = !built ? "\n\n先在余烬镇建设远行驿站，才能在这里休整。" :
+                    !safe ? "\n\n附近仍有危险或正在执行现场任务，暂时不能休整。" : "";
+                string statusEn = !built ? "\n\nBuild the Emberfall waystation before resting here." :
+                    !safe ? "\n\nNearby combat or active fieldwork makes resting unsafe." : "";
+                Dialog(o.name, o.en,
+                    "星薄荷凉茶用药草2、星晶1制作。远行驿站建成后，可以在野外营地免费休整；完整升级的驿站还会赠送一杯凉茶。" + statusZh,
+                    "Star-mint tea needs 2 herbs and 1 crystal. A town waystation enables free rest at field camps; a full upgrade adds one tea per day." + statusEn,
+                    choices.ToArray());
+                return true;
+            }
             if (kind == "expAltar") { ExpansionAltar(o); return true; }
             if (kind == "council") { CouncilConversation(); return true; }
             if (kind.StartsWith("history")) { ReadHistory(int.Parse(kind.Substring(7))); return true; }
+            if (kind=="abyssFarSurvey"||kind=="abyssFarCache"||kind=="abyssFarEcho")
+            { TalkAbyssFarGallery(o); return true; }
+            if (kind == "abyssCache" || kind == "abyssSurvey")
+            { TalkAbyssAnnex(o); return true; }
             if (kind == "abyssEntry") { OpenAbyssEntrance(); return true; }
             if (kind == "abyssExit") { AbyssExitConversation(); return true; }
             if (kind == "abyssGate") { AbyssGateConversation(); return true; }
@@ -501,24 +914,24 @@ namespace Starfall
         private void CaptainConversation(WorldObject o)
         {
             if (Has("harbor_report")) { PersonalConversation(0, o); return; }
-            if (Has("boss_5")) { Dialog(o.name, o.en, "潮壳海兽不是在袭击港口。它在吞咽堡垒排下来的星晶废水。我的弟弟曾经提出停灯检修，名字却从船册上被抹掉了。\n\n我会带着这份水位记录，和你一起去沙海找更多证据。", "The tide beast was swallowing the citadel's crystal waste. My brother asked to stop the lights for repairs. His name was erased from the records.\n\nI will bring this tide log and travel with you to find more evidence.", C("提交港口证词 · 米拉加入", "File the tide log · recruit Mira", "harbor_report"), C("继续探索", "Keep exploring", "close")); return; }
+            if (Has("boss_5")) { Dialog(o.name, o.en, "潮壳海兽不是来侵略港口的。它把堡垒排进水道的星晶废水吞了下去，才在毒潮里失控。我弟弟的船册证明，每一次屏障加压都会改变水位，失踪的不是统计数字，而是一个个有名字的人。\n\n我要把这份水位原稿带到沙海，再与其他地方的记录对照。不能让它只留在港口抽屉里。", "The Tide Maw was no invader. It swallowed crystal waste from the citadel's conduits and broke into violent surges. My brother's manifest proves each shield pulse changed the tide. These are missing people with names, not missing numbers.\n\nI will carry the original tide report into the desert and compare it with the other regions' records. It must not stay hidden in a harbor drawer.", C("提交港口证词 · 米拉加入", "File the tide log · recruit Mira", "harbor_report"), C("继续探索", "Keep exploring", "close")); return; }
             if (save.harborPledge == 0)
             {
-                Dialog(o.name, o.en, "暴潮来了。守灯会说先修三座信号塔，免得远海的人迷路；摆渡盟说先救三名失联乘客，免得眼前的人被淹没。双方都没有错，可手里的时间和材料不够。\n\n你来决定优先顺序。两条路都能打开灯塔航道；修好的塔和救下来的人，都会留在记录里。", "A surge is coming. Lamplighters want three relays repaired for ships offshore. Ferrymen want three stranded passengers rescued now. Neither side is wrong.\n\nChoose a priority. Either route opens the lighthouse; every repair and rescue remains in the record.", C("守灯优先 · 修复三塔", "Lights first · repair 3 relays", "pledge1"), C("救人优先 · 救援三人", "People first · rescue 3 passengers", "pledge2"), C("协作路线 · 救两人、修一塔", "Coordinate · 2 rescues, 1 relay", "pledge3"), C("再考虑一下", "Think about it", "close")); return;
+                Dialog(o.name, o.en, "米拉：星陨后的暴潮让海水越过了旧航道。守灯会需要三座塔为外海船只指路，摆渡盟需要材料救回三位被困的乘客。两边都在救命，却必须共用同一批零件。\n\n我弟弟曾负责记下失联的人，后来连自己的名字也被从名单上划掉。请你先决定救援的优先顺序；哪一种都能打开灯塔，只要我们肯把做过的事如实写进船册。", "Mira: The Starfall tide has overtaken the old channels. The Lamplighters need three relays to guide offshore ships; the Ferry Union needs supplies for three stranded passengers. Both are saving lives with the same limited parts.\n\nMy brother kept the missing passenger records. Someone later erased his own name. Choose the first priority. Any of these plans opens the lighthouse, as long as we record the real cost.", C("守灯优先 · 修复三塔", "Lights first · repair 3 relays", "pledge1"), C("救人优先 · 救援三人", "People first · rescue 3 passengers", "pledge2"), C("协作路线 · 救两人、修一塔", "Coordinate · 2 rescues, 1 relay", "pledge3"), C("再考虑一下", "Think about it", "close")); return;
             }
             Dialog(o.name, o.en, "当前优先方案已经写进船册。救援 " + RescueCount + "/3，修复 " + RepairCount + "/3。\n\n进入灯塔后击败潮壳海兽，再回来提交水位记录。东北的航道会在完成方案后开放。", "Your chosen plan is in the log. Rescued " + RescueCount + "/3; repaired " + RepairCount + "/3.\n\nDefeat the Tide Maw at the northeast lighthouse, then return with its tide record.", C("继续执行方案", "Carry out the plan", "close"));
         }
         private void TinkerConversation(WorldObject o)
         {
             if (Has("desert_report")) { PersonalConversation(1, o); return; }
-            if (!Has("boss_6")) { Dialog(o.name, o.en, "这台蓄光机替主人记得每一个晴天。主人死了九年，它仍把水留给一座空城。\n\n镜面依次朝东、南、东。接通光路后，东北的玻璃守卫会醒来。你得让它接受一条新的指令。", "The reservoir remembers every sunny day for its master. He died nine years ago. It still saves water for an empty city.\n\nSet the mirrors east, south, east. The Glass Custodian will wake. Help it accept a new instruction.", C("调试光路", "Restore the light channel", "close")); return; }
-            Dialog(o.name, o.en, "守卫平静了。现在我们可以改写蓄光机：供给绿洲，让迁徙的人活下来；或供给灯网，让风暴中的航线不断电。\n\n我不相信一台机器的主人会永远拥有后来人的水。无论选哪条，我都会带上原始调度日志，加入你的调查。", "The custodian is quiet. We can redirect the reservoir to oasis water or storm-proof navigation lights.\n\nA dead master cannot own the water of everyone born later. Either way, I will bring the original allocation log and join your investigation.", C("供给绿洲 · 山野声望", "Water the oasis · Assembly trust", "desert1"), C("供给灯网 · 守灯声望", "Power the lights · Lamplighter trust", "desert2"), C("稍后决定", "Decide later", "close"));
+            if (!Has("boss_6")) { Dialog(o.name, o.en, "伊沃：这台蓄光机没有忘记九年前的主人，也不知道城里早已没有人。它仍把每天第一份水留给那个名字，眼看活人倒在炎热的道路上。\n\n按照东、南、东三面镜子的光路，把能源送回蓄光池。玻璃守卫会因为旧命令而攻击你；击败它以后，我们才能把“为谁供水”重新写进机器的工作原则。", "Ivo: This light reservoir remembers a master who died nine years ago. It still reserves water for his name while living travelers collapse along the road.\n\nSet the three mirrors east, south, east to connect the channel. The Glass Custodian will defend its obsolete command. Once it is quiet, we can rewrite whom the machine serves.", C("调试光路", "Restore the light channel", "close")); return; }
+            Dialog(o.name, o.en, "玻璃守卫已经停止执行旧指令。我们可以把水优先送向绿洲，让迁徙者活过下一个旱季；也可以先照亮远岸灯网，让船只在风暴中找到港口。\n\n技术并不天生邪恶，永远不允许活人改写的命令才危险。不论你怎么选择，我都会带着调度原稿加入调查。", "The Glass Custodian has stopped enforcing the old order. We can supply the oasis to keep people alive through drought, or keep distant navigation lamps lit through the storms.\n\nThe danger was not machinery itself, but an order no living person could revise. I will take the original allocation log with us whichever priority you choose.", C("供给绿洲 · 山野声望", "Water the oasis · Assembly trust", "desert1"), C("供给灯网 · 守灯声望", "Power the lights · Lamplighter trust", "desert2"), C("稍后决定", "Decide later", "close"));
         }
         private void KeeperConversation(WorldObject o)
         {
             if (Has("mountain_report")) { PersonalConversation(2, o); return; }
-            if (!Has("boss_7")) { Dialog(o.name, o.en, "我叫森，负责替没能下山的人敲钟。北钟第三音，东钟第一音，南钟第二音。按 E 调整，一共四种音高。\n\n钟阵能镇住寒潮，也把冰下的求救声压住了。去山门找到霜钟执事。他说留下这段记录，会让所有人失去信心。", "I am Sen. I ring for those who never came down. North tone III, east I, south II. E cycles four tones.\n\nThe array stills the cold, and the voices beneath it. Find the Frost Prelate. He says this record would cost everyone their faith.", C("我会找到记录", "I will find the record", "close")); return; }
-            Dialog(o.name, o.en, "记录是真的。统领知道水位会冲垮北岸，也知道钟阵会封住撤离口。可执事认为公开它只会让边境分裂。\n\n你要把原稿交给议事厅私下纠正，还是把每一个名字刻上山路，公开事实？我会陪你走完这一段。", "The record is real. The warden knew the surge would crush the north bank, and the chimes would seal the evacuation route.\n\nFile the original privately for reform, or carve every name on the road and expose it? I will walk the rest of the way with you.", C("保存原稿，推动纠正", "Preserve the record · seek reform", "mountain1"), C("公开名字，建立纪念碑", "Publish the names · build a memorial", "mountain2"), C("稍后决定", "Decide later", "close"));
+            if (!Has("boss_7")) { Dialog(o.name, o.en, "森：我负责给没有回到高原的人敲钟。北钟第三音、东钟第一音、南钟第二音，按 E 可以依次调整。\n\n这三口钟原本能稳住冰上的路。星陨后的寒潮让钟阵改成最低频率，镇住裂冰，却也压住撤离者在冰下呼救的声音。去山门见霜钟执事，找回事故原稿。失踪者的家人不该永远只听见钟声。", "Sen: I ring for those who never came down. Set the north chime to its third tone, east to first, south to second. E cycles the tones.\n\nThe bells once steadied the ice roads. After Starfall the lowest frequency stilled cracks, but also silenced evacuation cries beneath the ice. Find the Frost Prelate at the pass and recover the original record. Families deserve more than a bell without names.", C("我会找到记录", "I will find the record", "close")); return; }
+            Dialog(o.name, o.en, "原稿证实了那场撤离失败：统领知道潮水会冲毁北岸，钟阵也封住了最后的求救声。执事担心公开事实会摧毁信任，失踪者的家人却有权知道发生了什么。\n\n你可以先保存原稿，在议事厅推动纠正；也可以把一个一个名字刻在山路上，让今后的每次撤离都记住他们。无论选择哪条，我都愿意陪你把证词带出去。", "The original record confirms the evacuation failure: Orrin knew the tide would overrun the north bank, and the chimes hid the last cries. The prelate fears disclosure would break public trust, but the families deserve the truth.\n\nYou can preserve the original for private reform or engrave every name in public on the mountain road. Either way, I will help carry this testimony beyond the bells.", C("保存原稿，推动纠正", "Preserve the record · seek reform", "mountain1"), C("公开名字，建立纪念碑", "Publish the names · build a memorial", "mountain2"), C("稍后决定", "Decide later", "close"));
         }
         private void PersonalConversation(int id, WorldObject o)
         {
@@ -528,7 +941,40 @@ namespace Starfall
             if (!Has("personal_" + id)) choices.Add(C(new[] { "交回弟弟的名册", "帮助修复 · 零件4 星晶4", "交付药草4与密林记录" }[id], new[] { "Return the brother's manifest", "Repair · 4 parts, 4 crystals", "Bring 4 herbs and the forest log" }[id], "personal" + id));
             choices.Add(C("送一份炖汤 · 每日一次", "Share a stew · once per day", "gift" + id));
             choices.Add(C("邀请同行", "Travel together", "join" + id)); choices.Add(C("再见", "Goodbye", "close"));
-            Dialog(o.name, o.en, Has("personal_" + id) ? new[] { "米拉把名册交还给幸存的孩子。她不再等一封回信，而是开始写下一条新航线。", "伊沃给新机器起名叫明天。它没有主人，只记录每个用水人的名字。", "森拆下了钟舌，铸成一块路碑。他仍守着高原，这一次是在路口听人说话。" }[id] : zh[id], Has("personal_" + id) ? new[] { "Mira gives the manifest to the surviving children. She stops waiting for a reply and starts drawing a new route.", "Ivo names the machine Tomorrow. It has no master; it records everyone who shares its water.", "Sen casts the old clapper into a road marker. He still keeps the pass, but now he listens." }[id] : en[id], choices.ToArray());
+            string[] reliefZh = {
+                "\n\n避难浮桥已经建成。现在退潮时的救援窗口更长，受伤的人能在站台歇息，不必只靠最后一艘船。",
+                "\n\n遮阳补给道让更远处也能降温。我终于看到机器为正在赶路的人工作；站台也会照顾伤者。",
+                "\n\n防寒补给棚把暖意送出了旧火盆。暴风雪里的人能在站台恢复体力，再走下一段路。" };
+            string[] reliefEn = {
+                "\n\nThe rescue pontoons extend the safe ebb window. Wounded travelers can recover at the station instead of relying on the last ferry.",
+                "\n\nOur shaded supply lane reaches farther into the desert. The machinery now serves people still on the road; the station can tend their wounds.",
+                "\n\nThe warming depot carries heat beyond the old braziers. Travelers can recover at the station before braving the next snowfield." };
+            string addedZh = Has("farshore_relief_" + (id + 5)) ? reliefZh[id] : "";
+            string addedEn = Has("farshore_relief_" + (id + 5)) ? reliefEn[id] : "";
+            if (Has("relief_rescue_" + (id + 5)))
+            {
+                string[] rescuedZh = {
+                    "\n\n你从滩涂救回的居民已经把孩子和补给送上了渡船。那次撤离让我们知道浮桥真的可以救命。",
+                    "\n\n沙海的失联行路者平安回到了遮阳道，新的公共机器不再只记得旧城主的名字。",
+                    "\n\n你带回的旅人已经把姓名写进山口的避难簿。我们这回记住的是活着归来的人。"
+                };
+                string[] rescuedEn = {
+                    "\n\nThe civilians you brought from the tidal flats have boarded the ferry with their children and supplies. Those pontoons truly saved lives.",
+                    "\n\nThe missing desert travelers made it back to the shaded road. Our public machines now serve people, not a dead ruler's name.",
+                    "\n\nThe travelers you brought home have written their names in the pass shelter's book. This time we remember those who returned alive."
+                };
+                addedZh += rescuedZh[id]; addedEn += rescuedEn[id];
+            }
+            if(id==2&&FrostSignalComplete)
+            {
+                addedZh+=FrostSignalOutcome==1?
+                    "\n\n西边新点亮的三处火讯属于居民。你把有限的余火留给伤者，赶夜路的人终于知道哪里有人可以求助。":
+                    "\n\n巡路队终于可以按自己的路线点火，不必让旧军用钟声决定谁能走过冰桥。火堆附近的守路人还能补充体力。";
+                addedEn+=FrostSignalOutcome==1?
+                    "\n\nThe three new fires belong to the villagers. You chose care for the wounded; travelers now know where to find human help in the snow.":
+                    "\n\nThe road crews can light their own crossings again, beyond the old military chimes. They can safely recover energy at those public fires.";
+            }
+            Dialog(o.name, o.en, (Has("personal_" + id) ? new[] { "米拉把名册交还给幸存的孩子。她不再等一封回信，而是开始写下一条新航线。", "伊沃给新机器起名叫明天。它没有主人，只记录每个用水人的名字。", "森拆下了钟舌，铸成一块路碑。他仍守着高原，这一次是在路口听人说话。" }[id] : zh[id]) + addedZh, (Has("personal_" + id) ? new[] { "Mira gives the manifest to the surviving children. She stops waiting for a reply and starts drawing a new route.", "Ivo names the machine Tomorrow. It has no master; it records everyone who shares its water.", "Sen casts the old clapper into a road marker. He still keeps the pass, but now he listens." }[id] : en[id]) + addedEn, choices.ToArray());
         }
         private void ExpansionAltar(WorldObject o)
         {
@@ -537,16 +983,19 @@ namespace Starfall
             if (Has("boss_" + save.room))
             { Dialog(o.name, o.en, "异常能源已经平静。保留这里的记录，去找当地的同伴提交调查。", "The unstable energy settles. Bring its record to your local companion.", C("去提交调查", "File the regional report", save.room == 5 ? "report_mira" : save.room == 6 ? "report_ivo" : "report_sen"), C("继续探索", "Keep exploring", "close")); return; }
             if (enemies.Exists(e => e.boss)) { Notify("挑战已经开始。注意环形与分段攻击预告。", "The challenge is underway. Watch the segmented warning rings."); return; }
-            Dialog(CurrentBoss.name, CurrentBoss.en, new[] { "潮壳海兽身上长满了废弃的航标。它吞下废水，再把毒潮吐回港口。避开横向三连潮击，打断它的蓄力。", "玻璃守卫仍在执行九年前的命令。它用纵向光柱封住退路。走出金色警戒区，再击破它的护甲。", "霜钟执事举起权杖：如果他们不再相信钟声，谁来让他们走过冬天？\n\n霜印会跟随你落下。不要站在原地。" }[save.room - 5], new[] { "The Tide Maw is covered in broken buoys. It swallows waste and spits poison tides. Dodge its three lateral surges and break its charge.", "The Glass Custodian still obeys a nine-year-old order. Vertical light pillars seal the retreat. Leave their warnings, then break its armor.", "The Frost Prelate raises his staff: If they stop believing in the bells, who gets them through winter?\n\nFrost marks follow you. Keep moving." }[save.room - 5], C("开始挑战", "Challenge", "expboss"), C("准备一下", "Prepare", "close"));
+            Dialog(CurrentBoss.name, CurrentBoss.en, new[] { "潮壳海兽身上长满了废弃的航标。它吞下废水，再把毒潮吐回港口。避开横向三连潮击，打断它的蓄力。", "玻璃守卫仍在执行九年前的命令。它用纵向光柱封住退路。走出金色警戒区，再击破它的护甲。", "霜钟执事举起权杖：如果他们不再相信钟声，谁来让他们走过冬天？\n\n霜印会跟随你落下。不要站在原地。受伤后它会敲响三面冰钟；向没有蓝色预警的方向撤离。" }[save.room - 5], new[] { "The Tide Maw is covered in broken buoys. It swallows waste and spits poison tides. Dodge its three lateral surges and break its charge.", "The Glass Custodian still obeys a nine-year-old order. Vertical light pillars seal the retreat. Leave their warnings, then break its armor.", "The Frost Prelate raises his staff: If they stop believing in the bells, who gets them through winter?\n\nFrost marks follow you. Keep moving. When wounded, it rings three frost bells; escape through the unmarked direction." }[save.room - 5], C("开始挑战", "Challenge", "expboss"), C("准备一下", "Prepare", "close"));
         }
         private bool ChooseExpansion(string action)
         {
+            if (ChooseReliefFieldGuard(action)) return true;
+            if (ChooseRescuedCivilian(action)) return true;
+            if (ChooseFieldStation(action)) return true;
             if (action == "exp_begin") { if (save.stage >= 1) { Flag("exp_intro"); TrackQuest("shore"); Enter(5); } return true; }
             if (action == "camp" || action == "companions") { mode = action; return true; }
             if (action == "journal") { mode = "journal"; return true; }
             if (action == "parley")
             {
-                if (save.room != 4 || Proofs != 3 || save.frontierEnding != 3 || Has("boss_4")) return true;
+                if (save.room != 4 || Proofs != 3 || save.frontierEnding != 3 || Has("boss_4") || TriadDefenseActive) return true;
                 enemies.Clear(); projectiles.Clear(); hazards.Clear(); Flag("boss_4"); Flag("warden_stood_down"); save.coins += 70; AddXp(80); FinalConversation(); revision++; return true;
             }
             if (action.StartsWith("pledge"))
@@ -598,17 +1047,49 @@ namespace Starfall
                 enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), CurrentBoss.hp, true)); save.health = save.maxHealth; save.energy = 100; revision++; return true;
             }
             if (action.StartsWith("warm:")) { string id = action.Substring(5); if (save.room == 7 && !Has("warm_" + id) && Spend(2, 0, 0, 0, 0)) Flag("warm_" + id); return true; }
-            if (action == "tea") { if (Spend(0, 1, 2, 0, 0)) { save.tea++; revision++; Notify("星薄荷凉茶 ×1", "Star-mint tea ×1"); } return true; }
+            if (action == "tea")
+            {
+                if (save.tea >= 999)
+                    Notify("凉茶已达到存档上限。先喝掉一份再制作。", "Tea is at the 999-stack limit. Drink some before brewing.");
+                else if (Spend(0, 1, 2, 0, 0))
+                { save.tea++; revision++; Notify("星薄荷凉茶 ×1", "Star-mint tea ×1"); }
+                return true;
+            }
             if (action == "drinktea") { DrinkTea(); return true; }
             if (action == "fieldrest")
             {
                 if (save.projects[1] == 0) { Notify("先在余烬镇建设远行驿站。按 B 查看工程。", "Build a waystation in Emberfall first. B opens projects."); return true; }
-                if (!SafeTravel) { Notify("营地附近有敌人，先清理周围。", "Clear the enemies around this camp first."); return true; }
-                save.health = save.maxHealth; save.energy = 100; save.heat = save.cold = 0; save.totalTime += 20;
-                if (save.projects[1] == 2 && !Has("camptea_" + Day)) { Flag("camptea_" + Day); save.tea++; }
+                if (FieldWorkPreventsRest || !SafeTravel)
+                {
+                    Notify("现场任务或敌方攻击仍在进行。先完成任务并清除危险，再休整。",
+                        "Finish active fieldwork and nearby combat before resting at camp.");
+                    return true;
+                }
+                save.health = save.maxHealth; save.energy = 100; save.heat = save.cold = 0;
+                ResolveRestTimeSkip(20f);
+                // Never award stock that the v2 save cannot preserve or mark
+                // the daily ration as claimed before it can be carried.
+                if (save.projects[1] == 2 && save.tea < 999 && !Has("camptea_" + Day))
+                { Flag("camptea_" + Day); save.tea++; }
                 revision++; Notify("驿站补给已送达，整装再出发。", "Waystation supplies delivered. Ready to set out."); return true;
             }
-            if (action == "race") { if (save.room == 6) { racing = true; raceTime = 0; raceCheckpoint = 0; Notify("竞速开始：沿金色风旗走！", "Race started: follow the golden flags!"); } return true; }
+            if (action == "race")
+            {
+                if (reliefMissionRoom != 0)
+                {
+                    Notify("正在护送居民，不能参加沙舟竞速。先完成或取消救援。",
+                        "Cannot race during a civilian rescue. Finish or cancel the rescue first.");
+                    return true;
+                }
+                if (fieldSurveyRoom != 0)
+                {
+                    Notify("先完成或取消观测站巡测，再参加沙舟竞速。",
+                        "Finish or abandon the field survey before entering the sand-skiff race.");
+                    return true;
+                }
+                if (save.room == 6) { racing = true; raceTime = 0; raceCheckpoint = 0; Notify("竞速开始：沿金色风旗走！", "Race started: follow the golden flags!"); }
+                return true;
+            }
             if (action.StartsWith("personal")) { CompletePersonal(int.Parse(action.Substring(8))); return true; }
             if (action.StartsWith("gift"))
             {
@@ -654,7 +1135,7 @@ namespace Starfall
             List<Choice> choices = new List<Choice> { C("共同水渠 · 优先供水", "Shared canals · water first", "covenant1"), C("轮值灯网 · 优先航路", "Rotating lightwatch · routes first", "covenant2") };
             if (CouncilPactReady) choices.Add(C("开放星路 · 三方共同治理", "Open starroads · shared governance", "covenant3"));
             choices.Add(C("先建设与争取支持", "Build and earn more support", "close"));
-            Dialog("露恩 · 最后一封信", "Lune · The final letter", "守灯会承认了水位造假；摆渡盟承认停灯也会让远海的人死去；山野议会承认恢复土地仍需要维护航路。\n\n共同水渠增加收成；轮值灯网让你更容易脱离战斗旅行。建设总等级达到3、招募两名同伴且三方声望都达到2，才足以实行共同治理。", "The Lamplighters admit falsified levels. Ferrymen admit dark lights also kill. The Assembly admits restored land still needs routes.\n\nCanals improve harvests; Lightwatch shortens the safe-travel distance. Shared governance needs 3 project tiers, 2 companions, and trust 2 with every faction.", choices.ToArray());
+            Dialog("露恩 · 最后一封信", "Lune · The final letter", "来自雾港的水位原稿、玻璃沙海的调度账和霜钟高原的名单终于放在同一张桌上。守灯会承认航路所需的能源不能无底线抽取；摆渡盟承认熄灭灯网也会让远海船只遇险；山野议会承认修复土地同样需要可靠的运输与工程。\n\n共同水渠会增加粮食和药材供给；轮值灯网能维持更短距离的安全旅行。只有建设达到3级、招募两名同伴，并让三方声望至少达到2，才足以支撑真正的开放星路。\n\n议会决定谁一起管理基础设施。最终星核属于谁，则仍要在堡垒面对厄洛决定。", "The original Mistport tide log, desert allocation ledger and Frostchime names finally share one table. Lamplighters acknowledge their lights cannot draw unlimited power; ferrymen acknowledge that extinguishing every light also kills those at sea; villagers acknowledge that land restoration needs routes and engineering.\n\nShared canals increase food and herb yields; rotating lightwatch keeps travel routes open. Open starroads require three project tiers, two companions and at least two trust with each faction.\n\nThe council decides who governs infrastructure together. The starcores' final destination still awaits your decision at Orrin's citadel.", choices.ToArray());
         }
         private void ResolveCouncil(int ending)
         {
@@ -663,9 +1144,17 @@ namespace Starfall
         }
         private void CouncilEpilogue()
         {
-            string[] zh = { "", "《流向每一个人》\n\n水不再为死去的主人停留。摆渡人把第一批种子带到沙海，守灯人把旧电缆铺进水渠。田地每次额外收获两株药草。\n\n灯网仍需节约使用，可再也没有一页乘客名册被丢进炉火。", "《有人接班的灯》\n\n灯塔不再为一座堡垒熬干整片土地。三个地区轮流供能，摆渡盟监督每一次切换。距离敌人四格就能快速旅行。\n\n森在每一轮换班时敲钟。这一次，钟声提醒人们：有人会接过你手里的灯。", "《没有主人的明天》\n\n共同的工具、路线和记录，让三方第一次有资格共同决定代价。米拉负责航船，伊沃维护水渠，森把所有名字刻在公开的路碑。\n\n同伴指令冷却减为12秒；委托与深渊增加碎片收益。没有谁宣布边境已经完美，但每个人都能提出下一项修理。" };
-            string[] en = { "", "WATER FOR EVERYONE\n\nWater no longer waits for a dead master. Ferrymen carry seeds to the desert; old light cables become canals. Each harvest yields two extra herbs.\n\nLights remain limited, but no passenger page goes into a furnace again.", "A LIGHT WITH A NEXT KEEPER\n\nThree regions rotate power, and the Ferry Union audits every switch. Safe travel now needs only four tiles from enemies.\n\nSen rings at shift changes. The sound means someone will take the light from your tired hands.", "A TOMORROW WITHOUT A MASTER\n\nShared tools, routes and records make shared decisions possible. Mira runs ferries, Ivo keeps canals, Sen carves every name in public.\n\nCompanion commands cool down in 12 seconds; contracts and abyss runs yield extra shards. Nobody calls the frontier perfect. Everyone can propose its next repair." };
+            string[] zh = { "", "《流向每一个人》\n\n摆渡盟主持共享水渠，守灯会用废弃灯缆帮助铺设管道，山野议会将第一批种子送到沙海。土地逐渐恢复，农田每次额外收获两株药草。\n\n灯网仍需要节约运行，但再也不能以“数字不够”为理由，抹去任何乘客的名字。", "《有人接班的灯》\n\n三地建立轮值灯网：每次供能的耗材、风险与负责人都写在公开的账上，摆渡盟监督每一次切换。更远的航路仍需要人看守，但回家不再只靠一座城墙。\n\n森在交接班时敲响钟声。这一次，钟是告诉大家：会有人接过你手里的灯。", "《没有主人的明天》\n\n米拉管理公共渡船，伊沃维修水渠，森把遇难者名字刻在可阅读的路碑上。三方第一次共同决定星路的维护和能源账目。\n\n同伴的配合更加默契，委托和地脉探险有了更多公开分配的碎片奖励。这份协定不是完美治理的宣言，而是任何人都可以提出下一项维修的开始。" };
+            string[] en = { "", "WATER FOR EVERYONE\n\nThe Ferry Union leads shared canals, Lamplighters repurpose old lamp cables for pipes, and the Assembly brings the first seeds into the desert. Fields slowly recover and harvests yield two extra herbs.\n\nThe navigation network still needs careful power use, but no passenger name can again be erased for the sake of an easier ledger.", "A LIGHT WITH A NEXT KEEPER\n\nThree regions establish a rotating lightwatch. Every supply, risk and shift keeper is entered into a public ledger. Ferrymen audit each changeover. Distant routes still demand hard work, but the road home no longer depends on one wall.\n\nSen rings the bell at every handover. This time it means someone else is ready to carry the light.", "A TOMORROW WITHOUT A MASTER\n\nMira runs the public ferries, Ivo maintains shared canals, and Sen engraves the missing names where all may read them. Three communities now jointly decide repairs and keep the energy accounts open.\n\nCompanion commands recover faster, and contracts and Root Abyss expeditions yield extra shards. This is not a claim that the frontier is perfect. It is an invitation to propose the next repair." };
             int id = (int)Clamp(save.frontierEnding, 1, 3);
+            // Governance covenant and starcore outcome remain independent.
+            if (save.ending > 0)
+            {
+                string[] coreZh = { "", "堡垒的星核已逐步归还旧锚点，远岸将与各地一起承担调谐责任。", "堡垒屏障仍然保留，远岸议会定期公开外围供能代价。", "星核由居民互助网络共同使用，远岸议会负责监督每个地区的供给。" };
+                string[] coreEn = { "", "The old starroot anchors are being restored; the farshore will help maintain their balance.", "The citadel shield remains, while the council publishes its costs beyond the wall.", "Starcore power is shared among the communities, with the farshore council auditing every region's supply." };
+                zh[id] += "\n\n" + coreZh[save.ending];
+                en[id] += "\n\n" + coreEn[save.ending];
+            }
             Dialog("远岸来信 · 终章", "Letters from Afar · Epilogue", zh[id] + "\n\n地下的星根开始回应你。地脉深渊现已开放。", en[id] + "\n\nThe roots beneath the land answer. The Root Abyss is now open.", C("继续探索", "Keep exploring", "close"), C("回到余烬镇", "Return to Emberfall", "goto0")); sound = "reward";
         }
         private void ReadHistory(int id)
@@ -705,29 +1194,121 @@ namespace Starfall
         private void OpenAbyssEntrance()
         {
             if (!CanEnter(8)) { Notify(RouteHint(8, false), RouteHint(8, true)); return; }
-            Dialog("地脉裂口", "The root fissure", "每次远征有六层，房间随种子改变。清层后选择一种祝福，并结算本层战利品；继续深入会保留祝福。\n\n倒下或提前离开会失去本层未结算收益，已结算物品保留。第三层之后有落印，最后一层有地脉收割者。风险越高，生命与碎片收益越高。", "Six seeded floors. Clear a floor, choose a boon and bank its loot; boons stay while descending.\n\nFalling or leaving loses only the unbanked floor. Rift marks begin on floor three; the Root Reaper waits on six. Higher risk means tougher enemies and more shards.", C("巡行 · 风险0", "Survey · risk 0", "abyssStart0"), C("深入 · 风险1", "Delve · risk 1", "abyssStart1"), C("裂隙 · 风险2", "Rift · risk 2", "abyssStart2"), C("稍后再来", "Later", "close"));
+            Dialog("地脉裂口", "The root fissure", "每次远征有六层，房间随种子改变。清层后选择一种祝福，并结算本层战利品；继续深入会保留祝福。\n\n倒下或提前离开会失去本层未结算收益，已结算物品保留。第三层之后有落印，最后一层有地脉收割者，根刺会从两侧合拢，沿垂直方向闪避。风险越高，生命与碎片收益越高。", "Six seeded floors. Clear a floor, choose a boon and bank its loot; boons stay while descending.\n\nFalling or leaving loses only the unbanked floor. Rift marks begin on floor three; the Root Reaper waits on six; its roots close from both sides, so dodge perpendicular to their line. Higher risk means tougher enemies and more shards.", C("巡行 · 风险0", "Survey · risk 0", "abyssStart0"), C("深入 · 风险1", "Delve · risk 1", "abyssStart1"), C("裂隙 · 风险2", "Rift · risk 2", "abyssStart2"), C("稍后再来", "Later", "close"));
         }
         public void StartAbyss(int risk)
         {
             if (Dying || !CanEnter(8) || InAbyss || risk < 0 || risk > 2) return;
             save.abyssFloor = 1; save.abyssRisk = risk; save.abyssSeed = (int)(Random() * 1000000) + 137;
             save.abyssEnemies = null; save.abyssSnapshotFloor = 0;
-            save.runCoins = save.runShards = save.runXp = 0; Array.Clear(save.boons, 0, 3); save.flags.RemoveAll(f => f.StartsWith("abyss_clear_") || f == "boss_8");
+            save.runCoins = save.runShards = save.runXp = 0; Array.Clear(save.boons, 0, 3); save.flags.RemoveAll(f => f.StartsWith("abyss_clear_") ||
+                f.StartsWith("abyss_annex_") || f == "boss_8");
             save.room = 8; GenerateAbyss(); save.x = 5; save.y = 14; ResetTransient(); SpawnRoom(); mode = "world"; revision++;
         }
         private void GenerateAbyss()
         {
             var random = new System.Random(save.abyssSeed + save.abyssFloor * 919);
-            char[][] rows = new char[24][];
-            for (int y = 0; y < 24; y++) { rows[y] = new string('#', 36).ToCharArray(); }
+            char[][] rows = new char[44][];
+            for (int y = 0; y < 44; y++) { rows[y] = new string('#', 66).ToCharArray(); }
             int[,] rooms = { { 3, 4, 8, 16 }, { 13, 3, 9, 18 }, { 25, 4, 8, 16 } };
             for (int i = 0; i < 3; i++) for (int y = rooms[i, 1]; y < rooms[i, 1] + rooms[i, 3]; y++) for (int x = rooms[i, 0]; x < rooms[i, 0] + rooms[i, 2]; x++) rows[y][x] = '.';
             for (int y = 13; y <= 15; y++) for (int x = 2; x < 34; x++) rows[y][x] = '=';
             for (int i = 0; i < 9; i++) { int x = random.Next(13, 22), y = random.Next(4, 20); if (y < 12 || y > 16) rows[y][x] = '#'; }
-            string[] strings = new string[24]; for (int y = 0; y < 24; y++) strings[y] = new string(rows[y]);
+            // The legacy 36x24 boss route retains its exact seeded shape.
+            // Add two annexes and broad accessible connectors outside it.
+            // Old coordinates, boss, enemy snapshots, exit and reward gate
+            // are deliberately unchanged for already-active v2 expeditions.
+            for (int y = 25; y <= 32; y++)
+                for (int x = 7; x <= 24; x++) rows[y][x] = '.';
+            for (int y = 5; y <= 32; y++)
+                for (int x = 37; x <= 50; x++) rows[y][x] = '.';
+            for (int y = 13; y <= 15; y++)
+                for (int x = 32; x <= 44; x++) rows[y][x] = '=';
+            for (int y = 15; y <= 29; y++)
+                for (int x = 43; x <= 45; x++) rows[y][x] = '=';
+            for (int y = 28; y <= 30; y++)
+                for (int x = 16; x <= 44; x++) rows[y][x] = '=';
+            for (int y = 19; y <= 29; y++)
+                for (int x = 14; x <= 16; x++) rows[y][x] = '=';
+            // Seeded side-cave shapes, never placed across either mandatory
+            // connecting corridor or the original battle walkways.
+            for (int i = 0; i < 13; i++)
+            {
+                int x = random.Next(38, 50), y = random.Next(5, 12);
+                if ((x + y) % 3 == 0) rows[y][x] = '#';
+            }
+            rows[28][12] = rows[29][12] = '.';
+            rows[27][47] = rows[28][47] = rows[29][47] = '.';
+            // New sixth-ring-scale branches on the *outside* of the exact
+            // old 54x36 procedural footprint. Keep old seeded RNG draws and
+            // floor enemy/boss/gate coordinates unchanged for v2 save replay.
+            for(int y=7;y<=40;y++)
+                for(int x=56;x<=62;x++)rows[y][x]='.';
+            for(int y=37;y<=40;y++)
+                for(int x=14;x<=62;x++)rows[y][x]='.';
+            for(int y=28;y<=30;y++)
+                for(int x=49;x<=61;x++)rows[y][x]='=';
+            for(int y=29;y<=39;y++)
+                for(int x=58;x<=60;x++)rows[y][x]='=';
+            for(int y=31;y<=39;y++)
+                for(int x=18;x<=22;x++)rows[y][x]='=';
+            for(int y=38;y<=40;y++)
+                for(int x=14;x<=62;x++)rows[y][x]='=';
+            for(int y=9;y<=12;y++)
+                for(int x=57;x<=61;x++)rows[y][x]='=';
+            // Layered side chambers without narrowing any mandatory path.
+            for(int y=8;y<=15;y++)
+                for(int x=63;x<=64;x++)
+                    if((y+save.abyssFloor)%4==0)rows[y][x]='.';
+            string[] strings = new string[44];
+            for (int y = 0; y < 44; y++) strings[y] = new string(rows[y]);
             abyssMap = new MapData { id = 8, name = "地脉深渊 · 第" + save.abyssFloor + "层", en = "ROOT ABYSS · FLOOR " + save.abyssFloor, color = save.abyssFloor % 2 == 0 ? "#4f576c" : "#425b5c", subtitle = "越深入，越要决定带什么回来。", suben = "Every descent asks what you will carry home.", spawnX = 5, spawnY = 14, rows = strings,
-                objects = new[] { new WorldObject { id = "abyssExit", kind = "abyssExit", name = "放弃本层收益，返回", en = "Leave unbanked loot", x = 3, y = 14 }, new WorldObject { id = "abyssGate", kind = "abyssGate", name = "地脉门 · 祝福与结算", en = "Root gate · boons and banking", x = 31, y = 14 } },
-                decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 } } };
+                objects = new[] { new WorldObject { id = "abyssExit", kind = "abyssExit", name = "放弃本层收益，返回", en = "Leave unbanked loot", x = 3, y = 14 }, new WorldObject { id = "abyssGate", kind = "abyssGate", name = "地脉门 · 祝福与结算", en = "Root gate · boons and banking", x = 31, y = 14 },
+                    new WorldObject { id = "abyssSideSurvey", kind = "abyssSurvey", name = "地脉旧拓片", en = "Root Warden's Lost Rubbing", x = 12.5f, y = 28.5f },
+                    new WorldObject { id = "abyssSideCache", kind = "abyssCache", name = "深层遗落物资", en = "Forgotten Deep Supplies", x = 47.5f, y = 28.5f },
+                    new WorldObject { id = "abyssFarSurvey", kind = "abyssFarSurvey", name = "地脉下层残碑", en = "Deep Root Testimony", x = 20.5f, y = 39.5f },
+                    new WorldObject { id = "abyssFarCache", kind = "abyssFarCache", name = "洞底失落补给", en = "Lower Gallery Supplies", x = 60.5f, y = 39.5f },
+                    new WorldObject { id = "abyssFarEcho", kind = "abyssFarEcho", name = "地脉回声石", en = "Starroot Echo Stone", x = 60.5f, y = 11.5f } },
+                decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 },
+                    new Decoration { kind = "crystal", x = 40, y = 9 },
+                    new Decoration { kind = "ruin", x = 48, y = 15 },
+                    new Decoration { kind = "root", x = 40, y = 24 },
+                    new Decoration { kind = "obelisk", x = 22, y = 26 },
+                    new Decoration { kind = "crystal", x = 8, y = 31 },
+                    new Decoration { kind = "root", x = 35, y = 30 },
+                    new Decoration { kind = "crystal", x = 16, y = 40 },
+                    new Decoration { kind = "root", x = 33, y = 39 },
+                    new Decoration { kind = "obelisk", x = 51, y = 40 },
+                    new Decoration { kind = "crystal", x = 63, y = 20 },
+                    new Decoration { kind = "root", x = 61, y = 26 },
+                    new Decoration { kind = "ruin", x = 63, y = 34 } } };
+        }
+        private void TalkAbyssAnnex(WorldObject o)
+        {
+            if (!InAbyss || Dying || practicing ||
+                (Position - new Point(o.x, o.y)).Length > 2.2f) return;
+            bool cache = o.kind == "abyssCache";
+            string flag = "abyss_annex_" + (cache ? "cache_" : "survey_") + save.abyssFloor;
+            bool first = !Has(flag);
+            if (first)
+            {
+                Flag(flag);
+                if (cache) { save.runCoins += 18; save.runShards += 2; }
+                else save.runXp += 15;
+                revision++; sound = "reward";
+            }
+            Dialog(o.name, o.en,
+                cache ?
+                    "巡路人的补给被冲进第二条地脉岔道。它并没有变成你的永久战利品；只有抵达东侧地脉门并结算，才真正能把物资带回来。" +
+                        (first ? "\n\n本层待结算：硬币 +18、碎片 +2。" : "\n\n这批补给已经登记。") :
+                    "旧石板记下矿工、船夫和巡路人怎样在星陨之后尝试共享能源。原来洞穴的旧路不止一条。" +
+                        (first ? "\n\n本层待结算经验 +15。" : "\n\n拓片已在你的临时记录里。"),
+                cache ?
+                    "A warden's field supplies drifted into a new starroot gallery. These are unbanked rewards until you settle the floor at the east gate." +
+                        (first ? "\n\nUnbanked: +18 coins, +2 shards." : "\n\nAlready recorded.") :
+                    "The rubbing traces how miners, ferrymen and wardens once shared light. The old abyss had more than one road." +
+                        (first ? "\n\nUnbanked XP +15." : "\n\nRubbing already recorded."),
+                C("收进本层记录", "Keep in floor journal", "close"));
         }
         private void AbyssGateConversation()
         {

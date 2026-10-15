@@ -4,7 +4,7 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, recordsPage;
+        private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, recordsPage, questPage;
         private Conversation lastConversation;
         private readonly string[] menuModes = { "inventory", "loadout", "talents", "companions", "journal", "map", "camp", "bounties", "help" };
         private readonly string[] menuZh = { "冒险背包", "遗物配装", "职业成长", "同行伙伴", "任务手帐", "世界地图", "城镇建设", "公会悬赏", "冒险指南" };
@@ -24,18 +24,56 @@ namespace Starfall
         { Panel(x, y, w, h, selected ? PixelArt.C("#293e4e") : PixelArt.C("#1c2e42"), selected ? gold : PixelArt.C("#3a4b60")); }
         private void Icon(string id, float x, float y, float size = 36, Color? tint = null)
         {
+            if (iconSheet == null) RecoverPublishedVisualAtlases();
             int index = id == "sword" ? 0 : id == "bow" ? 1 : id == "staff" ? 2 : id == "shield" ? 3 : id == "wood" ? 4 : id == "crystal" ? 5 : id == "herb" ? 6 : id == "fish" ? 7 : id == "gear" ? 8 : id == "relic" ? 9 : id == "stew" ? 10 : id == "seed" ? 11 : id == "companion" ? 12 : id == "camp" ? 13 : id == "journal" || id == "map" ? 14 : id == "tea" ? 15 : -1;
-            if (index >= 0 && iconSheet != null) Atlas(iconSheet, 4, 4, index, new Rect(x, y, size, size), tint ?? Color.white);
-            else Image(art.Icon(id), x, y, size, size, tint);
+            // Q sword/bow/staff and F stew use the detailed Icons.png.
+            // If the atlas is temporarily missing, NEVER invent a crude
+            // procedural 48px replacement for an existing authored icon.
+            if (index >= 0)
+            {
+                if (iconSheet != null)
+                    Atlas(iconSheet, 4, 4, index,
+                        new Rect(x, y, size, size), tint ?? Color.white);
+                else
+                {
+                    Frame(x, y, size, size, muted);
+                    Text(x, y + size * .25f, size, size * .5f,
+                        id, (int)Math.Max(9f, size * .18f), tint ?? paper,
+                        TextAnchor.MiddleCenter);
+                }
+                return;
+            }
+            Image(art.Icon(id), x, y, size, size, tint);
         }
         private void Portrait(int id, float x, float y, float w, float h)
         {
             Box(x, y, w, h, PixelArt.C("#243b4c"));
             if (id >= 0 && id < 3 && playerPortraits != null) { float side = Math.Min(w, h); Atlas(playerPortraits, 3, 1, id, new Rect(x + (w - side) / 2, y + (h - side) / 2, side, side), Color.white); return; }
+            // The player can speak to the moving survivor. Reuse her exact
+            // in-world atlas identity in dialogue instead of a journal icon
+            // or an invented second playable character portrait.
+            if (id == 8 && npcSheet != null)
+            {
+                float survivorSize = Math.Min(w, h);
+                Atlas(npcSheet, 4, 4, 14,
+                    new Rect(x + (w - survivorSize) / 2, y + h - survivorSize,
+                        survivorSize, survivorSize), Color.white);
+                return;
+            }
             if (id < 0 || portraits == null) { Icon(id < 0 ? "journal" : "companion", x + w * .2f, y + h * .25f, w * .6f); return; }
             float size = Math.Min(w, h); id = Math.Max(0, Math.Min(7, id)); GUI.DrawTextureWithTexCoords(new Rect(x + (w - size) / 2, y + h - size, size, size), portraits, new Rect(id % 4 / 4f, id < 4 ? .5f : 0, .25f, .5f));
         }
-        private void OpenMenu(string mode) { if (mode == "pause" && Game.mode != "title") settingsParent = "world"; if (mode == "saves") RefreshSlots(); Game.mode = mode; if (mode == "inventory") Game.TutorialAction(6); }
+        private void OpenMenu(string mode)
+        {
+            // A downed player must finish the mandatory recovery animation.
+            // Opening inventory, pause or journal mid-death stops the world
+            // clock and previously stranded the player at zero health.
+            if (Game == null || Game.Dying) return;
+            if (mode == "pause" && Game.mode != "title") settingsParent = "world";
+            if (mode == "saves") RefreshSlots();
+            Game.mode = mode;
+            if (mode == "inventory") Game.TutorialAction(6);
+        }
         private void Dim() { Box(0, 0, Width, Height, new Color(.02f, .035f, .07f, .87f)); }
         private void Bar(float x, float y, float w, float value, Color color, float h = 6)
         { Box(x, y, w, h, PixelArt.C("#0d1c2c")); Box(x, y, w * Mathf.Clamp01(value), h, color); Box(x, y, w * Mathf.Clamp01(value), 1, Color.Lerp(color, paper, .3f)); }
@@ -80,14 +118,14 @@ namespace Starfall
             Text(406, 28, 468, 36, Game.L(Game.Map.name, Game.Map.en), 24, paper, TextAnchor.MiddleCenter); Text(412, 69, 456, 25, Game.L(Game.Map.subtitle, Game.Map.suben), 12, gold, TextAnchor.MiddleCenter);
             if (world)
             {
-                DrawMinimap(); QuestGuide q = Game.CurrentGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
+                DrawMinimap(); QuestGuide q = Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
+                    Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.CurrentGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
                 Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") : q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
-                Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint : Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : Game.GuidanceHint(), 13, muted); Bar(1025, 422, 214, Game.practicing ? Game.practiceStage / 3f : q.Progress, gold, 3);
+                Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint : Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : Game.FarCourierActive ? q.next : Game.GuidanceHint(), 13, muted); Bar(1025, 422, 214, Game.practicing ? Game.practiceStage / 3f : q.Progress, gold, 3);
                 if (!Game.practicing && Button(1015, 448, 234, 33, Game.save.showGuidance ? Game.L("路线指引 ON", "Route guide ON") : Game.L("路线指引 OFF", "Route guide OFF"))) { Game.save.showGuidance = !Game.save.showGuidance; Game.revision++; }
-                if (Game.save.room >= 5 || Game.save.teaUntil > Game.save.totalTime) { Panel(24, 145, 298, 60, new Color(.045f, .08f, .13f, .85f), PixelArt.C("#405970")); Text(39, 156, 271, 42, Game.Conditions(), 13, muted); }
+                if (Game.save.room >= 5 || Game.CivicConduitActive || Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 || Game.FarCourierActive || Game.CivicResponseActive || Game.WitnessDefenseRoom!=0 || Game.StormTuning || Game.BlackoutActive || Game.TemperActive || Game.TriadDefenseActive || Game.TriadBossInterruptReady || Game.save.teaUntil > Game.save.totalTime) { Panel(24, 145, 298, 60, new Color(.045f, .08f, .13f, .85f), PixelArt.C("#405970")); Text(39, 156, 271, 42, Game.Conditions(), 13, muted); }
                 DrawTutorialPrompt(); Panel(342, 696, 596, 80, new Color(.045f, .08f, .13f, .95f), PixelArt.C("#4d6478"));
-                bool casting = Game.dashTime > 0 || Game.playerAction != null && !Game.playerAction.released;
-                ActionSlot(354, ControlKey("Q", "Y"), SkillName(), Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff", Game.skillCooldown, Game.save.energy >= (Game.Relic(4) ? 50 : 40), () => Game.Skill(InputAim(true)), 3.5f, Game.L("耐力不足", "Low energy"), casting);
+                ActionSlot(354, ControlKey("Q", "Y"), SkillName(), Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff", Game.skillCooldown, Game.save.energy >= (Game.Relic(4) ? 50 : 40), () => Game.Skill(InputAim(true)), 3.5f, Game.L("耐力不足", "Low energy"));
                 ActionSlot(470, ControlKey("F", "LB"), Game.L("炖汤", "Stew") + " " + Game.save.inventory[6], "stew", 0, Game.save.inventory[6] > 0 && !Game.practicing, () => Game.Eat());
                 ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", 0, Game.save.tea > 0 && !Game.practicing, () => Game.DrinkTea());
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
@@ -112,11 +150,46 @@ namespace Starfall
             if(cooldown>0) Bar(x+4,y+h-3,w-8,1-cooldown/Math.Max(.01f,duration),gold,2);
             if(hit) act();
         }
-        private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrain(1024, 42, 6); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
+        private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrainWindow(1024, 42); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
+        // The HUD shows a readable, player-centered 24x15-tile neighborhood.
+        // M still opens the separately scaled full-world strategic map.
+        private void MiniTerrainWindow(float x0, float y0)
+        {
+            const int cellsX=24, cellsY=15;
+            const float cell=9f;
+            int width=Game.Map.rows[0].Length,height=Game.Map.rows.Length;
+            int left=Math.Max(0,Math.Min(width-cellsX,(int)Game.save.x-cellsX/2));
+            int top=Math.Max(0,Math.Min(height-cellsY,(int)Game.save.y-cellsY/2));
+            Color low=PixelArt.C(Game.Map.color), water=PixelArt.C("#315c76"),
+                stone=PixelArt.C("#566879"),road=PixelArt.C("#a09877");
+            for(int dy=0;dy<cellsY;dy++)for(int dx=0;dx<cellsX;dx++)
+            {
+                int x=left+dx,y=top+dy;
+                if(x<0||x>=width||y<0||y>=height)continue;
+                char tile=TerrainPreviewGlyph(Game.Map,Game.save.room,x,y);
+                Color c=tile=='~'?water:
+                    tile=='#'?stone:tile=='='?road:low;
+                Box(x0+dx*cell,y0+dy*cell,cell,cell,
+                    Game.Explored(Game.save.room,x,y)?c:Color.Lerp(c,ink,.68f));
+            }
+            foreach(WorldObject o in Game.Map.objects)
+            {
+                if(o.x<left||o.x>=left+cellsX||o.y<top||o.y>=top+cellsY||
+                    !Game.IsObjectPresent(o))continue;
+                if(o.kind.StartsWith("portal")||Game.Explored(Game.save.room,o.x,o.y))
+                    Box(x0+(o.x-left)*cell-2,y0+(o.y-top)*cell-2,5,5,
+                        o.kind.StartsWith("portal")?mint:gold);
+            }
+            Point? goal=Game.NavigationTarget();
+            if(goal.HasValue&&Game.save.showGuidance&&goal.Value.x>=left&&goal.Value.x<left+cellsX&&
+                goal.Value.y>=top&&goal.Value.y<top+cellsY)
+                Box(x0+(goal.Value.x-left)*cell-3,y0+(goal.Value.y-top)*cell-3,7,7,gold);
+            Box(x0+(Game.save.x-left)*cell-3,y0+(Game.save.y-top)*cell-3,6,6,paper);
+        }
         private void MiniTerrain(float x0, float y0, float size)
         {
-            for (int y = 0; y < Game.Map.rows.Length; y++) for (int x = 0; x < Game.Map.rows[y].Length; x++) { char t = Game.Map.rows[y][x]; Color c = t == '~' || t == '%' && !Game.LowTide ? PixelArt.C("#315c76") : t == '#' ? PixelArt.C("#566879") : t == '=' ? PixelArt.C("#a09877") : PixelArt.C(Game.Map.color); Box(x0 + x * size, y0 + y * size, size, size, Game.Explored(Game.save.room, x, y) ? c : Color.Lerp(c, ink, .68f)); }
-            foreach (var o in Game.Map.objects) if (o.kind.StartsWith("portal") || Game.Explored(Game.save.room, o.x, o.y)) Box(x0 + o.x * size - 1, y0 + o.y * size - 1, 3, 3, o.kind.StartsWith("portal") ? mint : gold);
+            DrawTerrainPreview(Game.Map,Game.save.room,true,x0,y0,size);
+            foreach (var o in Game.Map.objects) if (Game.IsObjectPresent(o) && (o.kind.StartsWith("portal") || Game.Explored(Game.save.room, o.x, o.y))) Box(x0 + o.x * size - 1, y0 + o.y * size - 1, 3, 3, o.kind.StartsWith("portal") ? mint : gold);
             Point? goal = Game.NavigationTarget(); if (goal.HasValue && Game.save.showGuidance) { Box(x0 + goal.Value.x * size - 3, y0 + goal.Value.y * size - 3, 7, 7, gold); Box(x0 + goal.Value.x * size - 1, y0 + goal.Value.y * size - 1, 3, 3, ink); } Box(x0 + Game.save.x * size - 2, y0 + Game.save.y * size - 2, 5, 5, paper);
         }
         private void DrawInventory()
@@ -134,11 +207,16 @@ namespace Starfall
         }
         private void DrawTalents()
         {
-            Window(Game.L("职业成长", "Talents & techniques"), "LV " + Game.save.level + "  ·  XP " + Game.save.xp + "/" + Game.save.level * 40 + "  ·  " + Game.L("可用技能点 ", "Available points ") + Game.save.skillPoints);
+            Window(Game.L("职业成长", "Talents & techniques"), "LV " + Game.save.level + "  ·  XP " + (Game.save.level >= 30 ? Game.L("满级", "MAX") : Game.save.xp + "/" + (Game.save.level * 40)) + "  ·  " + Game.L("可用技能点 ", "Available points ") + Game.save.skillPoints);
             string[] names = { Game.L("锋芒", "Edge"), Game.L("坚韧", "Resolve"), Game.L("轻盈", "Agility") }, icons = { "sword", "shield", "bow" };
             string[] info = { Game.L("每级攻击+3\n暴击率+2.5%", "+3 damage per rank\n+2.5% critical chance"), Game.L("每级生命+12\n受到伤害-3.5%", "+12 health per rank\n-3.5% incoming damage"), Game.L("提高移动速度\n缩短闪避冷却", "Faster movement\nShorter dodge cooldown") };
             for (int i = 0; i < 3; i++) { float x = 279 + i * 318; Card(x, 178, 302, 338); Icon(icons[i], x + 111, 194, 80); Text(x + 23, 288, 256, 40, names[i], 27, gold, TextAnchor.MiddleCenter); Text(x + 23, 350, 256, 76, info[i], 17, muted, TextAnchor.MiddleCenter); for (int n = 0; n < 5; n++) Box(x + 62 + n * 37, 442, 26, 5, n < Game.save.talents[i] ? gold : PixelArt.C("#43566b")); if (Button(x + 18, 475, 266, 29, Game.L("投入1技能点", "Spend 1 point"), false, Game.save.skillPoints > 0 && Game.save.talents[i] < 5)) Game.Learn(i); }
-            if (Button(279, 704, 938, 25, Game.L("重置三项天赋：20硬币，返还全部投入点数", "Reset talents: 20 coins; refunds all invested points"), false, Game.save.coins >= 20 && Game.save.talents[0] + Game.save.talents[1] + Game.save.talents[2] > 0)) Game.ResetTalents();
+            int invested = Game.save.talents[0] + Game.save.talents[1] + Game.save.talents[2];
+            bool refundOverflow = invested > 0 && Game.save.skillPoints > 99 - invested;
+            string respecLabel = refundOverflow ?
+                Game.L("技能点将超出99点上限，请先分配技能点", "Refund exceeds 99-point cap. Spend points first") :
+                Game.L("重置三项天赋：20硬币，返还全部投入点数", "Reset talents: 20 coins; refunds all invested points");
+            if (Button(279, 704, 938, 25, respecLabel, false, Game.CanResetTalents)) Game.ResetTalents();
             Card(279, 540, 938, 150); Text(302, 560, 885, 35, Game.L("战技专精", "Combat technique"), 22, gold); Text(302, 603, 883, 28, Game.L("当前 Q：", "Current Q: ") + SkillName() + "  /  " + Game.L("熟练度等级 ", "Mastery rank ") + Game.MasteryRank(Game.save.weapon), 16, paper);
             bool learned = Game.Has("technique_" + Game.save.profession); if (Button(302, 646, 891, 31, learned ? Game.L("切换为另一种职业战技", "Switch to the other class technique") : Game.L("学习第二战技：等级5、技能点1", "Learn alternate technique: level 5, 1 talent point"), Game.save.technique == 1, learned || Game.save.level >= 5 && Game.save.skillPoints > 0)) Game.LearnTechnique();
         }
@@ -210,9 +288,32 @@ namespace Starfall
                 return;
             }
             if (journalTab == 2) { for (int i = 0; i < 3; i++) { float y = 229 + i * 100; Card(279, y, 938, 83); Text(303, y + 14, 855, 31, Game.L(GameCore.FactionNames[i], GameCore.FactionNamesEn[i]) + "  " + Game.save.reputation[i] + "/10", 20, gold); Bar(303, y + 59, 888, Game.save.reputation[i] / 10f, mint); } Text(282, 553, 925, 91, Game.L("共同治理条件：三份证词、建设总等级3、两名同伴、三方声望各2。协定影响补给、旅行和同伴指令。", "Shared governance: three reports, three project tiers, two companions, trust 2 with each faction. Covenants affect supplies, travel and commands."), 18, paper); Text(282, 663, 925, 31, Game.L("证词 ", "Reports ") + Game.Proofs + "/3  ·  " + Game.L("建设 ", "Projects ") + Game.ProjectTiers + "/3  ·  " + Game.L("同伴 ", "Companions ") + Game.CompanionCount + "/2", 16, muted); return; }
-            for (int i = 0; i < GameCore.QuestIds.Length; i++) { QuestGuide quest = Game.GetQuest(GameCore.QuestIds[i]); if (Button(279, 226 + i * 46, 321, 39, (quest.complete ? "✓ " : Game.save.trackedQuest == quest.id ? "◆ " : "") + quest.title, selectedQuest == i)) selectedQuest = i; }
+            // A fixed minimum readable row height replaces the shrinking
+            // 35-quest list, whose tiny buttons overlapped each other.
+            const int questsPerPage = 14;
+            selectedQuest = (int)GameCore.Clamp(selectedQuest, 0, GameCore.QuestIds.Length - 1);
+            int questPages = Math.Max(1, (GameCore.QuestIds.Length + questsPerPage - 1) / questsPerPage);
+            questPage = (int)GameCore.Clamp(questPage, 0, questPages - 1);
+            int firstQuest = questPage * questsPerPage;
+            for (int i = firstQuest; i < Math.Min(GameCore.QuestIds.Length, firstQuest + questsPerPage); i++)
+            {
+                float y = 226 + (i - firstQuest) * 29;
+                QuestGuide quest = Game.GetQuest(GameCore.QuestIds[i]);
+                if (Button(279, y, 321, 26,
+                    (quest.complete ? "✓ " : Game.save.trackedQuest == quest.id ? "◆ " : "") + quest.title, selectedQuest == i))
+                    selectedQuest = i;
+            }
+            if (Button(279, 644, 84, 32, Game.L("上页", "Prev"), false, questPage > 0))
+            { questPage--; selectedQuest = questPage * questsPerPage; }
+            Text(379, 648, 119, 25, (questPage + 1) + " / " + questPages, 14, muted, TextAnchor.MiddleCenter);
+            if (Button(515, 644, 85, 32, Game.L("下页", "Next"), false, questPage < questPages - 1))
+            { questPage++; selectedQuest = questPage * questsPerPage; }
             QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 464); Text(650, 244, 541, 27, q.category + (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
-            for (int i = 0; i < q.steps.Count; i++) Text(650, 482 + i * 34, 542, 34, (q.steps[i].done ? "✓  " : "○  ") + q.steps[i].text, 15, q.steps[i].done ? mint : paper);
+            float stepPitch = Math.Min(34f, 133f / Math.Max(1, q.steps.Count));
+            for (int i = 0; i < q.steps.Count; i++)
+                Text(650, 482 + i * stepPitch, 542, Math.Min(33f, stepPitch),
+                    (q.steps[i].done ? "✓  " : "○  ") + q.steps[i].text,
+                    15, q.steps[i].done ? mint : paper);
             Text(650, 622, 540, 22, q.reward, 12, gold); if (Button(650, 647, 258, 31, Game.L("追踪任务", "Track quest"), Game.save.trackedQuest == q.id, !q.locked && !q.complete)) Game.TrackQuest(q.id); if (Button(927, 647, 263, 31, Game.L("查看目标地图", "Show destination"), false, !q.locked)) { selectedRegion = q.room; OpenMenu("map"); }
         }
         private void DrawMap()
@@ -220,11 +321,39 @@ namespace Starfall
             Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("世界路线与本地地图 · 金色为任务目标，白色为你的位置", "World routes and local terrain · gold: objective · ivory: you")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i)) selectedRegion = i; }
             if (Game.save.room == 9 && Button(279, 657, 555, 31, Game.L("查看当前位置：炉火旅店", "Current room: Hearth Inn"), selectedRegion == 9)) selectedRegion = 9;
-            Card(866, 178, 351, 510); MapData m = Game.data.maps[selectedRegion]; Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
-            if (selectedRegion == Game.save.room) MiniTerrain(888, 264, 8.4f); else { for (int y = 0; y < m.rows.Length; y++) for (int x = 0; x < m.rows[y].Length; x++) { char t = m.rows[y][x]; Box(888 + x * 8.4f, 264 + y * 8.4f, 8.4f, 8.4f, t == '~' ? PixelArt.C("#365f78") : t == '#' ? PixelArt.C("#586d79") : t == '=' ? PixelArt.C("#aaa17e") : PixelArt.C(m.color)); } QuestGuide q = Game.CurrentGuide; if (q.room == selectedRegion && !q.complete) Box(888 + q.target.x * 8.4f - 3, 264 + q.target.y * 8.4f - 3, 7, 7, gold); }
+            Card(866, 178, 351, 510);
+            // The Abyss uses a seeded runtime map, NOT the old 36x24 atlas stub.
+            MapData m = selectedRegion==Game.save.room?Game.Map:Game.data.maps[selectedRegion];
+            Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
+            float terrainScale = WorldStreaming.PreviewScale(m.rows[0].Length,m.rows.Length,306,207);
+            if (selectedRegion == Game.save.room) MiniTerrain(888, 264, terrainScale);
+            else
+            {
+                DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
+                QuestGuide q = Game.CurrentGuide;
+                if (q.room == selectedRegion && !q.complete)
+                    Box(888 + q.target.x * terrainScale - 3,
+                        264 + q.target.y * terrainScale - 3, 7, 7, gold);
+            }
             Text(888, 492, 306, 101, Game.CanEnter(selectedRegion) ? Game.L(m.subtitle, m.suben) : Game.RouteHint(selectedRegion, Game.save.english), 16, muted);
-            if (Button(888, 616, 306, 47, selectedRegion == Game.save.room ? Game.L("返回本地区", "Return to region") : Game.L("快速旅行", "Fast travel"), true, selectedRegion == Game.save.room || Game.CanEnter(selectedRegion) && Game.SafeTravel)) { if (selectedRegion == Game.save.room) Game.Close(); else { Game.Enter(selectedRegion); camera = CameraTarget(); } }
-            Text(282, 657, 554, 45, Game.SafeTravel ? Game.L("选择地区查看路线与目标。", "Select a region to inspect its route and target.") : Game.L("附近有敌人，快速旅行暂不可用。", "Enemies nearby; fast travel unavailable."), 14, muted);
+            bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
+            if (Button(888, 616, 306, 47,
+                selectedRegion == Game.save.room ? Game.L("返回本地区", "Return to region") :
+                    rescueTravelLock ? Game.L("救援中无法旅行", "Rescue in progress") :
+                        Game.L("快速旅行", "Fast travel"),
+                true, selectedRegion == Game.save.room ||
+                    !rescueTravelLock && Game.CanEnter(selectedRegion) && Game.SafeTravel))
+            {
+                if (selectedRegion == Game.save.room) Game.Close();
+                else { Game.Enter(selectedRegion); camera = CameraTarget(); }
+            }
+            Text(282, 657, 554, 45,
+                Game.reliefMissionRoom != 0 ?
+                    Game.L("先完成居民撤离或到站台明确取消，再前往其他地区。",
+                        "Finish or explicitly cancel the rescue at its station before leaving the region.") :
+                    Game.SafeTravel ? Game.L("选择地区查看路线与目标。", "Select a region to inspect its route and target.") :
+                        Game.L("附近有敌人，快速旅行暂不可用。", "Enemies nearby; fast travel unavailable."),
+                14, muted);
         }
         private void DrawDialogue()
         {
@@ -235,7 +364,7 @@ namespace Starfall
             if (dialoguePage == pages.Count - 1) { int count = c.choices.Length; for (int i = 0; i < count; i++) { int cols = count > 2 ? 2 : count; float w = (832 - (cols - 1) * 14) / Math.Max(1, cols), y = 539 + i / cols * 45; if (Button(320 + i % cols * (w + 14), y, w, 37, (controllerUsed ? "" : (i + 1) + "  ") + Game.L(c.choices[i].label, c.choices[i].en), i == 0)) { ChooseDialogue(i); break; } } }
             else Text(320, 552, 832, 50, Game.L("读完这一段，再作出你的选择。", "Finish reading before making your choice."), 15, muted);
         }
-        private int SpeakerPortrait(string name) { if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }
+        private int SpeakerPortrait(string name) { if (name == "获救居民" || name == "Rescued civilian") return 8; if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }
         private void DrawFishing()
         {
             Window(Game.L("湖畔垂钓", "Fishing by the lake"), Game.L("浮标进入青绿色区时收线 · E / 空格 / 点击收线", "Reel while the marker is in the teal band · E / Space / Reel")); Card(279, 179, 938, 510); Icon("fish", 667, 202, 134); Text(307, 361, 875, 41, Game.L("成功 ", "Good pulls ") + Game.fishHits + "/3   ·   " + Game.L("失误 ", "Misses ") + Game.fishMisses + "/3", 24, paper, TextAnchor.MiddleCenter);

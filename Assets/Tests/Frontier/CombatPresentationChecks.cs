@@ -3,6 +3,370 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
+        {
+            for (int profession = 0; profession < 3; profession++)
+            {
+                GameCore g = Quiet(data, profession);
+                g.enemies.Clear();
+                Check(g.HeroAnimationState == 0,
+                    "Canonical blond hero must start in idle before any actual player action");
+                g.Attack(new Point(1, 0));
+                Check(g.playerAction != null && g.HeroAnimationState == 2,
+                    "All classes enter attack state from an actual accepted combat input");
+                if (profession == 0)
+                {
+                    // Sword heavy/combo attacks also use visual pose 6/7;
+                    // pose numbers must NOT be confused with mage casting.
+                    g.playerAction.combo = 2;
+                    Check(g.PlayerPose >= 6 && g.HeroAnimationState == 2,
+                        "Heavy sword contact remains an attack, not a fake spell state");
+                }
+                g.Dash(new Point(1, 0));
+                Check(g.HeroAnimationState == 4 && g.playerAction == null,
+                    "Real dodge overrides and cancels previous attack animation");
+                Advance(g, .85f);
+                Check(g.HeroAnimationState == 0,
+                    "Completed dodge recovers to idle without phantom action");
+                g.Skill(new Point(0, -1));
+                Check(g.playerAction != null && g.playerAction.kind == "skill" &&
+                      g.HeroAnimationState == 3,
+                    "All class skills use the real cast action state");
+                g.playerHitTime = .18f;
+                Check(g.HeroAnimationState == 5,
+                    "Taking damage interrupts cast with a visible hurt pose");
+                g.deathTime = .9f;
+                Check(g.HeroAnimationState == 6,
+                    "Real player death has higher animation priority than recoil");
+            }
+        }
+
+        public static void ReactionClockTraversesBothNewMotionCells(Campaign data)
+        {
+            // Run the existing three-original-pose GameCore clock through
+            // the new FIVE-visual-Sprite response: 0,1,2,3,4.
+            // Dash travel, invulnerability and knockback remain untouched.
+            var game = Quiet(data, 0);
+            game.enemies.Clear();
+            game.Dash(new Point(1, 0));
+            Check(game.HeroAnimationState == 4 &&
+                game.HeroAnimationFrameCount(0) == 3,
+                "Dodge keeps the authoritative three-pose gameplay clock");
+            float[] timerSamples = { .18f, .135f, .09f, .045f, .001f };
+            int last = -1;
+            foreach (float remaining in timerSamples)
+            {
+                game.dashTime = remaining;
+                float position = game.HeroAnimationPlaybackPosition(0);
+                int spriteIndex = (int)Math.Floor(position * 2f + .20f);
+                Check(spriteIndex >= last && spriteIndex >= 0 && spriteIndex <= 4,
+                    "Dodge must progress through five rooted Sprite cells");
+                last = spriteIndex;
+            }
+            Check(last == 4, "Dodge must return to accepted idle frame");
+            game.dashTime = 0f;
+            game.playerHitTime = .18f;
+            Check(game.HeroAnimationState == 5 &&
+                game.HeroAnimationFrameCount(0) == 3,
+                "Hit stun keeps the authoritative three-pose gameplay clock");
+            last = -1;
+            foreach (float remaining in timerSamples)
+            {
+                game.playerHitTime = remaining;
+                int spriteIndex = (int)Math.Floor(
+                    game.HeroAnimationPlaybackPosition(0) * 2f + .20f);
+                Check(spriteIndex >= last && spriteIndex >= 0 && spriteIndex <= 4,
+                    "Hit recovery must progress through five rooted Sprite cells");
+                last = spriteIndex;
+            }
+            Check(last == 4, "Hit recovery must return to accepted idle frame");
+        }
+
+        public static void HeroWindupActuallySamplesAnticipationBeforeContact(Campaign data)
+        {
+            // The production 7-cell Attack/Cast strips are arranged:
+            // idle, intermediate, windup, anticipation, RELEASE, recovery, idle.
+            // Contact must remain hidden until GameCore emits real damage.
+            for (int profession = 0; profession < 3; profession++)
+                foreach (bool skill in new[] { false, true })
+                {
+                    var g = Quiet(data, profession);
+                    g.enemies.Clear();
+                    if (skill) g.Skill(new Point(1, 0));
+                    else g.Attack(new Point(1, 0));
+                    ActorAction a = g.playerAction;
+                    Check(a != null && !a.released, "Real action must begin in windup");
+                    a.elapsed = a.contact * .88f;
+                    for (int facing = 0; facing < 3; facing++)
+                    {
+                        float position = g.HeroAnimationPlaybackPosition(facing);
+                        int nativeIndex = (int)Math.Floor(position * 2f + .20f);
+                        Check(g.HeroAnimationState == (skill ? 3 : 2) &&
+                            g.HeroAnimationFrame(facing) < 2 &&
+                            position > 1.4f && position < 2f &&
+                            nativeIndex == 3,
+                            "All three facings must show anticipation cell 3, "
+                            + "never contact cell 4, before release");
+                    }
+                    g.Tick(a.contact - a.elapsed + .005f, new Point());
+                    Check(a.released && g.playerAction == a,
+                        "Authoritative GameCore must release at the actual contact time");
+                    for (int facing = 0; facing < 3; facing++)
+                    {
+                        float position = g.HeroAnimationPlaybackPosition(facing);
+                        Check(position >= 2f && g.HeroAnimationFrame(facing) >= 2,
+                            "Only the actual damage contact may display release cell 4");
+                    }
+                }
+        }
+
+        public static void RealHeroAnimatorFramesFollowActionReleaseAtAllFrameRates(Campaign data)
+        {
+            foreach (float dt in new[] { .01f, .02f, .05f })
+                for (int profession = 0; profession < 3; profession++)
+                {
+                    GameCore game = Quiet(data, profession);
+                    game.enemies.Clear();
+                    Check(game.HeroAnimationFrameCount(0) == 1 &&
+                        game.HeroAnimationFrame(0) == 0, "Idle has one rooted accepted frame");
+                    game.Attack(new Point(1, 0));
+                    ActorAction attack = game.playerAction;
+                    Check(attack != null && game.HeroAnimationState == 2,
+                        "An actual accepted attack starts production Animator's attack state");
+                    Check(game.HeroAnimationFrameCount(0) == 4 &&
+                        game.HeroAnimationFrameCount(1) == 4 &&
+                        game.HeroAnimationFrameCount(2) == 4,
+                        "All three attack facings use four phases: idle, windup, contact, recovery");
+                    int windupSamples = 0, releasedSamples = 0;
+                    for (int step = 0; step < 50 && game.playerAction == attack; step++)
+                    {
+                        if (!attack.released)
+                        {
+                            Check(game.HeroAnimationFrame(0) < 2 &&
+                                game.HeroAnimationFrame(1) < 2,
+                                "No facing may display a contact pose before real damage release");
+                            windupSamples++;
+                        }
+                        else
+                        {
+                            Check(game.HeroAnimationFrame(0) >= 2 &&
+                                game.HeroAnimationFrame(1) >= 2,
+                                "Every attack contact/recovery frame follows GameCore damage release");
+                            releasedSamples++;
+                        }
+                        game.Tick(dt, new Point());
+                    }
+                    Check(windupSamples > 0 && releasedSamples > 0,
+                        "Each profession has windup AND release animation at " + dt);
+                    GameCore caster = Quiet(data, profession);
+                    caster.enemies.Clear();
+                    caster.Skill(new Point(1, 0));
+                    Check(caster.playerAction != null && caster.HeroAnimationState == 3 &&
+                        caster.HeroAnimationFrameCount(0) == 4 &&
+                        caster.HeroAnimationFrameCount(1) == 4 &&
+                        caster.HeroAnimationFrameCount(2) == 4 &&
+                        caster.HeroAnimationFrame(0) == 0,
+                        "Skill begins at the rooted idle pose in all three four-phase Cast clips");
+                    for (int frame = 0; frame < 50 && !caster.playerAction.released; frame++)
+                    {
+                        Check(caster.HeroAnimationFrame(0) < 2,
+                            "Windup cannot show a skill contact before authoritative release");
+                        caster.Tick(dt, new Point());
+                    }
+                    Check(caster.HeroAnimationState == 3 && caster.HeroAnimationFrame(0) == 2,
+                        "Cast contact pose follows only the real GameCore skill release");
+                    ActorAction castAction = caster.playerAction;
+                    for (int frame = 0; frame < 50 && caster.playerAction == castAction &&
+                        castAction.elapsed < castAction.contact + .21f; frame++)
+                        caster.Tick(dt, new Point());
+                    Check(caster.playerAction == castAction &&
+                        caster.HeroAnimationFrame(0) == 3,
+                        "Cast finishes on identical rooted idle pixels before action expiration");
+                    GameCore runner = Quiet(data, profession);
+                    runner.save.x = 10; runner.save.y = 14;
+                    runner.Tick(.05f, new Point(1, 0));
+                    Check(runner.HeroAnimationState == 1 &&
+                        runner.HeroAnimationFrame(0) == runner.WalkFrame % 4,
+                        "Animator run samples the real walking distance-derived frame");
+                }
+        }
+
+        private static float OpeningStrike(Campaign data, float step, bool boss, Point facing, float recovery, out GameCore game, out Enemy target)
+        {
+            game = Quiet(data);
+            game.save.seed = 1; game.save.english = true;
+            target = new Enemy(88001, boss ? 0 : 2, 13, 14, 900, boss)
+            { facing = facing, timer = 999, releaseTime = recovery };
+            game.enemies.Add(target);
+            game.Attack(new Point(1, 0));
+            for (int frame = 0; frame < 60 && target.hp >= 900; frame++)
+                game.Tick(step, new Point());
+            Check(target.hp < 900, "Real sword contact must hit the production enemy");
+            return 900 - target.hp;
+        }
+
+        public static void TimedRecoveryAndArmoredFlanksCreateCombatOpenings(Campaign data)
+        {
+            foreach (float step in new[] { .01f, .02f, .05f })
+            {
+                GameCore normalGame, flankGame, guardedGame, bossGame, openGame, staleGame;
+                Enemy normal, flank, guarded, boss, opening, stale;
+                float neutral = OpeningStrike(data, step, false, new Point(0, 1), 0, out normalGame, out normal);
+                float rear = OpeningStrike(data, step, false, new Point(1, 0), 0, out flankGame, out flank);
+                float front = OpeningStrike(data, step, false, new Point(-1, 0), 0, out guardedGame, out guarded);
+                Check(rear > neutral * 1.24f && rear < neutral * 1.27f && front < neutral * .42f,
+                    "Heavy armor must reward a rear flank without weakening frontal guard");
+                Check(flank.stagger >= normal.stagger + 5.9f && flankGame.effects.Exists(e => e.text == "FLANK"),
+                    "Flanking adds poise pressure and player feedback");
+                float ordinaryBoss = OpeningStrike(data, step, true, new Point(0, 1), 0, out bossGame, out boss);
+                float recoveryBoss = OpeningStrike(data, step, true, new Point(0, 1), .5f, out openGame, out opening);
+                float expiredBoss = OpeningStrike(data, step, true, new Point(0, 1), .04f, out staleGame, out stale);
+                Check(recoveryBoss > ordinaryBoss * 1.24f && recoveryBoss < ordinaryBoss * 1.27f &&
+                    Math.Abs(expiredBoss - ordinaryBoss) < .001f,
+                    "Only a contact during live post-attack recovery earns the opening");
+                Check(openGame.effects.Exists(e => e.text == "OPEN") &&
+                    !bossGame.effects.Exists(e => e.text == "OPEN") &&
+                    !staleGame.effects.Exists(e => e.text == "OPEN"),
+                    "Opening feedback is never awarded to stale contacts");
+            }
+        }
+
+        public static void HeldAttacksPreserveSkillContactPoses(Campaign data)
+        {
+            foreach(float step in new[]{.01f,.02f,.05f}) for(int profession=0;profession<3;profession++)
+            {
+                var g=Quiet(data,profession);g.Skill(new Point(1,0));ActorAction skill=g.playerAction;
+                bool sawContact=false,sawFollowup=false;
+                for(int frame=0;frame<100;frame++)
+                {
+                    g.Tick(step,new Point());bool active=g.playerAction==skill&&g.PlayerPhase==ActionPhase.Active;
+                    g.Attack(new Point(0,-1)); // Production input samples held attack after Tick.
+                    if(active)
+                    {
+                        sawContact=true;
+                        Check(g.playerAction==skill&&g.PlayerPose==7,"Held attack cannot replace Q's visible contact for profession "+profession+" at timestep "+step);
+                    }
+                    if(g.playerAction!=skill)
+                    {
+                        Check(skill.released&&skill.elapsed+.00001f>=skill.contact+.1f,"A followup waits for the complete skill contact interval");
+                        sawFollowup=g.playerAction!=null&&g.playerAction.kind=="attack";break;
+                    }
+                }
+                Check(sawContact&&sawFollowup,"Q shows its release pose, then continuous attack resumes without another button press");
+            }
+            var sameFrame=Quiet(data);sameFrame.Skill(new Point(0,-1));sameFrame.Attack(new Point(1,0));
+            Check(sameFrame.playerAction.kind=="skill"&&sameFrame.save.energy==60,"Discrete Q has priority over the held attack sampled in the same frame");
+        }
+        public static void BufferedSkillsRetainIntentAndJoinRecovery(Campaign data)
+        {
+            foreach(float step in new[]{.01f,.02f,.05f}) for(int profession=0;profession<3;profession++) foreach(bool afterContact in new[]{false,true})
+            {
+                var g=Quiet(data,profession);g.Attack(new Point(1,0));ActorAction attack=g.playerAction;
+                Advance(g,attack.contact+(afterContact?.02f:-.04f));
+                Point target=new Point(21,12),direction=(target-g.Position).Normalized;
+                g.SetAimTarget(target);g.Skill(direction);
+                Check(g.playerAction==attack&&g.skillCooldown<=0&&g.save.energy==100,"Queuing Q during preparation or contact cannot cancel the visible attack or spend energy early");
+                g.SetAimTarget(new Point(5,18));g.SetAim(new Point(-1,0));g.save.talents[0]++;
+                ActorAction skill=null;
+                for(int frame=0;frame<100;frame++)
+                {
+                    g.Tick(step,new Point(),new Point(-1,0));g.Attack(new Point(-1,0));
+                    if(g.playerAction!=attack)
+                    {
+                        skill=g.playerAction;
+                        Check(attack.elapsed+.00001f>=attack.contact+.1f,"A buffered Q preserves the preceding attack's complete contact interval");break;
+                    }
+                }
+                Check(skill!=null&&skill.kind=="skill","One discrete Q near contact starts at recovery despite continuously held attack");
+                Check((skill.direction-direction).Length<.001f&&skill.target.HasValue&&(skill.target.Value-target).Length<.001f,"Buffered Q keeps the original direction and pointer target");
+                Check(Math.Abs(skill.damage-g.Damage)<.001f&&Math.Abs(skill.impact.criticalChance-.085f)<.001f,"Combat values are captured when Q actually starts, after the queued intent");
+                Check(Math.Abs(g.save.energy-60)<.001f&&Math.Abs(g.skillCooldown-3.5f)<.001f,"Buffered Q pays its original cost and starts cooldown exactly once");
+                if(profession==1)
+                {
+                    while(!skill.released)g.Tick(.01f,new Point(),new Point(-1,0));
+                    var volley=g.projectiles.FindAll(p=>p.technique);
+                    Point expected=(target-GameCore.WeaponOrigin(g.Position,1,direction)).Normalized;
+                    Check(volley.Count==5&&(volley[2].velocity.Normalized-expected).Length<.001f,"The actual queued volley uses the retained target and authored muzzle");
+                }
+            }
+            var latest=Quiet(data,1);latest.Dash(new Point(1,0));latest.Skill(new Point(0,-1));
+            Point lastTarget=new Point(20,16);latest.SetAimTarget(lastTarget);latest.Skill(new Point(0,1));
+            Advance(latest,.2f);
+            Check(latest.playerAction!=null&&latest.playerAction.kind=="skill"&&latest.playerAction.direction.y==1&&latest.playerAction.target.HasValue&&(latest.playerAction.target.Value-lastTarget).Length<.001f,"Repeated Q replaces one pending intent with the latest direction and target");
+            Advance(latest,4.5f);Check(latest.playerAction==null&&latest.skillCooldown<=0,"A consumed input cannot recast after cooldown");
+        }
+        public static void BufferedSkillsHaveBoundedLifetimeAndResourceChecks(Campaign data)
+        {
+            var early=Quiet(data,2);early.Attack(new Point(1,0));early.Skill(new Point(0,-1));Advance(early,1);
+            Check(early.skillCooldown<=0&&early.save.energy==100&&!early.effects.Exists(e=>e.kind=="burst"),"Q pressed at the start of long staff preparation expires instead of autocasting much later");
+            var frozen=Quiet(data,1);frozen.hitStop=.5f;frozen.Skill(new Point(0,-1));
+            for(int frame=0;frame<9;frame++)frozen.Tick(.05f,new Point());
+            Check(frozen.playerAction==null&&frozen.skillCooldown==0&&frozen.save.energy==100,"Hitstop freezes a ready Q intent without spending or advancing its short lifetime");
+            for(int frame=0;frame<5&&frozen.playerAction==null;frame++)frozen.Tick(.05f,new Point());
+            Check(frozen.playerAction!=null&&frozen.playerAction.kind=="skill"&&frozen.save.energy==60,"The retained Q starts once when hitstop ends");
+            foreach(float step in new[]{.01f,.02f,.05f})
+            {
+                var dodge=Quiet(data);dodge.Dash(new Point(1,0));dodge.Skill(new Point(0,-1));
+                for(int frame=0;frame<30&&dodge.playerAction==null;frame++)dodge.Tick(step,new Point());
+                Check(dodge.dashTime==0&&dodge.playerAction!=null&&dodge.playerAction.kind=="skill"&&Math.Abs(dodge.save.energy-42.8f)<1,"Same-frame Dash then Q waits for the dodge and spends once at timestep "+step);
+            }
+            var cancelled=Quiet(data);cancelled.Attack(new Point(1,0));Advance(cancelled,.12f);cancelled.Skill();cancelled.Dash(new Point(1,0));Advance(cancelled,.5f);
+            Check(cancelled.skillCooldown<=0&&cancelled.playerAction==null,"A new dodge clears the earlier queued Q");
+            foreach(bool cooldownFailure in new[]{false,true})
+            {
+                var rejected=Quiet(data);rejected.Attack(new Point(1,0));Advance(rejected,.12f);
+                rejected.skillCooldown=cooldownFailure?.01f:0;rejected.save.energy=cooldownFailure?100:39;rejected.toast="";float energy=rejected.save.energy;
+                rejected.Skill();Check(rejected.save.energy==energy&&rejected.toast.Length>0,"Unavailable Q gives feedback and does not spend while an attack blocks it");
+                Advance(rejected,.7f);
+                Check(rejected.skillCooldown<=0&&!rejected.effects.Exists(e=>e.kind=="burst"),"Cooldown expiry or later energy regeneration cannot revive a rejected Q");
+            }
+            var spent=Quiet(data);spent.Attack(new Point(1,0));Advance(spent,.12f);spent.Skill();spent.save.energy=0;Advance(spent,.5f);
+            Check(spent.skillCooldown<=0&&!spent.effects.Exists(e=>e.kind=="burst"),"Buffered Q rechecks affordability at dispatch after other spending");
+        }
+        public static void BufferedSkillsRespectVariableFrameDeadlines(Campaign data)
+        {
+            float[][] timesteps={new[]{.033f},new[]{.016f,.033f,.05f},new[]{.01f}};
+            for(int cadence=0;cadence<timesteps.Length;cadence++) foreach(bool withinWindow in new[]{true,false})
+            {
+                var g=Quiet(data,2);g.Attack(new Point(1,0));
+                // Staff recovery starts at .379 seconds. .18 leaves .199,
+                // while .17 leaves .209 and must outlive the .20 input window.
+                Advance(g,withinWindow?.18f:.17f);g.Skill(new Point(0,-1));bool cast=false;
+                for(int frame=0;frame<100;frame++)
+                {
+                    g.Tick(timesteps[cadence][frame%timesteps[cadence].Length],new Point());
+                    if(g.playerAction!=null&&g.playerAction.kind=="skill") {cast=true;break;}
+                }
+                Check(cast==withinWindow,"Buffered Q deadline follows the actual readiness time within a variable frame, cadence "+cadence+" eligible "+withinWindow);
+                if(cast)Check(g.save.energy==60&&g.skillCooldown==3.5f,"Crossing the deadline in a long frame still dispatches the eligible Q exactly once");
+                else Check(g.skillCooldown<=0&&g.save.energy==100,"A readiness time beyond the window cannot gain extra grace from a long frame");
+            }
+            var boundary=Quiet(data,2);boundary.Attack(new Point(1,0));Advance(boundary,.179f);boundary.Skill(new Point(0,-1));
+            for(int frame=0;frame<20;frame++)boundary.Tick(.01f,new Point());
+            Check(boundary.playerAction!=null&&boundary.playerAction.kind=="skill"&&boundary.save.energy==60,"An exact .20-second deadline tolerates accumulated .01-step float residue without dropping Q");
+        }
+        public static void BufferedSkillsClearAtWorldAndProfileBoundaries(Campaign data)
+        {
+            System.Action<GameCore>[] transitions={
+                g=>{g.mode="pause";g.Close();},
+                g=>{g.mode="dialog";g.Close();},
+                g=>g.Equip(0),
+                g=>{g.save.weaponStyles[1]=1;},
+                g=>{g.save.technique=1;},
+                g=>{g.save.profession=2;},
+                g=>g.Enter(0),
+                g=>{g.PrepareSave();g.Load(CloneSave(g.save));},
+                g=>{g.save.health=1;g.invulnerable=0;g.projectiles.Add(new Projectile{position=g.Position,damage=999,source="shot"});g.Tick(.01f,new Point());Check(g.Dying,"Boundary test takes an actual lethal contact");}
+            };
+            for(int boundary=0;boundary<transitions.Length;boundary++)
+            {
+                var g=Quiet(data,1);g.Attack(new Point(1,0));Advance(g,.2f);g.Skill(new Point(0,-1));
+                Check(g.skillCooldown<=0&&g.save.energy==100,"Boundary scenario first has an unspent short Q intent");
+                transitions[boundary](g);Advance(g,1.3f);
+                Check(g.skillCooldown<=0&&g.playerAction==null,"Menu, equipment, profile, travel, load or death cannot release a stale Q, boundary "+boundary);
+                Check(!g.projectiles.Exists(p=>p.technique),"No queued volley escapes into another profile or world, boundary "+boundary);
+            }
+        }
         public static void EffectOriginsAndSources(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
@@ -74,8 +438,12 @@ namespace Starfall.Tests
                 g.Tick(.02f, new Point()); Check(action.released && g.PlayerPose == 5, "Contact and release pose share the same clock");
                 if (weapon == 0) { float hp = foe.hp; Check(hp < 999, "Sword contacts at the strike frame"); Advance(g, .1f); Check(foe.hp == hp, "A swing cannot repeatedly damage the same enemy"); }
                 else Check(g.projectiles.Count > 0, "Ranged weapons spawn only at their release frame");
-                g.Enter(0); g.Close(); g.attackCooldown = 0; g.Attack(new Point(1, 0)); g.save.flags.Add("weapon_1"); g.Equip(1); Advance(g, .8f);
-                Check(g.playerAction == null && g.projectiles.Count == 0, "Equipment change cancels the stored attack");
+                g.Enter(0); g.Close(); g.attackCooldown = 0; g.Attack(new Point(1, 0));
+                // Weapon 1 is already equipped for the ranger. Exercise a
+                // genuine loadout change, not re-selecting the same icon.
+                int alternateWeapon = weapon == 1 ? 0 : 1;
+                g.save.flags.Add("weapon_1"); g.Equip(alternateWeapon); Advance(g, .8f);
+                Check(g.playerAction == null && g.projectiles.Count == 0, "Changing to a different weapon cancels the stored attack");
                 g.Attack(new Point(1, 0)); g.Enter(1); Advance(g, .8f); Check(g.projectiles.Count == 0, "Travel does not release an old attack in the new region");
             }
             var caster = Fresh(data, 2); caster.Enter(1); caster.enemies.Clear(); caster.save.reducedMotion = true;
@@ -153,5 +521,449 @@ namespace Starfall.Tests
                 g.Enter(1); Check(g.companionAction == null && g.CanStand(g.companionPosition), "Travel cancels a previous companion action and restores safe following");
             }
         }
+        public static void ShortHitStopReleasesUnusedFrameTime(Campaign data)
+        {
+            var reference=Fresh(data);
+            var stopped=Fresh(data);
+            reference.enemies.Clear();stopped.enemies.Clear();
+            reference.save.x=stopped.save.x=12;
+            reference.save.y=stopped.save.y=14;
+            stopped.hitStop=.012f;
+            float before=stopped.save.totalTime;
+            reference.Tick(.038f,new Point(1,0));
+            stopped.Tick(.05f,new Point(1,0));
+            Check(Math.Abs(stopped.save.totalTime-before-.038f)<.0002f&&
+                  Math.Abs(stopped.save.x-reference.save.x)<.001f&&
+                  Math.Abs(stopped.save.y-reference.save.y)<.001f&&stopped.hitStop==0,
+                "A 12ms impact freeze releases the unused 38ms for normal movement and world time");
+            var multi=Fresh(data);
+            reference=Fresh(data);
+            multi.enemies.Clear();reference.enemies.Clear();
+            multi.save.x=reference.save.x=12;multi.save.y=reference.save.y=14;
+            multi.hitStop=.07f;
+            before=multi.save.totalTime;
+            multi.Tick(.05f,new Point(1,0));
+            Check(Math.Abs(multi.save.totalTime-before)<.00001f&&multi.save.x==12&&
+                  Math.Abs(multi.hitStop-.02f)<.00001f,
+                "A longer hit-stop completely freezes its first frame and retains exactly the remainder");
+            multi.Tick(.05f,new Point(1,0));
+            reference.Tick(.03f,new Point(1,0));
+            Check(Math.Abs(multi.save.totalTime-before-.03f)<.0002f&&
+                  Math.Abs(multi.save.x-reference.save.x)<.001f&&multi.hitStop==0,
+                "The next frame uses only the un-frozen 30ms; damage feedback never grants a free slow-motion penalty");
+        }
+
+
+        public static void BossFinaleCannotInterruptDeathRecovery(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;
+            g.Enter(4);g.enemies.Clear();
+            g.save.flags.Add("boss_4");
+            var delay=typeof(GameCore).GetField("finaleDelay",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+            delay.SetValue(g,.025f);
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+            g.save.health=1;g.invulnerable=0;
+            hurt.Invoke(g,new object[]{999f,"shot",null});
+            Check(g.Dying && g.mode=="world",
+                "Real lethal damage enters the death state with a pending final-boss epilogue");
+            g.Tick(.05f,new Point());
+            Check(g.Dying && g.mode=="world" && (float)delay.GetValue(g)>.001f,
+                "Boss finale must not open dialogue while the death clock is active");
+            for(int i=0;i<28&&g.Dying;i++)g.Tick(.05f,new Point());
+            Check(!g.Dying&&g.save.room==0&&g.mode=="world"&&g.save.health>0,
+                "The player always reaches a safe town respawn even when the epilogue delay was pending");
+            Check((float)delay.GetValue(g)==0,
+                "Dead-player finale delay is retired on respawn, not fired inside the old region");
+        }
+
+        public static void EquippingIdenticalWeaponCannotEraseActiveAttack(Campaign data)
+        {
+            var g=Fresh(data);
+            g.enemies.Clear();
+            g.save.energy=100;
+            g.Attack(new Point(1,0));
+            ActorAction ongoing=g.playerAction;
+            Check(ongoing!=null&&ongoing.kind=="attack",
+                "An authentic sword attack starts its visible windup");
+            int beforeRevision=g.revision, originalWeapon=g.save.weapon;
+            g.Equip(originalWeapon);
+            Check(g.playerAction==ongoing&&g.revision==beforeRevision,
+                "Re-selecting the same equipped weapon preserves the prepared attack and does not dirty the save");
+            for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            Check(ongoing.released,
+                "Real attack contact still completes after same-weapon selection");
+            // Dash offers a deterministic real input-buffer window independent
+            // of weapon windup frame boundaries.
+            var queued=Fresh(data);
+            queued.save.energy=100;queued.enemies.Clear();
+            queued.Dash(new Point(1,0));
+            queued.Skill(new Point(0,1));
+            Check(queued.playerAction==null&&queued.skillCooldown==0&&queued.dashTime>0,
+                "A real dodge buffers Q without starting or paying for its skill yet");
+            int queuedRevision=queued.revision;
+            queued.Equip(queued.save.weapon);
+            Check(queued.revision==queuedRevision&&queued.skillCooldown==0,
+                "Same-weapon selection preserves buffered Q through the dodge");
+            bool cast=false;
+            for(int i=0;i<16;i++)
+            {
+                queued.Tick(.05f,new Point());
+                if(queued.playerAction!=null&&queued.playerAction.kind=="skill")
+                    cast=true;
+            }
+            Check(cast&&queued.skillCooldown>0,
+                "The queued class technique still executes exactly once after the real dodge");
+            // An actual loadout change must continue to cancel both old
+            // windups and buffered intent; it is not an idempotent click.
+            var changed=Fresh(data);
+            changed.save.flags.Add("weapon_1");
+            changed.save.energy=100;
+            changed.Attack(new Point(1,0));
+            Check(changed.playerAction!=null,"Old loadout has an attack in preparation");
+            changed.Equip(1);
+            Check(changed.save.weapon==1&&changed.playerAction==null,
+                "Genuine weapon swap retires the old sword windup");
+            var canceled=Fresh(data);
+            canceled.save.flags.Add("weapon_1");
+            canceled.save.energy=100;
+            canceled.Dash(new Point(1,0));
+            canceled.Skill(new Point(0,1));
+            canceled.Equip(1);
+            for(int i=0;i<16;i++)canceled.Tick(.05f,new Point());
+            Check(canceled.save.weapon==1&&canceled.playerAction==null&&
+                  canceled.skillCooldown<=0,
+                "Genuine equipment swap discards previously buffered dodge Q rather than replaying it");
+        }
+
+        public static void SwitchingSaveSlotsDoesNotInheritOldAimOrFishingState(Campaign data)
+        {
+            var g=Fresh(data,1);
+            g.enemies.Clear();
+            g.SetAim(new Point(0,-1));
+            g.SetAimTarget(new Point(77,16));
+            g.fishTime=3.2f;g.fishCursor=.72f;g.fishHits=2;g.fishMisses=1;
+            g.Notify("旧旅程的消息","Prior journey notification");
+            g.sound="attack";g.sound="hurt";
+            Check(g.toastTime>0&&g.sounds.Count>=2,
+                "Prior journey has a pending notification and authentic queued combat audio");
+            SaveData replacement=new SaveData();
+            replacement.flags.Add("intro");
+            g.Load(replacement);g.Start();
+            Check((g.aim-new Point(1,0)).Length<.001f&&
+                  g.fishTime==0&&g.fishCursor==0&&g.fishHits==0&&g.fishMisses==0&&
+                  g.toastTime==0&&g.toast==""&&g.sounds.Count==0&&g.sound=="",
+                "A loaded slot starts without inherited aiming, fishing, HUD or combat audio state");
+            g.sound="travel";
+            Check(g.sounds.Count==1,
+                "New journey audio continues to enqueue its own distinct travel cue");
+            g.sounds.Clear();
+            g.Skill();
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                  (g.playerAction.direction-new Point(1,0)).Length<.001f&&
+                  !g.playerAction.target.HasValue,
+                "The newly loaded hero's first authentic skill cannot reuse a prior slot's cursor target");
+            g.SetAimTarget(new Point(23,20));g.SetAim(new Point(-1,0));
+            g.NewGame(2);g.Close();g.Skill();
+            Check(g.playerAction!=null&&
+                  (g.playerAction.direction-new Point(1,0)).Length<.001f&&
+                  !g.playerAction.target.HasValue,
+                "Starting a new class also clears the previous hero's targeting state");
+        }
+
+        public static void PiercingVolleysKeepEveryContactWithReusableTargetSnapshot(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;g.save.reducedMotion=true;
+            var front=new Enemy(6671,0,12.5f,14,20){stun=99,timer=999};
+            var middle=new Enemy(6672,0,13.35f,14,20){stun=99,timer=999};
+            var rear=new Enemy(6673,0,14.7f,14,999){stun=99,timer=999};
+            g.enemies.Add(front);g.enemies.Add(middle);g.enemies.Add(rear);
+            var arrow=new Projectile { position=new Point(12,14),
+                velocity=new Point(20,0),life=3,damage=60,
+                friendly=true,piercing=true,visual="arrow" };
+            g.projectiles.Add(arrow);
+            for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+            Check(!g.enemies.Contains(front)&&!g.enemies.Contains(middle)&&
+                  g.enemies.Contains(rear)&&rear.hp<999,
+                "Piercing sweep still kills both front targets and damages the survivor across multiple substeps");
+            Check(arrow.hits.Contains(front.id)&&arrow.hits.Contains(middle.id)&&
+                  arrow.hits.Contains(rear.id)&&arrow.hits.Count==3,
+                "A piercing projectile never double-hits a dead/recoiling enemy when target snapshots are reused");
+            float remaining=rear.hp;
+            for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+            Check(rear.hp==remaining&&arrow.hits.Count==3,
+                "Already-hit targets are not damaged again by later arrow flight frames");
+        }
+
+        public static void NonDamagingContactsCannotGrantFreeHitImmunity(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.reducedMotion=true;
+            g.save.health=50;g.invulnerable=0;g.playerHitTime=0;
+            int revision=g.revision;int effects=g.effects.Count;
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            foreach(float amount in new []{0f,-10f,float.NaN,float.PositiveInfinity})
+            {
+                hurt.Invoke(g,new object[]{amount,"area",null});
+                Check(g.save.health==50&&g.invulnerable==0&&
+                      g.playerHitTime==0&&g.effects.Count==effects&&!g.Dying&&
+                      g.revision==revision,
+                    "Invalid and cosmetic zero-area contacts do not stagger or grant invulnerability");
+            }
+            // Real damage remains effective on the very next contact; the
+            // inert preview must not have consumed the hero's vulnerability.
+            hurt.Invoke(g,new object[]{12f,"area",null});
+            Check(g.save.health<50&&g.invulnerable>0&&g.playerHitTime>0&&
+                  g.effects.Count>effects,
+                "Authentic positive strike still deals damage and shows the existing hit reaction");
+        }
+
+        public static void ReselectingSameCompanionPreservesInFlightCommand(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("companion_0");g.save.flags.Add("companion_1");
+            g.SelectCompanion(0);
+            g.save.health=35;g.save.energy=100;
+            g.CommandCompanion();
+            ActorAction active=g.companionAction;
+            Check(active!=null&&active.kind=="command"&&g.companionCooldown>0,
+                "An authentic healer command has a pending release and a charged cooldown");
+            int revision=g.revision;
+            Point position=g.companionPosition;
+            float cooldown=g.companionCooldown;
+            g.SelectCompanion(0);
+            Check(g.companionAction==active&&g.revision==revision&&
+                  g.companionCooldown==cooldown&&
+                  (g.companionPosition-position).Length<.001f,
+                "Selecting the already-active healer cannot cancel a charged heal or teleport the ally");
+            Advance(g,.22f);
+            Check(active.released&&g.save.health>35,
+                "The authentic healer release completes even after a redundant party selection");
+            g.SelectCompanion(1);
+            Check(g.save.companion==1&&g.companionAction==null&&
+                  g.revision>revision,
+                "Selecting another unlocked ally still performs a genuine party change");
+            g.CommandCompanion();
+            Check(g.companionAction==null,
+                "An earlier command cooldown cannot be bypassed by swapping companions");
+        }
+
+        public static void InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.reducedMotion=true;
+            var e=new Enemy(784,0,13,14,80){stun=999,timer=999};
+            g.enemies.Add(e);
+            int seed=g.save.seed,revision=g.revision;
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            foreach(float amount in new []{0f,-8f,float.NaN,float.NegativeInfinity})
+            {
+                hit.Invoke(g,new object[]{e,amount,false,null,null});
+                Check(e.hp==80&&e.stagger==0&&g.save.seed==seed&&
+                      g.effects.Count==0&&g.revision==revision&&
+                      g.enemies.Contains(e),
+                    "An invalid player damage number cannot heal or stagger foes or spend the crit seed");
+            }
+            hit.Invoke(g,new object[]{e,15f,false,null,null});
+            Check(e.hp<80&&g.effects.Count>0&&g.save.seed!=seed,
+                "A genuine subsequent positive hit still uses the complete damage and visual pipeline");
+        }
+
+        public static void RealWeaponChangesRestartWeaponComboButReselectDoesNot(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.save.flags.Add("weapon_1");
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null&&g.comboTimer>0&&g.combo==0,
+                "Sword contact starts the actual uninterrupted combo window");
+            g.playerAction=null;g.attackCooldown=0;
+            g.Attack(new Point(1,0));
+            Check(g.combo==1&&g.comboTimer>0,
+                "Two real sword attacks are counted in the same combo");
+            g.Equip(0);
+            Check(g.combo==1&&g.comboTimer>0,
+                "Reselecting the exact same sword cannot reset earned combo progress");
+            g.Equip(1);
+            Check(g.save.weapon==1&&g.combo==0&&g.comboTimer==0&&
+                  g.playerAction==null,
+                "A genuine switch to the unlocked bow discards obsolete sword combo state");
+            g.Equip(0);g.attackCooldown=0;
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null&&g.combo==0,
+                "Returning to the sword starts a first hit rather than carrying a phantom third-hit boost");
+        }
+
+        public static void StyleChangesRestartCombosButRepeatedStylesPreserveAttacks(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("core_1");
+            g.save.energy=100;
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null&&g.combo==0&&g.comboTimer>0,
+                "A real starter sword swing begins a live combat sequence");
+            ActorAction first=g.playerAction;
+            int previous=g.revision;
+            g.SetStyle(0);
+            Check(g.playerAction==first&&g.comboTimer>0&&g.revision==previous,
+                "Clicking the existing balanced style does not cancel an attack or mutate the save");
+            g.playerAction=null;g.attackCooldown=0;
+            g.Attack(new Point(1,0));
+            Check(g.combo==1&&g.comboTimer>0,
+                "A second real sword swing advances the existing chain");
+            g.SetStyle(1);
+            Check(g.Style==1&&g.playerAction==null&&g.combo==0&&g.comboTimer==0,
+                "Changing to unlocked focused sword style retires the old combo");
+            g.SetStyle(0);g.attackCooldown=0;g.Attack(new Point(1,0));
+            Check(g.combo==0&&g.playerAction!=null,
+                "Returning to balanced style begins a genuine first strike, not a borrowed third-hit bonus");
+        }
+
+
+        public static void LateBasicAttacksBufferOnceAndRespectCombatProfiles(Campaign data)
+        {
+            foreach (float step in new[] { .01f, .02f, .03f, .05f })
+            {
+                var g = Quiet(data); g.enemies.Clear();
+                g.Attack(new Point(1, 0));
+                ActorAction first = g.playerAction;
+                while (first.elapsed < first.duration - .10f && g.playerAction == first)
+                    g.Tick(step, new Point());
+                Check(g.playerAction == first && first.released,
+                    "A late input still belongs to a real released sword attack");
+                g.Attack(new Point(0, -1));
+                Check(g.playerAction == first && g.combo == 0,
+                    "Pressing during recovery never cuts off the old contact pose");
+                g.SetAim(new Point(1, 0));
+                ActorAction next = null;
+                for (int frame = 0; frame < 50; frame++)
+                {
+                    g.Tick(step, new Point());
+                    if (g.playerAction != first) { next = g.playerAction; break; }
+                }
+                Check(next != null && next.kind == "attack" && g.combo == 1 &&
+                    next.direction.y < -.99f,
+                    "A single late press chains one real second strike with its original facing at step " + step);
+                for (int frame = 0; frame < 70; frame++) g.Tick(step, new Point());
+                Check(g.playerAction == null && g.combo == 1,
+                    "A buffered tap must never self-repeat as a third strike");
+            }
+            var early = Quiet(data); early.enemies.Clear(); early.Attack(new Point(1, 0));
+            early.Tick(.05f, new Point()); early.Attack(new Point(0, -1));
+            Advance(early, .7f);
+            Check(early.playerAction == null && early.combo == 0,
+                "An early press during the first windup cannot queue a delayed phantom attack");
+            var same = Quiet(data); same.enemies.Clear(); same.Attack(new Point(1, 0));
+            Advance(same, .27f); same.Attack(new Point(0, -1));
+            same.Equip(0); same.SetStyle(0);
+            Advance(same, .12f);
+            Check(same.playerAction != null && same.combo == 1,
+                "Re-selecting an unchanged weapon and style preserves the late attack");
+            var changed = Quiet(data); changed.enemies.Clear();
+            changed.save.flags.Add("core_1"); changed.Attack(new Point(1, 0));
+            Advance(changed, .27f); changed.Attack(new Point(0, -1)); changed.SetStyle(1);
+            Advance(changed, .5f);
+            Check(changed.playerAction == null && changed.combo == 0 &&
+                changed.Style == 1, "A genuine style change drops the obsolete buffered attack and combo");
+            var equipped = Quiet(data); equipped.enemies.Clear();
+            equipped.save.flags.Add("weapon_1"); equipped.Attack(new Point(1, 0));
+            Advance(equipped, .27f); equipped.Attack(new Point(0, -1)); equipped.Equip(1);
+            Advance(equipped, .5f);
+            Check(equipped.playerAction == null && equipped.combo == 0,
+                "Changing weapon cannot replay the old sword buffer as a bow attack");
+            var priority = Quiet(data); priority.enemies.Clear();
+            priority.Attack(new Point(1, 0)); Advance(priority, .27f);
+            priority.Attack(new Point(0, -1)); priority.Skill(new Point(1, 0));
+            Check(priority.playerAction != null && priority.playerAction.kind == "skill",
+                "A real Q input takes priority over the pending basic strike");
+            Advance(priority, 1f);
+            Check(priority.playerAction == null && priority.combo == 0,
+                "A queued basic strike does not fire after the skill");
+            var limited = Quiet(data); limited.enemies.Clear(); limited.save.flags.Add("core_1");
+            limited.SetStyle(1); limited.Attack(new Point(1, 0));
+            Advance(limited, .34f); limited.Attack(new Point(0, -1));
+            limited.save.energy = 0;
+            Advance(limited, .4f);
+            Check(limited.playerAction == null && limited.combo == 0,
+                "Buffered focused strike checks energy when dispatched, not when queued");
+            var loaded = Quiet(data); loaded.enemies.Clear();
+            loaded.Attack(new Point(1, 0)); Advance(loaded, .27f);
+            loaded.Attack(new Point(0, -1));
+            loaded.PrepareSave(); loaded.Load(CloneSave(loaded.save));
+            Advance(loaded, .7f);
+            Check(loaded.playerAction == null && loaded.combo == 0,
+                "Transient buffer is never carried into a newly loaded v2 save");
+        }
+
+
+        public static void RangedThirdHitsProduceDistinctRealProjectiles(Campaign data)
+        {
+            foreach (float frameStep in new[] { .01f, .02f, .03f, .05f })
+            foreach (int weapon in new[] { 1, 2 })
+            foreach (int style in new[] { 0, 1, 2 })
+            {
+                var g = Fresh(data, weapon); g.enemies.Clear();
+                g.save.flags.Add("core_1"); g.save.energy = 100; g.SetStyle(style);
+                Projectile[] shots = new Projectile[3];
+                for (int index = 0; index < 3; index++)
+                {
+                    Check(g.attackCooldown <= .0001f && g.playerAction == null,
+                        "Each ranger/mage attack starts after the actual preceding release");
+                    g.projectiles.Clear();
+                    g.Attack(new Point(1, 0));
+                    ActorAction attack = g.playerAction;
+                    Check(attack != null && attack.kind == "attack" && attack.combo == index,
+                        "Real ranged chain advances through each of its three consecutive attacks");
+                    for (int frame = 0; frame < 100 && !attack.released; frame++)
+                        g.Tick(frameStep, new Point());
+                    Check(attack.released, "Ranged attack reaches its visible contact before producing shots");
+                    shots[index] = g.projectiles.Find(p => p.friendly);
+                    Check(shots[index] != null && shots[index].impact != null &&
+                        shots[index].impact.combo == index, "Finisher characteristics follow a real released attack");
+                    Advance(g, Math.Max(0, attack.duration - attack.elapsed) + .04f);
+                }
+                float bonus = weapon == 1 ? 1.15f : 1.12f;
+                Check(Math.Abs(shots[2].damage / shots[0].damage - bonus) < .001f &&
+                    Math.Abs(shots[1].damage / shots[0].damage - 1f) < .001f,
+                    "Only the true third ranged release earns the intended moderate damage payoff");
+                if (weapon == 1)
+                    Check(shots[0].piercing == (style == 1) &&
+                        shots[2].piercing == (style != 2),
+                        "Balanced third arrow pierces, Focused retains every-shot pierce, Flow keeps its spread balance");
+                else
+                    Check(shots[0].slowing == (style == 2) && shots[2].slowing,
+                        "Staff third hit uses real projectile slow without removing Flow's existing all-hit slow");
+                Check(g.effects.Exists(e => e.kind == "number" && e.text == "CHAIN FINISH") ||
+                    !g.save.english, "Third-hit confirmation is emitted by the live release pipeline");
+            }
+        }
+
+        public static void ArcherCompanionCannotWasteVolleyOnItsOwnFootTarget(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            g.SetAim(new Point(0,-1));
+            Point ally=g.companionPosition;
+            g.SetAimTarget(ally);
+            g.CommandCompanion();
+            ActorAction action=g.companionAction;
+            Check(action!=null&&action.kind=="command"&&
+                  (action.direction-new Point(0,-1)).Length<.001f&&
+                  !action.target.HasValue,
+                "Clicking the companion itself falls back to the facing rather than a zero-length firing direction");
+            Advance(g,.23f);
+            Check(g.projectiles.Count==3&&g.projectiles.TrueForAll(p=>p.velocity.Length>10&&p.velocity.y<0),
+                "All actual commanded arrows fly away from the ally after an accidental self-target click");
+            g.projectiles.Clear();
+            g.companionCooldown=0;
+            Point valid=g.companionPosition+new Point(4,0);
+            g.SetAimTarget(valid);
+            g.CommandCompanion();
+            Check(g.companionAction!=null&&g.companionAction.target.HasValue&&
+                  (g.companionAction.direction-new Point(1,0)).Length<.001f,
+                "A genuinely different cursor target still controls the next aimed volley");
+        }
+
     }
 }

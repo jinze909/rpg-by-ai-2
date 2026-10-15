@@ -108,6 +108,227 @@ namespace Starfall
             { Disc(48, 90, 33, 11, timber); Box(23, 87, 50, 6, C("#be9770")); Box(47, 30, 3, 57, cream); for (int y = 0; y < 42; y++) Box(50, 35 + y, 28 - y / 2, 1, C("#d0c0a2")); }
             else if (kind == "ruin")
             { Box(10, 81, 78, 25, C("#606e7b")); Box(15, 75, 17, 31, C("#8c9694")); Box(65, 75, 16, 31, C("#8c9694")); Box(33, 87, 31, 19, C("#314854")); Disc(48, 67, 24, 16, C("#788593")); Disc(48, 67, 14, 12, C("#364b63")); Box(45, 59, 6, 16, C("#89c9c8")); }
+            else if (kind == "cache")
+            {
+                // A real illustrated waterworn cargo chest, rather than the
+                // generic fallback tile; independent of imported sprites.
+                Color plank=C("#836752"), iron=C("#536e73"), edge=C("#c4a37a");
+                Box(19,49,58,51,C("#354751"));
+                Box(22,54,52,43,plank);
+                for(int row=0;row<3;row++)
+                {
+                    int y=57+row*12;
+                    Box(24,y,48,8,C(row==1?"#9b7959":"#765d4d"));
+                    Box(24,y+1,45,2,edge);
+                    Box(25,y+7,47,2,C("#4f443d"));
+                }
+                Box(17,44,62,13,iron);
+                Box(20,39,56,11,plank);
+                Box(22,41,52,2,edge);
+                Box(16,48,7,53,iron);Box(74,48,6,53,iron);
+                Box(18,89,60,6,iron);
+                Box(45,56,8,35,iron);Box(43,69,12,15,edge);
+                Box(46,71,6,10,C("#233d49"));
+                Box(24,53,3,3,edge);Box(68,53,3,3,edge);
+                Box(24,88,3,3,edge);Box(68,88,3,3,edge);
+                Box(34,29,28,9,new Color(.3f,.75f,.81f,.22f));
+            }
+            else if (kind == "witnessledger")
+            {
+                // An actual public ledger bound with thread, brass corners and
+                // three colored provenance seals; independent of asset imports.
+                Color leather=C("#68534c"),page=C("#e6d2a6"),
+                    brass=C("#bd9b65"),ink=C("#4b5860");
+                Box(20,27,58,77,C("#304653"));
+                Box(23,24,53,76,leather);
+                Box(29,31,42,60,page);
+                for(int j=0;j<6;j++)
+                    Box(35,40+j*7,31-j%3*3,2,ink);
+                Box(26,25,6,67,brass);Box(25,29,4,4,ink);
+                for(int i=0;i<3;i++)
+                    Disc(44+i*10,86,4,4,
+                        C(i==0?"#83b89c":i==1?"#7aaed4":"#dc9c75"));
+                Box(23,22,53,5,brass);Box(23,96,53,5,brass);
+            }
+            else if (kind == "hearingdais")
+            {
+                // Three independent banners gather at one publicly lit dais.
+                Color dStone=C("#516875"),dShadow=C("#344b59"),
+                    dGold=C("#d1af78"),dPaper=C("#e9d7b0");
+                Box(18,70,62,35,dShadow);
+                Box(23,61,52,40,dStone);
+                Box(22,53,54,10,dGold);
+                Box(30,41,38,21,dPaper);
+                for(int i=0;i<3;i++)
+                {
+                    int bx=21+i*27;
+                    Box(bx,16,5,42,dGold);
+                    Box(bx-6,20,17,22,C(i==0?"#7daf98":i==1?"#80aacc":"#d4a17e"));
+                    Box(bx-4,24,13,4,dPaper);
+                }
+                Box(29,72,40,3,dGold);
+                for(int j=0;j<3;j++)Box(37,80+j*5,24-j*3,2,dPaper);
+                Disc(49,60,7,5,C("#f7dea5"));
+                Box(24,98,51,4,dGold);
+            }
+            else if (kind == "hearingplaque")
+            {
+                // Inscribed regional oath, green copper thread and fixed base.
+                Color pStone=C("#57717b"),pEdge=C("#c7ac78"),
+                    pSheet=C("#e2cca0"),pInk=C("#52606a"),pThread=C("#80c6a4");
+                Box(25,69,48,34,pStone);
+                Box(18,91,62,11,C("#344e5b"));
+                Box(31,26,36,57,pEdge);
+                Box(34,29,30,50,pSheet);
+                for(int i=0;i<5;i++)Box(40,39+i*8,20-(i%2)*4,2,pInk);
+                Box(45,13,7,21,pThread);
+                Disc(48,22,9,10,pThread);
+                Box(26,87,46,5,pEdge);
+                Disc(48,82,7,6,C("#f0d5a5"));
+            }
+            else if (kind == "stormrelay")
+            {
+                // Public allocation terminal: shelter and power branches are
+                // visibly separated, against the abandoned military conduits.
+                Color sStone=C("#536975"),sDark=C("#253d4b"),
+                    sBrass=C("#cfaf75"),sLight=C("#f4cf86"),
+                    sRoot=C("#9bccb1");
+                Box(25,71,46,31,sStone);
+                Box(18,93,60,11,sDark);
+                Box(20,66,57,10,sBrass);
+                Box(41,23,15,55,sStone);
+                Disc(48,34,15,16,sDark);
+                Disc(48,34,10,11,sLight);
+                Box(46,48,5,42,sBrass);
+                Box(23,40,16,6,sRoot);Box(20,32,6,28,sRoot);
+                Box(56,40,18,6,sBrass);Box(69,33,6,27,sBrass);
+                for(int i=0;i<3;i++)Disc(30+i*18,84,4,4,
+                    C(i==0?"#a6e0ba":i==1?"#b1d9e5":"#ebad80"));
+                Box(30,100,36,4,sBrass);
+            }
+            else if (kind == "stormlamp")
+            {
+                // Low-power public star lamp: civic copper, not a weapon or
+                // military spotlight. Three rays visible above the glass.
+                Color lampMetal=C("#c4a677"),lampGlow=C("#ffe5ae"),
+                    lampDark=C("#365363"),lampMint=C("#9dd8c4");
+                Box(42,53,13,52,lampDark);
+                Box(36,90,27,15,lampMetal);
+                Box(27,46,44,8,lampMetal);
+                Disc(49,37,16,20,lampGlow);
+                Disc(49,37,10,13,C("#fff5ce"));
+                Box(45,15,8,7,lampMetal);
+                Box(21,28,12,3,lampMint);Box(64,28,12,3,lampMint);
+                Box(45,5,7,10,lampMint);
+                Box(29,93,40,4,lampMint);
+                for(int i=0;i<3;i++)
+                    Disc(34+i*15,99,3,3,C(i==0?"#e7a97e":i==1?"#acd6bd":"#a2c9e3"));
+            }
+            else if (kind == "afterlightanchor")
+            {
+                // Fractured old-starroot pylons, joined with green civic wiring.
+                Color stone=C("#637781"),shade=C("#304754"),metal=C("#bbad7e"),
+                    light=C("#9fe4c2"),dark=C("#405e66");
+                Box(30,64,36,40,stone);Box(23,88,50,18,shade);
+                Box(40,20,18,71,dark);Box(44,12,9,76,metal);
+                Disc(48,35,16,17,shade);Disc(48,35,11,12,light);
+                Box(47,48,4,39,light);
+                for(int i=0;i<3;i++)
+                {
+                    int x=22+i*27;
+                    Disc(x,83,7,4,metal);
+                    Box(x-2,77,4,17,light);
+                    Disc(x,75,6,7,C(i==0?"#93cba7":i==1?"#91c4de":"#e6b891"));
+                }
+                Box(23,95,50,4,metal);
+            }
+            else if (kind == "afterlightoutlet")
+            {
+                // Constructed public receiver: timber bridge/workbench and
+                // lanterns with a visible power conduit; no imported sprite.
+                Color plankWood=C("#826954"),panel=C("#617985"),
+                    brass=C("#d6bd86"),lantern=C("#f6e1ad"),
+                    leaf=C("#8bcaad"),dark=C("#2d4551");
+                Box(15,91,68,16,dark);
+                Box(18,59,62,41,panel);
+                Box(24,63,50,32,plankWood);
+                Box(23,66,53,5,brass);
+                Box(21,38,8,57,panel);Box(67,38,8,57,panel);
+                Box(28,44,40,9,plankWood);
+                for(int i=0;i<3;i++)
+                {
+                    int x=30+i*17;
+                    Disc(x,27,9,12,lantern);
+                    Box(x-4,22,9,11,brass);
+                    Box(x-2,26,5,7,lantern);
+                    Box(x-1,38,3,20,leaf);
+                }
+                Box(42,73,12,14,C("#2e4e59"));
+                Disc(48,78,5,5,leaf);
+                Box(21,96,54,4,brass);
+            }
+            else if (kind == "blackoutrefuge")
+            {
+                // Three emergency lamps and shared sleeping cots under a
+                // repaired canopy. Deliberately distinct from boss altar/ruins.
+                Color brass=C("#d6b87d"),wood=C("#776557"),
+                    cloth=C("#7e9fac"),roof=C("#4a6373"),
+                    glow=C("#f8da94"),dark=C("#2e4554");
+                Box(10,86,78,20,dark);
+                Box(15,78,68,24,wood);
+                Box(7,40,82,11,roof);
+                Box(12,29,71,18,cloth);
+                for(int i=0;i<3;i++)
+                {
+                    int x=22+i*27;
+                    Box(x,39,4,47,wood);
+                    Box(x-5,40,14,4,brass);
+                    Disc(x+2,50,7,9,glow);
+                    Box(x+1,45,3,13,C("#fff1c1"));
+                }
+                Box(23,70,50,19,C("#465b65"));
+                Box(27,73,19,9,C("#c9d4bf"));
+                Box(50,73,19,9,C("#c9d4bf"));
+                Box(25,88,48,4,brass);
+                Box(43,17,11,13,glow);
+                Box(46,12,5,21,C("#ffe9b9"));
+                Box(36,20,26,5,brass);
+                for(int i=0;i<3;i++)
+                    Disc(25+i*23,92,4,4,C(i==0?"#86c7ac":i==1?"#9ac9d6":"#eab88b"));
+            }
+            else if (kind == "foundry")
+            {
+                // Riveted industrial iron furnace with a distinctive active firebox.
+                Color metal=C("#61717b"),steel=C("#a1a7a4"),dark=C("#283b48"),
+                    ember=C("#f0a35f"),flame=C("#ffe0a0");
+                Box(16,65,64,39,dark);Box(20,55,56,46,metal);
+                Box(12,87,72,13,C("#42525c"));Box(15,95,66,8,steel);
+                for(int i=0;i<3;i++)
+                {
+                    int x=25+i*19;
+                    Box(x,26,11,39,dark);Box(x+2,18,7,39,metal);
+                    Box(x+2,15,7,5,steel);
+                }
+                Box(32,62,32,37,dark);Box(36,67,24,26,C("#8a443c"));
+                Box(38,70,20,18,ember);Box(41,72,14,12,flame);
+                Box(20,63,5,35,steel);Box(71,63,5,35,steel);
+                for(int y=0;y<2;y++)for(int x=0;x<4;x++)
+                    Disc(23+x*17,76+y*19,2,2,C("#b8b1a0"));
+                Box(26,51,44,7,steel);
+            }
+            else if (kind == "pressurevent")
+            {
+                // Manual handwheel and cooling pipe; visually not a checkpoint post.
+                Color iron=C("#627781"),rim=C("#c4ae86"),dark=C("#304754");
+                Box(45,48,10,55,iron);
+                Box(22,88,54,13,dark);Box(23,91,51,5,iron);
+                Disc(48,55,26,25,rim);Disc(48,55,20,19,dark);
+                Disc(48,55,15,14,iron);
+                Box(44,36,8,38,rim);Box(29,51,38,8,rim);
+                Disc(48,55,7,7,C("#f1cf8a"));
+                Box(46,26,4,12,rim);Box(46,74,4,10,rim);
+                Box(17,54,10,3,rim);Box(68,54,11,3,rim);
+            }
             else if (kind == "column" || kind == "obelisk")
             { Box(35, 35, 26, 66, C(kind == "column" ? "#798b96" : "#646078")); Box(30, 31, 36, 8, C("#9aa2a2")); Box(31, 99, 35, 6, C("#8a969b")); Box(41, 48, 3, 40, C("#aec4b4")); Box(51, 57, 6, 12, C("#90cfc7")); }
             else if (kind == "crystal" || kind == "ore")

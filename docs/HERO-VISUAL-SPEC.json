@@ -1,0 +1,420 @@
+{
+  "version": 11,
+  "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
+  "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
+  "unity_version": "2022.3.53f1",
+  "canvas_px": [
+    256,
+    256
+  ],
+  "pixels_per_unit": 128,
+  "gui_density": 0.75,
+  "foot_top_origin_px": [
+    128,
+    240
+  ],
+  "foot_bottom_origin_px": [
+    128,
+    16
+  ],
+  "pivot_normalized": [
+    0.5,
+    0.0625
+  ],
+  "head": {
+    "source": "WalkVanguard",
+    "canonical_frames": {
+      "E": 0,
+      "N": 4,
+      "S": 8
+    },
+    "source_rect_top_px": [
+      100,
+      140,
+      56,
+      56
+    ],
+    "hair": "short cream-gold swept bangs and recognizable raised tufts",
+    "face": "same accepted pale youthful face/eyes across all classes",
+    "must_not_rescale": true
+  },
+  "silhouette": {
+    "base": "approved playable character; do not scale heads or bodies per animation",
+    "comparison": "measure from actual accepted source; do not enforce a new ratio incompatible with original",
+    "shoulder_band_y_top": [
+      188,
+      211
+    ],
+    "hip_band_y_top": [
+      207,
+      230
+    ],
+    "boot_contact_y_top": [
+      228,
+      246
+    ],
+    "foot_must_remain_fixed": true
+  },
+  "palette": {
+    "blonde": "#F4DF9A",
+    "skin_light": "#F2EAD7",
+    "cloth_warm": "#BD715F",
+    "leather": "#85614D",
+    "grass_contrast": "#526C53",
+    "arcane_teal": "#78B6A6",
+    "cool_outline": "#17283B"
+  },
+  "weapon_grip_hints_top_origin_px": {
+    "Vanguard": {
+      "E": [
+        112,
+        210
+      ],
+      "N": [
+        151,
+        216
+      ],
+      "S": [
+        107,
+        211
+      ]
+    },
+    "Ranger": {
+      "E": [
+        149,
+        204
+      ],
+      "N": [
+        145,
+        207
+      ],
+      "S": [
+        145,
+        206
+      ]
+    },
+    "Arcanist": {
+      "E": [
+        111,
+        204
+      ],
+      "N": [
+        105,
+        204
+      ],
+      "S": [
+        107,
+        207
+      ]
+    }
+  },
+  "socket_contract": "Approximate per-facing inspection guide inside accepted full-body pixels. Weapon grip follows authored frame pose; never move projectile collision or fake independent weapon bones using these static hints.",
+  "professions": [
+    "Vanguard",
+    "Ranger",
+    "Arcanist"
+  ],
+  "facings": [
+    "E",
+    "N",
+    "S"
+  ],
+  "actions": [
+    "Idle",
+    "Run",
+    "Attack",
+    "Cast",
+    "Dodge",
+    "Hit",
+    "Death"
+  ],
+  "state_clock": "GameCore authoritative released/contact, walkDistance; no independent clip damage clock",
+  "integration": "CanonicalHeroSpriteFactory uses foot/head constants; Editor builder uses shared pivot; live SpriteRenderer capture uses shared geometry and SortingGroup; OnGUI fallback retained.",
+  "quality_gate": "Native Unity Editor/PlayMode, weapon hand grips, anatomy, frame continuity, visuals, and real-world FPS require independent review",
+  "head_to_body_ratio_policy": "Reuse the accepted 56px canonical head source and full-body silhouettes; do not invent ratio from canvas padding or rescale professions.",
+  "animation_constraints": {
+    "golden_protagonist_identity": "Same short cream-gold hair and approved face/eye pixels in all three outfits; no per-class head scaling",
+    "canvas_px": [
+      256,
+      256
+    ],
+    "foot_top_origin_px": [
+      128,
+      240
+    ],
+    "unity_pivot_normalized": [
+      0.5,
+      0.0625
+    ],
+    "pixels_per_unit": 128,
+    "belt_to_boot_band_top_px": [
+      205,
+      247
+    ],
+    "ordered_states": [
+      "Idle",
+      "Run",
+      "Attack",
+      "Cast",
+      "Dodge",
+      "Hit",
+      "Death"
+    ],
+    "cast_source_phases": [
+      "accepted idle",
+      "accepted windup",
+      "accepted contact",
+      "same accepted idle recovery"
+    ],
+    "cast_expanded_frames": 6,
+    "cast_non_looping": true,
+    "source_motion": "All currently published extra poses are complete source-authored full-body drawings, not algorithmic midpoints; 18 genuinely novel contact-transfer originals are still missing.",
+    "timing_authority": "GameCore's ActorAction.released; never drive damage from Animator",
+    "moving_recovery": "FULL-BODY only: GameCore permits reduced-speed recovery to use the same-class complete Run pose, never independently graft moving legs onto a Cast/Attack upper body.",
+    "safety_fallback": "Production SpriteRenderer complete body capture is DEFAULT in the actual Frontier scene; F8 and native errors retain the full-body OnGUI fallback. Unity native PlayMode acceptance pending.",
+    "final_gate": "Native Unity 2022.3.53f1 PlayMode + visually accepted frame-to-frame anatomy and weapon grips required",
+    "reaction_expanded_frames": 5,
+    "reaction_source_phases": [
+      "accepted idle",
+      "accepted dodge/hit keypose",
+      "accepted idle"
+    ],
+    "reaction_transition_policy": "All three accepted frames preserved verbatim; one full-body, root/head-locked source-raster in-between per transition; GameCore still owns invulnerability, displacement and stun."
+  },
+  "motion_registration": {
+    "source_canvas": "accepted 256x256 RGBA world sprite from the current one blonde hero",
+    "coordinates": "Unity bottom origin; y=0 at ground-side edge",
+    "target_regions_bottom_xyxy": {
+      "torso": [
+        103,
+        30,
+        154,
+        64
+      ],
+      "left_leg": [
+        89,
+        23,
+        128,
+        58
+      ],
+      "right_leg": [
+        129,
+        23,
+        171,
+        58
+      ],
+      "left_arm_and_weapon": [
+        34,
+        47,
+        121,
+        145
+      ],
+      "right_arm_and_weapon": [
+        140,
+        47,
+        230,
+        145
+      ]
+    },
+    "maximum_midpoint_displacement_px": {
+      "torso": [
+        3,
+        3
+      ],
+      "left_leg": [
+        7,
+        5
+      ],
+      "right_leg": [
+        7,
+        5
+      ],
+      "left_arm_and_weapon": [
+        14,
+        10
+      ],
+      "right_arm_and_weapon": [
+        14,
+        10
+      ]
+    },
+    "pixel_source_policy": "Do not generate playable pose intermediates with alpha blends, midpoint pixel warps, nearest-neighbor limb transformations, head grafts or belt-row crops. Only class-owned complete original drawings or newly verified complete-body contact artwork.",
+    "immutable_pixel_guards": {
+      "blonde_identity_bottom_xyxy": [
+        91,
+        57,
+        170,
+        118
+      ],
+      "ground_contact_bottom_y": [
+        0,
+        22
+      ]
+    },
+    "review_only": "Historical region displacement targets remain diagnostic references, NOT permission to synthesize anatomical animation."
+  },
+  "full_body_source_contract": {
+    "canonical_protagonist": "Same approved golden-haired hero in every outfit; identity source exception is face/hair only, never torso or equipment",
+    "body_sources": {
+      "Vanguard": [
+        "PlayerVanguard",
+        "WalkVanguard"
+      ],
+      "Ranger": [
+        "PlayerRanger",
+        "WalkRanger"
+      ],
+      "Arcanist": [
+        "PlayerArcanist",
+        "WalkArcanist"
+      ]
+    },
+    "shared_directional_body_sources": [
+      "PlayerRear",
+      "PlayerSouth",
+      "PlayerReactionsRear",
+      "PlayerReactionsSouth"
+    ],
+    "shared_row_owner": "frame_index // 4 must equal zero-based profession index",
+    "shared_golden_head_only": {
+      "policy": "RETIRED - no head substitution permitted in preview, game runtime, native Unity fallback, or offline production exporter",
+      "actual_identity": "Existing approved class-owned full-body art already depicts one common blonde-haired protagonist",
+      "source_stage": "no head paste, mask, per-head offset or artificial neck reposition permitted",
+      "hard_release_check": "Every approved authored keyframe must be byte-identical to crop_frame(original class-owned source atlas). Hair color, head dimensions and outfit socket are inspected per profession/facing."
+    },
+    "unity_runtime": "PRODUCTION: DrawPlayerActor samples one complete class-owned published Hero_{class}_{action}_{facing}.png Sprite per hero draw; no UnifiedActionGait, dynamic leg/hip warp or HumanActor head splice. Moving released recovery samples the complete class Walk/Run cell.",
+    "unity_safety": "SpriteRenderer full-body capture is the default actual FrontierRuntime hero presentation; missing native clips use the same shipped published full-body Sprite, with OnGUI complete-body fallback on errors or F8 opt-out. This change has offline CI proof but is NATIVE_UNVERIFIED in PlayMode.",
+    "exporter_release_gates": [
+      "shared-row profession provenance",
+      "single-source class palette",
+      "row-by-row waist occupancy",
+      "torso-to-hip registration",
+      "relative full-body height"
+    ],
+    "native_verification": "Unity 2022.3.53f1 PlayMode and visual grip/waist inspection not yet run"
+  },
+  "runtime_transition": {
+    "mode": "FullBodyProductionSprites (default SpriteRenderer whole-body capture, full-body OnGUI on F8/exception)",
+    "canonical_resources": "Assets/Resources/Frontier/HeroAnimator/Canonical/ (original class-owned blonde-haired full-body frames only; no runtime/offline graft)",
+    "clip_matrix": {
+      "classes": 3,
+      "actions": [
+        "Idle",
+        "Run",
+        "Attack",
+        "Cast",
+        "Dodge",
+        "Hit",
+        "Death"
+      ],
+      "facings": [
+        "E",
+        "N",
+        "S"
+      ],
+      "count": 63,
+      "frames": 279
+    },
+    "frame_clock": "ResolveFullBodyHeroFrame(wholeBodyRun, facing) shared by native and fallback",
+    "attack_mobility": "Full-body attack/skill keyframe until authoritative release, complete same-class Run after reduced-speed moving recovery begins",
+    "prohibited_runtime_patterns": [
+      "HumanActor player split parts",
+      "CanonicalHeroSpriteFactory runtime warrior face overlay",
+      "UnifiedActionGait dynamic cropped lower body",
+      "unapproved torso/head/limb pixel warping",
+      "offline canonical_frame masks/cuts source head and overlays WalkVanguard face"
+    ],
+    "scene_binding": "FrontierRuntime.Boot() subscribes sceneLoaded and adds live MonoBehaviour for Assets/Scenes/Frontier.unity; FrontierEditor builds this scene",
+    "native_qa_status": "NATIVE_UNVERIFIED: default enabled for offline-tested source-safe full-body drawing with F8/exception fallback. Unity 2022.3.53f1 GameView/Animator/RenderTexture/FPS still requires native sign-off.",
+    "runtime_art_gate": "tools/check_hero_runtime_continuity.py validates real 63 PNGs and emits 22 representative production filmstrips/GIFs/onion-skins; metrics alone do not approve authored animation",
+    "full_body_source_qa": "Source-original RGBA crop vs generated full body byte exact, with per-class hair color/neck region checks (tools/check_hero_visual_spec.py, tools/check_hero_whole_body_integrity.py).",
+    "run_policy": {
+      "facing_matrix": "Vanguard/Ranger/Arcanist x E/N/S",
+      "frame_count": 4,
+      "source": "Walk<profession> [facing*4+0..3]",
+      "algorithmic_intermediate_frames": 0,
+      "clock": "GameCore WalkPosePhase -> same authored cell at index 0..3",
+      "production_reason": "Rejected all four synthetic raster-warp midpoints per clip; whole-body authored Run has continuous class-owned head, hips, legs and foot root.",
+      "native_validation": "NATIVE_UNVERIFIED"
+    },
+    "art_provenance": "63 published atlases, 279 currently installed full-body cells, 72 original-source extra pose cells and no procedural leg/waist warps. Exactly 18 new full-body Attack/Cast contact transfers still require original artwork; atomic 297-frame rollout is supported but NOT populated.",
+    "reaction_policy": {
+      "actions": [
+        "Dodge",
+        "Hit"
+      ],
+      "professions": [
+        "Vanguard",
+        "Ranger",
+        "Arcanist"
+      ],
+      "facings": [
+        "E",
+        "N",
+        "S"
+      ],
+      "frame_count": 5,
+      "original_frames_at": [
+        0,
+        2,
+        4
+      ],
+      "curated_guard_slots": [
+        1,
+        3
+      ],
+      "curated_cells": 36,
+      "source_e": "Player<class>:9",
+      "source_n": "PlayerReactionsRear:(profession_index*4+1)",
+      "source_s": "PlayerReactionsSouth:(profession_index*4+1)",
+      "requirement": "All reaction transitions must equal accepted whole-body guard original pixels byte-for-byte and preserve original action keyposes.",
+      "algorithmic_reaction_frames": 0,
+      "native_unity_verified": false
+    },
+    "attack_cast_policy": {
+      "actions": [
+        "Attack",
+        "Cast"
+      ],
+      "professions": [
+        "Vanguard",
+        "Ranger",
+        "Arcanist"
+      ],
+      "facings": [
+        "E",
+        "N",
+        "S"
+      ],
+      "frame_count": 6,
+      "source_slots": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "original_key_slots": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "source_backed_transition_slots": [
+        1,
+        4
+      ],
+      "artificial_raster_midpoints": 0,
+      "release_key_frame": 3,
+      "contact_time": "GameCore HeroAnimationPlaybackPosition source phase >=2",
+      "missing_key_art": "A truly drawn in-between connecting windup and release (formerly fake slot 3) is not yet available; no false interpolation or duplicates used",
+      "native_unity_verified": false,
+      "future_frame_count": 7,
+      "future_contact_cells": 18,
+      "future_rollout": "Only when all 18 individually drawn/verified full-body contact-transfer PNGs exist and pass source + runtime anatomy + temporal + Unity-import checks; never fake by speed change or duplicate."
+    },
+    "no_fake_motion_gate": "tools/check_hero_generated_motion.py rejects any production cell not pixel-identical to approved head-to-foot source; tools/check_hero_whole_body_integrity.py cross-checks source manifest, class, waist/hip, canvas and all 279 frames.",
+    "hero_renderer_default": "True in FrontierHeroSpriteCapture.cs, production scene boot via FrontierRuntime.Boot(); GPU full-body sprite uses RenderTexture in otherwise OnGUI world (not yet direct world-camera SpriteRenderer)."
+  }
+}

@@ -52,6 +52,11 @@ namespace Starfall
                 companionPosition = SafeActorFoot(companionPosition);
                 companionAction = null; companionMoving = false;
             }
+            // The real evacuee is a world actor too. Without this, the
+            // outgoing tide can trap her in newly flooded shoals while the
+            // hero and enemies recover to the nearest walkable bank.
+            if (ReliefEscortActive && !Fits(reliefFollowerPosition))
+                reliefFollowerPosition = SafeActorFoot(reliefFollowerPosition);
         }
     }
 }
