@@ -148,6 +148,21 @@ def check():
         "Basic sword advances must use gait, but Vanguard Q keeps its own contact pose")
     assert "UnifiedActionGait(sheet,4,3,frame,walkSheets[look]," in actor
     assert "Game.ActuallyMoving" in actor
+    # Root-cause guard: the past stitched compositor copied the entire
+    # lower 205..247px band from a walking atlas, splicing a different waist
+    # and clothing onto the original attack torso. Never reintroduce that.
+    gait = (RUNTIME / "FrontierUnifiedActorGait.cs").read_text()
+    for forbidden in ("Color[] feetPixels", "posePixels[i]=feetPixels[i]",
+                      "posePixels[i] = feetPixels[i]", "for(int yTop=205;"):
+        assert forbidden not in gait, "Stitched half-body regression: " + forbidden
+    for necessary in ("profession<0||profession>=3",
+                      "walkSheets[profession]!=walk",
+                      "bool personal=action==playerSheets[profession]",
+                      "actionFrame/4==profession",
+                      "Color[] composed=(Color[])source.Clone()",
+                      "composed[y*cell+x]=source[y*cell+sample]"):
+        assert necessary in gait, "Missing class-owned whole-body guarantee: " + necessary
+    assert "facingRow*4+Game.WalkFrame,look)" in actor
     assert actor.count("DrawSpriteRendererHero(") == 2
     assert actor.count("if (!captured)") == 2
     assert "HumanActor(sheet,4,3,frame,p,.75f" in actor
