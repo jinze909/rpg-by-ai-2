@@ -101,12 +101,41 @@ namespace Starfall
                 if (x + 1 < Game.Map.rows[y].Length && Game.Map.rows[y][x + 1] != '#') Box(p.x + Tile - 2, p.y, 2, Tile, new Color(.06f, .09f, .13f, .42f));
                 return;
             }
-            if (!WaterSurface(tile)) return;
-            Color foam = new Color(.73f, .83f, .72f, .62f), edge = new Color(.12f, .28f, .36f, .6f);
-            if (y > 0 && !WaterSurface(Game.Map.rows[y - 1][x])) { Box(p.x, p.y, Tile, 4, edge); Box(p.x + 2, p.y + 4, Tile - 4, 1, foam); }
-            if (y + 1 < Game.Map.rows.Length && !WaterSurface(Game.Map.rows[y + 1][x])) { Box(p.x, p.y + Tile - 4, Tile, 4, edge); Box(p.x + 2, p.y + Tile - 5, Tile - 4, 1, foam); }
-            if (x > 0 && !WaterSurface(Game.Map.rows[y][x - 1])) { Box(p.x, p.y, 4, Tile, edge); Box(p.x + 4, p.y + 2, 1, Tile - 4, foam); }
-            if (x + 1 < Game.Map.rows[y].Length && !WaterSurface(Game.Map.rows[y][x + 1])) { Box(p.x + Tile - 4, p.y, 4, Tile, edge); Box(p.x + Tile - 5, p.y + 2, 1, Tile - 4, foam); }
+            if (!WaterSurface(tile) || terrainVariants == null) return;
+            // The previous flat 4px dark bars + 1px lime foam painted over
+            // every rich water tile, even when motion FX were disabled.
+            // Use only ORIGINAL water material pixels from the published
+            // TerrainVariants.png bottom row. The static edge remains
+            // visible with reduced motion and at every effects quality.
+            int variant=(PreparedTileSeed(x,y)/7)%4;
+            bool north=y>0 && !WaterSurface(Game.Map.rows[y-1][x]);
+            bool south=y+1<Game.Map.rows.Length &&
+                !WaterSurface(Game.Map.rows[y+1][x]);
+            bool west=x>0 && !WaterSurface(Game.Map.rows[y][x-1]);
+            bool east=x+1<Game.Map.rows[y].Length &&
+                !WaterSurface(Game.Map.rows[y][x+1]);
+            if (!north&&!south&&!west&&!east) return;
+            float sourceX=variant*48f;
+            Color old=GUI.color;
+            try
+            {
+                // Cropped 48px hand-painted wave highlights instead of a
+                // new coarse material. Source UVs remain pixel-aligned.
+                GUI.color=new Color(.87f,.96f,1f,.54f*worldActorOpacity);
+                Rect horizontal=new Rect(
+                    (sourceX+7f)/192f,17f/192f,34f/192f,4f/192f);
+                Rect vertical=new Rect(
+                    (sourceX+20f)/192f,7f/192f,4f/192f,30f/192f);
+                if(north)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,Tile-2,4),terrainVariants,horizontal);
+                if(south)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+Tile-5,Tile-2,4),terrainVariants,horizontal);
+                if(west)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,4,Tile-2),terrainVariants,vertical);
+                if(east)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+Tile-5,p.y+1,4,Tile-2),terrainVariants,vertical);
+            }
+            finally { GUI.color=old; }
         }
         private bool WaterSurface(char tile) { return tile == '~' || tile == '%' && Game.save.room == 5 && !Game.LowTide; }
         private void PropImage(string kind, int variant, float x, float y, float w, float h, Color? tint = null)

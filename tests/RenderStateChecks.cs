@@ -827,6 +827,98 @@ public static class RenderStateChecks
         Console.WriteLine("PASS "+verified+
             " production lamplight/crystal/relay sources: attached illumination, stable motion and quality tiers");
     }
+    private static void ShorelineEdgesUsePublishedWaterPixels(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        Texture2D approved=Get<Texture2D>(app,"terrainVariants");
+        Check(approved!=null&&approved.width==192&&approved.height==192,
+            "Published original water source required for all coastline seams");
+        int x=18,y=14;
+        var map=g.Map;
+        string[] saved={
+            map.rows[y-1],map.rows[y],map.rows[y+1]
+        };
+        int originalQuality=g.save.effectsQuality;
+        bool originalReduced=g.save.reducedMotion;
+        Matrix4x4 originalMatrix=GUI.matrix;
+        Color originalColor=GUI.color;
+        Matrix4x4 viewport=Matrix4x4.TRS(new Vector3(43,27,0),
+            Quaternion.identity,new Vector3(1.2f,1.2f,1));
+        Color ambient=new Color(.6f,.5f,.4f,.7f);
+        try
+        {
+            GUI.matrix=viewport;GUI.color=ambient;
+            g.save.reducedMotion=true;g.save.effectsQuality=0;
+            var placed=new Point(300,225);
+            for(int edge=0;edge<4;edge++)
+            {
+                char[] up=saved[0].ToCharArray();
+                char[] mid=saved[1].ToCharArray();
+                char[] down=saved[2].ToCharArray();
+                up[x]=mid[x-1]=mid[x]=mid[x+1]=down[x]='~';
+                if(edge==0)up[x]='.';
+                else if(edge==1)mid[x+1]='.';
+                else if(edge==2)down[x]='.';
+                else mid[x-1]='.';
+                map.rows[y-1]=new string(up);
+                map.rows[y]=new string(mid);
+                map.rows[y+1]=new string(down);
+                Clear();Call(app,"DrawTerrainEdge",x,y,'~',placed);
+                Check(GUI.textureCalls.Count==1,
+                    "Only one original water-material border per exposed side");
+                var mark=GUI.textureCalls[0];
+                bool horizontal=edge==0||edge==2;
+                Check(object.ReferenceEquals(mark.texture,approved)&&
+                    mark.color.a>.4f&&mark.color.a<.6f&&
+                    Math.Abs(mark.uv.height-
+                        (horizontal?4f:30f)/192f)<.00001f&&
+                    Math.Abs(mark.uv.width-
+                        (horizontal?34f:4f)/192f)<.00001f,
+                    "Coastline must preserve approved source material pixels");
+                Check(mark.rect.width==(horizontal?TileMinusTwo():4f)&&
+                    mark.rect.height==(horizontal?4f:TileMinusTwo()),
+                    "Published water pixels must hug the source tile border");
+                Check(!GUI.textureCalls.Exists(t=>
+                    object.ReferenceEquals(t.texture,Texture2D.whiteTexture)),
+                    "Coastline must not regress to flat 4px dark/green bars");
+                Same(GUI.matrix,viewport,
+                    "Water material edge leaked its viewport matrix");
+                Same(GUI.color,ambient,
+                    "Water material edge leaked tint into following actors");
+                Clear();Call(app,"DrawTerrainEdge",x,y,'=',placed);
+                Check(GUI.textureCalls.Count==0,
+                    "Dry paths cannot acquire waterline material");
+            }
+            // A fully surrounded water cell must remain unmarked; its
+            // original tile texture should not gain a fake raised border.
+            char[] top=saved[0].ToCharArray();
+            char[] center=saved[1].ToCharArray();
+            char[] bottom=saved[2].ToCharArray();
+            top[x]=center[x-1]=center[x]=center[x+1]=bottom[x]='~';
+            map.rows[y-1]=new string(top);
+            map.rows[y]=new string(center);
+            map.rows[y+1]=new string(bottom);
+            Clear();Call(app,"DrawTerrainEdge",x,y,'~',placed);
+            Check(GUI.textureCalls.Count==0,
+                "Deep water must have no artificial coastline");
+        }
+        finally
+        {
+            map.rows[y-1]=saved[0];
+            map.rows[y]=saved[1];
+            map.rows[y+1]=saved[2];
+            g.save.effectsQuality=originalQuality;
+            g.save.reducedMotion=originalReduced;
+            GUI.matrix=originalMatrix;
+            GUI.color=originalColor;
+            Clear();
+        }
+        Console.WriteLine(
+            "PASS 4 static waterline orientations use published source pixels, stay visible in reduced motion/low FX, and never draw inland");
+    }
+    private static float TileMinusTwo() { return 34f; }
+
     private static void ShorelineUsesOriginalWaterArtAndHonorsSettings(FrontierRuntime app)
     {
         app.BeginVisualReview(0,5);
@@ -1394,7 +1486,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
