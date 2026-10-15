@@ -1319,7 +1319,23 @@ public static class RuntimeCombatInputChecks
         Check(restored&&GUI.textureCalls.Exists(t=>
             t.texture.name=="resource:Frontier/Art/Icons"),
             "Pickup never recovered its original detailed resource icon");
-        Console.WriteLine("PASS five original painted Q/F/tea icons, late PNG recovery, original combat FX, visible pickup during import");
+        // Inverse import order: original item icons are ALREADY loaded but
+        // Effects.png is not. Loot must still use Icons.png, not a dull ring.
+        Set(app,"effectSheet",null);
+        Set(app,"publishedVisualRetryAt",999999f);
+        GUI.textureCalls.Clear();
+        bool independent=(bool)Call(app,"DrawAuthoredEffect",loot);
+        Check(independent&&GUI.textureCalls.Exists(t=>
+            t.texture.name=="resource:Frontier/Art/Icons"),
+            "An unavailable FX sheet incorrectly suppressed the valid loot icon");
+        // Finally recover the authored projectile/attack sheet in-session.
+        Set(app,"publishedVisualRetryAt",0f);
+        GUI.textureCalls.Clear();
+        bool attackRestored=(bool)Call(app,"DrawAuthoredEffect",strike);
+        Check(attackRestored&&GUI.textureCalls.Exists(t=>
+            t.texture.name=="resource:Frontier/Art/Effects"),
+            "Authored slash must recover after late Effects.png import");
+        Console.WriteLine("PASS painted Q/F/tea icons, late atlas recovery, independent loot/FX loading and visible pickups");
     }
 
     public static int Main()

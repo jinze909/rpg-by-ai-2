@@ -28,7 +28,12 @@ namespace Starfall
         {
             if (effectSheet == null || iconSheet == null)
                 RecoverPublishedVisualAtlases();
-            if (effectSheet == null || effect.kind == "number" || effect.kind == "break") return false;
+            if (effect.kind == "number" || effect.kind == "break") return false;
+            // Loot needs Icons.png, not Effects.png. A missing VFX atlas
+            // must not suppress an otherwise valid detailed item icon.
+            if (effect.kind != "loot" && effectSheet == null) return false;
+            if (effect.kind == "loot" && iconSheet == null &&
+                effectSheet == null) return false;
             Point p = ScreenPoint(effect.position); float progress = Mathf.Clamp01(1 - effect.life / Math.Max(.001f, effect.maxLife));
             if (effect.kind == "loot")
             {
