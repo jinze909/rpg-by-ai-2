@@ -24,6 +24,8 @@ namespace Starfall
         }
         public string toast = "";
         public Conversation conversation;
+        // Transient identity of the interacted NPC, not the nearest NPC on each render.
+        public WorldObject conversationSource;
         private Point dashDirection;
         private int enemyId;
 
@@ -122,7 +124,7 @@ namespace Starfall
             // play after loading a different character or starting fresh.
             sounds.Clear(); lastSound = "";
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
-            invulnerable = 1; conversation = null; runeProgress = 0;
+            invulnerable = 1; conversation = null; conversationSource = null; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
@@ -147,7 +149,7 @@ namespace Starfall
         public void Notify(string zh, string en) { toast = L(zh, en); toastTime = 4; }
         private void Dialog(string speaker, string en, string text, string textEn, params Choice[] choices)
         { conversation = new Conversation(speaker, en, text, textEn, choices); mode = "dialog"; }
-        public void Close() { conversation = null; mode = "world"; }
+        public void Close() { conversation = null; conversationSource = null; mode = "world"; }
         public bool Blocked(float x, float y)
         {
             int tx = (int)Math.Floor(x), ty = (int)Math.Floor(y);
@@ -1107,6 +1109,7 @@ namespace Starfall
         {
             if (!IsObjectPresent(o)) return;
             if (practicing) { Notify("先完成或结束训练，再与居民交谈。", "Finish or end practice before talking to residents."); return; }
+            conversationSource = o;
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
             if (TryTalkWaytrail(o)) return;

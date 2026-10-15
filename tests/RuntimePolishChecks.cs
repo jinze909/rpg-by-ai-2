@@ -15,6 +15,29 @@ public static class RuntimePolishChecks
         string previous = Application.persistentDataPath; string directory = Path.Combine(Path.GetTempPath(), "starfall-save-check-" + Guid.NewGuid()); Application.persistentDataPath = directory;
         try
         {
+            var talk = new GameCore(CampaignFixture.Create());
+            talk.NewGame(0); talk.Close();
+            var first = new WorldObject { id = "qa-first", kind = "innGuest",
+                name = "First Guest", en = "First Guest", x = 10, y = 10 };
+            var second = new WorldObject { id = "qa-second", kind = "innGuest",
+                name = "Second Guest", en = "Second Guest", x = 12, y = 10 };
+            talk.Talk(first);
+            Check(talk.conversation != null &&
+                Object.ReferenceEquals(talk.conversationSource, first),
+                "NPC cue belongs to the actual conversation target");
+            talk.save.x = second.x; talk.save.y = second.y;
+            Check(Object.ReferenceEquals(talk.conversationSource, first),
+                "Moving toward a same-kind NPC does not transfer the cue");
+            talk.Close();
+            Check(talk.conversationSource == null, "Closing dialogue clears cue");
+            talk.Talk(second);
+            Check(talk.conversation != null &&
+                Object.ReferenceEquals(talk.conversationSource, second),
+                "New dialogue selects the new resident");
+            talk.NewGame(1);
+            Check(talk.conversationSource == null,
+                "Loading a fresh game clears transient NPC identity");
+            Console.WriteLine("PASS NPC dialogue identity, proximity changes and reset");
             var g = new GameCore(CampaignFixture.Create()); g.NewGame(1); g.Close(); g.save.coins = 123; g.save.flags.Add("测试\\\"存档"); g.PrepareSave();
             Check(SaveStore.Write(g.save, 0), "First save write"); g.save.coins = 456; Check(SaveStore.Write(g.save, 0), "Atomic replacement write");
             string warning; var loaded = SaveStore.Read(0, out warning); Check(loaded.coins == 456 && warning == null && loaded.flags.Contains("测试\\\"存档"), "Actual production save store roundtrips payload and Unicode");

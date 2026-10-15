@@ -567,9 +567,9 @@ namespace Starfall
             if (!drawingOutline && combatRhythmRemaster != null &&
                 Game.conversation != null)
             {
-                // Multiple residents can stand inside the talk radius.
-                // Only the actual nearest interlocutor gets the cue.
-                WorldObject interlocutor = Game.Nearest();
+                // Pin the cue to the interacted object for the full dialogue.
+                // Another same-kind resident becoming nearest must not steal it.
+                WorldObject interlocutor = Game.conversationSource;
                 if (interlocutor != null && interlocutor.kind == kind &&
                     Math.Abs(interlocutor.x - position.x) < .05f &&
                     Math.Abs(interlocutor.y - position.y) < .05f)
