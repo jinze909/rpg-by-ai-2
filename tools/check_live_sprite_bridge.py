@@ -157,6 +157,31 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_CI: native scene/renderer parity check removed")
+    # Prevent the detached N/S hand VFX that came from screen-fixed
+    # E-facing effectX = p.x+22 and effectY = p.y-63/77. These must share
+    # the actual GameCore muzzle and height used by physical projectiles.
+    def audit_visual_mounts(code):
+        fx = code.split("if (!drawingOutline && !Game.Dying && heroMotionAccents != null)")[1]
+        fx = fx.split("if (!drawingOutline && Game.save.upgrades")[0]
+        for token in (
+            "GameCore.WeaponOrigin(",
+            "GameCore.WeaponHeight(look, direction)",
+            "Point anchor = ScreenPoint(muzzle);",
+            "new Rect(anchor.x - 20, effectY - 20, 40, 40)",
+            "if (Game.ActuallyMoving && (pose == 2 || pose == 3))"
+        ):
+            assert token in fx, ("DETACHED_HERO_EFFECT_OR_FAKE_FOOTSTEP",token)
+        assert "float effectX = p.x +" not in fx
+    audit_visual_mounts(actor)
+    for needle in ("GameCore.WeaponOrigin(",
+                   "if (Game.ActuallyMoving && (pose == 2 || pose == 3))"):
+        try:
+            audit_visual_mounts(actor.replace(
+                needle, "/* deliberately broken visual emitter */", 1))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_CI: detached or synthetic hero effect accepted")
     assert "if(action==1)position%=frames;" in actor
     assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
     assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor

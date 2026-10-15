@@ -753,6 +753,41 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS full-body released spell/sword recovery with class-owned pixels, canonical blonde head and boss/enemy cues");
     }
 
+    private static void HeroActionAccentsFollowRealDirectionalWeaponMount(FrontierRuntime app)
+    {
+        // Old art drew ALL effects at a constant camera-space +22/-63
+        // offset, including north/south bow and staff attacks. The body
+        // turned but the particle appeared detached from the real hand and
+        // projectile emitter. Test the actual DrawPlayerActor GUI output.
+        foreach(int vocation in new[]{0,1,2})
+        foreach(Point facing in ActorDirections)
+        {
+            Prepare(app,vocation);
+            GameCore g=app.Game;
+            g.Skill(facing);
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill",
+                "Real class skill needs a weapon attachment visual");
+            g.movementDirection=new Point();
+            GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var active=GUI.textureCalls.FindAll(t =>
+                t.texture.name.Contains("HeroMotionAccents"));
+            Check(active.Count==1,
+                "Exactly one action-matched effect and no fake walking feet in the stationary windup");
+            Point anchor=(Point)Call(app,"ScreenPoint",
+                GameCore.WeaponOrigin(g.Position,g.AppearanceWeapon,g.VisualFacing));
+            float y=anchor.y-GameCore.WeaponHeight(g.AppearanceWeapon,g.VisualFacing);
+            Check(Math.Abs(active[0].rect.x+active[0].rect.width*.5f-anchor.x)<.02f&&
+                  Math.Abs(active[0].rect.y+active[0].rect.height*.5f-y)<.02f,
+                "Vanguard/Ranger/Arcanist E/W/N/S skill accent must share GameCore's real weapon emitter");
+            // Render direction changes must not synthesize extra independent
+            // animation sprites while movement is collision-restricted.
+            Check(!GUI.textureCalls.Exists(t=>t.texture.name.Contains("FullBodyGait_")),
+                "No puppet layer may be revived for an attached weapon effect");
+        }
+        Console.WriteLine("PASS 12 real profession/facing action VFX mounts share weapon origin/height and whole-body art");
+    }
+
     private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -797,7 +832,8 @@ public static class RuntimeCombatInputChecks
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
-            RealMovingSpellCompositesAndBossFrames, GroundContactArtSharesPhysicalFootPivot,
+            RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
+            GroundContactArtSharesPhysicalFootPivot,
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,

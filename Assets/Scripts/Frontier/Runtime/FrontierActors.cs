@@ -322,7 +322,11 @@ namespace Starfall
             // animation clock. Every pose keeps the actor's ground pivot.
             if (!drawingOutline && !Game.Dying && heroMotionAccents != null)
             {
-                if (Game.ActuallyMoving && pose >= 2 && pose <= 7)
+                // Only visibly running feet may drive footstep accents.
+                // During action recovery the body and its feet are authored
+                // as one complete sprite: world-root movement must not fake
+                // an independent foot cycle beneath it.
+                if (Game.ActuallyMoving && (pose == 2 || pose == 3))
                 {
                     int step = Game.WalkFrame;
                     Atlas(heroMotionAccents, 4, 4, 12 + step,
@@ -337,11 +341,17 @@ namespace Starfall
                         phase = activeAction.elapsed < activeAction.contact * .56f ? 0 : 1;
                     else
                         phase = activeAction.elapsed - activeAction.contact < .12f ? 2 : 3;
-                    float axis = direction.x < -.1f ? -1 : 1;
-                    float effectX = p.x + axis * 22;
-                    float effectY = p.y - (look == 2 ? 77 : 63);
+                    // Follow the SAME directional weapon origin and launch
+                    // height as GameCore projectile/contact geometry. Fixed
+                    // east-facing +22px offsets made N/S bows, magic and
+                    // sword effects visibly float away from the actual hand.
+                    Point muzzle = GameCore.WeaponOrigin(
+                        Game.Position, look, direction);
+                    Point anchor = ScreenPoint(muzzle);
+                    float effectY = anchor.y -
+                        GameCore.WeaponHeight(look, direction);
                     Atlas(heroMotionAccents, 4, 4, look * 4 + phase,
-                        new Rect(effectX - 20, effectY - 20, 40, 40),
+                        new Rect(anchor.x - 20, effectY - 20, 40, 40),
                         new Color(1, 1, 1, phase == 3 ? .55f : .78f),
                         direction.x < -.1f);
                 }
