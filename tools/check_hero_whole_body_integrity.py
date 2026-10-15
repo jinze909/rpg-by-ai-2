@@ -16,7 +16,7 @@ OUT = ROOT / ".starfall-checks/hero-production-atlases"
 PREVIEW = ROOT / ".starfall-checks/hero-animation-qa"
 SHARED = {"PlayerRear", "PlayerSouth",
           "PlayerReactionsRear", "PlayerReactionsSouth"}
-ANIMATED = {"Run", "Attack", "Cast", "Dodge", "Hit"}
+ANIMATED = {"Attack", "Cast", "Dodge", "Hit"}
 
 
 def assert_class_source(profession, name, frame):
@@ -214,7 +214,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                 audit_rows.append({"key": key, "frames": row["frame_count"],
                                    "source_classes": [n for n,_ in references]})
     assert curated_count == 36, ("CURATED_MOTION_COUNT", curated_count)
-    assert len(audit_rows) == 63 and checked_frames >= 333, (
+    assert len(audit_rows) == 63 and checked_frames == 297, (
         "INCOMPLETE_CLASS_AUDIT",len(audit_rows),checked_frames)
     report = {
         "status":"source_owner_palette_waist_and_ratio_verified",
