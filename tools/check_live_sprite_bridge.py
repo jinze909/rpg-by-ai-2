@@ -115,6 +115,43 @@ def check():
     assert "installedSevenContacts != 0 && installedSevenContacts != 18" in native
     assert "contactSevenCount != 0 && contactSevenCount != 18" in native
     assert "public static void EnsureBuilt()" in native
+    # Guard the real Unity Editor repair path, not just the 63 standalone
+    # .anim files. Existing corrupt Ranger/Arcanist overrides used to look
+    # "ready" and could silently render another equipment class.
+    def verify_production_graph_guards(source):
+        guards = (
+            "private static bool NativeControllersMatchPublished()",
+            "if (ready && !NativeControllersMatchPublished())",
+            "controller.GetOverrides(overrides);",
+            "overrides.Count != Actions.Length * Facings.Length",
+            "pair.Key == key &&",
+            "pair.Value == value",
+            "controller.runtimeAnimatorController != basis",
+            "states.Length != 1",
+            "state.motion != AssetDatabase.LoadAssetAtPath<AnimationClip>",
+            "HasExactProductionTransition(transitions[0], action, facing)",
+            "machine.RemoveAnyStateTransition(obsolete);",
+            "baseController.RemoveParameter(parameter);",
+            "AnimatorConditionMode.Equals",
+            "if (!NativeControllersMatchPublished())",
+            "after repair.",
+        )
+        for needle in guards:
+            assert needle in source, ("PRODUCTION_ANIMATOR_MAPPING_GATE_REMOVED",needle)
+    verify_production_graph_guards(native)
+    # Adversarial static regression: omit mapping comparison or a state
+    # transition repair and the EXACT same build check must reject it.
+    for target in ("pair.Value == value",
+                   "HasExactProductionTransition(transitions[0], action, facing)",
+                   "machine.RemoveAnyStateTransition(obsolete);",
+                   "baseController.RemoveParameter(parameter);"):
+        corrupted = native.replace(target, "/* intentionally broken native graph */", 1)
+        try:
+            verify_production_graph_guards(corrupted)
+        except AssertionError as error:
+            assert "PRODUCTION_ANIMATOR_MAPPING_GATE_REMOVED" in str(error)
+        else:
+            raise AssertionError("UNSAFE_CI_GATE_ACCEPTED_WRONG_NATIVE_CONTROLLER")
     # Editor play-mode must use the SAME 63 published action curves as a
     # production build; a manual preview prefab/menu click is insufficient.
     for signal in ("[InitializeOnLoadMethod]",

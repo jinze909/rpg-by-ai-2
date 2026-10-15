@@ -129,7 +129,85 @@ namespace Starfall.EditorTools
             }
             if (contactSevenCount != 0 && contactSevenCount != 18)
                 ready = false;
+            // A 63-clip file audit does not prove that the production
+            // Controller states/override mapping use those files. Wrong
+            // class in an existing override previously stayed "ready".
+            if (ready && !NativeControllersMatchPublished())
+                ready = false;
             if (!ready) Build();
+        }
+
+        private static bool HasExactProductionTransition(
+            AnimatorStateTransition transition, int action, int facing)
+        {
+            if (transition == null || transition.hasExitTime ||
+                transition.duration > .001f || transition.canTransitionToSelf)
+                return false;
+            AnimatorCondition[] conditions = transition.conditions;
+            return conditions.Length == 2 &&
+                conditions.Any(c => c.parameter == "Action" &&
+                    c.mode == AnimatorConditionMode.Equals &&
+                    Mathf.Abs(c.threshold - action) < .001f) &&
+                conditions.Any(c => c.parameter == "Facing" &&
+                    c.mode == AnimatorConditionMode.Equals &&
+                    Mathf.Abs(c.threshold - facing) < .001f);
+        }
+
+        private static bool NativeControllersMatchPublished()
+        {
+            const string basePath = Controllers + "ProductionVanguard.controller";
+            AnimatorController basis = AssetDatabase.LoadAssetAtPath<AnimatorController>(basePath);
+            if (basis == null || basis.layers.Length != 1 ||
+                basis.layers[0].stateMachine == null)
+                return false;
+            if (!basis.parameters.Any(p => p.name == "Action" &&
+                    p.type == AnimatorControllerParameterType.Int) ||
+                !basis.parameters.Any(p => p.name == "Facing" &&
+                    p.type == AnimatorControllerParameterType.Int))
+                return false;
+            AnimatorStateMachine machine = basis.layers[0].stateMachine;
+            for (int action = 0; action < Actions.Length; action++)
+                for (int facing = 0; facing < Facings.Length; facing++)
+                {
+                    string name = Actions[action] + "_" + Facings[facing];
+                    AnimatorState[] states = machine.states
+                        .Select(s => s.state).Where(s => s.name == name).ToArray();
+                    if (states.Length != 1 ||
+                        states[0].motion != AssetDatabase.LoadAssetAtPath<AnimationClip>(
+                            Clips + Key("Vanguard", action, facing) + ".anim"))
+                        return false;
+                    AnimatorState state = states[0];
+                    AnimatorStateTransition[] transitions = machine.anyStateTransitions
+                        .Where(t => t.destinationState == state).ToArray();
+                    if (transitions.Length != 1 ||
+                        !HasExactProductionTransition(transitions[0], action, facing))
+                        return false;
+                }
+            for (int cls = 1; cls < Classes.Length; cls++)
+            {
+                string profession = Classes[cls];
+                AnimatorOverrideController controller =
+                    AssetDatabase.LoadAssetAtPath<AnimatorOverrideController>(
+                        Controllers + "Production" + profession + ".overrideController");
+                if (controller == null || controller.runtimeAnimatorController != basis)
+                    return false;
+                var overrides = new List<KeyValuePair<AnimationClip, AnimationClip>>();
+                controller.GetOverrides(overrides);
+                if (overrides.Count != Actions.Length * Facings.Length)
+                    return false;
+                for (int action = 0; action < Actions.Length; action++)
+                    for (int facing = 0; facing < Facings.Length; facing++)
+                    {
+                        AnimationClip key = AssetDatabase.LoadAssetAtPath<AnimationClip>(
+                            Clips + Key("Vanguard", action, facing) + ".anim");
+                        AnimationClip value = AssetDatabase.LoadAssetAtPath<AnimationClip>(
+                            Clips + Key(profession, action, facing) + ".anim");
+                        if (overrides.Count(pair => pair.Key == key &&
+                            pair.Value == value) != 1)
+                            return false;
+                    }
+            }
+            return true;
         }
 
         // The validated seven-cell set is optional until all 18 genuinely
@@ -297,6 +375,13 @@ namespace Starfall.EditorTools
             AnimatorController baseController = AssetDatabase.LoadAssetAtPath<AnimatorController>(basePath);
             if (baseController == null)
                 baseController = AnimatorController.CreateAnimatorControllerAtPath(basePath);
+            // Fix stale parameter types, not only absent names: a float
+            // "Action" can silently invalidate every transition.
+            foreach (AnimatorControllerParameter parameter in
+                     baseController.parameters.Where(p =>
+                         (p.name == "Action" || p.name == "Facing") &&
+                         p.type != AnimatorControllerParameterType.Int).ToArray())
+                baseController.RemoveParameter(parameter);
             if (!baseController.parameters.Any(p => p.name == "Action"))
                 baseController.AddParameter("Action", AnimatorControllerParameterType.Int);
             if (!baseController.parameters.Any(p => p.name == "Facing"))
@@ -308,9 +393,17 @@ namespace Starfall.EditorTools
                     string name = Actions[action] + "_" + Facings[facing];
                     AnimatorState state = machine.states.Select(s => s.state)
                         .FirstOrDefault(s => s.name == name);
-                    if (state == null)
+                    if (state == null) state = machine.AddState(name);
+                    // Rebuild ONLY the published production AnyState
+                    // transition to this generated state when stale. Old
+                    // wrong-class or missing conditions must never survive.
+                    AnimatorStateTransition[] existing = machine.anyStateTransitions
+                        .Where(t => t.destinationState == state).ToArray();
+                    if (existing.Length != 1 ||
+                        !HasExactProductionTransition(existing[0], action, facing))
                     {
-                        state = machine.AddState(name);
+                        foreach (AnimatorStateTransition obsolete in existing)
+                            machine.RemoveAnyStateTransition(obsolete);
                         AnimatorStateTransition transition = machine.AddAnyStateTransition(state);
                         transition.hasExitTime = false;
                         transition.duration = 0;
@@ -341,6 +434,13 @@ namespace Starfall.EditorTools
                 controller.ApplyOverrides(mappings);
             }
             AssetDatabase.SaveAssets();
+            // A successful asset write is NOT a successful scene integration.
+            // Re-read all 21 Vanguard states and both override tables from
+            // Unity's serialized AssetDatabase before reporting success.
+            if (!NativeControllersMatchPublished())
+                throw new InvalidOperationException(
+                    "Production hero Animator graph/overrides do not match "+
+                    "all 63 source-verified Sprite clips after repair.");
             Debug.Log("Production hero SpriteRenderer clips baked from ACCEPTED original atlases: "
                 + "3 classes x 7 actions x 3 facings, root=(128,240). "
                 + "The runtime F8 lane can now load real Sprite curves. "
