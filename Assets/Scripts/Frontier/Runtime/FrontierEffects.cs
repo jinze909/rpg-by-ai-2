@@ -54,10 +54,25 @@ namespace Starfall
             int id; float size = 45, angle = 0;
             switch (effect.kind)
             {
-                case "slash": id = 0; size = effect.variant == 2 ? 100 : 78; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
+                // Two real hand-painted contact silhouettes, NOT a moving
+                // billboard of the same static frame. The GameCore event
+                // still owns timing and damage; only the visual FX lifetime
+                // chooses anticipation -> follow-through.
+                case "slash":
+                    id = progress < .38f ? 0 : 1;
+                    size = effect.variant == 2 ? 100 : 78;
+                    angle = (float)(Math.Atan2(effect.direction.y,
+                        effect.direction.x) * 180 / Math.PI); break;
                 case "spark": id = 3; size = 42; break;
-                case "impact": case "hurt": id = 2; size = 38; break;
-                case "projectileImpact": id = 4; size = 35; break;
+                // The source Effects.png already contains a luminous
+                // contact spark (cell 3) and weighted dust/splinter burst
+                // (cell 2). Keep the same world pivot through the transition.
+                case "impact": case "hurt":
+                    id = progress < .32f ? 3 : 2;
+                    size = 38; break;
+                case "projectileImpact":
+                    id = progress < .32f ? 3 : 4;
+                    size = 35; break;
                 case "projectileFade": id = effect.variant; size = 26; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
                 case "magicImpact": id = 5; size = effect.radius > 0 ? effect.radius * Tile * 2 : 67; break;
                 case "release": id = 13; size = 33; break;

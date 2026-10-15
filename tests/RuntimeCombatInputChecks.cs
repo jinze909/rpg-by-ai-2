@@ -1364,6 +1364,50 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS authored combat, skill/stew, loot, lamps, signs, roads and river sprites recover after delayed PNG import");
     }
 
+    private static void OriginalCombatVfxTransitionsUseActualPaintedFrames(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var atlas=(Texture2D)typeof(FrontierRuntime).GetField(
+            "effectSheet",Private).GetValue(app);
+        Check(atlas!=null,"Original painted Effects.png is absent");
+        int reviewed=0;
+        foreach(string kind in new[]{"slash","impact","hurt","projectileImpact"})
+        {
+            var effect=new Effect(kind,app.Game.Position,1f){
+                direction=new Point(1,0)};
+            GUI.textureCalls.Clear();
+            effect.life=.92f; // first authored anticipation/contact painting
+            bool early=(bool)Call(app,"DrawAuthoredEffect",effect);
+            var before=GUI.textureCalls.Find(t=>ReferenceEquals(t.texture,atlas));
+            Check(early&&before!=null,
+                "Accepted hand-painted attack FX must draw at windup onset");
+            int earlyCell=3,lateCell=kind=="projectileImpact"?4:2;
+            if(kind=="slash"){earlyCell=0;lateCell=1;}
+            Func<GUI.TextureCall,int,bool> matches=(call,index)=>
+                Math.Abs(call.uv.x-(index%4)*.25f)<.0001f&&
+                Math.Abs(call.uv.y-(3-index/4)*.25f)<.0001f;
+            Check(matches(before,earlyCell),
+                "First impact key must sample actual opening Effects.png cell: "+kind);
+            GUI.textureCalls.Clear();
+            effect.life=.39f; // the original artwork follows through
+            bool late=(bool)Call(app,"DrawAuthoredEffect",effect);
+            var after=GUI.textureCalls.Find(t=>ReferenceEquals(t.texture,atlas));
+            Check(late&&after!=null&&matches(after,lateCell),
+                "Second impact key must sample original follow-through painting: "+kind);
+            Check(Math.Abs((before.rect.x+before.rect.width*.5f)-
+                 (after.rect.x+after.rect.width*.5f))<.0001f&&
+                Math.Abs((before.rect.y+before.rect.height*.5f)-
+                 (after.rect.y+after.rect.height*.5f))<.0001f,
+                "Visual swing/contact center must not teleport between original frames");
+            Check(after.rect.width>=before.rect.width&&
+                after.rect.width<=before.rect.width*1.5f,
+                "Painted impact follow-through may grow slightly but cannot jump in scale");
+            reviewed++;
+        }
+        Console.WriteLine("PASS "+reviewed+
+            " actual sword/impact/projectile effect lifetimes switch between authored Effects.png paintings without root drift");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -1381,6 +1425,7 @@ public static class RuntimeCombatInputChecks
             LiveEquipmentPreviewUsesTheSameCanonicalBody,
             ProduceVerifiedGameplayHeroTrace, GroundContactArtSharesPhysicalFootPivot,
             OriginalAbilityAndStewIconsUsePublishedArt,
+            OriginalCombatVfxTransitionsUseActualPaintedFrames,
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
