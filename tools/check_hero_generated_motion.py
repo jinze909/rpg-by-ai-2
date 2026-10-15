@@ -81,7 +81,7 @@ def check():
     check_solid_midpoint_synthetic()
     check_opposing_limb_motion()
     manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "accepted_source_plus_algorithmic_motion_midpoints_not_art_approved"
+    assert manifest["status"] == "class_owned_full_body_run_and_source_curated_transitions_pending_art_review"
     assert manifest["top_origin_foot_px"] == [128, 240]
     assert manifest["unity_bottom_origin_pivot"] == [0.5, 0.0625]
     assert not manifest["native_unity_verified"] and not manifest["art_direction_acceptance"]
@@ -147,12 +147,12 @@ def check():
                     cell = sheet.crop((i * CELL, 0, (i + 1) * CELL, CELL))
                     assert cell.getchannel("A").getbbox() is not None, (key, i)
                 for original_index in range(len(originals)):
-                    index = original_index * 2 if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and len(originals) > 1 else original_index
+                    index = original_index * 2 if action in ("Attack", "Cast", "Dodge", "Hit") and len(originals) > 1 else original_index
                     extracted = sheet.crop((index * CELL, 0, (index + 1) * CELL, CELL))
                     with Image.open(PREVIEW / klass / action / f"{facing}_{original_index:02}.png") as source:
                         assert extracted.tobytes() == source.convert("RGBA").tobytes(), (key, original_index)
-                    if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
-                        if original_index < len(originals) - 1 or action == "Run":
+                    if action in ("Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
+                        if original_index < len(originals) - 1:
                             midpoint = sheet.crop(((index + 1) * CELL, 0, (index + 2) * CELL, CELL))
                             if midpoint.tobytes() == extracted.tobytes():
                                 identical_motion_cells += 1
@@ -198,7 +198,7 @@ def check():
                 midpoints += row["generated_midpoints"]
                 if action == "Attack" and klass == "Vanguard":
                     examples.append(key)
-    assert tally == 63 and midpoints == 126, (tally, midpoints)
+    assert tally == 63 and midpoints == 90, (tally, midpoints)
     assert curated_count == 36, ("MISSING_36_AUTHORED_TRANSITIONS",curated_count)
     assert distinct_motion_cells + identical_motion_cells == midpoints, (
         "Motion cell audit missed a generated sprite")
