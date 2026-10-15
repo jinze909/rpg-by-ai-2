@@ -54,7 +54,8 @@ namespace Starfall
                 if (playerAction == null) return MobilityRule.Full;
                 // Spell/bow windups and actual contact still plant the feet.
                 // Only after release may the HERO move and finish the cast
-                // with authored walk legs, without shifting the hitbox.
+                // with its ONE complete action sprite moving at the root;
+                // never graft Walk legs onto the active attack/skill body.
                 if(playerAction.kind=="skill"&&playerAction.weapon!=0)
                     return PlayerPhase==ActionPhase.Recovery ?
                         MobilityRule.Reduced : MobilityRule.Stationary;
@@ -69,7 +70,10 @@ namespace Starfall
                 if(Dying&&fallenPlayerWeapon>=0)return fallenPlayerFacing;
                 if(playerHitTime>0&&playerHitFacing.Length>.05f)return playerHitFacing;
                 if(dashTime>0)return dashDirection;
-                if(playerAction!=null&&!RecoveryWalking)return playerAction.direction;
+                // The released weapon/bow/cast keypose faces its locked
+                // contact direction throughout moving recovery. Root movement
+                // may strafe independently; no mid-cast facing snap.
+                if(playerAction!=null)return playerAction.direction;
                 return ActuallyMoving?locomotionFacing:aim;
             }
         }

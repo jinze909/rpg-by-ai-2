@@ -131,7 +131,11 @@ namespace Starfall
             {
                 if (Dying && fallenPlayerWeapon >= 0) return fallenPlayerWeapon;
                 if (playerHitTime > 0 && playerHitWeapon >= 0) return playerHitWeapon;
-                return playerAction != null && !RecoveryWalking ? playerAction.weapon : save.weapon;
+                // A released action still owns the whole-body drawing while
+                // its recovery permits root translation. Never snap between
+                // skill armor and an unrelated equipped Run costume mid-cast.
+                // Hit and death appearance overrides above remain authoritative.
+                return playerAction != null ? playerAction.weapon : save.weapon;
             }
         }
 
@@ -349,29 +353,12 @@ namespace Starfall
                 if (playerHitTime > 0) return 10;
                 if (playerAction != null)
                 {
-                    if (RecoveryWalking)
-                    {
-                        // Hold the already-released authored upper-body action
-                        // for the short moving recovery, with walk legs
-                        // supplied by the unified rooted render texture.
-                        // If Q uses another equipped weapon, restore its own
-                        // walk silhouette instead of showing the wrong outfit.
-                        if(playerAction.weapon==save.weapon&&
-                           playerAction.equippedWeapon==save.weapon)
-                        {
-                            if(playerAction.kind=="skill"&&
-                               playerAction.elapsed<playerAction.contact+.34f)
-                                return 7;
-                            if(playerAction.kind=="attack"&&
-                               playerAction.elapsed<playerAction.contact+.22f)
-                            {
-                                bool lateHeavy=playerAction.weapon==0&&
-                                    (playerAction.combo==2||playerAction.style==1);
-                                return lateHeavy?7:5;
-                            }
-                        }
-                        return 2 + WalkFrame % 2;
-                    }
+                    // Movement in Recovery is already handled by GameCore's
+                    // collision-safe Move() with reduced velocity. The visual
+                    // actor MUST remain one whole attack/cast body until its
+                    // original action duration finishes, even when strafe
+                    // input is held. Old code returned WalkFrame here and
+                    // instantly teleported chest, pelvis, weapon and outfit.
                     bool ready = PlayerPhase == ActionPhase.Windup;
                     bool heavy = playerAction.weapon == 0 && (playerAction.combo == 2 || playerAction.style == 1);
                     return playerAction.kind == "skill" || heavy ? (ready ? 6 : 7) : (ready ? 4 : 5);

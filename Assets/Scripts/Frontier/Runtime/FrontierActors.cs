@@ -258,13 +258,11 @@ namespace Starfall
             if (Game.invulnerable>0&&!Game.Dying&&Game.playerFlash<=0)
                 tint.a=.65f+.35f*(float)Math.Abs(Math.Sin(clock*16));
             int facing=GameCore.DirectionRow(direction);
-            // The authoritative released recovery moves with the COMPLETE
-            // same-class Walk sprite. Never weld an action torso to walking
-            // boots or warp one ankle while the pelvis stays frozen.
-            bool movingRecovery=!Game.Dying&&Game.ActuallyMoving&&
-                Game.PlayerMobility==MobilityRule.Reduced&&
-                pose>=4&&pose<=7;
-            bool moving=pose>=2&&pose<=3||movingRecovery;
+            // Recovery may MOVE in GameCore, but the complete released
+            // attack/cast pose continues through its own actual action
+            // duration. Walking feet are not independently grafted and
+            // the weapon/facing remain bound to the action until it ends.
+            bool moving=pose>=2&&pose<=3;
             bool rear=false,south=false,resting=!moving&&pose<=1;
             Texture2D sheet=playerSheets[look];
             int frame=pose;

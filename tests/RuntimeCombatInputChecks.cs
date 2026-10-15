@@ -209,10 +209,9 @@ public static class RuntimeCombatInputChecks
         string klass=new[]{"Vanguard","Ranger","Arcanist"}[profession];
         int facing=GameCore.DirectionRow(direction);
         int pose=app.Game.PlayerPose;
-        bool locomotion=(pose>=2&&pose<=3)||
-            (app.Game.ActuallyMoving&&
-             app.Game.PlayerMobility==MobilityRule.Reduced&&
-             pose>=4&&pose<=7);
+        // Rendering (as opposed to physics) never switches a still-active
+        // attack/cast body to Run merely because recovery allows movement.
+        bool locomotion=pose>=2&&pose<=3;
         int action=locomotion?1:app.Game.HeroAnimationState;
         string animation=new[]{"Idle","Run","Attack","Cast","Dodge","Hit","Death"}[action];
         string dir=new[]{"E","N","S"}[facing];
@@ -304,11 +303,16 @@ public static class RuntimeCombatInputChecks
             CheckPlayerDrawing(app, row == 1 ? "PlayerRear" : row == 2 ? "PlayerSouth" : "PlayerVanguard",
                 row == 0 ? 7 : 3, direction);
             MoveDuringQRecovery(app, direction);
-            Check(app.Game.AppearanceWeapon == equipped, "Moving recovery immediately restores the currently equipped appearance");
-            CheckPlayerDrawing(app, equipped == 1 ? "WalkRanger" : "WalkArcanist",
-                row * 4 + app.Game.WalkFrame, direction);
+            Check(app.Game.AppearanceWeapon == 0 && app.Game.HeroAnimationState == 3,
+                "Root-only movement must retain Vanguard skill outfit and cast state");
+            CheckPlayerDrawing(app, row == 1 ? "PlayerRear" : row == 2 ?
+                "PlayerSouth" : "PlayerVanguard", row == 0 ? 7 : 3, direction);
+            // Movement changes the GameCore world root, not the authored
+            // action frame, facing or equipment during its life.
+            Check((app.Game.VisualFacing-direction).Length < .001f,
+                "Recovery strafing cannot rotate the active cast keypose");
         }
-        Console.WriteLine("PASS Actual standing Q and moving recovery use skill/equipped body sheets with the same canonical head");
+        Console.WriteLine("PASS Moving Q recovery retains full-body cast, class identity, grip and locked direction");
     }
 
     private static void RecoveryHitAndDeathRetainVisibleEquipment(FrontierRuntime app)
@@ -325,18 +329,20 @@ public static class RuntimeCombatInputChecks
             Update(app);
             Check(lethal ? game.Dying : game.playerHitTime > 0 && !game.Dying,
                 "A real hostile projectile triggers the intended reaction/death boundary");
-            Check(game.AppearanceWeapon == equipped && (game.VisualFacing - direction).Length < .001f,
-                "Reaction/death captures the equipment and facing actually shown during recovery walking");
+            Check(game.AppearanceWeapon == 0 && (game.VisualFacing - direction).Length < .001f,
+                "Reaction/death must snapshot the actually displayed Vanguard cast outfit and facing");
             int row = GameCore.DirectionRow(direction);
             string sheet = row == 1 ? "PlayerReactionsRear" : row == 2 ? "PlayerReactionsSouth"
-                : "Player" + (equipped == 1 ? "Ranger" : "Arcanist");
-            CheckPlayerDrawing(app, sheet, row == 0 ? lethal ? 11 : 10 : equipped * 4 + (lethal ? 3 : 2), direction, !lethal);
+                : "PlayerVanguard";
+            CheckPlayerDrawing(app, sheet, row == 0 ? lethal ? 11 : 10 :
+                (lethal ? 3 : 2), direction, !lethal);
             Input.Clear(); Mouse(app, game.Position - direction * 4);
             if (lethal) game.Equip(0);
             Frames(app, 2);
-            Check(game.AppearanceWeapon == equipped && (game.VisualFacing - direction).Length < .001f,
-                "Recoil motion, live cursor changes and later equipment changes cannot replace the captured reaction/death outfit");
-            CheckPlayerDrawing(app, sheet, row == 0 ? lethal ? 11 : 10 : equipped * 4 + (lethal ? 3 : 2), direction, !lethal);
+            Check(game.AppearanceWeapon == 0 && (game.VisualFacing - direction).Length < .001f,
+                "Reaction/death must keep its captured cast outfit after other input/equipment changes");
+            CheckPlayerDrawing(app, sheet, row == 0 ? lethal ? 11 : 10 :
+                (lethal ? 3 : 2), direction, !lethal);
         }
         Console.WriteLine("PASS Actual hostile projectile reactions and deaths preserve the visible recovery equipment/facing");
     }
@@ -653,8 +659,9 @@ public static class RuntimeCombatInputChecks
 
     private static void RealMovingSpellCompositesAndBossFrames(FrontierRuntime app)
     {
-        // Moving recovery now uses COMPLETE class walk frames, never a
-        // synthetic torso glued to independently generated gait legs.
+        // Moving recovery translates the ONE complete active class-owned
+        // Attack/Cast body until the authoritative action finishes; neither
+        // leg grafts nor premature running-pose swaps are allowed.
         foreach(int vocation in new[]{1,2})
         {
             Prepare(app,vocation);app.Game.enemies.Clear();
@@ -668,8 +675,8 @@ public static class RuntimeCombatInputChecks
             GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
             string klass=vocation==1?"Ranger":"Arcanist";
             Check(GUI.textureCalls.Exists(t=>t.texture.name==
-                "resource:Frontier/HeroAnimator/Canonical/Hero_"+klass+"_Run_E"),
-                "A moving skill must show fully authored same-class Run body");
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"+klass+"_Cast_E"),
+                "A moving skill must retain its original full-body Cast drawing until release recovery ends");
             Check(!GUI.textureCalls.Exists(t=>t.texture.name.StartsWith(
                 "FullBodyGait_")||t.texture.name.Contains("/WalkVanguard")),
                 "Runtime cannot construct moving spell torso/leg or head joins");
@@ -683,8 +690,8 @@ public static class RuntimeCombatInputChecks
             "Sword recovery must retain gameplay locomotion");
         GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
         Check(GUI.textureCalls.Exists(t=>t.texture.name==
-            "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_Run_E"),
-            "Moving sword recovery must render whole Vanguard stride, no splice");
+            "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_Attack_E"),
+            "Moving sword recovery must retain the complete Vanguard swing, not swap to Run");
         Prepare(app,0);
         var player=app.Game;
         player.enemies.Clear();
