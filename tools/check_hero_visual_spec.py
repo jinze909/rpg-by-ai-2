@@ -38,8 +38,8 @@ def check():
         assert re.search(r"public const int " + item + r" = " + str(value) + r";", code), item
     assert "public const float PixelsPerUnit = 128f;" in code
     assert "public const float GuiDensity = .75f;" in code
-    # The 56px identity is canonically baked by the OFFLINE asset exporter;
-    # the live Unity fallback must never excise and reattach a warrior face.
+    # Both the offline producer and Unity runtime preserve the full original
+    # character's blonde hair, connected neck and class outfit. No face swap.
     assert "Color[] colors = source.GetPixels(" in code
     assert "colors[(Cell - 1 - row) * Cell + col]" not in code
     fullbody = (ROOT / "Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text()
@@ -49,69 +49,69 @@ def check():
         fullbody.index("private int EnemyPose(")]
     assert "UnifiedActionGait(" not in fullbody
     sheets, heads = imported_sheets(), registered_heads()
-    approved = sheets["WalkVanguard"]
-    baselines = {}
-    for facing, frame in spec["head"]["canonical_frames"].items():
-        face = crop_frame(approved, frame).crop((100, 140, 156, 196))
-        assert face.getchannel("A").getbbox(), facing
-        baselines[facing] = face.tobytes()
     review = []
+    source_pixels_verified = blonde_pixels_verified = 0
     for klass in CLASSES:
         for facing in FACINGS:
-            f = FACINGS.index(facing)
             refs = [("Walk" + klass, 8)] if facing == "S" else [
                 ("Player" + klass, 1 if facing == "N" else 0)]
             name, index = refs[0]
+            approved = crop_frame(sheets[name], index)
             img = canonical_frame(sheets, heads, name, index, facing, True)
+            # No crop, alpha mask, or separate Vanguard head is allowed.
+            # The RAW class-owned source already includes its blonde hair,
+            # attached neck, weapon and whole torso/hip/body anatomy.
+            assert img.tobytes() == approved.tobytes(), (
+                "FOREIGN_HEAD_OR_SPLIT_BODY", klass, facing)
+            source_pixels_verified += CELL * CELL
             bounds = img.getchannel("A").getbbox()
             assert bounds and 55 <= bounds[0] < 175 and 105 < bounds[1] < 211
-            assert 88 < bounds[2] < 221 and 226 <= bounds[3] <= 252, (klass,facing,bounds)
-            canonical = img.crop((100, 140, 156, 196))
-            assert canonical.getchannel("A").getbbox(), (klass, facing)
-            # Accepted pixel art has semi-transparent eyelashes and hair
-            # edges: only ONE source pixel may be fully opaque. Verify the
-            # real alpha-composite invariant instead of inventing 100 opaque
-            # pixels. Every nonzero canonical source pixel contributes at
-            # least its original opacity; truly opaque pixels are exact.
-            baseline = baselines[facing]
-            pix = canonical.tobytes()
-            pixels_checked = opaque_checked = 0
-            for pixel in range(56 * 56):
-                offset = pixel * 4
-                alpha = baseline[offset + 3]
-                if alpha == 0:
-                    continue
-                assert pix[offset + 3] >= alpha, (
-                    "Canonical blonde head alpha lost in class compositor",
-                    klass, facing, pixel)
-                pixels_checked += 1
-                if alpha == 255:
-                    assert pix[offset:offset + 4] == baseline[offset:offset + 4], (
-                        "Fully opaque golden hair/face pixel changed",
-                        klass, facing, pixel)
-                    opaque_checked += 1
-            # North-facing source hair has 1,786 visible pixels and zero
-            # alpha=255 pixels: do not invent an opacity floor. Every
-            # available opaque pixel is still strictly compared above.
-            assert pixels_checked >= 100, (
-                "Canonical head source lacks visible portrait coverage",
-                klass, facing, pixels_checked, opaque_checked)
+            assert 88 < bounds[2] < 221 and 226 <= bounds[3] <= 252, (
+                klass, facing, bounds)
+            x,y,w,h = heads[name][index]
+            assert 15 <= w <= 90 and 15 <= h <= 90, (
+                "HEAD_BODY_PROPORTION",klass,facing,(x,y,w,h))
+            head = img.crop((x,y,x+w,y+h))
+            # Real blonde hair in each class-owned head, not an pasted
+            # identical Warrior head. Inspect color only inside its
+            # registered head region so warm armor cannot fake identity.
+            blonde = 0
+            for r,g,b,a in head.getdata():
+                if (a >= 70 and r >= 150 and g >= 95 and
+                    r > g * 1.07 and g > b * 1.04):
+                    blonde += 1
+            assert blonde >= 35, ("BLONDE_IDENTITY_MISSING",
+                                  klass,facing,blonde)
+            blonde_pixels_verified += blonde
             socket = spec["weapon_grip_hints_top_origin_px"][klass][facing]
-            assert all(isinstance(x, int) and 60 <= x < 220 for x in socket)
-            # Fail if a declared socket is nowhere near this approved outfit.
-            nearby = img.getchannel("A").crop((max(0, socket[0] - 38),
-                max(0, socket[1] - 38), min(256, socket[0] + 39),
-                min(256, socket[1] + 39)))
-            assert nearby.getbbox(), "Weapon-hint detached from actual body: " + klass + facing
-            review.append({"class":klass,"facing":facing,"opaque_bounds":list(bounds),
-                           "reference_socket_px":socket,"foot_px":[128,240],
-                           "canonical_head_pixels_preserved":pixels_checked,
-                           "fully_opaque_head_pixels_locked":opaque_checked})
+            assert all(isinstance(x,int) and 60 <= x < 220 for x in socket)
+            nearby = img.getchannel("A").crop((
+                max(0,socket[0]-38),max(0,socket[1]-38),
+                min(256,socket[0]+39),min(256,socket[1]+39)))
+            assert nearby.getbbox(), (
+                "Weapon hint detached from full body:",klass,facing)
+            review.append({"class":klass,"facing":facing,
+                           "opaque_bounds":list(bounds),
+                           "head_source":f"{name}:{index}",
+                           "head_bounds":[x,y,w,h],
+                           "blonde_hair_pixels":blonde,
+                           "full_body_rgba_unchanged":True,
+                           "reference_socket_px":socket,"foot_px":[128,240]})
+    # Adversarial fixture: a covered head must fail the independent blonde
+    # detector without relying on a downstream soft diagnostic.
+    fake = Image.new("RGBA",(56,56),(34,44,60,255))
+    assert not any(a>=70 and r>=150 and g>=95 and
+                   r>g*1.07 and g>b*1.04
+                   for r,g,b,a in fake.getdata()), (
+        "BLONDE_IDENTITY_NEGATIVE_TEST_FAILED")
     assert len(review) == 9
     DEST.mkdir(parents=True, exist_ok=True)
     report = {"status":"source_pixel_geometry_verified_not_artist_acceptance",
-              "canonical_sources":len(baselines),"profile_previews":review,
-              "head_source":"WalkVanguard: E0/N4/S8", "native_unity_verified":False,
+              "class_body_sources":9,"profile_previews":review,
+              "original_full_body_pixels_verified":source_pixels_verified,
+              "blonde_hair_pixels_verified":blonde_pixels_verified,
+              "head_source":"original registered class-owned full-body sprite; no face cutout",
+              "native_unity_verified":False,
               "weapon_attachment_semantic_review_pending":True}
     (DEST / "hero-visual-spec-qa.json").write_text(
         json.dumps(report,indent=2)+"\n",encoding="utf-8")
