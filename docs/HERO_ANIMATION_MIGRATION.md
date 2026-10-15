@@ -112,3 +112,26 @@ avoiding a visual mismatch between the current GameCore clock and old clips.
 projectile grips, anatomical art direction, stable occlusion and
 frame-rate measurement still need recorded evidence before stage three
 can be marked accepted.
+
+## 2026-10-15 — Full-body five-frame Dodge and Hit
+
+The 3 professions × 3 facings × Dodge/Hit previously jumped between
+three accepted poses: Idle -> Dodge/Hit -> Idle. Each of these 18
+shipped reaction PNGs now contains two extra full-body motion frames,
+making **five Sprite cells**, preserving accepted originals bit-for-bit
+at indices **0, 2, 4**. Shared root (128,240), original 56px
+golden hair source, class clothing and pixel palette remain fixed.
+
+Runtime SpriteRenderer and Animator map GameCore's existing 0..2
+reaction time onto five Sprite cells by doubling read-only pose time.
+The Unity Editor fallback baker, clip dimension validator, all class
+override controllers and PlayMode sprite frame audit share the new
+five-cell contract. Damage, stun, invulnerability, dodge distance,
+save schema and quest state are untouched; legacy OnGUI fallback
+remains available.
+
+Pixel continuity is programmatic deformation from ACCEPTED sprites,
+not newly drawn anatomy or expert approval. CI validates 63 atlases
+and 126 generated midpoints, including the 36 newly generated
+reaction transitions. Native Unity graphics/PlayMode, manual joint
+articulation and visual quality acceptance remain pending.
