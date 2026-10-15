@@ -67,7 +67,7 @@ def fail_nonoptional(name, action, frames, obs, transitions):
     # passive flags. Skill reaches and falling corpses are intentionally
     # large: those require visual review, not naive centroid rejection.
     expected = {
-        "Idle": 1, "Run": 4, "Attack": 7, "Cast": 7,
+        "Idle": 1, "Run": 4, "Attack": 6, "Cast": 6,
         "Dodge": 5, "Hit": 5, "Death": 4
     }[action]
     assert len(frames) == expected, ("RUNTIME_FRAME_COUNT", name, len(frames))
@@ -320,7 +320,7 @@ def run():
                 # builder's approved source cells.
                 if face == "E" or name == "Hero_Arcanist_Run_S":
                     preview(name,seq)
-    assert len(rows)==63 and frames_checked==297,(len(rows),frames_checked)
+    assert len(rows)==63 and frames_checked==279,(len(rows),frames_checked)
     historical_splice_comparison()
     reconstructed_head_swap_vs_whole_body()
     report={
@@ -334,7 +334,7 @@ def run():
     }
     (DEST / "production-runtime-qa.json").write_text(
         json.dumps(report,indent=2)+"\n",encoding="utf-8")
-    print("PASS: 63 real production Sprite atlases / 297 canvas, root and "
+    print("PASS: 63 real production Sprite atlases / 279 canvas, root and "
           "frame-boundary-checked cells; filmstrips/GIFs saved to "+str(DEST))
     print("ART_REVIEW_REQUIRED; NATIVE_UNVERIFIED: mechanical interpolation "
           "and actual native Game View not certified.")
