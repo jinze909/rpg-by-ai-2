@@ -100,7 +100,12 @@ namespace UnityEngine
     {
         public static T Load<T>(string p) where T:class
         {
-            if(typeof(T)==typeof(TextAsset))return new TextAsset {text="campaign"} as T;
+            if(typeof(T)==typeof(TextAsset)) {
+                string visualText="Assets/Resources/"+p+".txt";
+                if(File.Exists(visualText))
+                    return new TextAsset {text=File.ReadAllText(visualText)} as T;
+                return new TextAsset {text="campaign"} as T;
+            }
             if(typeof(T)==typeof(Texture2D)) {
                 string path="Assets/Resources/"+p+".png";
                 if(!File.Exists(path))return null;

@@ -140,7 +140,8 @@ namespace Starfall
                 kind=="fire"||kind=="campfire"||kind=="brazier"?.28f:.52f;
             Point flame=anchor-new Point(0,height);
             float radius=kind=="lighthouse"?178:
-                kind=="lamp"?114:cool?106:96;
+                kind=="lamp"?CurrentWorldVisualLook.lampRadius:
+                cool?106:96;
             // Continuous, world-seeded flame rhythm. Animation never moves
             // the light's attachment, so neighbouring actors do not strobe
             // and camera pan/repaint cannot change its appearance.
@@ -152,7 +153,8 @@ namespace Starfall
             Color halo=cool?new Color(.38f,.79f,.84f,1f):
                 new Color(1f,.73f,.4f,1f);
             if(signal)halo=new Color(.52f,.94f,.73f,1f);
-            float alpha=(Game.Night?.29f:.13f)*opacity*flicker;
+            float alpha=(Game.Night?CurrentWorldVisualLook.nightLightAlpha:
+                CurrentWorldVisualLook.dayLightAlpha)*opacity*flicker;
             if(signal)alpha=.27f*opacity*flicker;
             halo.a=alpha;
             Light(flame,radius,halo);

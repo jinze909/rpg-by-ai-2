@@ -64,8 +64,11 @@ namespace Starfall
             // TerrainVariants.png is 192x192; its BOTTOM row contains
             // four original richly painted cyan wave paintings. Crop only
             // existing authored pixels. No low-res overlay atlas is used.
-            float opacity=.12f+.12f*(.5f+.5f*
-                (float)Math.Sin(clock*.89f+(seed%37)*.31f));
+            WorldVisualLook visual=CurrentWorldVisualLook;
+            float opacity=visual.waterGlintAlpha+
+                visual.waterGlintAlpha*(.5f+.5f*
+                    (float)Math.Sin(clock*visual.waterGlintRate+
+                        (seed%37)*.31f));
             if(Game.save.effectsQuality==1)opacity*=.64f;
             float xOffset=9f+(seed%9);
             float yOffset=6f+(seed/13)%18;
@@ -222,8 +225,10 @@ namespace Starfall
                     float phase=(seed%997)*.01f;
                     float gust=(float)(Math.Sin(clock*.82f+phase)*.72+
                         Math.Sin(clock*1.43f+phase*1.73f)*.28);
-                    float strength=prop.kind=="palm"?1.35f:
-                        prop.kind=="snowpine"?.24f:.80f;
+                    WorldVisualLook visual=CurrentWorldVisualLook;
+                    float strength=prop.kind=="palm"?visual.palmSwayDegrees:
+                        prop.kind=="snowpine"?visual.snowpineSwayDegrees:
+                        visual.treeSwayDegrees;
                     Vector2 foot=new Vector2(rect.x+rect.width*.5f,
                         rect.y+rect.height*(120f/128f));
                     GUI.matrix=GuiGeometry.RotateAroundPivot(

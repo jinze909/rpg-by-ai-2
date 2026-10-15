@@ -851,10 +851,35 @@ public static class RenderStateChecks
             " original soft grounded actor samples across NPC/hero/Boss sizes; no rejected contact sprite");
     }
 
+    private static void EditableWorldVisualResourceDrivesLiveRender(FrontierRuntime app)
+    {
+        Prepare(app);
+        // These parameters come from an actual Resources TextAsset, and
+        // drive the same live DrawRootedPlant/DrawAuthoredWaterShimmer/
+        // DrawWorldEmitter methods verified by the previous frame tests.
+        var profile=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private);
+        Check(profile!=null,"World look profile must be loadable by game runtime");
+        var current=profile.GetValue(app,null);
+        string[] names={"treeSwayDegrees","palmSwayDegrees",
+            "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
+            "lampRadius","nightLightAlpha","dayLightAlpha"};
+        float[] values={.80f,1.35f,.24f,.12f,.89f,114f,.29f,.13f};
+        for(int i=0;i<names.Length;i++)
+        {
+            var field=current.GetType().GetField(
+                names[i],BindingFlags.Public|BindingFlags.Instance);
+            Check(field!=null&&Math.Abs((float)field.GetValue(current)-
+                values[i])<.00001f,
+                "Edited Unity WorldLook TextAsset not loaded into production: "+names[i]);
+        }
+        Console.WriteLine("PASS eight editable world visual-resource values load from real Unity text asset and drive accepted art");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
