@@ -31,8 +31,17 @@ namespace UnityEngine
         public HideFlags hideFlags;
         public int layer;
         public Transform transform = new Transform();
+        private SpriteRenderer attachedSprite;
         public GameObject(string name) { this.name = name; }
-        public T AddComponent<T>() where T : Component, new() { return new T(); }
+        public T AddComponent<T>() where T : Component, new()
+        {
+            T component = new T();
+            var sprite = component as SpriteRenderer;
+            if (sprite != null) attachedSprite = sprite;
+            var animator = component as Animator;
+            if (animator != null) animator.targetRenderer = attachedSprite;
+            return component;
+        }
     }
     public class Transform
     {
@@ -120,15 +129,52 @@ namespace UnityEngine
         public bool flipX;
         public int sortingOrder;
     }
-    public class RuntimeAnimatorController : Object { }
+    public class RuntimeAnimatorController : Object
+    {
+        // Fake controller class identity ONLY for offline testing.
+        public string className;
+    }
     public class Animator : Behaviour
     {
         public RuntimeAnimatorController runtimeAnimatorController;
+        public SpriteRenderer targetRenderer;
         public float speed;
+        public float lastNormalizedSample;
+        public int sampleCount;
+        private int action, facing;
+        private static readonly string[] Actions =
+            { "Idle","Run","Attack","Cast","Dodge","Hit","Death" };
+        private static readonly string[] Faces = { "E","N","S" };
         public static int StringToHash(string state) { return 0; }
-        public void Play(int state,int layer,float normalizedTime) { }
-        public void SetInteger(string parameter,int value) { }
-        public void Update(float deltaTime) { }
+        public void Play(int state,int layer,float normalizedTime)
+        {
+            lastNormalizedSample = normalizedTime;
+            sampleCount++;
+        }
+        public void SetInteger(string parameter,int value)
+        {
+            if (parameter=="Action") action=value;
+            if (parameter=="Facing") facing=value;
+        }
+        public void Update(float deltaTime)
+        {
+            // Pixel-free simulation of a Unity Sprite object-reference
+            // curve at 12fps. The EXACT native production C# invokes this
+            // only after supplying GameCore's Action/Facing/cell sample.
+            // No Unity Graph or GPU behaviour is claimed.
+            if (!enabled || runtimeAnimatorController==null ||
+                targetRenderer==null || action<0 || action>=Actions.Length ||
+                facing<0 || facing>=Faces.Length) return;
+            string key="Frontier/HeroAnimator/Canonical/Hero_"+
+                runtimeAnimatorController.className+"_"+Actions[action]+"_"+
+                Faces[facing];
+            Sprite[] frames=Resources.LoadAll<Sprite>(key);
+            if(frames.Length==0)return;
+            int slot=(int)Math.Floor(lastNormalizedSample*frames.Length);
+            if(slot<0)slot=0;
+            if(slot>=frames.Length)slot=frames.Length-1;
+            targetRenderer.sprite=frames[slot];
+        }
     }
     public class Camera : Behaviour
     {
@@ -147,13 +193,21 @@ namespace UnityEngine
         // Registered source textures only serve offline native-C# probes.
         public static readonly Dictionary<string,Object> Registered =
             new Dictionary<string,Object>();
+        public static readonly Dictionary<string,Sprite[]> RegisteredSprites =
+            new Dictionary<string,Sprite[]>();
         public static T Load<T>(string path) where T : Object
         {
             Object found;
             return Registered.TryGetValue(path,out found) ? found as T : null;
         }
         public static T[] LoadAll<T>(string path) where T : Object
-        {return new T[0];}
+        {
+            Sprite[] sprites;
+            if(typeof(T)==typeof(Sprite) &&
+                RegisteredSprites.TryGetValue(path,out sprites))
+                return (T[])(object)sprites;
+            return new T[0];
+        }
     }
     public enum EventType { Repaint }
     public class Event

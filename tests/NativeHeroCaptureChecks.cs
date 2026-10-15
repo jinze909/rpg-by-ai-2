@@ -20,7 +20,9 @@ public static class NativeHeroCaptureChecks
         var draw=typeof(FrontierRuntime).GetMethod("DrawSpriteRendererHero",flags);
         var release=typeof(FrontierRuntime).GetMethod("ReleaseHeroCapture",flags);
         var renderField=typeof(FrontierRuntime).GetField("heroCaptureRenderer",flags);
-        Require(draw!=null&&release!=null&&renderField!=null,"missing real capture");
+        var animatorField=typeof(FrontierRuntime).GetField("heroCaptureAnimator",flags);
+        Require(draw!=null&&release!=null&&renderField!=null&&
+            animatorField!=null,"missing real capture or Animator");
         string[] classes={"Vanguard","Ranger","Arcanist"};
         string[] directions={"E","W","N","S"};
         string[] actions={"Idle","Run","Attack","Cast","Dodge","Hit","Death"};
@@ -29,6 +31,10 @@ public static class NativeHeroCaptureChecks
         var textures=new List<RenderTexture>();
         var unique=new HashSet<RenderTexture>();
         Resources.Registered.Clear();
+        Resources.RegisteredSprites.Clear();
+        for(int cls=0;cls<classes.Length;cls++)
+            Resources.Registered.Add("Frontier/HeroAnimator/Production"+
+                classes[cls],new RuntimeAnimatorController { className=classes[cls] });
         Camera.RenderedTargets.Clear();
         GUI.DrawnTextures.Clear();
         Time.frameCount=1000;
@@ -49,6 +55,15 @@ public static class NativeHeroCaptureChecks
                     new Texture2D(lengths[cmd]*256,256,
                         TextureFormat.RGBA32,false));
             var atlas=(Texture2D)Resources.Registered[key];
+            if(!Resources.RegisteredSprites.ContainsKey(key))
+            {
+                var sprites=new Sprite[lengths[cmd]];
+                for(int cell=0;cell<sprites.Length;cell++)
+                    sprites[cell]=Sprite.Create(atlas,
+                        new Rect(cell*256,0,256,256),new Vector2(128,16),
+                        128f,0,SpriteMeshType.FullRect);
+                Resources.RegisteredSprites.Add(key,sprites);
+            }
             app.Game.AppearanceWeapon=cls;
             app.ProbeAction=cmd;
             app.ProbeFrames=lengths[cmd];
@@ -62,6 +77,18 @@ public static class NativeHeroCaptureChecks
                 ReferenceEquals(renderer.sprite.texture,atlas),
                 "class/action/facing atlas leaked between actors");
             Require(renderer.flipX==flip,"West mirror mismatch or N/S flipped");
+            // Assert that the PRODUCTION Animator is actually active and
+            // selects exactly the source cell chosen by GameCore.
+            var nativeAnimator=animatorField.GetValue(app) as Animator;
+            Require(nativeAnimator!=null&&nativeAnimator.enabled&&
+                nativeAnimator.sampleCount>0,
+                "native clip not used; test silently fell back to direct Sprite");
+            float expected=(app.ProbeFrame+.5f)/app.ProbeFrames;
+            Require(Math.Abs(nativeAnimator.lastNormalizedSample-expected)<.0001f,
+                "Animator sampled a fractional boundary instead of the chosen cell centre");
+            var chosen=Resources.RegisteredSprites[key][app.ProbeFrame];
+            Require(ReferenceEquals(renderer.sprite,chosen),
+                "Animator selected a neighbouring, stale, or wrong-class whole-body Sprite");
             var target=GUI.DrawnTextures[GUI.DrawnTextures.Count-1] as RenderTexture;
             Require(target!=null&&target.IsCreated()&&
                 target.width==256&&target.height==256,
@@ -95,6 +122,10 @@ public static class NativeHeroCaptureChecks
         Require(contact&&contactTexture!=null&&
             !ReferenceEquals(contactTexture,attackEast),
             "contact reused pending windup buffer");
+        var contactAnimator=animatorField.GetValue(app) as Animator;
+        Require(contactAnimator!=null&&contactAnimator.enabled&&
+            Math.Abs(contactAnimator.lastNormalizedSample-(3.5f/6f))<.0001f,
+            "newly released contact must use the centre of its own exact keyframe");
         attackEast.Release(); // simulate device loss
         app.ProbeFrame=2;
         bool restored=(bool)draw.Invoke(app,new object[]{

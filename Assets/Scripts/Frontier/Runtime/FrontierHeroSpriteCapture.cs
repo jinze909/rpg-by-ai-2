@@ -102,7 +102,15 @@ namespace Starfall
                 {
                     // Animator never owns independent damage time.
                     // The current GameCore action-clock selects every key.
-                    float normalized=(cellPosition+.20f)/bakedFrames;
+                    // The authoritative GameCore selector has already
+                    // resolved a whole-body Sprite cell. Animator must sample
+                    // INSIDE that discrete keyframe's interval rather than
+                    // repeatedly floating along a 12fps boundary: tiny float
+                    // errors previously sampled an adjacent Sprite, rejected
+                    // the entire native clip and fell back mid-action.
+                    // No animation timing, damage/contact or body pixels
+                    // are synthesized here.
+                    float normalized=(publishedFrame+.5f)/bakedFrames;
                     heroCaptureAnimator.SetInteger("Action",action);
                     heroCaptureAnimator.SetInteger("Facing",facing);
                     heroCaptureAnimator.Play(HeroLiveStateHash[action,facing],

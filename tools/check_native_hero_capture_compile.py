@@ -98,6 +98,26 @@ def run():
     assert rejected.returncode!=0 and "HERO_CAPTURE_REGRESSION" in rejected.stdout,(
         "UNSAFE_CI_ACCEPTED_MUTABLE_EW_GPU_BUFFER",rejected.stdout)
     print("PASS injected shared left/right/action GPU buffer hard-FAIL")
+    # Mutation: old fractional playback allows Unity's discrete Sprite curve
+    # to drift away from the physical GameCore selected contact frame.
+    selected="float normalized=(publishedFrame+.5f)/bakedFrames;"
+    assert original.count(selected)==1, "HERO_NATIVE_INTEGER_FRAME_SAMPLE_MISSING"
+    sample_old=original.replace(selected,
+        "float normalized=(cellPosition+.20f)/bakedFrames;",1)
+    wrong_path=OUT/"broken-hero-action-timing.cs"
+    wrong_path.write_text(sample_old,encoding="utf-8")
+    wrong_exe=OUT/"broken-hero-action-timing.exe"
+    built_wrong=subprocess.run(compiler()+[
+        "-define:UNITY_5_3_OR_NEWER","-out:"+str(wrong_exe),
+        str(STUB),str(FACTORY),str(wrong_path),str(probe)],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert built_wrong.returncode==0,(
+        "HERO_ACTION_TIMING_MUTATION_INVALID",built_wrong.stdout)
+    denied=subprocess.run([mono,str(wrong_exe)],cwd=ROOT,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert denied.returncode!=0 and "HERO_CAPTURE_REGRESSION" in denied.stdout,(
+        "UNSAFE_CI_ACCEPTED_FRACTIONAL_ANIMATOR_FRAME_DRIFT",denied.stdout)
+    print("PASS fractional Animator sample mutation hard-FAIL")
     print("PASS actual UNITY_5_3_OR_NEWER SpriteRenderer + canonical "
           "Sprite factory compiled in separate C# assembly")
     print("PASS fault-injected invalid SpriteRenderer API rejected by mcs")
