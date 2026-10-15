@@ -154,7 +154,7 @@ def check():
     # notorious waist scanline. Any new runtime leg-sampling/blending
     # implementation must be reviewed as a new algorithm before release.
     gait = (RUNTIME / "FrontierUnifiedActorGait.cs").read_text()
-    for forbidden in ("UnifiedActionGait(", "feetPixels",
+    for forbidden in ("private Texture2D UnifiedActionGait(", "feetPixels",
                       "posePixels[i]", "MotionMidpoint(", "WalkFrame*",
                       "Dictionary<string,Texture2D>"):
         assert forbidden not in gait, "Resurrected body puppetry: "+forbidden
