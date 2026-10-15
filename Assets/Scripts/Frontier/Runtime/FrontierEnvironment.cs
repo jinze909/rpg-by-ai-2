@@ -36,14 +36,48 @@ namespace Starfall
             // overpainted the finely rendered original terrain and river
             // atlas. Retain both experimental resources for future review,
             // but display the unchanged rich Terrain/TerrainVariants art.
-            if (tile == '=' && Game.save.room < 2)
+            if(tile=='=' && Game.save.room<2)
+                DrawAuthoredRoadSeam(x,y,p,seed);
+        }
+        // The old road boundary was a hard 2px monochrome rectangle on top
+        // of the original cobblestone. Keep edge contrast but borrow pixels
+        // FROM the approved TerrainVariants stone row, never a new coarse
+        // strip atlas. This is static material, so reduced-motion and
+        // low-effects accessibility keep the same navigable road outline.
+        private void DrawAuthoredRoadSeam(int x,int y,Point p,int seed)
+        {
+            if(terrainVariants==null)return;
+            string[] map=Game.Map.rows;
+            bool left=x>0&&map[y][x-1]=='.';
+            bool right=x+1<map[y].Length&&map[y][x+1]=='.';
+            bool up=y>0&&map[y-1][x]=='.';
+            bool down=y+1<map.Length&&map[y+1][x]=='.';
+            if(!left&&!right&&!up&&!down)return;
+            float col=(seed%4)*48f;
+            // Third row from top, i.e. y=48..96 in bottom-origin
+            // Unity UV space, contains the authored stone/road material.
+            Rect horizontal=new Rect((col+7f)/192f,
+                66f/192f,34f/192f,3f/192f);
+            Rect vertical=new Rect((col+16f)/192f,
+                56f/192f,3f/192f,32f/192f);
+            Color previous=GUI.color;
+            try
             {
-                // Dark, narrow soil edges make the road shape read above busy grass.
-                if (x > 0 && Game.Map.rows[y][x - 1] == '.') Box(p.x, p.y, 2, Tile, new Color(.17f, .22f, .15f, .28f));
-                if (x + 1 < Game.Map.rows[y].Length && Game.Map.rows[y][x + 1] == '.') Box(p.x + Tile - 2, p.y, 2, Tile, new Color(.17f, .22f, .15f, .28f));
-                if (y > 0 && Game.Map.rows[y - 1][x] == '.') Box(p.x, p.y, Tile, 2, new Color(.17f, .22f, .15f, .28f));
-                if (y + 1 < Game.Map.rows.Length && Game.Map.rows[y + 1][x] == '.') Box(p.x, p.y + Tile - 2, Tile, 2, new Color(.17f, .22f, .15f, .28f));
+                GUI.color=new Color(.79f,.81f,.76f,.54f*worldActorOpacity);
+                if(left)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,3,Tile-2),
+                    terrainVariants,vertical);
+                if(right)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+Tile-4,p.y+1,3,Tile-2),
+                    terrainVariants,vertical);
+                if(up)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,Tile-2,3),
+                    terrainVariants,horizontal);
+                if(down)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+Tile-4,Tile-2,3),
+                    terrainVariants,horizontal);
             }
+            finally {GUI.color=previous;}
         }
         // Source-preserving water animation: sample a small HAND-PAINTED
         // passage of the actual 48px water terrain variant, not a fresh 8px

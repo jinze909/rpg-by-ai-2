@@ -827,6 +827,96 @@ public static class RenderStateChecks
         Console.WriteLine("PASS "+verified+
             " production lamplight/crystal/relay sources: attached illumination, stable motion and quality tiers");
     }
+    private static void StoneRoadBordersPreserveRichPublishedPixels(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        var map=game.Map;
+        var originalColor=GUI.color;
+        var originalMatrix=GUI.matrix;
+        int oldQuality=game.save.effectsQuality;
+        bool oldReduced=game.save.reducedMotion;
+        int x=18,y=14;
+        string top=map.rows[y-1],center=map.rows[y],
+            bottom=map.rows[y+1];
+        var stone=Get<Texture2D>(app,"terrainVariants");
+        Check(stone!=null&&stone.width==192&&stone.height==192,
+            "Accepted cobblestone painting missing");
+        Matrix4x4 canvas=Matrix4x4.TRS(new Vector3(16,28,0),
+            Quaternion.identity,new Vector3(1.2f,1.2f,1));
+        Color originalTint=new Color(.4f,.6f,.8f,.9f);
+        try
+        {
+            game.save.effectsQuality=0;
+            game.save.reducedMotion=true;
+            GUI.matrix=canvas;GUI.color=originalTint;
+            for(int edge=0;edge<4;edge++)
+            {
+                char[] up=top.ToCharArray();
+                char[] mid=center.ToCharArray();
+                char[] down=bottom.ToCharArray();
+                up[x]=mid[x-1]=mid[x]=mid[x+1]=down[x]='=';
+                if(edge==0)up[x]='.';
+                else if(edge==1)mid[x+1]='.';
+                else if(edge==2)down[x]='.';
+                else mid[x-1]='.';
+                map.rows[y-1]=new string(up);
+                map.rows[y]=new string(mid);
+                map.rows[y+1]=new string(down);
+                Clear();Call(app,"DrawSurface",x,y,'=',new Point(210,170));
+                Check(GUI.textureCalls.Count==2,
+                    "Official road draw must include exactly one original edge sample");
+                var fill=GUI.textureCalls[0];
+                var border=GUI.textureCalls[1];
+                bool horizontal=edge==0||edge==2;
+                Check(object.ReferenceEquals(fill.texture,stone)&&
+                    object.ReferenceEquals(border.texture,stone)&&
+                    Math.Abs(border.uv.width-
+                        (horizontal?34f:3f)/192f)<.00001f&&
+                    Math.Abs(border.uv.height-
+                        (horizontal?3f:32f)/192f)<.00001f&&
+                    border.uv.y>=48f/192f&&
+                    border.uv.y+border.uv.height<=96f/192f,
+                    "Road edge reverted to flat primitive or unrelated texture");
+                Check(border.rect.width==(horizontal?34f:3f)&&
+                    border.rect.height==(horizontal?3f:34f)&&
+                    border.color.a>.5f&&border.color.a<.6f,
+                    "Road trim should follow actual detailed stone without a thick bar");
+                Same(GUI.matrix,canvas,
+                    "Material trim must leave letterboxed viewport unchanged");
+                Same(GUI.color,originalTint,
+                    "Stone material tint leaked into NPC or HUD drawing");
+                Clear();Call(app,"DrawSurface",x,y,'.',new Point(210,170));
+                Check(GUI.textureCalls.Count==1,
+                    "Ordinary grass cannot receive a cobblestone border");
+            }
+            char[] innerTop=top.ToCharArray();
+            char[] inner=center.ToCharArray();
+            char[] innerBottom=bottom.ToCharArray();
+            innerTop[x]=inner[x-1]=inner[x]=inner[x+1]=
+                innerBottom[x]='=';
+            map.rows[y-1]=new string(innerTop);
+            map.rows[y]=new string(inner);
+            map.rows[y+1]=new string(innerBottom);
+            Clear();Call(app,"DrawSurface",x,y,'=',new Point(210,170));
+            Check(GUI.textureCalls.Count==1,
+                "Road interiors should not acquire seams against other road tiles");
+        }
+        finally
+        {
+            map.rows[y-1]=top;map.rows[y]=center;
+            map.rows[y+1]=bottom;
+            game.save.effectsQuality=oldQuality;
+            game.save.reducedMotion=oldReduced;
+            GUI.matrix=originalMatrix;
+            GUI.color=originalColor;
+            Clear();
+        }
+        Console.WriteLine(
+            "PASS original 192px stone road samples in all four directions and low-FX/reduced-motion; no flat edge rectangles");
+    }
+
     private static void ShorelineEdgesUsePublishedWaterPixels(FrontierRuntime app)
     {
         Prepare(app);
@@ -1486,7 +1576,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
