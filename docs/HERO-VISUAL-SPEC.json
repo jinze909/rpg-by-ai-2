@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -277,14 +277,10 @@
     ],
     "shared_row_owner": "frame_index // 4 must equal zero-based profession index",
     "shared_golden_head_only": {
-      "source": "WalkVanguard",
-      "rect_top_origin": [
-        100,
-        140,
-        56,
-        56
-      ],
-      "source_stage": "Offline canonical frame bake only; NEVER a runtime neck/head assembly or warrior body template"
+      "policy": "RETIRED - no head substitution permitted in preview, game runtime, native Unity fallback, or offline production exporter",
+      "actual_identity": "Existing approved class-owned full-body art already depicts one common blonde-haired protagonist",
+      "source_stage": "no head paste, mask, per-head offset or artificial neck reposition permitted",
+      "hard_release_check": "Every approved authored keyframe must be byte-identical to crop_frame(original class-owned source atlas). Hair color, head dimensions and outfit socket are inspected per profession/facing."
     },
     "unity_runtime": "PRODUCTION: DrawPlayerActor samples one complete class-owned published Hero_{class}_{action}_{facing}.png Sprite per hero draw; no UnifiedActionGait, dynamic leg/hip warp or HumanActor head splice. Moving released recovery samples the complete class Walk/Run cell.",
     "unity_safety": "Gameplay and Unity-native capture share ResolveFullBodyHeroFrame and one (128,240) original foot reference. If GPU path fails, OnGUI draws one complete published full-body frame; if a published atlas is missing, original class-owned full-body cell is used. OnGUI remains the verified default until native Unity QA.",
@@ -299,7 +295,7 @@
   },
   "runtime_transition": {
     "mode": "FullBodyProductionSprites (OnGUI full-frame default, SpriteRenderer+Animator compatible F8 native lane)",
-    "canonical_resources": "Assets/Resources/Frontier/HeroAnimator/Canonical/",
+    "canonical_resources": "Assets/Resources/Frontier/HeroAnimator/Canonical/ (original class-owned blonde-haired full-body frames only; no runtime/offline graft)",
     "clip_matrix": {
       "classes": 3,
       "actions": [
@@ -325,10 +321,12 @@
       "HumanActor player split parts",
       "CanonicalHeroSpriteFactory runtime warrior face overlay",
       "UnifiedActionGait dynamic cropped lower body",
-      "unapproved torso/head/limb pixel warping"
+      "unapproved torso/head/limb pixel warping",
+      "offline canonical_frame masks/cuts source head and overlays WalkVanguard face"
     ],
     "scene_binding": "FrontierRuntime.Boot() subscribes sceneLoaded and adds live MonoBehaviour for Assets/Scenes/Frontier.unity; FrontierEditor builds this scene",
     "native_qa_status": "NATIVE_UNVERIFIED; do not enable native capture by default without actual Unity 2022.3.53f1 Game View + PlayMode",
-    "runtime_art_gate": "tools/check_hero_runtime_continuity.py validates real 63 PNGs and emits 22 representative production filmstrips/GIFs/onion-skins; metrics alone do not approve authored animation"
+    "runtime_art_gate": "tools/check_hero_runtime_continuity.py validates real 63 PNGs and emits 22 representative production filmstrips/GIFs/onion-skins; metrics alone do not approve authored animation",
+    "full_body_source_qa": "Source-original RGBA crop vs generated full body byte exact, with per-class hair color/neck region checks (tools/check_hero_visual_spec.py, tools/check_hero_whole_body_integrity.py)."
   }
 }
