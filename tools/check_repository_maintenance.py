@@ -89,6 +89,13 @@ def verify_docs(docs, workflow, tracked):
     assert not re.search(
         r"(?m)^\s*git\s+push\s+(?:--force(?:-with-lease)?|-f)(?:\s|$)",
         workflow), ("DANGEROUS_FORCE_PUSH_IN_PUBLISH_JOB",)
+    if "publish-original-briar-beast:" in workflow:
+        briar=workflow.split("  publish-original-briar-beast:",1)[1]
+        assert ("needs: core" in briar and
+                "refs/heads/chatgpt/dev" in briar and
+                "[publish-briar-art]" in briar and
+                "git push origin HEAD:refs/heads/chatgpt/dev" in briar), (
+                    "UNGUARDED_BRIAR_BOSS_PUBLICATION",)
     # Phase-2 publisher is equally guarded: the same branch, explicit opt-in
     # commit marker and a completed core job are all mandatory.
     if "publish-original-mossbound-art:" in workflow:

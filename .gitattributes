@@ -64,3 +64,6 @@
 
 # Original phase-2 runtime nonhero animation atlas (not an LFS pointer).
 /Assets/Resources/Frontier/Art/MossboundRaider.png -filter -diff -merge
+
+# Authored three-stage Thornwood Boss: 72 complete 320px Sprite cells.
+/Assets/Resources/Frontier/Art/BriarBeast.png -filter -diff -merge

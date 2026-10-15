@@ -75,6 +75,15 @@ jobs:
             opts+=(--allow-unpublished)
           fi
           python3 tools/check_mossbound_raider.py "${opts[@]}"
+      - name: Verify three Briar Beast stages and 72 whole-body Boss cells
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=()
+          if git log -1 --format=%B | grep -Fq '[publish-briar-art]'; then
+            opts+=(--allow-unpublished)
+          fi
+          python3 tools/check_briar_beast.py "${opts[@]}"
       - name: Check live SpriteRenderer hero bridge and accepted sources
         run: python3 tools/check_live_sprite_bridge.py
       - name: Audit three-class animation frame continuity and provenance
@@ -92,6 +101,7 @@ jobs:
             .starfall-checks/hero-committed-qa/
             .starfall-checks/hero-gameplay-traces/
             .starfall-checks/phase2-mossbound/
+            .starfall-checks/phase2-briar/
           if-no-files-found: ignore
           retention-days: 14
 
@@ -180,4 +190,33 @@ jobs:
           git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(nonhero-art): publish 24 authored melee-raider frames [published-mossbound-art]'
           git fetch --no-tags origin chatgpt/dev
           test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Concurrent branch advance; no force push"; exit 1; }
+          git push origin HEAD:refs/heads/chatgpt/dev
+
+  publish-original-briar-beast:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-briar-art]') }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rasterize and hard-audit 72 phase-specific Boss poses
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil
+          python3 tools/generate_briar_beast.py --install
+          python3 tools/check_briar_beast.py
+      - name: Safe fast-forward publish real Boss PNG only to chatgpt/dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Concurrent head advanced, refusing art publish"; exit 1; }
+          git add -- Assets/Resources/Frontier/Art/BriarBeast.png
+          git diff --cached --quiet && exit 0
+          git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(boss-art): integrate 72 Briar Beast phase Sprite cells [published-briar-art]'
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "No force push; remote changed"; exit 1; }
           git push origin HEAD:refs/heads/chatgpt/dev

@@ -9,6 +9,7 @@ namespace Starfall
         private Texture2D[] walkSheets, companionWalkSheets, bossWalkSheets;
         private Texture2D monsterWalkSheet;
         private Texture2D mossboundRaiderSheet;
+        private Texture2D briarBeastSheet;
         // Real pixel-art accent sheet, drawn over the accepted imported terrain.
         private Texture2D terrainAccentRemaster;
         private Texture2D combatRhythmRemaster;
@@ -33,6 +34,7 @@ namespace Starfall
             bossWalkSheets = new[] { Resources.Load<Texture2D>(root + "WalkBossA"), Resources.Load<Texture2D>(root + "WalkBossB") };
             monsterWalkSheet = Resources.Load<Texture2D>(root + "WalkMonsters");
             mossboundRaiderSheet = Resources.Load<Texture2D>(root + "MossboundRaider");
+            briarBeastSheet = Resources.Load<Texture2D>(root + "BriarBeast");
             playerPortraits = Resources.Load<Texture2D>(root + "PlayerPortraits"); npcSheet = Resources.Load<Texture2D>(root + "Npcs");
             playerRear = Resources.Load<Texture2D>(root + "PlayerRear");
             playerSouth = Resources.Load<Texture2D>(root + "PlayerSouth");
@@ -46,6 +48,7 @@ namespace Starfall
             foreach(Texture2D sheet in walkSheets) if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             foreach(Texture2D sheet in companionWalkSheets) if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             foreach(Texture2D sheet in bossWalkSheets) if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
+            if(briarBeastSheet!=null) { art.FlashMask(briarBeastSheet); art.OutlineMask(briarBeastSheet); }
             foreach(Texture2D sheet in new[]{playerRear,playerSouth,playerReactionsRear,playerReactionsSouth,enemyArcherVertical,monsterSheet,bossSheet,monsterWalkSheet})
                 if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             fieldProps = Resources.Load<Texture2D>(root + "FieldProps"); terrainSheet = Resources.Load<Texture2D>(root + "Terrain");
@@ -384,6 +387,37 @@ namespace Starfall
                 // frame, dimensions and foot pivot. Painting the idle sheet
                 // over a moving boss previously created a second drifting
                 // silhouette whenever a hit-flash outlived the hit pose.
+                if (Game.save.room == 1 && briarBeastSheet != null &&
+                    briarBeastSheet.width == 1280 && briarBeastSheet.height == 5760)
+                {
+                    // The Briar Beast changes real silhouette at HP thresholds.
+                    // Damage and contact remain exclusively on GameCore's clock.
+                    int bodyPhase = Math.Min(2, Math.Max(0, e.BossPhase - 1));
+                    // Room 1 previously showed release art during the final
+                    // 0.2 seconds of windup. Never expose contact until release.
+                    int action = e.hitTime > 0 ? 4 :
+                        e.state == 1 ? 2 : e.releaseTime > 0 ? 3 :
+                        e.moving ? 1 : 0;
+                    float fraction = action == 2 ?
+                        1f - e.timer / Math.Max(.01f, e.windupDuration) :
+                        action == 3 ? 1f - e.releaseTime / .38f :
+                        action == 4 ? 1f - e.hitTime / .18f : 0f;
+                    int keyframe = action == 1 ?
+                        GameCore.GaitFrame(e.moveTime, 2.8f) :
+                        action == 0 ? (int)(clock * 2.6f) % 4 :
+                        (int)GameCore.Clamp(fraction * 4f, 0f, 3f);
+                    if (keyframe < 0) keyframe += 4;
+                    int liveCell = (bodyPhase * 6 + action) * 4 + keyframe;
+                    Actor(briarBeastSheet, 4, 18, liveCell,
+                        p + offset, size, tint, e.VisualFlip);
+                    if (!drawingOutline && e.flash > 0)
+                        Actor(art.FlashMask(briarBeastSheet), 4, 18,
+                            liveCell, p + offset, size,
+                            new Color(1, 1, 1, e.flash / .09f * .86f * tint.a),
+                            e.VisualFlip);
+                }
+                else
+                {
                 int row = Math.Min(7, Math.Max(0, Game.save.room - 1));
                 int frame = pose == 2 ? 1 : pose == 3 ? 2 : 0;
                 int walkAtlas = row / 4;
@@ -404,6 +438,7 @@ namespace Starfall
                         visibleBossFrame, p + offset, visibleBossSize,
                         new Color(1, 1, 1, e.flash / .09f * .86f * tint.a),
                         e.VisualFlip);
+                }
                 if (!drawingOutline && e.state == 1) Atlas(effectSheet,4,4,13,new Rect(p.x-19,p.y-GameCore.BossEmissionHeight(Game.save.room)-19,38,38),new Color(1,.79f,.49f,charge*.6f));
             }
             else
@@ -488,7 +523,17 @@ namespace Starfall
                     body.actor.kind==2?60:54,body.actor.boss?24:16,
                 body.actor.boss?8:body.actor.kind==0?4:body.actor.kind==1?5:6,
                 tint.a*.84f);
-            if (body.actor.boss) Actor(bossSheet, 4, 8, Math.Max(0, body.room - 1) * 4 + 3, p, BossCanvasSize(body.room), tint,body.actor.VisualFlip);
+            if (body.actor.boss && body.room == 1 &&
+                briarBeastSheet != null && briarBeastSheet.width == 1280 &&
+                briarBeastSheet.height == 5760)
+            {
+                int stage = (int)GameCore.Clamp(progress * 4f, 0f, 3f);
+                Actor(briarBeastSheet, 4, 18, 17 * 4 + stage,
+                    p, BossCanvasSize(body.room), tint, body.actor.VisualFlip);
+            }
+            else if (body.actor.boss)
+                Actor(bossSheet, 4, 8, Math.Max(0, body.room - 1) * 4 + 3,
+                    p, BossCanvasSize(body.room), tint, body.actor.VisualFlip);
             else if (body.actor.kind == 0 && mossboundRaiderSheet != null &&
                 mossboundRaiderSheet.width == 512 && mossboundRaiderSheet.height == 768)
             {
