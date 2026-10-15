@@ -23,7 +23,7 @@ def check():
     native = (ROOT / "Assets/Scripts/Frontier/Editor/StarfallCanonicalHeroProductionBuilder.cs").read_text()
     required = [
         "SpriteRenderer", "RenderTexture", "CameraClearFlags.SolidColor",
-        "BakeCanonicalHeroFrame", "walkSheets[0]",
+        "SpriteRenderer", "heroCaptureRenderer.sprite=canonical;",
         "ResolveFullBodyHeroFrame(locomotion,facing",
         "Animator.StringToHash", "heroCaptureAnimator.Play(", "heroCaptureAnimator.Update(0f)",
         "Production", "ProductionHeroClip",
@@ -35,7 +35,7 @@ def check():
         "Resources.Load<Texture2D>", "TryUsePublishedHeroFrame(",
         '"Frontier/HeroAnimator/Canonical/" + key',
         "heroPublishedSprites.Clear()", "heroPublishedUnavailable.Clear()",
-        "heroCaptureRenderer.sprite = published;",
+        "heroCaptureRenderer.sprite=canonical;",
         "heroCaptureRenderedSprite != heroCaptureRenderer.sprite",
         "heroCaptureRenderedFlip != flip",
         "heroCaptureTexture.IsCreated()",
@@ -214,7 +214,7 @@ def check():
     # contains other valid atlas parity assertions with identical wording.
     # Mutation must target THIS test, not an unrelated older idle test.
     start = native_qa.index("public IEnumerator ActualFrontierSceneAttackAndSkillContactFramesKeepOneBody()")
-    end = native_qa.index("public IEnumerator LiveSpriteRendererCapturesCanonicalHeroPixelsInGameView()")
+    end = native_qa.index("public IEnumerator ProductionSceneKeepsEquippedHeroUnderEveryCrossSkillAndAttack()")
     actual_scene = native_qa[start:end]
     verify_native_contact_probe(actual_scene)
     for required in ("Assert.AreSame(atlas,renderer.sprite.texture,",
@@ -227,6 +227,49 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_CI: removed real native scene combat QA accepted")
+    # The third REAL Frontier scene PlayMode integration test deliberately
+    # removes older Player/Walk art, then checks actual GPU Attack/Cast
+    # across all 72 class x equipment x action x facing permutations.
+    cross_start=native_qa.index(
+        "public IEnumerator ProductionSceneKeepsEquippedHeroUnderEveryCrossSkillAndAttack()")
+    cross_end=native_qa.index(
+        "public IEnumerator LiveSpriteRendererCapturesCanonicalHeroPixelsInGameView()")
+    cross_scene=native_qa[cross_start:cross_end]
+    def verify_equipment_gpu_scene(source):
+        for required in (
+            'EditorSceneManager.LoadSceneInPlayMode(',
+            '"Assets/Scenes/Frontier.unity"',
+            'for(int vocation=0;vocation<3;vocation++)',
+            'for(int equipped=0;equipped<3;equipped++)',
+            'for(int command=0;command<2;command++)',
+            'for(int f=0;f<4;f++)',
+            'oldPlayers.SetValue(app,null);',
+            'oldWalks.SetValue(app,null);',
+            'if(command==0)g.Attack(aim);',
+            'else g.Skill(aim);',
+            'Assert.AreSame(shipped,renderer.sprite.texture,',
+            'Assert.AreEqual(f==1,renderer.flipX,',
+            'Assert.AreEqual(128f,renderer.sprite.pixelsPerUnit,.05f);',
+            'Assert.AreEqual(72,verified,',
+            'oldPlayers.SetValue(app,savedPlayers);',
+            'oldWalks.SetValue(app,savedWalks);',
+        ):
+            assert required in source, (
+                "REAL_SCENE_CROSS_EQUIP_NATIVE_GPU_QA_MISSING",required)
+    verify_equipment_gpu_scene(cross_scene)
+    for token in (
+        'oldPlayers.SetValue(app,null);',
+        'Assert.AreSame(shipped,renderer.sprite.texture,',
+        'Assert.AreEqual(72,verified,',
+    ):
+        try:
+            verify_equipment_gpu_scene(cross_scene.replace(
+                token,'/* injected wrong equipment GPU mapping */',1))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError(
+                "UNSAFE_CI: missing real scene cross-class native check accepted")
     # Imported canonical Sprite sub-assets belong to Unity Resources, while
     # dynamic fallback Sprite.Create wrappers belong to the live renderer.
     # Never destroy Unity-owned import assets during F8 or scene teardown.
@@ -285,81 +328,82 @@ def check():
     # published atlas of the EQUIPPED hero, never old Player art or the
     # skill's mechanical class costume. This regression was visible in-game.
     def check_combat_identity(actor_code, renderer_code, core_code):
-        assert "bool allowStandardClip = unifiedAction == null;" in renderer_code
-        assert "bool specialHeavy =" not in renderer_code
-        assert "bool standard=!(!moving" not in actor_code
-        assert "if(profession>=0&&profession<FullHeroClasses.Length&&" in actor_code
+        main=actor_code[actor_code.index("private void DrawPlayerActor()"):
+                        actor_code.index("private int EnemyPose(")]
+        fallback=actor_code[actor_code.index("private void DrawWholeBodyHeroOnGUI("):
+                            actor_code.index("private void DrawPlayerPreview(")]
+        preview=actor_code[actor_code.index("private void DrawPlayerPreview("):
+                           actor_code.index("private void DrawPlayerActor()")]
+        capture=renderer_code[renderer_code.index("private bool DrawSpriteRendererHero("):
+                              renderer_code.index("private bool TryUsePublishedHeroFrame(")]
         assert "playerAction.equippedWeapon : save.weapon;" in core_code
         assert 'weapon = kind == "skill" ? save.profession : save.weapon' in core_code
-        assert "if(profession>=0&&profession<FullHeroClasses.Length)" in actor_code
-        assert "TryUsePublishedHeroFrame(Game.AppearanceWeapon," in renderer_code
-        assert "0, facing, 0, 1, out idle)" in renderer_code
+        assert "if(look<0||look>=FullHeroClasses.Length)return;" in main
+        assert "DrawSpriteRendererHero(p,tint,flip,facing,moving)" in main
+        assert "DrawWholeBodyHeroOnGUI(p,tint,flip,look,facing,moving)" in main
+        assert "bool moving=pose>=2&&pose<=3;" in main
+        assert "bool flip=facing==0&&direction.x<-.1f;" in main
+        for prohibited in ("playerSheets", "walkSheets", "playerRear",
+                           "playerSouth", "playerReactions", "DrawLegacyHero",
+                           "sheet=", "frame=", "Actor(sheet", "Actor(source"):
+            assert prohibited not in main, (
+                "LEGACY_HERO_ACTOR_FRAME_SELECTOR_REINTRODUCED",prohibited)
+        assert "ResolveFullBodyHeroFrame(moving,facing," in fallback
+        assert "FullHeroActions[action]" in fallback
+        assert "FullHeroFacings[facing]" in fallback
+        assert "if(drawingOutline)" in fallback
+        assert "tint=new Color(1f,.56f,.35f,.85f);" in fallback
+        assert "Actor(original" not in fallback
+        assert "Actor(source" not in preview
+        assert '"Hero_"+FullHeroClasses[profession]+"_Idle_S"' in preview
+        assert "Resources.Load<Texture2D>" in preview
+        assert "heroCaptureRenderer.sprite=canonical;" in capture
+        assert "if(available)" in capture
+        assert "if(!TryUsePublishedHeroFrame(equipment,0,facing," in capture
+        assert "HeroSpriteMatchesPublishedFrame(" in capture
+        for prohibited in ("legacy", "sheet.GetInstanceID()", "unifiedAction", "heroSprites",
+                           "Sprite.Create(", "BakeCanonicalHeroFrame(", "Actor("):
+            # Comments may mention legacy; guard source-level OLD function
+            # inputs/commands, not diagnostic explanatory prose.
+            if prohibited == "legacy": continue
+            assert prohibited not in capture, (
+                "NATIVE_HERO_LEGACY_SPRITE_REINTRODUCED",prohibited)
+        assert "heroPublishedUnavailable[key]=Time.frameCount+120;" in renderer_code
+        assert "heroPublishedUnavailable.Remove(key);" in renderer_code
     check_combat_identity(actor, engine, core)
-    for key, damaged in (
-        ("actor", actor.replace(
-            "if(profession>=0&&profession<FullHeroClasses.Length&&",
-            "if(false&&profession>=0&&profession<FullHeroClasses.Length&&",1)),
-        ("engine", engine.replace(
-            "bool allowStandardClip = unifiedAction == null;",
-            "bool allowStandardClip = unifiedAction == null && !specialHeavy;",1)),
-        ("core", core.replace(
-            "playerAction.equippedWeapon : save.weapon;",
-            "playerAction.weapon : save.weapon;",1))):
-        try:
-            check_combat_identity(damaged if key=="actor" else actor,
-                damaged if key=="engine" else engine,
-                damaged if key=="core" else core)
-        except AssertionError:
-            pass
-        else:
-            raise AssertionError("UNSAFE_CI: old hero returns during Attack/Cast")
-    # 2026 production hero art no longer depends on the old readable
-    # Player/Walk PNGs being present. During a Unity import those sources may
-    # be missing while canonical full-body Resources atlases are valid.
-    # Ensure old-missing cannot trigger DrawLegacyHero on LMB, Q or Idle.
-    live_actor = actor[actor.index("private void DrawPlayerActor()"):
-                       actor.index("private int EnemyPose(")]
-    def check_no_legacy_import_dependency(actor_code, engine_code):
-        actual = actor_code[actor_code.index("private void DrawPlayerActor()"):
-                            actor_code.index("private int EnemyPose(")]
-        assert "DrawLegacyHero();" not in actual, (
-            "OLD_HERO_MODEL_ON_LEGACY_IMPORT_MISS")
-        assert "if (look < 0 || look >= FullHeroClasses.Length) return;" in actual
-        assert "playerSheets!=null&&look<playerSheets.Length?" in actual
-        assert "if(original!=null)" not in actor_code.split(
-            "private void DrawWholeBodyHeroOnGUI(")[1].split(
-            "private void DrawPlayerPreview(")[0], (
-            "OLD_PLAYER_MODEL_CAN_REAPPEAR_ON_MISSING_ACTION_ATLAS")
-        assert "missingHeroBodyWarnings.Add(absent)" in actor_code
-        assert "if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas)||atlas==null)" in actor_code
-        assert "sheet == null)" not in engine_code.split(
-            "private bool DrawSpriteRendererHero(")[1].split(
-            "private bool TryUsePublishedHeroFrame(")[0].split("try")[0], (
-            "CANONICAL_NATIVE_SPRITE_BLOCKED_BY_LEGACY_TEXTURE")
-        assert "if (unifiedAction == null)" in engine_code, (
-            "UNVERIFIED_ACTION_ONLY_FALLBACK_TO_LEGACY_BODY")
-    check_no_legacy_import_dependency(actor, engine)
-    for kind, damaged in (
-        ("actor", actor.replace(
-            "if (look < 0 || look >= FullHeroClasses.Length) return;",
-            'if (playerSheets == null) { DrawLegacyHero(); return; }',1)),
-        ("engine", engine.replace(
-            'Game == null || Game.mode == "title")',
-            'Game == null || Game.mode == "title" || sheet == null)',1)),
+    # Mutation test against the real production compositor, not an old
+    # function string that no longer exists (a previous false-green bug).
+    for label,corrupt_actor,corrupt_engine,corrupt_core in (
+        ("switch_to_legacy_player",
+         actor.replace("DrawSpriteRendererHero(p,tint,flip,facing,moving)",
+             "DrawLegacyHero()",1),engine,core),
+        ("stale_skill_costume",
+         actor,engine,core.replace(
+             "playerAction.equippedWeapon : save.weapon;",
+             "playerAction.weapon : save.weapon;",1)),
+        ("old_renderer_body",
+         actor,engine.replace("heroCaptureRenderer.sprite=canonical;",
+             "heroCaptureRenderer.sprite=someLegacySprite;",1),core),
+        ("old_ongui_action_source",
+         actor.replace("FullHeroActions[action]",
+             'legacyActions[action]',1),engine,core),
+        ("permanent_missing_sprite",
+         actor,engine.replace(
+             "heroPublishedUnavailable.Remove(key);",
+             "/* permanent-missing */",1),core),
     ):
         try:
-            check_no_legacy_import_dependency(damaged if kind=="actor" else actor,
-                                              damaged if kind=="engine" else engine)
+            check_combat_identity(corrupt_actor,corrupt_engine,corrupt_core)
         except AssertionError:
-            pass
-        else:
-            raise AssertionError("UNSAFE_VISUAL_CI: old model fallback accepted")
-    dynamic = (ROOT / "tests/RuntimeCombatInputChecks.cs").read_text()
-    for check in ("CanonicalHeroNeverDependsOnLegacyPlayerImports",
-                  'Set(app,"playerSheets",null);',
-                  'Set(app,"walkSheets",null);',
-                  'Check(checks==216,'):
-        assert check in dynamic, ("MISSING_RUNTIME_NO_LEGACY_HERO_TEST",check)
+            continue
+        raise AssertionError("UNSAFE_CI: hero identity mutation survived "+label)
+    dynamic=(ROOT/"tests/RuntimeCombatInputChecks.cs").read_text()
+    for needle in ("CanonicalHeroNeverDependsOnLegacyPlayerImports",
+                   "LiveEquipmentPreviewUsesTheSameCanonicalBody",
+                   'Set(app,"playerSheets",null);',
+                   'Set(app,"walkSheets",null);',
+                   'Check(checks==216,'):
+        assert needle in dynamic, ("LIVE_HERO_OLD_MODEL_TEST_MISSING",needle)
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
     # The live GPU output must match the registered published atlas cell.
     for mark in [
@@ -369,13 +413,13 @@ def check():
         "animated.pixelsPerUnit - published.pixelsPerUnit",
         "!heroRejectedNativeClips.Contains(nativeClipKey)",
         "heroRejectedNativeClips.Add(nativeClipKey)",
-        "heroCaptureRenderer.sprite = expectedPublished;",
+        "heroCaptureRenderer.sprite=canonical;",
         "heroRejectedNativeClips.Clear()",
         "bool hasClip = canVerifyNative &&",
         "TryUseProductionHeroClip(facing);",
     ]:
         assert mark in engine, "Missing native Animator pixel-parity fallback: " + mark
-    assert "if (allowStandardClip &&" in engine
+    assert "bool available=TryUsePublishedHeroFrame(equipment,action," in engine
     # Third-combo/heavy original poses must bypass both regular 4/5
     # Sprite strip sampling and its normal-attack Animator clip.
     assert "AddComponent<UnityEngine.Rendering.SortingGroup>()" in engine
@@ -507,7 +551,7 @@ def check():
     assert engine.startswith("#if UNITY_5_3_OR_NEWER")
     assert "private bool useSpriteRendererHero = true;" in engine, (
         "Production hero must default to unified SpriteRenderer; F8 opt-out retained")
-    assert "if (!useSpriteRendererHero || heroCaptureBroken || drawingOutline ||" in engine
+    assert "if(!useSpriteRendererHero||heroCaptureBroken||drawingOutline||" in engine
     assert "if(!captured)" in actor and "DrawWholeBodyHeroOnGUI" in actor
     assert "KeyCode.F8" in game and "else ReleaseHeroCapture();" in game
     assert engine.count("return false;") >= 3, "Production must have a failure fallback"
@@ -516,9 +560,9 @@ def check():
     # GameCore may translate its root while reduced-speed recovery runs, but
     # MUST NOT switch to an unrelated Walk torso/weapon/facing mid-action.
     assert "bool moving=pose>=2&&pose<=3;" in actor
-    assert "sheet=walkSheets[look];" in actor  # legitimate full-body Run only
+    assert "walkSheets[look]" not in actor[actor.index("private void DrawPlayerActor()"):actor.index("private int EnemyPose(")]
     assert "bool movingRecovery" not in actor
-    assert "if(profession>=0&&profession<FullHeroClasses.Length)" in actor  # no old-model special cases
+    assert "if(profession<0||profession>=FullHeroClasses.Length)return;" in actor  # only identity validation
     # The entire old generated-parts compositor is retired, not only the
     # notorious waist scanline. Any new runtime leg-sampling/blending
     # implementation must be reviewed as a new algorithm before release.

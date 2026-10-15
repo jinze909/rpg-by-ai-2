@@ -1100,6 +1100,53 @@ public static class RuntimeCombatInputChecks
             +"without ANY legacy Player/Walk import dependency");
     }
 
+    private static void LiveEquipmentPreviewUsesTheSameCanonicalBody(FrontierRuntime app)
+    {
+        // The HUD/loadout/inventory MUST display the same modern equipment
+        // as gameplay. A previous emergency path showed old Walk*.png.
+        object players=typeof(FrontierRuntime).GetField("playerSheets",Private).GetValue(app);
+        object walks=typeof(FrontierRuntime).GetField("walkSheets",Private).GetValue(app);
+        int checks=0;
+        try
+        {
+            for(int cls=0;cls<3;cls++)
+            for(int outlined=0;outlined<2;outlined++)
+            {
+                Prepare(app,cls);
+                Set(app,"playerSheets",null);
+                Set(app,"walkSheets",null);
+                Set(app,"drawingOutline",outlined==1);
+                try
+                {
+                    GUI.textureCalls.Clear();
+                    Call(app,"DrawPlayerPreview",cls,512f,335f,104f);
+                    string key="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                        new[]{"Vanguard","Ranger","Arcanist"}[cls]+"_Idle_S";
+                    var shown=GUI.textureCalls.Find(t=>t.texture.name==key);
+                    Check(shown!=null,
+                        "Equipment preview must never borrow old Walk/Player body: "+key);
+                    Check(Math.Abs(shown.rect.width-104)<.01f&&
+                          Math.Abs(shown.rect.height-104)<.01f&&
+                          Math.Abs(shown.rect.y-(335f-104f*240f/256f))<.01f,
+                        "HUD preview uses the identical 256px foot root and body scale");
+                    Check(!GUI.textureCalls.Exists(t=>t.texture.name.StartsWith(
+                        "resource:Frontier/Art/Walk")||
+                        t.texture.name.StartsWith("resource:Frontier/Art/Player")),
+                        "Old protagonist leaked into inventory/outline preview");
+                    checks++;
+                }
+                finally { Set(app,"drawingOutline",false); }
+            }
+        }
+        finally
+        {
+            Set(app,"playerSheets",players);
+            Set(app,"walkSheets",walks);
+        }
+        Check(checks==6,"Three equipment classes x normal/outline previews");
+        Console.WriteLine("PASS "+checks+" inventory/loadout canonical body previews with no old model");
+    }
+
     private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1147,6 +1194,7 @@ public static class RuntimeCombatInputChecks
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
             AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,
             CanonicalHeroNeverDependsOnLegacyPlayerImports,
+            LiveEquipmentPreviewUsesTheSameCanonicalBody,
             ProduceVerifiedGameplayHeroTrace, GroundContactArtSharesPhysicalFootPivot,
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,

@@ -20,8 +20,6 @@ namespace Starfall
         private SpriteRenderer heroCaptureRenderer;
         private Animator heroCaptureAnimator;
         private RenderTexture heroCaptureTexture;
-        private readonly Dictionary<string, Sprite> heroSprites = new Dictionary<string, Sprite>();
-        private readonly Queue<string> heroSpriteOrder = new Queue<string>();
         // The 63 shipped canonical atlases are real production resources.
         // Only Sprite sub-rect wrappers belong to us; Resources owns textures.
         private readonly Dictionary<string, Sprite[]> heroPublishedSprites =
@@ -31,8 +29,11 @@ namespace Starfall
         // legacy fallback wrappers we explicitly Sprite.Create are ours.
         private readonly HashSet<Sprite> heroOwnedPublishedSprites =
             new HashSet<Sprite>();
-        private readonly HashSet<string> heroPublishedUnavailable =
-            new HashSet<string>();
+        // Missing/stale Sprite atlas results are temporary during asset
+        // reimport. Retry only every ~2 seconds, not on each Repaint, so a
+        // corrected canonical texture resumes without forcing an F8 toggle.
+        private readonly Dictionary<string,int> heroPublishedUnavailable =
+            new Dictionary<string,int>();
         // An imported Animator can exist while its override still references
         // another class, stale clip or wrong direction. Never repeatedly
         // sample a known-mismatched native clip during this play session.
@@ -60,128 +61,74 @@ namespace Starfall
             return hashes;
         }
 
-        private bool DrawSpriteRendererHero(Texture2D sheet, int frame, Point foot,
-            Color tint, bool flip, int facing, int pose, bool locomotion,
-            bool death, Texture2D unifiedAction)
+        // Formal production renderer: a resolved canonical FULL-BODY Sprite
+        // or the same equipment's canonical Idle. No Player*.png, legacy
+        // heavy combo pose, body-part synthesis or source-sheet dependence.
+        private bool DrawSpriteRendererHero(Point foot, Color tint, bool flip,
+            int facing, bool locomotion)
         {
-            if (!useSpriteRendererHero || heroCaptureBroken || drawingOutline ||
-                Game == null || Game.mode == "title")
+            if(!useSpriteRendererHero||heroCaptureBroken||drawingOutline||
+                Game==null||Game.mode=="title")
                 return false;
-            // Other non-world UI still displays the existing depth-sorted world.
-            if (Event.current.type != EventType.Repaint) return true;
+            if(Event.current.type!=EventType.Repaint)return true;
             try
             {
                 EnsureHeroCapture();
-                // All three renderer lanes sample the SAME movement/contact
-                // clock. Neither GPU Animator nor shipped-sheet playback
-                // invents damage, projectile or hit-stop timing.
-                int action, bakedFrames, publishedFrame;
+                int action,bakedFrames,publishedFrame;
                 float cellPosition;
-                if (!ResolveFullBodyHeroFrame(locomotion,facing,
-                        out action,out bakedFrames,out publishedFrame,
-                        out cellPosition))
+                if(!ResolveFullBodyHeroFrame(locomotion,facing,
+                    out action,out bakedFrames,out publishedFrame,
+                    out cellPosition))
                     return false;
-                // This exact frame contract is also used by the live OnGUI
-                // fallback; no second clock or interpolated puppet anatomy.
-                // The same modern full-body Attack strip owns ALL attack
-                // variants, including focused/heavy combo hits. The old
-                // heavy exemption restored the pre-remaster model on LMB.
-                // Mechanics (combo damage/contact timing) remain in GameCore.
-                bool allowStandardClip = unifiedAction == null;
-                Sprite expectedPublished = null;
-                bool canVerifyNative = allowStandardClip &&
-                    TryUsePublishedHeroFrame(Game.AppearanceWeapon, action, facing,
-                        publishedFrame, bakedFrames, out expectedPublished);
-                string nativeClipKey = Game.AppearanceWeapon + ":" + action + ":" + facing;
-                bool hasClip = canVerifyNative &&
-                    !heroRejectedNativeClips.Contains(nativeClipKey) &&
+                int equipment=Game.AppearanceWeapon;
+                string nativeClipKey=equipment+":"+action+":"+facing;
+                Sprite canonical;
+                bool available=TryUsePublishedHeroFrame(equipment,action,
+                    facing,publishedFrame,bakedFrames,out canonical);
+                bool nativeReady=available&&
+                    !heroRejectedNativeClips.Contains(nativeClipKey)&&
                     TryUseProductionHeroClip(facing);
-                if (hasClip)
+                if(nativeReady)
                 {
-                    float normalized = (cellPosition + .20f) / bakedFrames;
-                    heroCaptureAnimator.SetInteger("Action", action);
-                    heroCaptureAnimator.SetInteger("Facing", facing);
-                    heroCaptureAnimator.Play(HeroLiveStateHash[action, facing], 0, normalized);
+                    // Animator never owns independent damage time.
+                    // The current GameCore action-clock selects every key.
+                    float normalized=(cellPosition+.20f)/bakedFrames;
+                    heroCaptureAnimator.SetInteger("Action",action);
+                    heroCaptureAnimator.SetInteger("Facing",facing);
+                    heroCaptureAnimator.Play(HeroLiveStateHash[action,facing],
+                        0,normalized);
                     heroCaptureAnimator.Update(0f);
-                    // A non-null Sprite is insufficient: an old Animator
-                    // override can silently draw a different class/direction
-                    // or stale three-frame Cast contact. Pixel identity is
-                    // compared to the verified published runtime atlas.
-                    if (!HeroSpriteMatchesPublishedFrame(heroCaptureRenderer.sprite,
-                            expectedPublished))
+                    if(!HeroSpriteMatchesPublishedFrame(
+                        heroCaptureRenderer.sprite,canonical))
                     {
+                        // A stale cross-class Animator clip must never leak
+                        // an unrelated equipment/body into a live scene.
                         heroRejectedNativeClips.Add(nativeClipKey);
-                        heroCaptureAnimator.enabled = false;
-                        heroCaptureRenderer.sprite = expectedPublished;
-                        Debug.LogWarning("Starfall replaced mismatched native hero clip "
-                            + nativeClipKey + " with verified published Sprite");
+                        heroCaptureAnimator.enabled=false;
+                        heroCaptureRenderer.sprite=canonical;
+                        Debug.LogWarning(
+                            "Starfall rejected wrong native full-body hero clip "+
+                            nativeClipKey+"; using exact published Sprite.");
                     }
                 }
                 else
                 {
-                    if (heroCaptureAnimator != null) heroCaptureAnimator.enabled = false;
-                    Sprite published;
-                    if (allowStandardClip &&
-                        TryUsePublishedHeroFrame(Game.AppearanceWeapon, action, facing,
-                            publishedFrame, bakedFrames, out published))
-                    {
-                        // Production resource already contains the accepted
-                        // blonde head, shared foot pivot, all middle frames.
-                        // Do not recomposite its upper/lower body or rescale it.
-                        heroCaptureRenderer.sprite = published;
-                    }
+                    if(heroCaptureAnimator!=null)
+                        heroCaptureAnimator.enabled=false;
+                    if(available)
+                        heroCaptureRenderer.sprite=canonical;
                     else
                     {
-                        // Missing ANY imported action resource must not
-                        // make the actor revert to an unrelated Player/Walk
-                        // source. The canonical equipped Idle is a safe
-                        // identity-preserving hold while asset CI fails.
-                        if (unifiedAction == null)
-                        {
-                            Sprite idle;
-                            if (TryUsePublishedHeroFrame(Game.AppearanceWeapon,
-                                0, facing, 0, 1, out idle))
-                            {
-                                heroCaptureRenderer.sprite = idle;
-                                Debug.LogWarning("Starfall missing full-body hero "+
-                                    "action atlas; holding equipped Idle rather "+
-                                    "than reverting to old character model. "+
-                                    nativeClipKey);
-                            }
-                            else return false;
-                        }
-                        else
-                        {
-                        // No dynamic torso/leg synthesis is permitted.
-                        // Other rare missing resource fallbacks use a single
-                        // complete-body frame and immutable foot root.
-                        Texture2D original = unifiedAction != null ? unifiedAction : sheet;
-                        if (original == null) return false;
-                        int spriteFrame = unifiedAction != null ? 0 : frame;
-                        string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
-                            sheet.GetInstanceID() + ":" + frame + ":" + facing + ":" +
-                            (locomotion ? "walk" : "pose") + ":" + (death ? "dead" : "live");
-                        Sprite sprite;
-                        if (!heroSprites.TryGetValue(key, out sprite))
-                        {
-                            sprite = BakeCanonicalHeroFrame(original, spriteFrame, sheet, frame,
-                                facing, locomotion, death);
-                            if (sprite == null) return false;
-                            heroSprites.Add(key, sprite);
-                            heroSpriteOrder.Enqueue(key);
-                            while (heroSpriteOrder.Count > 144)
-                            {
-                                string oldest = heroSpriteOrder.Dequeue();
-                                Sprite removed;
-                                if (!heroSprites.TryGetValue(oldest, out removed)) continue;
-                                heroSprites.Remove(oldest);
-                                Texture2D texture = removed.texture;
-                                Destroy(removed);
-                                if (texture != null) Destroy(texture);
-                            }
-                        }
-                        heroCaptureRenderer.sprite = sprite;
-                        }
+                        Sprite idle;
+                        if(!TryUsePublishedHeroFrame(equipment,0,facing,
+                            0,1,out idle))return false;
+                        heroCaptureRenderer.sprite=idle;
+                        string missing="native:"+nativeClipKey;
+                        if(missingHeroBodyWarnings.Add(missing))
+                            Debug.LogWarning(
+                                "Starfall missing canonical hero action "+
+                                nativeClipKey+"; holding SAME equipped Idle "+
+                                "(old Player model is forbidden).");
                     }
                 }
                 heroCaptureRenderer.flipX = flip;
@@ -239,7 +186,9 @@ namespace Starfall
                 facing < 0 || facing >= HeroLiveFacings.Length) return false;
             string key = "Hero_" + HeroLiveProfessions[profession] + "_" +
                 HeroLiveActions[action] + "_" + HeroLiveFacings[facing];
-            if (heroPublishedUnavailable.Contains(key)) return false;
+            int retryAt;
+            if(heroPublishedUnavailable.TryGetValue(key,out retryAt)&&
+                Time.frameCount<retryAt)return false;
             Sprite[] cells;
             if (!heroPublishedSprites.TryGetValue(key, out cells))
             {
@@ -250,11 +199,14 @@ namespace Starfall
                 if (atlas == null || atlas.height != HeroCell ||
                     atlas.width != expectedFrames * HeroCell)
                 {
-                    heroPublishedUnavailable.Add(key);
-                    if (atlas != null)
-                        Debug.LogWarning("Starfall rejected incompatible hero sheet: " + key);
+                    heroPublishedUnavailable[key]=Time.frameCount+120;
+                    if(atlas!=null&&missingHeroBodyWarnings.Add("invalid:"+key))
+                        Debug.LogWarning(
+                            "Starfall rejected malformed canonical hero atlas: "+
+                            key+" (size/frames mismatch). Will retry.");
                     return false;
                 }
+                heroPublishedUnavailable.Remove(key);
                 // Prefer the EXACT shipped imported Sprite sub-assets used
                 // by Production Animator clips. Duplicating every cell with
                 // Sprite.Create on GPU-only (isReadable=0) atlases previously
@@ -390,28 +342,8 @@ namespace Starfall
             heroCaptureCamera.allowMSAA = false;
         }
 
-        private Sprite BakeCanonicalHeroFrame(Texture2D source, int index,
-            Texture2D registration, int registrationIndex, int facing,
-            bool locomotion, bool death)
-        {
-            // Runtime and Editor now share the EXACT pixel compositor.
-            Texture2D acceptedHead = walkSheets != null && walkSheets.Length > 0
-                ? walkSheets[0] : null;
-            return CanonicalHeroSpriteFactory.Bake(source, index, registration,
-                registrationIndex, facing, locomotion, death, acceptedHead);
-        }
-
         private void ReleaseHeroCapture()
         {
-            foreach (Sprite sprite in heroSprites.Values)
-            {
-                if (sprite == null) continue;
-                Texture2D texture = sprite.texture;
-                Destroy(sprite);
-                if (texture != null) Destroy(texture);
-            }
-            heroSprites.Clear();
-            heroSpriteOrder.Clear();
             // Destroy only our Sprite sub-rect wrappers, not shared Resources
             // textures which can be referenced by other game systems.
             foreach (Sprite[] cells in heroPublishedSprites.Values)

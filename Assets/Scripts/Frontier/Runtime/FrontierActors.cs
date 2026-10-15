@@ -163,34 +163,19 @@ namespace Starfall
             return true;
         }
 
-        private void DrawWholeBodyHeroOnGUI(Texture2D original,int originalFrame,
-            Point foot,Color tint,bool flip,int profession,int facing,
-            int pose,bool moving)
+        // Only a canonical, whole-body published Sprite may render the player.
+        // The GPU capture and OnGUI fallback share this exact frame selector;
+        // neither owns a separate head, torso, waist or legacy attack timeline.
+        private void DrawWholeBodyHeroOnGUI(Point foot, Color tint, bool flip,
+            int profession, int facing, bool moving)
         {
-            // This is the production OnGUI FALLBACK, not the old HumanActor
-            // puppet. Draw ONE complete, accepted RGBA sprite with one Pivot.
-            // Never mix a warrior head overlay, action torso, and walking legs.
-            // Production Sprite PNGs are GPU-only (isReadable: 0). The
-            // outline system calls GetPixels, so sample the already-prewarmed
-            // readable original for that PASS, never the GPU-only PNG.
-            // The occluded-player pass used to paint the OLD readable
-            // Player attack frame with an outline filter. That visibly
-            // changed silhouette/head/armor behind trees during LMB or Q.
-            // Draw a translucent amber silhouette from the SAME canonical
-            // whole-body action cell instead (GPU-only PNG, no GetPixels).
-            // This is a complete-body silhouette, not an independent
-            // animated overlay or a mechanically resampled set of limbs.
+            if(profession<0||profession>=FullHeroClasses.Length)return;
             if(drawingOutline)
                 tint=new Color(1f,.56f,.35f,.85f);
             int action,frames,index;
             float position;
-            // Every Attack and Cast, including sword combo-3 and focused
-            // heavy strikes, uses the SAME published whole-body model as
-            // Idle/Run. The earlier pose==6/7 exemption deliberately sent
-            // heavy combat back to the old mismatched Player sheet.
-            if(profession>=0&&profession<FullHeroClasses.Length&&
-                ResolveFullBodyHeroFrame(moving,facing,
-                    out action,out frames,out index,out position))
+            if(ResolveFullBodyHeroFrame(moving,facing,
+                out action,out frames,out index,out position))
             {
                 string key="Hero_"+FullHeroClasses[profession]+"_"+
                     FullHeroActions[action]+"_"+FullHeroFacings[facing];
@@ -199,53 +184,41 @@ namespace Starfall
                 {
                     atlas=Resources.Load<Texture2D>(
                         "Frontier/HeroAnimator/Canonical/"+key);
-                    // Missing assets can finish importing during Editor Play.
-                    // Do not permanently cache null and force an old-model
-                    // fallback until scene restart.
+                    // Do not cache a missing import: allow Editor rebakes and
+                    // asset refresh to recover without restarting the scene.
                     if(atlas!=null)fullBodyHeroSheetCache[key]=atlas;
                 }
                 if(atlas!=null&&atlas.width==frames*256&&atlas.height==256)
                 {
                     Atlas(atlas,frames,1,index,
-                        new Rect(foot.x-96,foot.y-180,192,192),
-                        tint,flip);
-                    return;
-                }
-            }
-            // ANY missing animation atlas must NEVER restore a mismatched
-            // legacy model. Prefer the equipped actor's whole-body Idle pose
-            // (same scale/Pivot) in all seven states, not only Attack/Cast.
-            // CI rejects missing canonical action resources as a hard failure.
-            if(profession>=0&&profession<FullHeroClasses.Length)
-            {
-                string idleKey="Hero_"+FullHeroClasses[profession]+
-                    "_Idle_"+FullHeroFacings[facing];
-                Texture2D idle;
-                if(!fullBodyHeroSheetCache.TryGetValue(idleKey,out idle)||idle==null)
-                {
-                    idle=Resources.Load<Texture2D>(
-                        "Frontier/HeroAnimator/Canonical/"+idleKey);
-                    if(idle!=null)fullBodyHeroSheetCache[idleKey]=idle;
-                }
-                if(idle!=null&&idle.width==256&&idle.height==256)
-                {
-                    Atlas(idle,1,1,0,
                         new Rect(foot.x-96,foot.y-180,192,192),tint,flip);
                     return;
                 }
             }
-            // Deliberately fail closed if even the equipped Idle is absent:
-            // old Player*.png would reintroduce a different protagonist.
-            // Only the outline-only mask pass above uses legacy readable art.
-            if(!drawingOutline)
+            // Missing action atlas: retain the equipped FULL-BODY Idle.
+            // Never resurface pre-remaster Player/Walk/Rear/South sprites.
+            string idleKey="Hero_"+FullHeroClasses[profession]+"_Idle_"+
+                FullHeroFacings[facing];
+            Texture2D idle;
+            if(!fullBodyHeroSheetCache.TryGetValue(idleKey,out idle)||idle==null)
             {
-                string absent="Hero_"+FullHeroClasses[profession]+"_"+
-                    FullHeroActions[Game.HeroAnimationState]+"_"+
-                    FullHeroFacings[facing];
-                if(missingHeroBodyWarnings.Add(absent))
-                    Debug.LogWarning("Starfall missing canonical full-body hero "+
-                        absent+"; rejecting old character art (check import/CI).");
+                idle=Resources.Load<Texture2D>(
+                    "Frontier/HeroAnimator/Canonical/"+idleKey);
+                if(idle!=null)fullBodyHeroSheetCache[idleKey]=idle;
             }
+            if(idle!=null&&idle.width==256&&idle.height==256)
+            {
+                Atlas(idle,1,1,0,
+                    new Rect(foot.x-96,foot.y-180,192,192),tint,flip);
+                return;
+            }
+            // This is a corrupted installation, caught by CI. Fail closed
+            // rather than swapping in a different face/equipment identity.
+            string absent="Hero_"+FullHeroClasses[profession]+"_"+
+                FullHeroActions[Game.HeroAnimationState]+"_"+FullHeroFacings[facing];
+            if(missingHeroBodyWarnings.Add(absent))
+                Debug.LogWarning("Starfall missing canonical full-body hero "+
+                    absent+"; rejecting old character art (check import/CI).");
         }
 
         private void DrawPlayerPreview(int equipment, float x, float y, float size)
@@ -265,18 +238,15 @@ namespace Starfall
                 if(published!=null)fullBodyHeroSheetCache[key]=published;
             }
             Rect bounds=new Rect(x-size/2f,y-size*240f/256f,size,size);
-            if(published!=null&&published.width==256&&published.height==256
-                &&!drawingOutline)
+            if(published!=null&&published.width==256&&published.height==256)
             {
-                Atlas(published,1,1,0,bounds,Color.white);
+                Atlas(published,1,1,0,bounds,
+                    drawingOutline?new Color(1f,.56f,.35f,.85f):Color.white);
                 return;
             }
-            // Offline GPU-only sheets are deliberately not readable for
-            // PixelArt.OutlineMask. Preserve a complete readable source
-            // silhouette for the outline-only or missing-atlas fallback.
-            Texture2D source=walkSheets!=null?walkSheets[profession]:null;
-            if(source!=null)
-                Actor(source,4,3,8,new Point(x,y),size,Color.white,false);
+            if(missingHeroBodyWarnings.Add(key))
+                Debug.LogWarning("Starfall missing canonical hero preview "+
+                    key+"; rejecting old preview model.");
         }
 
         private void DrawPlayerActor()
@@ -286,78 +256,25 @@ namespace Starfall
             if (Game.racing && !drawingOutline)
                 PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);
             int look=Game.AppearanceWeapon,pose=Game.PlayerPose;
-            // Canonical published full-body atlases, NOT old readable
-            // Player*.png sheets, own the hero's runtime appearance. Missing
-            // legacy import assets must never force DrawLegacyHero() during
-            // LMB, Q, Idle, Run or hit/death; Unity SpriteRenderer and the
-            // OnGUI production fallback can read their own canonical assets.
-            if (look < 0 || look >= FullHeroClasses.Length) return;
+            if(look<0||look>=FullHeroClasses.Length)return;
             Point direction=Game.VisualFacing;
             Color tint=Game.playerFlash>0 ?
                 new Color(1.5f,1.5f,1.5f) : Color.white;
-            if (Game.invulnerable>0&&!Game.Dying&&Game.playerFlash<=0)
+            if(Game.invulnerable>0&&!Game.Dying&&Game.playerFlash<=0)
                 tint.a=.65f+.35f*(float)Math.Abs(Math.Sin(clock*16));
             int facing=GameCore.DirectionRow(direction);
-            // Recovery may MOVE in GameCore, but the complete released
-            // attack/cast pose continues through its own actual action
-            // duration. Walking feet are not independently grafted and
-            // the weapon/facing remain bound to the action until it ends.
             bool moving=pose>=2&&pose<=3;
-            bool rear=false,south=false,resting=!moving&&pose<=1;
-            Texture2D sheet=playerSheets!=null&&look<playerSheets.Length?
-                playerSheets[look]:null;
-            int frame=pose;
-            if(moving&&walkSheets!=null&&walkSheets[look]!=null)
-            {
-                sheet=walkSheets[look];
-                frame=facing*4+Game.WalkFrame;
-            }
-            else
-            {
-                if(resting)
-                {
-                    frame=facing==1?1:0;
-                    if(facing==2&&walkSheets!=null&&walkSheets[look]!=null)
-                    {
-                        sheet=walkSheets[look];
-                        frame=8;
-                    }
-                }
-                rear=playerRear!=null&&facing==1&&pose>=4&&pose<=7;
-                if(rear)
-                {
-                    sheet=playerRear;
-                    frame=look*4+(pose==4||pose==6?2:3);
-                }
-                south=playerSouth!=null&&facing==2&&pose>=4&&pose<=7;
-                if(south)
-                {
-                    sheet=playerSouth;
-                    frame=look*4+pose-4;
-                }
-                if(pose>=8&&facing!=0)
-                {
-                    Texture2D reaction=facing==1?playerReactionsRear:playerReactionsSouth;
-                    if(reaction!=null)
-                    {
-                        sheet=reaction;
-                        frame=look*4+(pose==8?0:pose==9?1:pose==10?2:3);
-                    }
-                }
-            }
-            bool flip=!rear&&!south&&facing==0&&direction.x<-.1f;
-            // Full-frame authority: both native capture and legacy OnGUI
-            // sample the exact same class/action/facing published atlas.
-            // No Dynamic UnifiedActionGait, HumanActor head splice or
-            // independently translated body part participates in gameplay.
+            bool flip=facing==0&&direction.x<-.1f;
+            // SpriteRenderer is the production hero path. No call-site
+            // or renderer branch may select a previous-generation Player,
+            // Walk, Rear, South, reaction or heavy-combo model anymore.
+            // The exact same complete authored frame is used by both lanes.
             bool captured=false;
 #if UNITY_5_3_OR_NEWER
-            captured=DrawSpriteRendererHero(sheet,frame,p,tint,flip,
-                facing,pose,moving,Game.Dying,null);
+            captured=DrawSpriteRendererHero(p,tint,flip,facing,moving);
 #endif
             if(!captured)
-                DrawWholeBodyHeroOnGUI(sheet,frame,p,tint,flip,
-                    look,facing,pose,moving);
+                DrawWholeBodyHeroOnGUI(p,tint,flip,look,facing,moving);
             // Real 32px authored accents track the SAME live action/release
             // timestamps as the composed body; not an independent decorative
             // animation clock. Every pose keeps the actor's ground pivot.

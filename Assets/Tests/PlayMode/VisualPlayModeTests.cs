@@ -203,6 +203,119 @@ namespace Starfall.Tests
 #endif
         }
 
+        [UnityTest] public IEnumerator ProductionSceneKeepsEquippedHeroUnderEveryCrossSkillAndAttack()
+        {
+#if UNITY_EDITOR
+            // Run the REAL Frontier scene + GPU SpriteRenderer, never an
+            // isolated preview or old Animator-only prefab. Test 3 combat
+            // professions x 3 equipment sets x LMB/Q x 4 actual directions.
+            var scene=EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Scenes/Frontier.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            host=null;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Assert.IsTrue(scene.isLoaded);
+            app=Object.FindObjectOfType<FrontierRuntime>();
+            Assert.IsNotNull(app);
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var type=typeof(FrontierRuntime);
+            var capture=type.GetField("heroCaptureRenderer",flags);
+            var broken=type.GetField("heroCaptureBroken",flags);
+            var mode=type.GetField("useSpriteRendererHero",flags);
+            var oldPlayers=type.GetField("playerSheets",flags);
+            var oldWalks=type.GetField("walkSheets",flags);
+            Assert.IsNotNull(capture);Assert.IsNotNull(broken);
+            Assert.IsNotNull(oldPlayers);Assert.IsNotNull(oldWalks);
+            object savedPlayers=oldPlayers.GetValue(app);
+            object savedWalks=oldWalks.GetValue(app);
+            string[] classes={"Vanguard","Ranger","Arcanist"};
+            var aims=new[]{new Point(1,0),new Point(-1,0),
+                new Point(0,-1),new Point(0,1)};
+            string folder=Path.GetFullPath(Path.Combine(
+                Application.dataPath,"../docs/native-captures"));
+            Directory.CreateDirectory(folder);
+            int verified=0;
+            try
+            {
+                for(int vocation=0;vocation<3;vocation++)
+                for(int equipped=0;equipped<3;equipped++)
+                for(int command=0;command<2;command++)
+                for(int f=0;f<4;f++)
+                {
+                    app.BeginVisualReview(vocation,1);
+                    var g=app.Game;
+                    g.enemies.Clear();
+                    g.save.companion=-1;g.save.energy=100;
+                    g.save.x=12;g.save.y=14;
+                    if(equipped>0&&!g.Has("weapon_"+equipped))
+                        g.save.flags.Add("weapon_"+equipped);
+                    g.Equip(equipped);
+                    Assert.AreEqual(equipped,g.save.weapon);
+                    // Deliberately remove ALL old readable actor source art.
+                    // The normal player, LMB and Q MUST NOT depend on it.
+                    oldPlayers.SetValue(app,null);
+                    oldWalks.SetValue(app,null);
+                    mode.SetValue(app,true);
+                    broken.SetValue(app,false);
+                    Point aim=aims[f];
+                    g.SetAim(aim);
+                    if(command==0)g.Attack(aim);
+                    else g.Skill(aim);
+                    ActorAction selected=g.playerAction;
+                    Assert.IsNotNull(selected);
+                    Assert.AreEqual(command==0?equipped:vocation,
+                        selected.weapon,"Skill mechanic stays vocation-specific");
+                    Assert.AreEqual(equipped,selected.equippedWeapon,
+                        "Skill appearance stays equipment-specific");
+                    int n=0;
+                    while(g.playerAction==selected&&!selected.released&&n++<80)
+                        app.AdvanceVisualReview(.01f,new Point());
+                    Assert.IsTrue(selected.released&&g.playerAction==selected,
+                        "Actual damage release must precede the visual contact");
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                    Assert.IsFalse((bool)broken.GetValue(app));
+                    var renderer=capture.GetValue(app) as SpriteRenderer;
+                    Assert.IsNotNull(renderer);
+                    Assert.IsNotNull(renderer.sprite);
+                    string key="Hero_"+classes[equipped]+"_"+
+                        (command==0?"Attack":"Cast")+"_"+(f==2?"N":f==3?"S":"E");
+                    Texture2D shipped=Resources.Load<Texture2D>(
+                        "Frontier/HeroAnimator/Canonical/"+key);
+                    Assert.IsNotNull(shipped);
+                    Assert.AreSame(shipped,renderer.sprite.texture,
+                        "Actual scene resurrected old actor or skill vocation: "+key);
+                    Assert.AreEqual(f==1,renderer.flipX,
+                        "Canonical body must mirror west as a single Sprite");
+                    Assert.AreEqual(128f,renderer.sprite.pivot.x,.05f);
+                    Assert.AreEqual(16f,renderer.sprite.pivot.y,.05f);
+                    Assert.AreEqual(128f,renderer.sprite.pixelsPerUnit,.05f);
+                    verified++;
+                    if(command==1&&f==0)
+                    {
+                        ScreenCapture.CaptureScreenshot(Path.Combine(folder,
+                            "real-equipment-"+classes[equipped]+"-skill-"+
+                            classes[vocation]+".png"));
+                        yield return null;
+                    }
+                }
+            }
+            finally
+            {
+                oldPlayers.SetValue(app,savedPlayers);
+                oldWalks.SetValue(app,savedWalks);
+                app.EndVisualReview();
+            }
+            Assert.AreEqual(72,verified,
+                "3 professions x 3 equipment x LMB/Q x 4 directions required");
+#else
+            Assert.Fail("Cross-equipped production GPU verification requires Unity Editor");
+            yield break;
+#endif
+        }
+
         [UnityTest] public IEnumerator LiveSpriteRendererCapturesCanonicalHeroPixelsInGameView()
         {
             // This tests the actual FrontierRuntime renderer switch and
