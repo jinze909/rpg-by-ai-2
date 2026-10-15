@@ -134,6 +134,7 @@ def check():
         assert mark in native, f"Native production Sprite/Animator bake lost invariant {mark!r}"
     assert "private static void VerifySameProfessionBody(" in native
     assert native.count("VerifySameProfessionBody(profession, refs);") == 2
+    assert "VerifySameProfessionBody(profession, approved);" in native
     assert 'src.atlas == "Player" + profession' in native
     assert 'src.atlas == "Walk" + profession' in native
     assert "shared && src.index / 4 == cls" in native
