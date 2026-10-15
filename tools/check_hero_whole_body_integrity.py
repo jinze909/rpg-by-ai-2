@@ -148,7 +148,12 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
     _negative_guard_tests()
     manifest = json.loads((atlas_dir / "manifest.json").read_text(encoding="utf-8"))
     audit_rows = []
+    from build_hero_animation_preview import (
+        imported_sheets, registered_heads, canonical_frame)
+    from export_canonical_hero_atlases import curated_motion_source
+    sheets, heads = imported_sheets(), registered_heads()
     checked_frames = 0
+    curated_count = 0
     for profession in CLASSES:
         for action in ACTIONS:
             for facing in FACINGS:
@@ -168,10 +173,27 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                     cropped = sheet.crop((index * CELL, 0, (index+1) * CELL, CELL))
                     base_i = index // 2 if expanded else index
                     baseline = baselines[base_i]
-                    # This complete approved body is the single source of the
-                    # candidate midpoint. The one deliberately shared golden
-                    # head was composited BEFORE this contract.
-                    if expanded and index % 2 == 1:
+                    # Explicitly chosen ALREADY ARTIST-DRAWN class-owned
+                    # whole-body step frames are permitted only at their
+                    # named anticipation/recovery slots. Prove exact
+                    # source bytes; do not waive the palette audit globally.
+                    curated = (curated_motion_source(
+                        profession, action, facing, base_i)
+                        if expanded and index % 2 == 1 else None)
+                    if curated:
+                        name, source_frame = curated
+                        assert_class_source(profession, name, source_frame)
+                        expected = canonical_frame(
+                            sheets, heads, name, source_frame, facing,
+                            locomotion=True)
+                        assert cropped.tobytes() == expected.tobytes(), (
+                            "CURATED_FULL_BODY_SOURCE_MISMATCH", key, index)
+                        assert row["curated_full_body_slots"][str(index)] == (
+                            f"{name}:{source_frame}"), (
+                            "CURATED_SOURCE_MANIFEST_MISMATCH",key,index)
+                        baseline = expected
+                        curated_count += 1
+                    elif expanded and index % 2 == 1:
                         _assert_single_source_palette(cropped, baseline, key, index)
                     else:
                         assert cropped.tobytes() == baseline.tobytes(), (
@@ -180,12 +202,14 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                     checked_frames += 1
                 audit_rows.append({"key": key, "frames": row["frame_count"],
                                    "source_classes": [n for n,_ in references]})
+    assert curated_count == 12, ("CURATED_MOTION_COUNT", curated_count)
     assert len(audit_rows) == 63 and checked_frames >= 333, (
         "INCOMPLETE_CLASS_AUDIT",len(audit_rows),checked_frames)
     report = {
         "status":"source_owner_palette_waist_and_ratio_verified",
         "hero_atlases":len(audit_rows),
         "checked_frames":checked_frames,
+        "artist_drawn_whole_body_transitions":curated_count,
         "head_source_exception":"Approved canonical blonde head mask only",
         "native_unity_verified":False,
         "artist_approved":False,
