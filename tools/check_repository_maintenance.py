@@ -84,7 +84,11 @@ def verify_docs(docs, workflow, tracked):
         "contents: read", "contents: write",
     ):
         assert key in workflow, ("MISSING_GITHUB_GUARD", key)
-    assert "force push" not in workflow.lower() and "git push --force" not in workflow
+    # The publisher safely *logs* "refusing force push" on a stale
+    # branch. Reject actual executable push flags, not that safety message.
+    assert not re.search(
+        r"(?m)^\s*git\s+push\s+(?:--force(?:-with-lease)?|-f)(?:\s|$)",
+        workflow), ("DANGEROUS_FORCE_PUSH_IN_PUBLISH_JOB",)
     assert "publish-approved-hero-sprites:" in workflow and (
         "contains(github.event.head_commit.message, '[publish-hero-art]')" in workflow
         and "startsWith(github.event.head_commit.message, 'release(hero-contacts):')" in workflow
@@ -133,6 +137,13 @@ def main():
         assert "MISSING_GITHUB_GUARD" in str(error), error
     else:
         raise AssertionError("UNSAFE_MAINTENANCE_CI_ACCEPTED_UNGUARDED_PUBLICATION")
+    unsafe_force = workflow + "\n          git push --force origin HEAD:chatgpt/dev\n"
+    try:
+        verify_docs(docs, unsafe_force, tracked)
+    except AssertionError as error:
+        assert "DANGEROUS_FORCE_PUSH_IN_PUBLISH_JOB" in str(error), error
+    else:
+        raise AssertionError("UNSAFE_MAINTENANCE_CI_ACCEPTED_FORCE_PUSH")
     print("PASS AI-2 docs, active branch safety, local links, Git LFS/art, "
           "CI hard gates and tracked secrets/path hygiene")
     print("PASS injected loss of native-status guard and release dependency rejected")
