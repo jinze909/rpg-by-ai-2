@@ -138,14 +138,17 @@ def check():
             "SpriteRenderer renderer = capture.GetValue(app) as SpriteRenderer;",
             "Assert.AreSame(atlas, renderer.sprite.texture,",
             '"real-Frontier-scene-"',
-            "Native Animator MISSING: production PlayMode must FAIL",
-            "Released swing must remain one coherent full-body Attack, not Run",
-            "Do not play hidden footstep audio",
         )
         for item in required:
             assert item in source, ("NATIVE_PRODUCTION_SCENE_COVERAGE_LOST",item)
         assert "Assert.Ignore(" not in source, (
             "NATIVE_ANIMATOR_MISSING_MUST_NOT_BE_IGNORED")
+    # Imported Animator missing must hard-fail in its own separate native
+    # clip test, which lives OUTSIDE the production idle-scene method.
+    assert "Native Animator MISSING: production PlayMode must FAIL" in native_qa
+    assert "Released swing must remain one coherent full-body Attack, not Run" in native_qa
+    assert "Do not play hidden footstep audio" in native_qa
+    assert "Assert.Ignore(" not in native_qa
     # The first scene-only test and the newer full action test both load
     # Frontier.unity. Mutating the entire file is invalid: the OTHER good
     # test can hide that the test under mutation was deliberately destroyed.
