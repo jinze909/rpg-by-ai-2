@@ -20,8 +20,8 @@ from build_hero_animation_preview import (
 DEST = ROOT / ".starfall-checks/hero-production-atlases"
 PREVIEW = ROOT / ".starfall-checks/hero-animation-qa"
 def expected_count(action, original):
-    return (2 * original - (0 if action == "Run" else 1)
-            if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and original > 1 else original)
+    return (2 * original - 1
+            if action in ("Attack", "Cast", "Dodge", "Hit") and original > 1 else original)
 
 
 def motion_midpoint(first, second):
@@ -143,8 +143,8 @@ def expand_frames(originals, action, profession=None, facing=None,
     result = []
     for i, source in enumerate(originals):
         result.append(source)
-        if action in ("Run", "Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
-            if i + 1 < len(originals) or action == "Run":
+        if action in ("Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
+            if i + 1 < len(originals):
                 selection = (curated_motion_source(profession, action, facing, i)
                              if profession is not None else None)
                 if selection is not None:
@@ -165,7 +165,7 @@ def main():
     DEST.mkdir(parents=True, exist_ok=True)
     sheets, heads = imported_sheets(), registered_heads()
     manifest = {
-        "status": "accepted_source_plus_algorithmic_motion_midpoints_not_art_approved",
+        "status": "class_owned_full_body_run_and_source_curated_transitions_pending_art_review",
         "canvas_per_frame": [CELL, CELL],
         "top_origin_foot_px": list(FOOT),
         "unity_bottom_origin_pivot": [0.5, 0.0625],
@@ -220,7 +220,7 @@ def main():
                     "frame_count": len(frames),
                     "unique_rasters": len(set(hashes)),
                     "frame_sha256_rgba": hashes,
-                    "needs_hand_redrawn_art": action in ("Cast", "Dodge", "Hit", "Death"),
+                    "needs_hand_redrawn_art": action in ("Attack", "Cast", "Dodge", "Hit", "Death"),
                     "native_unity_verified": False,
                 }
 
