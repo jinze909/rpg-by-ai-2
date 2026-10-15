@@ -315,6 +315,44 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Moving Q recovery retains full-body cast, class identity, grip and locked direction");
     }
 
+    private static void StrafeDuringReleasedCastKeepsBodyAndAim(FrontierRuntime app)
+    {
+        // Old recovery code swapped the ENTIRE action actor to a Run body and
+        // rotated it towards locomotion. A sideways or backwards strafe while
+        // the same spell was releasing showed a different weapon, shoulder
+        // placement and facing. The action and physical movement are separate.
+        foreach (int profession in new[] { 0, 1, 2 })
+        {
+            Prepare(app, profession);
+            var g = app.Game;
+            g.enemies.Clear();
+            Point attackDirection = new Point(1, 0);
+            Mouse(app, g.Position + attackDirection * 4);
+            Input.keys.Add(KeyCode.Q);
+            Update(app);
+            Frames(app, 20);
+            Check(g.playerAction != null && g.playerAction.released &&
+                g.PlayerPhase == ActionPhase.Recovery,
+                "Cast reaches a real contact and recovery before strafe");
+            Point old = g.Position;
+            Input.axes["Horizontal"] = -1; Input.held.Add(KeyCode.A);
+            Update(app);
+            Check(g.ActuallyMoving && g.PlayerMobility == MobilityRule.Reduced,
+                "Released cast must still allow collision-safe movement");
+            Check((g.VisualFacing - attackDirection).Length < .001f,
+                "Opposite movement must not rotate an active cast's hand, bow or staff");
+            Check(g.AppearanceWeapon == profession && g.HeroAnimationState == 3 &&
+                g.PlayerPose == 7,
+                "Root-only cast recovery preserves correct profession and full action body");
+            string source = profession == 0 ? "PlayerVanguard" :
+                profession == 1 ? "PlayerRanger" : "PlayerArcanist";
+            CheckPlayerDrawing(app, source, 7, attackDirection);
+            Check((g.Position-old).Length <= .5f,
+                "Changing animation cannot teleport the collision-governed world root");
+        }
+        Console.WriteLine("PASS Three-class opposite-direction recovery strafe preserves whole cast body, weapon and locked aim");
+    }
+
     private static void RecoveryHitAndDeathRetainVisibleEquipment(FrontierRuntime app)
     {
         foreach (int equipped in new[] { 1, 2 })
@@ -761,6 +799,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyBossMovingFlash,
             RealMovingSpellCompositesAndBossFrames, GroundContactArtSharesPhysicalFootPivot,
             RecoveryWalkingRestoresEquippedDrawing,
+            StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
             MaxLevelProgressionShowsFinalState,

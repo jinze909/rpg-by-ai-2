@@ -62,6 +62,41 @@ def check():
     continuity = (ROOT / "Assets/Scripts/Frontier/Core/ContinuityCore.cs").read_text()
     assert "public float WalkPosePhase" in continuity
     assert "if (state == 1) return WalkPosePhase;" in core
+    # Root-only recovery: a released cast/attack may move physically, but
+    # MUST retain one authored full-body action Sprite/weapon/facing. Previous
+    # implementation switched to Run when RecoveryWalking became true and
+    # snapped shoulders, pelvis and outfit halfway through the action.
+    def check_moving_action_contract(actor_code, core_code, continuity_code):
+        assert "bool moving=pose>=2&&pose<=3;" in actor_code, (
+            "MOVING_RECOVERY_REVERTED_TO_RUN_SPRITE")
+        assert "bool movingRecovery=" not in actor_code, (
+            "UNSAFE_MIXED_ACTION_WALK_PRESENTATION")
+        assert "return playerAction != null ? playerAction.weapon : save.weapon;" in core_code, (
+            "ACTIVE_CAST_OUTFIT_SNAPS_TO_UNRELATED_RUN_WEAPON")
+        assert "if(playerAction!=null)return playerAction.direction;" in continuity_code, (
+            "ACTIVE_CAST_FACING_FOLLOWS_STRAFE_INSTEAD_OF_LOCKED_CONTACT")
+        assert "if (RecoveryWalking)" not in core_code.split("public int PlayerPose")[1], (
+            "ACTIVE_ACTION_POSE_OVERRIDDEN_BY_WALK_DURING_MOVING_RECOVERY")
+    continuity_code = continuity
+    check_moving_action_contract(actor, core, continuity_code)
+    for field, damaged in (
+        ("actor", actor.replace("bool moving=pose>=2&&pose<=3;",
+                                "bool moving=pose>=2&&pose<=3||RecoveryWalking;",1)),
+        ("core", core.replace(
+            "return playerAction != null ? playerAction.weapon : save.weapon;",
+            "return save.weapon;",1)),
+        ("continuity", continuity.replace(
+            "if(playerAction!=null)return playerAction.direction;",
+            "if(playerAction!=null&&!RecoveryWalking)return playerAction.direction;",1))):
+        corrupt_actor = damaged if field == "actor" else actor
+        corrupt_core = damaged if field == "core" else core
+        corrupt_continuity = damaged if field == "continuity" else continuity_code
+        try:
+            check_moving_action_contract(corrupt_actor, corrupt_core, corrupt_continuity)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_VISUAL_CI: reverted moving action splice accepted")
     assert "if(action==1)position%=frames;" in actor
     assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
     assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor

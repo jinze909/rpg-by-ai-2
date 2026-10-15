@@ -37,8 +37,12 @@ namespace Starfall.Tests
                 Check(g.AppearanceWeapon==0&&!g.ActuallyMoving&&g.PlayerPose==7,"Standing Q recovery retains its class release outfit");
                 Point motion=new Point(-direction.y,direction.x),before=g.Position;
                 g.Tick(.01f,motion,direction*-1);
-                Check((g.Position-before).Length>.001f&&g.ActuallyMoving&&g.PlayerPose>=2&&g.PlayerPose<=3,"Vanguard recovery restores collision-safe walking and its locomotion pose together");
-                Check(g.AppearanceWeapon==equipped&&(g.VisualFacing-motion).Length<.001f,"Walking recovery returns body equipment and facing to the actual equipped weapon");
+                Check((g.Position-before).Length>.001f&&g.ActuallyMoving&&g.PlayerPose==7&&
+                    g.PlayerMobility==MobilityRule.Reduced,
+                    "Vanguard recovery moves the world root with a complete class-owned cast body");
+                Check(g.AppearanceWeapon==0&&(g.VisualFacing-direction).Length<.001f&&
+                    g.HeroAnimationState==3,
+                    "Moving recovery retains its original action identity and weapon-facing, even while strafing");
                 Check(g.playerAction==skill&&skill.damage==damage&&(skill.direction-direction).Length<.001f&&object.ReferenceEquals(skill.impact,impact)&&skill.weapon==0&&skill.equippedWeapon==equipped,"Appearance handoff cannot mutate the prepared Q's damage, direction, impact or equipment identity");
             }
             foreach(int profession in new[]{1,2})
@@ -46,7 +50,10 @@ namespace Starfall.Tests
                 var g=Quiet(data,profession);g.Equip(0);g.Skill(new Point(0,-1));ActorAction skill=g.playerAction;
                 while(g.PlayerPhase!=ActionPhase.Recovery)g.Tick(.01f,new Point());
                 Point before=g.Position;g.Tick(.01f,new Point(1,0));
-                Check((g.Position-before).Length>.001f&&g.ActuallyMoving&&g.PlayerPose>=2&&g.PlayerPose<=3&&g.AppearanceWeapon==0,"Ranged Q remains planted through contact, then walks during recovery with equipped outfit");
+                Check((g.Position-before).Length>.001f&&g.ActuallyMoving&&
+                    g.PlayerPose==7&&g.AppearanceWeapon==profession&&
+                    (g.VisualFacing-new Point(0,-1)).Length<.001f,
+                    "Ranged Q moves after contact with the original full-body skill and locked weapon direction");
                 while(g.playerAction==skill)g.Tick(.01f,new Point(1,0));
                 g.Tick(.01f,new Point(1,0));Check(g.ActuallyMoving&&g.AppearanceWeapon==0,"Completed ranged Q returns to walking in the saved equipment");
             }
@@ -58,8 +65,9 @@ namespace Starfall.Tests
                 var g=Quiet(data);g.save.flags.Add("weapon_"+equipped);g.Equip(equipped);g.Skill(new Point(1,0));
                 ActorAction skill=g.playerAction;ImpactProfile impact=skill.impact;float damage=skill.damage;
                 if(state>0)while(g.PlayerPhase!=ActionPhase.Recovery)g.Tick(.01f,new Point());
-                Point motion=state==2?new Point(0,-1):new Point(),facing=state==2?new Point(0,-1):new Point(1,0);
-                if(state==2)g.Tick(.01f,motion);int displayed=state==2?equipped:0;
+                Point motion=state==2?new Point(0,-1):new Point(),facing=new Point(1,0);
+                if(state==2)g.Tick(.01f,motion);
+                int displayed=0; // The moving cast still shows its original Vanguard body.
                 g.invulnerable=0;g.projectiles.Add(new Projectile{position=g.Position,velocity=new Point(.01f,0),damage=1,source="shot"});g.Tick(.01f,motion,new Point(-1,0));
                 Check(g.playerHitTime>0&&g.PlayerPose==10&&g.AppearanceWeapon==displayed&&(g.VisualFacing-facing).Length<.001f,"Actual recoil keeps the outfit and direction visible at impact, equipment "+equipped+" action state "+state);
                 for(int frame=0;frame<3;frame++)
@@ -206,10 +214,10 @@ namespace Starfall.Tests
                 g.Tick(.01f,new Point(),direction*-1);
                 Check(g.playerAction==action&&(g.VisualFacing-direction).Length<.001f,"An idle release pose cannot rotate before recovery ends");
                 g.Tick(.01f,direction*-1,direction*-1);
-                Check(g.ActuallyMoving&&(g.VisualFacing-direction*-1).Length<.001f&&
+                Check(g.ActuallyMoving&&(g.VisualFacing-direction).Length<.001f&&
                     g.PlayerMobility==MobilityRule.Reduced&&
-                    (g.PlayerPose==5||g.PlayerPose==7||g.PlayerPose>=2&&g.PlayerPose<=3),
-                    "Moving recovery keeps a rooted released upper pose while real legs resume");
+                    (g.PlayerPose==5||g.PlayerPose==7)&&g.HeroAnimationState==2,
+                    "Moving recovery translates the complete action body, not independent walk legs");
                 g=Quiet(data,weapon);g.save.weapon=(weapon+1)%3;g.Skill(direction);
                 Check(g.AppearanceWeapon==weapon,"Q preparation shows the vocation's real equipment");
                 g.invulnerable=0;g.save.health=1;g.projectiles.Add(new Projectile{position=g.Position,damage=999,visual="enemyOrb"});
