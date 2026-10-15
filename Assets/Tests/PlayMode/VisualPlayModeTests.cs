@@ -267,20 +267,20 @@ namespace Starfall.Tests
                         Assert.AreEqual(128f, sprite.pivot.x, .01f);
                         Assert.AreEqual(16f, sprite.pivot.y, .01f);
                     }
-                    // The eight-state loop MUST sample all four accepted
-                    // poses AND all four actual in-between Sprite assets.
+                    // The four-frame loop MUST sample all four COMPLETE
+                    // class-authored Run bodies and NO mechanically warped cells.
                     var steps = new System.Collections.Generic.HashSet<Sprite>();
                     int runHash = Animator.StringToHash("Base Layer.Run_" + directions[facing]);
-                    for (int i = 0; i < 8; i++)
+                    for (int i = 0; i < 4; i++)
                     {
                         animator.SetInteger("Action", 1);
                         animator.SetInteger("Facing", facing);
-                        animator.Play(runHash, 0, (i + .2f) / 8f);
+                        animator.Play(runHash, 0, (i + .2f) / 4f);
                         animator.Update(0f);
                         Assert.NotNull(renderer.sprite);
                         steps.Add(renderer.sprite);
                     }
-                    Assert.AreEqual(8, steps.Count, classes[vocation] + "/" + directions[facing] +
+                    Assert.AreEqual(4, steps.Count, classes[vocation] + "/" + directions[facing] +
                         ": native Run samples must reach every new cell");
                 }
                 Object.Destroy(go);
