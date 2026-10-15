@@ -73,7 +73,7 @@ namespace Starfall
                 if (action < 0 || action >= HeroLiveActions.Length || frames <= 0 ||
                     facing < 0 || facing >= HeroLiveFacings.Length) return false;
                 float posePosition = Game.HeroAnimationPlaybackPosition(facing);
-                bool expanded = action >= 1 && action <= 3 && frames > 1;
+                bool expanded = action >= 1 && action <= 5 && frames > 1;
                 int bakedFrames = expanded
                     ? frames * 2 - (action == 1 ? 0 : 1) : frames;
                 // The original artist poses occupy even cells; calculated
