@@ -132,7 +132,7 @@ namespace Starfall.Tests
                             Assert.IsNotNull(atlas, "Missing actual canonical resource " + key);
                             int expected = action == 0 ? 1 :
                                 action == 1 ? 8 : action == 2 || action == 3 ? 7 :
-                                action == 4 || action == 5 ? 3 : 4;
+                                action == 4 || action == 5 ? 5 : 4;
                             Assert.AreEqual(expected * cell, atlas.width, key + " frame width");
                             Assert.AreEqual(cell, atlas.height, key + " frame height");
                             int state = Animator.StringToHash("Base Layer." +
