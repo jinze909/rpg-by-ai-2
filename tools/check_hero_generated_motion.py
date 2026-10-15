@@ -86,6 +86,7 @@ def check():
     identical_motion_cells = 0
     distinct_motion_cells = 0
     identical_by_action = {}
+    identical_holds = []
     examples = []
     # Preserve intent of the actual authored source pose slots:
     # 4/5 normal attack, 6/7 class skill, south 0/1 normal, 2/3 skill.
@@ -151,6 +152,8 @@ def check():
                             if midpoint.tobytes() == extracted.tobytes():
                                 identical_motion_cells += 1
                                 identical_by_action[action] = identical_by_action.get(action, 0) + 1
+                                identical_holds.append({"class":klass, "action":action,
+                                    "facing":facing, "source_index":original_index})
                             else:
                                 distinct_motion_cells += 1
                             # Bottom-origin y 57..117 -> Pillow top y 138..198.
@@ -186,6 +189,7 @@ def check():
         "distinct_generated_midpoints": distinct_motion_cells,
         "identical_hold_midpoints": identical_motion_cells,
         "identical_hold_by_action": identical_by_action,
+        "identical_hold_sources": identical_holds,
         "approved_source_frames_unchanged": True,
         "native_playmode_verified": False,
         "artist_review_pending": True,
@@ -193,7 +197,7 @@ def check():
     }
     (DEST / "generated-motion-qa.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"PASS: {tally} atlases; {distinct_motion_cells}/{midpoints} non-identical rooted motion poses, "
-          f"{identical_motion_cells} detected holds {identical_by_action}.")
+          f"{identical_motion_cells} detected holds {identical_holds}.")
     print("PASS: original hero poses unchanged in all 63 generated atlases; same canonical root.")
     print("NATIVE_UNVERIFIED: native Unity playback and aesthetic animation quality.")
 
