@@ -63,7 +63,10 @@ def check():
     assert "public float WalkPosePhase" in continuity
     assert "if (state == 1) return WalkPosePhase;" in core
     assert "if(action==1)position%=frames;" in actor
-    assert "bool interpolate=action>=2&&action<=5&&authored>1;" in actor
+    assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
+    assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor
+    assert "position=actionSix?(phase<2f?Math.Min(2f,phase*2f):phase*2f-1f):" in actor
+    assert "frames=actionSix?6:reactionFive?5:authored;" in actor
     assert "bool specialHeavy = action == 2 && (pose == 6 || pose == 7);" in engine
     assert "bool allowStandardClip = unifiedAction == null && !specialHeavy;" in engine
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
@@ -240,7 +243,8 @@ def check():
                 with Image.open(published) as source:
                     baked = expected_count(action, expected)
                     assert source.size == (256 * baked, 256), (key, source.size, baked)
-    # GameCore's shared clock samples even contact slots (2*source index);
+    # The actual contact key is now SOURCE index 2 -> production index 3;
+    # GameCore source phase >=2 selects it, never an early synthetic tween.
     # the final grounded Death cell is 3 and must never wrap.
     assert int(2 * 2 + .20) == 4
     assert int(2 * 3 + .20) == 6
