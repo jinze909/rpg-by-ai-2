@@ -827,6 +827,109 @@ public static class RenderStateChecks
         Console.WriteLine("PASS "+verified+
             " production lamplight/crystal/relay sources: attached illumination, stable motion and quality tiers");
     }
+    private static void ShorelineUsesOriginalWaterArtAndHonorsSettings(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,5);
+        var game=app.Game;
+        var source=Get<Texture2D>(app,"terrainVariants");
+        Check(source!=null&&source.width==192&&source.height==192,
+            "Production shoreline needs original high-detail water atlas");
+        var map=game.Map;
+        const int y=14;
+        int x=-1;
+        for(int candidate=14;candidate<26;candidate++)
+            if(((int)Call(app,"PreparedTileSeed",candidate,y)&1)==0)
+            {x=candidate;break;}
+        Check(x>=0,"Stable shoreline seed not found");
+        string[] original=new string[3];
+        for(int k=-1;k<=1;k++)original[k+1]=map.rows[y+k];
+        var savedQuality=game.save.effectsQuality;
+        var savedReduced=game.save.reducedMotion;
+        Matrix4x4 canvas=Matrix4x4.TRS(new Vector3(29,43,0),
+            Quaternion.identity,new Vector3(1.25f,1.25f,1));
+        Color incoming=new Color(.31f,.44f,.57f,.81f);
+        try
+        {
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=2;
+            GUI.matrix=canvas;GUI.color=incoming;
+            Point position=new Point(230,180);
+            // Patch only the transient review map and restore each row.
+            // Test all four water/land edges using the REAL renderer.
+            for(int direction=0;direction<4;direction++)
+            {
+                char[] top=original[0].ToCharArray();
+                char[] middle=original[1].ToCharArray();
+                char[] bottom=original[2].ToCharArray();
+                top[x]='~';middle[x-1]='~';middle[x]='~';
+                middle[x+1]='~';bottom[x]='~';
+                if(direction==0)top[x]='.';
+                if(direction==1)middle[x+1]='.';
+                if(direction==2)bottom[x]='.';
+                if(direction==3)middle[x-1]='.';
+                map.rows[y-1]=new string(top);
+                map.rows[y]=new string(middle);
+                map.rows[y+1]=new string(bottom);
+                Set(app,"clock",4.2f);
+                Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',position);
+                Check(GUI.textureCalls.Count==1,
+                    "Water-land edge must draw one subtle existing-art crest");
+                var first=GUI.textureCalls[0];
+                Check(object.ReferenceEquals(first.texture,source)&&
+                    Math.Abs(first.uv.width-24f/192f)<.00001f&&
+                    Math.Abs(first.uv.height-7f/192f)<.00001f&&
+                    first.color.a>0&&first.color.a<.13f,
+                    "Shorebreak cannot substitute coarse pixels or opaque bars");
+                bool vertical=direction==1||direction==3;
+                Check(vertical?Math.Abs(first.matrix.m01)>.05f:
+                    Math.Abs(first.matrix.m01)<.0001f,
+                    "Side shorebreak must rotate a whole original pixel sample");
+                Same(GUI.matrix,canvas,"Shoreline must restore scene canvas");
+                Same(GUI.color,incoming,"Shoreline cannot tint later sprites");
+                Set(app,"clock",6.9f);Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',position);
+                Check(GUI.textureCalls.Count==1&&
+                    Math.Abs(GUI.textureCalls[0].uv.x-first.uv.x)<.00001f&&
+                    Math.Abs(GUI.textureCalls[0].rect.x-first.rect.x)<.0001f&&
+                    Math.Abs(GUI.textureCalls[0].color.a-first.color.a)>.00001f,
+                    "Water crest must animate light only, never terrain root/UV");
+                game.save.reducedMotion=true;Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',position);
+                Check(GUI.textureCalls.Count==0,
+                    "Reduced motion must disable moving shoreline");
+                game.save.reducedMotion=false;
+                game.save.effectsQuality=0;Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',position);
+                Check(GUI.textureCalls.Count==0,
+                    "Low FX must avoid additional shoreline draw calls");
+                game.save.effectsQuality=2;
+                Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'=',position);
+                Check(GUI.textureCalls.Count==0,
+                    "Dry road cannot receive coastline movement");
+            }
+            // Deep water has no adjacent shore, so cannot get fake foam.
+            map.rows[y-1]=original[0].Substring(0,x)+"~"+
+                original[0].Substring(x+1);
+            char[] waterRow=original[1].ToCharArray();
+            waterRow[x-1]=waterRow[x]=waterRow[x+1]='~';
+            map.rows[y]=new string(waterRow);
+            map.rows[y+1]=original[2].Substring(0,x)+"~"+
+                original[2].Substring(x+1);
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',new Point(230,180));
+            Check(GUI.textureCalls.Count==0,
+                "Ocean center cannot gain a fake island-like foam edge");
+        }
+        finally
+        {
+            for(int k=-1;k<=1;k++)map.rows[y+k]=original[k+1];
+            game.save.effectsQuality=savedQuality;
+            game.save.reducedMotion=savedReduced;
+            GUI.matrix=Matrix4x4.identity;
+            GUI.color=Color.white;
+        }
+        Console.WriteLine("PASS authored original-water shoreline: four orientations, stable roots, quality/reduced-motion and no inland foam");
+    }
     private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
     {
         app.BeginVisualReview(5,1);
@@ -970,7 +1073,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

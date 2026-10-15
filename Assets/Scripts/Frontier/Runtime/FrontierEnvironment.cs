@@ -86,6 +86,57 @@ namespace Starfall
             finally{GUI.color=original;}
         }
 
+        // Source-preserving shoreline animation: one subdued crest sampled
+        // from the existing high-detail 48px water painting, never a coarse
+        // newly drawn rectangle. Its center stays anchored to the authored
+        // water tile. Side-facing crests rotate as a SINGLE complete sample.
+        // Reduced-motion/low-FX modes never receive moving embellishment.
+        private void DrawAuthoredShorelineWash(int x,int y,char tile,Point p)
+        {
+            if(terrainVariants==null || Game.save.reducedMotion ||
+                Game.save.effectsQuality==0 ||
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))
+                return;
+            int seed=PreparedTileSeed(x,y);
+            // Sparse stable shorebreak instead of a solid bright tile border.
+            if((seed&1)!=0)return;
+            bool north=!WaterAt(x,y-1),east=!WaterAt(x+1,y),
+                south=!WaterAt(x,y+1),west=!WaterAt(x-1,y);
+            if(!north&&!east&&!south&&!west)return;
+            float cx=p.x+Tile*.5f,cy=p.y+Tile*.5f;
+            bool vertical=false;
+            if(north)cy=p.y+5f;
+            else if(east){cx=p.x+Tile-5f;vertical=true;}
+            else if(south)cy=p.y+Tile-5f;
+            else {cx=p.x+5f;vertical=true;}
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float strength=Math.Min(.12f,look.waterGlintAlpha*.88f);
+            float wave=(float)Math.Sin(clock*look.waterGlintRate+
+                (seed%37)*.31f);
+            float opacity=strength*(.72f+.16f*wave);
+            if(Game.save.effectsQuality==1)opacity*=.64f;
+            int variant=(seed/7)%4;
+            Rect uv=new Rect((variant*48f+8f)/192f,
+                18f/192f,24f/192f,7f/192f);
+            Rect dest=new Rect(cx-12f,cy-3.5f,24f,7f);
+            Matrix4x4 original=GUI.matrix;
+            Color originalColor=GUI.color;
+            try
+            {
+                if(vertical)
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(
+                        original,new Vector2(cx,cy),90f);
+                GUI.color=new Color(1.04f,1.09f,1.14f,
+                    opacity*worldActorOpacity);
+                GUI.DrawTextureWithTexCoords(dest,terrainVariants,uv);
+            }
+            finally
+            {
+                GUI.matrix=original;
+                GUI.color=originalColor;
+            }
+        }
+
         // Pixel-authored material accents from TerrainAccentRemaster.png:
         // additional vegetation clusters, snow crust, gravel and actual
         // water highlights. These overlay the original mature terrain atlas
