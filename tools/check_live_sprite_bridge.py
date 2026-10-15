@@ -128,7 +128,7 @@ def check():
             "pair.Value == value",
             "controller.runtimeAnimatorController != basis",
             "states.Length != 1",
-            "state.motion != AssetDatabase.LoadAssetAtPath<AnimationClip>",
+            "states[0].motion != AssetDatabase.LoadAssetAtPath<AnimationClip>",
             "HasExactProductionTransition(transitions[0], action, facing)",
             "machine.RemoveAnyStateTransition(obsolete);",
             "baseController.RemoveParameter(parameter);",
