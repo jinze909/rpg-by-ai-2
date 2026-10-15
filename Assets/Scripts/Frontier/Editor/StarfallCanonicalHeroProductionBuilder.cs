@@ -82,6 +82,21 @@ namespace Starfall.EditorTools
         /// Only create missing native assets; preserve present controllers,
         /// clips, their GUIDs, all scene content and player save files.
         /// </summary>
+        // Only the published full-body Sprite may animate on the production
+        // hero root. An older clip's m_LocalScale curve can make the correct
+        // Attack_N PNG look like a giant despite matching pixels and pivots.
+        // Detect that stale data so EnsureBuilt repairs existing .anim GUIDs.
+        private static bool HasOnlyPublishedSpriteCurve(AnimationClip clip)
+        {
+            if(clip==null || AnimationUtility.GetCurveBindings(clip).Length!=0)
+                return false;
+            EditorCurveBinding[] bindings =
+                AnimationUtility.GetObjectReferenceCurveBindings(clip);
+            return bindings.Length==1 && bindings[0].path=="" &&
+                bindings[0].type==typeof(SpriteRenderer) &&
+                bindings[0].propertyName=="m_Sprite";
+        }
+
         public static void EnsureBuilt()
         {
             bool ready = true;
@@ -123,7 +138,8 @@ namespace Starfall.EditorTools
                         ObjectReferenceKeyframe[] frames =
                             AnimationUtility.GetObjectReferenceCurve(clip, spriteBinding);
                         if (!NativeClipMatchesPublished(frames, Generated + key + ".png",
-                                expected, action))
+                                expected, action) ||
+                            !HasOnlyPublishedSpriteCurve(clip))
                             ready = false;
                     }
             }
@@ -169,7 +185,8 @@ namespace Starfall.EditorTools
                             atlas.width != count * Cell || clip == null ||
                             !NativeClipMatchesPublished(
                                 AnimationUtility.GetObjectReferenceCurve(
-                                    clip, binding), path, count, action))
+                                    clip, binding), path, count, action) ||
+                            !HasOnlyPublishedSpriteCurve(clip))
                             throw new InvalidOperationException(
                                 "Native full-body Sprite curve failed " +
                                 "pre-build pixel/source/foot-pivot audit: " + key);
@@ -396,6 +413,21 @@ namespace Starfall.EditorTools
                             clip = new AnimationClip { frameRate = 12f };
                             AssetDatabase.CreateAsset(clip, clipPath);
                         }
+                        // Rebuild in place: preserve .anim GUIDs while
+                        // removing stale Transform scale/position curves
+                        // and foreign object curves from an older pipeline.
+                        // A verified full-body Sprite sequence must never
+                        // animate the root or camera transform.
+                        foreach(EditorCurveBinding oldBinding in
+                                AnimationUtility.GetCurveBindings(clip))
+                            AnimationUtility.SetEditorCurve(clip,oldBinding,null);
+                        foreach(EditorCurveBinding oldBinding in
+                                AnimationUtility.GetObjectReferenceCurveBindings(clip))
+                            if(oldBinding.path!="" ||
+                                oldBinding.type!=typeof(SpriteRenderer) ||
+                                oldBinding.propertyName!="m_Sprite")
+                                AnimationUtility.SetObjectReferenceCurve(
+                                    clip,oldBinding,null);
                         var curve = new ObjectReferenceKeyframe[frames.Length + 1];
                         for (int i = 0; i < frames.Length; i++)
                             curve[i] = new ObjectReferenceKeyframe { time = i / 12f, value = frames[i] };

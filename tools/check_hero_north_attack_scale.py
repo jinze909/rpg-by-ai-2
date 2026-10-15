@@ -55,6 +55,19 @@ def overscale(baseline, current):
 
 
 def main():
+    # Source-level safety contract for the Unity-only production importer.
+    # Offline CI cannot execute UnityEditor.AnimationUtility; it CAN block
+    # accidental removal of the in-place stale-curve cleanup and repair.
+    builder = (ROOT / "Assets/Scripts/Frontier/Editor/"
+               "StarfallCanonicalHeroProductionBuilder.cs").read_text(
+                   encoding="utf-8")
+    for required in (
+            "HasOnlyPublishedSpriteCurve(clip)",
+            "AnimationUtility.GetCurveBindings(clip).Length!=0",
+            "AnimationUtility.SetEditorCurve(clip,oldBinding,null)",
+            "AnimationUtility.SetObjectReferenceCurve("):
+        assert required in builder, ("NORTH_ATTACK_NATIVE_CLIP_GUARD_REMOVED",
+                                     required)
     assert overscale({"width": 25, "height": 30},
                      {"width": 46, "height": 48}), (
                          "NORTH_SCALE_NEGATIVE_CONTROL_BROKEN")

@@ -110,12 +110,14 @@ public static class NativeHeroCaptureChecks
         Require(rootField!=null&&cameraField!=null,
             "missing native root/camera scale contract");
         for(int cls=0;cls<3;cls++)
+        for(int action=2;action<=3;action++) // Attack + Q/Cast
+        for(int cell=0;cell<6;cell++) // idle, guard, windup, hit, recovery, idle
         {
             app.Game.AppearanceWeapon=cls;
-            app.ProbeAction=2;
+            app.ProbeAction=action;
             app.ProbeFrames=6;
-            app.ProbeFrame=3;
-            app.ProbePosition=3f;
+            app.ProbeFrame=cell;
+            app.ProbePosition=cell;
             Animator.InjectOverscaledHeroOnce=true;
             bool northDraw=(bool)draw.Invoke(app,new object[]{
                 new Point(100,140),new Color(1,1,1,1),false,1,false});
@@ -130,15 +132,16 @@ public static class NativeHeroCaptureChecks
                 cam.transform.localScale.x==1f&&
                 cam.transform.localScale.y==1f&&
                 Math.Abs(cam.orthographicSize-1f)<.0001f,
-                "north Attack Animator magnified "+classes[cls]+" root/camera");
+                "north action Animator magnified "+classes[cls]+
+                " action "+action+" frame "+cell);
             Require(Math.Abs(rect.width-192f)<.0001f&&
                 Math.Abs(rect.height-192f)<.0001f,
-                "north Attack changed "+classes[cls]+" GUI body density");
+                "north action changed "+classes[cls]+" GUI body density");
             Require(ReferenceEquals(current.sprite,
                 Resources.RegisteredSprites[
                     "Frontier/HeroAnimator/Canonical/Hero_"+
-                    classes[cls]+"_Attack_N"][3]),
-                "north Attack lost canonical "+classes[cls]+" contact frame");
+                    classes[cls]+(action==2?"_Attack_N":"_Cast_N")][cell]),
+                "north action lost canonical "+classes[cls]+" source frame");
         }
         Animator.InjectOverscaledHeroOnce=false;
         // Repeat E after W within the SAME frame; it must still reference
