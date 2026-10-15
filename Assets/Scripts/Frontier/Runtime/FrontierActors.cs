@@ -100,13 +100,26 @@ namespace Starfall
         private float publishedVisualRetryAt;
         private void RecoverPublishedVisualAtlases()
         {
-            if (iconSheet != null && effectSheet != null) return;
+            if (iconSheet != null && effectSheet != null &&
+                worldProps != null && fieldProps != null &&
+                terrainSheet != null && terrainVariants != null &&
+                detailSheet != null) return;
             if (clock < publishedVisualRetryAt) return;
             publishedVisualRetryAt = clock + 1f;
             if (iconSheet == null)
                 iconSheet = Resources.Load<Texture2D>("Frontier/Art/Icons");
             if (effectSheet == null)
                 effectSheet = Resources.Load<Texture2D>("Frontier/Art/Effects");
+            if (worldProps == null)
+                worldProps = Resources.Load<Texture2D>("Frontier/Art/WorldProps");
+            if (fieldProps == null)
+                fieldProps = Resources.Load<Texture2D>("Frontier/Art/FieldProps");
+            if (terrainSheet == null)
+                terrainSheet = Resources.Load<Texture2D>("Frontier/Art/Terrain");
+            if (terrainVariants == null)
+                terrainVariants = Resources.Load<Texture2D>("Frontier/Art/TerrainVariants");
+            if (detailSheet == null)
+                detailSheet = Resources.Load<Texture2D>("Frontier/Art/Details");
         }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)
         {

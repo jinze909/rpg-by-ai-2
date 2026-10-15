@@ -111,6 +111,7 @@ namespace Starfall
         private bool WaterSurface(char tile) { return tile == '~' || tile == '%' && Game.save.room == 5 && !Game.LowTide; }
         private void PropImage(string kind, int variant, float x, float y, float w, float h, Color? tint = null)
         {
+            if (worldProps == null) RecoverPublishedVisualAtlases();
             if (DrawFieldProp(kind, variant, x, y, w, h, tint)) return;
             int id = kind == "tree" ? 0 : kind == "house" ? (variant == 1 ? 2 : 1) : kind == "ruin" ? 3 : kind == "lamp" ? 4 : kind == "palm" ? 5 : kind == "snowpine" ? 6 : kind == "lighthouse" ? 7 : -1;
             if (worldProps == null || id < 0) { Image(art.Prop(kind, variant), x, y, w, h, tint); return; }

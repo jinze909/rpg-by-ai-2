@@ -1335,7 +1335,33 @@ public static class RuntimeCombatInputChecks
         Check(attackRestored&&GUI.textureCalls.Exists(t=>
             t.texture.name=="resource:Frontier/Art/Effects"),
             "Authored slash must recover after late Effects.png import");
-        Console.WriteLine("PASS painted Q/F/tea icons, late atlas recovery, independent loot/FX loading and visible pickups");
+        // The exact same import timing bug could turn intricate WorldProps
+        // lamps and signs into the old tiny synthetic PixelArt.Prop images.
+        Set(app,"worldProps",null);
+        Set(app,"publishedVisualRetryAt",0f);
+        GUI.textureCalls.Clear();
+        Call(app,"PropImage","lamp",0,60f,70f,70f,92f,(Color?)null);
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==
+            "resource:Frontier/Art/WorldProps")&&
+            !GUI.textureCalls.Exists(t=>t.texture.name.StartsWith("prop_")),
+            "A restored WorldProps.png did not bring back the detailed lamp");
+
+        // Terrain, road/river variants and FieldProps all share the scene
+        // import lifecycle. Confirm they recover in the actual DrawWorld
+        // entrypoint instead of showing empty tiles until the next restart.
+        Prepare(app,0);
+        foreach(string field in new[]{"terrainSheet","terrainVariants",
+            "detailSheet","fieldProps","worldProps"})
+            Set(app,field,null);
+        Set(app,"publishedVisualRetryAt",0f);
+        GUI.textureCalls.Clear();
+        Call(app,"DrawWorld");
+        foreach(string field in new[]{"terrainSheet","terrainVariants",
+            "detailSheet","fieldProps","worldProps"})
+            Check(typeof(FrontierRuntime).GetField(field,Private)
+                .GetValue(app)!=null,
+                "Detailed original world art did not recover in DrawWorld: "+field);
+        Console.WriteLine("PASS authored combat, skill/stew, loot, lamps, signs, roads and river sprites recover after delayed PNG import");
     }
 
     public static int Main()

@@ -505,6 +505,10 @@ namespace Starfall
         }
         private void DrawWorld()
         {
+            // An incomplete first Editor Resources import must not leave
+            // authored ground, rivers, lamps and signposts as missing/flat
+            // pixels for the remainder of this gameplay session.
+            RecoverPublishedVisualAtlases();
             // An interaction may enter another room between Update and the
             // first IMGUI repaint. Prime the actual viewport BEFORE painting,
             // so a missing chunk never arrives as an opaque block.
