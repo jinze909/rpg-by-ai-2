@@ -25,10 +25,21 @@ namespace Starfall
             DrawActorContactShadow(p,38,14,4+id,.77f);
             bool overlaps = Math.Abs(Game.companionPosition.x - Game.save.x) < .85f && Game.save.y <= Game.companionPosition.y && Game.save.y > Game.companionPosition.y - 1.8f;
             Color tint = overlaps ? new Color(1, 1, 1, .45f) : Color.white;
+            // Companion models ALSO use the complete approved Sprite.
+            // Retire the old five-part HumanActor neck/body reattachment
+            // without changing companion AI, action phase, or facing logic.
             if (Game.companionMoving && action == null && companionWalkSheets[id] != null)
-            { int row=GameCore.DirectionRow(direction);HumanActor(companionWalkSheets[id],4,3,row*4+GameCore.GaitFrame(Game.companionMoveTime,GameCore.WalkStride),p,.75f,tint,row==0&&direction.x<0,companionWalkSheets[id],row*4,true); }
-            else if(south&&action==null&&companionWalkSheets[id]!=null)HumanActor(companionWalkSheets[id],4,3,8,p,.75f,tint,false,companionWalkSheets[id],8,true);
-            else HumanActor(companionSheets[id],3,4,frame,p,.75f,tint,!north&&!(south&&action!=null)&&direction.x<-.1f,companionWalkSheets[id],GameCore.DirectionRow(direction)*4,action==null);
+            {
+                int row=GameCore.DirectionRow(direction);
+                Actor(companionWalkSheets[id],4,3,
+                    row*4+GameCore.GaitFrame(Game.companionMoveTime,GameCore.WalkStride),
+                    p,192f,tint,row==0&&direction.x<0);
+            }
+            else if(south&&action==null&&companionWalkSheets[id]!=null)
+                Actor(companionWalkSheets[id],4,3,8,p,192f,tint,false);
+            else
+                Actor(companionSheets[id],3,4,frame,p,192f,tint,
+                    !north&&!(south&&action!=null)&&direction.x<-.1f);
             Box(p.x - 13, p.y + 1, 26, 3, mint);
         }
         private void DrawHazardWarnings()
