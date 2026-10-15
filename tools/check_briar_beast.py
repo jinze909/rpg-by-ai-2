@@ -85,6 +85,26 @@ def inspect_import(meta):
     ):
         assert marker in meta,("BRIAR_UNSAFE_UNITY_IMPORT_OR_GUID",marker)
 
+def check_release_fence(actor):
+    # Room-1 EnemyPose() used to return the apparent release pose for
+    # timer < .2 while the attack still had NOT dispatched. New authored
+    # contact art must not show before GameCore flips e.state and releaseTime.
+    section=actor.split("int bodyPhase = Math.Min(2, Math.Max(0, e.BossPhase - 1));",1)
+    assert len(section)==2, "BRIAR_MISSING_HP_PHASE_MAPPING"
+    section=section[1].split("Actor(briarBeastSheet, 4, 18, liveCell,",1)
+    assert len(section)==2, "BRIAR_NOT_DRAWING_SELECTED_FRAME"
+    code=section[0]
+    for required in (
+        "e.hitTime > 0 ? 4 :",
+        "e.state == 1 ? 2 : e.releaseTime > 0 ? 3 :",
+        "action == 2 ?",
+        "1f - e.timer / Math.Max(.01f, e.windupDuration)",
+        "action == 3 ? 1f - e.releaseTime / .38f",
+        "int liveCell = (bodyPhase * 6 + action) * 4 + keyframe;",
+    ):
+        assert required in code, ("BRIAR_PREMATURE_HIT_OR_PHASE_MAPPING",required)
+    assert "EnemyPose(e)" not in code, "BRIAR_EARLY_RELEASE_FROM_LEGACY_POSE"
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--allow-unpublished",action="store_true")
@@ -101,6 +121,18 @@ def main():
         "DrawFallen", "BriarBeast",
     ):
         assert marker in actor, ("BRIAR_NOT_LIVE_IN_FRONTIER",marker)
+    check_release_fence(actor)
+    # Negative proof: the precise legacy premature-contact regression must FAIL.
+    changed=actor.replace(
+        "e.state == 1 ? 2 : e.releaseTime > 0 ? 3 :",
+        "e.state == 1 ? 3 : e.releaseTime > 0 ? 2 :",1)
+    assert changed != actor, "BRIAR_NEGATIVE_TEST_TARGET_MISSING"
+    try:
+        check_release_fence(changed)
+    except AssertionError as exc:
+        assert "BRIAR_PREMATURE_HIT_OR_PHASE_MAPPING" in str(exc),exc
+    else:
+        raise AssertionError("BRIAR_CI_FAILED_TO_REJECT_PREMATURE_CONTACT")
     assert INSTALLED.with_suffix(".png.meta").exists(), "BRIAR_UNITY_META_MISSING"
     inspect_import(INSTALLED.with_suffix(".png.meta").read_text())
     if not INSTALLED.exists():
@@ -125,6 +157,7 @@ def main():
         raise AssertionError("BRIAR_VISUAL_CI_ACCEPTED_BLANK_BOSS")
     print("PASS 72 committed complete-body frames; three silhouette-changing Boss phases")
     print("PASS continuity, foot anchor, connectedness, source parity, GUID and negative mutation")
+    print("PASS rejected injected early-hit state transition in live Boss selection")
     print("NATIVE_UNVERIFIED / ART_REVIEW_REQUIRED: no Unity 2022.3.53f1 GameView")
 
 if __name__=="__main__":
