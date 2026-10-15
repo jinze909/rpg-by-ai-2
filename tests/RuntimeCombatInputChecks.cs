@@ -204,21 +204,53 @@ public static class RuntimeCombatInputChecks
     private static void CheckPlayerDrawing(FrontierRuntime app, string sheet, int frame, Point direction, bool head = true)
     {
         GUI.commands.Clear(); GUI.textureCalls.Clear(); GUI.buttonCalls.Clear();
-        Call(app, "DrawPlayerActor");
-        var body = GUI.textureCalls.Find(draw => draw.texture.name.StartsWith("resource:Frontier/Art/")
-            && !draw.texture.name.Contains("Effects") &&
-            // Contact artwork is a preceding, independent ground layer,
-            // never the model's actual animation source.
-            !draw.texture.name.EndsWith("/ActorContactShadows"));
-        Check(body != null && body.texture.name == "resource:Frontier/Art/" + sheet && DrawnFrame(body) == frame,
-            "Actual player rendering must select " + sheet + " frame " + frame);
-        if (head)
+        Call(app,"DrawPlayerActor");
+        int profession=app.Game.AppearanceWeapon;
+        string klass=new[]{"Vanguard","Ranger","Arcanist"}[profession];
+        int facing=GameCore.DirectionRow(direction);
+        int pose=app.Game.PlayerPose;
+        bool locomotion=(pose>=2&&pose<=3)||
+            (app.Game.ActuallyMoving&&
+             app.Game.PlayerMobility==MobilityRule.Reduced&&
+             pose>=4&&pose<=7);
+        int action=locomotion?1:app.Game.HeroAnimationState;
+        string animation=new[]{"Idle","Run","Attack","Cast","Dodge","Hit","Death"}[action];
+        string dir=new[]{"E","N","S"}[facing];
+        bool heavy=!locomotion&&action==2&&(pose==6||pose==7);
+        string prefix="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+            klass+"_"+animation+"_"+dir;
+        var rendered=GUI.textureCalls.Find(draw=>
+            draw.texture.name.StartsWith("resource:Frontier/HeroAnimator/Canonical/Hero_")
+            || draw.texture.name.StartsWith("resource:Frontier/Art/Player")
+            || draw.texture.name.StartsWith("resource:Frontier/Art/Walk"));
+        Check(rendered!=null,"Game world must render a visible full-body hero");
+        if(!heavy)
         {
-            var identity = GUI.textureCalls.Find(draw => draw.texture.name == "resource:Frontier/Art/WalkVanguard");
-            Check(identity != null && DrawnFrame(identity) == GameCore.DirectionRow(direction) * 4,
-                "Equipment and action transitions keep the canonical head and its facing source");
+            Check(rendered.texture.name==prefix,
+                "Production player used another class/animation/facing: expected "+prefix+
+                " actual "+rendered.texture.name);
+            int authored=locomotion?4:app.Game.HeroAnimationFrameCount(facing);
+            bool expanded=action>=1&&action<=5&&authored>1;
+            int count=expanded?2*authored-(action==1?0:1):authored;
+            float progress=locomotion?app.Game.WalkPosePhase:
+                app.Game.HeroAnimationPlaybackPosition(facing);
+            progress*=expanded?2f:1f;
+            if(action==1)progress%=count;
+            int expected=Math.Max(0,Math.Min(count-1,(int)Math.Floor(progress+.20f)));
+            Check(DrawnFrame(rendered)==expected,
+                "Full-body frame must match authoritative release/dash/death clock");
         }
-        // These checks validate source selection, not anatomy or user art acceptance.
+        else
+            Check(rendered.texture.name=="resource:Frontier/Art/"+sheet&&
+                DrawnFrame(rendered)==frame,
+                "Unbaked heavy combo must retain approved authored whole-body frame");
+        Check(Math.Abs(rendered.rect.width-192)<.01f&&
+            Math.Abs(rendered.rect.height-192)<.01f,
+            "Full-body pixel density must stay identical in every state");
+        var parts=GUI.textureCalls.FindAll(t=>t.texture.name==
+            "resource:Frontier/Art/WalkVanguard");
+        Check(parts.Count==0,
+            "The real hero must never draw a separate warrior head/neck overlay");
     }
 
     private static void BeginCrossEquippedQ(FrontierRuntime app, int equipped, Point direction)
@@ -619,46 +651,38 @@ public static class RuntimeCombatInputChecks
 
     private static void RealMovingSpellCompositesAndBossFrames(FrontierRuntime app)
     {
+        // Moving recovery now uses COMPLETE class walk frames, never a
+        // synthetic torso glued to independently generated gait legs.
         foreach(int vocation in new[]{1,2})
         {
             Prepare(app,vocation);app.Game.enemies.Clear();
             Input.keys.Add(KeyCode.Q);Update(app);Frames(app,22);
             var g=app.Game;
             Check(g.playerAction!=null&&g.PlayerPhase==ActionPhase.Recovery,
-                "Original spell Q must release true damage before any leg blend");
-            Input.axes["Horizontal"]=1;
-            Input.held.Add(KeyCode.D);
-            Update(app);
-            Check(g.ActuallyMoving&&g.PlayerPose==7&&
-                g.PlayerMobility==MobilityRule.Reduced,
-                "Moving cast holds original upper-body release while walking legs progress");
+                "Actual Q must release real damage before movement recovery");
+            Input.axes["Horizontal"]=1;Input.held.Add(KeyCode.D);Update(app);
+            Check(g.ActuallyMoving&&g.PlayerMobility==MobilityRule.Reduced,
+                "Released spell recovery must still allow gameplay movement");
             GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
-            string identity=vocation==1?"Ranger":"Arcanist";
-            Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith(
-                "FullBodyGait_Class"+vocation+"_")&&
-                t.texture.name.Contains("Player"+identity)&&
-                !t.texture.name.Contains("WalkVanguard")&&
-                t.texture.width==256&&t.texture.height==256),
-                "Actual moving spell must use ONE profession-owned whole-body source");
+            string klass=vocation==1?"Ranger":"Arcanist";
             Check(GUI.textureCalls.Exists(t=>t.texture.name==
-                "resource:Frontier/Art/WalkVanguard"),
-                "Moving spells must preserve the same original blonde head across all outfits");
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"+klass+"_Run_E"),
+                "A moving skill must show fully authored same-class Run body");
+            Check(!GUI.textureCalls.Exists(t=>t.texture.name.StartsWith(
+                "FullBodyGait_")||t.texture.name.Contains("/WalkVanguard")),
+                "Runtime cannot construct moving spell torso/leg or head joins");
         }
-        // A regular sword attack is still fully authored during its forced
-        // forward lunge. Only after the real contact enters moving recovery
-        // may its release torso be combined with actual distance-driven legs.
         Prepare(app,0);
         var blade=app.Game;blade.Attack(new Point(1,0));Frames(app,14);
         Check(blade.PlayerPhase==ActionPhase.Recovery&&!blade.ActuallyMoving,
-            "The mature sword lunge is intact through real attack contact");
+            "Sword contact/damage time remains owned by GameCore");
         Input.axes["Horizontal"]=1;Input.held.Add(KeyCode.D);Update(app);
-        Check(blade.ActuallyMoving&&blade.PlayerMobility==MobilityRule.Reduced&&
-            blade.PlayerPose==5,
-            "Sword release has distinct moving recovery with authored upper frame");
+        Check(blade.ActuallyMoving&&blade.PlayerMobility==MobilityRule.Reduced,
+            "Sword recovery must retain gameplay locomotion");
         GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
-        Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith("FullBodyGait_Class0_")&&
-            t.texture.name.Contains("PlayerVanguard")),
-            "Sword recovery must deform the Vanguard whole-body action only");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==
+            "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_Run_E"),
+            "Moving sword recovery must render whole Vanguard stride, no splice");
         Prepare(app,0);
         var player=app.Game;
         player.enemies.Clear();
