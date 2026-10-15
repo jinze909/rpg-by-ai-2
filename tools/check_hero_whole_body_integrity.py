@@ -53,9 +53,33 @@ def _body_features(sprite):
     return centre(top), centre(hip), gap(top, hip), len(top), len(hip)
 
 
+def _assert_single_source_palette(image, baseline, key, index):
+    # Palette provenance is more reliable than comparing the gold/brown colors
+    # by eye; class armor may share some colors, but arbitrary foreign shades
+    # can never be introduced by a whole-body single-source deformation.
+    unauthorized = set(image.getdata()) - (
+        set(baseline.getdata()) | {(0, 0, 0, 0)})
+    assert not unauthorized, ("CROSS_CLASS_PALETTE", key, index,
+                              len(unauthorized))
+
+
+def _assert_no_new_waist_cut(image, baseline, key, index):
+    # Compare occupancy by row rather than by x-only centroids. A perfectly
+    # horizontal blank waist strip used to evade the earlier x-gap metric.
+    a, b = image.load(), baseline.load()
+    for y in range(207, 230):
+        reference = sum(b[x, y][3] >= 36 for x in range(92, 165))
+        if reference < 6:
+            continue  # accepted low crouch / side posture is an exception
+        now = sum(a[x, y][3] >= 36 for x in range(92, 165))
+        assert now >= 3, ("NEW_WAIST_PIXEL_CUT", key, index, y,
+                           now, reference)
+
+
 def _verify_waist_and_ratio(image, reference, key, index):
     a = _body_features(image)
     b = _body_features(reference)
+    _assert_no_new_waist_cut(image, reference, key, index)
     # Very low/prone silhouettes may not traverse both upright scan bands.
     # Detect NEW holes where an approved source was continuous, rather than
     # falsely rejecting established death/dodge/recoil reference poses.
@@ -76,7 +100,52 @@ def _verify_waist_and_ratio(image, reference, key, index):
         "BODY_HEIGHT_RATIO", key, index, bounds, baseline)
 
 
+def _negative_guard_tests():
+    # Prove that a garbled seam/palette would actually FAIL the same gate.
+    original = Image.new("RGBA", (CELL, CELL))
+    px = original.load()
+    for y in range(195, 238):
+        for x in range(108, 148):
+            px[x, y] = (78, 46, 24, 255)
+    bad_palette = original.copy()
+    p = bad_palette.load()
+    for y in range(222, 235):
+        for x in range(108, 148):
+            p[x, y] = (0, 220, 221, 255)  # foreign class material
+    try:
+        _assert_single_source_palette(bad_palette, original, "synthetic", 0)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("Palette gate falsely accepted foreign-class pants")
+    blank_cut = original.copy()
+    p = blank_cut.load()
+    for y in range(215, 221):
+        for x in range(108, 148):
+            p[x, y] = (0, 0, 0, 0)
+    try:
+        _assert_no_new_waist_cut(blank_cut, original, "synthetic", 0)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("Waist gate falsely accepted a detached torso")
+    displaced_hip = original.copy()
+    p = displaced_hip.load()
+    for y in range(218, 238):
+        for x in range(92, 173):
+            p[x, y] = (0, 0, 0, 0)
+        for x in range(145, 173):
+            p[x, y] = (78, 46, 24, 255)
+    try:
+        _verify_waist_and_ratio(displaced_hip, original, "synthetic", 0)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("Body proportions gate accepted displaced pelvis")
+
+
 def audit(atlas_dir=OUT, preview_dir=PREVIEW):
+    _negative_guard_tests()
     manifest = json.loads((atlas_dir / "manifest.json").read_text(encoding="utf-8"))
     audit_rows = []
     checked_frames = 0
@@ -103,11 +172,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                     # candidate midpoint. The one deliberately shared golden
                     # head was composited BEFORE this contract.
                     if expanded and index % 2 == 1:
-                        candidate_palette = set(cropped.getdata())
-                        authorized = set(baseline.getdata()) | {(0, 0, 0, 0)}
-                        assert candidate_palette <= authorized, (
-                            "CROSS_CLASS_PALETTE", key, index,
-                            len(candidate_palette - authorized))
+                        _assert_single_source_palette(cropped, baseline, key, index)
                     else:
                         assert cropped.tobytes() == baseline.tobytes(), (
                             "ACCEPTED_FULL_BODY_CHANGED", key, index)
