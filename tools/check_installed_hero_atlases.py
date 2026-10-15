@@ -18,7 +18,7 @@ from install_canonical_hero_atlases import ASSETS
 
 def check():
     manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "class_owned_full_body_run_and_source_curated_transitions_pending_art_review"
+    assert manifest["status"] == "all_279_cells_from_unmodified_approved_full_body_source_art"
     assert manifest["top_origin_foot_px"] == [128, 240]
     assert manifest["unity_bottom_origin_pivot"] == [0.5, 0.0625]
     expected = {
