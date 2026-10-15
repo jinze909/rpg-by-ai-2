@@ -69,7 +69,7 @@ namespace UnityEditor
     {
         public TextureImporterType textureType;
         public SpriteImportMode spriteImportMode;
-        public int spritePixelsPerUnit;
+        public float spritePixelsPerUnit;
         public FilterMode filterMode;
         public bool mipmapEnabled,alphaIsTransparency;
         public TextureImporterCompression textureCompression;
