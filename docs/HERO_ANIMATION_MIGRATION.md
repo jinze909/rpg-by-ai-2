@@ -272,3 +272,47 @@ builds) and remains `NATIVE_UNVERIFIED`, as the current runner does
 not have licensed Unity 2022.3.53f1 PlayMode/GPU screenshot evidence.
 Do NOT describe CI/raster metrics as visually perfect animation or
 silently make an unverified capture the default.
+
+## 2026-10-15 — Published whole-body E-attack / E-cast phase replacement
+
+Real visual diagnosis of `Hero_Vanguard_Cast_E`,
+`Hero_Ranger_Attack_E` and `Hero_Arcanist_Run_E` revealed
+mechanically generated intermediate frames that were visually nearly
+indistinguishable from earlier keys despite passing numerical
+"non-identical" tests. Expanding a sheet was not sufficient to
+establish animation quality.
+
+First scoped source-art remediation: for ALL THREE professions and
+both E-direction Attack and Cast, use existing independently
+artist-drawn `Player<profession>:2` as the *entry/weight-shift* body
+at expanded slot 1, and `Player<profession>:3` as the
+*recovery/step* body at slot 5. These are complete pre-existing
+illustrations from the CURRENT class, including actual torso,
+weapon, hands, feet, outfit and blonde head, not mechanical limb
+motion generated from the adjacent frame. Slots 0,2,4,6 preserve
+every original authored action key pixel-for-pixel, including the
+true GameCore damage-release contact at slot 4. The intermediate
+slot 3 is still algorithmic: pending newly painted key art.
+Twelve distinct pose cells in six production sheets are upgraded,
+and the exporter records every approved image's exact source
+in `curated_full_body_slots`.
+
+Both the exporter and the independent visual-integrity gate
+verify their exact underlying class-owned art pixels and their
+256x256 dimensions before publishing. CI also enforces 9
+class/direction state boundary contracts and real-player
+inventory previews at 104px using the same published full-body
+golden-head identity.
+
+The Unity Editor builder cannot fall back to its old
+`ExpandWithInbetweens/MotionMidpoint` limb algorithm when a
+published sheet is missing. It fails loudly instead; all art must
+arrive through the guarded `[publish-hero-art]` path. This
+preserves GUIDs and avoids silently resurrecting shaky or
+noncanonical sprites in the real `Frontier.unity` build.
+
+IMPORTANT: This is approved-existing-keypose reuse, not a claim
+of new artist-drawn frames or third-stage animation perfection.
+Other directions and reaction transitions still need genuine
+artist review and, where necessary, additional full-body art.
+Native Unity Editor/GameView remains NATIVE_UNVERIFIED.
