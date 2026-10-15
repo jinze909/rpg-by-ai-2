@@ -33,6 +33,12 @@ def inspect(image):
         for i,(a,b) in enumerate(zip(this,this[1:])):
             changed=ImageChops.difference(a,b)
             assert changed.getbbox() is not None, ("MOSSBOUND_FROZEN_ACTION",action,i)
+            first=a.getchannel("A").getbbox()
+            second=b.getchannel("A").getbbox()
+            center=lambda box: ((box[0]+box[2])*.5,(box[1]+box[3])*.5)
+            x0,y0=center(first);x1,y1=center(second)
+            assert ((x0-x1)**2+(y0-y1)**2)**.5 <= 36, (
+                "MOSSBOUND_SEVERE_FRAME_TRANSLATION",action,i,first,second)
     assert len({hashlib.sha256(f.tobytes()).digest() for f in frames})==24, (
         "MOSSBOUND_CROSS_ACTION_FRAME_REUSE")
     return frames
@@ -59,7 +65,15 @@ def main():
     inspect(actual)
     assert actual.tobytes() == expected.tobytes(), (
         "MOSSBOUND_SHIPPED_ASSET_DIFFERS_FROM_AUTHORED_SOURCE")
+    # Git must contain the actual PNG, not a 132-byte LFS pointer. Its
+    # importer GUID and .gitattributes exception are permanent scene inputs.
+    assert INSTALLED.stat().st_size>1024, "MOSSBOUND_LFS_POINTER_OR_TRUNCATION"
+    attrs=(ROOT/".gitattributes").read_text()
+    assert "/Assets/Resources/Frontier/Art/MossboundRaider.png -filter -diff -merge" in attrs, (
+        "MOSSBOUND_BINARY_NOT_EXEMPTED_FROM_LFS")
     meta=INSTALLED.with_suffix(".png.meta").read_text()
+    assert "guid: 7cc097e40cd34f268b3d98217681c051" in meta, (
+        "MOSSBOUND_UNITY_GUID_CHANGED")
     for required in ("enableMipMap: 0","filterMode: 0",
                      "textureCompression: 0","isReadable: 1"):
         assert required in meta, ("MOSSBOUND_BAD_UNITY_IMPORT",required)

@@ -33,6 +33,13 @@
 - **CI:** the original committed PNGs are byte-checked before regeneration; check_hero_directional_action_bridges.py rejects 12 injected legacy walking frames and emits 12 labeled before/after comparisons into the visual-sprite-qa artifact. One-time publishing tolerance is retired.
 - **Still missing:** 18 original central contact paintings, distinct upward-facing Cast drawings, natural planted-to-moving recovery, and Unity 2022.3.53f1 native GameView verification (ART_REVIEW_REQUIRED / NATIVE_UNVERIFIED).
 
+## Phase 2 real asset milestone — 2026-10-15
+
+- **Published original nonhero art:** `Assets/Resources/Frontier/Art/MossboundRaider.png` (24 distinct 128×128 whole-body cells, 4 frames each for Idle/Walk/Windup/Attack/Hit/Death). Pillow-authored via `tools/generate_mossbound_raider.py`, not a foundation-model generated image; Git blob publication commit `08f307e8a6a44c4b455b0a8545dc851a2c91e9ee`.
+- **Live runtime:** `FrontierActors.DrawEnemyActor` selects action cells for ordinary melee kind 0 using the actual `Enemy` move distance, windup, release and hit timers. `DrawFallen` selects the authored death progression. Existing sprite-renderer actor bridge draws the source cells; older monster art remains only a fallback if a resource is unavailable.
+- **Release-blocking CI:** `tools/check_mossbound_raider.py` checks every committed art cell, source-code raster equality, framing, duplicate frames, severe pose translation, real production reference, PNG importer GUID and negative mutation. It is a deterministic check, **not art direction sign-off**.
+- **Incomplete:** 2 other normal enemy types, 8 Boss identities, other NPCs/companions, Boss stages and world terrain/environment remain to be migrated or redrawn. Animator controllers for individual nonhero action families still need native publishing. **ART_REVIEW_REQUIRED / NATIVE_UNVERIFIED.**
+
 ## Unfinished / do not claim solved
 
 1. Produce **18 genuinely new** original complete-body Attack/Cast contact poses: 3 equipment classes × 2 actions × 3 facings. Do not use mirrored repeats, procedural interpolations, frame multiplication or merely updated timing to impersonate new drawings. The all-or-none publication gate must fail partial releases.

@@ -91,6 +91,7 @@ jobs:
             .starfall-checks/hero-runtime-qa/
             .starfall-checks/hero-committed-qa/
             .starfall-checks/hero-gameplay-traces/
+            .starfall-checks/phase2-mossbound/
           if-no-files-found: ignore
           retention-days: 14
 
