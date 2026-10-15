@@ -44,10 +44,12 @@ def expected_count(action, original, authored_contacts=False):
 def curated_motion_source(profession, action, facing, source_index):
     """Explicit artist-drawn FULL-BODY phase, not a warped duplicate.
 
-    Approved Player<Class> 2/3 are the actual planted/preparation and
-    recovering step poses for East-facing attacks and skills. Both frames
-    carry the SAME character, equipment, waist, legs, ground root and hair
-    as the four corresponding approved action source poses.
+    The east-facing source uses verified Player<Class> planted action
+    poses; north/south use class-owned standing guard from the approved
+    reaction source rather than walking strides. The guard remains one
+    unchanged, head-to-foot authored body with the same costume and Pivot.
+    Bracketing one contact with a reused guard is an honest source-pose
+    hold, NOT a claim of independently painted interpolation.
     """
     if action in ("Dodge", "Hit") and source_index in (0, 1):
         # The approved guard/plant stance is a TRUE whole-body drawing
@@ -65,10 +67,20 @@ def curated_motion_source(profession, action, facing, source_index):
     if action in ("Attack", "Cast") and source_index in (0, 2):
         if facing == "E":
             return ("Player" + profession, 2 if source_index == 0 else 3)
-        if facing == "N":
-            return ("Walk" + profession, 4 if source_index == 0 else 6)
-        if facing == "S":
-            return ("Walk" + profession, 9 if source_index == 0 else 11)
+        if facing in ("N", "S"):
+            # Root cause of the 1–2-frame old-body flash: this slot used
+            # WALK stride cells 4/6 or 9/11, even during a stationary LMB/Q
+            # windup or recovery. It replaced a fully planted casting body
+            # with one-legged travelling silhouettes for a single Sprite
+            # frame, then snapped back at the real hit. The same class's
+            # EXISTING approved, rooted full-body guard is a real authored
+            # standing pose; bracket contact with it instead of a walk pose.
+            # This is NOT a new in-between and does not resolve missing
+            # original mid-contact paintings or moving-recovery foot sliding.
+            cls = CLASSES.index(profession)
+            sheet = ("PlayerReactionsRear" if facing == "N"
+                     else "PlayerReactionsSouth")
+            return (sheet, cls * 4 + 1)
     return None
 
 

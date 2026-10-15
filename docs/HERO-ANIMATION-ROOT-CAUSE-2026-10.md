@@ -45,3 +45,57 @@ Every production frame: 256×256 RGBA; foot at (128,240) in top-origin pixels; U
 - Pending: hand/weapon/grip, bow release axis, casting arm motion and all action-entry/exit artistic review in the **real** Unity 2022.3.53f1 scene, including three-class swap, moving skills, hit and death.
 - Pending: genuinely new full-body Attack/Cast **moving-recovery** body art to stop root-translation foot sliding without sacrificing existing collision, damage timing or mobility. The current locked pose fixes body tearing but is not visually motion-complete.
 - Pending: Unity Editor native PlayMode, the production-scene PlayMode test, GPU RenderTexture alpha, Animator clip/override correctness and frame pacing. **NATIVE_UNVERIFIED**; code coverage and GitHub Actions cannot substitute for executed GameView inspection.
+
+
+## 2026-10-15 targeted north/south LMB and Q visual-flash diagnosis
+
+**Confirmed root cause in actual published production PNGs:** The
+\`tools/export_canonical_hero_atlases.py\` \`curated_motion_source\` logic
+inserted a movement pose from \`Walk<Class>\` at **production cell 1**
+(preparation) and **cell 4** (recovery) for north/south Attack and Cast.
+That is 3 outfits × 2 actions × 2 facings × 2 cells = **24 visible
+walking-body flashes** in 12 shipped six-cell animation atlases.
+Example: \`Hero_Vanguard_Attack_N\` originally ran
+\`PlayerVanguard:1 → WalkVanguard:4 → PlayerRear:2 →
+PlayerRear:3 → WalkVanguard:6 → PlayerVanguard:1\`.
+Those stride poses have moving legs and different waist/weapon contours
+from the otherwise planted strike: they create a momentary 1–2-frame
+old-action flash, despite correct whole-body runtime rendering.
+
+**Production repair:** The two incompatible Walk source slots for every
+N/S Attack and Cast are replaced with **the same outfit's existing,
+artist-authored complete-body standing guard** from
+\`PlayerReactionsRear/South\`, index \`profession×4+1\`.
+The sequence is now genuinely **Idle → planted guard → action windup →
+contact → planted guard → Idle**, without cut-and-paste heads, warped
+legs, forced fake interpolation or modified hitboxes. Using a planted
+guard at two non-adjacent moments is an intentional stance return; it
+is **not 24 newly painted frames** and must not be marketed as such.
+
+**Contact timing:** The existing six-cell phase selector had a
+\`Math.Min(2f, ...)\` limit; detailed inspection confirmed it normally
+already prevented drawing cell 3 before GameCore release. A separate
+hard cap keyed on \`ActorAction.released\` has been added as defensive
+protection against future interpolation changes and seven-cell
+releases. **Do not call a premature-hit flash a proven former runtime
+bug**; the confirmed visible source was the walking frames inserted by
+the asset exporter.
+
+**Regression coverage:** A committed-resource verifier independently
+checks the real 12 PNGs before regeneration; the directional checker
+enforces class-owned source pixels for cells 1/4, compares their exact
+approved source hashes, rejects an intentionally reinserted old Walk
+frame and emits before/after filmstrips. Runtime test cases exercise
+108 actual North/South LMB/Q first, last-windup and real-release
+draw samples across skill vocations and equipped appearances. The
+Animation Editor builder imports the published sheets; Unity Editor
+2022.3.53f1 GameView and hand/shoulder/foot aesthetics remain
+**NATIVE_UNVERIFIED / ART_REVIEW_REQUIRED** until run by a real editor.
+
+**Remaining limitation:** North-facing normal Attack and Q currently
+reuse the same underlying \`PlayerRear\` central windup/contact drawings.
+Distinct, genuinely drawn backward-facing spell/bow versus melee motions
+and the 18 new Attack/Cast middle-contact paintings are still absent.
+The root-moving recovery foot-skate limitation remains. This repair
+removes a confirmed old walking-body flash; it does not mean all
+directional animation art is naturally continuous or finished.
