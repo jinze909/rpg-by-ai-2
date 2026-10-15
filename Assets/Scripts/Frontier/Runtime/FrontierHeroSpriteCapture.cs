@@ -26,6 +26,11 @@ namespace Starfall
         // Only Sprite sub-rect wrappers belong to us; Resources owns textures.
         private readonly Dictionary<string, Sprite[]> heroPublishedSprites =
             new Dictionary<string, Sprite[]>();
+        // SpriteImporter already owns most canonical Sprite sub-assets.
+        // NEVER Object.Destroy an imported Resources Sprite. Only the rare
+        // legacy fallback wrappers we explicitly Sprite.Create are ours.
+        private readonly HashSet<Sprite> heroOwnedPublishedSprites =
+            new HashSet<Sprite>();
         private readonly HashSet<string> heroPublishedUnavailable =
             new HashSet<string>();
         // An imported Animator can exist while its override still references
@@ -229,13 +234,53 @@ namespace Starfall
                         Debug.LogWarning("Starfall rejected incompatible hero sheet: " + key);
                     return false;
                 }
-                cells = new Sprite[expectedFrames];
-                for (int i = 0; i < cells.Length; i++)
-                    cells[i] = Sprite.Create(atlas,
-                        new Rect(i * HeroCell, 0, HeroCell, HeroCell),
-                        CanonicalHeroSpriteFactory.FootPivot,
-                        CanonicalHeroSpriteFactory.PixelsPerUnit, 0,
-                        SpriteMeshType.FullRect);
+                // Prefer the EXACT shipped imported Sprite sub-assets used
+                // by Production Animator clips. Duplicating every cell with
+                // Sprite.Create on GPU-only (isReadable=0) atlases previously
+                // obscured native asset identity and created extra wrappers.
+                // NEVER depend on Resources.LoadAll return ordering: assert
+                // every source rect/pivot/PPU/class texture independently.
+                string resource = "Frontier/HeroAnimator/Canonical/" + key;
+                Sprite[] imported = Resources.LoadAll<Sprite>(resource);
+                Sprite[] candidates = new Sprite[expectedFrames];
+                int matched = 0;
+                foreach (Sprite candidate in imported)
+                {
+                    if (candidate == null || candidate.texture != atlas ||
+                        Mathf.Abs(candidate.rect.y) > .05f ||
+                        Mathf.Abs(candidate.rect.width - HeroCell) > .05f ||
+                        Mathf.Abs(candidate.rect.height - HeroCell) > .05f ||
+                        Mathf.Abs(candidate.pixelsPerUnit -
+                            CanonicalHeroSpriteFactory.PixelsPerUnit) > .05f ||
+                        Vector2.Distance(candidate.pivot,
+                            new Vector2(CanonicalHeroSpriteFactory.FootX,
+                                HeroCell - CanonicalHeroSpriteFactory.FootTop)) > .05f)
+                        continue;
+                    int index = Mathf.RoundToInt(candidate.rect.x / HeroCell);
+                    if (index < 0 || index >= expectedFrames ||
+                        Mathf.Abs(candidate.rect.x - index * HeroCell) > .05f ||
+                        candidates[index] != null) continue;
+                    candidates[index] = candidate;
+                    matched++;
+                }
+                if (matched == expectedFrames)
+                    cells = candidates; // Shared Unity-owned imported assets.
+                else
+                {
+                    // Controlled whole-frame fallback, not limb synthesis.
+                    // Keep ownership of ONLY these new Sprite wrappers, and
+                    // never destroy a shared Texture2D from Resources.
+                    cells = new Sprite[expectedFrames];
+                    for (int i = 0; i < cells.Length; i++)
+                    {
+                        cells[i] = Sprite.Create(atlas,
+                            new Rect(i * HeroCell, 0, HeroCell, HeroCell),
+                            CanonicalHeroSpriteFactory.FootPivot,
+                            CanonicalHeroSpriteFactory.PixelsPerUnit, 0,
+                            SpriteMeshType.FullRect);
+                        heroOwnedPublishedSprites.Add(cells[i]);
+                    }
+                }
                 heroPublishedSprites.Add(key, cells);
             }
             if (frame < 0 || frame >= cells.Length) return false;
@@ -350,8 +395,10 @@ namespace Starfall
             // textures which can be referenced by other game systems.
             foreach (Sprite[] cells in heroPublishedSprites.Values)
                 foreach (Sprite sprite in cells)
-                    if (sprite != null) Destroy(sprite);
+                    if (sprite != null && heroOwnedPublishedSprites.Remove(sprite))
+                        Destroy(sprite);
             heroPublishedSprites.Clear();
+            heroOwnedPublishedSprites.Clear();
             heroPublishedUnavailable.Clear();
             heroRejectedNativeClips.Clear();
             if (heroCaptureCamera != null) heroCaptureCamera.targetTexture = null;

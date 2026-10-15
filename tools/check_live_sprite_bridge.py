@@ -146,12 +146,18 @@ def check():
             assert item in source, ("NATIVE_PRODUCTION_SCENE_COVERAGE_LOST",item)
         assert "Assert.Ignore(" not in source, (
             "NATIVE_ANIMATOR_MISSING_MUST_NOT_BE_IGNORED")
-    check_native_scene_contract(native_qa)
+    # The first scene-only test and the newer full action test both load
+    # Frontier.unity. Mutating the entire file is invalid: the OTHER good
+    # test can hide that the test under mutation was deliberately destroyed.
+    intro_start = native_qa.index("public IEnumerator ProductionFrontierSceneUsesTheLiveThreeClassHeroPath()")
+    intro_end = native_qa.index("public IEnumerator ActualFrontierSceneAttackAndSkillContactFramesKeepOneBody()")
+    native_intro = native_qa[intro_start:intro_end]
+    check_native_scene_contract(native_intro)
     for item in ("EditorSceneManager.LoadSceneInPlayMode(",
                  "Assert.IsTrue((bool)mode.GetValue(app)",
                  "Assert.AreSame(atlas, renderer.sprite.texture,"):
         try:
-            check_native_scene_contract(native_qa.replace(
+            check_native_scene_contract(native_intro.replace(
                 item, "/* intentionally corrupted native path */", 1))
         except AssertionError:
             pass
