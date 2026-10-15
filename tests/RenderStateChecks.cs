@@ -599,10 +599,29 @@ public static class RenderStateChecks
         try { property.SetValue(app,null,null);Draw(app);Same(GUI.matrix,matrix,"Boot error path cannot leak a scaled matrix");Same(GUI.color,color,"Boot error path cannot leak white tint");Check(!GUI.enabled,"Boot error path cannot enable another UI"); }
         finally {property.SetValue(app,game,null);}
     }
+    // These cases previously disagreed across terrain shading, foam and
+    // river shimmer: Farshore walkable low tide still looked underwater.
+    private static void TideVisualSurfaceConsistency()
+    {
+        var water=typeof(FrontierRuntime).GetMethod("IsSurfaceWater",
+            BindingFlags.NonPublic|BindingFlags.Static);
+        Check(water!=null,"Single visual tide classifier missing");
+        Check((bool)water.Invoke(null,new object[]{'~',5,true}),
+            "Deep water remains water during low tide");
+        Check((bool)water.Invoke(null,new object[]{'%',5,false}),
+            "Farshore high tide must display water");
+        Check(!(bool)water.Invoke(null,new object[]{'%',5,true}),
+            "Walkable low tide cannot show waves or ocean foam");
+        Check(!(bool)water.Invoke(null,new object[]{'%',4,false}),
+            "Other regions' dry ground cannot acquire tide shimmer");
+        Check(!(bool)water.Invoke(null,new object[]{'=',5,false}),
+            "Road cannot accidentally receive water animation");
+        Console.WriteLine("PASS actual shared surface-water decision across low/high tide");
+    }
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

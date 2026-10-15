@@ -9,11 +9,18 @@ namespace Starfall
         {
             int room = Game.save.room;
             if (tile == '~') return 8;
-            if (tile == '%') return Game.save.room == 5 && !Game.LowTide ? 8 : 13;
+            if (tile == '%') return IsSurfaceWater(tile,room,Game.LowTide) ? 8 : 13;
             if (tile == '#') return room == 3 || room == 6 ? 10 : room == 7 ? 14 : 9;
             if (room == 9) return 11;
             if (tile == '=') return room == 5 ? 11 : room == 6 ? 2 : room == 3 ? 6 : room == 4 ? 12 : room == 8 ? 7 : room == 2 ? 15 : 3;
             return room == 1 ? 1 : room == 2 ? 15 : room == 3 ? 6 : room == 4 ? 12 : room == 5 ? 13 : room == 6 ? 4 : room == 7 ? 5 : room == 8 ? 7 : 0;
+        }
+        // All water FX must agree with the SAME actual tide state used
+        // for tile visuals and traversal. Percent cells turn into walkable
+        // land at low tide, so neither foam nor shimmer may appear there.
+        private static bool IsSurfaceWater(char tile,int room,bool lowTide)
+        {
+            return tile=='~'||(tile=='%'&&room==5&&!lowTide);
         }
         private static int TileSeed(int x, int y, int room)
         { unchecked { int n = x * 73856093 ^ y * 19349663 ^ (room + 1) * 83492791; return n & 0x7fffffff; } }
@@ -45,7 +52,7 @@ namespace Starfall
             if(terrainAccentRemaster==null||tile=='#'||tile=='f'||
                 tile=='v'||tile=='w'||tile=='b'||seed%7!=0)return;
             int region=Game.save.room;
-            int row=tile=='~'||tile=='%'&&region==5&&!Game.LowTide?3:
+            int row=IsSurfaceWater(tile,region,Game.LowTide)?3:
                 region==7?1:region==3||region==6||tile=='='?2:
                 region==5?3:region==0||region==1?0:2;
             int variant=(seed/7)%4;
@@ -62,12 +69,12 @@ namespace Starfall
             string row=Game.Map.rows[y];
             if(x<0||x>=row.Length)return true;
             char tile=row[x];
-            return tile=='~'||tile=='%'&&Game.save.room==5&&!Game.LowTide;
+            return IsSurfaceWater(tile,Game.save.room,Game.LowTide);
         }
         private void DrawRemasteredCoastline(int x,int y,char tile,Point p,int seed)
         {
             if(coastlineRemaster==null||
-                !(tile=='~'||tile=='%'&&Game.save.room==5&&!Game.LowTide))return;
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))return;
             int variant=(seed/11)%4;
             Rect area=new Rect(p.x,p.y,Tile,Tile);
             Color tide=new Color(1,1,1,Game.save.room==7?.77f:.88f);
@@ -95,7 +102,7 @@ namespace Starfall
             if(region<0||region>7||(x<36&&y<24))return;
             if(tile=='#'||tile=='f'||tile=='v'||tile=='w'||tile=='b')return;
             int patch=TileSeed(x/5,y/5,region),individual=PreparedTileSeed(x,y);
-            if(tile=='~'||tile=='%')
+            if(IsSurfaceWater(tile,region,Game.LowTide))
             {
                 // A deterministic waterline shimmer is optional animation,
                 // without any changing collision or procedural tile creation.
