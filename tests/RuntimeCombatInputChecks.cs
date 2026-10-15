@@ -295,7 +295,8 @@ public static class RuntimeCombatInputChecks
         foreach(int vocation in new[]{0,1,2})
         foreach(int equipment in new[]{0,1,2})
         foreach(int command in new[]{0,1})
-        foreach(Point aim in new[]{new Point(0,-1),new Point(0,1)})
+        foreach(Point aim in new[]{new Point(1,0),new Point(-1,0),
+                                   new Point(0,-1),new Point(0,1)})
         {
             Prepare(app,vocation);
             GameCore g=app.Game;
@@ -339,9 +340,9 @@ public static class RuntimeCombatInputChecks
             CheckPlayerDrawing(app,"",0,aim);
             audited++;
         }
-        Check(audited==108,"All 108 north/south LMB/Q first/late/release "
+        Check(audited==216,"All 216 E/W/N/S LMB/Q first/late/release "
             +"frame probes must execute");
-        Console.WriteLine("PASS 108 north/south LMB/Q first, last windup "
+        Console.WriteLine("PASS 216 E/W/N/S LMB/Q first, last windup "
             +"and real released contact frames retain one whole-body identity");
     }
 
