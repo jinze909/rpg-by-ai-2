@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -252,5 +252,48 @@
       ]
     },
     "review_only": "Non-identical inbetween counts validate raster motion, not anatomical quality or authored keyframes"
+  },
+  "full_body_source_contract": {
+    "canonical_protagonist": "Same approved golden-haired hero in every outfit; identity source exception is face/hair only, never torso or equipment",
+    "body_sources": {
+      "Vanguard": [
+        "PlayerVanguard",
+        "WalkVanguard"
+      ],
+      "Ranger": [
+        "PlayerRanger",
+        "WalkRanger"
+      ],
+      "Arcanist": [
+        "PlayerArcanist",
+        "WalkArcanist"
+      ]
+    },
+    "shared_directional_body_sources": [
+      "PlayerRear",
+      "PlayerSouth",
+      "PlayerReactionsRear",
+      "PlayerReactionsSouth"
+    ],
+    "shared_row_owner": "frame_index // 4 must equal zero-based profession index",
+    "shared_golden_head_only": {
+      "source": "WalkVanguard",
+      "rect_top_origin": [
+        100,
+        140,
+        56,
+        56
+      ]
+    },
+    "unity_runtime": "UnifiedActionGait samples all RGBA pixels from class-owned ACTION source; WALK is stride phase reference only",
+    "unity_safety": "Renderer refuses foreign class action/walk combinations, maintains original OnGUI fallback and shared (128,240) root",
+    "exporter_release_gates": [
+      "shared-row profession provenance",
+      "single-source class palette",
+      "row-by-row waist occupancy",
+      "torso-to-hip registration",
+      "relative full-body height"
+    ],
+    "native_verification": "Unity 2022.3.53f1 PlayMode and visual grip/waist inspection not yet run"
   }
 }
