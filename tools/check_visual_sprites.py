@@ -92,11 +92,18 @@ def main():
                      "Effects","Icons"):
         path=ART/(required+".png")
         check(path.is_file(), "MISSING_PRODUCTION_FALLBACK_ART:"+required)
-        # Bosses and WorldProps may use LFS pointers in the GitHub API,
-        # but Actions checks out their real art via Git LFS.
-        with Image.open(path) as actual:
-            check(actual.width>0 and actual.height>0,
-                  "INVALID_PRODUCTION_FALLBACK_ART:"+required)
+        # GitHub Actions' checkout can intentionally preserve Git LFS
+        # pointer files when lfs:false. Do not misclassify a valid source
+        # pointer as a corrupted PNG (native Unity QA remains outstanding).
+        with path.open("rb") as source:
+            head=source.read(64)
+        if head.startswith(b"version https://git-lfs.github.com/spec/v1"):
+            check(path.stat().st_size>100,
+                  "TRUNCATED_PRODUCTION_ART_LFS_REFERENCE:"+required)
+        else:
+            with Image.open(path) as actual:
+                check(actual.width>0 and actual.height>0,
+                      "INVALID_PRODUCTION_FALLBACK_ART:"+required)
     actor=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text()
     for stable in ('root + "Npcs"','root + "Monsters"',
                    'root + "Bosses"','root + "Effects"',
