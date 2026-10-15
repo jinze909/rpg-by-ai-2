@@ -144,7 +144,14 @@ namespace UnityEngine
     }
     public static class Resources
     {
-        public static T Load<T>(string path) where T : Object { return null; }
+        // Registered source textures only serve offline native-C# probes.
+        public static readonly Dictionary<string,Object> Registered =
+            new Dictionary<string,Object>();
+        public static T Load<T>(string path) where T : Object
+        {
+            Object found;
+            return Registered.TryGetValue(path,out found) ? found as T : null;
+        }
         public static T[] LoadAll<T>(string path) where T : Object
         {return new T[0];}
     }
@@ -202,10 +209,16 @@ namespace Starfall
         private float worldActorOpacity=1f;
         private readonly HashSet<string> missingHeroBodyWarnings =
             new HashSet<string>();
+        // Only the offline native capture probe controls these fields.
+        // Actual damage-clock selection is independently tested against
+        // GameCore in RuntimeCombatInputChecks (216 real boundary cases).
+        public int ProbeAction=2, ProbeFrames=6, ProbeFrame=2;
+        public float ProbePosition=2f;
         private bool ResolveFullBodyHeroFrame(bool movement,int facing,
             out int action,out int frames,out int frame,out float position)
         {
-            action=movement?1:0;frames=4;frame=0;position=0;
+            action=ProbeAction;frames=ProbeFrames;
+            frame=ProbeFrame;position=ProbePosition;
             return true;
         }
     }

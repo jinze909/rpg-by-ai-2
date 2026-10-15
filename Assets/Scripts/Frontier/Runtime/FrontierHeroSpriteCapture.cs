@@ -19,7 +19,17 @@ namespace Starfall
         private Camera heroCaptureCamera;
         private SpriteRenderer heroCaptureRenderer;
         private Animator heroCaptureAnimator;
+        // The current target remains discoverable by native GameView tests,
+        // but each queued GUI draw retains its own stable captured pixels.
         private RenderTexture heroCaptureTexture;
+        private sealed class HeroCaptureEntry
+        {
+            internal RenderTexture texture;
+            internal int lastUsedFrame;
+        }
+        private const int MaxCachedHeroFrames = 48;
+        private readonly Dictionary<string, HeroCaptureEntry> heroCapturedFrames =
+            new Dictionary<string, HeroCaptureEntry>();
         // The 63 shipped canonical atlases are real production resources.
         // Only Sprite sub-rect wrappers belong to us; Resources owns textures.
         private readonly Dictionary<string, Sprite[]> heroPublishedSprites =
@@ -132,19 +142,47 @@ namespace Starfall
                     }
                 }
                 heroCaptureRenderer.flipX = flip;
-                // Two GUI repaint passes can sample different profession,
-                // facing or animation poses inside the SAME Unity frame.
-                // Never display a stale camera texture after a Sprite switch.
-                if (!heroCaptureTexture.IsCreated())
+                // An E->W flip or windup->contact transition within a
+                // single GUI repaint must never overwrite an earlier queued
+                // GUI.DrawTexture (Unity may submit it later).
+                Sprite capturedSprite = heroCaptureRenderer.sprite;
+                string captureKey = capturedSprite.GetInstanceID() +
+                    (flip ? ":left" : ":right");
+                HeroCaptureEntry entry;
+                bool needsRender = false;
+                if (!heroCapturedFrames.TryGetValue(captureKey, out entry))
                 {
-                    heroCaptureTexture.Create();
-                    heroCaptureFrame = -1;
+                    EvictUnusedHeroCapture();
+                    entry = new HeroCaptureEntry {
+                        texture = new RenderTexture(HeroCell, HeroCell, 16,
+                            RenderTextureFormat.ARGB32),
+                        lastUsedFrame = Time.frameCount
+                    };
+                    entry.texture.filterMode = FilterMode.Point;
+                    entry.texture.useMipMap = false;
+                    // Record ownership before GPU allocation: release also
+                    // cleans up a failed Create or Render.
+                    heroCapturedFrames.Add(captureKey, entry);
+                    entry.texture.Create();
+                    needsRender = true;
                 }
-                if (heroCaptureFrame != Time.frameCount ||
+                else
+                {
+                    entry.lastUsedFrame = Time.frameCount;
+                    if (!entry.texture.IsCreated())
+                    {
+                        entry.texture.Create();
+                        needsRender = true;
+                    }
+                }
+                heroCaptureTexture = entry.texture;
+                if (needsRender ||
                     heroCaptureRenderedSprite != heroCaptureRenderer.sprite ||
                     heroCaptureRenderedFlip != flip)
                 {
-                    heroCaptureCamera.Render();
+                    heroCaptureCamera.targetTexture = heroCaptureTexture;
+                    try { heroCaptureCamera.Render(); }
+                    finally { heroCaptureCamera.targetTexture = null; }
                     heroCaptureFrame = Time.frameCount;
                     heroCaptureRenderedSprite = heroCaptureRenderer.sprite;
                     heroCaptureRenderedFlip = flip;
@@ -300,6 +338,31 @@ namespace Starfall
             return true;
         }
 
+        // Only retire targets from an earlier frame: current-frame IMGUI
+        // commands can still point at any of their render textures.
+        private void EvictUnusedHeroCapture()
+        {
+            if (heroCapturedFrames.Count < MaxCachedHeroFrames) return;
+            string oldestKey = null;
+            int oldestFrame = int.MaxValue;
+            foreach (var pair in heroCapturedFrames)
+                if (pair.Value.lastUsedFrame < Time.frameCount &&
+                    pair.Value.lastUsedFrame < oldestFrame)
+                {
+                    oldestKey = pair.Key;
+                    oldestFrame = pair.Value.lastUsedFrame;
+                }
+            if (oldestKey == null) return;
+            RenderTexture old = heroCapturedFrames[oldestKey].texture;
+            heroCapturedFrames.Remove(oldestKey);
+            if (heroCaptureCamera != null &&
+                heroCaptureCamera.targetTexture == old)
+                heroCaptureCamera.targetTexture = null;
+            if (heroCaptureTexture == old) heroCaptureTexture = null;
+            old.Release();
+            Destroy(old);
+        }
+
         private void EnsureHeroCapture()
         {
             if (heroCaptureCamera != null) return;
@@ -317,10 +380,7 @@ namespace Starfall
             heroCaptureAnimator = heroCaptureRoot.AddComponent<Animator>();
             heroCaptureAnimator.enabled = false; // no silent independent timeline
             heroCaptureAnimator.speed = 0f;
-            heroCaptureTexture = new RenderTexture(HeroCell, HeroCell, 16, RenderTextureFormat.ARGB32);
-            heroCaptureTexture.filterMode = FilterMode.Point;
-            heroCaptureTexture.useMipMap = false;
-            heroCaptureTexture.Create();
+            // Allocate capture targets lazily, one per actual Sprite+flip.
             var cameraObject = new GameObject("Hero Sprite Capture Camera");
             cameraObject.hideFlags = HideFlags.HideAndDontSave;
             cameraObject.transform.SetParent(heroCaptureRoot.transform, false);
@@ -337,7 +397,7 @@ namespace Starfall
             heroCaptureCamera.clearFlags = CameraClearFlags.SolidColor;
             heroCaptureCamera.backgroundColor = new Color(0, 0, 0, 0);
             heroCaptureCamera.cullingMask = 1 << HeroCaptureLayer;
-            heroCaptureCamera.targetTexture = heroCaptureTexture;
+            heroCaptureCamera.targetTexture = null;
             heroCaptureCamera.allowHDR = false;
             heroCaptureCamera.allowMSAA = false;
         }
@@ -358,11 +418,13 @@ namespace Starfall
             heroRejectedNativeClips.Clear();
             if (heroCaptureCamera != null) heroCaptureCamera.targetTexture = null;
             if (heroCaptureRoot != null) Destroy(heroCaptureRoot);
-            if (heroCaptureTexture != null)
-            {
-                heroCaptureTexture.Release();
-                Destroy(heroCaptureTexture);
-            }
+            foreach (HeroCaptureEntry entry in heroCapturedFrames.Values)
+                if (entry.texture != null)
+                {
+                    entry.texture.Release();
+                    Destroy(entry.texture);
+                }
+            heroCapturedFrames.Clear();
             heroCaptureCamera = null;
             heroCaptureRenderer = null;
             heroCaptureAnimator = null;

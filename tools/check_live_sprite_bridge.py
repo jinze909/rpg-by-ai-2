@@ -38,7 +38,12 @@ def check():
         "heroCaptureRenderer.sprite=canonical;",
         "heroCaptureRenderedSprite != heroCaptureRenderer.sprite",
         "heroCaptureRenderedFlip != flip",
-        "heroCaptureTexture.IsCreated()",
+        "entry.texture.IsCreated()",
+        "heroCapturedFrames.TryGetValue(captureKey",
+        "capturedSprite.GetInstanceID()",
+        "EvictUnusedHeroCapture()",
+        "heroCaptureCamera.targetTexture = heroCaptureTexture;",
+        "heroCaptureCamera.targetTexture = null;",
         "tint.a *= worldActorOpacity",
     ]
     for mark in required:
