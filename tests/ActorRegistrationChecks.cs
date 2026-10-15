@@ -124,6 +124,58 @@ public static class ActorRegistrationChecks
             }GUI.Export(folder,"review-registered-enemies-"+batch);
         }Screen.width=1280;Screen.height=800;Console.WriteLine("PASS "+total+" enemy/Boss combinations: gait, wind-up, release, flash, recoil and retained death density");
     }
+    static void VerticalArcherKeepsFacingThroughContact(FrontierRuntime app,string folder)
+    {
+        // Inspect the ACTUAL FrontierActors.DrawEnemyActor path using the
+        // original 3x2 full-body EnemyArcherVertical.png, not an isolated
+        // sprite-sheet calculator. All poses share the same grounded rect.
+        app.BeginVisualReview(0,1);
+        for(int heading=0;heading<2;heading++)
+        {
+            Point face=new Point(0,heading==0?-1:1);
+            var foe=new Enemy(88810+heading,1,12,14,120){
+                facing=face,state=1,timer=.18f,windupDuration=.65f,
+                flash=.04f
+            };
+            GUI.TextureCall previous=null;
+            for(int phase=0;phase<2;phase++)
+            {
+                if(phase==1) {
+                    foe.state=0;foe.timer=0;foe.releaseTime=.12f;
+                }
+                Clear();Place(app,foe.Position,new Point(410+heading*300,350));
+                var calls=Draw(app,"DrawEnemyActor",foe);
+                var body=calls.FirstOrDefault(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical");
+                Check(body!=null,"Vertical archer must render original whole-body art");
+                int index=(heading==0?0:3)+phase;
+                float expectedU=(index%3)/3f;
+                float expectedV=1f-(index/3+1)/2f;
+                Check(Math.Abs(body.uv.x-expectedU)<.00001f &&
+                    Math.Abs(body.uv.y-expectedV)<.00001f &&
+                    Math.Abs(body.uv.width-1f/3f)<.00001f &&
+                    Math.Abs(body.uv.height-.5f)<.00001f,
+                    "Archer north/south windup and release crossed Sprite rows");
+                Check(Math.Abs(body.rect.x-(410+heading*300-body.rect.width/2))<1.1f &&
+                    Math.Abs(body.rect.y-(350-body.rect.height*120f/128f))<1.1f,
+                    "Directional archer foot moved on contact");
+                var flash=calls.FirstOrDefault(c=>c.texture.name.Contains(
+                    "flash_EnemyArcherVertical")||c.texture.name.Contains(
+                    "flash_resource_Frontier_Art_EnemyArcherVertical"));
+                Check(flash!=null&&
+                    Math.Abs(flash.uv.x-body.uv.x)<.00001f&&
+                    Math.Abs(flash.uv.y-body.uv.y)<.00001f&&
+                    Math.Abs(flash.rect.y-body.rect.y)<.001f,
+                    "Archer hit flash and source body disagree on facing");
+                if(previous!=null)
+                    Check(Math.Abs(previous.uv.y-body.uv.y)<.00001f &&
+                        Math.Abs(previous.rect.y-body.rect.y)<.001f,
+                        "Vertical combat crosses character identity row");
+                previous=body;
+            }
+        }
+        Console.WriteLine("PASS 4 real vertical Archer windup/contact cells, stable full-body foot and synchronized hit flash");
+    }
     static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
     {
         // Restored published high-detail Bosses/WalkBoss art. Keep all real
@@ -325,7 +377,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
