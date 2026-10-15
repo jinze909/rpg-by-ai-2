@@ -110,6 +110,55 @@ def main():
                 "ACCEPTED_ATLAS_UNSLICEABLE",name,(image.width,image.height))
             assert image.width//cols>=64 and image.height//rows>=64, (
                 "ACCEPTED_ATLAS_LOW_SOURCE_RESOLUTION",name)
+    # Keep an inspectable filmstrip from the exact original source PNGs,
+    # not from generated 32px test substitutes or idle GIFs. Duplicate
+    # deliberate holds are allowed; blank actor cells are not.
+    from PIL import ImageDraw
+    import hashlib
+    import json as _json
+    review=ROOT/".starfall-checks/sprite-qa/accepted-original-actors"
+    review.mkdir(parents=True,exist_ok=True)
+    reviewed=[]
+    for name,columns,rows in APPROVED:
+        png=ROOT/"Assets/Resources/Frontier/Art"/(name+".png")
+        with png.open("rb") as handle:
+            header=handle.read(80)
+        if header.startswith(b"version https://git-lfs.github.com/spec/v1"):
+            reviewed.append({"family":name,"raster":"LFS_NOT_DOWNLOADED",
+                "artReview":"NATIVE_UNVERIFIED"})
+            continue
+        with Image.open(png) as loaded:
+            atlas=loaded.convert("RGBA")
+        cw,ch=atlas.width//columns,atlas.height//rows
+        film=Image.new("RGBA",(atlas.width,atlas.height+rows*18),
+            (27,35,46,255))
+        draw=ImageDraw.Draw(film)
+        cells=[]
+        for row in range(rows):
+            for col in range(columns):
+                rect=(col*cw,row*ch,(col+1)*cw,(row+1)*ch)
+                tile=atlas.crop(rect)
+                alpha=tile.getchannel("A")
+                bounds=alpha.getbbox()
+                assert bounds is not None,(
+                    "ACCEPTED_FULL_BODY_FRAME_MISSING",name,row,col)
+                cells.append({"row":row,"cell":col,
+                    "opaqueBounds":list(bounds),
+                    "sha256":hashlib.sha256(tile.tobytes()).hexdigest()[:16]})
+                # Keep every pixel at exact authored coordinates. No
+                # resizing, face/leg synthesis, tint, downscaling or pixel
+                # repaint in the visual QA output.
+                film.alpha_composite(tile,(col*cw,row*(ch+18)))
+                draw.text((col*cw+3,row*(ch+18)+ch+2),
+                    name+" "+str(row)+":"+str(col),fill=(220,231,237,255))
+        film.save(review/(name+"-source-grid.png"))
+        reviewed.append({"family":name,"dimensions":[atlas.width,atlas.height],
+            "cell":[cw,ch],"frames":cells,
+            "artReview":"ART_REVIEW_REQUIRED"})
+    (review/"source-identity.json").write_text(
+        _json.dumps(reviewed,indent=2)+"\n")
+    print("PASS "+str(sum(len(x.get("frames",[])) for x in reviewed))+
+          " authored original Sprite cells with no blank frames; full-resolution grids emitted")
     for fragment in (
         "NativeActorColumnCounts",
         "NativeActorRowCounts",
