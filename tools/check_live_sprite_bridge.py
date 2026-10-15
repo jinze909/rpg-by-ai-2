@@ -357,7 +357,8 @@ def check():
         assert "Actor(source" not in preview
         assert '"Hero_"+FullHeroClasses[profession]+"_Idle_S"' in preview
         assert "Resources.Load<Texture2D>" in preview
-        assert "heroCaptureRenderer.sprite=canonical;" in capture
+        assert capture.count("heroCaptureRenderer.sprite=canonical;") == 2, (
+            "BOTH_NATIVE_CLIP_AND_DIRECT_FRAME_MUST_BIND_SAME_CANONICAL_BODY")
         assert "if(available)" in capture
         assert "if(!TryUsePublishedHeroFrame(equipment,0,facing," in capture
         assert "HeroSpriteMatchesPublishedFrame(" in capture
