@@ -224,6 +224,44 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_CI: removed real native scene combat QA accepted")
+    # Imported canonical Sprite sub-assets belong to Unity Resources, while
+    # dynamic fallback Sprite.Create wrappers belong to the live renderer.
+    # Never destroy Unity-owned import assets during F8 or scene teardown.
+    def verify_imported_sprite_ownership(source):
+        checks = (
+            "Resources.LoadAll<Sprite>(resource)",
+            "candidate.texture != atlas",
+            "candidate.rect.width - HeroCell",
+            "candidate.rect.height - HeroCell",
+            "candidate.pixelsPerUnit -",
+            "Vector2.Distance(candidate.pivot,",
+            "Mathf.RoundToInt(candidate.rect.x / HeroCell)",
+            "matched == expectedFrames",
+            "cells = candidates;",
+            "heroOwnedPublishedSprites.Add(cells[i]);",
+            "heroOwnedPublishedSprites.Remove(sprite)",
+            "heroOwnedPublishedSprites.Clear();",
+        )
+        for mark in checks:
+            assert mark in source, (
+                "DANGEROUS_IMPORTED_SPRITE_OWNERSHIP_OR_CLASS_MISMATCH",mark)
+        cleanup = source.split("private void ReleaseHeroCapture()")[1]
+        assert "if (sprite != null) Destroy(sprite);" not in cleanup, (
+            "UNITY_IMPORTED_RESOURCES_SPRITES_WOULD_BE_DESTROYED")
+        assert "if (texture != null) Destroy(texture);" not in cleanup.split(
+            "heroPublishedSprites.Clear();")[1], (
+            "UNITY_IMPORTED_TEXTURE_DELETION")
+    verify_imported_sprite_ownership(engine)
+    for mark in ("candidate.texture != atlas",
+                 "heroOwnedPublishedSprites.Remove(sprite)",
+                 "Mathf.RoundToInt(candidate.rect.x / HeroCell)"):
+        try:
+            verify_imported_sprite_ownership(engine.replace(
+                mark, "/* intentionally unsafe imported Sprite path */", 1))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_CI: imported Sprite resource regression accepted")
     assert "if(action==1)position%=frames;" in actor
     assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
     assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor
