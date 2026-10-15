@@ -213,7 +213,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                     checked_frames += 1
                 audit_rows.append({"key": key, "frames": row["frame_count"],
                                    "source_classes": [n for n,_ in references]})
-    assert curated_count == 36, ("CURATED_MOTION_COUNT", curated_count)
+    assert curated_count == 72, ("CURATED_MOTION_COUNT", curated_count)
     assert len(audit_rows) == 63 and checked_frames == 297, (
         "INCOMPLETE_CLASS_AUDIT",len(audit_rows),checked_frames)
     report = {
