@@ -71,6 +71,11 @@ namespace Starfall
         private void Actor(Texture2D sheet, int columns, int rows, int frame, Point foot, float size, Color color, bool flip = false, float angle = 0)
         {
             if (drawingOutline && sheet != null) { sheet = art.OutlineMask(sheet); color = new Color(1,.56f,.35f,.9f); }
+#if UNITY_5_3_OR_NEWER
+            bool nativeActorDrawn = DrawSpriteRendererActor(sheet, columns, rows,
+                frame, foot, size, color, flip, angle);
+            if (nativeActorDrawn) return;
+#endif
             Atlas(sheet, columns, rows, frame, new Rect(foot.x - size / 2, foot.y - size * 120 / 128, size, size), color, flip, angle);
         }
         private void DrawActorContactShadow(Point foot,float width,float depth,

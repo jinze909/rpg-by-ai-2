@@ -226,6 +226,9 @@ namespace Starfall
         private void OnDestroy()
         {
             ReleaseTerrainPreview();
+#if UNITY_5_3_OR_NEWER
+            ReleaseActorCapture();
+#endif
             if (art != null) art.Dispose();
             ClearUnifiedActionGait();
 #if UNITY_5_3_OR_NEWER

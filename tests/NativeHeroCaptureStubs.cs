@@ -13,6 +13,7 @@ namespace UnityEngine
     public class Object
     {
         public static void Destroy(Object value) { }
+        public int GetInstanceID() { return 1; }
     }
     public class Component : Object
     {
@@ -30,7 +31,7 @@ namespace UnityEngine
     }
     public class Transform
     {
-        public Vector3 position, localPosition;
+        public Vector3 position, localPosition, localScale;
         public void SetParent(Transform target, bool preserveWorldPosition) { }
     }
     public struct Vector2
