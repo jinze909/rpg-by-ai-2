@@ -2,6 +2,9 @@
 // This is an offline input regression harness, not Unity Player verification.
 using System;
 using System.Reflection;
+using System.IO;
+using System.Text;
+using System.Globalization;
 using Starfall;
 using UnityEngine;
 
@@ -788,6 +791,99 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS 12 real profession/facing action VFX mounts share weapon origin/height and whole-body art");
     }
 
+    private static void ProduceVerifiedGameplayHeroTrace(FrontierRuntime app)
+    {
+        // This calls REAL GameCore/FrontierRuntime action, movement, and
+        // the production ResolveFullBodyHeroFrame selector. Offline GameView
+        // is simulated, so this is not a native GPU capture.
+        string[] classes={"Vanguard","Ranger","Arcanist"};
+        string[] actions={"Idle","Run","Attack","Cast","Dodge","Hit","Death"};
+        string[] faces={"E","N","S"};
+        var points=new[]{
+            new Point(1,0),new Point(-1,0),
+            new Point(0,-1),new Point(0,1)};
+        MethodInfo resolver=typeof(FrontierRuntime).GetMethod(
+            "ResolveFullBodyHeroFrame",Private);
+        Check(resolver!=null,"Production hero frame resolver is missing");
+        var text=new StringBuilder("profession,command,direction,tick,phase,root_x,root_y,root_moving,footsteps,walk_distance,appearance,asset,cell,cell_count,flip,action_live\n");
+        int observations=0, movingRecoverySamples=0;
+        for(int cls=0;cls<3;cls++)
+        for(int cmd=0;cmd<2;cmd++)
+        for(int face=0;face<points.Length;face++)
+        {
+            Prepare(app,cls);
+            GameCore g=app.Game;
+            Point heading=points[face];
+            Point strafe=new Point(-heading.y,heading.x);
+            if(cmd==0)g.Attack(heading);else g.Skill(heading);
+            Check(g.playerAction!=null,
+                "Actual Attack/Cast must start before tracing its live frames");
+            ActorAction selected=g.playerAction;
+            bool sawReleased=false;
+            for(int tick=0;tick<40;tick++)
+            {
+                if(tick>0)
+                {
+                    // Real reduced-mobility recovery moves the ROOT, never
+                    // replaces the full-body action with fake running legs.
+                    Point travel=g.playerAction!=null &&
+                        g.PlayerPhase==ActionPhase.Recovery ?
+                        strafe : new Point();
+                    app.AdvanceVisualReview(.02f,travel);
+                }
+                bool hasAction=g.playerAction==selected;
+                if(hasAction&&selected.released)sawReleased=true;
+                bool rootMoving=g.ActuallyMoving;
+                bool running=g.PlayerPose>=2&&g.PlayerPose<=3;
+                int facing=GameCore.DirectionRow(g.VisualFacing);
+                object[] args={running,facing,0,0,0,0f};
+                bool resolved=(bool)resolver.Invoke(app,args);
+                Check(resolved,"Production full-body Sprite state cannot resolve");
+                int actionId=(int)args[2],cells=(int)args[3],cell=(int)args[4];
+                int look=g.AppearanceWeapon;
+                Check(look>=0&&look<3&&actionId>=0&&actionId<7&&
+                    facing>=0&&facing<3&&cell>=0&&cell<cells,
+                    "Real game selected an impossible actor/action/frame");
+                if(hasAction)
+                {
+                    Check(look==cls&&actionId==(cmd==0?2:3),
+                        "Active action changed its class or entire body unexpectedly");
+                    if(rootMoving&&g.PlayerPhase==ActionPhase.Recovery)
+                    {
+                        movingRecoverySamples++;
+                        Check(g.walkDistance<.00001f,
+                            "An invisible stride advanced under the released whole-body pose");
+                    }
+                }
+                string asset="Hero_"+classes[look]+"_"+actions[actionId]+
+                    "_"+faces[facing];
+                bool flip=facing==0&&g.VisualFacing.x<-.1f;
+                string[] columns={
+                    classes[cls],cmd==0?"Attack":"Cast",
+                    face==0?"E":face==1?"W":face==2?"N":"S",
+                    tick.ToString(),
+                    g.PlayerPhase.ToString(),
+                    g.Position.x.ToString("R",CultureInfo.InvariantCulture),
+                    g.Position.y.ToString("R",CultureInfo.InvariantCulture),
+                    rootMoving?"1":"0",g.footContacts.ToString(),
+                    g.walkDistance.ToString("R",CultureInfo.InvariantCulture),
+                    look.ToString(),asset,cell.ToString(),cells.ToString(),
+                    flip?"1":"0",hasAction?"1":"0"
+                };
+                text.AppendLine(string.Join(",",columns));
+                observations++;
+            }
+            Check(sawReleased, "Actual weapon release must occur in every motion trace");
+        }
+        Check(observations==3*2*4*40&&movingRecoverySamples>0,
+            "No real three-class moving-recovery frames audited");
+        string folder=".starfall-checks/hero-gameplay-traces";
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder,"gameplay-trace.csv"),text.ToString());
+        Console.WriteLine("PASS 960 REAL combat/movement sprite selections audited; "+
+            movingRecoverySamples+" moving-recovery snapshots; NATIVE_UNVERIFIED");
+    }
+
     private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -833,7 +929,7 @@ public static class RuntimeCombatInputChecks
             ReleasedTechniqueDrawsContactFrame, ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
-            GroundContactArtSharesPhysicalFootPivot,
+            ProduceVerifiedGameplayHeroTrace, GroundContactArtSharesPhysicalFootPivot,
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,

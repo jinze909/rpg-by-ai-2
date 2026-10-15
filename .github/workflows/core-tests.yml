@@ -32,6 +32,8 @@ jobs:
         run: python3 tools/run_core_tests.py
       - name: Check production combat input with offline Unity declarations
         run: python3 tools/run_combat_input_checks.py
+      - name: Reconstruct actual three-class action frame traces into GPU-free review filmstrips
+        run: python3 tools/render_hero_gameplay_traces.py
       - name: Sprite animation QA - original hero, Boss cues and remastered PNGs
         run: python3 tools/check_visual_sprites.py
       - name: Enforce single-class waist/palette/proportion QA for all Sprite cells
@@ -59,6 +61,7 @@ jobs:
             .starfall-checks/hero-production-atlases/
             .starfall-checks/hero-runtime-qa/
             .starfall-checks/hero-committed-qa/
+            .starfall-checks/hero-gameplay-traces/
           if-no-files-found: ignore
 
   publish-approved-hero-sprites:
