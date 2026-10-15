@@ -59,10 +59,37 @@ namespace Starfall.Editor
     }
     public sealed class FrontierImports : AssetPostprocessor
     {
+        // Only these published, source-preserved atlas families may stay
+        // Sprite/Multiple while the accepted Animator builder imports them.
+        // Every other gameplay/experimental image remains a Default Texture2D.
+        private static bool IsAcceptedNativeActor(string name)
+        {
+            switch (name)
+            {
+                case "Monsters":
+                case "WalkMonsters":
+                case "Bosses":
+                case "WalkBossA":
+                case "WalkBossB":
+                case "Npcs":
+                case "EnemyArcherVertical":
+                case "CompanionMira":
+                case "CompanionIvo":
+                case "CompanionSen":
+                case "WalkMira":
+                case "WalkIvo":
+                case "WalkSen":
+                    return true;
+                default: return false;
+            }
+        }
         private void OnPreprocessTexture()
         {
             if (assetPath.StartsWith("Assets/Resources/Frontier/Art/") && assetPath.EndsWith(".png") && !assetPath.EndsWith("TitleVista.png") && !assetPath.EndsWith("/Portraits.png"))
-            { var atlas = (TextureImporter)assetImporter; string name = Path.GetFileNameWithoutExtension(assetPath); atlas.textureType = TextureImporterType.Default; atlas.filterMode = FilterMode.Point; atlas.mipmapEnabled = false; atlas.npotScale = TextureImporterNPOTScale.None; atlas.maxTextureSize = 4096; atlas.alphaIsTransparency = true; atlas.textureCompression = TextureImporterCompression.Uncompressed; atlas.isReadable = (name.StartsWith("Player") && name != "PlayerPortraits") || name.StartsWith("Walk") || name.StartsWith("Companion") || name == "Monsters" || name == "Bosses" || name == "EnemyArcherVertical"; return; }
+            { var atlas = (TextureImporter)assetImporter; string name = Path.GetFileNameWithoutExtension(assetPath); if (!IsAcceptedNativeActor(name) ||
+                    atlas.textureType != TextureImporterType.Sprite)
+                    atlas.textureType = TextureImporterType.Default;
+                atlas.filterMode = FilterMode.Point; atlas.mipmapEnabled = false; atlas.npotScale = TextureImporterNPOTScale.None; atlas.maxTextureSize = 4096; atlas.alphaIsTransparency = true; atlas.textureCompression = TextureImporterCompression.Uncompressed; atlas.isReadable = (name.StartsWith("Player") && name != "PlayerPortraits") || name.StartsWith("Walk") || name.StartsWith("Companion") || name == "Monsters" || name == "Bosses" || name == "EnemyArcherVertical"; return; }
             if (assetPath == "Assets/Resources/Frontier/Art/TitleVista.png" || assetPath == "Assets/Resources/Frontier/Art/Portraits.png")
             { var art = (TextureImporter)assetImporter; art.textureType = TextureImporterType.Default; art.filterMode = FilterMode.Bilinear; art.mipmapEnabled = false; art.npotScale = TextureImporterNPOTScale.None; art.maxTextureSize = 2048; return; }
             if (assetPath != "Assets/Resources/Frontier/ViolaMoves.png") return;

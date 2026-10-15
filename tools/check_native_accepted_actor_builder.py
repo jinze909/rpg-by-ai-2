@@ -2,7 +2,7 @@
 """Compile and audit native Animator import of accepted illustrated actor art.
 
 No Unity Editor/GPU exists in hosted CI. Real PlayMode remains NATIVE_UNVERIFIED.
-The seven original PNGs must not be replaced with archived low-res candidates.
+The 13 accepted original atlas families must not be replaced with archived low-res candidates.
 """
 from __future__ import annotations
 import json
@@ -68,7 +68,33 @@ def main():
         "LOW_DETAIL_CANDIDATE_ENTERED_ACCEPTED_MANIFEST")
     source=BUILDER.read_text()
     ensure_builder_contract(source)
+    # The old C# guard demanded 13 entries but only 7 distinct names:
+    # it rejected the actual immutable 13-source manifest on every import.
+    # Audit exact identity, order AND dimensions against the production
+    # Editor builder, not only against this Python mirror.
+    def csharp_array(name, kind):
+        match=re.search(r"private static readonly "+kind+r"\\[\\] "+name+
+            r"\\s*=\\s*\\{([^}]+)\\};",source,re.S)
+        assert match,("ACCEPTED_SOURCE_SPEC_MISSING",name)
+        if kind=="string":
+            return re.findall(r'"([A-Za-z0-9]+)"',match.group(1))
+        return [int(v) for v in re.findall(r"\\d+",match.group(1))]
+    assert csharp_array("AcceptedSourceNames","string")==[x[0] for x in APPROVED], (
+        "NATIVE_EDITOR_ACCEPTED_IDENTITY_MISMATCH")
+    assert csharp_array("AcceptedSourceColumns","int")==[x[1] for x in APPROVED], (
+        "NATIVE_EDITOR_ACCEPTED_COLUMN_MISMATCH")
+    assert csharp_array("AcceptedSourceRows","int")==[x[2] for x in APPROVED], (
+        "NATIVE_EDITOR_ACCEPTED_ROW_MISMATCH")
+    for clause in ("manifest.sources.Length != AcceptedSourceNames.Length",
+        "source.name != AcceptedSourceNames[i]",
+        "source.columns != AcceptedSourceColumns[i]",
+        "source.rows != AcceptedSourceRows[i]"):
+        assert clause in source,("NATIVE_EDITOR_ACCEPTED_MANIFEST_CHECK_MISSING",clause)
     for dangerous in (
+        source.replace("manifest.sources.Length != AcceptedSourceNames.Length",
+                       "manifest.sources.Length != 7",1),
+        source.replace("source.columns != AcceptedSourceColumns[i]",
+                       "source.columns == AcceptedSourceColumns[i]",1),
         source.replace("importer.spritePixelsPerUnit = height;",
                        "importer.spritePixelsPerUnit = 256;",1),
         source.replace("keys[col].value != imported[spriteIndex]",
@@ -82,7 +108,13 @@ def main():
         source.replace("if (state != PlayModeStateChange.ExitingEditMode) return;",
                        "if (false) return;",1),
     ):
-        try: ensure_builder_contract(dangerous)
+        try:
+            ensure_builder_contract(dangerous)
+            for clause in ("manifest.sources.Length != AcceptedSourceNames.Length",
+                "source.name != AcceptedSourceNames[i]",
+                "source.columns != AcceptedSourceColumns[i]",
+                "source.rows != AcceptedSourceRows[i]"):
+                assert clause in dangerous
         except AssertionError: pass
         else: raise AssertionError(
             "NATIVE_ACCEPTED_CI_FALSE_PASS_ON_UNSAFE_BUILDER_MUTATION")

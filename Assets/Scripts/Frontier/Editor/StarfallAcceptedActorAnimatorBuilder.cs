@@ -23,6 +23,20 @@ namespace Starfall.EditorTools
         private const string ManifestPath =
             "Assets/Resources/Frontier/Actors/Native/AcceptedActorSources.json";
 
+        // Exact accepted production identities and atlas dimensions. This
+        // gate must match AcceptedActorSources.json and the live capture
+        // layouts; experimental candidates cannot enter by changing a count.
+        private static readonly string[] AcceptedSourceNames = {
+            "Monsters", "WalkMonsters", "Bosses", "WalkBossA",
+            "WalkBossB", "Npcs", "EnemyArcherVertical",
+            "CompanionMira", "CompanionIvo", "CompanionSen",
+            "WalkMira", "WalkIvo", "WalkSen"
+        };
+        private static readonly int[] AcceptedSourceColumns =
+            { 6, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4 };
+        private static readonly int[] AcceptedSourceRows =
+            { 3, 3, 8, 4, 4, 4, 2, 4, 4, 4, 3, 3, 3 };
+
         [Serializable]
         private sealed class SourceManifest
         {
@@ -95,10 +109,19 @@ namespace Starfall.EditorTools
             SourceManifest manifest =
                 JsonUtility.FromJson<SourceManifest>(manifestAsset.text);
             if (manifest == null || manifest.version != 1 ||
-                manifest.sources == null || manifest.sources.Length != 13 ||
-                manifest.sources.Select(x => x.name).Distinct().Count() != 7)
+                manifest.sources == null ||
+                manifest.sources.Length != AcceptedSourceNames.Length)
                 throw new InvalidOperationException(
                     "Accepted actor manifest changed without an audited art migration");
+            for (int i = 0; i < AcceptedSourceNames.Length; i++)
+            {
+                SourceSpec source = manifest.sources[i];
+                if (source == null || source.name != AcceptedSourceNames[i] ||
+                    source.columns != AcceptedSourceColumns[i] ||
+                    source.rows != AcceptedSourceRows[i])
+                    throw new InvalidOperationException(
+                        "Unapproved accepted actor identity or atlas layout: " + i);
+            }
 
             EnsureFolder("Assets/Animations", "Frontier");
             EnsureFolder("Assets/Animations/Frontier", "AcceptedActors");
