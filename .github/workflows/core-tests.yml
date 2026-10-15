@@ -28,6 +28,10 @@ jobs:
         run: |
           python3 tools/install_canonical_hero_atlases.py
           python3 tools/check_installed_hero_atlases.py
+      # Unity builds asmdefs as separate DLLs. Mono's one-file-list compile
+      # can pass even when Editor tests reference Starfall.Runtime illegally.
+      - name: Fail on missing Unity assembly dependencies before game tests
+        run: python3 tools/check_unity_assembly_graph.py
       - name: Run actual C# gameplay checks
         run: python3 tools/run_core_tests.py
       - name: Check production combat input with offline Unity declarations
