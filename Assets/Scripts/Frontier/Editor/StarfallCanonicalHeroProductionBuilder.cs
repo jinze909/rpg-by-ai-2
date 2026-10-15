@@ -283,8 +283,8 @@ namespace Starfall.EditorTools
         // manually drawn anticipation/contact/recovery art.
         private static int ExpandedCount(int original, int action)
         {
-            return original > 1 && action >= 1 && action <= 5
-                ? original * 2 - (action == 1 ? 0 : 1) : original;
+            return original > 1 && action >= 2 && action <= 5
+                ? original * 2 - 1 : original;
         }
 
         private static string Key(string profession, int action, int facing)
