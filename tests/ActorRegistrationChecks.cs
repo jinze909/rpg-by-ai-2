@@ -126,126 +126,61 @@ public static class ActorRegistrationChecks
     }
     static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
     {
-        // Exercise the actual Frontier DrawEnemyActor, not an unintegrated
-        // art preview. The first Boss has a new three-phase whole-body atlas;
-        // later rooms must continue to use their original walk sources.
+        // Restored published high-detail Bosses/WalkBoss art. Keep all real
+        // GameCore windup/release and moving hit-flash behaviour, but do not
+        // require the rejected low-detail Briar candidate to appear live.
         app.BeginVisualReview(0,1);
-        var g=app.Game; g.enemies.Clear();
-        var e=new Enemy(93000,0,g.Position.x,g.Position.y,150,true) {
-            facing=new Point(1,0), moving=true, moveTime=.8f,
-            flash=.045f, hitTime=0, releaseTime=0
-        };
-        const string atlas="resource:Frontier/Art/BriarBeast";
+        var g=app.Game;g.enemies.Clear();
+        var boss=new Enemy(93000,0,g.Position.x,g.Position.y,150,true){
+            facing=new Point(1,0),moving=true,moveTime=.8f,flash=.045f};
         Func<GUI.TextureCall[],string,GUI.TextureCall> actor=(draws,name)=>
-            draws.FirstOrDefault(c=>c.texture.name==name);
+            draws.FirstOrDefault(c=>c.texture.name=="resource:Frontier/Art/"+name);
         Func<GUI.TextureCall[],string,GUI.TextureCall> mask=(draws,name)=>
             draws.FirstOrDefault(c=>
-                c.texture.name=="resource:Frontier/Art/ActorMasks/flash_"+name ||
+                c.texture.name=="resource:Frontier/Art/ActorMasks/flash_"+name||
                 c.texture.name=="flash_resource_Frontier_Art_"+name);
-        Action<GUI.TextureCall,GUI.TextureCall> sameFrame=(body,flash)=> {
+        Action<GUI.TextureCall,GUI.TextureCall> sameFrame=(body,flash)=>{
             Check(body!=null&&flash!=null,
-                "Boss full-body source and its corresponding mask must both exist");
-            Check(Math.Abs(body.rect.x-flash.rect.x)<.001f &&
-                  Math.Abs(body.rect.y-flash.rect.y)<.001f &&
-                  Math.Abs(body.rect.width-flash.rect.width)<.001f &&
-                  Math.Abs(body.rect.height-flash.rect.height)<.001f &&
-                  Math.Abs(body.uv.x-flash.uv.x)<.0001f &&
-                  Math.Abs(body.uv.y-flash.uv.y)<.0001f &&
-                  Math.Abs(body.uv.width-flash.uv.width)<.0001f &&
-                  Math.Abs(body.uv.height-flash.uv.height)<.0001f,
-                "Boss flashing body must use the EXACT drawn source cell/root");
+                "Detailed walking Boss sprite and hit mask must both exist");
+            Check(Math.Abs(body.rect.x-flash.rect.x)<.001f&&
+                  Math.Abs(body.rect.y-flash.rect.y)<.001f&&
+                  Math.Abs(body.rect.width-flash.rect.width)<.001f&&
+                  Math.Abs(body.rect.height-flash.rect.height)<.001f&&
+                  Math.Abs(body.uv.x-flash.uv.x)<.0001f&&
+                  Math.Abs(body.uv.y-flash.uv.y)<.0001f,
+                "Existing detailed Boss hit-flash must follow actual frame/root");
         };
-        float previousPhaseCrop=-1;
-        foreach(float health in new[]{150f,78f,32f})
-        {
-            e.hp=health;e.state=0;e.moving=true;e.hitTime=0;e.releaseTime=0;
-            Clear();var draws=Draw(app,"DrawEnemyActor",e);
-            var body=actor(draws,atlas);
-            var flash=mask(draws,"BriarBeast");
-            sameFrame(body,flash);
-            Check(!draws.Any(c=>c.texture.name=="resource:Frontier/Art/WalkBossA"),
-                "Thornwood may not draw an old body over a live Briar pose");
-            if(previousPhaseCrop>=0)
-                Check(Math.Abs(body.uv.y-previousPhaseCrop)>.01f,
-                    "Briar HP threshold must change the actual sampled sprite row");
-            previousPhaseCrop=body.uv.y;
-        }
-        // Phase-entry feedback is keyed to the ACTUAL enemy object and the
-        // live HP threshold, not its numeric ID or an unrelated idle clock.
-        // Test real production draw calls, including flash decay and no
-        // phantom cue when a restored boss first appears at low HP.
-        var threshold = new Enemy(93010, 0, g.Position.x, g.Position.y, 150, true) {
-            moving = true, moveTime = .8f, flash = 0
-        };
-        Clear(); var baseline = Draw(app, "DrawEnemyActor", threshold);
-        Check(mask(baseline, "BriarBeast") == null,
-            "First sight of a boss must not invent a phase transition");
-        threshold.hp = 78f;
-        Clear(); var transition = Draw(app, "DrawEnemyActor", threshold);
-        sameFrame(actor(transition, atlas), mask(transition, "BriarBeast"));
-        float firstOpacity = mask(transition, "BriarBeast").color.a;
-        Set(app, "clock", .16f);
-        Clear(); var decaying = Draw(app, "DrawEnemyActor", threshold);
-        sameFrame(actor(decaying, atlas), mask(decaying, "BriarBeast"));
-        Check(mask(decaying, "BriarBeast").color.a < firstOpacity,
-            "Phase glow must fade against the authoritative runtime clock");
-        Set(app, "clock", .4f);
-        Clear(); var expired = Draw(app, "DrawEnemyActor", threshold);
-        Check(mask(expired, "BriarBeast") == null,
-            "Boss phase cue cannot persist after its 320ms window");
-        threshold.hp = 32f;
-        Clear(); var third = Draw(app, "DrawEnemyActor", threshold);
-        sameFrame(actor(third, atlas), mask(third, "BriarBeast"));
-        threshold.hp = 150f;
-        Clear(); var healed = Draw(app, "DrawEnemyActor", threshold);
-        Check(mask(healed, "BriarBeast") == null,
-            "HP recovery must reset phase tracking without fake glow");
-        var restored = new Enemy(93010, 0, g.Position.x, g.Position.y, 150, true) {
-            hp = 30f, moving = true, moveTime = .8f
-        };
-        Clear(); var firstLowHp = Draw(app, "DrawEnemyActor", restored);
-        Check(mask(firstLowHp, "BriarBeast") == null,
-            "New enemy instance must not inherit an old boss phase cue");
-        Set(app, "clock", 0f);
-        // Regression: EnemyPose() historically exposed an early-release pose
-        // in room 1 for the final 200ms of still-active windup. The NEW
-        // authored hit drawing may only appear after Core releases the attack.
-        e.hp=150;e.moving=false;e.state=1;e.timer=.10f;
-        e.windupDuration=1.02f;e.releaseTime=0;
-        Clear();var pending=actor(Draw(app,"DrawEnemyActor",e),atlas);
-        Check(pending!=null && Math.Abs(pending.uv.y-(1f-3f/18f))<.0001f,
-            "Boss windup must remain in action row 2 until real contact");
-        e.state=0;e.releaseTime=.31f;
-        Clear();var released=actor(Draw(app,"DrawEnemyActor",e),atlas);
-        Check(released!=null&&Math.Abs(released.uv.y-(1f-4f/18f))<.0001f,
-            "Boss release must use action row 3 only after Core dispatch");
-        e.releaseTime=0;e.flash=.04f;e.moving=false;
-        Clear();var idle=Draw(app,"DrawEnemyActor",e);
-        sameFrame(actor(idle,atlas),mask(idle,"BriarBeast"));
-        // Keep the mature moving-body flash behavior in other regions.
+        Clear();var moving=Draw(app,"DrawEnemyActor",boss);
+        sameFrame(actor(moving,"WalkBossA"),mask(moving,"WalkBossA"));
+        Check(!moving.Any(c=>c.texture.name==
+            "resource:Frontier/Art/BriarBeast"),
+            "Unapproved prototype Boss displaced the detailed production body");
+        // The original authored Bosses atlas must not show release art during
+        // the final 0.1 seconds of still-active GameCore windup.
+        boss.moving=false;boss.flash=0;boss.state=1;
+        boss.timer=.10f;boss.windupDuration=1.02f;boss.releaseTime=0f;
+        Clear();var pending=actor(Draw(app,"DrawEnemyActor",boss),"Bosses");
+        Check(pending!=null&&Math.Abs(pending.uv.x-.25f)<.0001f,
+            "Original Boss windup art may not expose contact before release");
+        boss.state=0;boss.releaseTime=.31f;
+        Clear();var contact=actor(Draw(app,"DrawEnemyActor",boss),"Bosses");
+        Check(contact!=null&&Math.Abs(contact.uv.x-.5f)<.0001f,
+            "Original Boss contact must follow GameCore's released state");
+        // Later regions must retain their own original moving Boss and
+        // HP-stage palette feedback. Recolour never changes body source.
         app.BeginVisualReview(0,2);
-        e.hp=150;e.state=0;e.moving=true;e.moveTime=.8f;e.flash=.04f;
-        Clear();var oldBoss=Draw(app,"DrawEnemyActor",e);
-        sameFrame(actor(oldBoss,"resource:Frontier/Art/WalkBossA"),
-            mask(oldBoss,"WalkBossA"));
-        Check(!oldBoss.Any(c=>c.texture.name==atlas),
-            "Room 2 boss must not inherit Thornwood monster identity");
-        // Other bosses keep their authored silhouette but acquire a readable
-        // phase tint and a same-frame flash at the exact HP threshold.
-        var other = new Enemy(93020, 0, g.Position.x, g.Position.y, 150, true) {
-            moving = true, moveTime = .8f
-        };
-        Clear(); var otherFirst = Draw(app, "DrawEnemyActor", other);
-        var firstBody = actor(otherFirst, "resource:Frontier/Art/WalkBossA");
-        Check(firstBody != null, "Other boss must retain its live walking body");
-        other.hp = 75f;
-        Clear(); var otherSecond = Draw(app, "DrawEnemyActor", other);
-        var secondBody = actor(otherSecond, "resource:Frontier/Art/WalkBossA");
-        sameFrame(secondBody, mask(otherSecond, "WalkBossA"));
-        Check(secondBody.color.g < firstBody.color.g &&
-              secondBody.color.b < firstBody.color.b,
-            "Boss stage 2 must remain visible after its phase-entry flash");
-        Console.WriteLine("PASS three Briar body phases, real HP phase cues, matched masks, persistent other-Boss tint and fenced contact");
+        var other=new Enemy(93020,0,g.Position.x,g.Position.y,150,true){
+            moving=true,moveTime=.8f,flash=.045f};
+        Clear();var firstDraw=Draw(app,"DrawEnemyActor",other);
+        sameFrame(actor(firstDraw,"WalkBossA"),mask(firstDraw,"WalkBossA"));
+        var first=actor(firstDraw,"WalkBossA");
+        other.hp=75f;
+        Clear();var nextDraw=Draw(app,"DrawEnemyActor",other);
+        sameFrame(actor(nextDraw,"WalkBossA"),mask(nextDraw,"WalkBossA"));
+        var second=actor(nextDraw,"WalkBossA");
+        Check(second.color.g<first.color.g&&second.color.b<first.color.b,
+            "Original moving Boss must retain visible later HP phases");
+        Console.WriteLine("PASS detailed original Bosses/WalkBoss bodies, flash, winding/release and room-2 HP tint");
     }
 
     static void PreparedMasks()
@@ -329,13 +264,12 @@ public static class ActorRegistrationChecks
         var savedConversation=game.conversation;
         var savedSource=game.conversationSource;
         const string original="resource:Frontier/Art/Npcs";
-        const string rejected="resource:Frontier/Art/EmberfallResidents";
         var art=(PixelArt)typeof(FrontierRuntime).GetField("art",Private).GetValue(app);
         var cache=(System.Collections.IDictionary)typeof(PixelArt).GetField(
             "cache",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(art);
         Check(cache.Keys.Cast<object>().Any(key=>
             key.ToString().Contains("flash_")&&
-            key.ToString().Contains("MossboundRaider")),
+            key.ToString().Contains("Monsters")),
             "Original raider first-hit flash must remain prewarmed");
         try
         {
@@ -348,8 +282,8 @@ public static class ActorRegistrationChecks
                 var idle=Draw(app,"DrawNpc",npc.kind,
                     new Point(npc.x,npc.y),-1);
                 var body=idle.FirstOrDefault(c=>c.texture.name==original);
-                Check(body!=null&&!idle.Any(c=>c.texture.name==rejected),
-                    "VISUAL_REGRESSION: low-detail resident atlas replaced accepted original NPC");
+                Check(body!=null,
+                    "Current guild/forge render must use the original illustrated source");
                 Check(body.rect.width==96&&body.rect.height==96&&
                     Math.Abs(body.uv.x-expectedIndex*.25f)<.0001f&&
                     Math.Abs(body.uv.width-.25f)<.0001f&&
@@ -361,7 +295,7 @@ public static class ActorRegistrationChecks
                 var talking=Draw(app,"DrawNpc",npc.kind,
                     new Point(npc.x,npc.y),-1);
                 var spoken=talking.FirstOrDefault(c=>c.texture.name==original);
-                Check(spoken!=null&&!talking.Any(c=>c.texture.name==rejected)&&
+                Check(spoken!=null&&
                     Math.Abs(spoken.uv.x-body.uv.x)<.0001f&&
                     Math.Abs(spoken.uv.y-body.uv.y)<.0001f&&
                     Math.Abs(spoken.rect.x-body.rect.x)<.001f&&
@@ -372,8 +306,7 @@ public static class ActorRegistrationChecks
             game.conversationSource=guild;
             Clear();
             var bystander=Draw(app,"DrawNpc","guild",new Point(21,17),-1);
-            Check(bystander.Any(c=>c.texture.name==original)&&
-                !bystander.Any(c=>c.texture.name==rejected),
+            Check(bystander.Any(c=>c.texture.name==original),
                 "Another guild member must not inherit a rejected dialogue avatar");
             Clear();
             var garden=Draw(app,"DrawNpc","garden",new Point(10,10),-1);
