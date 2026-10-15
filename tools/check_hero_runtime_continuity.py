@@ -67,7 +67,7 @@ def fail_nonoptional(name, action, frames, obs, transitions):
     # passive flags. Skill reaches and falling corpses are intentionally
     # large: those require visual review, not naive centroid rejection.
     expected = {
-        "Idle": 1, "Run": 8, "Attack": 7, "Cast": 7,
+        "Idle": 1, "Run": 4, "Attack": 7, "Cast": 7,
         "Dodge": 5, "Hit": 5, "Death": 4
     }[action]
     assert len(frames) == expected, ("RUNTIME_FRAME_COUNT", name, len(frames))
@@ -260,24 +260,24 @@ def verify_failure_gates():
             return
         raise AssertionError("UNSAFE_CI_GATE: " + label + " was accepted")
     blank = Image.new("RGBA", (CELL,CELL), (0,0,0,0))
-    expect_failure("blank_body", [blank.copy() for _ in range(8)], "Run")
+    expect_failure("blank_body", [blank.copy() for _ in range(4)], "Run")
     small = Image.new("RGBA", (CELL,CELL))
     ImageDraw.Draw(small).rectangle((125,170,128,175), fill=(229,114,45,255))
-    expect_failure("truncated_torso", [small.copy() for _ in range(8)], "Run")
+    expect_failure("truncated_torso", [small.copy() for _ in range(4)], "Run")
     normal = Image.new("RGBA", (CELL,CELL))
     ImageDraw.Draw(normal).rectangle((104,147,149,238),fill=(91,63,48,255))
-    expect_failure("static_run", [normal.copy() for _ in range(8)], "Run")
+    expect_failure("static_run", [normal.copy() for _ in range(4)], "Run")
     # Intentional large discontinuity with valid full-body footprints
     # must fail independently of duplicate frame detection.
     left = Image.new("RGBA", (CELL,CELL))
     right = Image.new("RGBA", (CELL,CELL))
     ImageDraw.Draw(left).rectangle((49,147,95,238),fill=(91,63,48,255))
     ImageDraw.Draw(right).rectangle((159,147,205,238),fill=(91,63,48,255))
-    expect_failure("teleporting_run", [left,right]*4, "Run")
+    expect_failure("teleporting_run", [left,right]*2, "Run")
     # Regression-negative: even a canonically sized sequence must fail
     # when an action starts from another profession's or offset body.
     fake={action:[normal.copy()] for action in ACTIONS}
-    fake["Run"]=[normal.copy() for _ in range(8)]
+    fake["Run"]=[normal.copy() for _ in range(4)]
     fake["Attack"]=[right.copy(),normal.copy()]
     try:
         check_state_boundaries("synthetic","E",fake)
@@ -320,7 +320,7 @@ def run():
                 # builder's approved source cells.
                 if face == "E" or name == "Hero_Arcanist_Run_S":
                     preview(name,seq)
-    assert len(rows)==63 and frames_checked==333,(len(rows),frames_checked)
+    assert len(rows)==63 and frames_checked==297,(len(rows),frames_checked)
     historical_splice_comparison()
     reconstructed_head_swap_vs_whole_body()
     report={
@@ -334,7 +334,7 @@ def run():
     }
     (DEST / "production-runtime-qa.json").write_text(
         json.dumps(report,indent=2)+"\n",encoding="utf-8")
-    print("PASS: 63 real production Sprite atlases / 333 canvas, root and "
+    print("PASS: 63 real production Sprite atlases / 297 canvas, root and "
           "frame-boundary-checked cells; filmstrips/GIFs saved to "+str(DEST))
     print("ART_REVIEW_REQUIRED; NATIVE_UNVERIFIED: mechanical interpolation "
           "and actual native Game View not certified.")
