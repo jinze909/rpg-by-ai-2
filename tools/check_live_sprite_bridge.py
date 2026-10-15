@@ -155,20 +155,18 @@ def check():
     assert "DrawWholeBodyHeroOnGUI(sheet,frame,p,tint,flip," in actor
     assert "ResolveFullBodyHeroFrame(moving,facing," in actor
     assert '"Frontier/HeroAnimator/Canonical/"+key' in actor
-    # Root-cause guard: the past stitched compositor copied the entire
-    # lower 205..247px band from a walking atlas, splicing a different waist
-    # and clothing onto the original attack torso. Never reintroduce that.
+    # The entire old generated-parts compositor is retired, not only the
+    # notorious waist scanline. Any new runtime leg-sampling/blending
+    # implementation must be reviewed as a new algorithm before release.
     gait = (RUNTIME / "FrontierUnifiedActorGait.cs").read_text()
-    for forbidden in ("Color[] feetPixels", "posePixels[i]=feetPixels[i]",
-                      "posePixels[i] = feetPixels[i]", "for(int yTop=205;"):
-        assert forbidden not in gait, "Stitched half-body regression: " + forbidden
-    for necessary in ("profession<0||profession>=3",
-                      "walkSheets[profession]!=walk",
-                      "bool personal=action==playerSheets[profession]",
-                      "actionFrame/4==profession",
-                      "Color[] composed=(Color[])source.Clone()",
-                      "composed[y*cell+x]=source[y*cell+sample]"):
-        assert necessary in gait, "Missing class-owned whole-body guarantee: " + necessary
+    for forbidden in ("UnifiedActionGait(", "feetPixels",
+                      "posePixels[i]", "MotionMidpoint(", "WalkFrame*",
+                      "Dictionary<string,Texture2D>"):
+        assert forbidden not in gait, "Resurrected body puppetry: "+forbidden
+    assert "private void ClearUnifiedActionGait() { }" in gait
+    assert "UnifiedActionGait(" not in actor
+    assert "DrawWholeBodyHeroOnGUI" in actor
+    assert "ResolveFullBodyHeroFrame" in actor
     assert actor.count("DrawSpriteRendererHero(") == 1
     assert "if(!captured)" in actor
     assert "DrawWholeBodyHeroOnGUI" in actor
