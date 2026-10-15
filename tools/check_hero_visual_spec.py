@@ -38,7 +38,16 @@ def check():
         assert re.search(r"public const int " + item + r" = " + str(value) + r";", code), item
     assert "public const float PixelsPerUnit = 128f;" in code
     assert "public const float GuiDensity = .75f;" in code
-    assert "ActorFrameRegistration.TryStableHead(identity, facing, out reference)" in code
+    # The 56px identity is canonically baked by the OFFLINE asset exporter;
+    # the live Unity fallback must never excise and reattach a warrior face.
+    assert "Color[] colors = source.GetPixels(" in code
+    assert "colors[(Cell - 1 - row) * Cell + col]" not in code
+    fullbody = (ROOT / "Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text()
+    assert "DrawWholeBodyHeroOnGUI" in fullbody
+    assert "HumanActor(" not in fullbody[
+        fullbody.index("private void DrawPlayerActor()"):
+        fullbody.index("private int EnemyPose(")]
+    assert "UnifiedActionGait(" not in fullbody
     sheets, heads = imported_sheets(), registered_heads()
     approved = sheets["WalkVanguard"]
     baselines = {}
