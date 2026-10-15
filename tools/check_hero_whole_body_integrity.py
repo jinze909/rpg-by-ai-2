@@ -150,7 +150,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
     audit_rows = []
     from build_hero_animation_preview import (
         imported_sheets, registered_heads, canonical_frame, crop_frame)
-    from export_canonical_hero_atlases import curated_motion_source
+    from export_canonical_hero_atlases import frame_plan
     sheets, heads = imported_sheets(), registered_heads()
     checked_frames = 0
     curated_count = 0
@@ -177,47 +177,45 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                         "DESTRUCTIVE_HEAD_OR_BODY_RECOMPOSITION",
                         profession, action, facing, source_name, source_index)
                     baselines.append(preview)
-                expanded = action in ANIMATED
+                plan = frame_plan(profession, action, facing, references)
+                assert len(plan) == row["frame_count"] and len(row["frame_sources"]) == len(plan), (
+                    "MISSING_AUTHORED_CELLS", key)
+                assert row["procedurally_warped_cells"] == 0, (
+                    "PROCEDURAL_BODY_WARP_FORBIDDEN", key)
                 with Image.open(atlas_dir / row["path"]) as f:
                     sheet = f.convert("RGBA").copy()
-                for index in range(row["frame_count"]):
+                for index, ((name, source_frame), origin, reference_index) in enumerate(plan):
+                    assert_class_source(profession, name, source_frame)
                     cropped = sheet.crop((index * CELL, 0, (index+1) * CELL, CELL))
-                    base_i = index // 2 if expanded else index
-                    baseline = baselines[base_i]
-                    # Explicitly chosen ALREADY ARTIST-DRAWN class-owned
-                    # whole-body step frames are permitted only at their
-                    # named anticipation/recovery slots. Prove exact
-                    # source bytes; do not waive the palette audit globally.
-                    curated = (curated_motion_source(
-                        profession, action, facing, base_i)
-                        if expanded and index % 2 == 1 else None)
-                    if curated:
-                        name, source_frame = curated
-                        assert_class_source(profession, name, source_frame)
-                        expected = canonical_frame(
-                            sheets, heads, name, source_frame, facing,
-                            locomotion=True)
-                        assert cropped.tobytes() == expected.tobytes(), (
-                            "CURATED_FULL_BODY_SOURCE_MISMATCH", key, index)
+                    expected = crop_frame(sheets[name], source_frame)
+                    # All 279 production cells must be WHOLE approved
+                    # drawings, pixel for pixel. The previous mid-pose
+                    # waiver could conceal a warped boot/waist/weapon.
+                    assert cropped.tobytes() == expected.tobytes(), (
+                        "NOT_A_SINGLE_AUTHORED_WHOLE_BODY", key, index,
+                        name, source_frame)
+                    declared = row["frame_sources"][index]
+                    assert declared == {
+                        "atlas": name, "index": source_frame,
+                        "kind": origin, "original_index": reference_index
+                    }, ("FORGED_FRAME_PROVENANCE", key, index, declared)
+                    if origin == "curated":
                         assert row["curated_full_body_slots"][str(index)] == (
                             f"{name}:{source_frame}"), (
-                            "CURATED_SOURCE_MANIFEST_MISMATCH",key,index)
-                        baseline = expected
+                            "CURATED_SOURCE_MANIFEST_MISMATCH", key, index)
                         curated_count += 1
-                    elif expanded and index % 2 == 1:
-                        _assert_single_source_palette(cropped, baseline, key, index)
                     else:
-                        assert cropped.tobytes() == baseline.tobytes(), (
+                        assert cropped.tobytes() == baselines[reference_index].tobytes(), (
                             "ACCEPTED_FULL_BODY_CHANGED", key, index)
-                    _verify_waist_and_ratio(cropped, baseline, key, index)
+                    _verify_waist_and_ratio(cropped, expected, key, index)
                     checked_frames += 1
                 audit_rows.append({"key": key, "frames": row["frame_count"],
                                    "source_classes": [n for n,_ in references]})
     assert curated_count == 72, ("CURATED_MOTION_COUNT", curated_count)
-    assert len(audit_rows) == 63 and checked_frames == 297, (
+    assert len(audit_rows) == 63 and checked_frames == 279, (
         "INCOMPLETE_CLASS_AUDIT",len(audit_rows),checked_frames)
     report = {
-        "status":"source_owner_palette_waist_and_ratio_verified",
+        "status":"all_frames_are_approved_unmodified_complete_body_source_rasters",
         "hero_atlases":len(audit_rows),
         "checked_frames":checked_frames,
         "artist_drawn_whole_body_transitions":curated_count,
@@ -229,7 +227,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
     (atlas_dir / "full-body-provenance-qa.json").write_text(
         json.dumps(report,indent=2)+"\n",encoding="utf-8")
     print("PASS: source-locked full-body hero QA — 63 class-owned atlases / "+
-          str(checked_frames)+" waist/palette/ratio-checked frames.")
+          str(checked_frames)+" source-provenance + waist/palette/ratio-checked frames.")
     return report
 
 
