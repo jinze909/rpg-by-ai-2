@@ -174,6 +174,11 @@ def check():
     assert "private void ClearUnifiedActionGait() { }" in gait
     assert "UnifiedActionGait(" not in actor
     assert "DrawWholeBodyHeroOnGUI" in actor
+    # Published canonical PNGs are isReadable: 0. World outline pass must
+    # not accidentally call PixelArt.OutlineMask on those GPU-only textures.
+    assert "if(drawingOutline)" in actor
+    assert "Actor(original,4,3,originalFrame,foot,192,tint,flip);" in actor
+    assert "art.OutlineMask(atlas)" not in actor
     assert "ResolveFullBodyHeroFrame" in actor
     assert actor.count("DrawSpriteRendererHero(") == 1
     assert "if(!captured)" in actor
