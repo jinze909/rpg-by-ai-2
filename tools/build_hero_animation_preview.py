@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build reviewable, root-registered FULL-BODY hero previews from accepted atlases.
 
-Every frame is a 256x256 PNG, preserving one shared WalkVanguard blonde head.
+Every frame is a 256x256 PNG preserving the ORIGINAL class-owned full body, blonde head and attached neck.
 This is a genuine offline animation QA/repacking pass, NOT newly drawn in-betweens,
 new approved art, or Unity Editor / PlayMode validation.
 """
@@ -105,30 +105,24 @@ def source_indices(profession, action, facing):
 
 
 def canonical_frame(sheets, heads, name, index, facing, locomotion, death=False):
-    # The production IMGUI HumanActor cuts out the source head and draws
-    # WalkVanguard's canonical head in its place. Bake the identical identity
-    # into one whole-body cell BEFORE migrating to SpriteRenderer.
-    canvas = crop_frame(sheets[name], index)
-    if death:
-        # The crouch->fallen sequence keeps the APPROVED lying blonde head;
-        # upright identity overlaid on a prone body would be detached.
-        return canvas
-    hx, hy, hw, hh = heads[name][index]
-    if min(hx, hy, hw, hh) < 0 or hx + hw > CELL or hy + hh > CELL:
-        raise AssertionError(f"Invalid face cutout: {name}/{index}")
-    identity = crop_frame(sheets["WalkVanguard"], FACINGS.index(facing) * 4)
-    rx, ry, rw, rh = STABLE_HAIR
-    golden_head = identity.crop((rx, ry, rx + rw, ry + rh))
-    if not golden_head.getchannel("A").getbbox():
-        raise AssertionError("Canonical blonde hero head is blank")
-    # Do NOT cover the equipment silhouettes around the head area.
-    canvas.paste((0, 0, 0, 0), (hx, hy, hx + hw, hy + hh))
-    dx = round((128 if locomotion else hx + hw / 2) - rw / 2)
-    dy = round(ry if locomotion else hy + hh - rh)
-    canvas.alpha_composite(golden_head, (dx, dy))
-    if canvas.getchannel("A").getbbox() is None:
-        raise AssertionError(f"Composited blank hero {name}/{index}")
-    return canvas
+    """Return one ENTIRE pre-approved class-owned drawing, head to boots.
+
+    Every Player/Walk/Reactions art source already depicts the same blonde
+    protagonist. The former implementation deleted the source head on every
+    frame and pasted a detached WalkVanguard head at a calculated position.
+    That clipped the real neck/shoulders, created air gaps and false warrior
+    overlays, even though the runtime puppet compositor had been retired.
+    Never crop/replace ANY living body part; retain every original pixel.
+    The heads registry remains only an input for provenance validation.
+    """
+    if name not in sheets or name not in heads:
+        raise AssertionError("Unregistered full-body hero source: " + str(name))
+    if facing not in FACINGS or not (0 <= index < 12):
+        raise AssertionError("Invalid full-body frame selection")
+    original = crop_frame(sheets[name], index)
+    if original.size != (CELL, CELL) or not original.getchannel("A").getbbox():
+        raise AssertionError("Empty/invalid class-owned original: " + name)
+    return original
 
 
 def strip(images):
