@@ -1,230 +1,126 @@
 #!/usr/bin/env python3
-"""Checks OUTPUT PIXELS from the motion-assisted live-production sprite export.
+"""Prove the COMPLETE 3-class Sprite production contains zero warped puppet cells.
 
-Does not pretend to certify motion anatomy, quality, Unity import or PlayMode.
+The 279 published cells must each be a byte-for-byte copy of an APPROVED
+full-body original. This does not imply visual/artist acceptance or native QA.
 """
+import hashlib
 import json
-from pathlib import Path
 from PIL import Image
+
 from build_hero_animation_preview import (
-    CLASSES, FACINGS, ACTIONS, CELL, ROOT, source_indices,
-    imported_sheets, registered_heads, canonical_frame)
+    CLASSES, FACINGS, ACTIONS, CELL, ROOT, source_indices, crop_frame,
+    imported_sheets, registered_heads
+)
 from export_canonical_hero_atlases import (
-    DEST, PREVIEW, expected_count, motion_midpoint, curated_motion_source)
-
-def check_solid_midpoint_synthetic():
-    """Prove the replacement actually moves pixels without mixing silhouettes."""
-    first = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
-    next_pose = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
-    for y in range(20, 57):  # body moves while boots remain rooted
-        for x in range(105, 148):
-            first.putpixel((x, CELL - 1 - y), (18, 32, 48, 255))
-            next_pose.putpixel((x + 10, CELL - 1 - y), (18, 32, 48, 255))
-    for y in range(58, 113):  # canonical head stays put
-        for x in range(102, 148):
-            color = (240, 223, 154, 255)
-            first.putpixel((x, CELL - 1 - y), color)
-            next_pose.putpixel((x, CELL - 1 - y), color)
-    for y in range(40, 70):  # outstretched weapon changes pose
-        for x in range(185, 193):
-            first.putpixel((x, CELL - 1 - y), (230, 113, 35, 255))
-            next_pose.putpixel((x + 12, CELL - 1 - y - 10), (230, 113, 35, 255))
-    midpoint = motion_midpoint(first, next_pose)
-    assert midpoint.tobytes() != first.tobytes(), "Motion pass did not create a new pose"
-    assert set(midpoint.getdata()) <= set(first.getdata()), "Blended/new colors or double silhouettes"
-    assert midpoint.crop((91, 138, 170, 199)).tobytes() == first.crop(
-        (91, 138, 170, 199)).tobytes(), "Blonde protagonist's head changed"
-    assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == first.crop(
-        (0, 233, CELL, CELL)).tobytes(), "Foot contact band shifted"
+    DEST, frame_plan, expected_count
+)
 
 
-def check_opposing_limb_motion():
-    """Symmetric opposing movement defeated the old single-centroid warp."""
+def source_exact(candidate, expected, key, index):
+    """A hard failing gate, including head, weapon, neck, torso and boots."""
+    assert candidate.size == (CELL, CELL), ("INVALID_BODY_CANVAS", key, index)
+    assert candidate.tobytes() == expected.tobytes(), (
+        "PROCEDURALLY_SYNTHESIZED_OR_WRONG_CLASS_FRAME", key, index
+    )
+
+
+def negative_control():
+    """Demonstrate the same release gate rejects a severed head/hip."""
     original = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
-    target = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
-
-    def paint(img, x0, x1, y0, y1, color):
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                img.putpixel((x, CELL - 1 - y), color)
-
-    # Both arm gestures move in opposite directions and heights, while
-    # legs counterstep; total frame centroid movement stays near zero.
-    paint(original, 59, 70, 77, 105, (193, 84, 49, 255))
-    paint(target, 71, 82, 82, 110, (193, 84, 49, 255))
-    paint(original, 190, 201, 76, 105, (83, 161, 195, 255))
-    paint(target, 178, 189, 70, 99, (83, 161, 195, 255))
-    paint(original, 100, 118, 30, 47, (68, 87, 110, 255))
-    paint(target, 108, 126, 33, 50, (68, 87, 110, 255))
-    paint(original, 141, 159, 30, 47, (131, 105, 79, 255))
-    paint(target, 133, 151, 27, 44, (131, 105, 79, 255))
-    paint(original, 118, 139, 47, 65, (38, 45, 51, 255))
-    paint(target, 118, 139, 47, 65, (38, 45, 51, 255))
-    paint(original, 101, 155, 78, 110, (244, 223, 154, 255))
-    paint(target, 101, 155, 78, 110, (244, 223, 154, 255))
-    midpoint = motion_midpoint(original, target)
-    # Verify actual deformations on both sides independently. Do not count
-    # a static duplicate with a new filename as authored animation.
-    areas = [(45, 138, 110, 202), (157, 138, 222, 202),
-             (90, 202, 126, 233), (130, 202, 173, 233)]
-    for area in areas:
-        assert midpoint.crop(area).tobytes() != original.crop(area).tobytes(), (
-            "Opposing limb did not move", area)
-    assert midpoint.crop((91, 138, 170, 199)).tobytes() == original.crop(
-        (91, 138, 170, 199)).tobytes(), "Identity pixels drifted"
-    assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == original.crop(
-        (0, 233, CELL, CELL)).tobytes(), "Boot contact drifted"
-    assert set(midpoint.getdata()) <= set(original.getdata()), "Palette/alpha ghosting"
+    pixels = original.load()
+    for y in range(155, 239):
+        for x in range(112, 145):
+            pixels[x,y] = (121, 94, 61, 255)
+    broken = original.copy()
+    for x in range(112, 145):
+        broken.putpixel((x, 211), (0, 0, 0, 0))
+    try:
+        source_exact(broken, original, "fixture", 0)
+    except AssertionError as error:
+        assert "PROCEDURALLY_SYNTHESIZED_OR_WRONG_CLASS_FRAME" in str(error)
+    else:
+        raise AssertionError("UNSAFE_CI_GATE: wrong waist accepted")
 
 
 def check():
-    check_solid_midpoint_synthetic()
-    check_opposing_limb_motion()
-    manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "class_owned_full_body_run_and_source_curated_transitions_pending_art_review"
-    assert manifest["top_origin_foot_px"] == [128, 240]
-    assert manifest["unity_bottom_origin_pivot"] == [0.5, 0.0625]
-    assert not manifest["native_unity_verified"] and not manifest["art_direction_acceptance"]
-    tally = midpoints = 0
-    identical_motion_cells = 0
-    distinct_motion_cells = 0
-    identical_by_action = {}
-    identical_holds = []
-    curated_count = 0
+    negative_control()
     sheets, heads = imported_sheets(), registered_heads()
-    examples = []
-    # Preserve intent of the actual authored source pose slots:
-    # 4/5 normal attack, 6/7 class skill, south 0/1 normal, 2/3 skill.
-    for profession in CLASSES:
-        player, walk = "Player" + profession, "Walk" + profession
-        n = CLASSES.index(profession)
-        assert source_indices(profession, "Attack", "E") == [
-            (player, 0), (player, 4), (player, 5), (player, 0)]
-        assert source_indices(profession, "Attack", "S") == [
-            (walk, 8), ("PlayerSouth", n * 4), ("PlayerSouth", n * 4 + 1), (walk, 8)]
-        assert source_indices(profession, "Attack", "N") == [
-            (player, 1), ("PlayerRear", n * 4 + 2),
-            ("PlayerRear", n * 4 + 3), (player, 1)]
-        assert source_indices(profession, "Cast", "E") == [
-            (player, 0), (player, 6), (player, 7), (player, 0)]
-        assert source_indices(profession, "Cast", "N") == [
-            (player, 1), ("PlayerRear", n * 4 + 2),
-            ("PlayerRear", n * 4 + 3), (player, 1)]
-        assert source_indices(profession, "Cast", "S") == [
-            (walk, 8), ("PlayerSouth", n * 4 + 2),
-            ("PlayerSouth", n * 4 + 3), (walk, 8)]
-        assert source_indices(profession, "Dodge", "N") == [
-            (player, 1), ("PlayerReactionsRear", n * 4), (player, 1)]
-        assert source_indices(profession, "Hit", "S") == [
-            (walk, 8), ("PlayerReactionsSouth", n * 4 + 2), (walk, 8)]
-        assert source_indices(profession, "Death", "N") == [
-            (player, 1), ("PlayerReactionsRear", n * 4 + 2),
-            ("PlayerReactionsRear", n * 4), ("PlayerReactionsRear", n * 4 + 3)]
+    manifest = json.loads((DEST / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "all_279_cells_from_unmodified_approved_full_body_source_art"
+    assert manifest["top_origin_foot_px"] == [128, 240]
+    assert manifest["unity_bottom_origin_pivot"] == [0.5, .0625]
+    assert not manifest["native_unity_verified"] and not manifest["art_direction_acceptance"]
+    audited = curated = cells = 0
+    source_errors = []
     for klass in CLASSES:
         for action in ACTIONS:
             for facing in FACINGS:
                 key = f"Hero_{klass}_{action}_{facing}"
                 row = manifest["atlases"][key]
-                originals = source_indices(klass, action, facing)
-                expected = expected_count(action, len(originals))
-                assert row["original_count"] == len(originals), key
-                assert row["frame_count"] == expected, key
-                assert row["generated_midpoints"] == expected - len(originals), key
-                with Image.open(DEST / row["path"]) as raw:
-                    sheet = raw.convert("RGBA")
-                assert sheet.size == (expected * CELL, CELL), key
-                assert sheet.mode == "RGBA", key
-                if action in ("Dodge", "Hit"):
-                    assert len(originals) == 3 and expected == 5, key
-                    assert row["generated_midpoints"] == 2, key
-                if action == "Cast":
-                    assert len(originals) == 4 and expected == 7, key
-                    # The final pose EXACTLY rejoins the accepted rooted idle.
-                    first = sheet.crop((0, 0, CELL, CELL))
-                    last = sheet.crop(((expected - 1) * CELL, 0, expected * CELL, CELL))
-                    assert first.tobytes() == last.tobytes(), (key, "cast recovery does not rejoin idle")
-                for i in range(expected):
-                    cell = sheet.crop((i * CELL, 0, (i + 1) * CELL, CELL))
-                    assert cell.getchannel("A").getbbox() is not None, (key, i)
-                for original_index in range(len(originals)):
-                    index = original_index * 2 if action in ("Attack", "Cast", "Dodge", "Hit") and len(originals) > 1 else original_index
-                    extracted = sheet.crop((index * CELL, 0, (index + 1) * CELL, CELL))
-                    with Image.open(PREVIEW / klass / action / f"{facing}_{original_index:02}.png") as source:
-                        assert extracted.tobytes() == source.convert("RGBA").tobytes(), (key, original_index)
-                    if action in ("Attack", "Cast", "Dodge", "Hit") and len(originals) > 1:
-                        if original_index < len(originals) - 1:
-                            midpoint = sheet.crop(((index + 1) * CELL, 0, (index + 2) * CELL, CELL))
-                            if midpoint.tobytes() == extracted.tobytes():
-                                identical_motion_cells += 1
-                                identical_by_action[action] = identical_by_action.get(action, 0) + 1
-                                identical_holds.append({"class":klass, "action":action,
-                                    "facing":facing, "source_index":original_index})
-                            else:
-                                distinct_motion_cells += 1
-                            # A curated midpoint MUST match a full
-                            # artist-drawn body belonging to this class,
-                            # not an invented blend, missing foot or head.
-                            selection = curated_motion_source(
-                                klass, action, facing, original_index)
-                            if selection is not None:
-                                name, source_frame = selection
-                                drawn = canonical_frame(
-                                    sheets, heads, name, source_frame,
-                                    facing, locomotion=True)
-                                assert midpoint.tobytes() == drawn.tobytes(), (
-                                    "CURATED_TRANSITION_NOT_AUTHORED_SOURCE",
-                                    key, original_index)
-                                assert row["curated_full_body_slots"][
-                                    str(index + 1)] == f"{name}:{source_frame}", (
-                                    "CURATED_TRANSITION_MANIFEST_DRIFT",key)
-                                curated_count += 1
-                            else:
-                                # Algorithmic midpoints are UNAPPROVED
-                                # assistance; never mix palette from
-                                # another profession or displace rooted feet.
-                                box = (91, 138, 170, 199)
-                                assert midpoint.crop(box).tobytes() == (
-                                    extracted.crop(box).tobytes()), (
-                                    key, original_index,
-                                    "canonical blonde head altered")
-                                assert set(midpoint.getdata()) <= (
-                                    set(extracted.getdata()) | {(0, 0, 0, 0)}
-                                ), (key, original_index,
-                                    "non-source colors / raster ghosting")
-                                assert midpoint.crop((0, 233, CELL, CELL)).tobytes() == (
-                                    extracted.crop((0, 233, CELL, CELL)).tobytes()), (
-                                    key, original_index, "foot-band slide")
-                tally += 1
-                midpoints += row["generated_midpoints"]
-                if action == "Attack" and klass == "Vanguard":
-                    examples.append(key)
-    assert tally == 63 and midpoints == 90, (tally, midpoints)
-    assert curated_count == 72, ("MISSING_72_PROVENANCE_LOCKED_WHOLE_BODY_TRANSITIONS",curated_count)
-    assert distinct_motion_cells + identical_motion_cells == midpoints, (
-        "Motion cell audit missed a generated sprite")
-    # A geometry pass should actually move most limbs; report any remaining
-    # held duplicates rather than marking their presence as artistic success.
-    assert distinct_motion_cells >= midpoints // 2, (
-        "Most in-betweens are static repeats", distinct_motion_cells, midpoints)
-    report = {
-        "status": "offline_raster_invariants_only",
-        "clip_count": tally,
-        "generated_midpoints": midpoints,
-        "curated_existing_artist_drawn_transitions": curated_count,
-        "distinct_generated_midpoints": distinct_motion_cells,
-        "identical_hold_midpoints": identical_motion_cells,
-        "identical_hold_by_action": identical_by_action,
-        "identical_hold_sources": identical_holds,
-        "approved_source_frames_unchanged": True,
-        "native_playmode_verified": False,
-        "artist_review_pending": True,
-        "sample_atlases": examples,
+                refs = source_indices(klass, action, facing)
+                plan = frame_plan(klass, action, facing, refs)
+                count = expected_count(action, len(refs))
+                assert len(plan) == count == row["frame_count"], (
+                    "INVALID_ANIMATION_FRAME_COUNT",key)
+                assert row["procedurally_warped_cells"] == 0, (
+                    "ILLEGAL_RASTER_WARP", key)
+                assert row["generated_midpoints"] == count - len(refs), key
+                if action == "Run":
+                    assert count == 4 and not row["curated_full_body_slots"], (
+                        "FOUR_AUTHENTIC_RUN_CELLS_REQUIRED",key)
+                elif action in ("Attack", "Cast"):
+                    assert count == 6, ("SIX_CLASS_AUTHORED_ACTION_CELLS_REQUIRED",key)
+                elif action in ("Dodge", "Hit"):
+                    assert count == 5, ("FIVE_SOURCE_CURATED_REACTION_CELLS_REQUIRED",key)
+                with Image.open(DEST / row["path"]) as sheet:
+                    atlas = sheet.convert("RGBA").copy()
+                assert atlas.size == (CELL * count, CELL), ("INVALID_ATLAS",key)
+                assert len(row["frame_sources"]) == count, ("MISSING_PROVENANCE",key)
+                digest_list = []
+                for i, ((name,index), kind, original_i) in enumerate(plan):
+                    assert name in sheets and name in heads, (
+                        "INVALID_SOURCE_CLASS", key, i, name)
+                    expected = crop_frame(sheets[name], index)
+                    current = atlas.crop((i*CELL, 0, (i+1)*CELL, CELL))
+                    source_exact(current, expected, key, i)
+                    declared = row["frame_sources"][i]
+                    assert (declared["atlas"], declared["index"],
+                            declared["kind"], declared["original_index"]) == (
+                        name,index,kind,original_i), ("FORGED_SOURCE_ROW",key,i)
+                    if kind == "curated":
+                        assert row["curated_full_body_slots"][str(i)] == f"{name}:{index}"
+                        curated += 1
+                    digest_list.append(hashlib.sha256(current.tobytes()).hexdigest())
+                    cells += 1
+                assert digest_list == row["frame_sha256_rgba"], (
+                    "ARTISTIC_FRAME_MANIFEST_MISMATCH",key)
+                if action in ("Attack","Cast","Dodge","Hit","Run"):
+                    repeats=sum(a == b for a,b in zip(digest_list,digest_list[1:]))
+                    if repeats:
+                        source_errors.append({"clip":key,"adjacent_identical":repeats})
+                audited += 1
+    assert (audited,cells,curated) == (63,279,72), (
+        "INCOMPLETE_SOURCE_BACKED_THREE_CLASS_RELEASE",audited,cells,curated)
+    # Reject a frozen animation as a release failure, not a passive warning.
+    assert not source_errors, ("DUPLICATED_ADJACENT_SOURCE_FRAME",source_errors)
+    report={
+        "status":"all_release_cells_exact_authored_original_art",
+        "atlases":audited,"whole_body_frames":cells,
+        "curated_transition_frames":curated,
+        "synthetic_raster_midpoints":0,
+        "adjacent_identical_motion_frames":source_errors,
+        "full_source_identity_protected":True,
+        "native_playmode_verified":False,
+        "art_director_approved":False,
     }
-    (DEST / "generated-motion-qa.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"PASS: {tally} atlases; {distinct_motion_cells}/{midpoints} non-identical rooted motion poses, "
-          f"{identical_motion_cells} detected holds {identical_holds}.")
-    print("PASS: original hero poses unchanged in all 63 generated atlases; same canonical root.")
-    print("NATIVE_UNVERIFIED: native Unity playback and aesthetic animation quality.")
+    (DEST / "generated-motion-qa.json").write_text(
+        json.dumps(report,indent=2)+"\n",encoding="utf-8")
+    print(f"PASS: {audited} shipped classes/actions/facings; {cells} WHOLE source-art "
+          f"Sprite cells, {curated} approved-source transition poses; zero raster-warp cells.")
+    print("ART/NATIVE_UNVERIFIED: missing original contact-transition key drawing "
+          "requires future new art, not an invented image.")
 
-if __name__ == "__main__":
+
+if __name__=="__main__":
     check()
