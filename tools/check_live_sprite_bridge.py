@@ -291,7 +291,7 @@ def check():
         assert "if(profession>=0&&profession<FullHeroClasses.Length&&" in actor_code
         assert "playerAction.equippedWeapon : save.weapon;" in core_code
         assert 'weapon = kind == "skill" ? save.profession : save.weapon' in core_code
-        assert "HeroAnimationState==2||Game.HeroAnimationState==3" in actor_code
+        assert "if(profession>=0&&profession<FullHeroClasses.Length)" in actor_code
         assert "TryUsePublishedHeroFrame(Game.AppearanceWeapon," in renderer_code
         assert "0, facing, 0, 1, out idle)" in renderer_code
     check_combat_identity(actor, engine, core)
@@ -313,6 +313,53 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_CI: old hero returns during Attack/Cast")
+    # 2026 production hero art no longer depends on the old readable
+    # Player/Walk PNGs being present. During a Unity import those sources may
+    # be missing while canonical full-body Resources atlases are valid.
+    # Ensure old-missing cannot trigger DrawLegacyHero on LMB, Q or Idle.
+    live_actor = actor[actor.index("private void DrawPlayerActor()"):
+                       actor.index("private int EnemyPose(")]
+    def check_no_legacy_import_dependency(actor_code, engine_code):
+        actual = actor_code[actor_code.index("private void DrawPlayerActor()"):
+                            actor_code.index("private int EnemyPose(")]
+        assert "DrawLegacyHero();" not in actual, (
+            "OLD_HERO_MODEL_ON_LEGACY_IMPORT_MISS")
+        assert "if (look < 0 || look >= FullHeroClasses.Length) return;" in actual
+        assert "playerSheets!=null&&look<playerSheets.Length?" in actual
+        assert "if(original!=null)" not in actor_code.split(
+            "private void DrawWholeBodyHeroOnGUI(")[1].split(
+            "private void DrawPlayerPreview(")[0], (
+            "OLD_PLAYER_MODEL_CAN_REAPPEAR_ON_MISSING_ACTION_ATLAS")
+        assert "missingHeroBodyWarnings.Add(absent)" in actor_code
+        assert "if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas)||atlas==null)" in actor_code
+        assert "sheet == null)" not in engine_code.split(
+            "private bool DrawSpriteRendererHero(")[1].split(
+            "private bool TryUsePublishedHeroFrame(")[0].split("try")[0], (
+            "CANONICAL_NATIVE_SPRITE_BLOCKED_BY_LEGACY_TEXTURE")
+        assert "if (unifiedAction == null)" in engine_code, (
+            "UNVERIFIED_ACTION_ONLY_FALLBACK_TO_LEGACY_BODY")
+    check_no_legacy_import_dependency(actor, engine)
+    for kind, damaged in (
+        ("actor", actor.replace(
+            "if (look < 0 || look >= FullHeroClasses.Length) return;",
+            'if (playerSheets == null) { DrawLegacyHero(); return; }',1)),
+        ("engine", engine.replace(
+            'Game == null || Game.mode == "title")',
+            'Game == null || Game.mode == "title" || sheet == null)',1)),
+    ):
+        try:
+            check_no_legacy_import_dependency(damaged if kind=="actor" else actor,
+                                              damaged if kind=="engine" else engine)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_VISUAL_CI: old model fallback accepted")
+    dynamic = (ROOT / "tests/RuntimeCombatInputChecks.cs").read_text()
+    for check in ("CanonicalHeroNeverDependsOnLegacyPlayerImports",
+                  'Set(app,"playerSheets",null);',
+                  'Set(app,"walkSheets",null);',
+                  'Check(checks==216,'):
+        assert check in dynamic, ("MISSING_RUNTIME_NO_LEGACY_HERO_TEST",check)
     # A non-null Animator sprite is NOT proof of correct class/facing/contact.
     # The live GPU output must match the registered published atlas cell.
     for mark in [
@@ -471,7 +518,7 @@ def check():
     assert "bool moving=pose>=2&&pose<=3;" in actor
     assert "sheet=walkSheets[look];" in actor  # legitimate full-body Run only
     assert "bool movingRecovery" not in actor
-    assert "Game.HeroAnimationState==2" in actor  # heavy-sword fallback preserved
+    assert "if(profession>=0&&profession<FullHeroClasses.Length)" in actor  # no old-model special cases
     # The entire old generated-parts compositor is retired, not only the
     # notorious waist scanline. Any new runtime leg-sampling/blending
     # implementation must be reviewed as a new algorithm before release.

@@ -65,7 +65,7 @@ namespace Starfall
             bool death, Texture2D unifiedAction)
         {
             if (!useSpriteRendererHero || heroCaptureBroken || drawingOutline ||
-                Game == null || Game.mode == "title" || sheet == null)
+                Game == null || Game.mode == "title")
                 return false;
             // Other non-world UI still displays the existing depth-sorted world.
             if (Event.current.type != EventType.Repaint) return true;
@@ -132,11 +132,11 @@ namespace Starfall
                     }
                     else
                     {
-                        // A missing Attack/Cast atlas must not fall back to
-                        // the old body. Use the current equipment's canonical
-                        // Idle Sprite as a safe identity-preserving hold;
-                        // warn so asset CI / native QA can catch the defect.
-                        if ((action == 2 || action == 3) && unifiedAction == null)
+                        // Missing ANY imported action resource must not
+                        // make the actor revert to an unrelated Player/Walk
+                        // source. The canonical equipped Idle is a safe
+                        // identity-preserving hold while asset CI fails.
+                        if (unifiedAction == null)
                         {
                             Sprite idle;
                             if (TryUsePublishedHeroFrame(Game.AppearanceWeapon,
@@ -156,6 +156,7 @@ namespace Starfall
                         // Other rare missing resource fallbacks use a single
                         // complete-body frame and immutable foot root.
                         Texture2D original = unifiedAction != null ? unifiedAction : sheet;
+                        if (original == null) return false;
                         int spriteFrame = unifiedAction != null ? 0 : frame;
                         string key = original.GetInstanceID() + ":" + spriteFrame + ":" +
                             sheet.GetInstanceID() + ":" + frame + ":" + facing + ":" +

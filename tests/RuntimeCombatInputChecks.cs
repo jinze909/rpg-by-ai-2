@@ -1031,6 +1031,65 @@ public static class RuntimeCombatInputChecks
             " true gameplay full-body previews across 72 equipped LMB/Q scenarios; no old model");
     }
 
+    private static void CanonicalHeroNeverDependsOnLegacyPlayerImports(FrontierRuntime app)
+    {
+        // In an actual Unity import/update these older readable 4x3 Player*
+        // textures can temporarily be absent even while all 63 production
+        // canonical atlases are installed. A missing legacy model MUST NOT
+        // gate the new actor or switch LMB/Q back to old art.
+        var type=typeof(FrontierRuntime);
+        object originalPlayers=type.GetField("playerSheets",Private).GetValue(app);
+        object originalWalks=type.GetField("walkSheets",Private).GetValue(app);
+        int checks=0;
+        try
+        {
+            foreach(int discipline in new[]{0,1,2})
+            foreach(int equipped in new[]{0,1,2})
+            foreach(bool skill in new[]{false,true})
+            foreach(Point direction in ActorDirections)
+            {
+                Prepare(app,discipline);
+                var g=app.Game;
+                if(equipped>0&&!g.Has("weapon_"+equipped))
+                    g.save.flags.Add("weapon_"+equipped);
+                g.Equip(equipped);
+                Check(g.save.weapon==equipped,
+                    "Equipped identity must be ready for missing-legacy test");
+                Set(app,"playerSheets",null);
+                Set(app,"walkSheets",null);
+                CheckPlayerDrawing(app,"",0,direction);
+                checks++;
+                if(skill)g.Skill(direction);else g.Attack(direction);
+                var a=g.playerAction;
+                Check(a!=null,
+                    "LMB/Q must start despite absent older source art");
+                CheckPlayerDrawing(app,"",0,direction);
+                checks++;
+                int ticks=0;
+                while(g.playerAction==a&&!a.released&&ticks++<80)
+                    g.Tick(.01f,new Point());
+                Check(a.released&&g.playerAction==a,
+                    "Combat release remains driven by GameCore without old art");
+                Check(g.AppearanceWeapon==equipped,
+                    "Combat must retain equipped full-body identity");
+                CheckPlayerDrawing(app,"",0,direction);
+                checks++;
+                // Prepare restores gameplay fixtures; never restore old art
+                // until the whole test has completed every variant.
+            }
+        }
+        finally
+        {
+            Set(app,"playerSheets",originalPlayers);
+            Set(app,"walkSheets",originalWalks);
+        }
+        Check(checks==216,
+            "All 3 professions x 3 equipments x 2 actions x 4 facings "
+            +"must draw Idle, windup and release from published full-body art");
+        Console.WriteLine("PASS "+checks+" production hero frames remain canonical "
+            +"without ANY legacy Player/Walk import dependency");
+    }
+
     private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1077,6 +1136,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyBossMovingFlash,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
             AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,
+            CanonicalHeroNeverDependsOnLegacyPlayerImports,
             ProduceVerifiedGameplayHeroTrace, GroundContactArtSharesPhysicalFootPivot,
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,

@@ -99,6 +99,8 @@ namespace Starfall
         private readonly System.Collections.Generic.Dictionary<string,Texture2D>
             fullBodyHeroSheetCache =
             new System.Collections.Generic.Dictionary<string,Texture2D>();
+        private readonly System.Collections.Generic.HashSet<string>
+            missingHeroBodyWarnings = new System.Collections.Generic.HashSet<string>();
 
 
         // A contact transfer is considered live only when the COMPLETE set
@@ -189,11 +191,14 @@ namespace Starfall
                 string key="Hero_"+FullHeroClasses[profession]+"_"+
                     FullHeroActions[action]+"_"+FullHeroFacings[facing];
                 Texture2D atlas;
-                if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas))
+                if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas)||atlas==null)
                 {
                     atlas=Resources.Load<Texture2D>(
                         "Frontier/HeroAnimator/Canonical/"+key);
-                    fullBodyHeroSheetCache[key]=atlas;
+                    // Missing assets can finish importing during Editor Play.
+                    // Do not permanently cache null and force an old-model
+                    // fallback until scene restart.
+                    if(atlas!=null)fullBodyHeroSheetCache[key]=atlas;
                 }
                 if(atlas!=null&&atlas.width==frames*256&&atlas.height==256)
                 {
@@ -203,20 +208,20 @@ namespace Starfall
                     return;
                 }
             }
-            // An unavailable combat atlas must NEVER restore the old hero
-            // appearance. Hold the CURRENT equipped class's canonical Idle
-            // frame at the same physical foot pivot until its action asset
-            // is repaired. No interpolated body or costume swap.
-            if(!moving&&(Game.HeroAnimationState==2||Game.HeroAnimationState==3))
+            // ANY missing animation atlas must NEVER restore a mismatched
+            // legacy model. Prefer the equipped actor's whole-body Idle pose
+            // (same scale/Pivot) in all seven states, not only Attack/Cast.
+            // CI rejects missing canonical action resources as a hard failure.
+            if(profession>=0&&profession<FullHeroClasses.Length)
             {
                 string idleKey="Hero_"+FullHeroClasses[profession]+
                     "_Idle_"+FullHeroFacings[facing];
                 Texture2D idle;
-                if(!fullBodyHeroSheetCache.TryGetValue(idleKey,out idle))
+                if(!fullBodyHeroSheetCache.TryGetValue(idleKey,out idle)||idle==null)
                 {
                     idle=Resources.Load<Texture2D>(
                         "Frontier/HeroAnimator/Canonical/"+idleKey);
-                    fullBodyHeroSheetCache[idleKey]=idle;
+                    if(idle!=null)fullBodyHeroSheetCache[idleKey]=idle;
                 }
                 if(idle!=null&&idle.width==256&&idle.height==256)
                 {
@@ -225,8 +230,18 @@ namespace Starfall
                     return;
                 }
             }
-            if(original!=null)
-                Actor(original,4,3,originalFrame,foot,192,tint,flip);
+            // Deliberately fail closed if even the equipped Idle is absent:
+            // old Player*.png would reintroduce a different protagonist.
+            // Only the outline-only mask pass above uses legacy readable art.
+            if(!drawingOutline)
+            {
+                string absent="Hero_"+FullHeroClasses[profession]+"_"+
+                    FullHeroActions[Game.HeroAnimationState]+"_"+
+                    FullHeroFacings[facing];
+                if(missingHeroBodyWarnings.Add(absent))
+                    Debug.LogWarning("Starfall missing canonical full-body hero "+
+                        absent+"; rejecting old character art (check import/CI).");
+            }
         }
 
         private void DrawPlayerPreview(int equipment, float x, float y, float size)
@@ -239,11 +254,11 @@ namespace Starfall
             // avatar for the inventory's 104px preview.
             string key="Hero_"+FullHeroClasses[profession]+"_Idle_S";
             Texture2D published;
-            if(!fullBodyHeroSheetCache.TryGetValue(key,out published))
+            if(!fullBodyHeroSheetCache.TryGetValue(key,out published)||published==null)
             {
                 published=Resources.Load<Texture2D>(
                     "Frontier/HeroAnimator/Canonical/"+key);
-                fullBodyHeroSheetCache[key]=published;
+                if(published!=null)fullBodyHeroSheetCache[key]=published;
             }
             Rect bounds=new Rect(x-size/2f,y-size*240f/256f,size,size);
             if(published!=null&&published.width==256&&published.height==256
@@ -267,12 +282,12 @@ namespace Starfall
             if (Game.racing && !drawingOutline)
                 PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);
             int look=Game.AppearanceWeapon,pose=Game.PlayerPose;
-            if (look<0||look>=3||playerSheets==null||
-                playerSheets[look]==null)
-            {
-                DrawLegacyHero();
-                return;
-            }
+            // Canonical published full-body atlases, NOT old readable
+            // Player*.png sheets, own the hero's runtime appearance. Missing
+            // legacy import assets must never force DrawLegacyHero() during
+            // LMB, Q, Idle, Run or hit/death; Unity SpriteRenderer and the
+            // OnGUI production fallback can read their own canonical assets.
+            if (look < 0 || look >= FullHeroClasses.Length) return;
             Point direction=Game.VisualFacing;
             Color tint=Game.playerFlash>0 ?
                 new Color(1.5f,1.5f,1.5f) : Color.white;
@@ -285,7 +300,8 @@ namespace Starfall
             // the weapon/facing remain bound to the action until it ends.
             bool moving=pose>=2&&pose<=3;
             bool rear=false,south=false,resting=!moving&&pose<=1;
-            Texture2D sheet=playerSheets[look];
+            Texture2D sheet=playerSheets!=null&&look<playerSheets.Length?
+                playerSheets[look]:null;
             int frame=pose;
             if(moving&&walkSheets!=null&&walkSheets[look]!=null)
             {
