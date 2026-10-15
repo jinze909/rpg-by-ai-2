@@ -662,6 +662,19 @@ namespace Starfall
                 Actor(cinderstoneGuardSheet, 4, 6, 20 + phase, p, 106,
                     tint, body.actor.VisualFlip);
             }
+            else if (body.actor.kind == 1 && enemyArcherVertical != null &&
+                enemyArcherVertical.width % 3 == 0 &&
+                enemyArcherVertical.height % 2 == 0)
+            {
+                // The accepted 3x2 archer painting reserves cell 5 for its
+                // original fallen full-body silhouette. The old generic
+                // Monsters death swapped face/outfit immediately on death.
+                // Keep the SAME canvas density and foot root as the live
+                // north/south archer's production SpriteRenderer pose.
+                Actor(enemyArcherVertical, 3, 2, 5, p,
+                    ActorCanvas(enemyArcherVertical, 3, 96f / 128f),
+                    tint, false);
+            }
             else Actor(monsterSheet, 6, 3, Math.Min(2, body.actor.kind) * 6 + 5, p, body.actor.kind == 2 ? 106 : 96, tint,body.actor.VisualFlip);
             if (body.actor.boss && progress < .6f) Atlas(effectSheet, 4, 4, 15, new Rect(p.x - 52, p.y - 80 - progress * 40, 104, 104), new Color(.8f, .92f, .84f, .7f * (1 - progress)));
         }

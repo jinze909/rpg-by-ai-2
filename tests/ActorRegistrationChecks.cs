@@ -172,9 +172,29 @@ public static class ActorRegistrationChecks
                         Math.Abs(previous.rect.y-body.rect.y)<.001f,
                         "Vertical combat crosses character identity row");
                 previous=body;
+                GUI.Export(folder,"review-archer-"+heading+"-action-"+phase);
             }
+            // The sixth cell on the same accepted atlas is a genuine
+            // authored fallen archer. Death must not turn into a generic
+            // monster/another face when live hitboxes are removed.
+            Clear();
+            var fallen=new FallenActor{actor=foe,room=1,life=.36f,duration=.65f};
+            var corpse=Draw(app,"DrawFallen",fallen);
+            var death=corpse.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/EnemyArcherVertical");
+            Check(death!=null&&
+                Math.Abs(death.uv.x-2f/3f)<.00001f&&
+                Math.Abs(death.uv.y)<.00001f&&
+                Math.Abs(death.uv.width-1f/3f)<.00001f&&
+                Math.Abs(death.uv.height-.5f)<.00001f,
+                "Archer corpse must use its original full-body fallen cell 5");
+            Check(!corpse.Any(c=>c.texture.name=="resource:Frontier/Art/Monsters"),
+                "Death must not change archer into a generic monster");
+            Check(Math.Abs(death.rect.y-(350-death.rect.height*120f/128f))<1.1f,
+                "Fallen archer cannot slide away from its fixed foot root");
+            GUI.Export(folder,"review-archer-"+heading+"-death");
         }
-        Console.WriteLine("PASS 4 real vertical Archer windup/contact cells, stable full-body foot and synchronized hit flash");
+        Console.WriteLine("PASS 6 real archer windup/contact/death poses, facing-locked rows, full-body foot and hit flash");
     }
     static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
     {
