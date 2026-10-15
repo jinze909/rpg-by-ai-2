@@ -33,6 +33,13 @@
 - **CI:** the original committed PNGs are byte-checked before regeneration; check_hero_directional_action_bridges.py rejects 12 injected legacy walking frames and emits 12 labeled before/after comparisons into the visual-sprite-qa artifact. One-time publishing tolerance is retired.
 - **Still missing:** 18 original central contact paintings, distinct upward-facing Cast drawings, natural planted-to-moving recovery, and Unity 2022.3.53f1 native GameView verification (ART_REVIEW_REQUIRED / NATIVE_UNVERIFIED).
 
+## Phase 2 — Emberfall NPC guild/forge original sprite delivery (2026-10-15)
+
+- The active `Frontier.unity` runtime now samples `Assets/Resources/Frontier/Art/EmberfallResidents.png` for **Lyra / guild (id 0)** and **Noll / forge (id 2)**; each has 4 independently rasterized full-body Idle keyposes and 4 Talk keyposes (16 total at 128×128, fixed pixel foot (64,120), 96px display).
+- Source: `tools/generate_emberfall_residents.py` hand-authored pixel geometry rasterized with Pillow, **not an image model or external artist**. Dialogue state is bound only to the pinned `conversationSource` of the actual interlocutor; nearby NPCs and the other 14 legacy sprites retain their identities and fallback. No newly added `OnGUI` draw calls; existing SpriteRenderer-first `Actor()` handles the full-body sprite.
+- Regression: `tools/check_emberfall_residents.py` hard-fails absent shipped PNG, mutated/duplicated/clipped 16 frames, source-pixel mismatch, GUID/import drift, foot-root jumps and incorrect runtime references. `ActorRegistrationChecks.VerifyResidentAnimation` verifies live idle→talk row switching and rejects same-kind bystander switching. Its review artifact exports `resident-filmstrip.png`, `guild-idle-talk.gif`, `forge-idle-talk.gif`. These are previews, not native acceptance.
+- Still pending: all other NPC/companion actor animation, additional monster and Boss identities, terrain Tiles/background/props; complete nonhero Animator controllers and Unity Editor PlayMode verification. **`NATIVE_UNVERIFIED`, `ART_REVIEW_REQUIRED`.**
+
 ## Phase 2 — Briar Beast Boss visual production (2026-10-15)
 
 - Code milestone `863e9704`; verified real **binary** Sprite commit `a44a4ccde347149a2d2ce6c5fb7a8f367cbd3e4d`: `Assets/Resources/Frontier/Art/BriarBeast.png` is one 72-cell 320×320 PNG (three HP phases, each with four authored keyframes for Idle, Walk, Windup, Release, Hit and Death).

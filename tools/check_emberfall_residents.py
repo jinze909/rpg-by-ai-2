@@ -43,6 +43,35 @@ def inspect(atlas):
         "RESIDENT_IDENTITY_LOST")
     return all_frames
 
+def emit_animation_review(atlas):
+    # Visual storyboard and loop preview for human hand/face/foot assessment.
+    # This report does NOT assert that the animation looks natural in GameView.
+    from PIL import ImageDraw
+    folder=STAGED.parent
+    folder.mkdir(parents=True,exist_ok=True)
+    bg=(31,42,53,255)
+    film=Image.new("RGBA",(4*144,4*164),bg)
+    pen=ImageDraw.Draw(film)
+    for row,action in enumerate(ACTIONS):
+        for col in range(4):
+            frame=atlas.crop((col*SIZE,row*SIZE,(col+1)*SIZE,(row+1)*SIZE))
+            panel=Image.new("RGBA",(128,128),(42,54,66,255))
+            panel.alpha_composite(frame)
+            film.alpha_composite(panel,(col*144+8,row*164+23))
+            pen.text((col*144+8,row*164+5),f"{action} #{col}",fill=(242,234,215,255))
+    film.convert("RGB").save(folder/"resident-filmstrip.png",optimize=True)
+    for kind,first in (("guild",0),("forge",2)):
+        frames=[]
+        for row in (first,first+1):
+            for col in range(4):
+                frame=atlas.crop((col*SIZE,row*SIZE,(col+1)*SIZE,(row+1)*SIZE))
+                board=Image.new("RGBA",(128,128),(42,54,66,255))
+                board.alpha_composite(frame)
+                frames.append(board.convert("RGB").resize((256,256),Image.Resampling.NEAREST))
+        frames[0].save(folder/(kind+"-idle-talk.gif"),save_all=True,
+            append_images=frames[1:],duration=[310]*4+[160]*4,
+            loop=0,disposal=2,optimize=False)
+
 def source_contract():
     actors=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs").read_text()
     for item in (
@@ -75,6 +104,7 @@ def main():
     with Image.open(STAGED) as original:
         expected=original.convert("RGBA").copy()
     inspect(expected)
+    emit_animation_review(expected)
     source_contract()
     if not INSTALLED.exists():
         assert args.allow_unpublished,"RESIDENT_SHIPPED_PNG_MISSING"
