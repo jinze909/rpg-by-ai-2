@@ -7,10 +7,12 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        // The normal production game remains on proven OnGUI. Toggle in the
-        // FrontierRuntime Inspector after native PlayMode/art QA to compare the
-        // SpriteRenderer lane in the REAL scene (not a disconnected prefab).
-        [SerializeField] private bool useSpriteRendererHero;
+        // Production player art is ONE complete SpriteRenderer body, captured
+        // into the legacy GUI world while terrain/HUD are migrated separately.
+        // The pre-existing full-body OnGUI path remains a bounded safety
+        // fallback on missing resources, device errors, or explicit F8 opt-out.
+        // Native Unity 2022.3 PlayMode visual sign-off remains UNVERIFIED.
+        [SerializeField] private bool useSpriteRendererHero = true;
         private const int HeroCell = CanonicalHeroSpriteFactory.Cell;
         private const int HeroCaptureLayer = 31;
         private GameObject heroCaptureRoot;

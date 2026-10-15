@@ -171,7 +171,11 @@ def check():
     assert "AssetDatabase.DeleteAsset(" not in native, (
         "A production rebake must preserve existing GUIDs and accepted animation assets")
     assert engine.startswith("#if UNITY_5_3_OR_NEWER")
-    assert "useSpriteRendererHero;" in engine, "Not safe to silently replace accepted art"
+    assert "private bool useSpriteRendererHero = true;" in engine, (
+        "Production hero must default to unified SpriteRenderer; F8 opt-out retained")
+    assert "if (!useSpriteRendererHero || heroCaptureBroken || drawingOutline ||" in engine
+    assert "if(!captured)" in actor and "DrawWholeBodyHeroOnGUI" in actor
+    assert "KeyCode.F8" in game and "else ReleaseHeroCapture();" in game
     assert engine.count("return false;") >= 3, "Production must have a failure fallback"
     # Sword Q/ordinary attack contact remain full-body authored poses.
     # Once GameCore genuinely permits recovery movement, we show an

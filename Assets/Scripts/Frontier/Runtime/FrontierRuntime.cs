@@ -120,16 +120,17 @@ namespace Starfall
             frameDelta = Math.Min(frameDelta, .20f); // cap severe stalls; avoid runaway catch-up
             clock += frameDelta; Resize();
 #if UNITY_5_3_OR_NEWER
-            // Native QA switch. Keep legacy OnGUI the default until verified
-            // in the actual Unity 2022.3 Game view. F8 switches the LIVE
-            // avatar path in development builds without changing save slots.
+            // Production uses the complete SpriteRenderer hero by default.
+            // F8 is a developer safety opt-out to the old COMPLETE OnGUI
+            // full-body renderer; it never restores the retired body splice.
+            // This boot path is the actual Assets/Scenes/Frontier.unity game.
             if ((Application.isEditor || Debug.isDebugBuild) && Input.GetKeyDown(KeyCode.F8))
             {
                 useSpriteRendererHero = !useSpriteRendererHero;
                 if (useSpriteRendererHero) heroCaptureBroken = false;
                 else ReleaseHeroCapture();
-                Game.Notify(useSpriteRendererHero ? "实验性 SpriteRenderer 已开启（F8 切回）" : "已恢复原始 OnGUI 主角",
-                    useSpriteRendererHero ? "Experimental SpriteRenderer enabled (F8 to revert)" : "Original OnGUI hero restored");
+                Game.Notify(useSpriteRendererHero ? "已恢复 SpriteRenderer 完整人物渲染" : "已切换完整人物 OnGUI 安全回退",
+                    useSpriteRendererHero ? "Production full-body SpriteRenderer resumed" : "Full-body OnGUI safety fallback enabled");
             }
 #endif
             Point movement = new Point(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical") * -1);
