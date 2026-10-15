@@ -179,7 +179,10 @@ namespace Starfall
             float duration = enemy.windupDuration > 0 ? enemy.windupDuration : enemy.boss ? 1.1f : .65f;
             float progress = Mathf.Clamp01(1 - enemy.timer / duration);
             Color warning = PixelArt.C("#df8a68");
-            if (enemy.boss && (enemy.target - enemy.Position).Length > 3) DrawRay(enemy.Position, enemy.target, new Color(warning.r, warning.g, warning.b, .18f + progress * .15f));
+            if(enemy.boss && (enemy.target-enemy.Position).Length>3)
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(enemy.target),
+                    new Color(warning.r,warning.g,warning.b,.18f+progress*.15f));
             DrawWarningArc(enemy.target,radius,0f,
                 (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,.85f),36);
             DrawWarningArc(enemy.target,radius*(.2f+progress*.8f),0f,
@@ -205,16 +208,21 @@ namespace Starfall
                 float laneProgress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
                 Color tether = PixelArt.C("#f4b58b");
                 float opacity = Game.save.reducedMotion ? .4f : .24f + laneProgress * .25f;
-                DrawRay(enemy.Position, enemy.target, new Color(tether.r, tether.g, tether.b, opacity));
-                Ring(enemy.target, .34f, new Color(tether.r, tether.g, tether.b, .65f), 20);
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(enemy.target),
+                    new Color(tether.r,tether.g,tether.b,opacity));
+                DrawWarningArc(enemy.target,.34f,0f,(float)(Math.PI*2),
+                    new Color(tether.r,tether.g,tether.b,.65f),16);
                 if (enemy.targetingReliefCivilian && enemy.kind == 1)
                 {
                     // The projectile can be blocked mid-flight; warn about
                     // the arrow's actual shot lane, not a ground shockwave.
                     Point muzzle = GameCore.WeaponOrigin(enemy.Position, 1, enemy.facing);
-                    DrawRay(muzzle, enemy.target,
-                        new Color(tether.r, tether.g, tether.b,
-                            Game.save.reducedMotion ? .6f : .35f + laneProgress * .4f));
+                    DrawWarningStroke(ScreenPoint(muzzle),
+                        ScreenPoint(enemy.target),
+                        new Color(tether.r,tether.g,tether.b,
+                            Game.save.reducedMotion ? .6f :
+                            .35f+laneProgress*.4f));
                 }
             }
             if(enemy.boss||enemy.kind==2){DrawTelegraph(enemy);return;}
@@ -223,7 +231,9 @@ namespace Starfall
             if(enemy.kind==1)
             {
                 Point muzzle=GameCore.WeaponOrigin(enemy.Position,1,enemy.facing),lift=new Point(0,GameCore.WeaponHeight(1,enemy.facing)/Tile);
-                DrawRay(muzzle-lift,enemy.target-lift,color);return;
+                DrawWarningStroke(ScreenPoint(muzzle-lift),
+                    ScreenPoint(enemy.target-lift),color);
+                return;
             }
             // Readability uses the same center, radius and angular bound as damage.
             // This thin open sector supplements the claw wind-up without covering it.
@@ -237,7 +247,9 @@ namespace Starfall
             {
                 float a=angle+half*side;
                 Point edge=enemy.Position+new Point((float)Math.Cos(a),(float)Math.Sin(a))*GameCore.EnemyMeleeRadius;
-                DrawRay(enemy.Position,edge,new Color(color.r,color.g,color.b,color.a*.45f));
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(edge),
+                    new Color(color.r,color.g,color.b,color.a*.45f));
             }
         }
     }

@@ -985,6 +985,42 @@ public static class RenderStateChecks
                 (float)(Math.PI*2),warning,36);
             Check(GUI.textureCalls.Count==36,
                 "Reduced motion must retain legible, stationary danger radius");
+            // Real GameCore arrow attack targeting stays at precisely the
+            // archer's weapon-origin height, instead of a dotted generic
+            // screen-space ray. QA calls actual DrawEnemyWarning, not an
+            // isolated helper with invented coordinates.
+            foreach(Point facing in new[]{
+                new Point(1,0),new Point(-1,0),
+                new Point(0,1),new Point(0,-1)})
+            {
+                Enemy bow=new Enemy(93214,1,target.x,target.y,65){
+                    state=1,timer=.4f,windupDuration=.65f,facing=facing,
+                    target=target+facing*4f
+                };
+                Clear();
+                Call(app,"DrawEnemyWarning",bow);
+                Check(GUI.textureCalls.Count==1,
+                    "Enemy arrow lane must draw one connected authored-height line");
+                var lane=GUI.textureCalls[0];
+                Point lift=new Point(0,
+                    GameCore.WeaponHeight(1,facing)/36f);
+                Point muzzle=GameCore.WeaponOrigin(bow.Position,1,facing);
+                var source=(Point)Call(app,"ScreenPoint",muzzle-lift);
+                var destination=(Point)Call(app,"ScreenPoint",bow.target-lift);
+                var middle=(source+destination)*.5f;
+                var actual=Center(lane);
+                var projected=viewport.MultiplyPoint3x4(
+                    new Vector3(middle.x,middle.y,0));
+                Near(actual,projected,
+                    "Actual bow preview must match real projectile target height");
+                Check(lane.rect.width>35f&&
+                    Math.Abs(lane.rect.height-1.8f)<.00001f,
+                    "Bow warning reverted to a square-dot point cloud");
+                Same(GUI.matrix,viewport,
+                    "Arrow warning must not rotate following characters");
+                Same(GUI.color,new Color(.28f,.45f,.67f,.82f),
+                    "Warning leaked color into HUD");
+            }
             // Degenerate visual warning must never emit a NaN texture.
             Clear();Call(app,"DrawWarningArc",target,0f,0f,1f,warning,24);
             Check(GUI.textureCalls.Count==0,
