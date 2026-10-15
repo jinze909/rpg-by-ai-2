@@ -163,93 +163,58 @@ public static class ActorRegistrationChecks
             Caption(pixel,"release "+direction);
         }GUI.Export(folder,"review-registered-muzzles");
     }
-    static void UnifiedGaitComposites(FrontierRuntime app)
+    static void FullBodyHeroProductionFrames(FrontierRuntime app)
     {
-        // Regression for the actual root cause: the old pixel compositor
-        // pasted walking boots and thighs from another original sheet at a
-        // hard 219px hem seam. Assert COMPLETE rendered provenance from the
-        // action atlas (and its profession), not just source registration.
-        var action=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="PlayerVanguard"};
-        var walk=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="WalkVanguard"};
-        var rival=new Texture2D(1024,768,TextureFormat.RGBA32,false){name="WalkRanger"};
-        var upper=new Color(.8f,.5f,.2f,1f);
-        var foot=new Color(.6f,.3f,.1f,1f);
-        var wrongBoot=new Color(.1f,.7f,.3f,1f);
-        var belt=new Color(.9f,.12f,.08f,1f);
-        var a=new Color[action.width*action.height];
-        var w=new Color[walk.width*walk.height];
-        int ax=120,atop=180,footTop=230;
-        a[(action.height-256-1-atop)*action.width+ax]=upper;
-        a[(action.height-256-1-footTop)*action.width+ax]=foot;
-        a[(action.height-256-1-222)*action.width+128]=belt;
-        w[(walk.height-1-footTop)*walk.width+ax]=wrongBoot;
-        w[(walk.height-1-footTop)*walk.width+256+ax]=
-            new Color(.15f,.35f,.9f,1f);
-        action.SetPixels(a);walk.SetPixels(w);rival.SetPixels(w);
-        var method=app.GetType().GetMethod("UnifiedActionGait",Private);
-        var walkField=app.GetType().GetField("walkSheets",Private);
-        var playersField=app.GetType().GetField("playerSheets",Private);
-        Check(method!=null&&walkField!=null&&playersField!=null,
-            "Full-body gait must be wired into production, not a detached preview");
-        var originalWalks=(Texture2D[])walkField.GetValue(app);
-        var originalPlayers=(Texture2D[])playersField.GetValue(app);
-        try
+        // Unlike the removed UnifiedActionGait synthetic-leg test, this
+        // exercises the REAL world DrawPlayerActor() method and the actual
+        // canonical PNGs shipped under Assets/Resources. A body needs one
+        // draw, one 256px sheet cell and a fixed (128,240) foot Pivot.
+        var classes=new[]{"Vanguard","Ranger","Arcanist"};
+        int checkedFrames=0;
+        foreach(int profession in new[]{0,1,2})
+        foreach(Point direction in Directions)
         {
-            walkField.SetValue(app,new[]{walk,rival,originalWalks[2]});
-            playersField.SetValue(app,new[]{action,originalPlayers[1],originalPlayers[2]});
-            var a0=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0,0});
-            var a2=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,2,0});
-            var repeat=(Texture2D)method.Invoke(app,new object[]{action,4,3,4,walk,0,0});
-            Check(a0!=null&&a2!=null&&a0.width==256&&a0.height==256&&
-                a0.filterMode==FilterMode.Point&&ReferenceEquals(a0,repeat),
-                "Full-body class-owned Sprite keeps point filter, root and cache");
-            Check(!ReferenceEquals(a0,a2), "Distance-driven lower limb phases must change");
-            int upperIndex=(255-atop)*256+ax;
-            int waistIndex=(255-222)*256+128;
-            Check(a0.pixels[upperIndex].r==upper.r&&
-                a2.pixels[upperIndex].r==upper.r&&
-                a0.pixels[waistIndex].r==belt.r&&
-                a2.pixels[waistIndex].r==belt.r,
-                "Upper equipment, waist and head cannot be replaced by stride pixels");
-            bool motion=false,hasFoot=false;
-            for(int i=0;i<a0.pixels.Length;i++)
+            app.BeginVisualReview(profession,0);
+            var g=app.Game;
+            g.enemies.Clear();g.save.companion=-1;g.save.upgrades=0;
+            g.SetAim(direction);
+            g.movementDirection=direction;
+            g.locomotionFacing=direction;
+            for(int step=0;step<4;step++)
             {
-                Color p=a0.pixels[i],q=a2.pixels[i];
-                // No supplied WALK palette pixel can enter the game output.
-                Check(!(p.g==wrongBoot.g&&p.r==wrongBoot.r)&&
-                      !(q.g==wrongBoot.g&&q.r==wrongBoot.r),
-                    "Foreign lower-body walk palette illegally entered the hero");
-                if(p.a>0f&&p.r==foot.r)hasFoot=true;
-                if(Math.Abs(p.r-q.r)>.01f||Math.Abs(p.a-q.a)>.01f)motion=true;
+                g.walkDistance=step*GameCore.WalkStride/4;
+                Point location=new Point(480+step*5,300+profession*5);
+                Place(app,g.Position,location);
+                var calls=Draw(app,"DrawPlayerActor");
+                var parts=calls.Where(ActorTexture).ToArray();
+                Check(parts.Length==1,"A playable hero may NEVER be drawn "+
+                    "as a separately attached head, torso or boot");
+                var sprite=parts[0];
+                string prefix="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    classes[profession]+"_";
+                Check(sprite.texture.name.StartsWith(prefix),
+                    "Published body must belong to the active class");
+                Check(Math.Abs(sprite.rect.width-192)<.01f&&
+                    Math.Abs(sprite.rect.height-192)<.01f,
+                    "Full-body source cell and density must remain 256*.75");
+                Check(Math.Abs(sprite.rect.x-location.x+96)<1.2f&&
+                    Math.Abs(sprite.rect.y-location.y+180)<1.2f,
+                    "One root/pivot must not move during the four walk phases");
+                Check(!calls.Any(c=>c.texture.name=="resource:Frontier/Art/WalkVanguard"),
+                    "No extra warrior head may be drawn over Ranger or Arcanist");
+                checkedFrames++;
             }
-            Check(hasFoot&&motion,"Motion must deform the accepted same-class boots");
-            Check(method.Invoke(app,new object[]{action,4,3,4,rival,0,0})==null,
-                "A wrong-profession walking atlas must fail closed");
-            Check(method.Invoke(app,new object[]{action,4,3,4,walk,0,1})==null,
-                "A Vanguard action cannot render as Ranger");
-            // Eviction also applies to source-only motion, with no LFS leak.
-            for(int actionFrame=0;actionFrame<12;actionFrame++)
-                for(int walkFrame=0;walkFrame<12;walkFrame++)
-                    method.Invoke(app,new object[]{action,4,3,actionFrame,walk,walkFrame,0});
-            var cache=(System.Collections.IDictionary)app.GetType().
-                GetField("unifiedGaitCache",Private).GetValue(app);
-            Check(cache.Count<=96&&cache.Count>50,
-                "Full-body motion textures must have bounded ownership");
-            Check(a0.destroyed,"Evicted full-body gait cannot leak textures");
-            Console.WriteLine("PASS full-body class provenance: single action palette, moving original boots, uncut belt, same-foot pivot, wrong-class rejection");
         }
-        finally
-        {
-            walkField.SetValue(app,originalWalks);
-            playersField.SetValue(app,originalPlayers);
-        }
+        Console.WriteLine("PASS "+checkedFrames+
+            " real full-body player draws: one published class-owned Sprite, "+
+            "canonical scale/root, no torso/head/leg puppetry");
     }
 
-    public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { UnifiedGaitComposites(app); }
+    public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { FullBodyHeroProductionFrames(app); }
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();UnifiedGaitComposites(app);Players(app,folder);Companions(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);Players(app,folder);Companions(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
