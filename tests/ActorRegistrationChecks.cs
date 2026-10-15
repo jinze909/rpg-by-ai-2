@@ -126,43 +126,74 @@ public static class ActorRegistrationChecks
     }
     static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
     {
-        // Real production drawing, captured as IMGUI texture commands.
-        // The flash must use the same actual four-frame walk atlas and crop
-        // as its moving boss, not the stationary boss pose.
+        // Exercise the actual Frontier DrawEnemyActor, not an unintegrated
+        // art preview. The first Boss has a new three-phase whole-body atlas;
+        // later rooms must continue to use their original walk sources.
         app.BeginVisualReview(0,1);
-        var g=app.Game;g.enemies.Clear();
-        var e=new Enemy(93000,0,g.Position.x,g.Position.y,150,true){
-            facing=new Point(1,0),moving=true,moveTime=.8f,
-            flash=.045f,hitTime=0,releaseTime=0
+        var g=app.Game; g.enemies.Clear();
+        var e=new Enemy(93000,0,g.Position.x,g.Position.y,150,true) {
+            facing=new Point(1,0), moving=true, moveTime=.8f,
+            flash=.045f, hitTime=0, releaseTime=0
         };
-        Clear();
-        var draws=Draw(app,"DrawEnemyActor",e);
-        var walk=draws.FirstOrDefault(c=>
-            c.texture.name=="resource:Frontier/Art/WalkBossA");
-        var flash=draws.FirstOrDefault(c=>
-            c.texture.name=="resource:Frontier/Art/ActorMasks/flash_WalkBossA"||
-            c.texture.name=="flash_resource_Frontier_Art_WalkBossA");
-        Check(walk!=null&&flash!=null,
-            "Moving Boss flash must use the actual walk sheet and its matching mask");
-        Check(Math.Abs(walk.rect.x-flash.rect.x)<.001f&&
-            Math.Abs(walk.rect.y-flash.rect.y)<.001f&&
-            Math.Abs(walk.rect.width-flash.rect.width)<.001f&&
-            Math.Abs(walk.rect.height-flash.rect.height)<.001f&&
-            Math.Abs(walk.uv.x-flash.uv.x)<.0001f&&
-            Math.Abs(walk.uv.y-flash.uv.y)<.0001f&&
-            Math.Abs(walk.uv.width-flash.uv.width)<.0001f&&
-            Math.Abs(walk.uv.height-flash.uv.height)<.0001f,
-            "Boss body and hit-flash require identical walking frame, camera crop and foot anchor");
-        Check(!draws.Any(c=>c.texture.name==
-            "resource:Frontier/Art/ActorMasks/flash_Bosses"),
-            "A walking Boss may not receive a stationary ghost silhouette");
-        // Nonwalking attacks still use their original author-approved Boss sheet.
-        e.moving=false;e.flash=.04f;Clear();draws=Draw(app,"DrawEnemyActor",e);
-        Check(draws.Any(c=>c.texture.name==
-                "resource:Frontier/Art/ActorMasks/flash_Bosses" ||
-                c.texture.name=="flash_resource_Frontier_Art_Bosses"),
-            "A stationary Boss retains its original hit silhouette in prebaked or fallback mask mode");
-        Console.WriteLine("PASS moving Boss base and flash share exact atlas, frame, UV and foot anchor");
+        const string atlas="resource:Frontier/Art/BriarBeast";
+        Func<GUI.TextureCall[],string,GUI.TextureCall> actor=(draws,name)=>
+            draws.FirstOrDefault(c=>c.texture.name==name);
+        Func<GUI.TextureCall[],string,GUI.TextureCall> mask=(draws,name)=>
+            draws.FirstOrDefault(c=>
+                c.texture.name=="resource:Frontier/Art/ActorMasks/flash_"+name ||
+                c.texture.name=="flash_resource_Frontier_Art_"+name);
+        Action<GUI.TextureCall,GUI.TextureCall> sameFrame=(body,flash)=> {
+            Check(body!=null&&flash!=null,
+                "Boss full-body source and its corresponding mask must both exist");
+            Check(Math.Abs(body.rect.x-flash.rect.x)<.001f &&
+                  Math.Abs(body.rect.y-flash.rect.y)<.001f &&
+                  Math.Abs(body.rect.width-flash.rect.width)<.001f &&
+                  Math.Abs(body.rect.height-flash.rect.height)<.001f &&
+                  Math.Abs(body.uv.x-flash.uv.x)<.0001f &&
+                  Math.Abs(body.uv.y-flash.uv.y)<.0001f &&
+                  Math.Abs(body.uv.width-flash.uv.width)<.0001f &&
+                  Math.Abs(body.uv.height-flash.uv.height)<.0001f,
+                "Boss flashing body must use the EXACT drawn source cell/root");
+        };
+        float previousPhaseCrop=-1;
+        foreach(float health in new[]{150f,78f,32f})
+        {
+            e.hp=health;e.state=0;e.moving=true;e.hitTime=0;e.releaseTime=0;
+            Clear();var draws=Draw(app,"DrawEnemyActor",e);
+            var body=actor(draws,atlas);
+            var flash=mask(draws,"BriarBeast");
+            sameFrame(body,flash);
+            Check(!draws.Any(c=>c.texture.name=="resource:Frontier/Art/WalkBossA"),
+                "Thornwood may not draw an old body over a live Briar pose");
+            if(previousPhaseCrop>=0)
+                Check(Math.Abs(body.uv.y-previousPhaseCrop)>.01f,
+                    "Briar HP threshold must change the actual sampled sprite row");
+            previousPhaseCrop=body.uv.y;
+        }
+        // Regression: EnemyPose() historically exposed an early-release pose
+        // in room 1 for the final 200ms of still-active windup. The NEW
+        // authored hit drawing may only appear after Core releases the attack.
+        e.hp=150;e.moving=false;e.state=1;e.timer=.10f;
+        e.windupDuration=1.02f;e.releaseTime=0;
+        Clear();var pending=actor(Draw(app,"DrawEnemyActor",e),atlas);
+        Check(pending!=null && Math.Abs(pending.uv.y-(1f-3f/18f))<.0001f,
+            "Boss windup must remain in action row 2 until real contact");
+        e.state=0;e.releaseTime=.31f;
+        Clear();var released=actor(Draw(app,"DrawEnemyActor",e),atlas);
+        Check(released!=null&&Math.Abs(released.uv.y-(1f-4f/18f))<.0001f,
+            "Boss release must use action row 3 only after Core dispatch");
+        e.releaseTime=0;e.flash=.04f;e.moving=false;
+        Clear();var idle=Draw(app,"DrawEnemyActor",e);
+        sameFrame(actor(idle,atlas),mask(idle,"BriarBeast"));
+        // Keep the mature moving-body flash behavior in other regions.
+        app.BeginVisualReview(0,2);
+        e.hp=150;e.state=0;e.moving=true;e.moveTime=.8f;e.flash=.04f;
+        Clear();var oldBoss=Draw(app,"DrawEnemyActor",e);
+        sameFrame(actor(oldBoss,"resource:Frontier/Art/WalkBossA"),
+            mask(oldBoss,"WalkBossA"));
+        Check(!oldBoss.Any(c=>c.texture.name==atlas),
+            "Room 2 boss must not inherit Thornwood monster identity");
+        Console.WriteLine("PASS Briar three HP silhouettes, matched flash, fenced contact and other-room legacy walk");
     }
 
     static void PreparedMasks()
