@@ -209,3 +209,66 @@ not prove artist-quality knees or hand-to-weapon grips.
 Native Unity 2022.3.53f1 EditMode, PlayMode screenshots, GPU
 compositing and frame-by-frame subjective assessment remain
 NATIVE_UNVERIFIED; stage three is NOT signed off.
+
+## 2026-10-15 — Emergency end-to-end mainline reconstruction (post-splice)
+
+Previous work removed cross-class leg copying but still left TWO
+fundamentally unstable runtime operations: `UnifiedActionGait` distorted
+the ankles/lower thighs in isolation from the full body, and
+`HumanActor` drew four separately cropped torso tiles plus an
+independent `WalkVanguard` head on every hero fallback frame.
+The native `CanonicalHeroSpriteFactory.Bake` performed similar runtime
+face erasure/reattachment when published clips were unavailable.
+None of those operations ensures continuous joints, proper grip,
+head/neck alignment or artist-authored stride.
+
+**Live code changes:**
+- `FrontierActors.DrawPlayerActor` in the actual game now passes ONE
+  whole published `Hero_{Vanguard|Ranger|Arcanist}_{action}_{E|N|S}`
+  PNG cell to `DrawWholeBodyHeroOnGUI`, or the exact same authored
+  full-body cell to the opt-in native `DrawSpriteRendererHero` lane.
+- Both routes use the shared `ResolveFullBodyHeroFrame`: existing
+  GameCore attack/contact/skill/dash/hit/death timing remains the
+  authority; left-facing sprites are flipped as whole units.
+- When the released action enters actual moving recovery, switch the
+  visual selection to the current class's WHOLE-body Run frame.
+  Ordinary attack windup/contact and the Vanguard Q special
+  full-body contact are preserved; no independent shins are ever
+  animated while the upper body freezes.
+- If the 63 shipped canonical resources are absent/stale, OnGUI draws
+  ONE complete original class-owned source pose. It never falls back
+  to `HumanActor` puppet cutouts or separately draws the shared head.
+- The old `UnifiedActionGait` compositor was entirely retired, leaving
+  only a no-op cleanup hook for the existing lifecycle. The native
+  emergency source Sprite baker also no longer cuts and reattaches a
+  warrior head at runtime; the canonical golden face is already baked
+  into production Sprites by the offline generator.
+- The production `Frontier.unity` contains the Main Camera. Real
+  `FrontierRuntime.Boot()` uses `RuntimeInitializeOnLoadMethod` +
+  `OnSceneLoaded("Frontier")` to instantiate the MonoBehaviour;
+  `FrontierEditor` builds this scene, so these changes are NOT a
+  detached `StarfallHeroAnimatorPreview`.
+
+**Reworked release checks:** The previous Mono tests asserted the
+presence of head/leg stitching, which was incompatible with the new
+pipeline. They now require one class-owned 256px Sprite per real
+player draw, the exact 192px/0.75 GUI scale and shared foot anchor,
+correct direction/profession/GAMECORE frame selection, preserved Q
+contact and moving recovery, and NO `WalkVanguard` head overlay.
+`check_live_sprite_bridge.py` fails if the old compositor is
+reintroduced. `check_hero_runtime_continuity.py` checks the ACTUAL
+installed production PNGs and creates filmstrips/GIFs/onion-skin
+diagnostics for 22 high-value clips in
+`.starfall-checks/hero-runtime-qa`; severe blank/truncated,
+frozen/teleporting Run samples must FAIL, including adversarial
+negative-test fixtures.
+
+**Graphics acceptance still open:** The new frame binding eliminates
+the runtime split and unsafe leg/head synthesis, but raw existing
+artwork itself may have poor hand grips, torso/hip poses or discontinuous
+action keys. There are no newly hand-authored keyposes in this commit.
+The native capture lane is still opt-in (F8 in editor/development
+builds) and remains `NATIVE_UNVERIFIED`, as the current runner does
+not have licensed Unity 2022.3.53f1 PlayMode/GPU screenshot evidence.
+Do NOT describe CI/raster metrics as visually perfect animation or
+silently make an unverified capture the default.
