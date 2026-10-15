@@ -392,3 +392,47 @@ is now established using approved existing blonde art, not an
 isolated moving head. CI/mono tests alone do not certify game art.
 No native Unity 2022.3.53f1 editor, GPU Game View or PlayMode suite
 was run; native testing remains `NATIVE_UNVERIFIED`.
+
+## 2026-10-15 — Replace nine mechanically warped Run clips with approved whole-body art
+
+Root cause confirmed on the published `Hero_Arcanist_Run_N` and
+other walk strips: four accepted 256px walking poses were being
+expanded into eight cells by `motion_midpoint`, which translated
+lower legs, arms and torso regions independently while freezing the
+hair and foot band. This was synthetic raster deformation, NOT
+newly artist-authored body movement, and could create knee/hip/weapon
+seams, frozen leg segments and odd sliding motions despite a fixed
+global Pivot. A PASS for "125 non-identical frames" did not prove
+anatomically valid motion.
+
+New production contract for ALL NINE class × facing Run sheets:
+- Exactly FOUR original, artist-drawn complete `Walk<class>` cells,
+  selected as `facing*4 + (0,1,2,3)`; no synthetic midpoints
+  whatsoever in Run. RGBA must match original source cell byte-for-byte.
+- `ResolveFullBodyHeroFrame` now maps GameCore `WalkPosePhase`
+  ONE-TO-ONE onto the four rooted sprites (rather than expanding
+  phase by 2). Neither character speed nor movement/collision,
+  stamina, attack release or save data changes.
+- The Editor's `ExpandedCount`, existing native .anim frame
+  verifier and C# PlayMode full-frame Run tests now enforce four
+  authentic cells, with unchanged class-controller bindings and
+  stable Unity PNG/meta GUIDs.
+- The independent published-pixel CI audit now enforces exactly
+  **63 sheets, 297 frames**, including 9×4 source-backed Run frames.
+  Its adversarial fixtures still reject frozen / teleporting whole
+  bodies; both complete-source parity and waist/hip/palette/root
+  tests remain blocking rather than warnings.
+- GitHub CI has been restructured to GENERATE/INSTALL the candidate
+  production resources BEFORE running C# gameplay tests. Previously
+  a legitimate image frame-count migration was wrongly tested
+  against the OLD committed sprites (8 Run cells), causing a
+  test/publisher deadlock. The guarded release job still checks
+  upstream SHA before a non-force fast-forward push.
+
+This removes inappropriate fake smoothness; 4 complete bodies might
+look less temporally fluid at 12Hz. Further truly hand-authored Run
+transition poses, professional grip/foot animation and native Unity
+2022.3.53f1 Frame/GPU review remain necessary. ALL earlier notes
+stating "Run has eight production cells" or "333 total production
+cells" refer to the PRIOR version, superseded here.
+**NATIVE_UNVERIFIED; ART_ACCEPTANCE_PENDING.**
