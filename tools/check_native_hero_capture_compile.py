@@ -118,6 +118,29 @@ def run():
     assert denied.returncode!=0 and "HERO_CAPTURE_REGRESSION" in denied.stdout,(
         "UNSAFE_CI_ACCEPTED_FRACTIONAL_ANIMATOR_FRAME_DRIFT",denied.stdout)
     print("PASS fractional Animator sample mutation hard-FAIL")
+    # The old global "last Sprite/flip" check repainted a previously
+    # submitted RenderTexture whenever the hero returned to an earlier pose.
+    # Mutation restores that bug: the real same-frame and next-frame
+    # repaint probe must fail, not simply accept immutable cache keys.
+    trigger="if (needsRender)"
+    assert original.count(trigger)==1, "HERO_IMMUTABLE_TARGET_GUARD_MISSING"
+    unstable=original.replace(trigger,
+        "if (needsRender || heroCaptureTexture != null)",1)
+    unstablePath=OUT/"broken-hero-repaint-cached-pose.cs"
+    unstablePath.write_text(unstable,encoding="utf-8")
+    unstableExe=OUT/"broken-hero-repaint-cached-pose.exe"
+    unstableCompile=subprocess.run(compiler()+[
+        "-define:UNITY_5_3_OR_NEWER","-out:"+str(unstableExe),
+        str(STUB),str(FACTORY),str(unstablePath),str(probe)],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert unstableCompile.returncode==0,(
+        "HERO_REPAINT_MUTATION_BUILD_FAILED",unstableCompile.stdout)
+    unstableResult=subprocess.run([mono,str(unstableExe)],
+        cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    assert unstableResult.returncode!=0 and (
+        "HERO_CAPTURE_REGRESSION" in unstableResult.stdout),(
+        "HERO_MUTABLE_POSE_REPAINT_FALSE_PASS",unstableResult.stdout)
+    print("PASS cached hero RenderTexture repaint mutation hard-FAIL")
     # A permanently disabled clip should fail the live native recovery test,
     # even if an apparently safe Sprite fallback keeps drawing a body.
     reenable="Time.frameCount < rejectedUntil"

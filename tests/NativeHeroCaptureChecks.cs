@@ -107,11 +107,21 @@ public static class NativeHeroCaptureChecks
         // its original texture, not a changed left-facing image.
         app.Game.AppearanceWeapon=0;
         app.ProbeAction=2;app.ProbeFrames=6;app.ProbeFrame=2;
+        int rendersBeforeReuse=Camera.RenderedTargets.Count;
         bool repeat=(bool)draw.Invoke(app,new object[]{
             new Point(100,140),new Color(1,1,1,1),false,0,false});
         Require(repeat&&ReferenceEquals(
-            attackEast,GUI.DrawnTextures[GUI.DrawnTextures.Count-1]),
-            "E->W->E changed earlier queued E body");
+            attackEast,GUI.DrawnTextures[GUI.DrawnTextures.Count-1])&&
+            Camera.RenderedTargets.Count==rendersBeforeReuse,
+            "E->W->E repainted a submitted full-body GPU target");
+        // The identical cached Sprite remains lossless on the following
+        // frame, too. Only an actual lost device target needs recapture.
+        Time.frameCount=1001;
+        repeat=(bool)draw.Invoke(app,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(repeat&&
+            Camera.RenderedTargets.Count==rendersBeforeReuse,
+            "revisiting a validated hero pose must reuse its GPU pixels");
         // The real contact cell must not mutate the already submitted
         // windup buffer, including on the same frame.
         app.ProbeFrame=3;

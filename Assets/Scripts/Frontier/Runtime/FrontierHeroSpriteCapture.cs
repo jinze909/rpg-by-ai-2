@@ -52,9 +52,6 @@ namespace Starfall
         // verified Sprite while cooling down; retry the native state later.
         private readonly Dictionary<string,int> heroRejectedNativeClips =
             new Dictionary<string,int>();
-        private int heroCaptureFrame = -1;
-        private Sprite heroCaptureRenderedSprite;
-        private bool heroCaptureRenderedFlip;
         private bool heroCaptureBroken;
         // A transient failed GPU capture should never force the canonical
         // hero onto the fallback lane for the entire gameplay session.
@@ -210,16 +207,18 @@ namespace Starfall
                     }
                 }
                 heroCaptureTexture = entry.texture;
-                if (needsRender ||
-                    heroCaptureRenderedSprite != heroCaptureRenderer.sprite ||
-                    heroCaptureRenderedFlip != flip)
+                // This render target belongs to ONE immutable, validated
+                // whole-body Sprite + facing. Returning to that pose must
+                // NEVER repaint its target just because some other pose was
+                // sampled most recently: an earlier OnGUI draw can still
+                // reference this exact RenderTexture in the same frame.
+                // Native Animator is sampled above for validation, but its
+                // verified Sprite pixels are identical to the cached image.
+                if (needsRender)
                 {
                     heroCaptureCamera.targetTexture = heroCaptureTexture;
                     try { heroCaptureCamera.Render(); }
                     finally { heroCaptureCamera.targetTexture = null; }
-                    heroCaptureFrame = Time.frameCount;
-                    heroCaptureRenderedSprite = heroCaptureRenderer.sprite;
-                    heroCaptureRenderedFlip = flip;
                 }
                 Color old = GUI.color;
                 try
@@ -479,9 +478,6 @@ namespace Starfall
             heroCaptureAnimator = null;
             heroCaptureRoot = null;
             heroCaptureTexture = null;
-            heroCaptureFrame = -1;
-            heroCaptureRenderedSprite = null;
-            heroCaptureRenderedFlip = false;
             heroCaptureProfession = -1;
             heroProductionReady = false;
             heroControllerRetryAt = 0;
