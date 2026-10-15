@@ -36,7 +36,7 @@ jobs:
         run: python3 tools/run_core_tests.py
       - name: Check production combat input with offline Unity declarations
         run: python3 tools/run_combat_input_checks.py
-      - name: Compile Unity Editor sources and PlayMode tests with offline Editor declarations
+      - name: Compile Frontier Editor menu and importer code with offline declarations
         run: python3 tools/check_editor_syntax.py
       - name: Reconstruct actual three-class action frame traces into GPU-free review filmstrips
         run: python3 tools/render_hero_gameplay_traces.py
