@@ -1,4 +1,4 @@
-# Starfall Frontier — CLI state
+> **历史分支／其他开发团队的状态快照，不是 AI-2 当前指令。** 本文件描述旧 `jinze909/rpg-by-ai` 与 `codex-cli/dev` 工作记录，其中旧 Player/Walk/分部件绘制叙述已经与 AI-2 正式主角管线不符。AI-2 请改读 [AGENTS.md](../AGENTS.md)、[AI2-STATUS.md](AI2-STATUS.md)、[GITHUB-OPERATIONS.md](GITHUB-OPERATIONS.md)。保留以下原始内容仅供比对历史，不可据此改写 `chatgpt/dev`。\n\n---\n\n# Starfall Frontier — CLI state
 
 - Contract: `docs/AI_CONTRACT.md` v1.5 was read completely on 2026-10-11; do not repeat initialization.
 - Branch: `codex-cli/dev`, origin `jinze909/rpg-by-ai`; main remains `b0aae3d329c5b0b200b30b1457d0f692257b9f06`.

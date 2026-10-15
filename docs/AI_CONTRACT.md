@@ -1,4 +1,4 @@
-# 《星陨边境》Muse × Codex CLI 长期开发权威契约 v1.5
+> **范围说明（2026-10-15）：这份 v1.5 规范是另一套 Muse × Codex CLI 开发/调度契约，目标是 `jinze909/rpg-by-ai` / `codex-cli/dev`，不是本 AI-2 的主动部署说明。** 在 `jinze909/rpg-by-ai-2/chatgpt/dev` 中保留此历史材料用于只读参考；**不得**按其内容重建任务、安装环境、迁移文件或写入其他分支。AI-2 的当前工作范围与状态见 [AGENTS.md](../AGENTS.md) 和 [AI2-STATUS.md](AI2-STATUS.md)。\n\n---\n\n# 《星陨边境》Muse × Codex CLI 长期开发权威契约 v1.5
 
 **版本：v1.5 · 2026-10-11 · 待 Muse 实际部署与回执**  
 **用户操作：将本 MD（以及随附的 `sprite-animation-qa-skill.zip`，或本文件所在完整交付包）发送给原 Muse 会话，并要求执行。**  

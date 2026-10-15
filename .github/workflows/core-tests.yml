@@ -1,10 +1,18 @@
 name: Starfall core checks
 on: [push, pull_request]
+# Read-only default token; only the carefully guarded publisher may write.
+permissions:
+  contents: read
 jobs:
   core:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify AI-2 repository contracts, docs and release protections
+        run: python3 tools/check_repository_maintenance.py
       - name: Install Mono
         run: sudo apt-get update && sudo apt-get install -y mono-mcs python3-pil
       # Always test the same fully regenerated candidate textures that the
@@ -71,6 +79,7 @@ jobs:
             .starfall-checks/hero-committed-qa/
             .starfall-checks/hero-gameplay-traces/
           if-no-files-found: ignore
+          retention-days: 14
 
   publish-approved-hero-sprites:
     # One-shot, explicitly marked development handoff. A GITHUB_TOKEN push
@@ -78,6 +87,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && (contains(github.event.head_commit.message, '[publish-hero-art]') || startsWith(github.event.head_commit.message, 'release(hero-contacts):')) }}
     needs: core
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
