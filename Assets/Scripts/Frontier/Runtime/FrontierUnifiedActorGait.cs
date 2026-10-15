@@ -13,77 +13,74 @@ namespace Starfall
             new Dictionary<string,Texture2D>();
         private readonly Queue<string> unifiedGaitOrder=new Queue<string>();
 
+        // Class-preserving FULL-BODY gait: action art supplies EVERY rendered
+        // pixel, including shoulders, belt, hips, legs and boots. The class's
+        // walking atlas is a cadence reference ONLY, never a color source.
+        // Previously the lower 205..247px strip was pasted from Walk<profession>
+        // over Player/Rear/South, creating a hard cloth/armor discontinuity.
         private Texture2D UnifiedActionGait(Texture2D action,int columns,int rows,
-            int actionFrame,Texture2D walk,int walkFrame)
+            int actionFrame,Texture2D walk,int walkFrame,int profession)
         {
             const int cell=256;
             if(action==null||walk==null||columns<=0||rows<=0||
                 action.width!=columns*cell||action.height!=rows*cell||
                 walk.width!=4*cell||walk.height!=3*cell||
                 actionFrame<0||actionFrame>=columns*rows||
-                walkFrame<0||walkFrame>=12)return null;
-            // Frame order comes from the live Game.WalkFrame and
-            // GameCore.DirectionRow, not from alphabetical file sorting.
-            string key=action.GetInstanceID()+":"+actionFrame+":"+
-                walk.GetInstanceID()+":"+walkFrame;
+                walkFrame<0||walkFrame>=12||
+                profession<0||profession>=3||
+                walkSheets==null||playerSheets==null||
+                walkSheets[profession]!=walk)
+                return null;
+            bool personal=action==playerSheets[profession];
+            bool shared=(action==playerRear||action==playerSouth||
+                action==playerReactionsRear||action==playerReactionsSouth);
+            // Every row of a shared action sheet belongs to exactly ONE
+            // profession. Reject mismatched row IDs, never silently paste
+            // a Vanguard upper body over Ranger/Arcanist legs.
+            if(!personal&&!(shared&&actionFrame/4==profession))
+                return null;
+            string key=profession+":"+action.GetInstanceID()+":"+
+                actionFrame+":"+walkFrame;
             Texture2D cached;
             if(unifiedGaitCache.TryGetValue(key,out cached))return cached;
-            Color[] posePixels=action.GetPixels(
+            Color[] source=action.GetPixels(
                 actionFrame%columns*cell,
                 action.height-(actionFrame/columns+1)*cell,cell,cell);
-            Color[] feetPixels=walk.GetPixels(
-                walkFrame%4*cell,
-                walk.height-(walkFrame/4+1)*cell,cell,cell);
-            // Both original sheets share a 256x256 cell with a 120/128
-            // FOOT PIVOT. Preserve head, upper torso, weapon grip and side
-            // accessories from the authored ACTION cell. In the core body
-            // region, bridge the original pelvis over the authored walk
-            // gait before changing the shin/boot silhouette.
-            //
-            // Unlike rendering two separate cropped sprites, this yields
-            // exactly ONE image and ONE pivot: no leg/torso drift when the
-            // action's facing or release phase changes.
-            // The original flat cut at row 217 removed the hero's belt and
-            // made a visible straight line across the waist. A three-level
-            // cloth hem keeps the authored pelvis longer at the centre while
-            // letting both swinging thighs join the walk artwork earlier.
-            // The shape depends ONLY on canvas x, not animation phase: it
-            // cannot jump when the same walking stride changes direction.
-            for(int yTop=205;yTop<=247;yTop++)
+            Color[] composed=(Color[])source.Clone();
+            // Advance one stride on the ORIGINAL single full-body silhouette,
+            // with opposing left/right boot translation. No replacement lower
+            // half, no straight waist cut, and no class-palette introduction.
+            // Preserve foot contact and keep shoulders/hair/weapon unmodified.
+            int phase=walkFrame%4;
+            int[] motionLeft={-3,-1,3,1};
+            int[] motionRight={3,1,-3,-1};
+            for(int top=218;top<=243;top++)
             {
-                int y=cell-1-yTop;
-                int left=yTop<219?104:yTop<226?94:88;
-                int right=yTop<219?153:yTop<226?162:175;
-                for(int x=left;x<=right;x++)
+                float topGate=Math.Min(1f,(top-218)/9f);
+                float soleGate=Math.Min(1f,(244-top)/8f);
+                float weight=Math.Max(0f,Math.Min(topGate,soleGate));
+                int y=cell-1-top;
+                for(int x=89;x<=173;x++)
                 {
-                    int i=y*cell+x;
-                    int distance=Math.Abs(x-128);
-                    int hem=distance<16?225:distance<28?222:219;
-                    if(yTop<hem)
-                    {
-                        // Let real walk cloth fill transparent holes behind
-                        // the authored torso instead of painting a dark void.
-                        if(posePixels[i].a<.08f&&feetPixels[i].a>.08f)
-                            posePixels[i]=feetPixels[i];
-                    }
-                    else
-                    {
-                        // Boots, knees and their transparent silhouettes must
-                        // all originate from ONE matching stride frame.
-                        posePixels[i]=feetPixels[i];
-                    }
+                    float leftWeight=Math.Max(0f,Math.Min(1f,(132-x)/12f));
+                    float rightWeight=Math.Max(0f,Math.Min(1f,(x-124)/12f));
+                    float divisor=leftWeight+rightWeight;
+                    if(divisor<.001f)continue;
+                    float offset=(motionLeft[phase]*leftWeight+
+                        motionRight[phase]*rightWeight)/divisor*weight;
+                    int sample=x-(int)Math.Round(offset);
+                    if(sample<0||sample>=cell)continue;
+                    composed[y*cell+x]=source[y*cell+sample];
                 }
             }
             Texture2D result=new Texture2D(cell,cell,TextureFormat.RGBA32,false);
-            result.name="Unified_"+action.name+"_"+actionFrame+"_"+
-                walk.name+"_"+walkFrame;
+            result.name="FullBodyGait_Class"+profession+"_"+action.name+"_"+
+                actionFrame+"_"+walkFrame;
             result.filterMode=FilterMode.Point;
             result.wrapMode=TextureWrapMode.Clamp;
-            result.SetPixels(posePixels);
+            result.SetPixels(composed);
             result.Apply(false,false);
-            // 96 full RGBA action cells are at most about 24MiB, even after
-            // long sessions cycling every vocation and cardinal camera row.
-            // Evict an old generated frame instead of leaking CPU/GPU memory.
+            // Bounded generated textures; never modify owned Resources.
             if(unifiedGaitOrder.Count>=UnifiedGaitCacheMaxFrames)
             {
                 string oldest=unifiedGaitOrder.Dequeue();
