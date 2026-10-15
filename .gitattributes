@@ -67,3 +67,6 @@
 
 # Authored three-stage Thornwood Boss: 72 complete 320px Sprite cells.
 /Assets/Resources/Frontier/Art/BriarBeast.png -filter -diff -merge
+
+# Phase-2 authored guild/forge full-body sprite sheet (real PNG, no LFS pointer).
+/Assets/Resources/Frontier/Art/EmberfallResidents.png -filter -diff -merge

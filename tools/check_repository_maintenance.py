@@ -96,6 +96,13 @@ def verify_docs(docs, workflow, tracked):
                 "[publish-briar-art]" in briar and
                 "git push origin HEAD:refs/heads/chatgpt/dev" in briar), (
                     "UNGUARDED_BRIAR_BOSS_PUBLICATION",)
+    if "publish-emberfall-residents:" in workflow:
+        resident=workflow.split("  publish-emberfall-residents:",1)[1]
+        assert ("needs: core" in resident and
+                "refs/heads/chatgpt/dev" in resident and
+                "[publish-resident-art]" in resident and
+                "git push origin HEAD:refs/heads/chatgpt/dev" in resident), (
+                    "UNGUARDED_RESIDENT_ART_PUBLISH")
     # Phase-2 publisher is equally guarded: the same branch, explicit opt-in
     # commit marker and a completed core job are all mandatory.
     if "publish-original-mossbound-art:" in workflow:

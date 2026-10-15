@@ -10,6 +10,7 @@ namespace Starfall
         private Texture2D monsterWalkSheet;
         private Texture2D mossboundRaiderSheet;
         private Texture2D briarBeastSheet;
+        private Texture2D emberfallResidentsSheet;
         // Real pixel-art accent sheet, drawn over the accepted imported terrain.
         private Texture2D terrainAccentRemaster;
         private Texture2D combatRhythmRemaster;
@@ -35,6 +36,7 @@ namespace Starfall
             monsterWalkSheet = Resources.Load<Texture2D>(root + "WalkMonsters");
             mossboundRaiderSheet = Resources.Load<Texture2D>(root + "MossboundRaider");
             briarBeastSheet = Resources.Load<Texture2D>(root + "BriarBeast");
+            emberfallResidentsSheet = Resources.Load<Texture2D>(root + "EmberfallResidents");
             playerPortraits = Resources.Load<Texture2D>(root + "PlayerPortraits"); npcSheet = Resources.Load<Texture2D>(root + "Npcs");
             playerRear = Resources.Load<Texture2D>(root + "PlayerRear");
             playerSouth = Resources.Load<Texture2D>(root + "PlayerSouth");
@@ -49,6 +51,7 @@ namespace Starfall
             foreach(Texture2D sheet in companionWalkSheets) if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             foreach(Texture2D sheet in bossWalkSheets) if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             if(briarBeastSheet!=null) { art.FlashMask(briarBeastSheet); art.OutlineMask(briarBeastSheet); }
+            if(emberfallResidentsSheet!=null) { art.OutlineMask(emberfallResidentsSheet); }
             foreach(Texture2D sheet in new[]{playerRear,playerSouth,playerReactionsRear,playerReactionsSouth,enemyArcherVertical,monsterSheet,bossSheet,monsterWalkSheet})
                 if(sheet!=null) { art.FlashMask(sheet); art.OutlineMask(sheet); }
             fieldProps = Resources.Load<Texture2D>(root + "FieldProps"); terrainSheet = Resources.Load<Texture2D>(root + "Terrain");
@@ -558,28 +561,42 @@ namespace Starfall
         {
             Point p = ScreenPoint(position);
             DrawActorContactShadow(p,34,13,7,.78f);
-            bool occludes = Math.Abs(position.x - Game.save.x) < .85f && Game.save.y < position.y && Game.save.y > position.y - 1.8f;
-            Actor(npcSheet, 4, 4, id < 0 ? NpcId(kind) : id, p, 96,
-                occludes ? new Color(1, 1, 1, .45f) : Color.white);
-            // Existing authored NPC body remains intact. A short, locally
-            // tethered speaking sigil shows whose real-world interaction is
-            // active; the NPC never floats, scales or changes identity.
-            if (!drawingOutline && combatRhythmRemaster != null &&
-                Game.conversation != null)
+            bool occludes = Math.Abs(position.x - Game.save.x) < .85f &&
+                Game.save.y < position.y && Game.save.y > position.y - 1.8f;
+            int npcKey = id < 0 ? NpcId(kind) : id;
+            // Conversation target is PINNED when the interaction starts:
+            // never animate another bystander who happens to share the type.
+            WorldObject interlocutor = Game.conversationSource;
+            bool isTalking = Game.conversation != null &&
+                interlocutor != null && interlocutor.kind == kind &&
+                Math.Abs(interlocutor.x - position.x) < .05f &&
+                Math.Abs(interlocutor.y - position.y) < .05f;
+            Color tint = occludes ? new Color(1,1,1,.45f) : Color.white;
+            if ((npcKey == 0 || npcKey == 2) &&
+                emberfallResidentsSheet != null &&
+                emberfallResidentsSheet.width == 512 &&
+                emberfallResidentsSheet.height == 512)
             {
-                // Pin the cue to the interacted object for the full dialogue.
-                // Another same-kind resident becoming nearest must not steal it.
-                WorldObject interlocutor = Game.conversationSource;
-                if (interlocutor != null && interlocutor.kind == kind &&
-                    Math.Abs(interlocutor.x - position.x) < .05f &&
-                    Math.Abs(interlocutor.y - position.y) < .05f)
-                {
-                    int phase = ((int)(clock * 6)) % 4;
-                    if (phase < 0) phase += 4;
-                    Atlas(combatRhythmRemaster, 4, 4, 12 + phase,
-                        new Rect(p.x - 11, p.y - 105, 22, 22),
-                        new Color(1, 1, 1, .75f));
-                }
+                // Four authored whole-body poses per action, same fixed foot.
+                // Guild [0,1], forge [2,3]; talk only for real interlocutor.
+                int pose = (int)(clock * (isTalking ? 5.5f : 2.4f)) % 4;
+                if (pose < 0) pose += 4;
+                int row = (npcKey == 0 ? 0 : 2) + (isTalking ? 1 : 0);
+                int frame = row * 4 + pose;
+                Actor(emberfallResidentsSheet, 4, 4, frame, p, 96, tint);
+            }
+            else
+                Actor(npcSheet, 4, 4, npcKey, p, 96, tint);
+            // Existing speech sigil is independent of the full-body sprite.
+            // Retain it during dialogue without introducing new OnGUI calls.
+            if (!drawingOutline && combatRhythmRemaster != null &&
+                isTalking)
+            {
+                int phase = ((int)(clock * 6)) % 4;
+                if (phase < 0) phase += 4;
+                Atlas(combatRhythmRemaster, 4, 4, 12 + phase,
+                    new Rect(p.x - 11, p.y - 105, 22, 22),
+                    new Color(1, 1, 1, .75f));
             }
         }
     }

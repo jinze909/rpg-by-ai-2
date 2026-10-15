@@ -265,6 +265,61 @@ public static class ActorRegistrationChecks
             "canonical scale/root, no torso/head/leg puppetry");
     }
 
+    public static void VerifyResidentAnimation(FrontierRuntime app)
+    {
+        // Genuine production DrawNpc calls, not source-string-only assertions.
+        app.BeginVisualReview(0,0);
+        var g=app.Game;
+        var guild=new WorldObject { id="guild",kind="guild",x=17,y=17 };
+        var other=new WorldObject { id="guild2",kind="guild",x=21,y=17 };
+        var smith=new WorldObject { id="smith",kind="forge",x=6,y=8 };
+        var priorConversation=g.conversation;
+        var priorSource=g.conversationSource;
+        const string atlas="resource:Frontier/Art/EmberfallResidents";
+        try
+        {
+            foreach(var npc in new [] {guild,smith})
+            {
+                g.conversation=null;g.conversationSource=null;
+                Clear();
+                var idle=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1).FirstOrDefault(c=>c.texture.name==atlas);
+                Check(idle!=null, "Published NPC art absent from actual Frontier drawing");
+                Check(idle.rect.width==96&&idle.rect.height==96,
+                    "NPC must stay at 128px logical source / fixed 96px draw size");
+                Check(Math.Abs(idle.uv.width-.25f)<.0001f&&
+                    Math.Abs(idle.uv.height-.25f)<.0001f,
+                    "NPC must use one intact author-drawn 128x128 frame");
+                g.conversation=new Conversation("speaker","speaker","hello","hello");
+                g.conversationSource=npc;
+                Clear();
+                var spoken=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1).FirstOrDefault(c=>c.texture.name==atlas);
+                Check(spoken!=null&&Math.Abs(idle.uv.y-spoken.uv.y)>.05f,
+                    "Actual NPC speaking must select separate authored action row");
+                Check(Math.Abs(idle.rect.x-spoken.rect.x)<.001f&&
+                    Math.Abs(idle.rect.y-spoken.rect.y)<.001f,
+                    "NPC talk must not shift whole-body foot anchor");
+            }
+            g.conversationSource=guild;
+            Clear();
+            var bystander=Draw(app,"DrawNpc","guild",
+                new Point(other.x,other.y),-1).FirstOrDefault(c=>c.texture.name==atlas);
+            Check(bystander!=null && Math.Abs(bystander.uv.y-.75f)<.0001f,
+                "Same-kind bystander cannot steal the current dialogue animation");
+            Clear();
+            var unrelated=Draw(app,"DrawNpc","garden",
+                new Point(10,10),-1);
+            Check(unrelated.Any(c=>c.texture.name=="resource:Frontier/Art/Npcs"),
+                "Other authored residents must retain their legacy body until remastered");
+            Console.WriteLine("PASS live guild/forge idle/talk 16 frames, pinned speaker, fallback and stable foot");
+        }
+        finally
+        {
+            g.conversation=priorConversation;g.conversationSource=priorSource;
+        }
+    }
+
     public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { FullBodyHeroProductionFrames(app); ProductionLoadoutUsesFullBodyHero(app); }
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)

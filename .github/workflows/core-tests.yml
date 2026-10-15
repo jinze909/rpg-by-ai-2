@@ -84,6 +84,15 @@ jobs:
             opts+=(--allow-unpublished)
           fi
           python3 tools/check_briar_beast.py "${opts[@]}"
+      - name: Hard-gate original Emberfall guild and forge NPC action sprites
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=()
+          if git log -1 --format=%B | grep -Fq '[publish-resident-art]'; then
+            opts+=(--allow-unpublished)
+          fi
+          python3 tools/check_emberfall_residents.py "${opts[@]}"
       - name: Check live SpriteRenderer hero bridge and accepted sources
         run: python3 tools/check_live_sprite_bridge.py
       - name: Audit three-class animation frame continuity and provenance
@@ -102,6 +111,7 @@ jobs:
             .starfall-checks/hero-gameplay-traces/
             .starfall-checks/phase2-mossbound/
             .starfall-checks/phase2-briar/
+            .starfall-checks/phase2-residents/
           if-no-files-found: ignore
           retention-days: 14
 
@@ -219,4 +229,33 @@ jobs:
           git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(boss-art): integrate 72 Briar Beast phase Sprite cells [published-briar-art]'
           git fetch --no-tags origin chatgpt/dev
           test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "No force push; remote changed"; exit 1; }
+          git push origin HEAD:refs/heads/chatgpt/dev
+
+  publish-emberfall-residents:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/dev' && contains(github.event.head_commit.message, '[publish-resident-art]') }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rasterize and validate 16 entire resident action poses
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil
+          python3 tools/generate_emberfall_residents.py --install
+          python3 tools/check_emberfall_residents.py
+      - name: Guarded real Git PNG publication exclusively to chatgpt/dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Head changed, refusing stale NPC publish"; exit 1; }
+          git add -- Assets/Resources/Frontier/Art/EmberfallResidents.png
+          git diff --cached --quiet && exit 0
+          git -c user.name='Starfall AI-2' -c user.email='71573141+jinze909@users.noreply.github.com' commit -m 'feat(npc-art): publish 16 whole-body Emberfall guild/forge action frames [published-resident-art]'
+          git fetch --no-tags origin chatgpt/dev
+          test "$(git rev-parse refs/remotes/origin/chatgpt/dev)" = "$GITHUB_SHA" || { echo "Concurrent changes, refusing non-fast-forward"; exit 1; }
           git push origin HEAD:refs/heads/chatgpt/dev
