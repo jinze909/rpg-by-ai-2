@@ -133,6 +133,46 @@ namespace Starfall
         { return room == 1 ? 1 : room == 2 ? 12 : room == 3 ? 7 : room == 4 ? 5 : room == 5 ? 12 : room == 6 ? 7 : room == 7 ? 6 : room == 8 ? 5 : 7; }
         private static Color BossEffectColor(int room)
         { return room == 2 || room == 5 ? new Color(.7f, .9f, .82f) : room == 7 ? new Color(.75f, .87f, 1) : room == 4 || room == 8 ? new Color(.87f, .81f, 1) : room == 6 ? new Color(1, .83f, .6f) : new Color(1, .9f, .78f); }
+        // One continuous, thin alert stroke instead of widely separated
+        // 2x2 white GUI pixels. Line endpoints are placed in the same
+        // GameCore world-space damage geometry as the old warning. Rotating
+        // the complete segment in logical-canvas space also works with
+        // letterboxing/ultrawide GameView and never mutates collision.
+        private void DrawWarningStroke(Point a, Point b, Color color)
+        {
+            Point delta=b-a;
+            float length=delta.Length;
+            if(length<.001f)return;
+            float theta=(float)(Math.Atan2(delta.y,delta.x)*180/Math.PI);
+            Point mid=(a+b)*.5f;
+            Matrix4x4 original=GUI.matrix;
+            try
+            {
+                GUI.matrix=GuiGeometry.RotateAroundPivot(original,
+                    new Vector2(mid.x,mid.y),theta);
+                Box(mid.x-length*.5f-.5f,mid.y-.9f,
+                    length+1f,1.8f,color);
+            }
+            finally {GUI.matrix=original;}
+        }
+        private void DrawWarningArc(Point location,float radius,
+            float initial,float sweep,Color color,int segments)
+        {
+            if(radius<=0f||segments<1)return;
+            Point center=ScreenPoint(location);
+            float pixels=radius*Tile;
+            float step=sweep/segments;
+            Point prior=new Point(center.x+(float)Math.Cos(initial)*pixels,
+                center.y+(float)Math.Sin(initial)*pixels);
+            for(int i=1;i<=segments;i++)
+            {
+                float next=initial+i*step;
+                Point end=new Point(center.x+(float)Math.Cos(next)*pixels,
+                    center.y+(float)Math.Sin(next)*pixels);
+                DrawWarningStroke(prior,end,color);
+                prior=end;
+            }
+        }
         private void DrawTelegraph(Enemy enemy)
         {
             float radius = GameCore.EnemyAreaRadius(enemy);
@@ -140,8 +180,11 @@ namespace Starfall
             float progress = Mathf.Clamp01(1 - enemy.timer / duration);
             Color warning = PixelArt.C("#df8a68");
             if (enemy.boss && (enemy.target - enemy.Position).Length > 3) DrawRay(enemy.Position, enemy.target, new Color(warning.r, warning.g, warning.b, .18f + progress * .15f));
-            Ring(enemy.target, radius, new Color(warning.r, warning.g, warning.b, .85f), 48);
-            Ring(enemy.target, radius * (.2f + progress * .8f), new Color(warning.r, warning.g, warning.b, .35f + progress * .35f), 32);
+            DrawWarningArc(enemy.target,radius,0f,
+                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,.85f),36);
+            DrawWarningArc(enemy.target,radius*(.2f+progress*.8f),0f,
+                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,
+                .35f+progress*.35f),24);
             Point p = ScreenPoint(enemy.target);
             Atlas(effectSheet, 4, 4, 14, new Rect(p.x - radius * Tile, p.y - radius * Tile, radius * Tile * 2, radius * Tile * 2), new Color(warning.r, warning.g, warning.b, .1f + progress * .13f));
         }
@@ -185,12 +228,11 @@ namespace Starfall
             // Readability uses the same center, radius and angular bound as damage.
             // This thin open sector supplements the claw wind-up without covering it.
             float angle=(float)Math.Atan2(enemy.facing.y,enemy.facing.x),half=(float)Math.Acos(GameCore.EnemyMeleeCosine);
-            Point center=ScreenPoint(enemy.Position);float radius=GameCore.EnemyMeleeRadius*Tile;
-            for(int i=0;i<=32;i++)
-            {
-                float a=angle-half+half*2*i/32;
-                Box(center.x+(float)Math.Cos(a)*radius-1,center.y+(float)Math.Sin(a)*radius-1,2,2,color);
-            }
+            // The previous 33 disconnected square dots flickered into a
+            // jagged, barely legible arc. The new stitched stroke follows the
+            // identical GameCore melee cosine/radius and facing.
+            DrawWarningArc(enemy.Position,GameCore.EnemyMeleeRadius,
+                angle-half,half*2f,color,24);
             for(int side=-1;side<=1;side+=2)
             {
                 float a=angle+half*side;

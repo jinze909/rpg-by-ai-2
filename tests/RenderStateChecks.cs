@@ -930,6 +930,76 @@ public static class RenderStateChecks
         }
         Console.WriteLine("PASS authored original-water shoreline: four orientations, stable roots, quality/reduced-motion and no inland foam");
     }
+    private static void CombatWarningUsesConnectedTrueRadiusGeometry(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        Matrix4x4 saved=GUI.matrix;
+        Color savedColor=GUI.color;
+        var viewport=Matrix4x4.TRS(new Vector3(53,61,0),
+            Quaternion.identity,new Vector3(1.375f,1.375f,1));
+        GUI.matrix=viewport;
+        GUI.color=new Color(.28f,.45f,.67f,.82f);
+        try
+        {
+            Point target=new Point(12.75f,13.25f);
+            Color warning=new Color(.9f,.47f,.35f,.63f);
+            foreach(float opening in new[]{-.8f,0f,1.4f})
+            {
+                Clear();
+                Call(app,"DrawWarningArc",target,
+                    GameCore.EnemyMeleeRadius,opening,1.65f,warning,24);
+                Check(GUI.textureCalls.Count==24,
+                    "Melee warning arc must be composed of 24 connected strokes");
+                var center=(Point)Call(app,"ScreenPoint",target);
+                for(int i=0;i<24;i++)
+                {
+                    var segment=GUI.textureCalls[i];
+                    Check(object.ReferenceEquals(segment.texture,
+                        Texture2D.whiteTexture)&&
+                        Math.Abs(segment.rect.height-1.8f)<.00001f&&
+                        segment.rect.width>=2f,
+                        "Telegraph should draw continuous hairlines, not square dots");
+                    Vector3 logicalMiddle=new Vector3(
+                        segment.rect.x+segment.rect.width/2,
+                        segment.rect.y+segment.rect.height/2,0);
+                    Vector3 expected=viewport.MultiplyPoint3x4(new Vector3(
+                        center.x+(float)Math.Cos(opening+(i+.5f)*1.65f/24)*
+                            GameCore.EnemyMeleeRadius*36,
+                        center.y+(float)Math.Sin(opening+(i+.5f)*1.65f/24)*
+                            GameCore.EnemyMeleeRadius*36,0));
+                    Vector3 actual=segment.matrix.MultiplyPoint3x4(logicalMiddle);
+                    Check(Math.Abs(actual.x-expected.x)<.10f&&
+                        Math.Abs(actual.y-expected.y)<.10f,
+                        "Connected attack warning diverged from real hit radius");
+                }
+                Same(GUI.matrix,viewport,
+                    "Warning arcs must restore real viewport transform");
+                Same(GUI.color,new Color(.28f,.45f,.67f,.82f),
+                    "Warnings cannot leak tint into next actor");
+            }
+            game.save.reducedMotion=true;
+            Clear();
+            Call(app,"DrawWarningArc",target,1f,0f,
+                (float)(Math.PI*2),warning,36);
+            Check(GUI.textureCalls.Count==36,
+                "Reduced motion must retain legible, stationary danger radius");
+            // Degenerate visual warning must never emit a NaN texture.
+            Clear();Call(app,"DrawWarningArc",target,0f,0f,1f,warning,24);
+            Check(GUI.textureCalls.Count==0,
+                "Zero-radius telegraph may not paint a phantom circle");
+        }
+        finally
+        {
+            game.save.reducedMotion=false;
+            GUI.matrix=saved;
+            GUI.color=savedColor;
+            Clear();
+        }
+        Console.WriteLine(
+            "PASS rooted continuous attack telegraph: precise melee radius, 3 angles, letterboxed canvas and reduced motion");
+    }
     private static void MagicImpactHasARealContactLightAndStableAnchor(
         FrontierRuntime app)
     {
@@ -1200,7 +1270,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
