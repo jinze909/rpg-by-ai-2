@@ -57,7 +57,7 @@ def main():
     with Image.open(INSTALLED) as im:
         actual=im.convert("RGBA").copy()
     inspect(actual)
-    assert ImageChops.difference(actual,expected).getbbox() is None, (
+    assert actual.tobytes() == expected.tobytes(), (
         "MOSSBOUND_SHIPPED_ASSET_DIFFERS_FROM_AUTHORED_SOURCE")
     meta=INSTALLED.with_suffix(".png.meta").read_text()
     for required in ("enableMipMap: 0","filterMode: 0",
