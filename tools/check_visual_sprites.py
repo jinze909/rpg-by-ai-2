@@ -135,6 +135,34 @@ def main():
             for row in range(4):
                 results[name][f"row{row}_warnings"]=qa(name,(4,4),
                     list(range(row*4,row*4+4)),(16,29),8)
+    # Production-visual rollback gate: all three rich world source atlases
+    # remain live; tiny unapproved decorative layers may be audited as
+    # candidates but cannot obscure high-detail ground/river/props again.
+    env=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierEnvironment.cs").read_text()
+    runtime=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierRuntime.cs").read_text()
+    order=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierWorldOrder.cs").read_text()
+    surface=env.split("private void DrawSurface(",1)[1].split(
+        "private void DrawRemasteredMaterial(",1)[0]
+    world_draw=runtime.split("private void DrawWorld()",1)[1].split(
+        "private void DrawHero()",1)[0]
+    opacity=order.split("private float FadeWorldProp(",1)[1].split(
+        "private void DrawOrderedWorld(",1)[0]
+    check("Atlas(terrainSheet, 8, 2, id," in surface,
+          "Accepted original Terrain art missing from live renderer")
+    check("terrainVariants != null" in surface,
+          "Accepted original terrain variants absent from live renderer")
+    check("DrawRemasteredMaterial(x,y,tile,p,seed);" not in surface and
+          "DrawRemasteredCoastline(x,y,tile,p,seed);" not in surface,
+          "UNAPPROVED_LOW_DETAIL_TERRAIN_OR_WATER_OVERPAINT")
+    check("DrawAnnexBiomeLayers(x, y, tile, p);" not in world_draw,
+          "UNAPPROVED_BLOCKY_BIOME_OVERPAINT")
+    check("return 1f;" in opacity and "EdgeOpacity(" not in opacity and
+          "TerrainTileOpacity(" not in opacity,
+          "VISUAL_REGRESSION: lamps, signs or foreground props faded away")
+    for accepted in ("Terrain","TerrainVariants","WorldProps",
+                     "FieldProps","Npcs","Effects","Icons"):
+        check((ART/(accepted+".png")).is_file(),
+              "MISSING_ACCEPTED_HIGH_DETAIL_ART:"+accepted)
     (REPORT/"summary.json").write_text(json.dumps(results,indent=2)+"\n")
     print("PASS shipped 3-class canonical blonde action/walk sheets, real 16+16 unique material/motion art cells and 4 staged attack animations")
     print("Sprite QA warnings are review candidates, NOT Unity native approval.")

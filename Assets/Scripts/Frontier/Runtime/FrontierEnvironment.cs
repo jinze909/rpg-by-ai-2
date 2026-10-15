@@ -32,8 +32,10 @@ namespace Starfall
             int row = id == 0 ? 0 : id == 1 ? 1 : id == 3 ? 2 : id == 8 ? 3 : -1;
             if (row >= 0 && terrainVariants != null) Atlas(terrainVariants, 4, 4, row * 4 + seed % 4, new Rect(p.x, p.y, Tile, Tile), new Color(value, value, value), (seed & 4) == 0);
             else Atlas(terrainSheet, 8, 2, id, new Rect(p.x, p.y, Tile, Tile), new Color(value, value, value), id != 11 && id != 9 && (seed & 1) == 1);
-            DrawRemasteredMaterial(x,y,tile,p,seed);
-            DrawRemasteredCoastline(x,y,tile,p,seed);
+            // VISUAL ROLLBACK: the low-detail 32px accent/foam strips
+            // overpainted the finely rendered original terrain and river
+            // atlas. Retain both experimental resources for future review,
+            // but display the unchanged rich Terrain/TerrainVariants art.
             if (tile == '=' && Game.save.room < 2)
             {
                 // Dark, narrow soil edges make the road shape read above busy grass.

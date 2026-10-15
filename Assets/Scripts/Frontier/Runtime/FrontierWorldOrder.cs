@@ -35,12 +35,12 @@ namespace Starfall
         }
         private float FadeWorldProp(float x,float y)
         {
-            Point screen=ScreenPoint(new Point(x,y));
-            float edge=Game.save.reducedMotion||Game.save.effectsQuality==0 ?
-                1f:WorldStreaming.EdgeOpacity(screen.x,screen.y,Width,Height);
-            int tileX=Math.Max(0,Math.Min(Game.Map.rows[0].Length-1,(int)Math.Floor(x)));
-            int tileY=Math.Max(0,Math.Min(Game.Map.rows.Length-1,(int)Math.Floor(y)));
-            return edge*TerrainTileOpacity(tileX,tileY);
+            // VISUAL RESTORATION: original detailed WorldProps and FieldProps
+            // (lamps, signposts, bridges, buildings and foreground foliage)
+            // must never disappear or become translucent merely because
+            // their anchor falls near a viewport/chunk edge. WorldDrawable
+            // still bounds work; actual actor occlusion remains unchanged.
+            return 1f;
         }
         private void DrawOrderedWorld()
         {

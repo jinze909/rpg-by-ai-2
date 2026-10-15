@@ -527,7 +527,10 @@ namespace Starfall
                 if(tile=='?')tile=Game.FarBridgeOpen(Game.save.room)?'=':'#';
                 if (tile == '%' && !Game.LowTide) tile = '~';
                 if ((tile == 'v' || tile == 'w' || tile == 'b') && Game.Has("seal_" + Game.save.room)) tile = '=';
-                DrawSurface(x, y, tile, p); DrawAnnexBiomeLayers(x, y, tile, p);
+                // Keep original full-detail terrain and tile edges as the
+                // only baseline ground art. Auxiliary biome rectangles were
+                // dulling authored road, snow and river textures.
+                DrawSurface(x, y, tile, p);
                 DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
                 if (tile == '~' && !Game.save.reducedMotion && Game.save.effectsQuality > 0) Box(p.x + 3 + (x * 5 + clock * 4) % 17, p.y + 12 + y % 5, 8, 1, new Color(.65f, .8f, .85f, .13f));
                 float reveal = TerrainTileOpacity(x, y);
