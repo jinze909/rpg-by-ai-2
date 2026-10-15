@@ -149,7 +149,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
     manifest = json.loads((atlas_dir / "manifest.json").read_text(encoding="utf-8"))
     audit_rows = []
     from build_hero_animation_preview import (
-        imported_sheets, registered_heads, canonical_frame)
+        imported_sheets, registered_heads, canonical_frame, crop_frame)
     from export_canonical_hero_atlases import curated_motion_source
     sheets, heads = imported_sheets(), registered_heads()
     checked_frames = 0
@@ -163,9 +163,20 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
                 for source_name, source_index in references:
                     assert_class_source(profession, source_name, source_index)
                 baselines = []
-                for i in range(len(references)):
+                for i, (source_name, source_index) in enumerate(references):
                     with Image.open(preview_dir / profession / action / f"{facing}_{i:02}.png") as f:
-                        baselines.append(f.convert("RGBA").copy())
+                        preview = f.convert("RGBA").copy()
+                    raw_full_body = crop_frame(sheets[source_name], source_index)
+                    # Two independent checks: preview pose MUST have exactly
+                    # the class-owned source pixels from head through boots;
+                    # published pose must then exactly match this preview.
+                    # This fails when someone restores the old off-line
+                    # "erase entire head and paste warrior's head" patch,
+                    # which formerly passed a gold-hair-only test.
+                    assert preview.tobytes() == raw_full_body.tobytes(), (
+                        "DESTRUCTIVE_HEAD_OR_BODY_RECOMPOSITION",
+                        profession, action, facing, source_name, source_index)
+                    baselines.append(preview)
                 expanded = action in ANIMATED
                 with Image.open(atlas_dir / row["path"]) as f:
                     sheet = f.convert("RGBA").copy()
@@ -210,7 +221,7 @@ def audit(atlas_dir=OUT, preview_dir=PREVIEW):
         "hero_atlases":len(audit_rows),
         "checked_frames":checked_frames,
         "artist_drawn_whole_body_transitions":curated_count,
-        "head_source_exception":"Approved canonical blonde head mask only",
+        "head_source_exception":"NONE; preserve exact full-body original golden-hair pixels",
         "native_unity_verified":False,
         "artist_approved":False,
         "source_audit":audit_rows,
