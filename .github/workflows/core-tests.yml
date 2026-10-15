@@ -23,6 +23,8 @@ jobs:
           python3 tools/check_installed_hero_atlases.py
       - name: Enforce single-class waist/palette/proportion QA for all Sprite cells
         run: python3 tools/check_hero_whole_body_integrity.py
+      - name: Audit production Sprite continuity and emit Game View comparison GIFs
+        run: python3 tools/check_hero_runtime_continuity.py
       - name: Verify generated hero action midpoints and original pose preservation
         run: python3 tools/check_hero_generated_motion.py
       - name: Audit locked hero visual identity, registered hand hints and foot anchor
@@ -40,6 +42,7 @@ jobs:
             .starfall-checks/sprite-qa/
             .starfall-checks/hero-animation-qa/
             .starfall-checks/hero-production-atlases/
+            .starfall-checks/hero-runtime-qa/
           if-no-files-found: ignore
 
   publish-approved-hero-sprites:
@@ -66,6 +69,7 @@ jobs:
           # The checkout intentionally does not hydrate unrelated Git LFS art.
           # Validate the 63 freshly installed production textures instead.
           python3 tools/check_installed_hero_atlases.py
+          python3 tools/check_hero_runtime_continuity.py
       - name: Safe fast-forward publish into the ONLY writable branch
         shell: bash
         run: |
