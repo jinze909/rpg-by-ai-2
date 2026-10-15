@@ -89,6 +89,15 @@ def verify_docs(docs, workflow, tracked):
     assert not re.search(
         r"(?m)^\s*git\s+push\s+(?:--force(?:-with-lease)?|-f)(?:\s|$)",
         workflow), ("DANGEROUS_FORCE_PUSH_IN_PUBLISH_JOB",)
+    # Phase-2 publisher is equally guarded: the same branch, explicit opt-in
+    # commit marker and a completed core job are all mandatory.
+    if "publish-original-mossbound-art:" in workflow:
+        phase2 = workflow.split("  publish-original-mossbound-art:",1)[1]
+        assert ("needs: core" in phase2 and
+                "refs/heads/chatgpt/dev" in phase2 and
+                "[publish-mossbound-art]" in phase2 and
+                "git push origin HEAD:refs/heads/chatgpt/dev" in phase2), (
+                    "UNGUARDED_PHASE2_SPRITE_PUBLICATION",)
     assert "publish-approved-hero-sprites:" in workflow and (
         "contains(github.event.head_commit.message, '[publish-hero-art]')" in workflow
         and "startsWith(github.event.head_commit.message, 'release(hero-contacts):')" in workflow
@@ -130,7 +139,7 @@ def main():
     else:
         raise AssertionError("UNSAFE_MAINTENANCE_CI_ACCEPTED_FALSE_NATIVE_STATUS")
     unsafe = workflow.replace(
-        "needs: core", "# deliberately removed dependency", 1)
+        "needs: core", "# deliberately removed dependency")
     try:
         verify_docs(docs, unsafe, tracked)
     except AssertionError as error:
