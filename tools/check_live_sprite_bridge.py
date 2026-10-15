@@ -36,8 +36,7 @@ def check():
         '"Frontier/HeroAnimator/Canonical/" + key',
         "heroPublishedSprites.Clear()", "heroPublishedUnavailable.Clear()",
         "heroCaptureRenderer.sprite=canonical;",
-        "heroCaptureRenderedSprite != heroCaptureRenderer.sprite",
-        "heroCaptureRenderedFlip != flip",
+        "if (needsRender)",
         "entry.texture.IsCreated()",
         "heroCapturedFrames.TryGetValue(captureKey",
         "capturedSprite.GetInstanceID()",
@@ -48,6 +47,16 @@ def check():
     ]
     for mark in required:
         assert mark in engine, f"Live sprite production branch lost invariant {mark!r}"
+    # A capture entry is immutable for its complete Sprite + facing until
+    # an actual lost RenderTexture is rebuilt. Global last-posed Sprite
+    # tracking used to repaint queued GUI textures during E->W->E changes.
+    for outdated in ("heroCaptureRenderedSprite",
+                     "heroCaptureRenderedFlip"):
+        assert outdated not in engine, (
+            "REINTRODUCED_MUTABLE_HERO_GPU_REPAINT",outdated)
+    assert engine.count("if (needsRender)")==1, (
+        "HERO_GPU_CAPTURE_MUST_RENDER_ONLY_ON_ALLOCATION_OR_DEVICE_RESTORE")
+
     core = (ROOT / "Assets/Scripts/Frontier/Core/CombatPresentation.cs").read_text()
     assert "public int HeroAnimationFrameCount" in core
     assert "public int HeroAnimationFrame(int facing)" in core
