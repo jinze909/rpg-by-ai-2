@@ -53,8 +53,13 @@ def main():
     assert "if (drawingOutline && sheet != null)" in actor
     assert "DrawSpriteRendererActor(sheet, columns, rows,\n                frame," in actor
     assert "if (nativeActorDrawn) return;" in actor
-    # A live NPC dialogue must not light up every resident in talk radius.
-    assert "WorldObject interlocutor = Game.Nearest();" in actor
+    # The cue must be pinned to the actual Talk() target, not a moving
+    # Nearest() query that can switch to a different same-kind resident.
+    core = (ROOT / "Assets/Scripts/Frontier/Core/GameCore.cs").read_text()
+    assert "WorldObject interlocutor = Game.conversationSource;" in actor
+    assert "WorldObject interlocutor = Game.Nearest();" not in actor
+    assert "conversationSource = o;" in core
+    assert "conversation = null; conversationSource = null;" in core
     assert "interlocutor.kind == kind" in actor
     assert "Math.Abs(interlocutor.x - position.x) < .05f" in actor
     assert "Math.Abs(interlocutor.y - position.y) < .05f" in actor
