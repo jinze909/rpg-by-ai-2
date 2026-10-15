@@ -24,6 +24,7 @@ namespace Starfall
         { Panel(x, y, w, h, selected ? PixelArt.C("#293e4e") : PixelArt.C("#1c2e42"), selected ? gold : PixelArt.C("#3a4b60")); }
         private void Icon(string id, float x, float y, float size = 36, Color? tint = null)
         {
+            if (iconSheet == null) RecoverPublishedVisualAtlases();
             int index = id == "sword" ? 0 : id == "bow" ? 1 : id == "staff" ? 2 : id == "shield" ? 3 : id == "wood" ? 4 : id == "crystal" ? 5 : id == "herb" ? 6 : id == "fish" ? 7 : id == "gear" ? 8 : id == "relic" ? 9 : id == "stew" ? 10 : id == "seed" ? 11 : id == "companion" ? 12 : id == "camp" ? 13 : id == "journal" || id == "map" ? 14 : id == "tea" ? 15 : -1;
             // Q sword/bow/staff and F stew use the detailed Icons.png.
             // If the atlas is temporarily missing, NEVER invent a crude

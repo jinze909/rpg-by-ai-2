@@ -6,6 +6,7 @@ namespace Starfall
     {
         private void DrawProjectileVisual(Projectile projectile)
         {
+            if (effectSheet == null) RecoverPublishedVisualAtlases();
             Point p = ScreenPoint(projectile.position); string visual = projectile.visual ?? (projectile.friendly ? projectile.explosive ? "starfire" : "arrow" : "enemyOrb");
             float height = projectile.height; p.y -= height;
             bool arrow = visual == "arrow" || visual == "enemyArrow";
@@ -25,13 +26,24 @@ namespace Starfall
         }
         private bool DrawAuthoredEffect(Effect effect)
         {
+            if (effectSheet == null || iconSheet == null)
+                RecoverPublishedVisualAtlases();
             if (effectSheet == null || effect.kind == "number" || effect.kind == "break") return false;
             Point p = ScreenPoint(effect.position); float progress = Mathf.Clamp01(1 - effect.life / Math.Max(.001f, effect.maxLife));
             if (effect.kind == "loot")
             {
                 int item = effect.variant == 5 ? 9 : effect.variant == 4 ? 8 : effect.variant == 1 ? 5 : 6;
                 float lift = (float)Math.Sin(progress * Math.PI) * 25;
-                Atlas(iconSheet, 4, 4, item, new Rect(p.x + 12, p.y - 15 - lift, 24, 24), new Color(1, 1, 1, Math.Min(1, (1 - progress) * 2)));
+                Rect destination = new Rect(p.x + 12, p.y - 15 - lift, 24, 24);
+                Color tint = new Color(1, 1, 1, Math.Min(1, (1 - progress) * 2));
+                if (iconSheet != null)
+                    Atlas(iconSheet, 4, 4, item, destination, tint);
+                else
+                    // Previously this silently submitted a NULL texture and
+                    // returned success, making a pickup effect invisible.
+                    // Retain an original authored Effects.png sparkle until
+                    // the illustrated inventory atlas is imported.
+                    Atlas(effectSheet, 4, 4, 13, destination, tint);
                 return true;
             }
             int id; float size = 45, angle = 0;

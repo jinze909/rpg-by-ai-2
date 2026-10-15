@@ -93,6 +93,21 @@ namespace Starfall
             terrainVariants = Resources.Load<Texture2D>(root + "TerrainVariants");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
+        // Recover high-detail authored HUD/combat atlases after a temporary
+        // Resources import failure. Previously a single missing Icons.png or
+        // Effects.png on Awake left the entire session on plain text/dots.
+        // One retry per second is sufficient; no per-icon resource polling.
+        private float publishedVisualRetryAt;
+        private void RecoverPublishedVisualAtlases()
+        {
+            if (iconSheet != null && effectSheet != null) return;
+            if (clock < publishedVisualRetryAt) return;
+            publishedVisualRetryAt = clock + 1f;
+            if (iconSheet == null)
+                iconSheet = Resources.Load<Texture2D>("Frontier/Art/Icons");
+            if (effectSheet == null)
+                effectSheet = Resources.Load<Texture2D>("Frontier/Art/Effects");
+        }
         private void Atlas(Texture2D sheet, int columns, int rows, int index, Rect rect, Color color, bool flip = false, float angle = 0)
         {
             if (sheet == null) return;

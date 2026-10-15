@@ -1285,7 +1285,41 @@ public static class RuntimeCombatInputChecks
                 t.texture.name.StartsWith("icon_")),
                 "Icon regressed into low-detail procedural fallback");
         }
-        Console.WriteLine("PASS 5 original painted sword/bow/staff/stew/tea icons and atlas cells");
+        // Simulate import having failed during Awake but succeeding while the
+        // same live scene is drawing its action bar. The runtime must restore
+        // the actual 4x4 source atlas, never permanently show text/dot art.
+        Set(app,"iconSheet",null);
+        Set(app,"publishedVisualRetryAt",0f);
+        GUI.textureCalls.Clear();
+        Call(app,"Icon","stew",80f,90f,42f,(Color?)null);
+        Check(GUI.textureCalls.Exists(t=>
+            t.texture.name=="resource:Frontier/Art/Icons"),
+            "Late-imported detailed stew icon did not recover without restart");
+        Set(app,"effectSheet",null);
+        Set(app,"publishedVisualRetryAt",0f);
+        GUI.textureCalls.Clear();
+        var strike = new Effect("slash",app.Game.Position,1f);
+        var authored=(bool)Call(app,"DrawAuthoredEffect",strike);
+        Check(authored && GUI.textureCalls.Exists(t=>
+            t.texture.name=="resource:Frontier/Art/Effects"),
+            "Late-imported illustrated attack FX failed to recover in the same scene");
+        // A loot pickup must remain VISIBLE even while Icons.png is missing.
+        // Exhaust the retry budget to emulate a temporarily unavailable PNG.
+        Set(app,"iconSheet",null);
+        Set(app,"publishedVisualRetryAt",999999f);
+        GUI.textureCalls.Clear();
+        var loot = new Effect("loot",app.Game.Position,1f){variant=1};
+        bool fallback=(bool)Call(app,"DrawAuthoredEffect",loot);
+        Check(fallback&&GUI.textureCalls.Exists(t=>
+            t.texture.name=="resource:Frontier/Art/Effects"),
+            "Pickup effects disappeared when the detailed icon atlas was unavailable");
+        Set(app,"publishedVisualRetryAt",0f);
+        GUI.textureCalls.Clear();
+        bool restored=(bool)Call(app,"DrawAuthoredEffect",loot);
+        Check(restored&&GUI.textureCalls.Exists(t=>
+            t.texture.name=="resource:Frontier/Art/Icons"),
+            "Pickup never recovered its original detailed resource icon");
+        Console.WriteLine("PASS five original painted Q/F/tea icons, late PNG recovery, original combat FX, visible pickup during import");
     }
 
     public static int Main()
