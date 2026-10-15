@@ -46,6 +46,13 @@ namespace Starfall
             int width = sheet.width / columns;
             int height = sheet.height / rows;
             if (width <= 0 || height <= 0) return false;
+            // The previous fixed 256px target silently downsampled 320px
+            // Boss keyframes before they reached the screen. Preserve source
+            // pixel density for monsters, NPCs and oversized Boss canvases.
+            // Very large unreviewed art safely uses the existing exact-cell
+            // fallback instead of allocating unbounded GPU textures.
+            int capturePixels = Math.Max(128, Math.Max(width, height));
+            if (capturePixels > 512) return false;
             if (Event.current.type != EventType.Repaint) return true;
             try
             {
@@ -71,7 +78,7 @@ namespace Starfall
                 {
                     EvictUnusedActorCapture();
                     entry = new CapturedActorFrame {
-                        texture = new RenderTexture(256, 256, 16,
+                        texture = new RenderTexture(capturePixels, capturePixels, 16,
                             RenderTextureFormat.ARGB32),
                         lastUsedFrame = Time.frameCount
                     };

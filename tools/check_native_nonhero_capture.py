@@ -100,6 +100,30 @@ def main():
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     assert executed.returncode == 0, ("NONHERO_PROBE_FAILED", executed.stdout)
     print(executed.stdout.strip())
+    # A historical fixed-size 256px framebuffer MUST cause this real
+    # runtime probe to FAIL on the 320px Boss source, not warn-and-pass.
+    downgraded = native.replace(
+        "new RenderTexture(capturePixels, capturePixels, 16,",
+        "new RenderTexture(256, 256, 16,", 1)
+    assert downgraded != native, "NONHERO_RESOLUTION_GUARD_MISSING"
+    downgraded_path = OUT / "faulted-resolution.cs"
+    downgraded_path.write_text(downgraded)
+    downgraded_exe = OUT / "faulted-resolution.exe"
+    downgraded_compile = subprocess.run([
+        os.environ.get("STARFALL_MCS", shutil.which("mcs")),
+        "-define:UNITY_5_3_OR_NEWER", "-out:" + str(downgraded_exe),
+        str(STUB), str(downgraded_path),
+        str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert downgraded_compile.returncode == 0, (
+        "NONHERO_FAULT_INJECTION_FAILED_TO_COMPILE",
+        downgraded_compile.stdout)
+    rejected = subprocess.run([mono, str(downgraded_exe)], cwd=ROOT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert rejected.returncode != 0 and (
+        "NONHERO_CAPTURE_REGRESSION" in rejected.stdout), (
+        "NONHERO_CI_FALSE_PASS_256PX_DOWNSAMPLE", rejected.stdout)
+    print("PASS regression mutation: forced 256px Boss downsampling hard-fails")
     # Each indexed atlas listed below is ACTUALLY sampled in FrontierActors.
     atlases = [
         ("Npcs", 4, 4, range(16)),

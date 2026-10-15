@@ -44,6 +44,9 @@ public static class NativeNonheroCaptureChecks
             "flipped pose overwrote unflipped pending draw");
         Require(Camera.RenderedTargets.Count == 3,
             "only three distinct pose/flip captures should render");
+        Require(((RenderTexture)first).width == 128 &&
+            ((RenderTexture)first).height == 128,
+            "128px resident/monster pose must not be resampled into a 256px intermediate");
         Require(ReferenceEquals(Camera.RenderedTargets[0], first) &&
             ReferenceEquals(Camera.RenderedTargets[1], second) &&
             ReferenceEquals(Camera.RenderedTargets[2], mirrored),
@@ -58,12 +61,55 @@ public static class NativeNonheroCaptureChecks
         Require(Camera.RenderedTargets.Count == 4 &&
             ReferenceEquals(Camera.RenderedTargets[3], first),
             "lost render target must be reconstructed before drawing");
+        // Actual phase-2 Boss cells are 320px; preserve each source pixel
+        // in the SpriteRenderer capture rather than shrinking 320 -> 256.
+        var bossSheet = new Texture2D(1280, 5760, TextureFormat.RGBA32, false);
+        bool bossDrawn = (bool)method.Invoke(runtime, new object[] {
+            bossSheet, 4, 18, 17, new Point(200,220), 240f,
+            new Color(1,1,1,1), false, 0f });
+        Require(bossDrawn, "320px Briar Beast capture unexpectedly fell back");
+        var bossCapture = (RenderTexture)GUI.DrawnTextures[
+            GUI.DrawnTextures.Count - 1];
+        Require(bossCapture.width == 320 && bossCapture.height == 320,
+            "Boss keyframes must retain source-pixel resolution");
+        // The normalized whole-body bridge also supports rectangular 192x128
+        // atlas cells without first forcing them through a 256px framebuffer.
+        var wideSheet = new Texture2D(768, 768, TextureFormat.RGBA32, false);
+        bool wideDrawn = (bool)method.Invoke(runtime, new object[] {
+            wideSheet, 4, 6, 2, new Point(200,220), 96f,
+            new Color(1,1,1,1), false, 0f });
+        Require(wideDrawn, "192px wide actor capture unexpectedly fell back");
+        var wideCapture = (RenderTexture)GUI.DrawnTextures[
+            GUI.DrawnTextures.Count - 1];
+        Require(wideCapture.width == 192 && wideCapture.height == 192,
+            "rectangular art should retain its longest source edge");
+        // A new atlas of identical dimensions cannot inherit the prior
+        // actor's cached pixels (the offline stub must model Unity IDs).
+        var anotherSheet = new Texture2D(512, 512, TextureFormat.RGBA32, false);
+        bool anotherDrawn = (bool)method.Invoke(runtime, new object[] {
+            anotherSheet, 4, 4, 0, new Point(200,220), 96f,
+            new Color(1,1,1,1), false, 0f });
+        Require(anotherDrawn && !ReferenceEquals(first,
+            GUI.DrawnTextures[GUI.DrawnTextures.Count - 1]),
+            "unrelated atlases must not share the same cached capture");
+        // Oversized unreviewed cells must fall back, never allocate
+        // multi-megapixel GPU targets in a crowded game scene.
+        var hugeSheet = new Texture2D(3072, 3072, TextureFormat.RGBA32, false);
+        int before = Camera.RenderedTargets.Count;
+        bool hugeDrawn = (bool)method.Invoke(runtime, new object[] {
+            hugeSheet, 4, 4, 0, new Point(200,220), 96f,
+            new Color(1,1,1,1), false, 0f });
+        Require(!hugeDrawn && Camera.RenderedTargets.Count == before,
+            "oversized actors should use the existing exact-cell fallback");
         release.Invoke(runtime, null);
+        Require(bossCapture.releaseCount >= 1 &&
+            wideCapture.releaseCount >= 1,
+            "resolution-aware nonhero GPU targets leaked at shutdown");
         Require(((RenderTexture)first).releaseCount >= 2 &&
             ((RenderTexture)second).releaseCount >= 1 &&
             ((RenderTexture)mirrored).releaseCount >= 1,
             "actor GPU targets leaked on runtime destruction");
-        Console.WriteLine("PASS nonhero native capture: unique pose/flip textures, reuse, device loss, cleanup");
+        Console.WriteLine("PASS nonhero native capture: source-size Boss/NPC/monster pixels, atlas isolation, pose reuse, device loss, cleanup");
         Console.WriteLine("NATIVE_UNVERIFIED: GPU pixels, Unity GameView and Animator");
     }
 }

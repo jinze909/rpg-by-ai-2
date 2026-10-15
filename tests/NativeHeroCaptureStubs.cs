@@ -13,7 +13,12 @@ namespace UnityEngine
     public class Object
     {
         public static void Destroy(Object value) { }
-        public int GetInstanceID() { return 1; }
+        // Unity gives every live atlas its own instance identity. Returning
+        // a constant hid real cache collisions in multi-atlas probes.
+        private static int nextInstanceId;
+        private readonly int instanceId =
+            System.Threading.Interlocked.Increment(ref nextInstanceId);
+        public int GetInstanceID() { return instanceId; }
     }
     public class Component : Object
     {
@@ -101,7 +106,9 @@ namespace UnityEngine
         public bool useMipMap;
         public bool created;
         public int releaseCount;
-        public RenderTexture(int width,int height,int depth,RenderTextureFormat format) { }
+        public readonly int width,height;
+        public RenderTexture(int width,int height,int depth,RenderTextureFormat format)
+        { this.width=width; this.height=height; }
         public bool IsCreated() { return created; }
         public void Create() { created=true; }
         public void Release() { created=false; releaseCount++; }
