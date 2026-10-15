@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import shutil
 import subprocess
+import sys
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -110,6 +111,11 @@ def main():
         ("EnemyArcherVertical", 3, 2, range(6)),
     ]
     count = sum(audit_art(*spec) for spec in atlases)
+    # Core CI already installs Mono here. Run the actual production DrawNpc
+    # regression as a mandatory hard gate, not merely a source-string check.
+    # Keep the independent PNG-only art publisher free of Mono requirements.
+    subprocess.run([sys.executable, str(ROOT / "tools/run_layout_checks.py"),
+                    "--resident-only"], check=True, cwd=ROOT)
     print("PASS live nonhero SpriteRenderer C# compiled; deliberate API mutation FAILED")
     print("PASS %d indexed monster/Boss/NPC frames validated in real shipped PNGs" % count)
     print("NATIVE_UNVERIFIED: no Unity GameView/PlayMode or imported Animator playback")

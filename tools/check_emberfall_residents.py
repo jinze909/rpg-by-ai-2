@@ -3,7 +3,7 @@
 
 Offline raster QA never substitutes for Unity 2022.3 native GameView review.
 """
-import argparse,hashlib,subprocess,sys
+import argparse,hashlib
 from PIL import Image
 from generate_emberfall_residents import (
     ROOT,INSTALLED,STAGED,ACTIONS,SIZE,render
@@ -127,10 +127,6 @@ def main():
         raise AssertionError("RESIDENT_CI_FALSE_PASS_MUTATED_FRAME")
     print("PASS 16 shipped guild/forge full-body poses and 4-frame idle/talk loops")
     print("PASS fixed foot, importer GUID, raster parity, unique identity, mutation rejection")
-    # Execute the actual production DrawNpc path, not a dormant C# method.
-    # Failure to compile or match the pinned dialogue/idle phase is a hard FAIL.
-    subprocess.run([sys.executable,str(ROOT/"tools/run_layout_checks.py"),
-                    "--resident-only"],check=True,cwd=ROOT)
     print("NATIVE_UNVERIFIED / ART_REVIEW_REQUIRED: no native Unity Animator/PlayMode")
 
 if __name__=="__main__":
