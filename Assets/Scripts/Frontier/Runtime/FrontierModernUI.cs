@@ -37,7 +37,7 @@ namespace Starfall
                 {
                     Frame(x, y, size, size, muted);
                     Text(x, y + size * .25f, size, size * .5f,
-                        id, Math.Max(9f, size * .18f), tint ?? paper,
+                        id, (int)Math.Max(9f, size * .18f), tint ?? paper,
                         TextAnchor.MiddleCenter);
                 }
                 return;

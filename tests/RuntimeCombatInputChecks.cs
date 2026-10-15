@@ -884,54 +884,57 @@ public static class RuntimeCombatInputChecks
         };
         GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",normal);
         var key="resource:Frontier/Art/CombatRhythmRemaster";
-        Check(GUI.textureCalls.Exists(x=>x.texture.name==key),
-            "Ordinary enemies draw real authored winding phases in actual renderer");
+        Check(GUI.textureCalls.Exists(x=>x.texture.name==
+            "resource:Frontier/Art/Monsters")&&
+            !GUI.textureCalls.Exists(x=>x.texture.name==key),
+            "Normal enemy should retain illustrated Monsters.png without crude overlay");
         normal.state=0;normal.releaseTime=.15f;
         GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",normal);
-        Check(GUI.textureCalls.Exists(x=>x.texture.name==key),
-            "Real enemy release displays distinct authored impact frames");
+        Check(GUI.textureCalls.Exists(x=>x.texture.name==
+            "resource:Frontier/Art/Monsters")&&
+            !GUI.textureCalls.Exists(x=>x.texture.name==key),
+            "Enemy contact must keep original detailed combat painting");
         var boss=new Enemy(9892,2,player.Position.x+1,player.Position.y,400,true){
             state=1,timer=.6f,windupDuration=1.1f
         };
         GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",boss);
-        Check(GUI.textureCalls.Exists(x=>x.texture.name==key),
-            "Actual boss windup uses its own rune sequence without changing the original boss sprite");
+        Check(GUI.textureCalls.Exists(x=>x.texture.name==
+            "resource:Frontier/Art/Bosses")&&
+            !GUI.textureCalls.Exists(x=>x.texture.name==key),
+            "Boss windup should keep detailed original boss body and combat tell");
         Console.WriteLine("PASS full-body released spell/sword recovery with class-owned pixels, canonical blonde head and boss/enemy cues");
     }
 
     private static void HeroActionAccentsFollowRealDirectionalWeaponMount(FrontierRuntime app)
     {
-        // Old art drew ALL effects at a constant camera-space +22/-63
-        // offset, including north/south bow and staff attacks. The body
-        // turned but the particle appeared detached from the real hand and
-        // projectile emitter. Test the actual DrawPlayerActor GUI output.
+        // Rough HeroMotionAccents overpaint is removed; GameCore keeps all
+        // real E/W/N/S Q skills, actual weapon origin and class-owned body.
+        int checks=0;
         foreach(int vocation in new[]{0,1,2})
         foreach(Point facing in ActorDirections)
         {
             Prepare(app,vocation);
-            GameCore g=app.Game;
+            var g=app.Game;
             g.Skill(facing);
             Check(g.playerAction!=null&&g.playerAction.kind=="skill",
-                "Real class skill needs a weapon attachment visual");
-            g.movementDirection=new Point();
-            GUI.textureCalls.Clear();
-            Call(app,"DrawPlayerActor");
-            var active=GUI.textureCalls.FindAll(t =>
-                t.texture.name.Contains("HeroMotionAccents"));
-            Check(active.Count==1,
-                "Exactly one action-matched effect and no fake walking feet in the stationary windup");
-            Point anchor=(Point)Call(app,"ScreenPoint",
-                GameCore.WeaponOrigin(g.Position,g.AppearanceWeapon,g.VisualFacing));
-            float y=anchor.y-GameCore.WeaponHeight(g.AppearanceWeapon,g.VisualFacing);
-            Check(Math.Abs(active[0].rect.x+active[0].rect.width*.5f-anchor.x)<.02f&&
-                  Math.Abs(active[0].rect.y+active[0].rect.height*.5f-y)<.02f,
-                "Vanguard/Ranger/Arcanist E/W/N/S skill accent must share GameCore's real weapon emitter");
-            // Render direction changes must not synthesize extra independent
-            // animation sprites while movement is collision-restricted.
-            Check(!GUI.textureCalls.Exists(t=>t.texture.name.Contains("FullBodyGait_")),
-                "No puppet layer may be revived for an attached weapon effect");
+                "Real Q must still trigger authoritative combat");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            string cls=new[]{"Vanguard","Ranger","Arcanist"}[vocation];
+            Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"+cls+"_Cast_")),
+                "Q must retain the canonical complete-body Cast Sprite");
+            Check(!GUI.textureCalls.Exists(t=>
+                t.texture.name.Contains("HeroMotionAccents")||
+                t.texture.name.Contains("FullBodyGait_")),
+                "Low-resolution overlays or synthetic leg layers must not be drawn");
+            Point origin=GameCore.WeaponOrigin(
+                g.Position,g.AppearanceWeapon,g.VisualFacing);
+            Check(!double.IsNaN(origin.x)&&!double.IsNaN(origin.y),
+                "Core weapon attachment must remain valid across four directions");
+            checks++;
         }
-        Console.WriteLine("PASS 12 real profession/facing action VFX mounts share weapon origin/height and whole-body art");
+        Console.WriteLine("PASS "+checks+
+            " four-direction full-body Q actions without unapproved 32px effect overpaint");
     }
 
     private static void ProduceVerifiedGameplayHeroTrace(FrontierRuntime app)
@@ -1226,38 +1229,61 @@ public static class RuntimeCombatInputChecks
 
     private static void GroundContactArtSharesPhysicalFootPivot(FrontierRuntime app)
     {
+        // The original detailed actor Sprite atlases already carry grounded
+        // feet. Removing coarse contact ovals cannot remove an actual body.
         Prepare(app,0);
         var g=app.Game;g.enemies.Clear();g.save.companion=-1;
-        const string path="resource:Frontier/Art/ActorContactShadows";
+        const string patch="resource:Frontier/Art/ActorContactShadows";
         GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
-        var p=(Point)Call(app,"ScreenPoint",g.Position);
-        var shadow=GUI.textureCalls.Find(t=>t.texture.name==path);
-        Check(shadow!=null&&Math.Abs(shadow.rect.x+shadow.rect.width/2-p.x)<.01f&&
-            Math.Abs(shadow.rect.y+shadow.rect.height*.72f-p.y)<.01f,
-            "The hero's real shadow must land on one stable physical foot pivot");
-        Check(shadow.texture.width==128&&shadow.texture.height==128,
-            "New pixel shadow atlas must load from shipped binary resources");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name.StartsWith(
+            "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_"))&&
+            !GUI.textureCalls.Exists(t=>t.texture.name==patch),
+            "One whole blonde protagonist and no coarse foot shadow");
         GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",
             new Enemy(97211,1,g.Position.x+2,g.Position.y,100));
-        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
-            "An ordinary enemy's real renderer must use contact art");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==
+            "resource:Frontier/Art/Monsters")&&
+            !GUI.textureCalls.Exists(t=>t.texture.name==patch),
+            "Original illustrated monster must keep its own feet");
         GUI.textureCalls.Clear();Call(app,"DrawEnemyActor",
             new Enemy(97212,0,g.Position.x+3,g.Position.y,300,true));
-        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
-            "The full-size Boss must stand on a contact patch");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==
+            "resource:Frontier/Art/Bosses")&&
+            !GUI.textureCalls.Exists(t=>t.texture.name==patch),
+            "Original detailed boss must keep its rooted Sprite");
         GUI.textureCalls.Clear();Call(app,"DrawNpc","forge",g.Position,-1);
-        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
-            "NPCs must use the same material contact language");
-        g.save.companion=0;GUI.textureCalls.Clear();Call(app,"DrawCompanionActor");
-        Check(GUI.textureCalls.Exists(t=>t.texture.name==path),
-            "A party companion must share the grounded rendering pipeline");
-        GUI.textureCalls.Clear();Call(app,"DrawFallen",new FallenActor{
-            actor=new Enemy(97213,0,g.Position.x,g.Position.y,100),
-            room=g.save.room,life=.3f,duration=1f});
-        var fading=GUI.textureCalls.Find(t=>t.texture.name==path);
-        Check(fading!=null&&fading.color.a>0&&fading.color.a<.84f,
-            "A corpse must keep its real foot shadow and fade it with the body");
-        Console.WriteLine("PASS hero, enemy, Boss, NPC and companion contact shadows use actual atlas and root");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name==
+            "resource:Frontier/Art/Npcs"),
+            "Original detailed guild/forge citizens must remain live");
+        g.save.companion=0;GUI.textureCalls.Clear();
+        Call(app,"DrawCompanionActor");
+        Check(GUI.textureCalls.Exists(t=>t.texture.name.Contains("WalkMira")),
+            "Detailed companion motion must remain live");
+        Console.WriteLine("PASS original detailed hero, monster, Boss, NPC, companion roots with no coarse contact overlay");
+    }
+
+    private static void OriginalAbilityAndStewIconsUsePublishedArt(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        string[] icons={"sword","bow","staff","stew","tea"};
+        int[] slots={0,1,2,10,15};
+        for(int k=0;k<icons.Length;k++)
+        {
+            GUI.textureCalls.Clear();
+            Call(app,"Icon",icons[k],80f,90f,42f,(Color?)null);
+            var painted=GUI.textureCalls.FindLast(t=>
+                t.texture.name=="resource:Frontier/Art/Icons");
+            Check(painted!=null,
+                "Q sword/bow/staff, F stew and tea must use original illustrated Icons.png");
+            int n=slots[k];
+            Check(Math.Abs(painted.uv.x-(n%4)/4f)<.0001f&&
+                Math.Abs(painted.uv.y-(3-n/4)/4f)<.0001f,
+                "Q/F icon atlas indexing selected wrong art");
+            Check(!GUI.textureCalls.Exists(t=>
+                t.texture.name.StartsWith("icon_")),
+                "Icon regressed into low-detail procedural fallback");
+        }
+        Console.WriteLine("PASS 5 original painted sword/bow/staff/stew/tea icons and atlas cells");
     }
 
     public static int Main()
@@ -1276,6 +1302,7 @@ public static class RuntimeCombatInputChecks
             CanonicalHeroNeverDependsOnLegacyPlayerImports,
             LiveEquipmentPreviewUsesTheSameCanonicalBody,
             ProduceVerifiedGameplayHeroTrace, GroundContactArtSharesPhysicalFootPivot,
+            OriginalAbilityAndStewIconsUsePublishedArt,
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
