@@ -73,6 +73,8 @@ jobs:
         run: python3 tools/check_hero_whole_body_integrity.py
       - name: Hard-fail real installed full-body connectedness, boots, gold identity and Sprite GUID regressions
         run: python3 tools/check_hero_production_anatomy.py
+      - name: Audit north-facing Attack proportions for all three canonical outfits
+        run: python3 tools/check_hero_north_attack_scale.py
       - name: Audit production Sprite continuity and emit offline frame comparison GIFs
         run: python3 tools/check_hero_runtime_continuity.py
       - name: Require byte-exact source-authored hero animations with zero body warps

@@ -103,6 +103,44 @@ public static class NativeHeroCaptureChecks
             "missing 3 classes x 4 directions x 7 full-body action cases");
         Require(Camera.RenderedTargets.Count==84,
             "new source poses were not independently captured");
+        // Reproduce a stale north-attack Animator Transform scale curve
+        // AFTER native Sprite sampling, for every playable profession.
+        var rootField=typeof(FrontierRuntime).GetField("heroCaptureRoot",flags);
+        var cameraField=typeof(FrontierRuntime).GetField("heroCaptureCamera",flags);
+        Require(rootField!=null&&cameraField!=null,
+            "missing native root/camera scale contract");
+        for(int cls=0;cls<3;cls++)
+        {
+            app.Game.AppearanceWeapon=cls;
+            app.ProbeAction=2;
+            app.ProbeFrames=6;
+            app.ProbeFrame=3;
+            app.ProbePosition=3f;
+            Animator.InjectOverscaledHeroOnce=true;
+            bool northDraw=(bool)draw.Invoke(app,new object[]{
+                new Point(100,140),new Color(1,1,1,1),false,1,false});
+            var root=rootField.GetValue(app) as GameObject;
+            var cam=cameraField.GetValue(app) as Camera;
+            var current=renderField.GetValue(app) as SpriteRenderer;
+            var rect=GUI.DrawnRects[GUI.DrawnRects.Count-1];
+            Require(northDraw&&root!=null&&cam!=null&&current!=null&&
+                root.transform.localScale.x==1f&&
+                root.transform.localScale.y==1f&&
+                root.transform.localScale.z==1f&&
+                cam.transform.localScale.x==1f&&
+                cam.transform.localScale.y==1f&&
+                Math.Abs(cam.orthographicSize-1f)<.0001f,
+                "north Attack Animator magnified "+classes[cls]+" root/camera");
+            Require(Math.Abs(rect.width-192f)<.0001f&&
+                Math.Abs(rect.height-192f)<.0001f,
+                "north Attack changed "+classes[cls]+" GUI body density");
+            Require(ReferenceEquals(current.sprite,
+                Resources.RegisteredSprites[
+                    "Frontier/HeroAnimator/Canonical/Hero_"+
+                    classes[cls]+"_Attack_N"][3]),
+                "north Attack lost canonical "+classes[cls]+" contact frame");
+        }
+        Animator.InjectOverscaledHeroOnce=false;
         // Repeat E after W within the SAME frame; it must still reference
         // its original texture, not a changed left-facing image.
         app.Game.AppearanceWeapon=0;

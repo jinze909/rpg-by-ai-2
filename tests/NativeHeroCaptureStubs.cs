@@ -37,6 +37,8 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component, new()
         {
             T component = new T();
+            // Unity Components share the GameObject Transform.
+            component.transform = transform;
             var sprite = component as SpriteRenderer;
             if (sprite != null) attachedSprite = sprite;
             var animator = component as Animator;
@@ -143,6 +145,7 @@ namespace UnityEngine
         public float lastNormalizedSample;
         public int sampleCount;
         public static bool InjectWrongSpriteOnce;
+        public static bool InjectOverscaledHeroOnce;
         private int action, facing, pose;
         private static readonly string[] Actions =
             { "Idle","Run","Attack","Cast","Dodge","Hit","Death" };
@@ -194,6 +197,12 @@ namespace UnityEngine
                 }
                 else targetRenderer.sprite=actorFrames[selected];
                 return;
+            }
+            if(InjectOverscaledHeroOnce)
+            {
+                InjectOverscaledHeroOnce=false;
+                targetRenderer.transform.localScale =
+                    new Vector3(1.8f,1.8f,1f);
             }
             string key="Frontier/HeroAnimator/Canonical/Hero_"+
                 runtimeAnimatorController.className+"_"+Actions[action]+"_"+
@@ -267,8 +276,10 @@ namespace UnityEngine
         public static Color color;
         public static readonly List<Texture> DrawnTextures =
             new List<Texture>();
+        public static readonly List<Rect> DrawnRects =
+            new List<Rect>();
         public static void DrawTexture(Rect target,Texture image)
-        { DrawnTextures.Add(image); }
+        { DrawnTextures.Add(image); DrawnRects.Add(target); }
     }
     public static class Time { public static int frameCount; }
     public static class Mathf

@@ -172,6 +172,19 @@ namespace Starfall
                                 "(old Player model is forbidden).");
                     }
                 }
+                // A native Animator clip may contain a stale Transform scale
+                // curve (or inherit the previous action's scale). Sprite
+                // identity/rect/pivot checks alone cannot detect this: the
+                // right 256px body can still render 1.5x larger on Attack_N.
+                // Capture only the approved 1:1 root, after Animator.Update,
+                // for every profession and facing. Never rescale the source
+                // artwork, boots or the actual game-world actor position.
+                heroCaptureRoot.transform.localScale =
+                    new Vector3(1f,1f,1f);
+                heroCaptureCamera.transform.localScale =
+                    new Vector3(1f,1f,1f);
+                heroCaptureCamera.orthographicSize =
+                    HeroCell/(2f*CanonicalHeroSpriteFactory.PixelsPerUnit);
                 heroCaptureRenderer.flipX = flip;
                 // An E->W flip or windup->contact transition within a
                 // single GUI repaint must never overwrite an earlier queued
