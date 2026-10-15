@@ -54,7 +54,7 @@ def pose(action, column):
         d.polygon(((foot-5,55-shift),(foot+3,55-shift),
             (foot+7,59-shift),(foot-7,59-shift)),fill=WOOD)
         d.line((foot-6,58-shift,foot+5,58-shift),fill=LIT)
-    ax,ay=(15,49) if fall else (19+lean//2+arm,37+rise+arm//2)
+    ax,ay=(15,49) if fall else (max(8,19+lean//2+arm),37+rise+arm//2)
     d.polygon(((cx-8,top+9),(cx-15,top+11),
         (ax-5,ay),(ax,ay+6),(cx-6,middle)),fill=INK)
     d.polygon(((cx-11,top+10),(cx-13,top+13),
