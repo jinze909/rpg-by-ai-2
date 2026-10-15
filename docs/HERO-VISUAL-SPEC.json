@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 10,
   "identity": "One playable blonde protagonist; NOT a new character or a different face for equipment classes",
   "authoritative_source": "Assets/Resources/Frontier/Art/WalkVanguard.png",
   "unity_version": "2022.3.53f1",
@@ -313,7 +313,7 @@
         "S"
       ],
       "count": 63,
-      "frames": 297
+      "frames": 279
     },
     "frame_clock": "ResolveFullBodyHeroFrame(wholeBodyRun, facing) shared by native and fallback",
     "attack_mobility": "Full-body attack/skill keyframe until authoritative release, complete same-class Run after reduced-speed moving recovery begins",
@@ -337,7 +337,7 @@
       "production_reason": "Rejected all four synthetic raster-warp midpoints per clip; whole-body authored Run has continuous class-owned head, hips, legs and foot root.",
       "native_validation": "NATIVE_UNVERIFIED"
     },
-    "art_provenance": "63 atlases, 297 frames: 36 exact authored Run cells, 36 curated Attack/Cast transitions, 36 curated Dodge/Hit reaction transitions; 18 Attack/Cast midpoints remain mechanical and require redraw.",
+    "art_provenance": "All 63 atlases / 279 full-body cells byte-exact original class-owned source rasters; 72 additional original transition poses, zero algorithmically warped cells. Native Unity art quality awaits validation.",
     "reaction_policy": {
       "actions": [
         "Dodge",
@@ -370,6 +370,47 @@
       "requirement": "All reaction transitions must equal accepted whole-body guard original pixels byte-for-byte and preserve original action keyposes.",
       "algorithmic_reaction_frames": 0,
       "native_unity_verified": false
-    }
+    },
+    "attack_cast_policy": {
+      "actions": [
+        "Attack",
+        "Cast"
+      ],
+      "professions": [
+        "Vanguard",
+        "Ranger",
+        "Arcanist"
+      ],
+      "facings": [
+        "E",
+        "N",
+        "S"
+      ],
+      "frame_count": 6,
+      "source_slots": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "original_key_slots": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "source_backed_transition_slots": [
+        1,
+        4
+      ],
+      "artificial_raster_midpoints": 0,
+      "release_key_frame": 3,
+      "contact_time": "GameCore HeroAnimationPlaybackPosition source phase >=2",
+      "missing_key_art": "A truly drawn in-between connecting windup and release (formerly fake slot 3) is not yet available; no false interpolation or duplicates used",
+      "native_unity_verified": false
+    },
+    "no_fake_motion_gate": "tools/check_hero_generated_motion.py rejects any production cell not pixel-identical to approved head-to-foot source; tools/check_hero_whole_body_integrity.py cross-checks source manifest, class, waist/hip, canvas and all 279 frames."
   }
 }
