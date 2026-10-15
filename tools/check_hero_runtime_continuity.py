@@ -92,6 +92,55 @@ def fail_nonoptional(name, action, frames, obs, transitions):
             "STATIC_REACTION_OR_SKILL", name)
 
 
+def check_state_boundaries(klass, facing, sequences):
+    """Real production entry/exit parity between states (not preview art).
+
+    A sudden 256px body shift or an altered standing pose between two
+    actions is a deterministic regression. Long attack reaches are not
+    assessed as 'smooth' solely from these invariants.
+    """
+    idle=sequences["Idle"][0].tobytes()
+    evidence=[]
+    for action in ("Attack","Cast","Dodge","Hit","Death"):
+        cells=sequences[action]
+        assert cells[0].tobytes()==idle, (
+            "STATE_ENTER_BODY_SNAP",klass,facing,action,
+            "first frame must be EXACT class/direction Idle pixel raster")
+        if action!="Death":
+            assert cells[-1].tobytes()==idle, (
+                "STATE_EXIT_BODY_SNAP",klass,facing,action,
+                "last recovery must be EXACT class/direction Idle pixel raster")
+        evidence.append({"action":action,
+            "same_idle_entry":True,
+            "same_idle_exit":action!="Death"})
+    # Since Walk and Action sprites share the identical 256x256 canvas
+    # and (128,240) root, catastrophic state-switch translation is not
+    # acceptable. Compare the body-only vertical band so swinging long
+    # weapons and arrows do not trigger false failures.
+    run=sequences["Run"]
+    base=sequences["Idle"][0]
+    def body_com(frame):
+        alpha=frame.getchannel("A").load()
+        sx=sy=weight=0
+        for y in range(146,240,2):
+            for x in range(96,161,2):
+                w=alpha[x,y]
+                if w < 30: continue
+                sx+=x*w;sy+=y*w;weight+=w
+        assert weight>10000, ("MISSING_BODY_CORE",klass,facing)
+        return sx/weight,sy/weight
+    bx,by=body_com(base)
+    offsets=[]
+    for i,frame in enumerate(run):
+        x,y=body_com(frame)
+        offset=round(math.hypot(x-bx,y-by),3)
+        assert offset<=18, ("RUN_TO_ACTION_BODY_TRANSLATION",klass,
+                           facing,i,offset)
+        offsets.append(offset)
+    return {"profession":klass,"direction":facing,
+            "entry_exit":evidence,"run_to_idle_body_displacement":offsets}
+
+
 def preview(name, frames):
     n = len(frames)
     # Filmstrip and onion skin always use exact production RGBA cells.
@@ -187,13 +236,28 @@ def verify_failure_gates():
     ImageDraw.Draw(left).rectangle((49,147,95,238),fill=(91,63,48,255))
     ImageDraw.Draw(right).rectangle((159,147,205,238),fill=(91,63,48,255))
     expect_failure("teleporting_run", [left,right]*4, "Run")
+    # Regression-negative: even a canonically sized sequence must fail
+    # when an action starts from another profession's or offset body.
+    fake={action:[normal.copy()] for action in ACTIONS}
+    fake["Run"]=[normal.copy() for _ in range(8)]
+    fake["Attack"]=[right.copy(),normal.copy()]
+    try:
+        check_state_boundaries("synthetic","E",fake)
+    except AssertionError as error:
+        assert "STATE_ENTER_BODY_SNAP" in str(error)
+    else:
+        raise AssertionError("UNSAFE_CI_GATE: wrong action-entry body accepted")
 
 
 def run():
     verify_failure_gates()
     DEST.mkdir(parents=True,exist_ok=True)
-    rows, frames_checked, repeated = [], 0, 0
+    rows, transitions, frames_checked, repeated = [], [], 0, 0
     for klass in CLASSES:
+        for face in FACINGS:
+            sequences={action:frames_for(
+                f"Hero_{klass}_{action}_{face}") for action in ACTIONS}
+            transitions.append(check_state_boundaries(klass,face,sequences))
         for action in ACTIONS:
             for face in FACINGS:
                 name = f"Hero_{klass}_{action}_{face}"
@@ -225,6 +289,7 @@ def run():
         "source":"Assets/Resources/Frontier/HeroAnimator/Canonical",
         "clip_count":len(rows),"frame_count":frames_checked,
         "same_raster_adjacent_pairs":repeated,
+        "boundary_contracts":transitions,
         "native_unity_verified":False,"hand_art_approved":False,
         "clips":rows,
     }
