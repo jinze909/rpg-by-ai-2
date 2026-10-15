@@ -83,8 +83,8 @@ def check():
         ("actor", actor.replace("bool moving=pose>=2&&pose<=3;",
                                 "bool moving=pose>=2&&pose<=3||RecoveryWalking;",1)),
         ("core", core.replace(
-            "return playerAction != null ? playerAction.weapon : save.weapon;",
-            "return save.weapon;",1)),
+            "return playerAction != null ? playerAction.equippedWeapon : save.weapon;",
+            "return playerAction != null ? playerAction.weapon : save.weapon;",1)),
         ("continuity", continuity.replace(
             "if(playerAction!=null)return playerAction.direction;",
             "if(playerAction!=null&&!RecoveryWalking)return playerAction.direction;",1))):
