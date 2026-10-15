@@ -30,6 +30,12 @@
 
 Inspect **screen-space** muzzle against the actual hand, arrows/projection direction, release timing and hitbox separately from Sprite rectangle parity. FPS/frame pacing and input continuity need running builds. Capture E/W/N/S, light/heavy and Q cases before pronouncing artistic quality complete.
 
+## Critical 1–2-frame N/S Attack and Cast regression (2026-10-15)
+
+In the actual Frontier.unity GameView, inspect each equipped Vanguard/Ranger/Arcanist body with each of the three skill vocations in **NORTH and SOUTH**, both ordinary LMB and Q. Capture and review: **the first visible frame**, **last pre-release windup**, **contact release**, **first recovery** and return to Idle. The current accepted complete-body six-cell sequence is **Idle → planted guard → windup → contact → planted guard → Idle**. Neither cell 1 nor 4 may show the old moving one-foot Walk stance, and actual damage release must first display contact cell 3. Facing, hand/weapon, foot root and equipped identity must remain stable.
+
+If a single old frame remains, supply consecutive **native GameView** screenshots plus exact branch SHA, equipped gear, skill vocation and direction. Distinguish a wrong published Sprite from an imported stale Animator or GPU RenderTexture. The offline Hero_*_BEFORE-AFTER strips and directional-bridge-qa.json provide source-based evidence but are **not** Unity screenshots. Upward-facing Cast still shares its central originals with upward-facing Attack and remains **ART_REVIEW_REQUIRED** until separately redrawn.
+
 ## Evidence and sign-off
 
 Save native screenshots under `docs/native-captures/` locally; include exact Git SHA, Unity version, test names, Console errors, screenshots/video, native Tester/OS and remaining art limitations. Generated offline PNG/GIFs in Actions artifact `visual-sprite-qa` are useful reference comparisons, **not native GameView captures**. The code currently supports only all-or-none 18 original central Attack/Cast contact drawings; **unpainted art does not become complete because tests passed**.

@@ -68,6 +68,12 @@ The `publish-approved-hero-sprites` job runs **only** for a guarded *push on cha
 
 For true 7-cell contact migration: supply and validate all **18** original, genuinely different whole-body source PNGs in `Assets/ArtSource/Frontier/HeroContact/`, pass the explicit release verifier and all production tests; then allow the gated fast-forward artwork publisher to run. It must refuse if another developer advanced the remote HEAD. Never publish partial art or bypass guard failures. Preserve Unity `.meta`/GUIDs and review provenance.
 
+## N/S action-frame regression gate
+
+On 2026-10-15, the one-time 12-PNG publication retired the 24 original walking-stride insertions from north/south LMB Attack and Q Cast. **No legacy source-frame tolerance is permitted anymore.** The checkout-first check_committed_hero_production.py script must byte-compare all 279 accepted production cells before regeneration; a single wrong walking or cross-profession cell fails CI.
+
+The new check_hero_directional_action_bridges.py validates 12 N/S Attack/Cast production strips, performs deliberate first-bridge Walk-frame corruption and emits Hero_*_BEFORE-AFTER.png comparison strips and directional-bridge-qa.json under .starfall-checks/hero-runtime-qa, uploaded in visual-sprite-qa. The replacement is pre-existing authentic planted guard artwork, **not 24 newly created contact frames**. The pre-release sprite selector also asserts ActorAction.released before actual contact index; real Unity Animator/GameView remains NATIVE_UNVERIFIED.
+
 ## Troubleshooting
 
 - **Unity CS0246 / CS0103:** verify the full error, owning `.asmdef` references, package installation and real compiler output. Offline mcs alone is not Unity. `Starfall.Tests` must reference `Starfall.Runtime` as well as `Starfall.Core`.

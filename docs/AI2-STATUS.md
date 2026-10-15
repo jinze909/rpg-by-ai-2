@@ -25,6 +25,14 @@
 - CI: `tools/check_native_hero_capture_compile.py` compiles `UNITY_5_3_OR_NEWER` C# under offline declarations, with intentional invalid-API failure. `tools/check_live_sprite_bridge.py` checks binding, legacy rejection and native real-scene test presence. Combat input checks test 3-vocation × 3-equipped × LMB/Q and missing old art. These are **not Unity native**.
 - Native PlayMode *source* test `Assets/Tests/PlayMode/VisualPlayModeTests.cs` loads **actual** Frontier scene and checks 72 cross-equipped action/facing cases. It still requires a Unity Editor run.
 
+## 2026-10-15 north/south LMB and Q repair
+
+- **Real production root cause:** export_canonical_hero_atlases.py inserted two old walking-stride body poses at cells 1 and 4 in N/S Attack and Cast, for 24 visibly misplaced transition cells across 12 shipped PNGs.
+- **Published binary artwork:** [guarded migration](https://github.com/jinze909/rpg-by-ai-2/commit/e85339d0ae07344e3f05a699e96e8c393e35cbc7) followed by [12 actual PNG repairs](https://github.com/jinze909/rpg-by-ai-2/commit/5127e9a5d99a15f1f85b9efc7d6baa60755e12f2), with unchanged Unity asset GUIDs. Both transition slots now reuse the class-owned, originally drawn full-body planted reaction guard instead of a moving Walk sprite. This is **not** 24 newly painted poses.
+- **Runtime safety:** the current six-cell phase cap already prevented premature contact in the existing logic; an additional explicit ActorAction.released fence protects future clip changes. 108 actual N/S LMB-or-Q first/late-windup/release draws are tested.
+- **CI:** the original committed PNGs are byte-checked before regeneration; check_hero_directional_action_bridges.py rejects 12 injected legacy walking frames and emits 12 labeled before/after comparisons into the visual-sprite-qa artifact. One-time publishing tolerance is retired.
+- **Still missing:** 18 original central contact paintings, distinct upward-facing Cast drawings, natural planted-to-moving recovery, and Unity 2022.3.53f1 native GameView verification (ART_REVIEW_REQUIRED / NATIVE_UNVERIFIED).
+
 ## Unfinished / do not claim solved
 
 1. Produce **18 genuinely new** original complete-body Attack/Cast contact poses: 3 equipment classes × 2 actions × 3 facings. Do not use mirrored repeats, procedural interpolations, frame multiplication or merely updated timing to impersonate new drawings. The all-or-none publication gate must fail partial releases.
