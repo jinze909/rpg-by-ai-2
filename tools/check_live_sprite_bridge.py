@@ -97,6 +97,33 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_VISUAL_CI: reverted moving action splice accepted")
+    # Mutation gate for invisible gait accumulation: the combat sprite may
+    # translate during Recovery, but its UNSEEN Run legs cannot produce sound
+    # contacts or silently advance frame phase beneath that planted body.
+    def audit_hidden_gait(core_code, locomotion_code):
+        assert "walkDistance = 0f;" in core_code, (
+            "HERO_ACTION_STARTS_WITH_OLD_STRIDE")
+        section = locomotion_code.split("bool translating = actual.Length")[1]
+        section = section.split("private void MoveAttackStep")[0]
+        assert "if (playerAction == null)" in section, (
+            "INVISIBLE_WALK_FRAMES_ADVANCE_DURING_ATTACK_RECOVERY")
+        assert "walkDistance += actual.Length;" in section
+        assert "footContacts +=" in section
+        assert "if (playerAction == null || PlayerPhase == ActionPhase.Recovery)" not in section
+    audit_hidden_gait(core, continuity)
+    for code, locomotion_code in (
+        (core.replace("walkDistance = 0f;", "walkDistance = walkDistance;", 1),
+         continuity),
+        (core, continuity.replace(
+            "if (playerAction == null)\n                {",
+            "if (playerAction == null || PlayerPhase == ActionPhase.Recovery)\n                {", 1)),
+    ):
+        try:
+            audit_hidden_gait(code, locomotion_code)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_VISUAL_CI: invisible moving attack gait accepted")
     assert "if(action==1)position%=frames;" in actor
     assert "bool actionSix=(action==2||action==3)&&authored==4;" in actor
     assert "bool reactionFive=(action==4||action==5)&&authored==3;" in actor

@@ -125,13 +125,23 @@ namespace Starfall
             // Carry the dodge heading into that frame instead of an older walk heading.
             if (wasDashing && dashTime <= 0 && actual.Length > .001f)
                 locomotionFacing = dashDirection;
-            bool walking = actual.Length > .001f && !wasDashing && playerHitTime <= 0 && (playerAction == null || PlayerPhase == ActionPhase.Recovery);
-            if (walking)
+            bool translating = actual.Length > .001f && !wasDashing &&
+                playerHitTime <= 0 && (playerAction == null ||
+                PlayerPhase == ActionPhase.Recovery);
+            if (translating)
             {
+                // The *world root* can move during recovery while the complete
+                // authored Attack/Cast body stays visibly planted. Do NOT
+                // advance an INVISIBLE Run animation or emit footsteps from
+                // unanimated legs; that phase previously reappeared suddenly
+                // at an arbitrary foot position when the action ended.
                 locomotionFacing = actual.Normalized;
-                int before = (int)Math.Floor(walkDistance / (WalkStride / 2));
-                walkDistance += actual.Length;
-                footContacts += (int)Math.Floor(walkDistance / (WalkStride / 2)) - before;
+                if (playerAction == null)
+                {
+                    int before = (int)Math.Floor(walkDistance / (WalkStride / 2));
+                    walkDistance += actual.Length;
+                    footContacts += (int)Math.Floor(walkDistance / (WalkStride / 2)) - before;
+                }
             }
         }
         private void MoveAttackStep(Point delta)

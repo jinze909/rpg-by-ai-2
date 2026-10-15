@@ -58,6 +58,54 @@ namespace Starfall.Tests
                 g.Tick(.01f,new Point(1,0));Check(g.ActuallyMoving&&g.AppearanceWeapon==0,"Completed ranged Q returns to walking in the saved equipment");
             }
         }
+        public static void MovingActionRecoveryDoesNotAccumulateInvisibleFootsteps(Campaign data)
+        {
+            // Real GameCore physics during three-class cast recovery:
+            // translation remains legal, but a static full-body release must
+            // not secretly play Run/footstep cadence before its last frame.
+            foreach(int profession in new[]{0,1,2})
+            {
+                var g=Quiet(data,profession);
+                g.walkDistance=GameCore.WalkStride*.78f;
+                g.footContacts=6;
+                Point castDirection=new Point(1,0);
+                g.Skill(castDirection);
+                ActorAction action=g.playerAction;
+                Check(action!=null&&Math.Abs(g.walkDistance)<.00001f,
+                    "Beginning an action resets the hidden Run phase for profession "+profession);
+                int safety=0;
+                while(g.PlayerPhase!=ActionPhase.Recovery&&safety++<200)
+                    g.Tick(.01f,new Point());
+                Check(safety<200&&g.playerAction==action&&action.released,
+                    "Contact/recovery must still follow the real combat clock");
+                int footstepCount=g.footContacts;
+                Point before=g.Position, strafe=new Point(0,1);
+                for(int i=0;i<5;i++)
+                {
+                    g.Tick(.01f,strafe,castDirection);
+                    Check(g.playerAction==action&&g.ActuallyMoving&&
+                        g.PlayerMobility==MobilityRule.Reduced,
+                        "Physical translation during authored recovery preserved");
+                    Check(g.walkDistance==0&&g.footContacts==footstepCount&&
+                        (g.VisualFacing-castDirection).Length<.001f,
+                        "Never advance invisible Run or audio feet while full-body Cast plays");
+                }
+                Check((g.Position-before).Length>.001f,
+                    "Stopping hidden gait cannot stop real collision-governed movement");
+                safety=0;
+                while(g.playerAction==action&&safety++<200)
+                    g.Tick(.01f,strafe,castDirection);
+                Check(safety<200&&g.playerAction==null,
+                    "Skill duration and damage clock must finish normally");
+                // A follow-up genuine stride begins from zero, not from
+                // arbitrary old Run frame accumulated under a planted cast.
+                g.Tick(.01f,strafe,castDirection);
+                Check(g.walkDistance>0&&g.walkDistance<GameCore.WalkStride*.25f&&
+                    g.WalkFrame==0&&g.footContacts==footstepCount,
+                    "First post-action Run frame starts at canonical foot phase");
+            }
+        }
+
         public static void RecoveryReactionsRetainDisplayedEquipment(Campaign data)
         {
             foreach(int equipped in new[]{1,2}) for(int state=0;state<3;state++)

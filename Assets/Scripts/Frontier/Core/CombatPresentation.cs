@@ -160,6 +160,11 @@ namespace Starfall
         }
         private void BeginAction(string kind, float damage, float duration, float contact)
         {
+            // The next visible Run always begins with a fresh, stable
+            // canonical foot phase. There is no Walk raster under an action
+            // and no accumulated hidden gait during moving recovery.
+            // Do not reset footContacts (global material/audio event count).
+            walkDistance = 0f;
             playerAction = new ActorAction { kind = kind, damage = damage, duration = duration, contact = contact,
                 direction = aim, target = aimTarget, weapon = kind == "skill" ? save.profession : save.weapon, equippedWeapon = save.weapon, profession = save.profession, style = Style, combo = combo, technique = save.technique,
                 impact = CaptureImpact(kind == "skill" ? save.profession : save.weapon,kind == "attack" ? combo : 0) };
