@@ -745,7 +745,32 @@ namespace Starfall
                     ActorCanvas(enemyArcherVertical, 3, 96f / 128f),
                     tint, false);
             }
-            else Actor(monsterSheet, 6, 3, Math.Min(2, body.actor.kind) * 6 + 5, p, body.actor.kind == 2 ? 106 : 96, tint,body.actor.VisualFlip);
+            else
+            {
+                // Ordinary raiders, guards and E/W archers can die during
+                // a moving footfall. Start from their last accepted whole
+                // WalkMonsters frame, then pass the SAME foot root to the
+                // actual Monsters death cell. Never cut or re-rig anatomy.
+                bool walking=body.actor.moving && monsterWalkSheet!=null &&
+                    progress<.24f && !Game.save.reducedMotion;
+                float mix=walking?Mathf.Clamp01(progress/.24f):1f;
+                float size=body.actor.kind==2?106f:96f;
+                int kind=Math.Min(2,body.actor.kind);
+                if(walking && mix<1f)
+                {
+                    int gait=GameCore.GaitFrame(body.actor.moveTime,
+                        body.actor.kind==0?1.35f:1.8f);
+                    int step=body.actor.backpedaling?(4-gait)%4:gait;
+                    Actor(monsterWalkSheet,4,3,kind*4+step,p,
+                        ActorCanvas(monsterWalkSheet,4,size/128f),
+                        new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
+                        body.actor.VisualFlip);
+                }
+                if(mix>0f)
+                    Actor(monsterSheet,6,3,kind*6+5,p,size,
+                        new Color(tint.r,tint.g,tint.b,tint.a*mix),
+                        body.actor.VisualFlip);
+            }
             if (body.actor.boss && progress < .6f) Atlas(effectSheet, 4, 4, 15, new Rect(p.x - 52, p.y - 80 - progress * 40, 104, 104), new Color(.8f, .92f, .84f, .7f * (1 - progress)));
         }
         private int NpcId(string kind)

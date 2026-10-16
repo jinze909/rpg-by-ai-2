@@ -590,6 +590,71 @@ public static class ActorRegistrationChecks
             "Reduced-motion must skip Boss death handoff");
         Console.WriteLine("PASS moving Boss death: accepted stride/boots, rooted whole-body transition and accessible fixed corpse");
     }
+    static void PatrolDeathRetainsWholeBodyFootfall(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;game.save.reducedMotion=false;
+        foreach(int kind in new[]{0,1,2})
+        {
+            // Vertical archers have their own source-authored fallen art
+            // and are already validated separately; use E/W here.
+            var foe=new Enemy(94600+kind,kind,game.Position.x,
+                game.Position.y,96f){
+                facing=new Point(-1f,0f),moving=true,
+                moveTime=.68f,backpedaling=kind==1
+            };
+            Point feet=new Point(420+kind*160,350);
+            Place(app,foe.Position,feet);
+            Clear();var live=Draw(app,"DrawEnemyActor",foe);
+            var living=live.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/WalkMonsters");
+            Check(living!=null,"Accepted moving enemy body missing");
+            var dead=new FallenActor{actor=foe,room=1,
+                life=.65f,duration=.65f};
+            Clear();var initial=Draw(app,"DrawFallen",dead);
+            var first=initial.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/WalkMonsters");
+            Check(first!=null&&
+                !initial.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/Monsters")&&
+                Math.Abs(first.uv.x-living.uv.x)<.00001f&&
+                Math.Abs(first.uv.y-living.uv.y)<.00001f&&
+                Math.Abs(first.rect.x-living.rect.x)<.001f&&
+                Math.Abs(first.rect.y-living.rect.y)<.001f,
+                "First death frame popped a different raider/guard/bowman");
+            dead.life=.572f; // ~12% of .65sec death
+            Clear();var blend=Draw(app,"DrawFallen",dead);
+            var stride=blend.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/WalkMonsters");
+            var corpse=blend.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/Monsters");
+            Check(stride!=null&&corpse!=null&&
+                Math.Abs(stride.color.a-corpse.color.a)<.0001f&&
+                Math.Abs(stride.rect.x+stride.rect.width/2-
+                    corpse.rect.x-corpse.rect.width/2)<.001f&&
+                Math.Abs(stride.rect.y+
+                    stride.rect.height*120f/128f-corpse.rect.y-
+                    corpse.rect.height*120f/128f)<.001f,
+                "Walking enemy death handoff lost one stable root or alpha");
+            dead.life=.40f;
+            Clear();var settled=Draw(app,"DrawFallen",dead);
+            Check(!settled.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/WalkMonsters")&&
+                settled.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/Monsters"),
+                "Finished death retained a standing patrol body");
+            game.save.reducedMotion=true;
+            dead.life=.65f;
+            Clear();var fixedFrame=Draw(app,"DrawFallen",dead);
+            Check(!fixedFrame.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/WalkMonsters")&&
+                fixedFrame.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/Monsters"),
+                "Accessible death must show one original fixed corpse");
+            game.save.reducedMotion=false;
+        }
+        Console.WriteLine("PASS 3 actual raider/archer/guard moving deaths: stable pixel feet, accepted full-body handoff, backpedal and reduced-motion");
+    }
     static void PreparedMasks()
     {
         var source=Resources.Load<Texture2D>("Frontier/Art/Bosses");Check(source!=null&&source.isReadable,"Actual metadata must keep source alpha readable after import");
@@ -770,7 +835,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
