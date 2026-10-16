@@ -400,15 +400,27 @@ namespace Starfall
         // unchanged. Only true actors run the Animator-driven pipeline.
         // Preserve the original gold contour during outline passes.
         private void DrawStaticFieldSprite(Texture2D sheet,int id,Point foot,
-            float size,Color tint)
+            float size,Color tint,float rootedSway=0f)
         {
             if(drawingOutline)
             {
                 Actor(sheet,4,4,id,foot,size,tint);
                 return;
             }
-            Atlas(sheet,4,4,id,new Rect(foot.x-size*.5f,
-                foot.y-size*120f/128f,size,size),tint);
+            Matrix4x4 original=GUI.matrix;
+            try
+            {
+                // Plants may move as ONE illustrated source Sprite without
+                // animating a torso/foliage segment or allocating a GPU actor
+                // target. The exact soil root remains pixel-registered.
+                if(rootedSway!=0f&&!Game.save.reducedMotion&&
+                    Game.save.effectsQuality>0)
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(original,
+                        new Vector2(foot.x,foot.y),rootedSway);
+                Atlas(sheet,4,4,id,new Rect(foot.x-size*.5f,
+                    foot.y-size*120f/128f,size,size),tint);
+            }
+            finally {GUI.matrix=original;}
         }
         private bool DrawFieldProp(string kind, int variant, float x, float y, float w, float h, Color? tint)
         {
@@ -440,10 +452,22 @@ namespace Starfall
                         new Color(.16f,.12f,.09f,.35f));
                     if(variant>0)
                         for(int col=0;col<3;col++)
+                        {
+                            // Each rooted herb moves on its own soft
+                            // phase; no world-space/body disconnection, no
+                            // synchronous mechanical motion across a bed.
+                            float phase=row*1.31f+col*.79f;
+                            float breeze=(float)(
+                                Math.Sin(clock*.82f+phase)*.70f+
+                                Math.Sin(clock*1.19f+phase*.67f)*.30f);
+                            float sway=CurrentWorldVisualLook.
+                                groundFoliageSwayDegrees*breeze*
+                                (variant==2?1f:.55f);
                             DrawStaticFieldSprite(fieldProps,6,
                                 new Point(x+17+col*(w-24)/3,
                                     y+h-30+row*10),
-                                variant==2?27:18,Color.white);
+                                variant==2?27:18,Color.white,sway);
+                        }
                 }
                 return true;
             }

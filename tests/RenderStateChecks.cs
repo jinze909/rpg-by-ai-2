@@ -900,9 +900,13 @@ public static class RenderStateChecks
             // Each planted garden has NINE repeated herbs. A former native
             // actor capture path allocated source 128px targets for those
             // small scenic cells even though their frame never animates.
+            Set(app,"clock",3.1f);
             Clear();Call(app,"DrawFieldProp","garden",2,
                 170f,180f,76f,88f,null);
             int grown=0;
+            int animatedHerbs=0;
+            var grownCells=new System.Collections.Generic.List<
+                System.Tuple<float,float,float,float>>();
             foreach(var call in GUI.textureCalls)
                 if(object.ReferenceEquals(call.texture,field)&&
                     Math.Abs(call.uv.x-.5f)<.00001f&&
@@ -910,10 +914,44 @@ public static class RenderStateChecks
                 {
                     Check(Math.Abs(call.rect.width-27f)<.00001f,
                         "Mature garden herb lost its official full Sprite size");
+                    var anchor=new Vector3(call.rect.x+call.rect.width*.5f,
+                        call.rect.y+call.rect.height*120f/128f,0f);
+                    Near(call.matrix.MultiplyPoint3x4(anchor),
+                        canvas.MultiplyPoint3x4(anchor),
+                        "Mature animated garden plant lost its soil pivot");
+                    if(Math.Abs(call.matrix.m01-canvas.m01)>.00001f)
+                        animatedHerbs++;
+                    grownCells.Add(System.Tuple.Create(call.rect.x,
+                        call.rect.y,call.matrix.m00,call.matrix.m01));
                     grown++;
                 }
-            Check(grown==9,
-                "Planted garden must show all nine original herb sprites");
+            Check(grown==9&&animatedHerbs>0,
+                "Mature garden must animate 9 original grounded full-body herbs");
+            Set(app,"clock",8.7f);
+            Clear();Call(app,"DrawFieldProp","garden",2,
+                170f,180f,76f,88f,null);
+            int advancing=0;
+            foreach(var call in GUI.textureCalls)
+                if(object.ReferenceEquals(call.texture,field)&&
+                    Math.Abs(call.uv.x-.5f)<.00001f&&
+                    Math.Abs(call.uv.y-.5f)<.00001f)
+                {
+                    Check(advancing<grownCells.Count,
+                        "Wind spawned extra unapproved garden Sprites");
+                    var oldPlant=grownCells[advancing];
+                    Check(Math.Abs(call.rect.x-oldPlant.Item1)<.00001f&&
+                        Math.Abs(call.rect.y-oldPlant.Item2)<.00001f&&
+                        Math.Abs(call.uv.width-.25f)<.00001f,
+                        "Garden wind shifted source/soil or changed pixel art");
+                    var anchor=new Vector3(call.rect.x+call.rect.width*.5f,
+                        call.rect.y+call.rect.height*120f/128f,0f);
+                    Near(call.matrix.MultiplyPoint3x4(anchor),
+                        canvas.MultiplyPoint3x4(anchor),
+                        "Garden breeze moved the actual planted root");
+                    advancing++;
+                }
+            Check(advancing==9,
+                "Garden animation lost one of its nine rooted cells");
             app.Game.save.effectsQuality=0;
             app.Game.save.reducedMotion=true;
             Clear();Call(app,"DrawFieldProp","garden",1,
@@ -926,11 +964,13 @@ public static class RenderStateChecks
                 {
                     Check(Math.Abs(call.rect.width-18f)<.00001f,
                         "Young garden source art must retain original planted size");
+                    Same(call.matrix,canvas,
+                        "Reduced-motion low-FX garden must stop all plant sway");
                     young++;
                 }
             Check(young==9,
                 "Reduced-motion low-FX garden lost authored plants");
-            Console.WriteLine("PASS 11 original non-actor field sprites and 9 planted garden herb cells: direct atlas, fixed roots, live stages and GUI state");
+            Console.WriteLine("PASS 11 original non-actor field sprites and 9 softly swaying rooted garden herbs: source pixels, mature/youth stages, accessibility and GUI isolation");
         }
         finally
         {
