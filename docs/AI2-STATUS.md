@@ -2,6 +2,15 @@
 
 > This is the authoritative **AI-2** handoff for `jinze909/rpg-by-ai-2/chatgpt/dev`. Update facts only when an actual change occurs; verify live GitHub HEAD / CI before starting, because the snapshot below ages. Do not replace this with `docs/AI_STATE.md` (a different Codex workflow).
 
+## 2026-10-16 follow-up — lethal animation continuity across all enemies (offline verified)
+
+- Baseline `chatgpt/dev` commit `17b87fe45259ddfb8d4073e31e7982cb06937801` had [passing core CI](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38888616157). No schedule/task changes; only this branch was written.
+- [`58beef0`](https://github.com/jinze909/rpg-by-ai-2/commit/58beef0645dede1d200be5bec7f3b95ff07d119c): regular enemy death now remembers the **actual drawn** accepted whole-body atlas, cell, scale, color, room and mirrored facing via a weak Enemy-keyed presentation snapshot. HP-zero, AI attack reset and late facing changes cannot resurrect an unrelated monster or reverse a north/south archer's body. Existing fully authored published corpse cells remain the destination; [core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38889538634).
+- [`4535a80`](https://github.com/jinze909/rpg-by-ai-2/commit/4535a809a6ad884010e7a11447530a8bc19ed0a1): carry the last living orientation through regional Boss and Briar Beast death, plant the corpse contact shadow **behind** the still-visible body; [core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38889821289).
+- [`aa233f9`](https://github.com/jinze909/rpg-by-ai-2/commit/aa233f96a2ad1f9fa2c3d5ef3dda50f80fa7e500): keep ordinary Monsters death-facing on the same last live side even when postmortem AI calls `Face()`; [core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38889927696).
+- `tests/ActorRegistrationChecks.cs` now exercises last-frame handoffs for five enemy stances/facings and 24 regional Boss combinations, including forced HP-zero state changes, root/draw order, interpolation and reduced-motion fallback. No new sprites were painted or accepted; no scene, GUID, save schema, quest or gameplay damage changes.
+- **Status:** code and offline rendering/C# regression are verified by these Actions. Native Unity 2022.3.53f1 Editor/PlayMode, actual Animator import and GameView image quality: **NATIVE_UNVERIFIED**. Broader original art/contact publishing still **ART_REVIEW_REQUIRED**; never call offline GUI texture calls native GameView screenshots.
+
 ## 2026-10-16 verified production visual continuation
 
 - Inspected actual `chatgpt/dev` HEAD `589b28662a1cc1108cb10a0ef5b837425802f13b`; baseline Actions was green. Subsequent work was fast-forwarded solely on this branch; **no scheduled tasks, other repositories, saves, or Unity GUIDs modified**.

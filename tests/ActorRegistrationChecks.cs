@@ -916,7 +916,15 @@ public static class ActorRegistrationChecks
                 var dead=new FallenActor{actor=foe,room=1,
                     life=1f,duration=1f};
                 Clear();
-                var atContact=Draw(app,"DrawFallen",dead)
+                var firstDraw=Draw(app,"DrawFallen",dead);
+                // Native SpriteRenderer/Animator capture is a complete-body
+                // source, never a separate upper/lower puppet. The accepted
+                // shadow MUST render first, UNDER the planted boots.
+                Check(firstDraw.Length>=2&&
+                    firstDraw[0].texture.name=="soft_glow"&&
+                    firstDraw[1].texture.name==alive.texture.name,
+                    "Lethal shadow layered over boots or first pose displaced");
+                var atContact=firstDraw
                     .Where(c=>c.texture.name==
                         "resource:Frontier/Art/Monsters"||
                         c.texture.name=="resource:Frontier/Art/WalkMonsters"||
@@ -956,8 +964,21 @@ public static class ActorRegistrationChecks
                     "resource:Frontier/Art/EnemyArcherVertical"||
                     c.texture.name=="resource:Frontier/Art/Monsters")==1,
                     "Enemy failed to settle into one actual authored death body");
+                // Reduced-motion must not reinsert the remembered attack
+                // Sprite or run a synthetic interpolation phase. Keep the
+                // genuinely painted, class-matching fixed corpse instead.
+                g.save.reducedMotion=true;dead.life=1f;Clear();
+                var accessible=Draw(app,"DrawFallen",dead);
+                string deathSource=form>=3?
+                    "resource:Frontier/Art/EnemyArcherVertical":
+                    "resource:Frontier/Art/Monsters";
+                Check(accessible.Count(c=>c.texture.name==deathSource)==1&&
+                    accessible.Count(c=>c.texture.name==
+                        "resource:Frontier/Art/WalkMonsters")==0,
+                    "Reduced-motion corpse used an old combat frame or wrong source");
+                g.save.reducedMotion=false;
             }
-            Console.WriteLine("PASS five lethal regular enemy handoffs with actual detailed atlas frames and postmortem AI/facing mutation");
+            Console.WriteLine("PASS five lethal regular enemy handoffs: exact accepted whole-body frames, shadow behind boots, facing, and reduced-motion corpse");
         }
         finally{g.save.reducedMotion=previousReduced;}
     }
