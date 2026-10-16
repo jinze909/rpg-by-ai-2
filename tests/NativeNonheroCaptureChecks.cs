@@ -545,7 +545,7 @@ public static class NativeNonheroCaptureChecks
             typeof(FrontierRuntime).GetField("actorCapturedFrames",
                 BindingFlags.Instance|BindingFlags.NonPublic).
                 GetValue(epochBudget);
-        RenderTexture earliestEpochTarget=null;
+        var previousEpochTargets=new System.Collections.Generic.List<RenderTexture>();
         try
         {
             Time.frameCount=17500;
@@ -556,13 +556,12 @@ public static class NativeNonheroCaptureChecks
                     huge,4,4,0,new Point(200,220),96f,
                     Color.white,false,0f}),
                     "Epoch GPU soft-budget setup dropped a real 512px actor");
-                if(i==0)
-                    earliestEpochTarget=Camera.RenderedTargets[
-                        Camera.RenderedTargets.Count-1];
+                previousEpochTargets.Add(Camera.RenderedTargets[
+                    Camera.RenderedTargets.Count-1]);
             }
             long beforeEpochBytes=(long)epochBytes.GetValue(epochBudget);
             Require(beforeEpochBytes>64L*1024*1024 && epochTargets.Count==50&&
-                earliestEpochTarget.releaseCount==0,
+                previousEpochTargets.TrueForAll(x=>x.releaseCount==0),
                 "Frame-local soft GPU cache setup did not exceed the budget safely");
             Time.frameCount=22;
             var newest=new Texture2D(2048,2048,TextureFormat.RGBA32,false);
@@ -571,7 +570,8 @@ public static class NativeNonheroCaptureChecks
                 Color.white,false,0f}),
                 "Epoch-reset GPU budget rejected the new current-frame actor");
             Require((long)epochBytes.GetValue(epochBudget)<=64L*1024*1024&&
-                earliestEpochTarget.releaseCount>=1&&epochTargets.Count<50,
+                previousEpochTargets.Exists(x=>x.releaseCount>=1)&&
+                epochTargets.Count<50,
                 "Future-dated old-epoch actor targets escaped GPU pressure on rewind");
         }
         finally {release.Invoke(epochBudget,null);}
