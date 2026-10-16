@@ -10,10 +10,13 @@ namespace Starfall
         private Texture2D impactFlourishSheet;
         private float impactFlourishRetryAt=float.NegativeInfinity;
         private float impactFlourishLastChecked=float.NegativeInfinity;
-        private void DrawAuthoredImpactFlourishes()
+        // World-depth sorted optional pixel VFX: unlike gameplay hazard
+        // outlines and hit-stop indicators, these embellishments must be
+        // hidden by trees and buildings in FRONT of their contact point.
+        private bool CanDrawAuthoredImpactFlourishes()
         {
             if(Game==null||Game.save.effectsQuality<2||
-                Game.save.reducedMotion)return;
+                Game.save.reducedMotion)return false;
             if(impactFlourishSheet==null||
                impactFlourishSheet.width!=128||
                impactFlourishSheet.height!=96)
@@ -27,43 +30,53 @@ namespace Starfall
                         "Frontier/Art/ImpactFlourish");
                 }
             }
-            if(impactFlourishSheet==null||
-               impactFlourishSheet.width!=128||
-               impactFlourishSheet.height!=96)return;
+            return impactFlourishSheet!=null &&
+                impactFlourishSheet.width==128 &&
+                impactFlourishSheet.height==96;
+        }
+        private static int ImpactFlourishCategory(Effect effect)
+        {
+            // The same hand-painted contact artwork can echo true player
+            // strikes, hits, arrows and Boss magic, not normal patrol bolts.
+            return effect.kind=="slash"||
+                effect.kind=="impact"||effect.kind=="hurt"?0:
+                effect.kind=="projectileImpact"?1:
+                effect.kind=="magicImpact"||
+                (effect.kind=="enemyRelease"&&effect.variant>=10)?2:-1;
+        }
+        private void DrawAuthoredImpactFlourish(Effect effect)
+        {
+            int category=ImpactFlourishCategory(effect);
+            if(category<0||effect.maxLife<=0f||
+               effect.life<=0f||!WorldDrawable(effect.position.x,
+                   effect.position.y,115f,115f))return;
+            float phase=Mathf.Clamp01(1f-effect.life/effect.maxLife);
+            int frame=Math.Min(3,(int)(phase*4f));
+            float size=category==0?
+                (effect.kind=="slash"?
+                    (effect.variant==2?73f:57f):44f):
+                category==1?38f:
+                effect.kind=="enemyRelease"?65f:58f;
+            Point point=ScreenPoint(effect.position);
+            float lift=effect.height>=0f?effect.height:
+                effect.kind=="enemyRelease"?38f:30f;
+            float opacity=CurrentWorldVisualLook.impactFlourishAlpha*
+                (1f-phase);
+            float angle=category==0?
+                (float)(Math.Atan2(effect.direction.y,
+                    effect.direction.x)*180f/Math.PI):0f;
+            Atlas(impactFlourishSheet,4,3,category*4+frame,
+                new Rect(point.x-size*.5f,point.y-lift-size*.5f,
+                    size,size),
+                new Color(1f,1f,1f,opacity),false,angle);
+        }
+        // Independent QA entrypoint: tests sample the real source cells
+        // directly, while DrawOrderedWorld owns actual in-scene occlusion.
+        private void DrawAuthoredImpactFlourishes()
+        {
+            if(!CanDrawAuthoredImpactFlourishes())return;
             foreach(Effect effect in Game.effects)
-            {
-                // One source-painted identity for real contact and Boss
-                // release; never draw a purple Boss rune on a patrol shot.
-                int category=effect.kind=="slash"||
-                    effect.kind=="impact"||effect.kind=="hurt"?0:
-                    effect.kind=="projectileImpact"?1:
-                    effect.kind=="magicImpact"||
-                    (effect.kind=="enemyRelease"&&effect.variant>=10)?2:-1;
-                if(category<0||effect.maxLife<=0f||
-                   effect.life<=0f||!WorldDrawable(effect.position.x,
-                       effect.position.y,115f,115f))continue;
-                // Sample discrete ORIGINAL pixel cells from the real
-                // damage-clock event, never independent free-running VFX.
-                float phase=Mathf.Clamp01(1f-effect.life/effect.maxLife);
-                int frame=Math.Min(3,(int)(phase*4f));
-                float size=category==0?
-                    (effect.kind=="slash"?
-                        (effect.variant==2?73f:57f):44f):
-                    category==1?38f:
-                    effect.kind=="enemyRelease"?65f:58f;
-                Point point=ScreenPoint(effect.position);
-                float lift=effect.height>=0f?effect.height:
-                    effect.kind=="enemyRelease"?38f:30f;
-                float opacity=CurrentWorldVisualLook.impactFlourishAlpha*
-                    (1f-phase);
-                float angle=category==0?
-                    (float)(Math.Atan2(effect.direction.y,
-                        effect.direction.x)*180f/Math.PI):0f;
-                Atlas(impactFlourishSheet,4,3,category*4+frame,
-                    new Rect(point.x-size*.5f,point.y-lift-size*.5f,
-                        size,size),
-                    new Color(1f,1f,1f,opacity),false,angle);
-            }
+                DrawAuthoredImpactFlourish(effect);
         }
 
         // A small, source-authored, alpha-only-detail Sprite sheet contains

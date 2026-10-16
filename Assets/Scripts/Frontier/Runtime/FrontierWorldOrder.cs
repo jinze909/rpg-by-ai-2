@@ -6,7 +6,7 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion, Survivor }
+        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion, Survivor, ImpactFlourish }
         private struct WorldDrawEntry
         {
             public float depth;
@@ -16,6 +16,7 @@ namespace Starfall
             public WorldObject obj;
             public Enemy enemy;
             public FallenActor fallen;
+            public Effect effect;
         }
         private sealed class WorldDepthComparer:IComparer<WorldDrawEntry>
         {
@@ -80,6 +81,18 @@ namespace Starfall
             foreach(FallenActor f in Game.fallen)
                 if(WorldDrawable(f.actor.x,f.actor.y))
                     AddWorldEntry(new WorldDrawEntry{depth=f.actor.y-.02f,kind=WorldDrawKind.Fallen,fallen=f});
+            // Optional impact paint is WORLD scenery, not a gameplay
+            // warning. Respect foreground canopies, NPCs and hero weapons
+            // through the same source-foot depth ordering as real actors.
+            // Actual hit telegraphs stay in DrawVisibleEnemyWarnings.
+            if(CanDrawAuthoredImpactFlourishes())
+                foreach(Effect effect in Game.effects)
+                    if(ImpactFlourishCategory(effect)>=0&&
+                       effect.life>0f&&effect.maxLife>0f&&
+                       WorldDrawable(effect.position.x,effect.position.y,115f,115f))
+                        AddWorldEntry(new WorldDrawEntry{
+                            depth=effect.position.y+.001f,
+                            kind=WorldDrawKind.ImpactFlourish,effect=effect});
             AddWorldEntry(new WorldDrawEntry{depth=Game.save.y+.002f,kind=WorldDrawKind.Player});
             if(Game.save.companion>=0)AddWorldEntry(new WorldDrawEntry{depth=Game.companionPosition.y,kind=WorldDrawKind.Companion});
             // Keep the moving rescue survivor in the same depth pass as every
@@ -109,6 +122,7 @@ namespace Starfall
                         case WorldDrawKind.Player:DrawHero();DrawFarCourierPack();DrawCivicResponsePack();DrawCivicConduitCoil();break;
                         case WorldDrawKind.Companion:DrawCompanionActor();break;
                         case WorldDrawKind.Survivor:DrawRescueSurvivorActor();break;
+                        case WorldDrawKind.ImpactFlourish:DrawAuthoredImpactFlourish(entry.effect);break;
                     }
                 }
             }

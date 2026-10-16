@@ -7,7 +7,8 @@ ROOT=Path(__file__).resolve().parents[1]
 ART=ROOT/"Assets/Resources/Frontier/Art/ImpactFlourish.png"
 META=Path(str(ART)+".meta")
 FX=ROOT/"Assets/Scripts/Frontier/Runtime/FrontierEffects.cs"
-WORLD=ROOT/"Assets/Scripts/Frontier/Runtime/FrontierRuntime.cs"
+WORLD=ROOT/"Assets/Scripts/Frontier/Runtime/FrontierWorldOrder.cs"
+SCENE=ROOT/"Assets/Scripts/Frontier/Runtime/FrontierRuntime.cs"
 LOOK=ROOT/"Assets/Resources/Frontier/Visual/WorldLook.txt"
 
 def main():
@@ -45,7 +46,9 @@ def main():
         'effect.life/effect.maxLife', 'Game.save.reducedMotion',
         'Game.save.effectsQuality<2'):
         assert token in effect,("IMPACT_NOT_IN_REAL_RENDERER",token)
-    assert "DrawAuthoredImpactFlourishes();" in scene, (
+    assert "WorldDrawKind.ImpactFlourish" in scene and "DrawAuthoredImpactFlourish(entry.effect)" in scene, (
+        "IMPACT_NOT_DEPTH_SORTED_IN_PRODUCTION")
+    assert "DrawOrderedWorld();" in SCENE.read_text(), (
         "IMPACT_ONLY_ORPHAN_PREVIEW")
     assert "impactFlourishAlpha=0.58" in LOOK.read_text(), (
         "IMPACT_NOT_IN_UNITY_LOOK_ASSET")
