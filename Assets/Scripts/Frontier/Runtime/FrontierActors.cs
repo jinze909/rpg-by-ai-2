@@ -36,6 +36,29 @@ namespace Starfall
         }
         private readonly ConditionalWeakTable<Enemy, BossPhaseCue> bossPhaseCues =
             new ConditionalWeakTable<Enemy, BossPhaseCue>();
+        // Death may retire AI windup, gait and facing BEFORE the first corpse
+        // render. One weakly keyed, presentation-only last-visible snapshot
+        // keeps each enemy's exact accepted whole-body source cell for the
+        // initial handoff, without changing Enemy/SaveData or holding despawns.
+        private sealed class EnemyPaint
+        {
+            internal int room, columns, rows, frame;
+            internal Texture2D sheet;
+            internal float size;
+            internal Color tint;
+            internal bool flip;
+        }
+        private readonly ConditionalWeakTable<Enemy, EnemyPaint> enemyPaints =
+            new ConditionalWeakTable<Enemy, EnemyPaint>();
+        private void RememberEnemyPaint(Enemy enemy, Texture2D sheet,
+            int columns,int rows,int frame,float size,Color tint,bool flip)
+        {
+            if(drawingOutline || sheet==null || enemy.hp<=0)return;
+            EnemyPaint paint=enemyPaints.GetValue(enemy, ignored=>new EnemyPaint());
+            paint.room=Game.save.room;
+            paint.sheet=sheet;paint.columns=columns;paint.rows=rows;
+            paint.frame=frame;paint.size=size;paint.tint=tint;paint.flip=flip;
+        }
         private float BossPhaseCueOpacity(Enemy enemy)
         {
             BossPhaseCue cue = bossPhaseCues.GetValue(enemy,
@@ -706,8 +729,10 @@ namespace Starfall
                 }
                 }
                 float canvas=ActorCanvas(sheet,columns,size/128);
-                Actor(sheet, columns, rows, frame, p + offset, canvas, tint, !vertical && e.VisualFlip);
-                if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, canvas, new Color(1, 1, 1, e.flash / .09f * .86f), !vertical && e.VisualFlip);
+                bool renderFlip=!vertical && e.VisualFlip;
+                RememberEnemyPaint(e,sheet,columns,rows,frame,canvas,tint,renderFlip);
+                Actor(sheet, columns, rows, frame, p + offset, canvas, tint, renderFlip);
+                if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, canvas, new Color(1, 1, 1, e.flash / .09f * .86f), renderFlip);
             }
             // 16 real authored supplemental frames, synchronized to the
             // exact game-core enemy state and attack-release timestamps:
@@ -766,6 +791,30 @@ namespace Starfall
             }
             tint=RegionalBossPhaseTint(tint,body.actor,body.room,
                 previousBoss!=null?previousBoss.lastVisiblePhase:0);
+            EnemyPaint lastEnemyPaint=null;
+            EnemyPaint observed;
+            if(!body.actor.boss && enemyPaints.TryGetValue(body.actor,out observed) &&
+                observed.room==body.room && observed.sheet!=null &&
+                observed.columns>0 && observed.rows>0 && observed.size>0f)
+                lastEnemyPaint=observed;
+            bool corpseFlip=lastEnemyPaint!=null?lastEnemyPaint.flip:
+                previousBoss!=null && previousBoss.lastRegionalSheet!=null?
+                    previousBoss.lastRegionalFlip:body.actor.VisualFlip;
+            float corpseMix=1f;
+            if(lastEnemyPaint!=null && !Game.save.reducedMotion &&
+                progress<deathBlendFraction)
+            {
+                corpseMix=Mathf.Clamp01(progress/
+                    Math.Max(.01f,deathBlendFraction));
+                if(corpseMix<1f)
+                    Actor(lastEnemyPaint.sheet,lastEnemyPaint.columns,
+                        lastEnemyPaint.rows,lastEnemyPaint.frame,p,
+                        lastEnemyPaint.size,
+                        new Color(lastEnemyPaint.tint.r,lastEnemyPaint.tint.g,
+                            lastEnemyPaint.tint.b,
+                            lastEnemyPaint.tint.a*tint.a*(1f-corpseMix)),
+                        lastEnemyPaint.flip);
+            }
             // Keep the contact patch as a corpse fades out; a death frame
             // otherwise snaps from a solid grounded sprite into a floating one.
             DrawActorContactShadow(p,body.actor.boss?BossCanvasSize(body.room)*.57f:
@@ -791,14 +840,14 @@ namespace Starfall
                             BriarBeastLiveCell(body.actor),
                         p,BossCanvasSize(body.room),
                         new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
-                        body.actor.VisualFlip);
+                        corpseFlip);
                 if(mix>0f)
                 {
                     int stage=(int)GameCore.Clamp(progress*4f,0f,3f);
                     Actor(briarBeastSheet,4,18,17*4+stage,
                         p,BossCanvasSize(body.room),
                         new Color(tint.r,tint.g,tint.b,tint.a*mix),
-                        body.actor.VisualFlip);
+                        corpseFlip);
                 }
             }
             else if (body.actor.boss)
@@ -859,26 +908,32 @@ namespace Starfall
                     Actor(bossSheet,4,8,row*4+3,p,
                         BossCanvasSize(body.room),
                         new Color(tint.r,tint.g,tint.b,tint.a*change),
-                        body.actor.VisualFlip);
+                        corpseFlip);
             }
             else if (body.actor.kind == 0 && mossboundRaiderSheet != null &&
                 mossboundRaiderSheet.width == 512 && mossboundRaiderSheet.height == 768)
             {
                 int phase = (int)GameCore.Clamp(progress * 4f, 0f, 3f);
-                Actor(mossboundRaiderSheet, 4, 6, 20 + phase, p, 96,
-                    tint, body.actor.VisualFlip);
+                if(corpseMix>0f)
+                    Actor(mossboundRaiderSheet, 4, 6, 20 + phase, p, 96,
+                        new Color(tint.r,tint.g,tint.b,tint.a*corpseMix),
+                        corpseFlip);
             }
             else if (body.actor.kind == 2 && cinderstoneGuardSheet != null &&
                 cinderstoneGuardSheet.width == 512 && cinderstoneGuardSheet.height == 768)
             {
                 int phase = (int)GameCore.Clamp(progress * 4f, 0f, 3f);
-                Actor(cinderstoneGuardSheet, 4, 6, 20 + phase, p, 106,
-                    tint, body.actor.VisualFlip);
+                if(corpseMix>0f)
+                    Actor(cinderstoneGuardSheet, 4, 6, 20 + phase, p, 106,
+                        new Color(tint.r,tint.g,tint.b,tint.a*corpseMix),
+                        corpseFlip);
             }
             else if (body.actor.kind == 1 && enemyArcherVertical != null &&
                 enemyArcherVertical.width % 3 == 0 &&
                 enemyArcherVertical.height % 2 == 0 &&
-                Math.Abs(body.actor.facing.y) > Math.Abs(body.actor.facing.x))
+                (lastEnemyPaint!=null?
+                    lastEnemyPaint.sheet==enemyArcherVertical:
+                    Math.Abs(body.actor.facing.y)>Math.Abs(body.actor.facing.x)))
             {
                 // The accepted 3x2 archer painting reserves cell 5 for its
                 // original fallen full-body silhouette. Use it only when the
@@ -894,9 +949,10 @@ namespace Starfall
                 // Handoff the two source-authored WHOLE cells; every pose
                 // uses the same 120/128 boot anchor and no invented limbs.
                 float fraction=CurrentWorldVisualLook.deathPoseBlendFraction;
-                bool blend=progress<fraction &&
+                bool blend=lastEnemyPaint==null && progress<fraction &&
                     !Game.save.reducedMotion;
-                float mix=blend?Mathf.Clamp01(progress/fraction):1f;
+                float mix=lastEnemyPaint!=null?corpseMix:
+                    blend?Mathf.Clamp01(progress/fraction):1f;
                 float canvas=ActorCanvas(enemyArcherVertical,3,96f/128f);
                 if(blend&&mix<1f)
                 {
@@ -918,10 +974,11 @@ namespace Starfall
                 // a moving footfall. Start from their last accepted whole
                 // WalkMonsters frame, then pass the SAME foot root to the
                 // actual Monsters death cell. Never cut or re-rig anatomy.
-                bool transition=progress<deathBlendFraction &&
+                bool transition=lastEnemyPaint==null &&
+                    progress<deathBlendFraction &&
                     !Game.save.reducedMotion && monsterSheet!=null;
                 bool walking=body.actor.moving && monsterWalkSheet!=null;
-                float mix=transition?
+                float mix=lastEnemyPaint!=null?corpseMix:transition?
                     Mathf.Clamp01(progress/deathBlendFraction):1f;
                 float size=body.actor.kind==2?106f:96f;
                 int kind=Math.Min(2,body.actor.kind);
@@ -935,7 +992,7 @@ namespace Starfall
                         Actor(monsterWalkSheet,4,3,kind*4+step,p,
                             ActorCanvas(monsterWalkSheet,4,size/128f),
                             new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
-                            body.actor.VisualFlip);
+                            corpseFlip);
                     }
                     else
                     {
@@ -945,7 +1002,7 @@ namespace Starfall
                         int sourcePose=Math.Min(4,EnemyPose(body.actor));
                         Actor(monsterSheet,6,3,kind*6+sourcePose,p,size,
                             new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
-                            body.actor.VisualFlip);
+                            corpseFlip);
                     }
                 }
                 if(mix>0f)

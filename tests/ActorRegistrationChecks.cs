@@ -872,6 +872,89 @@ public static class ActorRegistrationChecks
             "Reduced-motion must skip Boss death handoff");
         Console.WriteLine("PASS moving Boss death: accepted stride/boots, rooted whole-body transition and accessible fixed corpse");
     }
+
+    static void EnemyLethalSnapshotSurvivesRetiredAI(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;bool previousReduced=g.save.reducedMotion;
+        try
+        {
+            g.save.reducedMotion=false;
+            // All established detailed normal enemies; two independently
+            // painted bow directions must never select another atlas after
+            // AI clears attack/release/movement on HP-zero.
+            for(int form=0;form<5;form++)
+            {
+                int kind=form<3?form:1;
+                var foe=new Enemy(95900+form,kind,
+                    g.Position.x,g.Position.y,120);
+                foe.Face(form==3?new Point(0,-1):
+                    form==4?new Point(0,1):new Point(-1,0));
+                foe.moving=form==0||form==2;
+                foe.moveTime=.69f;
+                foe.state=form==1?1:0;
+                foe.windupDuration=.8f;foe.timer=.2f;
+                foe.releaseTime=form>=3?.12f:0;
+                foe.hitTime=form==2?.08f:0;
+                Place(app,foe.Position,new Point(430+form*65,350));
+                Clear();
+                var alive=Draw(app,"DrawEnemyActor",foe)
+                    .FirstOrDefault(c=>c.texture.name==
+                        "resource:Frontier/Art/Monsters"||
+                        c.texture.name=="resource:Frontier/Art/WalkMonsters"||
+                        c.texture.name==
+                        "resource:Frontier/Art/EnemyArcherVertical");
+                Check(alive!=null,"Missing accepted whole-body enemy art");
+                foe.hp=0f;foe.state=0;foe.releaseTime=0;
+                foe.hitTime=0;foe.moving=false;foe.moveTime+=1.8f;
+                foe.Face(new Point(1,0));
+                var dead=new FallenActor{actor=foe,room=1,
+                    life=1f,duration=1f};
+                Clear();
+                var atContact=Draw(app,"DrawFallen",dead)
+                    .Where(c=>c.texture.name==
+                        "resource:Frontier/Art/Monsters"||
+                        c.texture.name=="resource:Frontier/Art/WalkMonsters"||
+                        c.texture.name==
+                        "resource:Frontier/Art/EnemyArcherVertical")
+                    .ToArray();
+                Check(atContact.Length==1,
+                    "Initial lethal enemy repaint must retain a single source body");
+                var first=atContact[0];
+                Check(first.texture.name==alive.texture.name&&
+                    Math.Abs(first.uv.x-alive.uv.x)<.00001f&&
+                    Math.Abs(first.uv.y-alive.uv.y)<.00001f&&
+                    Math.Abs(first.uv.width-alive.uv.width)<.00001f&&
+                    Math.Abs(first.rect.x-alive.rect.x)<.001f&&
+                    Math.Abs(first.rect.y-alive.rect.y)<.001f&&
+                    Math.Abs(first.rect.width-alive.rect.width)<.001f&&
+                    Math.Abs(first.rect.height-alive.rect.height)<.001f,
+                    "Killing hit changed enemy face, atlas, gait or planted feet");
+                dead.life=.88f;Clear();
+                var crossfade=Draw(app,"DrawFallen",dead)
+                    .Where(c=>c.texture.name==
+                        "resource:Frontier/Art/Monsters"||
+                        c.texture.name=="resource:Frontier/Art/WalkMonsters"||
+                        c.texture.name==
+                        "resource:Frontier/Art/EnemyArcherVertical")
+                    .ToArray();
+                Check(crossfade.Length==2&&
+                    crossfade[0].texture.name==alive.texture.name&&
+                    Math.Abs(crossfade[0].uv.x-alive.uv.x)<.00001f&&
+                    Math.Abs(crossfade[0].uv.y-alive.uv.y)<.00001f,
+                    "Enemy corpse crossfade resurrected a new postmortem action");
+                dead.life=.68f;Clear();
+                var settled=Draw(app,"DrawFallen",dead);
+                Check(settled.Count(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical"||
+                    c.texture.name=="resource:Frontier/Art/Monsters")==1,
+                    "Enemy failed to settle into one actual authored death body");
+            }
+            Console.WriteLine("PASS five lethal regular enemy handoffs with actual detailed atlas frames and postmortem AI/facing mutation");
+        }
+        finally{g.save.reducedMotion=previousReduced;}
+    }
+
     static void PatrolDeathRetainsWholeBodyFootfall(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -1329,7 +1412,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
