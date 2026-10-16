@@ -3507,6 +3507,17 @@ public static class RenderStateChecks
             Check(Math.Abs(still.uv.x)<.00001f&&
                 GUI.textureCalls.Count>=61,
                 "Reduced-motion must keep readable static telegraph plus real radius");
+            var firstInner=GUI.textureCalls[36];
+            boss.timer=.03f;
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            var secondInner=GUI.textureCalls[36];
+            var secondStill=GUI.textureCalls.Single(c=>c.texture.name==
+                "resource:Frontier/Art/CastSigils");
+            Check(Math.Abs(secondInner.rect.x-firstInner.rect.x)<.001f&&
+                Math.Abs(secondInner.rect.y-firstInner.rect.y)<.001f&&
+                Math.Abs(secondInner.color.a-firstInner.color.a)<.00001f&&
+                Math.Abs(secondStill.uv.x-still.uv.x)<.00001f,
+                "Reduced motion unexpectedly expanded or flashed the inner Boss warning ring");
             g.save.reducedMotion=false;g.save.effectsQuality=0;
             Clear();Call(app,"DrawEnemyWarning",boss);
             Check(!GUI.textureCalls.Any(c=>c.texture.name==
