@@ -132,6 +132,25 @@ namespace Starfall
         // of the mature detailed TerrainVariants/Coastline atlas and water
         // collision. No animator for tide particle ornaments.
         private Texture2D shorelineFoamSheet;
+        private float shoreFoamCheckedAt=float.NegativeInfinity;
+        private float shoreFoamNextCheck=float.NegativeInfinity;
+        // An artist may publish new wave pixel cells while this game is
+        // running. Cache only one complete 128x12 family, never a partially
+        // imported 127px/empty atlas; throttle Resources calls across all
+        // visible shore tiles and respect clocks rewound by a loaded save.
+        private void RefreshAuthoredShoreFoam()
+        {
+            if(clock>=shoreFoamCheckedAt&&clock<shoreFoamNextCheck)
+                return;
+            shoreFoamCheckedAt=clock;
+            shoreFoamNextCheck=clock+2.5f;
+            Texture2D candidate=Resources.Load<Texture2D>(
+                "Frontier/Art/ShorelineFoam");
+            if(candidate!=null&&candidate.width==128&&
+                candidate.height==12)
+                shorelineFoamSheet=candidate;
+        }
+
         private void DrawAuthoredShorelineWash(int x,int y,char tile,Point p)
         {
             if(terrainVariants==null || Game.save.reducedMotion ||
@@ -153,6 +172,7 @@ namespace Starfall
             int variant=(seed/7)%4;
             Rect uv=new Rect((variant*48f+8f)/192f,
                 18f/192f,24f/192f,7f/192f);
+            RefreshAuthoredShoreFoam();
             // Set the phase ONCE for all sides of this one tile. Unlike
             // procedural rectangles, these are authored transparent
             // 32x12 frame cells with small irregular crest silhouettes.
