@@ -605,8 +605,8 @@ namespace Starfall
                     // Sprite in living draws and death handoff.
                     int liveCell = BriarBeastLiveCell(e);
                     lastVisible.lastBriarCell=liveCell;
-                    Actor(briarBeastSheet, 4, 18, liveCell,
-                        p + offset, size, tint, e.VisualFlip);
+                    DrawEnemyAtlasHandoff(e,briarBeastSheet,4,18,liveCell,
+                        p + offset,size,tint,e.VisualFlip,pose);
                     // On an HP phase transition the *current* whole-body
                     // silhouette glows briefly, even after the ordinary hit
                     // flash expires. No second offset body or old-phase pose.
@@ -650,8 +650,9 @@ namespace Starfall
                 lastVisible.lastRegionalSize=visibleBossSize;
                 lastVisible.lastRegionalFlip=e.VisualFlip;
                 lastVisible.lastRegionalTint=tint;
-                Actor(visibleBossSheet, 4, visibleBossRows, visibleBossFrame,
-                    p + offset, visibleBossSize, tint, e.VisualFlip);
+                DrawEnemyAtlasHandoff(e,visibleBossSheet,4,
+                    visibleBossRows,visibleBossFrame,p + offset,
+                    visibleBossSize,tint,e.VisualFlip,pose);
                 float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                 if (!drawingOutline && flashAlpha > 0f && visibleBossSheet != null)
                     Actor(art.FlashMask(visibleBossSheet), 4, visibleBossRows,
@@ -733,7 +734,8 @@ namespace Starfall
                 float canvas=ActorCanvas(sheet,columns,size/128);
                 bool renderFlip=!vertical && e.VisualFlip;
                 RememberEnemyPaint(e,sheet,columns,rows,frame,canvas,tint,renderFlip);
-                Actor(sheet, columns, rows, frame, p + offset, canvas, tint, renderFlip);
+                DrawEnemyAtlasHandoff(e,sheet,columns,rows,frame,
+                    p + offset,canvas,tint,renderFlip,pose);
                 if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, canvas, new Color(1, 1, 1, e.flash / .09f * .86f), renderFlip);
             }
             // 16 real authored supplemental frames, synchronized to the
