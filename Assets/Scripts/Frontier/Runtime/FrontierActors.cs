@@ -469,6 +469,28 @@ namespace Starfall
             if (e.hitTime > 0) return 4;
             return e.moving ? 1 : 0;
         }
+        // Share the EXACT GameCore-selected Boss source pose between live
+        // combat and the first corpse repaint. A Boss killed during a
+        // windup/contact should not flash to a different idle silhouette
+        // before its authored 4-keyframe Death row begins.
+        private int BriarBeastLiveCell(Enemy e)
+        {
+            int bodyPhase = Math.Min(2, Math.Max(0, e.BossPhase - 1));
+            int action = e.state == 1 ? 2 :
+                e.releaseTime > 0 ? 3 : e.hitTime > 0 ? 4 :
+                e.moving ? 1 : 0;
+            float fraction = action == 2 ?
+                1f - e.timer / Math.Max(.01f, e.windupDuration) :
+                action == 3 ? 1f - e.releaseTime / .38f :
+                action == 4 ? 1f - e.hitTime / .18f : 0f;
+            int keyframe = action == 1 ?
+                GameCore.GaitFrame(e.moveTime, 2.8f) :
+                action == 0 ? (int)(clock * 2.6f) % 4 :
+                (int)GameCore.Clamp(fraction * 4f, 0f, 3f);
+            if (keyframe < 0) keyframe += 4;
+            return (bodyPhase * 6 + action) * 4 + keyframe;
+        }
+
         private void DrawEnemyActor(Enemy e)
         {
             Point p = ScreenPoint(e.Position); float size = e.boss ? BossCanvasSize(Game.save.room) : e.kind == 2 ? 106 : 96;
@@ -518,24 +540,9 @@ namespace Starfall
                 if (Game.save.room == 1 && briarBeastSheet != null &&
                     briarBeastSheet.width == 1280 && briarBeastSheet.height == 5760)
                 {
-                    // The Briar Beast changes real silhouette at HP thresholds.
-                    // Damage and contact remain exclusively on GameCore's clock.
-                    int bodyPhase = Math.Min(2, Math.Max(0, e.BossPhase - 1));
-                    // Room 1 previously showed release art during the final
-                    // 0.2 seconds of windup. Never expose contact until release.
-                    int action = e.state == 1 ? 2 :
-                        e.releaseTime > 0 ? 3 : e.hitTime > 0 ? 4 :
-                        e.moving ? 1 : 0;
-                    float fraction = action == 2 ?
-                        1f - e.timer / Math.Max(.01f, e.windupDuration) :
-                        action == 3 ? 1f - e.releaseTime / .38f :
-                        action == 4 ? 1f - e.hitTime / .18f : 0f;
-                    int keyframe = action == 1 ?
-                        GameCore.GaitFrame(e.moveTime, 2.8f) :
-                        action == 0 ? (int)(clock * 2.6f) % 4 :
-                        (int)GameCore.Clamp(fraction * 4f, 0f, 3f);
-                    if (keyframe < 0) keyframe += 4;
-                    int liveCell = (bodyPhase * 6 + action) * 4 + keyframe;
+                    // Boss phase, windup and contact use the same GameCore
+                    // Sprite in living draws and death handoff.
+                    int liveCell = BriarBeastLiveCell(e);
                     Actor(briarBeastSheet, 4, 18, liveCell,
                         p + offset, size, tint, e.VisualFlip);
                     // On an HP phase transition the *current* whole-body
@@ -712,9 +719,27 @@ namespace Starfall
                 briarBeastSheet != null && briarBeastSheet.width == 1280 &&
                 briarBeastSheet.height == 5760)
             {
-                int stage = (int)GameCore.Clamp(progress * 4f, 0f, 3f);
-                Actor(briarBeastSheet, 4, 18, 17 * 4 + stage,
-                    p, BossCanvasSize(body.room), tint, body.actor.VisualFlip);
+                // Preserve the FINAL real full-body combat keypose during
+                // the lethal frame, then fade into the 4 authored Death cells.
+                // Both Sprites use the same canvas, facing and planted pivot.
+                // Reduced motion still presents one fixed corpse immediately.
+                bool handoff=progress<deathBlendFraction &&
+                    !Game.save.reducedMotion;
+                float mix=handoff?
+                    Mathf.Clamp01(progress/Math.Max(.01f,deathBlendFraction)):1f;
+                if(handoff&&mix<1f)
+                    Actor(briarBeastSheet,4,18,BriarBeastLiveCell(body.actor),
+                        p,BossCanvasSize(body.room),
+                        new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
+                        body.actor.VisualFlip);
+                if(mix>0f)
+                {
+                    int stage=(int)GameCore.Clamp(progress*4f,0f,3f);
+                    Actor(briarBeastSheet,4,18,17*4+stage,
+                        p,BossCanvasSize(body.room),
+                        new Color(tint.r,tint.g,tint.b,tint.a*mix),
+                        body.actor.VisualFlip);
+                }
             }
             else if (body.actor.boss)
             {
