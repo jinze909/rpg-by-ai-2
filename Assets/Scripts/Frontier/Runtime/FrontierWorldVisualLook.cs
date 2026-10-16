@@ -39,6 +39,7 @@ namespace Starfall
             public float npcSignalSpeechAlpha=.70f;
             public float npcSignalDangerAlpha=.78f;
             public float npcSignalFrameRate=4f;
+            public float npcTalkEntrySeconds=.18f;
             public float npcTalkLeanDegrees=.72f;
             public float escortWalkLeanDegrees=1.15f;
             public float escortHitLeanDegrees=1.35f;
@@ -175,6 +176,9 @@ namespace Starfall
                             case "npcSignalFrameRate":
                                 if(value>=2f&&value<=6f)
                                     settings.npcSignalFrameRate=value;break;
+                            case "npcTalkEntrySeconds":
+                                if(value>=.08f&&value<=.30f)
+                                    settings.npcTalkEntrySeconds=value;break;
                             case "npcTalkLeanDegrees":
                                 if(value>=0f&&value<=1.5f)
                                     settings.npcTalkLeanDegrees=value;break;

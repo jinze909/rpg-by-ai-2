@@ -1090,6 +1090,13 @@ namespace Starfall
             if (kind.StartsWith("castaway")) return 12 + (kind.EndsWith("1") ? 1 : 0);
             return kind == "innGuest" ? 15 : 14;
         }
+        // Visual-only conversation lifetime. A new speech instance must
+        // enter from upright, not from whatever absolute game-clock angle
+        // a bystander happened to occupy when dialogue opened.
+        private Conversation npcTrackedConversation;
+        private WorldObject npcTrackedInterlocutor;
+        private float npcTalkStartedAt=float.NegativeInfinity;
+
         private void DrawNpc(string kind, Point position, int id = -1)
         {
             Point p = ScreenPoint(position);
@@ -1117,13 +1124,32 @@ namespace Starfall
             // The animation belongs only to the pinned interlocutor. It is
             // disabled in reduced-motion, outline and ordinary bystander
             // views, and cannot shift a foot or dialogue/world hitbox.
+            if(isTalking&&(
+                !System.Object.ReferenceEquals(
+                    npcTrackedConversation,Game.conversation)||
+                !System.Object.ReferenceEquals(
+                    npcTrackedInterlocutor,interlocutor)||
+                clock<npcTalkStartedAt))
+            {
+                npcTrackedConversation=Game.conversation;
+                npcTrackedInterlocutor=interlocutor;
+                npcTalkStartedAt=clock;
+            }
             Matrix4x4 originalMatrix = GUI.matrix;
             try
             {
                 if(isTalking && !Game.save.reducedMotion && !drawingOutline)
                 {
+                    float elapsed=(float)Math.Max(0,clock-npcTalkStartedAt);
+                    float duration=CurrentWorldVisualLook.npcTalkEntrySeconds;
+                    float entrance=Mathf.Clamp01(elapsed/duration);
+                    entrance=entrance*entrance*(3f-2f*entrance);
+                    // An intact FULL body sways around the same planted
+                    // foot; the first conversation frame stays upright.
+                    // Different resident voices vary rhythm, not body art.
+                    float tempo=3.2f+(npcKey%3)*.16f;
                     float lean=CurrentWorldVisualLook.npcTalkLeanDegrees*
-                        (float)Math.Sin(clock*3.2f+npcKey*.37f);
+                        entrance*(float)Math.Sin(elapsed*tempo);
                     GUI.matrix=GuiGeometry.RotateAroundPivot(originalMatrix,
                         new Vector2(p.x,p.y),lean);
                 }

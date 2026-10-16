@@ -108,3 +108,8 @@ bossPhaseMoteAlpha=0.26
 npcSignalSpeechAlpha=0.70
 npcSignalDangerAlpha=0.78
 npcSignalFrameRate=4.0
+
+# Original 16 full-body Npcs.png portraits begin each new conversation
+# upright, then ease their planted-foot speech lean into motion (seconds).
+# No face, torso, waist rigging or NPC interaction timing changes.
+npcTalkEntrySeconds=0.18
