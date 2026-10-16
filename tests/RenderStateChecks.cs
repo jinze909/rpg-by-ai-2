@@ -1458,6 +1458,75 @@ public static class RenderStateChecks
         Console.WriteLine("PASS Farshore dry/higher-tide surface details: low-tide rooted land, flood no vegetation, immutable painting and dry-land continuity");
     }
 
+    private static void AtmosphericMotesUseOriginalWorldAnchoredArt(
+        FrontierRuntime app)
+    {
+        // This is the real scene's new atmospheric rendering method,
+        // not a disconnected splash preview or fabricated white-box art.
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        game.save.x=12;game.save.y=14;
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        Set(app,"camera",game.Position);
+        Set(app,"worldActorOpacity",1f);
+        Set(app,"clock",3.1f);
+        Clear();
+        Call(app,"DrawAuthoredAtmosphericMotes");
+        var original=Get<Texture2D>(app,"effectSheet");
+        Check(original!=null&&GUI.textureCalls.Count>0,
+            "forest biome must emit sparse live illustrated motes");
+        var strokes=GUI.textureCalls.ToArray();
+        foreach(var fleck in strokes)
+            Check(object.ReferenceEquals(fleck.texture,original)&&
+                Math.Abs(fleck.uv.x-.25f)<.0001f&&
+                Math.Abs(fleck.uv.y)<.0001f&&
+                Math.Abs(fleck.uv.width-.25f)<.0001f&&
+                fleck.rect.width>=7f&&fleck.rect.width<=9f&&
+                fleck.color.a>0f&&fleck.color.a<.23f,
+                "world motes must preserve original Effects cell 13 and low alpha");
+        Matrix4x4 firstMatrix=GUI.matrix;
+        Color firstColor=GUI.color;
+        Set(app,"clock",4.7f);
+        Clear();
+        Call(app,"DrawAuthoredAtmosphericMotes");
+        Check(GUI.textureCalls.Count==strokes.Length,
+            "world-grid atmospheric cells must not pop under time updates");
+        bool changed=false;
+        for(int i=0;i<strokes.Length;i++)
+        {
+            var before=strokes[i];var after=GUI.textureCalls[i];
+            Check(object.ReferenceEquals(after.texture,before.texture)&&
+                Math.Abs(after.uv.x-before.uv.x)<.00001f&&
+                Math.Abs(after.uv.y-before.uv.y)<.00001f&&
+                Math.Abs(after.rect.x-before.rect.x)<3f&&
+                Math.Abs(after.rect.y-before.rect.y)<3f,
+                "atmosphere teleported, switched pixels or changed footless anchor");
+            if(Math.Abs(after.color.a-before.color.a)>.0001f)changed=true;
+        }
+        Check(changed,"ambient movement never changed illustrated mote opacity");
+        Same(GUI.matrix,firstMatrix,
+            "ambient sprite rotation leaked into the rest of the GameView");
+        Same(GUI.color,firstColor,
+            "ambient drawing left GUI tint on the player or HUD");
+        game.save.reducedMotion=true;
+        Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+        Check(GUI.textureCalls.Count==0,
+            "reduced-motion setting must remove animated world particles");
+        game.save.reducedMotion=false;
+        game.save.effectsQuality=0;
+        Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+        Check(GUI.textureCalls.Count==0,
+            "low effects must disable world particle overdraw");
+        game.save.effectsQuality=2;
+        app.BeginVisualReview(0,4);
+        Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+        Check(GUI.textureCalls.Count==0,
+            "citadel interior cannot receive outdoor forest motes");
+        Console.WriteLine(
+            "PASS source-painted world motes: stable atlas, spatial continuity, biome gating, accessibility and GUI isolation");
+    }
+
     private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
     {
         app.BeginVisualReview(5,1);
@@ -1684,7 +1753,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
