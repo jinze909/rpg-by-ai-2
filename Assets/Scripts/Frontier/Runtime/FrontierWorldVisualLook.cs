@@ -48,6 +48,10 @@ namespace Starfall
             public float projectileTrailFadeDistance=.18f;
             public float hitContactBlendFraction=.16f;
             public float slashBridgeFraction=.18f;
+            // Artist-facing, bounded transitions for whole painted enemy
+            // bodies and phase-cue particles, never GameCore attack timing.
+            public float nonheroAtlasHandoffSeconds=.105f;
+            public float bossPhaseMoteAlpha=.26f;
             public float impactFlourishAlpha=.58f;
             public float deathPoseBlendFraction=.24f;
             // Source-authored companion cadence, not generated anatomy.
@@ -186,6 +190,12 @@ namespace Starfall
                             case "slashBridgeFraction":
                                 if(value>=.10f&&value<=.25f)
                                     settings.slashBridgeFraction=value;break;
+                            case "nonheroAtlasHandoffSeconds":
+                                if(value>=.07f&&value<=.15f)
+                                    settings.nonheroAtlasHandoffSeconds=value;break;
+                            case "bossPhaseMoteAlpha":
+                                if(value>=.12f&&value<=.32f)
+                                    settings.bossPhaseMoteAlpha=value;break;
                             case "impactFlourishAlpha":
                                 if(value>=.2f&&value<=.75f)
                                     settings.impactFlourishAlpha=value;break;

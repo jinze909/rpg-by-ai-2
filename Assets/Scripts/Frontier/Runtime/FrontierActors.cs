@@ -782,8 +782,10 @@ namespace Starfall
                 float beamY=p.y-paintedBossCanvas*.60f;
                 float spread=paintedBossCanvas*.23f;
                 Color gleam=e.BossPhase>=3?
-                    new Color(1f,.69f,.44f,phaseCue*.26f*tint.a):
-                    new Color(.56f,.94f,1f,phaseCue*.26f*tint.a);
+                    new Color(1f,.69f,.44f,
+                        phaseCue*CurrentWorldVisualLook.bossPhaseMoteAlpha*tint.a):
+                    new Color(.56f,.94f,1f,
+                        phaseCue*CurrentWorldVisualLook.bossPhaseMoteAlpha*tint.a);
                 Atlas(effectSheet,4,4,13,
                     new Rect(p.x-spread-scale*.5f,
                         beamY-scale*.5f,scale,scale),gleam);

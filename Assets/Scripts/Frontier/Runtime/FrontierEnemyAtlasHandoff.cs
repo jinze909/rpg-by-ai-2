@@ -29,7 +29,6 @@ namespace Starfall
         private readonly ConditionalWeakTable<Enemy,EnemyAtlasTransition>
             enemyAtlasTransitions =
             new ConditionalWeakTable<Enemy,EnemyAtlasTransition>();
-        private const float EnemyAtlasHandoffSeconds=.105f;
 
         private float DrawEnemyAtlasHandoff(Enemy enemy,Texture2D sheet,
             int columns,int rows,int frame,Point foot,float size,Color tint,
@@ -101,7 +100,8 @@ namespace Starfall
             if(state.active&&state.departing!=null)
             {
                 float progress=Mathf.Clamp01(
-                    (clock-state.startedAt)/EnemyAtlasHandoffSeconds);
+                    (clock-state.startedAt)/
+                    CurrentWorldVisualLook.nonheroAtlasHandoffSeconds);
                 if(progress>=1f)state.active=false;
                 else
                 {

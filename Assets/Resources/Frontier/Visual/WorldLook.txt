@@ -93,3 +93,11 @@ relicShimmerRate=3.8
 # At daytime glow is attenuated rather than washed across entire rooms.
 relicHaloRadius=83
 relicHaloAlpha=0.18
+
+# Whole-actor presentation transition ONLY: approved Bosses 320px/WalkBoss
+# 384px canvases interpolate around the same ground foot; GameCore combat
+# and action clocks are never prolonged. Acceptable range 0.07-0.15 s.
+nonheroAtlasHandoffSeconds=0.105
+# Two quiet ORIGINAL Effects.png sources on HP stage change. This affects
+# visual alpha only, not hit timing, Boss identity or saved HP thresholds.
+bossPhaseMoteAlpha=0.26
