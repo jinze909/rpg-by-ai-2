@@ -1419,6 +1419,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
             ActorRegistrationChecks.VerifyResidentAnimation,
+            ActorRegistrationChecks.VerifyCompanionGaitContinuity,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
             AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,
             CanonicalHeroNeverDependsOnLegacyPlayerImports,

@@ -526,6 +526,11 @@ public static class ActorRegistrationChecks
         }
     }
 
+    public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
+    {
+        try { CompanionGaitActuallyPlantsBothFeet(app); }
+        finally { app.EndVisualReview(); Clear(); }
+    }
     public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { FullBodyHeroProductionFrames(app); ProductionLoadoutUsesFullBodyHero(app); }
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
