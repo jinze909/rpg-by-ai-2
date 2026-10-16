@@ -143,7 +143,7 @@ public static class ActorRegistrationChecks
             var stride=moving.SingleOrDefault(c=>c.texture.name==approved);
             Check(stride!=null,
                 "Moving companion lost its original full-body walking art");
-            Check(Math.Abs(stride.uv.x-.5f)<.00001f&&
+            Check(Math.Abs(Math.Min(stride.uv.x,stride.uv.x+stride.uv.width)-.5f)<.00001f&&
                 Math.Abs(stride.uv.y-(1f-(row+1)/3f))<.00001f,
                 "Four-frame distance gait did not reach opposite planted step");
             Check(Math.Abs(stride.rect.width-192)<.01f&&
@@ -155,14 +155,14 @@ public static class ActorRegistrationChecks
             var initial=Draw(app,"DrawCompanionActor");
             var landing=initial.SingleOrDefault(c=>c.texture.name==approved);
             Check(landing!=null&&
-                Math.Abs(landing.uv.x-.5f)<.00001f&&
+                Math.Abs(Math.Min(landing.uv.x,landing.uv.x+landing.uv.width)-.5f)<.00001f&&
                 Math.Abs(landing.rect.y-stride.rect.y)<.001f,
                 "Abruptly stopped companion must plant its actual stride foot");
             Set(app,"clock",10.20f);
             Clear();
             var stopped=Draw(app,"DrawCompanionActor");
             var idle=stopped.SingleOrDefault(c=>c.texture.name==approved);
-            Check(idle!=null&&Math.Abs(idle.uv.x)<.00001f&&
+            Check(idle!=null&&Math.Abs(Math.Min(idle.uv.x,idle.uv.x+idle.uv.width))<.00001f&&
                 Math.Abs(idle.rect.y-stride.rect.y)<.001f&&
                 Math.Abs(idle.rect.width-stride.rect.width)<.001f,
                 "Stopped E/N/S companion changed atlas, body size or foot root");
