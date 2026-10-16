@@ -24,6 +24,15 @@ namespace Starfall
             internal int lastVisibleRoom = -1;
             internal int lastVisiblePhase;
             internal int lastBriarCell = -1;
+            // The other six-plus regional Bosses use accepted Bosses/WalkBoss
+            // art, NOT the candidate Briar atlas. Capture the exact approved
+            // source cell, foot scale, facing and flash tint last painted.
+            // HP-zero and AI retirement may change ALL those live fields.
+            internal Texture2D lastRegionalSheet;
+            internal int lastRegionalRows, lastRegionalFrame;
+            internal float lastRegionalSize;
+            internal bool lastRegionalFlip;
+            internal Color lastRegionalTint;
         }
         private readonly ConditionalWeakTable<Enemy, BossPhaseCue> bossPhaseCues =
             new ConditionalWeakTable<Enemy, BossPhaseCue>();
@@ -559,6 +568,7 @@ namespace Starfall
                 lastVisible.lastVisibleRoom=Game.save.room;
                 lastVisible.lastVisiblePhase=e.BossPhase;
                 lastVisible.lastBriarCell=-1;
+                lastVisible.lastRegionalSheet=null;
                 // Keep base body and hit-flash on the identical authored
                 // frame, dimensions and foot pivot. Painting the idle sheet
                 // over a moving boss previously created a second drifting
@@ -606,6 +616,15 @@ namespace Starfall
                     row % 4 * 4 + GameCore.GaitFrame(e.moveTime, 2.8f) :
                     row * 4 + frame;
                 float visibleBossSize = walking ? size * 384 / 320f : size;
+                // Save the ACTUAL whole-body source selected for this repaint.
+                // A lethal attack can clear moving/state/facing before the
+                // first corpse draw, so reconstructing from dead Enemy is wrong.
+                lastVisible.lastRegionalSheet=visibleBossSheet;
+                lastVisible.lastRegionalRows=visibleBossRows;
+                lastVisible.lastRegionalFrame=visibleBossFrame;
+                lastVisible.lastRegionalSize=visibleBossSize;
+                lastVisible.lastRegionalFlip=e.VisualFlip;
+                lastVisible.lastRegionalTint=tint;
                 Actor(visibleBossSheet, 4, visibleBossRows, visibleBossFrame,
                     p + offset, visibleBossSize, tint, e.VisualFlip);
                 float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
@@ -809,17 +828,32 @@ namespace Starfall
                     // A pre-existing hit flash does not authorize changing
                     // armor or silhouette on the first corpse repaint.
                     int stride=GameCore.GaitFrame(body.actor.moveTime,2.8f);
-                    Texture2D source=moving?
-                        bossWalkSheets[walkAtlas]:bossSheet;
-                    int rows=moving?4:8;
-                    int pose=moving?row%4*4+stride:
+                    // If we painted this Boss alive, preserve THAT EXACT
+                    // accepted whole-body source cell across HP-zero. The
+                    // dead Enemy's state, gait and facing are no longer an
+                    // authoritative record of what the player actually saw.
+                    bool remembered=previousBoss!=null &&
+                        previousBoss.lastRegionalSheet!=null &&
+                        previousBoss.lastRegionalRows>0 &&
+                        previousBoss.lastRegionalSize>0f;
+                    Texture2D source=remembered?
+                        previousBoss.lastRegionalSheet:
+                        moving?bossWalkSheets[walkAtlas]:bossSheet;
+                    int rows=remembered?previousBoss.lastRegionalRows:
+                        moving?4:8;
+                    int pose=remembered?previousBoss.lastRegionalFrame:
+                        moving?row%4*4+stride:
                         row*4+(livePose==2?1:livePose==3?2:0);
-                    float sourceSize=moving?
-                        BossCanvasSize(body.room)*384f/320f:
+                    float sourceSize=remembered?previousBoss.lastRegionalSize:
+                        moving?BossCanvasSize(body.room)*384f/320f:
                         BossCanvasSize(body.room);
+                    bool sourceFlip=remembered?
+                        previousBoss.lastRegionalFlip:body.actor.VisualFlip;
+                    Color sourceTint=remembered?
+                        previousBoss.lastRegionalTint:tint;
                     Actor(source,4,rows,pose,p,sourceSize,
-                        new Color(tint.r,tint.g,tint.b,
-                            tint.a*(1f-change)),body.actor.VisualFlip);
+                        new Color(sourceTint.r,sourceTint.g,sourceTint.b,
+                            sourceTint.a*(1f-change)),sourceFlip);
                 }
                 if(change>0f)
                     Actor(bossSheet,4,8,row*4+3,p,

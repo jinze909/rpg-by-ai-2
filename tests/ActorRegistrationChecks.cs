@@ -706,6 +706,98 @@ public static class ActorRegistrationChecks
         finally {game.save.reducedMotion=savedReduced;}
     }
 
+
+    // Real scene-path regression: a regional Boss can be killed during any
+    // action. HP-zero/AI cleanup changes the Enemy before DrawFallen; corpse
+    // handoff must replay the LAST whole body actually painted, not a fresh
+    // idle frame inferred from dead state. Includes both regional walk sheets,
+    // flipped poses and the hit-flash tint that existed on the killing frame.
+    static void RegionalBossDeathPreservesLastRenderedPose(FrontierRuntime app)
+    {
+        var game=app.Game;
+        bool originalReduced=game.save.reducedMotion;
+        try
+        {
+            game.save.reducedMotion=false;
+            foreach(int room in new[]{2,5})
+            {
+                app.BeginVisualReview(0,room);
+                for(int phase=1;phase<=3;phase++)
+                for(int action=0;action<4;action++)
+                {
+                    var boss=new Enemy(94900+room*100+phase*10+action,0,
+                        game.Position.x,game.Position.y,200,true);
+                    boss.hp=phase==1?200f:phase==2?100f:20f;
+                    boss.Face(new Point(-1,0));
+                    boss.moving=action==0||action==3;
+                    boss.moveTime=.65f+action*.17f;
+                    boss.state=action==1?1:0;
+                    boss.timer=.3f;boss.windupDuration=1f;
+                    boss.releaseTime=action==2?.21f:0f;
+                    boss.hitTime=action==3?.08f:0f;
+                    boss.flash=action==3?.045f:0f;
+                    Place(app,boss.Position,new Point(520,350));
+                    Clear();
+                    var alive=Draw(app,"DrawEnemyActor",boss)
+                        .FirstOrDefault(c=>
+                            c.texture.name=="resource:Frontier/Art/Bosses"||
+                            c.texture.name=="resource:Frontier/Art/WalkBossA"||
+                            c.texture.name=="resource:Frontier/Art/WalkBossB");
+                    Check(alive!=null,"Missing real regional Boss live source");
+                    // Killing damage may retire its attack, stop motion and
+                    // rotate the enemy BEFORE the corpse's first repaint.
+                    boss.hp=0f;
+                    boss.state=0;boss.releaseTime=0;boss.hitTime=0;
+                    boss.moving=false;boss.moveTime+=2.1f;
+                    boss.Face(new Point(1,0));
+                    var dead=new FallenActor{actor=boss,room=room,
+                        life=1f,duration=1f};
+                    Clear();
+                    var first=Draw(app,"DrawFallen",dead)
+                        .Where(c=>
+                            c.texture.name=="resource:Frontier/Art/Bosses"||
+                            c.texture.name=="resource:Frontier/Art/WalkBossA"||
+                            c.texture.name=="resource:Frontier/Art/WalkBossB")
+                        .ToArray();
+                    Check(first.Length==1,
+                        "HP-zero Boss must start from one real live Sprite");
+                    var actual=first[0];
+                    Check(actual.texture.name==alive.texture.name&&
+                        Math.Abs(actual.uv.x-alive.uv.x)<.00001f&&
+                        Math.Abs(actual.uv.y-alive.uv.y)<.00001f&&
+                        Math.Abs(actual.uv.width-alive.uv.width)<.00001f&&
+                        Math.Abs(actual.uv.height-alive.uv.height)<.00001f&&
+                        Math.Abs(actual.rect.x-alive.rect.x)<.001f&&
+                        Math.Abs(actual.rect.y-alive.rect.y)<.001f&&
+                        Math.Abs(actual.rect.width-alive.rect.width)<.001f&&
+                        Math.Abs(actual.rect.height-alive.rect.height)<.001f&&
+                        Math.Abs(actual.color.r-alive.color.r)<.0001f&&
+                        Math.Abs(actual.color.g-alive.color.g)<.0001f&&
+                        Math.Abs(actual.color.b-alive.color.b)<.0001f&&
+                        Math.Abs(actual.color.a-alive.color.a)<.0001f,
+                        "Lethal Boss handoff changed source cell, facing, scale, foot or tint");
+                    dead.life=.88f;
+                    Clear();
+                    var blended=Draw(app,"DrawFallen",dead)
+                        .Where(c=>c.texture.name==
+                            "resource:Frontier/Art/Bosses"||
+                            c.texture.name=="resource:Frontier/Art/WalkBossA"||
+                            c.texture.name=="resource:Frontier/Art/WalkBossB")
+                        .ToArray();
+                    Check(blended.Length==2&&
+                        blended[0].texture.name==alive.texture.name&&
+                        Math.Abs(blended[0].uv.x-alive.uv.x)<.00001f&&
+                        Math.Abs(blended[0].uv.y-alive.uv.y)<.00001f&&
+                        Math.Abs(blended[0].uv.width-alive.uv.width)<.00001f&&
+                        Math.Abs(blended[0].rect.y-alive.rect.y)<.001f,
+                        "Regional Boss death crossfade switched the original cell");
+                }
+            }
+            Console.WriteLine("PASS 24 live-to-death regional Boss transitions: two native art families, HP phases, walk/windup/release/hit, facing, foot and color");
+        }
+        finally{game.save.reducedMotion=originalReduced;}
+    }
+
     static void MovingBossDeathStaysOnOneRoot(FrontierRuntime app)
     {
         app.BeginVisualReview(0,2);
@@ -1237,7 +1329,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
