@@ -502,6 +502,84 @@ public static class NativeNonheroCaptureChecks
             release.Invoke(upgrade,null);
         }
         Console.WriteLine("PASS complete native actor Sprite hot-reimport, mirrored GPU frames, atomic partial-import hold and zero-flash recovery");
+        // Controller-only live art reimport: the 18 published Monsters
+        // source cells stay IDENTICAL, but a new Animator Controller must
+        // invalidate all previously rendered GPU pose caches (both faces).
+        // No actor pose may keep an obsolete controller indefinitely.
+        const string graphPath="Frontier/Actors/Native/Actor_Monsters";
+        var graphOld=(RuntimeAnimatorController)Resources.Registered[graphPath];
+        var controllerProbe=new FrontierRuntime();
+        var graphTexture=(Texture2D)Resources.Registered[livePath];
+        var controllerField=typeof(FrontierRuntime).GetField(
+            "actorCaptureAnimator",BindingFlags.Instance|
+            BindingFlags.NonPublic);
+        var graphAnimator=(Animator)controllerField.GetValue(controllerProbe);
+        try
+        {
+            Time.frameCount=4700;
+            Require((bool)method.Invoke(controllerProbe,new object[]{
+                graphTexture,6,3,2,new Point(200,235),96f,
+                Color.white,false,0f})&&
+                (bool)method.Invoke(controllerProbe,new object[]{
+                graphTexture,6,3,2,new Point(200,235),96f,
+                Color.white,true,0f}),
+                "Native full-body frames failed initial Controller import");
+            graphAnimator=(Animator)controllerField.GetValue(controllerProbe);
+            Require(graphAnimator!=null&&
+                ReferenceEquals(graphAnimator.runtimeAnimatorController,graphOld),
+                "First official Animator Controller not sampled");
+            var firstNormal=GUI.DrawnTextures[GUI.DrawnTextures.Count-2];
+            var firstFlip=GUI.DrawnTextures[GUI.DrawnTextures.Count-1];
+            int initialCaptures=Camera.RenderedTargets.Count;
+            var nextGraph=new RuntimeAnimatorController{
+                className="Actor_Monsters"};
+            Resources.Registered[graphPath]=nextGraph;
+            Time.frameCount=4879;
+            Require((bool)method.Invoke(controllerProbe,new object[]{
+                graphTexture,6,3,2,new Point(200,235),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==initialCaptures&&
+                ReferenceEquals(graphAnimator.runtimeAnimatorController,graphOld),
+                "Loading Actor Controller every repaint disturbed stable art");
+            Time.frameCount=4880;
+            Require((bool)method.Invoke(controllerProbe,new object[]{
+                graphTexture,6,3,2,new Point(200,235),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(graphAnimator.runtimeAnimatorController,nextGraph)&&
+                ReferenceEquals(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1],firstNormal)&&
+                Camera.RenderedTargets.Count==initialCaptures+1,
+                "New native Controller did not repaint existing actor GPU pose");
+            // Normal and mirror MUST remain independent references. A
+            // simultaneous old pending command cannot be overwritten.
+            Require((bool)method.Invoke(controllerProbe,new object[]{
+                graphTexture,6,3,2,new Point(200,235),96f,
+                Color.white,true,0f})&&
+                ReferenceEquals(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1],firstFlip)&&
+                Camera.RenderedTargets.Count==initialCaptures+2,
+                "Imported Controller failed to refresh mirrored actor separately");
+            Time.frameCount=4881;
+            Require((bool)method.Invoke(controllerProbe,new object[]{
+                graphTexture,6,3,2,new Point(200,235),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==initialCaptures+2,
+                "Controller-only swap caused redundant pose recaptures");
+            Resources.Registered.Remove(graphPath);
+            Time.frameCount=5061;
+            Require((bool)method.Invoke(controllerProbe,new object[]{
+                graphTexture,6,3,2,new Point(200,235),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(graphAnimator.runtimeAnimatorController,nextGraph)&&
+                Camera.RenderedTargets.Count==initialCaptures+2,
+                "Temporary missing Controller erased last accepted whole-body pose");
+        }
+        finally
+        {
+            Resources.Registered[graphPath]=graphOld;
+            release.Invoke(controllerProbe,null);
+        }
+        Console.WriteLine("PASS native Actor AnimatorController hot-swap: source unchanged, normal/mirror GPU recapture, missing-import hold and bounded refresh");
         // DEVICE LOSS AFTER A DIFFERENT ACTOR: one mutable offscreen
         // SpriteRenderer draws many character identities. The old cache
         // recovery reused whichever Sprite was last seen instead of binding
