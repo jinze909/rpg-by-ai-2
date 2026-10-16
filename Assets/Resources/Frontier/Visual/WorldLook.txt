@@ -38,6 +38,11 @@ escortHitLeanDegrees=1.35
 # Whole-Sprite combat readability; bounds enforced at runtime.
 combatWarningStrokePixels=1.80
 projectileTrailFadeDistance=0.18
+# Front-most timed hazard warning: translucent outline preserves character
+# identity while the timer stays near full readability on crowded maps.
+# These tune the ACTUAL combat world, never any GameCore damage radius.
+hazardRingAlpha=0.80
+hazardCountdownAlpha=0.94
 
 # Original 256px full-body Mira/Ivo/Sen gait art direction.
 # Per-step world-distance, next-contact timing, diagonal-facing stability,

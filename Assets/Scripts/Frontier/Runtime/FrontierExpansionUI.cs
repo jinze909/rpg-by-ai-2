@@ -174,7 +174,10 @@ namespace Starfall
                 float margin=h.radius*Tile+55f;
                 if(!WorldDrawable(h.position.x,h.position.y,
                     margin,margin))continue;
-                Color warning=HazardWarningColor(h);
+                Color ink=HazardWarningColor(h);
+                WorldVisualLook appearance=CurrentWorldVisualLook;
+                Color warning=new Color(ink.r,ink.g,ink.b,
+                    appearance.hazardRingAlpha);
                 // 32 detached 4px debug dots are not a readable area-of-
                 // effect circle. The same joined, source-independent thin
                 // 36-segment stroke used for enemy telegraphs preserves
@@ -183,7 +186,9 @@ namespace Starfall
                     (float)(Math.PI*2),warning,36);
                 Point p=ScreenPoint(h.position);
                 Text(p.x-25,p.y-25,50,24,h.timer.ToString("0.0"),
-                    13,warning,TextAnchor.MiddleCenter);
+                    13,new Color(ink.r,ink.g,ink.b,
+                        appearance.hazardCountdownAlpha),
+                    TextAnchor.MiddleCenter);
             }
         }
         private Color HazardWarningColor(Hazard hazard)

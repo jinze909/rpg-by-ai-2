@@ -32,6 +32,11 @@ namespace Starfall
             public float escortWalkLeanDegrees=1.15f;
             public float escortHitLeanDegrees=1.35f;
             public float combatWarningStrokePixels=1.8f;
+            // Forward foreground warning outlines must stay visible without
+            // an opaque high-saturation rim over the canonical actor's art.
+            // Countdown text intentionally has a stronger separate value.
+            public float hazardRingAlpha=.80f;
+            public float hazardCountdownAlpha=.94f;
             public float projectileTrailFadeDistance=.18f;
             // Source-authored companion cadence, not generated anatomy.
             // Each quarter-cycle uses an original full-body 256px cell.
@@ -126,6 +131,12 @@ namespace Starfall
                             case "combatWarningStrokePixels":
                                 if(value>=1.25f&&value<=2.7f)
                                     settings.combatWarningStrokePixels=value;break;
+                            case "hazardRingAlpha":
+                                if(value>=.55f&&value<=.88f)
+                                    settings.hazardRingAlpha=value;break;
+                            case "hazardCountdownAlpha":
+                                if(value>=.8f&&value<=1f)
+                                    settings.hazardCountdownAlpha=value;break;
                             case "projectileTrailFadeDistance":
                                 if(value>=.08f&&value<=.32f)
                                     settings.projectileTrailFadeDistance=value;break;

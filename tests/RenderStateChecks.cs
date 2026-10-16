@@ -1599,6 +1599,29 @@ public static class RenderStateChecks
             }
             Check(hero>=0&&lastRing>hero&&segments==36,
                 "Actual timed hazard outline was behind the hero/cover or still 32 disconnected dots");
+            // A Unity Resources look edit must reach the REAL hazard ring,
+            // not just add a decorative unused field or documentation.
+            var lookProperty=typeof(FrontierRuntime).GetProperty(
+                "CurrentWorldVisualLook",Private);
+            Check(lookProperty!=null,"Runtime hazard art-direction profile missing");
+            var look=lookProperty.GetValue(app,null);
+            var alphaField=look.GetType().GetField("hazardRingAlpha",
+                BindingFlags.Public|BindingFlags.Instance);
+            Check(alphaField!=null,"Hazard overlay alpha is not artist editable");
+            float originalAlpha=(float)alphaField.GetValue(look);
+            float firstAlpha=GUI.textureCalls[lastRing].color.a;
+            Check(Math.Abs(firstAlpha-originalAlpha)<.00001f,
+                "WorldLook transparency not used in actual foreground hazard");
+            try
+            {
+                alphaField.SetValue(look,originalAlpha*.8f);
+                Clear();Call(app,"DrawHazardWarnings");
+                Check(GUI.textureCalls.Count==36&&
+                    Math.Abs(GUI.textureCalls[0].color.a-
+                        firstAlpha*.8f)<.00001f,
+                    "Changing art direction did not change source-based hazard opacity");
+            }
+            finally {alphaField.SetValue(look,originalAlpha); }
             // Offscreen warnings with no visible damage footprint should
             // not waste GUI submits; partial edge circles still render.
             hazard.position=game.Position+new Point(55f,0f);
@@ -2201,7 +2224,8 @@ public static class RenderStateChecks
             "companionAttackPlantSeconds",
             "ambientMoteDayAlpha","ambientMoteNightAlpha",
             "snowMoteWindX","desertMoteWindX","coastMoteLift",
-            "groundFoliageSwayDegrees"};
+            "groundFoliageSwayDegrees",
+            "hazardRingAlpha","hazardCountdownAlpha"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -2222,7 +2246,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 23 source-controlled WorldLook values for terrain, foliage, ambient motion, companion gait, actors and combat FX");
+        Console.WriteLine("PASS 25 source-controlled WorldLook values for terrain, foliage, ambient motion, hazard warnings, companion gait, actors and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
