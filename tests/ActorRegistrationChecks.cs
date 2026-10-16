@@ -1658,6 +1658,25 @@ public static class ActorRegistrationChecks
                 "Intermediate transition distorted the original foot pivot");
             GUI.Export(".starfall-checks/sprite-qa",
                 "review-boss-full-body-canvas-continuity");
+            // Stage change during live idle/run SOURCE handoff: Bosses
+            // legitimately glow without having an e.flash or attack
+            // interrupt. That glow must share the actual eased canvas,
+            // not the 384px destination dimensions.
+            boss.hp=boss.maxHp*.5f;
+            Set(app,"clock",30.074f);
+            Clear();
+            var phasePaint=Draw(app,"DrawEnemyActor",boss);
+            var phaseBody=phasePaint.Single(
+                c=>c.texture.name==walkName);
+            var phaseFlash=phasePaint.FirstOrDefault(c=>
+                c.texture.name.Contains("flash_resource_Frontier_Art_WalkBossA"));
+            Check(phaseFlash!=null&&
+                Math.Abs(phaseBody.rect.x-phaseFlash.rect.x)<.001f&&
+                Math.Abs(phaseBody.rect.y-phaseFlash.rect.y)<.001f&&
+                Math.Abs(phaseBody.rect.width-phaseFlash.rect.width)<.001f&&
+                Math.Abs(phaseBody.uv.x-phaseFlash.uv.x)<.00001f&&
+                Math.Abs(phaseBody.uv.y-phaseFlash.uv.y)<.00001f,
+                "Boss phase flash used nominal 384px while body eased from 320px");
             // Interrupt midway: last actually painted size is the new
             // transition start, not the unseen 384px nominal source.
             boss.moving=false;
