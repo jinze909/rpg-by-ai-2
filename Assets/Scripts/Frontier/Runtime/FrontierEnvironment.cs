@@ -128,6 +128,10 @@ namespace Starfall
         // An edge-facing crest sampled from ORIGINAL detailed water pixels.
         // Preserve the source UV and tile anchor across every tide/frame;
         // orient and slightly advect the entire wave along the bank.
+        // Four fully painted 32x12 shoreline foam poses, kept independent
+        // of the mature detailed TerrainVariants/Coastline atlas and water
+        // collision. No animator for tide particle ornaments.
+        private Texture2D shorelineFoamSheet;
         private void DrawAuthoredShorelineWash(int x,int y,char tile,Point p)
         {
             if(terrainVariants==null || Game.save.reducedMotion ||
@@ -149,6 +153,17 @@ namespace Starfall
             int variant=(seed/7)%4;
             Rect uv=new Rect((variant*48f+8f)/192f,
                 18f/192f,24f/192f,7f/192f);
+            // Set the phase ONCE for all sides of this one tile. Unlike
+            // procedural rectangles, these are authored transparent
+            // 32x12 frame cells with small irregular crest silhouettes.
+            bool paintedFoam=shorelineFoamSheet!=null&&
+                shorelineFoamSheet.width==128&&
+                shorelineFoamSheet.height==12;
+            int foamFrame=((int)Math.Floor(
+                clock*look.shoreFoamFrameRate+(seed%13)*.23f)%4+4)%4;
+            Rect foamUv=new Rect(foamFrame*.25f,0f,.25f,1f);
+            float foamAlpha=look.shoreFoamAlpha*(.72f+.18f*wave)*
+                (Game.save.effectsQuality==1?.64f:1f)*worldActorOpacity;
             Matrix4x4 original=GUI.matrix;
             Color color=GUI.color;
             try
@@ -176,9 +191,21 @@ namespace Starfall
                         GuiGeometry.RotateAroundPivot(original,
                         new Vector2(cx,cy),edge==1?90f:
                         edge==2?180f:-90f);
+                    // Restore the mature original-water opacity for EVERY
+                    // bank; a previously drawn foam cell may not tint
+                    // the next edge and create a bright island corner.
+                    GUI.color=new Color(1.04f,1.09f,1.14f,
+                        opacity*worldActorOpacity);
                     GUI.DrawTextureWithTexCoords(
                         new Rect(cx-12f+drift,cy-3.5f,24f,7f),
                         terrainVariants,uv);
+                    if(paintedFoam&&foamAlpha>.001f)
+                    {
+                        GUI.color=new Color(1f,1f,1f,foamAlpha);
+                        GUI.DrawTextureWithTexCoords(
+                            new Rect(cx-16f,cy-6f,32f,12f),
+                            shorelineFoamSheet,foamUv);
+                    }
                 }
             }
             finally {GUI.matrix=original;GUI.color=color;}

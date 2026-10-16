@@ -19,6 +19,8 @@ namespace Starfall
             public float waterGlintRate=.89f;
             public float shorelineWashAlpha=.10f;
             public float shorelineTravelPixels=1.5f;
+            public float shoreFoamAlpha=.19f;
+            public float shoreFoamFrameRate=3.6f;
             public float emberFlickerAlpha=.20f;
             public float emberLiftPixels=7f;
             public float relicShimmerAlpha=.24f;
@@ -120,6 +122,12 @@ namespace Starfall
                             case "shorelineWashAlpha":
                                 if(value>=.02f&&value<=.18f)
                                     settings.shorelineWashAlpha=value;break;
+                            case "shoreFoamAlpha":
+                                if(value>=.07f&&value<=.27f)
+                                    settings.shoreFoamAlpha=value;break;
+                            case "shoreFoamFrameRate":
+                                if(value>=1.8f&&value<=5.5f)
+                                    settings.shoreFoamFrameRate=value;break;
                             case "shorelineTravelPixels":
                                 if(value>=0f&&value<=2.5f)
                                     settings.shorelineTravelPixels=value;break;

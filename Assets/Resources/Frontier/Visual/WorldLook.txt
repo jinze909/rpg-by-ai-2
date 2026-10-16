@@ -113,3 +113,9 @@ npcSignalFrameRate=4.0
 # upright, then ease their planted-foot speech lean into motion (seconds).
 # No face, torso, waist rigging or NPC interaction timing changes.
 npcTalkEntrySeconds=0.18
+
+# Four authored 32x12 transparent wave crests along REAL shoreline
+# edges. Original TerrainVariants pixels remain beneath every frame.
+# Subtle material-only visual detail, no tides/collision/save changes.
+shoreFoamAlpha=0.19
+shoreFoamFrameRate=3.6
