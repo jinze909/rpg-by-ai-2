@@ -524,10 +524,13 @@ def check():
         "heroPublishedIncomplete.Remove(key);",
         "heroPublishedRecheckAt[key]=Time.frameCount+180;",
         "heroOwnedPublishedSprites.Remove(old)",
-        "heroControllerRetryAt = Time.frameCount + 120;",
+        "heroControllerRetryAt=Time.frameCount+",
+        "(heroProductionReady?180:120);",
+        "if(controller!=null)",
+        "if(heroProductionReady)",
         "Time.frameCount >= heroControllerRetryAt",
         "heroCaptureAnimator.runtimeAnimatorController = null;",
-        "heroProductionReady = controller != null;",
+        "heroProductionReady=true;",
     ]:
         assert mark in engine, "Missing native Animator pixel-parity fallback: " + mark
     assert "bool available=TryUsePublishedHeroFrame(equipment,action," in engine
