@@ -857,6 +857,29 @@ public static class NativeNonheroCaptureChecks
         Require(fallback&&safe.sprite!=null&&safe.sprite.texture==offender&&
             !stopped.enabled,
             "invalid native NPC/monster clip escaped exact full-body fallback");
+        var raiderGraphKey="Frontier/Actors/Native/Actor_MossboundRaider";
+        var rejectedGraph=(RuntimeAnimatorController)
+            Resources.Registered[raiderGraphKey];
+        try
+        {
+            // A DIFFERENT corrected Controller is imported just one frame
+            // after a stale/foreign Sprite clip was caught. The canonical
+            // 128px whole-body GameCore cell must resume native rendering
+            // now, not wait the old 120-frame rejection cooldown.
+            var correctedGraph=new RuntimeAnimatorController{
+                className="Actor_MossboundRaider"};
+            Resources.Registered[raiderGraphKey]=correctedGraph;
+            int beforeRecovery=Camera.RenderedTargets.Count;
+            Time.frameCount=1401;
+            Require((bool)method.Invoke(brokenActor,new object[]{
+                offender,4,6,9,new Point(200,220),96f,
+                Color.white,false,0f})&&stopped.enabled&&
+                ReferenceEquals(stopped.runtimeAnimatorController,
+                    correctedGraph)&&
+                Camera.RenderedTargets.Count==beforeRecovery+1,
+                "Corrected native pose remained quarantined after actual Controller replacement");
+        }
+        finally {Resources.Registered[raiderGraphKey]=rejectedGraph;}
         release.Invoke(brokenActor,null);
         // Stress actual production RenderTexture allocation with authored-
         // scale 512px actor frames. The former count-only cap held 192
