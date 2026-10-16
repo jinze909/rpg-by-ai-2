@@ -1509,6 +1509,61 @@ public static class ActorRegistrationChecks
             Check(quiet.Any(c=>c.texture.name==movingName)&&
                 !quiet.Any(c=>c.texture.name==idleName),
                 "Reduced motion must disable new transition ghosts");
+            // Enter a fresh, ordinary Idle->Run transition, then turn:
+            // the old-facing ghost must vanish IMMEDIATELY despite the
+            // former fade clock still being inside its 105ms budget.
+            game.save.reducedMotion=false;
+            Set(app,"clock",11.0f);
+            enemy.moving=false;
+            Clear();Draw(app,"DrawEnemyActor",enemy);
+            Set(app,"clock",11.20f);
+            Clear();Draw(app,"DrawEnemyActor",enemy);
+            enemy.moving=true;
+            Set(app,"clock",11.22f);
+            Clear();
+            var restart=Draw(app,"DrawEnemyActor",enemy);
+            Check(restart.Any(c=>c.texture.name==idleName)&&
+                restart.Any(c=>c.texture.name==movingName),
+                "Expected a new planted atlas handoff before facing change");
+            enemy.Face(new Point(-1,0));
+            Set(app,"clock",11.23f);Clear();
+            var turned=Draw(app,"DrawEnemyActor",enemy);
+            Check(turned.Any(c=>c.texture.name==movingName)&&
+                !turned.Any(c=>c.texture.name==idleName),
+                "A real turn may not reveal an obsolete facing silhouette");
+            // The enemy's flash is hit feedback, not a second walk cycle.
+            // Use another valid atlas swap and interrupt it with real hit
+            // flash without changing its current pose/authoritative sprite.
+            enemy.Face(new Point(1,0));
+            enemy.moving=false;
+            Set(app,"clock",11.40f);Clear();
+            Draw(app,"DrawEnemyActor",enemy);
+            Set(app,"clock",11.60f);Clear();
+            Draw(app,"DrawEnemyActor",enemy);
+            enemy.moving=true;
+            Set(app,"clock",11.62f);Clear();
+            var newBlend=Draw(app,"DrawEnemyActor",enemy);
+            Check(newBlend.Any(c=>c.texture.name==idleName),
+                "Expected actual source-pose handoff before white hit flash");
+            enemy.flash=.075f;
+            Set(app,"clock",11.63f);Clear();
+            var interrupted=Draw(app,"DrawEnemyActor",enemy);
+            Check(interrupted.Any(c=>c.texture.name==movingName)&&
+                !interrupted.Any(c=>c.texture.name==idleName),
+                "Hit flash must cancel stale body ghosts immediately");
+            // Teleport/reentry is not a foot motion, so no extra old atlas
+            // can appear underneath the new body's registered world foot.
+            enemy.flash=0f;
+            enemy.moving=false;
+            Set(app,"clock",11.80f);Clear();
+            Draw(app,"DrawEnemyActor",enemy);
+            enemy.x+=2f;
+            enemy.moving=true;
+            Set(app,"clock",11.82f);Clear();
+            var warped=Draw(app,"DrawEnemyActor",enemy);
+            Check(warped.Any(c=>c.texture.name==movingName)&&
+                !warped.Any(c=>c.texture.name==idleName),
+                "Teleport cannot crossfade a body from an old world coordinate");
         }
         Console.WriteLine("PASS complete-body NPC-compatible native Sprite actor lane: common/Boss Idle->Walk planted cross-atlas timing, attack interrupt, face-safe old-art fade and accessibility");
     }
