@@ -355,7 +355,35 @@ public static class ActorRegistrationChecks
                 "Fallen archer cannot slide away from its fixed foot root");
             GUI.Export(folder,"review-archer-"+heading+"-death");
         }
-        Console.WriteLine("PASS 6 real archer windup/contact/death poses, facing-locked rows, full-body foot and hit flash");
+        // Same accepted Atlas used by the LIVING horizontal archer must
+        // remain its identity on death. The N/S-only dead painting is not
+        // a valid facing-independent fallback for E/W actors.
+        foreach(float facingX in new[]{-1f,1f})
+        {
+            var foe=new Enemy(88920+(int)(facingX+1),1,12,14,120){
+                facing=new Point(facingX,0),releaseTime=.12f
+            };
+            Clear();Place(app,foe.Position,new Point(520,350));
+            var living=Draw(app,"DrawEnemyActor",foe);
+            var before=living.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/Monsters");
+            Check(before!=null,"Horizontal archer must use accepted E/W body");
+            Clear();
+            var dead=new FallenActor{actor=foe,room=1,life=.36f,duration=.65f};
+            var calls=Draw(app,"DrawFallen",dead);
+            var after=calls.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/Monsters");
+            Check(after!=null&&!calls.Any(c=>c.texture.name==
+                "resource:Frontier/Art/EnemyArcherVertical"),
+                "Horizontal archer death suddenly changed to N/S-only painting");
+            Check(Math.Abs(before.rect.x-after.rect.x)<.001f&&
+                Math.Abs(before.rect.y-after.rect.y)<.001f&&
+                Math.Abs(before.rect.width-after.rect.width)<.001f&&
+                Math.Abs(after.uv.x-5f/6f)<.00001f,
+                "Horizontal archer corpse lost original canvas/foot or death cell");
+            GUI.Export(folder,"review-archer-horizontal-"+(facingX<0?"west":"east")+"-death");
+        }
+        Console.WriteLine("PASS 6 N/S archer action/death source cells and two E/W same-atlas rooted deaths");
     }
     static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
     {
