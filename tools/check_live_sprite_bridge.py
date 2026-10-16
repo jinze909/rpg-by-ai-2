@@ -156,6 +156,22 @@ def check():
     assert "GuiGeometry.RotateAroundPivot(canvas," in ground and (
         "groundFoliageSwayDegrees" in ground), (
         "LIVING_GROUND_FOLIAGE_LOST_ROOTED_WIND")
+    # Environment-only still props (including 9 planted herbs per garden)
+    # must not allocate an offscreen actor GPU RenderTexture per static tile.
+    props = environment.split("private bool DrawFieldProp(")[1]
+    assert "DrawStaticFieldSprite(fieldProps,id,foot," in props
+    assert "DrawStaticFieldSprite(detailSheet,id,foot," in props
+    assert "DrawStaticFieldSprite(fieldProps,6," in props
+    assert "Actor(fieldProps," not in props and "Actor(detailSheet," not in props, (
+        "STATIC_SCENERY_REENTERED_ACTOR_GPU_CAPTURE")
+    painter = environment.split("private void DrawStaticFieldSprite(")[1]
+    painter = painter.split("private bool DrawFieldProp(")[0]
+    assert "if(drawingOutline)" in painter and (
+        "Actor(sheet,4,4,id,foot,size,tint);" in painter), (
+        "STATIC_PROP_OUTLINE_CONTOUR_GUARD_REMOVED")
+    assert "Atlas(sheet,4,4,id,new Rect(foot.x-size*.5f," in painter and (
+        "foot.y-size*120f/128f,size,size" in painter), (
+        "STATIC_PROP_ORIGINAL_ATLAS_FOOT_REGISTRATION_LOST")
     # Native PlayMode contract must target Frontier.unity, not only a
     # preview prefab or a spare SpriteRenderer. Native runner remains
     # NATIVE_UNVERIFIED until Unity 2022.3 actually executes these checks.

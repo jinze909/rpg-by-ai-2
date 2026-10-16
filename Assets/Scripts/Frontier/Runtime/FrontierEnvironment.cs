@@ -394,23 +394,57 @@ namespace Starfall
             Atlas(fieldProps, 4, 4, Game.save.room == 1 ? 11 : 4, new Rect(p.x - 2, p.y - 9, Tile + 4, Tile + 12), new Color(1, 1, 1, opacity));
             if ((x + y) % 3 == 0) Diamond(p.x + Tile / 2, p.y + Tile / 2, 3, new Color(gold.r, gold.g, gold.b, opacity));
         }
+        // Props, furniture and planted herbs are fixed atlas scenery, NOT
+        // gameplay actors. Skip native SpriteRenderer -> RenderTexture
+        // capture entirely; the exact original pixel cell/foot/tint stays
+        // unchanged. Only true actors run the Animator-driven pipeline.
+        // Preserve the original gold contour during outline passes.
+        private void DrawStaticFieldSprite(Texture2D sheet,int id,Point foot,
+            float size,Color tint)
+        {
+            if(drawingOutline)
+            {
+                Actor(sheet,4,4,id,foot,size,tint);
+                return;
+            }
+            Atlas(sheet,4,4,id,new Rect(foot.x-size*.5f,
+                foot.y-size*120f/128f,size,size),tint);
+        }
         private bool DrawFieldProp(string kind, int variant, float x, float y, float w, float h, Color? tint)
         {
             if (fieldProps == null) return false;
             int id = kind == "well" ? 0 : kind == "boat" ? 1 : kind == "column" ? 2 : kind == "obelisk" ? 3 : kind == "crystal" || kind == "ore" ? 4 : kind == "post" ? 5 : kind == "herb" ? 6 : kind == "wood" ? 7 : kind == "bell" ? 8 : kind == "tent" ? 9 : kind == "skiff" ? 10 : kind == "root" ? 11 : kind == "altar" || kind == "engine" ? 12 : kind == "fire" ? 13 : kind == "mirror" ? 14 : kind == "cache" ? 15 : -1;
             Point foot = new Point(x + w / 2, y + h - 8);
-            if (id >= 0) { Actor(fieldProps, 4, 4, id, foot, Math.Max(w, h), tint ?? Color.white); return true; }
+            if (id >= 0) { DrawStaticFieldSprite(fieldProps,id,foot,
+                Math.Max(w,h),tint??Color.white); return true; }
             id = kind == "crate" ? 6 : kind == "barrel" ? 7 : kind == "fence" ? 11 : kind == "bridge" ? 12 : kind == "bed" ? 13 : kind == "bookshelf" ? 14 : kind == "table" || kind == "counter" ? 15 : -1;
             if (id >= 0 && detailSheet != null)
             {
-                Actor(detailSheet, 4, 4, id, foot, Math.Max(w, h), tint ?? Color.white);
-                if (kind == "counter") { Actor(detailSheet, 4, 4, 15, foot + new Point(-45, 0), Math.Max(w, h), tint ?? Color.white); Actor(detailSheet, 4, 4, 15, foot + new Point(45, 0), Math.Max(w, h), tint ?? Color.white); }
+                DrawStaticFieldSprite(detailSheet,id,foot,
+                    Math.Max(w,h),tint??Color.white);
+                if (kind == "counter")
+                {
+                    DrawStaticFieldSprite(detailSheet,15,foot+new Point(-45,0),
+                        Math.Max(w,h),tint??Color.white);
+                    DrawStaticFieldSprite(detailSheet,15,foot+new Point(45,0),
+                        Math.Max(w,h),tint??Color.white);
+                }
                 return true;
             }
             if (kind == "garden")
             {
                 Atlas(terrainSheet, 8, 2, 2, new Rect(x + 6, y + h - 40, w - 12, 32), Color.white);
-                for (int row = 0; row < 3; row++) { Box(x + 8, y + h - 36 + row * 10, w - 16, 1, new Color(.16f, .12f, .09f, .35f)); if (variant > 0) for (int col = 0; col < 3; col++) Actor(fieldProps, 4, 4, 6, new Point(x + 17 + col * (w - 24) / 3, y + h - 30 + row * 10), variant == 2 ? 27 : 18, Color.white); }
+                for(int row=0;row<3;row++)
+                {
+                    Box(x+8,y+h-36+row*10,w-16,1,
+                        new Color(.16f,.12f,.09f,.35f));
+                    if(variant>0)
+                        for(int col=0;col<3;col++)
+                            DrawStaticFieldSprite(fieldProps,6,
+                                new Point(x+17+col*(w-24)/3,
+                                    y+h-30+row*10),
+                                variant==2?27:18,Color.white);
+                }
                 return true;
             }
             return false;

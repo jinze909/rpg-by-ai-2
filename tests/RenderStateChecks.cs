@@ -854,6 +854,90 @@ public static class RenderStateChecks
             app.EndVisualReview();Clear();
         }
     }
+    private static void StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var field=Get<Texture2D>(app,"fieldProps");
+        var detail=Get<Texture2D>(app,"detailSheet");
+        Check(field!=null&&detail!=null,
+            "Accepted World/Field Detail PNGs missing in live production");
+        Matrix4x4 old=GUI.matrix;
+        Color oldColor=GUI.color;
+        try
+        {
+            var canvas=Matrix4x4.TRS(new Vector3(27,29,0),
+                Quaternion.identity,new Vector3(1.2f,1.2f,1));
+            GUI.matrix=canvas;
+            GUI.color=new Color(.4f,.5f,.6f,.8f);
+            app.Game.save.reducedMotion=false;
+            app.Game.save.effectsQuality=2;
+            string[] names={"well","skiff","tent","post","fire",
+                "root","herb","bed","crate","barrel","bridge"};
+            int[] indices={0,10,9,5,13,11,6,13,6,7,12};
+            for(int t=0;t<names.Length;t++)
+            {
+                Clear();
+                bool rendered=(bool)Call(app,"DrawFieldProp",
+                    names[t],0,170f,180f,76f,88f,null);
+                Check(rendered&&GUI.textureCalls.Count==1,
+                    "World object drew absent/multiple bodies: "+names[t]);
+                var sprite=GUI.textureCalls[0];
+                Texture2D expected=t<7?field:detail;
+                int cell=indices[t];
+                Check(object.ReferenceEquals(sprite.texture,expected)&&
+                    Math.Abs(sprite.uv.x-(cell%4)/4f)<.00001f&&
+                    Math.Abs(sprite.uv.y-(1f-(cell/4+1)/4f))<.00001f&&
+                    Math.Abs(sprite.uv.width-.25f)<.00001f&&
+                    Math.Abs(sprite.rect.width-88f)<.00001f&&
+                    Math.Abs(sprite.rect.x-164f)<.00001f&&
+                    Math.Abs(sprite.rect.y-(260f-88f*120f/128f))<.00001f,
+                    "Direct field prop changed source cell or boot pivot: "+names[t]);
+                Same(GUI.matrix,canvas,"Static prop leaked character rotation");
+                Same(GUI.color,new Color(.4f,.5f,.6f,.8f),
+                    "Static prop leaked tint into live scene");
+            }
+            // Each planted garden has NINE repeated herbs. A former native
+            // actor capture path allocated source 128px targets for those
+            // small scenic cells even though their frame never animates.
+            Clear();Call(app,"DrawFieldProp","garden",2,
+                170f,180f,76f,88f,null);
+            int grown=0;
+            foreach(var call in GUI.textureCalls)
+                if(object.ReferenceEquals(call.texture,field)&&
+                    Math.Abs(call.uv.x-.5f)<.00001f&&
+                    Math.Abs(call.uv.y-.5f)<.00001f)
+                {
+                    Check(Math.Abs(call.rect.width-27f)<.00001f,
+                        "Mature garden herb lost its official full Sprite size");
+                    grown++;
+                }
+            Check(grown==9,
+                "Planted garden must show all nine original herb sprites");
+            app.Game.save.effectsQuality=0;
+            app.Game.save.reducedMotion=true;
+            Clear();Call(app,"DrawFieldProp","garden",1,
+                170f,180f,76f,88f,null);
+            int young=0;
+            foreach(var call in GUI.textureCalls)
+                if(object.ReferenceEquals(call.texture,field)&&
+                    Math.Abs(call.uv.x-.5f)<.00001f&&
+                    Math.Abs(call.uv.y-.5f)<.00001f)
+                {
+                    Check(Math.Abs(call.rect.width-18f)<.00001f,
+                        "Young garden source art must retain original planted size");
+                    young++;
+                }
+            Check(young==9,
+                "Reduced-motion low-FX garden lost authored plants");
+            Console.WriteLine("PASS 11 original non-actor field sprites and 9 planted garden herb cells: direct atlas, fixed roots, live stages and GUI state");
+        }
+        finally
+        {
+            GUI.matrix=old;GUI.color=oldColor;
+            app.EndVisualReview();Clear();
+        }
+    }
     private static void WorldLightsRemainAnchoredToDetailedProps(FrontierRuntime app)
     {
         Prepare(app);
@@ -1968,7 +2052,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
