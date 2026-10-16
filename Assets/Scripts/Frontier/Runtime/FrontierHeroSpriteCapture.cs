@@ -26,6 +26,8 @@ namespace Starfall
         {
             internal RenderTexture texture;
             internal int lastUsedFrame;
+            internal bool sourceDirty;
+            internal uint sourceUpdateCount;
         }
         private const int MaxCachedHeroFrames = 48;
         private readonly Dictionary<string, HeroCaptureEntry> heroCapturedFrames =
@@ -66,6 +68,29 @@ namespace Starfall
         // hero onto the fallback lane for the entire gameplay session.
         // RenderTexture/driver recovery is attempted only after cooldown.
         private int heroCaptureRetryAt;
+        private int heroCaptureObservedFrame=-1;
+        private void RefreshHeroCaptureEpoch()
+        {
+            int current=Time.frameCount;
+            if(heroCaptureObservedFrame>=0 &&
+               current<heroCaptureObservedFrame)
+            {
+                // New Play/replay frame-count epoch. The previous session's
+                // GPU pose pixels can be stale and their future-dated targets
+                // cannot otherwise be reclaimed by the 48-frame budget.
+                foreach(HeroCaptureEntry entry in heroCapturedFrames.Values)
+                {
+                    entry.lastUsedFrame=-1;
+                    entry.sourceDirty=true;
+                }
+                heroPublishedUnavailable.Clear();
+                heroPublishedRecheckAt.Clear();
+                heroRejectedNativeClips.Clear();
+                heroControllerRetryAt=0;
+                heroCaptureBroken=false;
+            }
+            heroCaptureObservedFrame=current;
+        }
         private int heroCaptureProfession = -1;
         private bool heroProductionReady;
         // Unity may finish importing the production .controller after the
@@ -97,11 +122,13 @@ namespace Starfall
             if(!useSpriteRendererHero||drawingOutline||
                 Game==null||Game.mode=="title")
                 return false;
+            RefreshHeroCaptureEpoch();
             if(heroCaptureBroken)
             {
-                // Keep showing the SAME full-body published OnGUI Sprite
-                // during cooldown. Do not spam GPU allocations each repaint.
-                if(Time.frameCount < heroCaptureRetryAt)return false;
+                // Preserve full-body fallback after a real GPU failure,
+                // but don't inherit a retry deadline from an older epoch.
+                if(Time.frameCount < heroCaptureRetryAt &&
+                   Time.frameCount >= heroCaptureRetryAt-120)return false;
                 heroCaptureBroken=false;
             }
             if(Event.current.type!=EventType.Repaint)return true;
@@ -268,15 +295,29 @@ namespace Starfall
                 }
                 else
                 {
-                    entry.lastUsedFrame = Time.frameCount;
-                    if (!entry.texture.IsCreated())
+                    // Never overwrite a source texture already submitted
+                    // earlier in the SAME IMGUI repaint: opposite facings
+                    // and weapon contacts need immutable queued GPU pixels.
+                    bool alreadySubmitted=entry.lastUsedFrame==Time.frameCount;
+                    // Unity 2022.3 Texture.updateCount catches same-object
+                    // pixel Apply() without waiting for a full 180-frame
+                    // importer scan. Both left/right body captures retain
+                    // independent revisions and remain queued-safe.
+                    if(entry.sourceUpdateCount!=capturedSprite.texture.updateCount)
+                        entry.sourceDirty=true;
+                    entry.lastUsedFrame=Time.frameCount;
+                    if(!entry.texture.IsCreated())
                     {
-                        // A failed device-loss recovery must NEVER submit an
-                        // uncreated/transparent target as the canonical hero.
-                        if (!entry.texture.Create() || !entry.texture.IsCreated())
+                        if(!entry.texture.Create() || !entry.texture.IsCreated())
                             throw new InvalidOperationException(
                                 "Hero source-pose GPU target recovery failed");
-                        needsRender = true;
+                        entry.sourceDirty=false;
+                        needsRender=true;
+                    }
+                    else if(entry.sourceDirty&&!alreadySubmitted)
+                    {
+                        entry.sourceDirty=false;
+                        needsRender=true;
                     }
                 }
                 heroCaptureTexture = entry.texture;
@@ -290,7 +331,11 @@ namespace Starfall
                 if (needsRender)
                 {
                     heroCaptureCamera.targetTexture = heroCaptureTexture;
-                    try { heroCaptureCamera.Render(); }
+                    try
+                    {
+                        heroCaptureCamera.Render();
+                        entry.sourceUpdateCount=capturedSprite.texture.updateCount;
+                    }
                     finally { heroCaptureCamera.targetTexture = null; }
                 }
                 Color old = GUI.color;
@@ -389,7 +434,25 @@ namespace Starfall
                 }
                 if (matched == expectedFrames)
                 {
-                    cells = candidates; // Shared Unity-owned imported assets.
+                    // A complete Editor SpriteImporter reimport may change
+                    // pixels IN PLACE while imported Sprite IDs stay equal.
+                    // Invalidate only that validated source family's GPU
+                    // poses; defer actual repaint until queued draws finish.
+                    // Never recapture after a partial-family rejection.
+                    if(previous!=null)
+                        foreach(Sprite old in previous)
+                            if(old!=null)
+                            {
+                                string spriteId=old.GetInstanceID().ToString();
+                                HeroCaptureEntry cached;
+                                if(heroCapturedFrames.TryGetValue(
+                                    spriteId+":left",out cached))
+                                    cached.sourceDirty=true;
+                                if(heroCapturedFrames.TryGetValue(
+                                    spriteId+":right",out cached))
+                                    cached.sourceDirty=true;
+                            }
+                    cells=candidates; // Unity-owned imported sub-assets.
                     heroPublishedIncomplete.Remove(key);
                 }
                 else
@@ -494,18 +557,30 @@ namespace Starfall
                 heroControllerRetryAt = 0;
                 heroCaptureAnimator.runtimeAnimatorController = null;
             }
-            if (!heroProductionReady && Time.frameCount >= heroControllerRetryAt)
+            if (Time.frameCount >= heroControllerRetryAt)
             {
                 RuntimeAnimatorController controller =
                     Resources.Load<RuntimeAnimatorController>(
                         "Frontier/HeroAnimator/Production" +
                         HeroLiveProfessions[profession]);
-                heroCaptureAnimator.runtimeAnimatorController = controller;
-                heroProductionReady = controller != null;
-                // No per-repaint Resources calls when a controller is absent;
-                // once Unity imports it, native Animator playback resumes
-                // without changing the equipped class or restarting the game.
-                heroControllerRetryAt = Time.frameCount + 120;
+                if(controller!=null)
+                {
+                    if(heroCaptureAnimator.runtimeAnimatorController!=controller)
+                    {
+                        heroCaptureAnimator.runtimeAnimatorController=controller;
+                        heroRejectedNativeClips.Clear();
+                        // A live Animator graph reimport is independent of
+                        // source PNG/Sprite IDs. Recapture without changing
+                        // the GameCore-owned keyframe or root/foot geometry.
+                        foreach(HeroCaptureEntry entry in heroCapturedFrames.Values)
+                            entry.sourceDirty=true;
+                    }
+                    heroProductionReady=true;
+                }
+                // Retain the last valid graph during a partial import;
+                // refresh accepted graphs at most once per 180 frames.
+                heroControllerRetryAt=Time.frameCount+
+                    (heroProductionReady?180:120);
             }
             if (!heroProductionReady) return false;
             if (!heroCaptureAnimator.enabled) heroCaptureAnimator.enabled = true;
@@ -517,25 +592,32 @@ namespace Starfall
         // commands can still point at any of their render textures.
         private void EvictUnusedHeroCapture()
         {
-            if (heroCapturedFrames.Count < MaxCachedHeroFrames) return;
-            string oldestKey = null;
-            int oldestFrame = int.MaxValue;
-            foreach (var pair in heroCapturedFrames)
-                if (pair.Value.lastUsedFrame < Time.frameCount &&
-                    pair.Value.lastUsedFrame < oldestFrame)
-                {
-                    oldestKey = pair.Key;
-                    oldestFrame = pair.Value.lastUsedFrame;
-                }
-            if (oldestKey == null) return;
-            RenderTexture old = heroCapturedFrames[oldestKey].texture;
-            heroCapturedFrames.Remove(oldestKey);
-            if (heroCaptureCamera != null &&
-                heroCaptureCamera.targetTexture == old)
-                heroCaptureCamera.targetTexture = null;
-            if (heroCaptureTexture == old) heroCaptureTexture = null;
-            old.Release();
-            Destroy(old);
+            // A busy frame can safely queue over 48 different poses.
+            // On its NEXT frame, reclaim all surplus prior-frame textures
+            // rather than only one: a one-at-a-time eviction allowed a
+            // permanent 84-target cache after a crowded cast/battle.
+            while(heroCapturedFrames.Count>=MaxCachedHeroFrames)
+            {
+                string oldestKey=null;
+                int oldestFrame=int.MaxValue;
+                foreach(var pair in heroCapturedFrames)
+                    if(pair.Value.lastUsedFrame<Time.frameCount &&
+                       pair.Value.lastUsedFrame<oldestFrame)
+                    {
+                        oldestKey=pair.Key;
+                        oldestFrame=pair.Value.lastUsedFrame;
+                    }
+                // Never destroy an image already queued this repaint.
+                if(oldestKey==null)break;
+                RenderTexture old=heroCapturedFrames[oldestKey].texture;
+                heroCapturedFrames.Remove(oldestKey);
+                if(heroCaptureCamera!=null &&
+                   heroCaptureCamera.targetTexture==old)
+                    heroCaptureCamera.targetTexture=null;
+                if(heroCaptureTexture==old)heroCaptureTexture=null;
+                old.Release();
+                Destroy(old);
+            }
         }
 
         private void EnsureHeroCapture()
@@ -607,6 +689,7 @@ namespace Starfall
             heroCaptureAnimator = null;
             heroCaptureRoot = null;
             heroCaptureTexture = null;
+            heroCaptureObservedFrame=-1;
             heroCaptureProfession = -1;
             heroProductionReady = false;
             heroControllerRetryAt = 0;

@@ -222,7 +222,8 @@ def run():
     print("PASS one-shot native Controller import regression hard-FAIL")
     # A lost GPU RenderTexture may recover at runtime. Returning false
     # forever (old heroCaptureBroken latch) must fail executable C# tests.
-    gpuGuard="if(Time.frameCount < heroCaptureRetryAt)return false;"
+    gpuGuard=("if(Time.frameCount < heroCaptureRetryAt &&\n"
+              "                   Time.frameCount >= heroCaptureRetryAt-120)return false;")
     assert original.count(gpuGuard)==1, "HERO_GPU_RECOVERY_GUARD_MISSING"
     permanent=original.replace(gpuGuard,"if(true)return false;",1)
     permanentPath=OUT/"broken-permanent-hero-gpu.cs"
@@ -239,6 +240,36 @@ def run():
     assert gpuDenied.returncode!=0 and "HERO_CAPTURE_REGRESSION" in gpuDenied.stdout,(
         "UNSAFE_CI_ACCEPTED_PERMANENT_GPU_FALLBACK",gpuDenied.stdout)
     print("PASS permanent GPU fallback regression hard-FAIL")
+    # Removing epoch invalidation must make the real gold-haired hero
+    # recapture/51-pose memory test fail on a new Play session.
+    for label,old,replacement in (
+        ("frame-rewind","RefreshHeroCaptureEpoch();",""),
+        ("same-id-texture-upload",
+            "if(entry.sourceUpdateCount!=capturedSprite.texture.updateCount)",
+            "if(false)"),
+        ("pixel-reimport","if(previous!=null)","if(false)"),
+        ("controller-hot-reimport","if(controller!=null)",
+            "if(!heroProductionReady&&controller!=null)"),
+        ("gpu-backlog","while(heroCapturedFrames.Count>=MaxCachedHeroFrames)",
+            "if(heroCapturedFrames.Count>=MaxCachedHeroFrames)"),
+    ):
+        assert original.count(old)==1,("HERO_VISUAL_MUTATION_SIGNAL",label)
+        brokenSource=OUT/("broken-hero-"+label+".cs")
+        brokenSource.write_text(original.replace(old,replacement,1),
+            encoding="utf-8")
+        brokenExe=OUT/("broken-hero-"+label+".exe")
+        compiled=subprocess.run(compiler()+[
+            "-define:UNITY_5_3_OR_NEWER","-out:"+str(brokenExe),
+            str(STUB),str(GATE),str(FACTORY),str(brokenSource),str(probe)],
+            cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        assert compiled.returncode==0,(
+            "HERO_VISUAL_MUTATION_COMPILE",label,compiled.stdout)
+        observed=subprocess.run([mono,str(brokenExe)],cwd=ROOT,
+            stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        assert observed.returncode!=0 and (
+            "HERO_CAPTURE_REGRESSION" in observed.stdout),(
+            "HERO_VISUAL_MUTATION_FALSE_PASS",label,observed.stdout)
+    print("PASS 5 hero GPU epoch, same-source pixels, import, Animator graph and cache-budget mutations hard-fail")
     print("PASS actual UNITY_5_3_OR_NEWER SpriteRenderer + canonical "
           "Sprite factory compiled in separate C# assembly")
     print("PASS fault-injected invalid SpriteRenderer API rejected by mcs")

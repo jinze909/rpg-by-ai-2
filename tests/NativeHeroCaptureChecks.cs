@@ -578,6 +578,202 @@ public static class NativeHeroCaptureChecks
         }
         Require(!originalCells[2].destroyed&&!rebaked[2].destroyed,
             "Canonical hot-refresh destroyed shared imported hero Sprite");
+
+        // Gold-haired protagonist uses its OWN SpriteRenderer capture cache.
+        // A Play/replay frame-counter restart can reuse this runtime even
+        // though the previous GPU target is a different rendering epoch.
+        var heroEpoch=new FrontierRuntime();
+        heroEpoch.Game.AppearanceWeapon=0;
+        heroEpoch.ProbeAction=2;heroEpoch.ProbeFrames=6;
+        heroEpoch.ProbeFrame=2;heroEpoch.ProbePosition=2f;
+        try
+        {
+            Time.frameCount=8500;
+            int epochStart=Camera.RenderedTargets.Count;
+            Require((bool)draw.Invoke(heroEpoch,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==epochStart+1,
+                "epoch original action contact could not be captured");
+            var epochTarget=Camera.RenderedTargets[epochStart];
+            Time.frameCount=19;
+            Require((bool)draw.Invoke(heroEpoch,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==epochStart+2&&
+                ReferenceEquals(Camera.RenderedTargets[epochStart+1],
+                    epochTarget),
+                "Play/replay rewind reused old gold-haired hero GPU pixels");
+            Time.frameCount=20;
+            Require((bool)draw.Invoke(heroEpoch,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==epochStart+2,
+                "Repaired hero GPU pose was repainted on every frame");
+            // The Editor may reimport the same Sprite object IN PLACE while
+            // its contents change; its InstanceID-based cache key is stable.
+            // The bounded published-family review must recapture those
+            // exact source pixels once, without a new Sprite allocation.
+            Time.frameCount=200;
+            Require((bool)draw.Invoke(heroEpoch,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==epochStart+3&&
+                ReferenceEquals(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1],epochTarget),
+                "In-place canonical attack art remained frozen in GPU cache");
+            Time.frameCount=201;
+            Require((bool)draw.Invoke(heroEpoch,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==epochStart+3,
+                "In-place imported hero pixel recapture churned every repaint");
+            // A republished Animator graph with SAME class/Sprite assets
+            // must replace the old Controller while staying on the exact
+            // GameCore-controlled contact key. Preserve a briefly missing
+            // controller during a partial Editor import.
+            const string graphPath=
+                "Frontier/HeroAnimator/ProductionVanguard";
+            var originalGraph=Resources.Registered[graphPath];
+            try
+            {
+                var republished=new RuntimeAnimatorController{
+                    className="Vanguard"};
+                Resources.Registered[graphPath]=republished;
+                Time.frameCount=380;
+                Require((bool)draw.Invoke(heroEpoch,new object[]{
+                    new Point(100,140),Color.white,false,0,false})&&
+                    ReferenceEquals((animatorField.GetValue(heroEpoch) as
+                        Animator).runtimeAnimatorController,republished)&&
+                    Camera.RenderedTargets.Count==epochStart+4,
+                    "Live hero Controller reimport retained old animation graph");
+                Resources.Registered.Remove(graphPath);
+                Time.frameCount=560;
+                Require((bool)draw.Invoke(heroEpoch,new object[]{
+                    new Point(100,140),Color.white,false,0,false})&&
+                    ReferenceEquals((animatorField.GetValue(heroEpoch) as
+                        Animator).runtimeAnimatorController,republished),
+                    "Temporary missing Controller wiped last valid hero art");
+            }
+            finally {Resources.Registered[graphPath]=originalGraph;}
+        }
+        finally {release.Invoke(heroEpoch,null);}
+        // Real Unity Texture2D.Apply() changes GPU pixels without changing
+        // the source Texture, imported Sprite, or its InstanceID. Check
+        // revision-triggered recapture for both hero facings, with same-frame
+        // GUI submissions immutable until the next safe repaint.
+        var heroPixels=new FrontierRuntime();
+        heroPixels.Game.AppearanceWeapon=0;
+        heroPixels.ProbeAction=2;heroPixels.ProbeFrames=6;
+        heroPixels.ProbeFrame=2;heroPixels.ProbePosition=2f;
+        var paintedAtlas=(Texture2D)Resources.Registered[
+            "Frontier/HeroAnimator/Canonical/Hero_Vanguard_Attack_E"];
+        try
+        {
+            Time.frameCount=9800;
+            int pixelStart=Camera.RenderedTargets.Count;
+            Require((bool)draw.Invoke(heroPixels,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                (bool)draw.Invoke(heroPixels,new object[]{
+                new Point(100,140),Color.white,true,0,false})&&
+                Camera.RenderedTargets.Count==pixelStart+2,
+                "hero texture-upload setup failed to capture both facings");
+            var right=Camera.RenderedTargets[pixelStart];
+            var left=Camera.RenderedTargets[pixelStart+1];
+            Time.frameCount=9801;
+            paintedAtlas.IncrementUpdateCount();
+            Require((bool)draw.Invoke(heroPixels,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==pixelStart+3&&
+                ReferenceEquals(Camera.RenderedTargets[pixelStart+2],right),
+                "Same-ID hero texture upload retained stale full-body GPU pixels");
+            paintedAtlas.IncrementUpdateCount();
+            Require((bool)draw.Invoke(heroPixels,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==pixelStart+3,
+                "Second in-flight source upload overwrote a submitted hero RenderTexture");
+            Time.frameCount=9802;
+            Require((bool)draw.Invoke(heroPixels,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                (bool)draw.Invoke(heroPixels,new object[]{
+                new Point(100,140),Color.white,true,0,false})&&
+                Camera.RenderedTargets.Count==pixelStart+5&&
+                ReferenceEquals(Camera.RenderedTargets[pixelStart+3],right)&&
+                ReferenceEquals(Camera.RenderedTargets[pixelStart+4],left),
+                "Latest in-place hero update failed to refresh both directions");
+            Time.frameCount=9803;
+            Require((bool)draw.Invoke(heroPixels,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                Camera.RenderedTargets.Count==pixelStart+5,
+                "Unchanged canonical pixels kept recapturing every frame");
+        }
+        finally {release.Invoke(heroPixels,null);}
+        // GPU failure retry must also reset after a large frame-count rewind,
+        // rather than pinning the ONE blonde hero to fallback for 10000 frames.
+        var heroCooldownEpoch=new FrontierRuntime();
+        heroCooldownEpoch.Game.AppearanceWeapon=0;
+        heroCooldownEpoch.ProbeAction=2;
+        heroCooldownEpoch.ProbeFrames=6;
+        heroCooldownEpoch.ProbeFrame=2;
+        heroCooldownEpoch.ProbePosition=2f;
+        try
+        {
+            Time.frameCount=11000;
+            Require((bool)draw.Invoke(heroCooldownEpoch,new object[]{
+                new Point(100,140),Color.white,false,0,false}),
+                "epoch retry setup missing canonical Hero");
+            var retryField=typeof(FrontierRuntime).GetField(
+                "heroCaptureRetryAt",flags);
+            brokenField.SetValue(heroCooldownEpoch,true);
+            retryField.SetValue(heroCooldownEpoch,11120);
+            Time.frameCount=27;
+            Require((bool)draw.Invoke(heroCooldownEpoch,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                !(bool)brokenField.GetValue(heroCooldownEpoch),
+                "old GPU failure cooldown survived new Play frame-count epoch");
+        }
+        finally {release.Invoke(heroCooldownEpoch,null);}
+        // 51 distinct actions in one repaint intentionally exceed the 48
+        // pose soft limit: no submitted render texture may be destroyed.
+        // Next repaint, EVEN if its frameCount has rewound, evict the full
+        // backlog and return the cache to <=48 rather than just evicting one.
+        var heroCrowd=new FrontierRuntime();
+        var cacheField=typeof(FrontierRuntime).GetField(
+            "heroCapturedFrames",flags);
+        var crowdCache=(System.Collections.IDictionary)
+            cacheField.GetValue(heroCrowd);
+        var previousTargets=new List<RenderTexture>();
+        try
+        {
+            Time.frameCount=12000;
+            for(int k=0;k<51;k++)
+            {
+                int cls=k/28,cmd=(k%28)/4,dir=k%4;
+                heroCrowd.Game.AppearanceWeapon=cls;
+                heroCrowd.ProbeAction=cmd;
+                heroCrowd.ProbeFrames=lengths[cmd];
+                heroCrowd.ProbeFrame=cmd==0?0:
+                    cmd==2||cmd==3?2:1;
+                heroCrowd.ProbePosition=heroCrowd.ProbeFrame;
+                int facing=dir<2?0:dir==2?1:2;
+                Require((bool)draw.Invoke(heroCrowd,new object[]{
+                    new Point(100,140),Color.white,dir==1,
+                    facing,false}),
+                    "crowded hero action render unexpectedly fell back");
+                previousTargets.Add(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1] as RenderTexture);
+            }
+            Require(crowdCache.Count==51&&
+                previousTargets.TrueForAll(x=>x!=null&&x.releaseCount==0),
+                "same-frame hero action render prematurely evicted queued images");
+            Time.frameCount=31;
+            heroCrowd.Game.AppearanceWeapon=1;
+            heroCrowd.ProbeAction=2;heroCrowd.ProbeFrames=6;
+            heroCrowd.ProbeFrame=2;heroCrowd.ProbePosition=2f;
+            Require((bool)draw.Invoke(heroCrowd,new object[]{
+                new Point(100,140),Color.white,false,2,false})&&
+                crowdCache.Count<=48&&
+                previousTargets.Exists(x=>x.releaseCount>0),
+                "old-epoch hero GPU cache failed to reclaim a crowded 51-pose backlog");
+        }
+        finally {release.Invoke(heroCrowd,null);}
+        Console.WriteLine("PASS hero GPU epoch recovery, in-place original art recapture, live Animator graph hot-import, 51-pose eviction safety");
+
         VerifyAtomicHeroFamilySwap(release,flags);
         release.Invoke(app,null);
         foreach(var target in textures)
