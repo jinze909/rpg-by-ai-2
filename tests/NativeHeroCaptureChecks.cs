@@ -337,7 +337,61 @@ public static class NativeHeroCaptureChecks
                 Resources.RegisteredSprites[actionResource][2])&&
             Camera.RenderedTargets.Count>oldRenderCount,
             "transient GPU loss permanently disabled live hero capture");
+        // Unlike an exception from Camera.Render, RenderTexture.Create()
+        // may quietly return false. Recreate failures must not submit a
+        // transparent player; retain six-cell canonical fallback and retry
+        // after the existing 120-frame throttle.
+        var lostTarget=GUI.DrawnTextures[GUI.DrawnTextures.Count-1]
+            as RenderTexture;
+        Require(lostTarget!=null,"missing live hero target for device-loss probe");
+        lostTarget.Release();
+        int rendersOnRefusal=Camera.RenderedTargets.Count;
+        RenderTexture.InjectCreateFailureOnce=true;
+        Time.frameCount=2130;
+        bool denied=(bool)draw.Invoke(device,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(!denied&&(bool)brokenField.GetValue(device)&&
+            Camera.RenderedTargets.Count==rendersOnRefusal &&
+            !RenderTexture.InjectCreateFailureOnce,
+            "failed GPU recreation submitted a blank hero or ignored Create() result");
+        Time.frameCount=2131;
+        bool throttled=(bool)draw.Invoke(device,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(!throttled&&Camera.RenderedTargets.Count==rendersOnRefusal,
+            "failed hero GPU Create was retried every repaint");
+        Time.frameCount=2250;
+        bool gpuRestored=(bool)draw.Invoke(device,new object[]{
+            new Point(100,140),new Color(1,1,1,1),false,0,false});
+        Require(gpuRestored&&Camera.RenderedTargets.Count==rendersOnRefusal+1&&
+            ReferenceEquals((renderField.GetValue(device) as SpriteRenderer).sprite,
+                Resources.RegisteredSprites[actionResource][2]),
+            "recreated hero GPU target did not recover exact class/contact pixels");
         release.Invoke(device,null);
+
+        // Also reject allocation refusal on the very FIRST capture.
+        var fresh=new FrontierRuntime();
+        fresh.Game.AppearanceWeapon=2;
+        fresh.ProbeAction=3;
+        fresh.ProbeFrames=6;
+        fresh.ProbeFrame=3;
+        fresh.ProbePosition=3f;
+        int beforeCreate=Camera.RenderedTargets.Count;
+        RenderTexture.InjectCreateFailureOnce=true;
+        Time.frameCount=2300;
+        bool createDenied=(bool)draw.Invoke(fresh,new object[]{
+            new Point(100,140),Color.white,false,2,false});
+        Require(!createDenied&&Camera.RenderedTargets.Count==beforeCreate,
+            "first hero GPU allocation refusal displayed an invalid texture");
+        Time.frameCount=2420;
+        bool createRecovered=(bool)draw.Invoke(fresh,new object[]{
+            new Point(100,140),Color.white,false,2,false});
+        var recSprite=renderField.GetValue(fresh) as SpriteRenderer;
+        Require(createRecovered&&recSprite!=null&&
+            ReferenceEquals(recSprite.sprite,Resources.RegisteredSprites[
+                "Frontier/HeroAnimator/Canonical/Hero_Arcanist_Cast_S"][3])&&
+            Camera.RenderedTargets.Count==beforeCreate+1,
+            "initial GPU creation failure permanently hid Arcanist Cast_S");
+        release.Invoke(fresh,null);
         release.Invoke(app,null);
         foreach(var target in textures)
             Require(target.releaseCount>0&&!target.IsCreated(),
