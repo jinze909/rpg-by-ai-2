@@ -537,6 +537,89 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS source-consistent walking Boss hit/recovery + original windup/release, flash, footprint and room-2 HP tint");
     }
 
+    // The 72-cell Briar Beast production path previously selected Death_0
+    // on the lethal repaint, even if GameCore was drawing a real windup or
+    // released-contact Sprite one frame earlier. Test the ACTUAL renderer
+    // and full-body atlas UVs, not a stand-alone animation clock.
+    static void BriarBeastDeathPreservesLastCombatFrame(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        bool originalReduced=game.save.reducedMotion;
+        var field=typeof(FrontierRuntime).GetField("briarBeastSheet",Private);
+        Check(field!=null,"Briar Beast production Sprite field missing");
+        var original=(Texture2D)field.GetValue(app);
+        var source=new Texture2D(1280,5760,TextureFormat.RGBA32,false){
+            name="resource:Frontier/Art/BriarBeast"};
+        field.SetValue(app,source);
+        try
+        {
+            game.save.reducedMotion=false;
+            var boss=new Enemy(94001,0,game.Position.x,game.Position.y,
+                260f,true){
+                state=1,timer=.3f,windupDuration=1f,
+                facing=new Point(1,0),hitTime=.08f,flash=.06f
+            };
+            Place(app,boss.Position,new Point(500,350));
+            Clear();
+            var live=Draw(app,"DrawEnemyActor",boss)
+                .FirstOrDefault(c=>c.texture==source);
+            Check(live!=null,"Real Briar Beast live windup was not drawn");
+            var fallen=new FallenActor{actor=boss,room=1,
+                life=1f,duration=1f};
+            Clear();
+            var first=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture==source).ToArray();
+            Check(first.Length==1 &&
+                Math.Abs(first[0].uv.x-live.uv.x)<.00001f &&
+                Math.Abs(first[0].uv.y-live.uv.y)<.00001f &&
+                Math.Abs(first[0].rect.y-live.rect.y)<.001f &&
+                Math.Abs(first[0].rect.width-live.rect.width)<.001f,
+                "First Boss death repaint flashed idle/dead instead of real windup");
+            var visual=app.GetType().GetProperty(
+                "CurrentWorldVisualLook",Private).GetValue(app,null);
+            float fraction=(float)visual.GetType().GetField(
+                "deathPoseBlendFraction",BindingFlags.Public|
+                BindingFlags.Instance).GetValue(visual);
+            Check(fraction>.01f&&fraction<.9f,
+                "Missing bounded author-controlled full-body death blend");
+            fallen.life=1f-fraction*.5f;
+            Clear();
+            var blended=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture==source).ToArray();
+            Check(blended.Length==2 &&
+                Math.Abs(blended[0].uv.x-live.uv.x)<.00001f &&
+                Math.Abs(blended[0].uv.y-live.uv.y)<.00001f &&
+                Math.Abs(blended[0].color.a-blended[1].color.a)<.0001f &&
+                Math.Abs(blended[0].rect.x-blended[1].rect.x)<.001f &&
+                Math.Abs(blended[0].rect.y-blended[1].rect.y)<.001f &&
+                Math.Abs(blended[1].uv.y)<.00001f,
+                "Briar handoff used mismatched identity, feet or alpha");
+            fallen.life=1f-fraction-.05f;
+            Clear();
+            var finished=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture==source).ToArray();
+            Check(finished.Length==1&&
+                Math.Abs(finished[0].uv.y)<.00001f,
+                "Finished Briar animation retained a living attack body");
+            game.save.reducedMotion=true;
+            fallen.life=1f;
+            Clear();
+            var accessible=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture==source).ToArray();
+            Check(accessible.Length==1&&
+                Math.Abs(accessible[0].uv.y)<.00001f,
+                "Reduced motion must skip Boss death interpolation");
+            Console.WriteLine(
+                "PASS Briar Beast lethal windup->Death: same GameCore body, 18-row source atlas, fixed 120/128 feet, author-adjustable rooted crossfade and reduced-motion corpse");
+        }
+        finally
+        {
+            field.SetValue(app,original);
+            game.save.reducedMotion=originalReduced;
+        }
+    }
+
     static void MovingBossDeathStaysOnOneRoot(FrontierRuntime app)
     {
         app.BeginVisualReview(0,2);
@@ -1068,7 +1151,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
