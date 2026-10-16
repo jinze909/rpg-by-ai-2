@@ -1758,6 +1758,110 @@ public static class RenderStateChecks
         Console.WriteLine(
             "PASS rooted continuous attack telegraph: precise melee radius, 3 angles, letterboxed canvas and reduced motion");
     }
+    private static void PaintedImpactFlourishRunsInWorld(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        int quality=game.save.effectsQuality;
+        bool reduced=game.save.reducedMotion;
+        Matrix4x4 matrix=GUI.matrix;
+        Color color=GUI.color;
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            game.effects.Clear();
+            foreach(string kind in new[]{"slash","projectileImpact",
+                "magicImpact"})
+            {
+                var hit=new Effect(kind,game.Position,.5f);
+                hit.life=.45f;
+                hit.direction=new Point(1,0);
+                game.effects.Add(hit);
+            }
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Texture2D atlas=Get<Texture2D>(app,"impactFlourishSheet");
+            Check(atlas!=null&&atlas.width==128&&atlas.height==96&&
+                GUI.textureCalls.Count==3,
+                "Three complete action-specific painted impact families not loaded");
+            for(int row=0;row<3;row++)
+            {
+                var call=GUI.textureCalls[row];
+                Check(object.ReferenceEquals(call.texture,atlas)&&
+                    Math.Abs(call.uv.x)<.00001f&&
+                    Math.Abs(call.uv.y-(1f-(row+1)/3f))<.00001f&&
+                    Math.Abs(call.uv.width-.25f)<.00001f&&
+                    Math.Abs(call.uv.height-1f/3f)<.00001f&&
+                    call.color.a>0f&&call.color.a<.75f,
+                    "32px sword/projectile/magic cells lost original UV or opacity");
+                if(row>0)
+                    Near(Center(call),Center(GUI.textureCalls[0]),
+                        "Contact sprites shifted from GameCore hit anchor");
+            }
+            // All three types obey the same source event clock but use
+            // independent hand-authored frames, not procedural resizing.
+            foreach(Effect hit in game.effects)hit.life=.15f;
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Check(GUI.textureCalls.Count==3&&
+                GUI.textureCalls.TrueForAll(c=>
+                    object.ReferenceEquals(c.texture,atlas)&&
+                    Math.Abs(c.uv.x-.5f)<.00001f),
+                "Third source frame not reached by actual hit lifetime");
+            var property=typeof(FrontierRuntime).GetProperty(
+                "CurrentWorldVisualLook",Private);
+            Check(property!=null,"Impact visual config absent from runtime");
+            var look=property.GetValue(app,null);
+            var intensity=look.GetType().GetField("impactFlourishAlpha",
+                BindingFlags.Public|BindingFlags.Instance);
+            Check(intensity!=null,"Unity WorldLook missing painted-impact alpha");
+            float original=(float)intensity.GetValue(look);
+            try
+            {
+                float old=GUI.textureCalls[0].color.a;
+                intensity.SetValue(look,original*.5f);
+                Clear();Call(app,"DrawAuthoredImpactFlourishes");
+                Check(GUI.textureCalls.Count==3&&
+                    Math.Abs(GUI.textureCalls[0].color.a-old*.5f)<.00001f,
+                    "Changing source-art opacity did not affect live combat");
+            }
+            finally{intensity.SetValue(look,original);}
+            // Crucial: these art cells must appear in the ACTUAL world
+            // draw queue, not just a disconnected reviewer/preview.
+            Clear();Call(app,"DrawWorld");
+            Check(GUI.textureCalls.FindAll(c=>
+                object.ReferenceEquals(c.texture,atlas)).Count==3,
+                "New impact art not actually integrated into DrawWorld");
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Check(GUI.textureCalls.Count==0,
+                "Reduced motion must suppress only supplemental art");
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=1;
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Check(GUI.textureCalls.Count==0,
+                "Low/medium effects setting did not bypass optional overlays");
+            game.save.effectsQuality=2;
+            Set(app,"impactFlourishSheet",
+                new Texture2D(1,1,TextureFormat.RGBA32,false));
+            Resources.TextureOverrides["Frontier/Art/ImpactFlourish"]=
+                new Texture2D(1,1,TextureFormat.RGBA32,false);
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Check(GUI.textureCalls.Count==0,
+                "Malformed impact atlas must safely fall back to original FX");
+            Same(GUI.matrix,matrix,"Impact sprites polluted actor GUI matrix");
+            Same(GUI.color,color,"Impact sprites polluted HUD tint");
+            Console.WriteLine("PASS 12 hand-painted impact frames in real DrawWorld: 3 event kinds, exact source UV, world root, alpha, accessibility, fallback");
+        }
+        finally
+        {
+            Resources.TextureOverrides.Remove("Frontier/Art/ImpactFlourish");
+            game.effects.Clear();
+            game.save.effectsQuality=quality;
+            game.save.reducedMotion=reduced;
+            GUI.matrix=matrix;GUI.color=color;
+            Clear();
+        }
+    }
     private static void AuthoredHitContactCrossfadePreservesWorldPivot(
         FrontierRuntime app)
     {
@@ -2394,7 +2498,7 @@ public static class RenderStateChecks
             "snowMoteWindX","desertMoteWindX","coastMoteLift",
             "groundFoliageSwayDegrees",
             "hazardRingAlpha","hazardCountdownAlpha",
-            "hitContactBlendFraction"};
+            "hitContactBlendFraction","impactFlourishAlpha"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -2415,7 +2519,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 26 source-controlled WorldLook values for terrain, foliage, ambient motion, hit contact, hazard warnings, companion gait, actors and combat FX");
+        Console.WriteLine("PASS 27 source-controlled WorldLook values for terrain, foliage, ambient motion, painted impacts, hit contact, hazard warnings, companion gait, actors and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
@@ -2430,7 +2534,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
