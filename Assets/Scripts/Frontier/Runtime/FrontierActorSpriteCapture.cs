@@ -136,7 +136,7 @@ namespace Starfall
                         // Incomplete or invalid native art may still be
                         // shown as the SAME whole authored source cell.
                         sprite=Sprite.Create(sheet,new Rect(x,y,width,height),
-                            new Vector2(.5f,1f-120f/128f),
+                            new Vector2(.5f, 1f - 120f / 128f),
                             height,0,SpriteMeshType.FullRect);
                         actorOwnedFrameSprites.Add(sprite);
                     }
