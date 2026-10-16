@@ -1325,6 +1325,141 @@ public static class RenderStateChecks
     // Actually executable offline C# scene renderer assertion; this does
     // not merely examine the generated PNG. Production must paint both the
     // ORIGINAL accepted water line and a new complete 32x12 foam pose.
+
+    // Executed by the normal combat CI, not just by review-gallery export.
+    // Checks true production DrawWorld integration, eight original bitmap
+    // poses, tidal dry cells, cold/warm palette, and atomic hot reimport.
+    public static void VerifyOriginalWaterRippleArtAndLiveTide(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,5);
+        var game=app.Game;
+        int quality=game.save.effectsQuality;
+        bool reduced=game.save.reducedMotion;
+        const int y=14;
+        int x=-1;
+        for(int i=8;i<Math.Min(game.Map.rows[y].Length-2,32);i++)
+            if((int)Call(app,"PreparedTileSeed",i,y)%11==0)
+            {x=i;break;}
+        Check(x>=0,"No deterministic warm-water ripple seed on playable map");
+        string priorRow=game.Map.rows[y];
+        const string resource="Frontier/Art/WaterRipples";
+        Texture2D priorOverride=null;
+        bool hadOverride=Resources.TextureOverrides.TryGetValue(
+            resource,out priorOverride);
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            Set(app,"clock",1.12f);
+            Clear();
+            Call(app,"DrawAuthoredWaterRipples",x,y,'~',
+                new Point(230,180));
+            var sheet=Get<Texture2D>(app,"waterRipplesSheet");
+            Check(sheet!=null&&sheet.width==96&&sheet.height==32&&
+                GUI.textureCalls.Count==1,
+                "Live water ripple sprite resource is not a complete eight-frame sheet");
+            var first=GUI.textureCalls[0];
+            Check(object.ReferenceEquals(first.texture,sheet)&&
+                Math.Abs(first.uv.width-.25f)<.00001f&&
+                Math.Abs(first.uv.height-.5f)<.00001f&&
+                Math.Abs(first.uv.y-.5f)<.00001f&&
+                Math.Abs(first.rect.x-236f)<.001f&&
+                Math.Abs(first.rect.y-190f)<.001f&&
+                first.rect.width==24f&&first.rect.height==16f&&
+                first.color.a>.12f&&first.color.a<.30f,
+                "Temperate water did not paint a subtle grounded original sprite cell");
+            float previousU=first.uv.x;
+            Set(app,"clock",1.57f);
+            Clear();Call(app,"DrawAuthoredWaterRipples",x,y,'~',
+                new Point(230,180));
+            var second=GUI.textureCalls[0];
+            Check(GUI.textureCalls.Count==1&&
+                Math.Abs(second.uv.x-previousU)>.00001f&&
+                Math.Abs(second.rect.x-first.rect.x)<.001f&&
+                Math.Abs(second.rect.y-first.rect.y)<.001f,
+                "Real source ripple did not evolve through authored cells at fixed tile root");
+            game.Map.rows[y]=priorRow.Substring(0,x)+"~"+
+                priorRow.Substring(x+1);
+            Set(app,"camera",new Point(x,y));
+            Set(app,"clock",2.13f);Clear();
+            Call(app,"DrawWorld");
+            sheet=Get<Texture2D>(app,"waterRipplesSheet");
+            Check(GUI.textureCalls.Exists(t=>
+                object.ReferenceEquals(t.texture,sheet)),
+                "Production DrawWorld omitted all original ripple pixels");
+            GUI.Export(".starfall-checks/sprite-qa",
+                "review-live-water-with-original-ripple-and-world");
+            game.save.reducedMotion=true;Clear();
+            Call(app,"DrawAuthoredWaterRipples",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==0,
+                "Reduced motion must not spawn moving water rings");
+            game.save.reducedMotion=false;game.save.effectsQuality=0;
+            Clear();Call(app,"DrawAuthoredWaterRipples",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==0,
+                "Zero FX must keep water ground without extra rings");
+            game.save.effectsQuality=2;Clear();
+            Call(app,"DrawAuthoredWaterRipples",x,y,'=',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==0,
+                "Dry walkable road unexpectedly contains a ripple");
+            Set(app,"clock",10f);
+            Resources.TextureOverrides[resource]=new Texture2D(
+                95,32,TextureFormat.RGBA32,false){
+                name="half-imported-water-ripples"};
+            Clear();Call(app,"DrawAuthoredWaterRipples",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,sheet),
+                "Incomplete imported water atlas overrode last complete original art");
+            var republished=new Texture2D(96,32,TextureFormat.RGBA32,
+                false){name="approved-water-ripple-reimport"};
+            Resources.TextureOverrides[resource]=republished;
+            Set(app,"clock",12.7f);Clear();
+            Call(app,"DrawAuthoredWaterRipples",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,republished),
+                "Complete 8-cell water reimport failed to reach production runtime");
+            Resources.TextureOverrides[resource]=sheet;
+            Set(app,"clock",0f);Clear();
+            Call(app,"DrawAuthoredWaterRipples",x,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,sheet),
+                "Reload clock rewind froze a stale imported water sheet");
+            app.BeginVisualReview(0,7);
+            var coldGame=app.Game;
+            int cx=-1;
+            for(int i=8;i<Math.Min(coldGame.Map.rows[y].Length-2,32);i++)
+                if((int)Call(app,"PreparedTileSeed",i,y)%11==0)
+                {cx=i;break;}
+            Check(cx>=0,"No deterministic cold-water ripple seed");
+            Set(app,"clock",.42f);Clear();
+            Call(app,"DrawAuthoredWaterRipples",cx,y,'~',
+                new Point(230,180));
+            Check(GUI.textureCalls.Count==1&&
+                Math.Abs(GUI.textureCalls[0].uv.y)<.00001f,
+                "Cold-region water did not select its independently painted blue row");
+            Console.WriteLine(
+                "PASS 8 warm/cold ORIGINAL ripple source poses in real world, frame cadence, fixed ground, low FX, tide, partial import and rewind");
+        }
+        finally
+        {
+            game.Map.rows[y]=priorRow;
+            if(hadOverride)Resources.TextureOverrides[resource]=priorOverride;
+            else Resources.TextureOverrides.Remove(resource);
+            game.save.effectsQuality=quality;
+            game.save.reducedMotion=reduced;
+            Set(app,"waterRipplesSheet",Resources.Load<Texture2D>(resource));
+            Set(app,"waterRipplesCheckedAt",float.NegativeInfinity);
+            Set(app,"waterRipplesNextCheck",float.NegativeInfinity);
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyPaintedShorelineFoamInLiveWorld(FrontierRuntime app)
     {
         app.BeginVisualReview(0,5);
@@ -3329,6 +3464,7 @@ public static class RenderStateChecks
         var current=profile.GetValue(app,null);
         string[] names={"treeSwayDegrees","palmSwayDegrees",
             "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
+            "waterRippleAlpha","waterRippleFrameRate",
             "shorelineWashAlpha","shorelineTravelPixels",
             "shoreFoamAlpha","shoreFoamFrameRate",
             "emberFlickerAlpha","emberLiftPixels",
@@ -3374,7 +3510,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 49 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 51 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,

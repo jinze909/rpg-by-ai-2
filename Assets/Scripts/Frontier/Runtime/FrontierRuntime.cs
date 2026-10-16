@@ -540,6 +540,7 @@ namespace Starfall
                 DrawSurface(x, y, tile, p);
                 DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
                 DrawAuthoredWaterShimmer(x,y,tile,p);
+                DrawAuthoredWaterRipples(x,y,tile,p);
                 DrawAuthoredShorelineWash(x,y,tile,p);
                 float reveal = TerrainTileOpacity(x, y);
                 if (reveal < .999f)

@@ -120,6 +120,53 @@ namespace Starfall
             finally{GUI.color=original;}
         }
 
+        // Eight original full-transparent 24x16 ripple poses, in two distinct
+        // temperate and cold-water palettes, sit ABOVE the unchanged mature
+        // TerrainVariants water pixels and BELOW all sorted game actors.
+        // Water is tile art, not a simulated creature: a seeded local sprite
+        // cycle is preferable to hundreds of separate Animator components.
+        private Texture2D waterRipplesSheet;
+        private float waterRipplesCheckedAt=float.NegativeInfinity;
+        private float waterRipplesNextCheck=float.NegativeInfinity;
+        private void RefreshAuthoredWaterRipples()
+        {
+            if(clock>=waterRipplesCheckedAt&&clock<waterRipplesNextCheck)
+                return;
+            waterRipplesCheckedAt=clock;
+            waterRipplesNextCheck=clock+2.5f;
+            Texture2D candidate=Resources.Load<Texture2D>(
+                "Frontier/Art/WaterRipples");
+            // Keep the last complete sheet during partial Editor reimport;
+            // never crop a malformed atlas or hide the water itself.
+            if(candidate!=null&&candidate.width==96&&candidate.height==32)
+                waterRipplesSheet=candidate;
+        }
+        private void DrawAuthoredWaterRipples(int x,int y,char tile,Point p)
+        {
+            if(Game.save.reducedMotion||Game.save.effectsQuality==0||
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))return;
+            int seed=PreparedTileSeed(x,y);
+            // Rare, stable tile placements read as living water instead of
+            // identical marching rings on every tile of the river.
+            if(seed%11!=0)return;
+            RefreshAuthoredWaterRipples();
+            if(waterRipplesSheet==null||waterRipplesSheet.width!=96||
+                waterRipplesSheet.height!=32)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            int frame=((int)Math.Floor(clock*look.waterRippleFrameRate+
+                (seed%31)*.37f)%4+4)%4;
+            // Cold coasts and dark northern basins have distinct authored
+            // cobalt pigments, not a global tint over warm sea foam.
+            int row=Game.save.room==7||Game.save.room==4||
+                Game.save.room==8?1:0;
+            float alpha=look.waterRippleAlpha*
+                (Game.Night?.80f:1f)*
+                (Game.save.effectsQuality==1?.58f:1f);
+            Rect area=new Rect(p.x+6f,p.y+10f,24f,16f);
+            Atlas(waterRipplesSheet,4,2,row*4+frame,area,
+                new Color(1f,1f,1f,alpha*worldActorOpacity));
+        }
+
         // Source-preserving shoreline animation: one subdued crest sampled
         // from the existing high-detail 48px water painting, never a coarse
         // newly drawn rectangle. Its center stays anchored to the authored

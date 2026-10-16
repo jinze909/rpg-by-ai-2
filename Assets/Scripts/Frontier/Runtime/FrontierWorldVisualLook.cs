@@ -17,6 +17,8 @@ namespace Starfall
             public float groundFoliageSwayDegrees=.65f;
             public float waterGlintAlpha=.12f;
             public float waterGlintRate=.89f;
+            public float waterRippleAlpha=.21f;
+            public float waterRippleFrameRate=4.4f;
             public float shorelineWashAlpha=.10f;
             public float shorelineTravelPixels=1.5f;
             public float shoreFoamAlpha=.19f;
@@ -123,6 +125,12 @@ namespace Starfall
                             case "waterGlintRate":
                                 if(value>=.1f&&value<=2f)
                                     settings.waterGlintRate=value;break;
+                            case "waterRippleAlpha":
+                                if(value>=.06f&&value<=.36f)
+                                    settings.waterRippleAlpha=value;break;
+                            case "waterRippleFrameRate":
+                                if(value>=1.5f&&value<=7f)
+                                    settings.waterRippleFrameRate=value;break;
                             case "shorelineWashAlpha":
                                 if(value>=.02f&&value<=.18f)
                                     settings.shorelineWashAlpha=value;break;

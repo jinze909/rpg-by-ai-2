@@ -12,6 +12,11 @@ groundFoliageSwayDegrees=0.65
 # Fractional alpha of a source-pixel water sample; not an opaque tile overlay.
 waterGlintAlpha=0.12
 waterGlintRate=0.89
+# Eight original 24x16 transparent concentric water-ripple poses:
+# first row temperate teal, second row cold blue. Sparse fixed world-cell
+# placement; never overpaints banks, replaces TerrainVariants, or affects tides.
+waterRippleAlpha=0.21
+waterRippleFrameRate=4.4
 # Existing source-painted TerrainVariants coastline wash: direction-specific
 # banks, bounded tangential travel, softened corners and no new artwork.
 shorelineWashAlpha=0.10
