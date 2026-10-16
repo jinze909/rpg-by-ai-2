@@ -185,6 +185,19 @@ namespace Starfall
                 // whole-body Sprite without changing its atlas rect/pivot.
                 // Neutralize the capture rig AFTER native sampling.
                 heroCaptureRoot.transform.localRotation = Quaternion.identity;
+                // Animator owns the BODY Sprite, never the camera-space rig.
+                // Even a correctly validated single Sprite can look torn,
+                // enlarged, tilted, or floating when old clips animate the
+                // CHILD transform rather than the capture root. Reset those
+                // curves AFTER Animator.Update, so no sampled action leaks
+                // stale m_LocalPosition/m_LocalScale/m_LocalRotation into
+                // the next class, facing or attack/contact frame.
+                heroCaptureRenderer.transform.localPosition =
+                    new Vector3(0f,0f,0f);
+                heroCaptureRenderer.transform.localScale =
+                    new Vector3(1f,1f,1f);
+                heroCaptureRenderer.transform.localRotation =
+                    Quaternion.identity;
                 heroCaptureRenderer.color = Color.white;
                 // Renderer and Animator share this transform. A stale
                 // m_LocalPosition curve can shift the sampled hero 1-2 feet
