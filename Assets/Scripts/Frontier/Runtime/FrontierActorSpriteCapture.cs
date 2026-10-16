@@ -99,6 +99,12 @@ namespace Starfall
             new Dictionary<string,int>();
         private readonly Dictionary<string,int> actorNativeRejectedPoseUntil =
             new Dictionary<string,int>();
+        // Rejection belongs to the CONTROLLER version that painted the
+        // wrong Sprite. A corrected republished Controller can retry now,
+        // without leaving the actor frozen in GUI fallback for 120 frames.
+        private readonly Dictionary<string,RuntimeAnimatorController>
+            actorNativeRejectedController =
+            new Dictionary<string,RuntimeAnimatorController>();
         private readonly Dictionary<string,Texture2D> actorNativeSource =
             new Dictionary<string,Texture2D>();
         private bool actorCaptureBroken;
@@ -478,7 +484,10 @@ namespace Starfall
                 if(pose.StartsWith(family+":",StringComparison.Ordinal))
                     rejected.Add(pose);
             foreach(string pose in rejected)
+            {
                 actorNativeRejectedPoseUntil.Remove(pose);
+                actorNativeRejectedController.Remove(pose);
+            }
             string prefix=source.GetInstanceID()+":";
             foreach(var frame in actorCapturedFrames)
                 if(frame.Key.StartsWith(prefix,StringComparison.Ordinal))
@@ -535,7 +544,18 @@ namespace Starfall
             string poseKey = family + ":" + row;
             int rejectedUntil;
             if (actorNativeRejectedPoseUntil.TryGetValue(poseKey, out rejectedUntil) &&
-                Time.frameCount < rejectedUntil) return false;
+                Time.frameCount < rejectedUntil)
+            {
+                RuntimeAnimatorController formerlyRejected;
+                // Retain the cooldown if this is still the SAME bad
+                // Controller. A different newly accepted controller can
+                // correct this row's clip immediately and safely.
+                if(!actorNativeRejectedController.TryGetValue(
+                        poseKey,out formerlyRejected)||
+                    formerlyRejected==controller)return false;
+                actorNativeRejectedPoseUntil.Remove(poseKey);
+                actorNativeRejectedController.Remove(poseKey);
+            }
             if (actorCaptureAnimator.runtimeAnimatorController != controller)
                 actorCaptureAnimator.runtimeAnimatorController = controller;
             actorCaptureAnimator.enabled = true;
@@ -564,6 +584,7 @@ namespace Starfall
                 // original Sprite until the importer passes every cell.
                 actorCaptureRenderer.sprite=expected;
                 actorNativeRejectedPoseUntil.Remove(poseKey);
+                actorNativeRejectedController.Remove(poseKey);
                 return true;
             }
             // A stale or cross-identity clip is a deterministic FAIL at
@@ -571,6 +592,7 @@ namespace Starfall
             // recovery following Unity asset reimport.
             actorCaptureAnimator.enabled = false;
             actorNativeRejectedPoseUntil[poseKey] = Time.frameCount + 120;
+            actorNativeRejectedController[poseKey] = controller;
             actorNativeControllers.Remove(family);
             return false;
         }
@@ -687,6 +709,7 @@ namespace Starfall
             actorNativeRetryAt.Clear();
             actorNativeControllerCheckAt.Clear();
             actorNativeRejectedPoseUntil.Clear();
+            actorNativeRejectedController.Clear();
             if (actorCaptureCamera != null)
                 actorCaptureCamera.targetTexture = null;
             if (actorCaptureRoot != null) Destroy(actorCaptureRoot);
