@@ -489,7 +489,10 @@ namespace Starfall
             if(alpha<=0f)return;
             int cell=((int)Math.Floor(clock*look.relicShimmerRate+
                 id*.43f+variant*.83f)%4+4)%4;
-            float height=id==3?.79f:id==12?.67f:
+            // The obelisk's crown sits slightly lower than its raw
+            // 120/128 source pivot suggests. Keep light INSIDE that
+            // actual intact source canvas rather than floating above it.
+            float height=id==3?.74f:id==12?.67f:
                 id==14?.65f:.72f;
             float offset=id==14?size*.09f:0f;
             float side=Math.Min(35f,size*.37f);

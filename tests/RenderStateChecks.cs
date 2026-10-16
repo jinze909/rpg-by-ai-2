@@ -2696,7 +2696,7 @@ public static class RenderStateChecks
                     gleam.rect.x+gleam.rect.width<=body.rect.x+body.rect.width&&
                     gleam.rect.y>=body.rect.y&&
                     gleam.rect.y+gleam.rect.height<=body.rect.y+body.rect.height,
-                    "Relic glint escaped the parent world object or changed its scale");
+                    "Relic glint escaped the parent world object or changed its scale: "+types[i]);
                 float glowX=gleam.rect.x,glowY=gleam.rect.y;
                 float uvBefore=gleam.uv.x;
                 float priorOpacity=gleam.color.a;
@@ -2707,7 +2707,10 @@ public static class RenderStateChecks
                     Math.Abs(GUI.textureCalls[1].color.a-priorOpacity*.5f)<.0001f,
                     "Editable WorldLook relic light alpha did not drive production");
                 alphaField.SetValue(palette,original);
-                Set(app,"clock",2.15f+i*.3f);
+                // +0.30s at 3.8fps must advance by 1 or 2 source cells
+                // for every phase; +0.90s could coincidentally advance
+                // exactly FOUR cells and look incorrectly unchanged.
+                Set(app,"clock",1.55f+i*.3f);
                 Clear();Call(app,"PropImage",types[i],i,
                     320f,280f,86f,90f,Color.white);
                 var subsequent=GUI.textureCalls[1];
