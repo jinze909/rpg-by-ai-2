@@ -444,13 +444,13 @@ namespace Starfall
                             if(old!=null)
                             {
                                 string spriteId=old.GetInstanceID().ToString();
-                                HeroCaptureEntry cached;
+                                HeroCaptureEntry cachedTarget;
                                 if(heroCapturedFrames.TryGetValue(
-                                    spriteId+":left",out cached))
-                                    cached.sourceDirty=true;
+                                    spriteId+":left",out cachedTarget))
+                                    cachedTarget.sourceDirty=true;
                                 if(heroCapturedFrames.TryGetValue(
-                                    spriteId+":right",out cached))
-                                    cached.sourceDirty=true;
+                                    spriteId+":right",out cachedTarget))
+                                    cachedTarget.sourceDirty=true;
                             }
                     cells=candidates; // Unity-owned imported sub-assets.
                     heroPublishedIncomplete.Remove(key);
