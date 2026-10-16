@@ -131,11 +131,14 @@ public static class RuntimeContinuityChecks
         Call(app,"OnGUI");
         int cell=(int)paintType.GetField("variant",
             BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        bool mirrored=(bool)paintType.GetField("alternate",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
         var worldContact=GUI.textureCalls.Find(c=>
             c.texture.name=="resource:Frontier/Art/Effects"&&
             Math.Abs(c.rect.width-(surface=="snow"?24f:26f))<.001f&&
             Math.Abs(c.rect.height-(surface=="snow"?18f:13f))<.001f&&
-            Math.Abs(c.uv.x-(cell%4)/4f)<.00001f&&
+            Math.Abs(c.uv.x-(cell%4+(mirrored?1:0))/4f)<.00001f&&
+            Math.Abs(c.uv.width-(mirrored?-.25f:.25f))<.00001f&&
             Math.Abs(c.uv.y-(1f-(cell/4+1)/4f))<.00001f);
         Check(worldContact!=null,
             "Accepted rooted footstep source omitted from real ordered world draw");
