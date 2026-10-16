@@ -18,6 +18,12 @@ namespace Starfall
         {
             internal int phase;
             internal float changedAt = float.NegativeInfinity;
+            // HP becomes zero before DrawFallen after a lethal strike. Hold
+            // the phase and complete Sprite actually drawn on the last live
+            // repaint, not a new phase inferred from the now-dead actor.
+            internal int lastVisibleRoom = -1;
+            internal int lastVisiblePhase;
+            internal int lastBriarCell = -1;
         }
         private readonly ConditionalWeakTable<Enemy, BossPhaseCue> bossPhaseCues =
             new ConditionalWeakTable<Enemy, BossPhaseCue>();
@@ -495,12 +501,15 @@ namespace Starfall
         // hit must not repaint the same accepted full-body armor bright white
         // on the first death frame, before the rooted death crossfade begins.
         // Share this palette choice across the live and corpse renderers.
-        private static Color RegionalBossPhaseTint(Color tint, Enemy enemy, int room)
+        private static Color RegionalBossPhaseTint(Color tint, Enemy enemy,
+            int room,int lastVisiblePhase=0)
         {
-            if(enemy!=null&&enemy.boss&&room!=1&&enemy.BossPhase>=2)
+            int phase=lastVisiblePhase>0?lastVisiblePhase:
+                enemy!=null?enemy.BossPhase:1;
+            if(enemy!=null&&enemy.boss&&room!=1&&phase>=2)
             {
-                tint.g*=enemy.BossPhase==2?.94f:.82f;
-                tint.b*=enemy.BossPhase==2?.90f:.83f;
+                tint.g*=phase==2?.94f:.82f;
+                tint.b*=phase==2?.90f:.83f;
             }
             return tint;
         }
@@ -543,6 +552,13 @@ namespace Starfall
             float phaseCue = e.boss ? BossPhaseCueOpacity(e) : 0f;
             if (e.boss)
             {
+                // Capture the most recently drawn living HP stage. Lethal
+                // damage mutates hp before the corpse renderer ever runs.
+                BossPhaseCue lastVisible=bossPhaseCues.GetValue(e,
+                    ignored => new BossPhaseCue());
+                lastVisible.lastVisibleRoom=Game.save.room;
+                lastVisible.lastVisiblePhase=e.BossPhase;
+                lastVisible.lastBriarCell=-1;
                 // Keep base body and hit-flash on the identical authored
                 // frame, dimensions and foot pivot. Painting the idle sheet
                 // over a moving boss previously created a second drifting
@@ -553,6 +569,7 @@ namespace Starfall
                     // Boss phase, windup and contact use the same GameCore
                     // Sprite in living draws and death handoff.
                     int liveCell = BriarBeastLiveCell(e);
+                    lastVisible.lastBriarCell=liveCell;
                     Actor(briarBeastSheet, 4, 18, liveCell,
                         p + offset, size, tint, e.VisualFlip);
                     // On an HP phase transition the *current* whole-body
@@ -719,7 +736,17 @@ namespace Starfall
             // stays unchanged; reduced-motion retains one stable corpse.
             float deathBlendFraction=CurrentWorldVisualLook.deathPoseBlendFraction;
             Color tint = new Color(1, 1, 1, Math.Min(1, body.life / (body.duration * .45f)));
-            tint=RegionalBossPhaseTint(tint,body.actor,body.room);
+            BossPhaseCue previousBoss=null;
+            if(body.actor.boss)
+            {
+                BossPhaseCue candidate;
+                if(bossPhaseCues.TryGetValue(body.actor,out candidate) &&
+                    candidate.lastVisibleRoom==body.room &&
+                    candidate.lastVisiblePhase>0)
+                    previousBoss=candidate;
+            }
+            tint=RegionalBossPhaseTint(tint,body.actor,body.room,
+                previousBoss!=null?previousBoss.lastVisiblePhase:0);
             // Keep the contact patch as a corpse fades out; a death frame
             // otherwise snaps from a solid grounded sprite into a floating one.
             DrawActorContactShadow(p,body.actor.boss?BossCanvasSize(body.room)*.57f:
@@ -739,7 +766,10 @@ namespace Starfall
                 float mix=handoff?
                     Mathf.Clamp01(progress/Math.Max(.01f,deathBlendFraction)):1f;
                 if(handoff&&mix<1f)
-                    Actor(briarBeastSheet,4,18,BriarBeastLiveCell(body.actor),
+                    Actor(briarBeastSheet,4,18,
+                        previousBoss!=null&&previousBoss.lastBriarCell>=0?
+                            previousBoss.lastBriarCell:
+                            BriarBeastLiveCell(body.actor),
                         p,BossCanvasSize(body.room),
                         new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
                         body.actor.VisualFlip);
