@@ -362,6 +362,49 @@ public static class ActorRegistrationChecks
             foe.hitTime=0;
             foe.flash=0;
             foe.releaseTime=0;
+            // The SAME accepted upright bowman must survive standstill,
+            // actual GameCore walk, and isolated hit recovery. Before this
+            // production fix, moving N/S swapped to an entirely unrelated
+            // painted monster even though the bow was visible on attack.
+            var anchoredCell=heading==0?0:3;
+            for(int posture=0;posture<3;posture++)
+            {
+                foe.moving=posture==1;
+                foe.moveTime=posture==1?.35f:0f;
+                foe.hitTime=posture==2?.09f:0f;
+                foe.flash=posture==2?.07f:0f;
+                Clear();Place(app,foe.Position,
+                    new Point(410+heading*300,350));
+                var postureCalls=Draw(app,"DrawEnemyActor",foe);
+                var sameBow=postureCalls.FirstOrDefault(c=>
+                    c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical");
+                Check(sameBow!=null&&
+                    !postureCalls.Any(c=>
+                        c.texture.name=="resource:Frontier/Art/Monsters"||
+                        c.texture.name=="resource:Frontier/Art/WalkMonsters")&&
+                    Math.Abs(sameBow.uv.x-(anchoredCell%3)/3f)<.00001f&&
+                    Math.Abs(sameBow.uv.y-
+                        (1f-(anchoredCell/3+1)/2f))<.00001f&&
+                    Math.Abs(sameBow.rect.y-
+                        (350-sameBow.rect.height*120f/128f))<1.1f,
+                    "Vertical archer idle/walk/hit changed class or lost source-pixel boots");
+                if(posture==2)
+                {
+                    var flash=postureCalls.FirstOrDefault(c=>
+                        c.texture.name.Contains("flash_EnemyArcherVertical")||
+                        c.texture.name.Contains(
+                            "flash_resource_Frontier_Art_EnemyArcherVertical"));
+                    Check(flash!=null&&
+                        Math.Abs(flash.uv.x-sameBow.uv.x)<.00001f&&
+                        Math.Abs(flash.rect.y-sameBow.rect.y)<.001f,
+                        "Isolated archer hit briefly flashed generic monster armor");
+                }
+                GUI.Export(folder,"review-archer-"+heading+
+                    "-continuous-"+posture);
+            }
+            foe.moving=false;
+            foe.hitTime=0;foe.flash=0;
             // The sixth cell on the same accepted atlas is a genuine
             // authored fallen archer. Death must not turn into a generic
             // monster/another face when live hitboxes are removed.
@@ -410,7 +453,7 @@ public static class ActorRegistrationChecks
                 "Horizontal archer corpse lost original canvas/foot or death cell");
             GUI.Export(folder,"review-archer-horizontal-"+(facingX<0?"west":"east")+"-death");
         }
-        Console.WriteLine("PASS 6 N/S archer action/death source cells and two E/W same-atlas rooted deaths");
+        Console.WriteLine("PASS north/south bowman identity through idle/run/hit/windup/contact/death and two original E/W rooted deaths");
     }
     static void BossFlashFollowsActualMovingSilhouette(FrontierRuntime app)
     {

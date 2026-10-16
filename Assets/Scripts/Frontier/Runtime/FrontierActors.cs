@@ -593,14 +593,16 @@ namespace Starfall
                 else
                 {
                 if (pose == 1 && monsterWalkSheet != null) { sheet = monsterWalkSheet; columns = 4; rows = 3; int gait=GameCore.GaitFrame(e.moveTime,e.kind==0?1.35f:1.8f);frame=Math.Min(2,e.kind)*4+(e.backpedaling?(4-gait)%4:gait); }
-                // A projectile/contact hit flash must not abruptly turn a
-                // north/south bowman into the unrelated Monsters body for
-                // 0.1 seconds before restoring the illustrated bow pose.
-                // Keep the locked native bow cell during an interrupted
-                // windup/release; unrelated idle hits retain original art.
+                // A NORTH/SOUTH bowman is one identity in ALL gameplay
+                // states. Previous idle/run/isolated Hit reverted to
+                // WalkMonsters/Monsters, producing a 1-2 frame unrelated
+                // creature before (or after) its authored bow attack.
+                // Only two complete upright poses exist in the approved
+                // 3x2 archer atlas, so locomotion/idle hold the SAME
+                // painted bow body; never invent moving limbs or reuse
+                // the genuine cell-5 fallen silhouette as a walk cycle.
+                // E/W keeps the established accepted Monsters artwork.
                 vertical = e.kind == 1 && enemyArcherVertical != null &&
-                    (pose == 2 || pose == 3 ||
-                     (pose == 4 && (e.state == 1 || e.releaseTime > 0))) &&
                     Math.Abs(e.facing.y) > Math.Abs(e.facing.x);
                 if (vertical)
                 {
