@@ -408,6 +408,23 @@ public static class NativeNonheroCaptureChecks
                 ReferenceEquals(framesInUse[face2],oldSprites[2])&&
                 Camera.RenderedTargets.Count==oldRenderCount,
                 "Imported Source was rescanned/repainted on every frame");
+            // A newly visited monster action DURING the import cooldown
+            // must show the last atomically accepted source Sprite rather
+            // than a new Animator cell from a partly rebaked family.
+            Time.frameCount=4002;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,4,new Point(180,215),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(framesInUse[
+                    liveTexture.GetInstanceID()+":6:3:4"],oldSprites[4])&&
+                ReferenceEquals(
+                    (typeof(FrontierRuntime).GetField(
+                        "actorCaptureRenderer",BindingFlags.Instance|
+                        BindingFlags.NonPublic).GetValue(upgrade) as
+                        SpriteRenderer).sprite,oldSprites[4])&&
+                Camera.RenderedTargets.Count==oldRenderCount+1,
+                "Animator leaked newly imported single monster contact cell before whole-family validation");
+            int afterBoundedImport=Camera.RenderedTargets.Count;
             Time.frameCount=4181;
             Require((bool)method.Invoke(upgrade,new object[]{
                 liveTexture,6,3,2,new Point(180,215),96f,
@@ -415,20 +432,20 @@ public static class NativeNonheroCaptureChecks
                 ReferenceEquals(framesInUse[face2],newSprites[2])&&
                 ReferenceEquals(GUI.DrawnTextures[
                     GUI.DrawnTextures.Count-1],originalGpu)&&
-                Camera.RenderedTargets.Count==oldRenderCount+1,
+                Camera.RenderedTargets.Count==afterBoundedImport+1,
                 "Native accepted hot-reimport did not refresh existing GPU pose");
             Time.frameCount=4182;
             Require((bool)method.Invoke(upgrade,new object[]{
                 liveTexture,6,3,3,new Point(180,215),96f,
                 Color.white,false,0f})&&
                 ReferenceEquals(framesInUse[face3],newSprites[3])&&
-                Camera.RenderedTargets.Count==oldRenderCount+2,
+                Camera.RenderedTargets.Count==afterBoundedImport+2,
                 "Full-family artist revision left neighboring action stale");
             Time.frameCount=4183;
             Require((bool)method.Invoke(upgrade,new object[]{
                 liveTexture,6,3,2,new Point(180,215),96f,
                 Color.white,true,0f})&&
-                Camera.RenderedTargets.Count==oldRenderCount+3,
+                Camera.RenderedTargets.Count==afterBoundedImport+3,
                 "Flipped GPU pose remained a pre-reimport enemy silhouette");
             // Corrupt one frame in the next complete import. Nothing may
             // mix old, new, and corrupted importer Sprites.

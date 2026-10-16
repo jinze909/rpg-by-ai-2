@@ -500,6 +500,13 @@ namespace Starfall
                 Vector2.Distance(actual.pivot, expected.pivot) < .05f &&
                 Mathf.Abs(actual.pixelsPerUnit - expected.pixelsPerUnit) < .05f)
             {
+                // A partially re-imported Animator can sample a new
+                // geometry-identical monster/NPC cell BEFORE the whole
+                // source family has been atomically revalidated. Keep
+                // Animator sampling for formal pose and clip QA, but the
+                // visible source is always the LAST accepted complete
+                // original Sprite until the importer passes every cell.
+                actorCaptureRenderer.sprite=expected;
                 actorNativeRejectedPoseUntil.Remove(poseKey);
                 return true;
             }
