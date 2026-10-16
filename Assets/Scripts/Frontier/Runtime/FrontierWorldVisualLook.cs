@@ -16,6 +16,14 @@ namespace Starfall
             public float snowpineSwayDegrees=.24f;
             public float waterGlintAlpha=.12f;
             public float waterGlintRate=.89f;
+            // Approved illustrated Effects.png air movement. Artist-editable
+            // Resources fields control density/flow without touching hero art,
+            // quest data or inventing new standalone sprite animations.
+            public float ambientMoteDayAlpha=.13f;
+            public float ambientMoteNightAlpha=.21f;
+            public float snowMoteWindX=.13f;
+            public float desertMoteWindX=.16f;
+            public float coastMoteLift=.12f;
             public float lampRadius=114f;
             public float nightLightAlpha=.29f;
             public float dayLightAlpha=.13f;
@@ -76,6 +84,21 @@ namespace Starfall
                             case "waterGlintRate":
                                 if(value>=.1f&&value<=2f)
                                     settings.waterGlintRate=value;break;
+                            case "ambientMoteDayAlpha":
+                                if(value>=.04f&&value<=.18f)
+                                    settings.ambientMoteDayAlpha=value;break;
+                            case "ambientMoteNightAlpha":
+                                if(value>=.10f&&value<=.24f)
+                                    settings.ambientMoteNightAlpha=value;break;
+                            case "snowMoteWindX":
+                                if(value>=.04f&&value<=.20f)
+                                    settings.snowMoteWindX=value;break;
+                            case "desertMoteWindX":
+                                if(value>=.05f&&value<=.22f)
+                                    settings.desertMoteWindX=value;break;
+                            case "coastMoteLift":
+                                if(value>=.04f&&value<=.17f)
+                                    settings.coastMoteLift=value;break;
                             case "lampRadius":
                                 if(value>=90f&&value<=150f)
                                     settings.lampRadius=value;break;

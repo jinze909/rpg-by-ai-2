@@ -1498,6 +1498,29 @@ public static class RenderStateChecks
         Check(original!=null&&GUI.textureCalls.Count>0,
             "forest biome must emit sparse live illustrated motes");
         var strokes=GUI.textureCalls.ToArray();
+        // The on-disk Unity TextAsset MUST actually control the real
+        // painted atmosphere, not merely document unused look constants.
+        var profile=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private);
+        Check(profile!=null,"Mote art direction profile missing");
+        var look=profile.GetValue(app,null);
+        var dayAlpha=look.GetType().GetField("ambientMoteDayAlpha",
+            BindingFlags.Public|BindingFlags.Instance);
+        Check(dayAlpha!=null,"Editable source-defined daylight mote absent");
+        float authoredDay=(float)dayAlpha.GetValue(look);
+        try
+        {
+            dayAlpha.SetValue(look,authoredDay*.5f);
+            Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+            Check(GUI.textureCalls.Count==strokes.Length&&
+                Math.Abs(GUI.textureCalls[0].color.a-
+                    strokes[0].color.a*.5f)<.00001f,
+                "WorldLook daylight edit never reached production motes");
+        }
+        finally { dayAlpha.SetValue(look,authoredDay); }
+        Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+        Check(GUI.textureCalls.Count==strokes.Length,
+            "Visual profile edit invalidated stable biome emitters");
         foreach(var fleck in strokes)
             Check(object.ReferenceEquals(fleck.texture,original)&&
                 Math.Abs(fleck.uv.x-.25f)<.0001f&&
@@ -1810,7 +1833,9 @@ public static class RenderStateChecks
             "escortHitLeanDegrees","combatWarningStrokePixels",
             "projectileTrailFadeDistance","companionStrideDistanceFactor",
             "companionFootfallSeconds","companionFacingThreshold",
-            "companionAttackPlantSeconds"};
+            "companionAttackPlantSeconds",
+            "ambientMoteDayAlpha","ambientMoteNightAlpha",
+            "snowMoteWindX","desertMoteWindX","coastMoteLift"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -1831,7 +1856,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS seventeen source-controlled WorldLook values for terrain, companion gait, actors and combat FX");
+        Console.WriteLine("PASS 22 source-controlled WorldLook values for terrain, ambient motion, companion gait, actors and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual

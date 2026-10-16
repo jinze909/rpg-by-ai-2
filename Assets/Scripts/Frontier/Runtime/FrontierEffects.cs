@@ -21,7 +21,9 @@ namespace Starfall
             if(effectSheet==null)RecoverPublishedVisualAtlases();
             if(effectSheet==null)return;
             int density=Game.save.effectsQuality==1?13:8;
-            float baseOpacity=Game.Night?.21f:.13f;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float baseOpacity=Game.Night?
+                look.ambientMoteNightAlpha:look.ambientMoteDayAlpha;
             Color ink=region==0||region==1?
                 new Color(.80f,.95f,.67f,1f):region==2?
                 new Color(.77f,.89f,.90f,1f):region==3?
@@ -48,10 +50,11 @@ namespace Starfall
                     // painted source cell, never resynthesized body pixels.
                     float phase=(seed%211)*.071f;
                     float flicker=.5f+.5f*(float)Math.Sin(clock*.9f+phase);
-                    float windX=region==7?.13f:region==6?.16f:
+                    float windX=region==7?look.snowMoteWindX:
+                        region==6?look.desertMoteWindX:
                         region==5?.10f:.06f;
                     float windY=region==7?.11f:region==6?.035f:
-                        region==5?.12f:.08f;
+                        region==5?look.coastMoteLift:.08f;
                     Point drift=anchor+new Point(
                         (float)Math.Sin(clock*.35f+phase)*windX,
                         (float)Math.Sin(clock*.44f+phase*1.3f)*windY);

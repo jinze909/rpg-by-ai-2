@@ -9,6 +9,17 @@ snowpineSwayDegrees=0.24
 # Fractional alpha of a source-pixel water sample; not an opaque tile overlay.
 waterGlintAlpha=0.12
 waterGlintRate=0.89
+
+# Existing hand-painted Effects.png atmosphere (not procedural square art).
+# Mote alpha stays below character and combat highlight opacity.
+# Wind controls are world-space fractions of a tile; no scene-wide teleport.
+# Bounds in FrontierWorldVisualLook prevent overwhelming action readability.
+ambientMoteDayAlpha=0.13
+ambientMoteNightAlpha=0.21
+snowMoteWindX=0.13
+desertMoteWindX=0.16
+coastMoteLift=0.12
+
 # Ambient light stays secondary to the detailed painted lamp/roof/metal pixels.
 lampRadius=114
 nightLightAlpha=0.29
