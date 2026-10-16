@@ -2,6 +2,7 @@
 // editor button skin. This is not a substitute for native Unity GPU checks.
 using System;
 using System.Reflection;
+using System.Linq;
 using Starfall;
 using UnityEngine;
 
@@ -3450,6 +3451,21 @@ public static class RenderStateChecks
                 "Authored windup glyph must progress with real attack timer, not slide");
             GUI.Export(".starfall-checks/sprite-qa",
                 "review-original-Boss-target-rune-real-windup");
+            // Exercise the REAL production world pass as well as the
+            // targeted renderer. This includes depth-sorted actor bodies,
+            // foliage and hero, and the forward warning overlay.
+            g.enemies.Add(boss);
+            Clear();Call(app,"OnGUI");
+            Check(GUI.textureCalls.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/CastSigils")&&
+                GUI.textureCalls.Any(c=>
+                    c.texture.name.IndexOf(
+                        "Frontier/HeroAnimator/Canonical/Hero_",
+                        StringComparison.Ordinal)>=0),
+                "Actual game world omitted locked Boss rune or canonical gold-haired protagonist");
+            GUI.Export(".starfall-checks/sprite-qa",
+                "review-live-world-Boss-attack-rune-and-hero");
+            g.enemies.Clear();
             var elite=new Enemy(91396,2,pos.x,pos.y,80f){
                 state=1,timer=.3f,windupDuration=.65f,
                 target=pos+new Point(1f,0f)
