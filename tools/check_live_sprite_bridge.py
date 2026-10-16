@@ -667,7 +667,8 @@ def check():
         "Production hero must default to unified SpriteRenderer; F8 opt-out retained")
     assert "if(!useSpriteRendererHero||drawingOutline||" in engine
     assert "if(heroCaptureBroken)" in engine
-    assert "if(Time.frameCount < heroCaptureRetryAt)return false;" in engine
+    assert "if(Time.frameCount < heroCaptureRetryAt &&" in engine
+    assert "Time.frameCount >= heroCaptureRetryAt-120)return false;" in engine
     assert "heroCaptureRetryAt = Time.frameCount + 120;" in engine
     assert "if(!captured)" in actor and "DrawWholeBodyHeroOnGUI" in actor
     assert "KeyCode.F8" in game and "else ReleaseHeroCapture();" in game
