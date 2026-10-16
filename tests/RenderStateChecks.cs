@@ -1801,6 +1801,42 @@ public static class RenderStateChecks
                     "Crossfade switched to nonauthored effect art");
                 Near(Center(spark),Center(release),
                     "Crossfade made two disconnected hit centers");
+                if(kind=="impact")
+                {
+                    // The ACTUAL Unity Resources WorldLook art parameter
+                    // must control the opacity exchange in this exact
+                    // production DrawAuthoredEffect path.
+                    var property=typeof(FrontierRuntime).GetProperty(
+                        "CurrentWorldVisualLook",Private);
+                    Check(property!=null,
+                        "Crossfade look profile is not wired into runtime");
+                    var look=property.GetValue(app,null);
+                    var width=look.GetType().GetField(
+                        "hitContactBlendFraction",
+                        BindingFlags.Instance|BindingFlags.Public);
+                    Check(width!=null,
+                        "Impact overlap duration missing from art resource");
+                    float authored=(float)width.GetValue(look);
+                    try
+                    {
+                        hit.life=.35f; // 30% elapsed; safely inside both.
+                        Clear();Call(app,"DrawAuthoredEffect",hit);
+                        Check(GUI.textureCalls.Count==2,
+                            "Impact did not blend at default authored width");
+                        float oldMix=GUI.textureCalls[1].color.a;
+                        width.SetValue(look,.08f);
+                        Clear();Call(app,"DrawAuthoredEffect",hit);
+                        Check(GUI.textureCalls.Count==2&&
+                            GUI.textureCalls[1].color.a<oldMix-.09f&&
+                            GUI.textureCalls[1].color.a>0f,
+                            "Editing WorldLook contact duration did not change live opacity");
+                    }
+                    finally{width.SetValue(look,authored);}
+                    hit.life=.34f;
+                    Clear();Call(app,"DrawAuthoredEffect",hit);
+                    spark=GUI.textureCalls[0];
+                    release=GUI.textureCalls[1];
+                }
                 Check(spark.color.a>.45f&&spark.color.a<.55f&&
                     release.color.a>.45f&&release.color.a<.55f&&
                     Math.Abs(spark.color.a+release.color.a-1f)<.001f,
@@ -2327,7 +2363,8 @@ public static class RenderStateChecks
             "ambientMoteDayAlpha","ambientMoteNightAlpha",
             "snowMoteWindX","desertMoteWindX","coastMoteLift",
             "groundFoliageSwayDegrees",
-            "hazardRingAlpha","hazardCountdownAlpha"};
+            "hazardRingAlpha","hazardCountdownAlpha",
+            "hitContactBlendFraction"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -2348,7 +2385,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 25 source-controlled WorldLook values for terrain, foliage, ambient motion, hazard warnings, companion gait, actors and combat FX");
+        Console.WriteLine("PASS 26 source-controlled WorldLook values for terrain, foliage, ambient motion, hit contact, hazard warnings, companion gait, actors and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual

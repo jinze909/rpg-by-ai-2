@@ -222,14 +222,18 @@ namespace Starfall
             // Overlap the two ORIGINAL hand-painted whole effect Sprites on
             // the SAME GameCore contact pivot for just 16% of the effect
             // lifetime; no new animation clock, collision or fake body art.
+            float contactWindow=CurrentWorldVisualLook.hitContactBlendFraction;
+            float beginContact=.32f-contactWindow*.5f;
+            float endContact=.32f+contactWindow*.5f;
             bool blendContact=Game.save.effectsQuality>0 &&
                 !Game.save.reducedMotion &&
                 (effect.kind=="impact"||effect.kind=="hurt"||
                  effect.kind=="projectileImpact") &&
-                progress>.24f&&progress<.40f;
+                progress>beginContact&&progress<endContact;
             if(blendContact)
             {
-                float mix=Mathf.Clamp01((progress-.24f)/.16f);
+                float mix=Mathf.Clamp01((progress-beginContact)/
+                    contactWindow);
                 int releaseCell=effect.kind=="projectileImpact"?4:2;
                 Atlas(effectSheet,4,4,3,contactRect,
                     new Color(color.r,color.g,color.b,color.a*(1f-mix)),

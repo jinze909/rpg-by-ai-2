@@ -38,6 +38,9 @@ escortHitLeanDegrees=1.35
 # Whole-Sprite combat readability; bounds enforced at runtime.
 combatWarningStrokePixels=1.80
 projectileTrailFadeDistance=0.18
+# Portion of REAL hit lifetime used to overlap illustrated spark and debris.
+# Does not change damage/contact timing, Sprite pixels or low-FX motion.
+hitContactBlendFraction=0.16
 # Front-most timed hazard warning: translucent outline preserves character
 # identity while the timer stays near full readability on crowded maps.
 # These tune the ACTUAL combat world, never any GameCore damage radius.
