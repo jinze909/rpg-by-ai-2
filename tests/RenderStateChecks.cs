@@ -1758,6 +1758,85 @@ public static class RenderStateChecks
         Console.WriteLine(
             "PASS rooted continuous attack telegraph: precise melee radius, 3 angles, letterboxed canvas and reduced motion");
     }
+    private static void AuthoredHitContactCrossfadePreservesWorldPivot(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        var accepted=Get<Texture2D>(app,"effectSheet");
+        Check(accepted!=null,
+            "Contact transition requires original illustrated Effects.png");
+        var viewport=Matrix4x4.TRS(new Vector3(31f,27f,0f),
+            Quaternion.identity,new Vector3(1.2f,1.2f,1f));
+        var originalMatrix=GUI.matrix;
+        var incoming=new Color(.2f,.3f,.4f,.75f);
+        var originalColor=GUI.color;
+        try
+        {
+            GUI.matrix=viewport;GUI.color=incoming;
+            foreach(string kind in new[]{"impact","hurt","projectileImpact"})
+            {
+                var hit=new Effect(kind,new Point(13.5f,14.5f),.5f);
+                hit.life=.45f;
+                Clear();Call(app,"DrawAuthoredEffect",hit);
+                Check(GUI.textureCalls.Count==1&&
+                    object.ReferenceEquals(GUI.textureCalls[0].texture,accepted)&&
+                    Math.Abs(GUI.textureCalls[0].uv.x-.75f)<.00001f,
+                    "First real contact must show one original spark Sprite");
+                hit.life=.34f; // 32% lifetime: the authored cell seam.
+                Clear();Call(app,"DrawAuthoredEffect",hit);
+                Check(GUI.textureCalls.Count==2,
+                    "Hit contact swapped hand-painted Sprite in one frame");
+                var spark=GUI.textureCalls[0];
+                var release=GUI.textureCalls[1];
+                Check(object.ReferenceEquals(spark.texture,accepted)&&
+                    object.ReferenceEquals(release.texture,accepted)&&
+                    Math.Abs(spark.uv.x-.75f)<.00001f&&
+                    Math.Abs(release.uv.x-
+                        (kind=="projectileImpact"?0f:.5f))<.00001f&&
+                    Math.Abs(spark.uv.width-.25f)<.00001f&&
+                    Math.Abs(release.uv.width-.25f)<.00001f,
+                    "Crossfade switched to nonauthored effect art");
+                Near(Center(spark),Center(release),
+                    "Crossfade made two disconnected hit centers");
+                Check(spark.color.a>.45f&&spark.color.a<.55f&&
+                    release.color.a>.45f&&release.color.a<.55f&&
+                    Math.Abs(spark.color.a+release.color.a-1f)<.001f,
+                    "Short contact overlap popped in brightness/opacity");
+                Same(GUI.matrix,viewport,
+                    "Crossfading impact leaked Sprite rotation to next actor");
+                Same(GUI.color,incoming,
+                    "Crossfading impact leaked tint to world/HUD");
+                hit.life=.20f; // 60%: fully transitioned.
+                Clear();Call(app,"DrawAuthoredEffect",hit);
+                Check(GUI.textureCalls.Count==1&&
+                    Math.Abs(GUI.textureCalls[0].uv.x-
+                        (kind=="projectileImpact"?0f:.5f))<.00001f,
+                    "Late hit must use exactly one authored recovery Sprite");
+                hit.life=.34f;
+                game.save.reducedMotion=true;
+                Clear();Call(app,"DrawAuthoredEffect",hit);
+                Check(GUI.textureCalls.Count==1,
+                    "Reduced-motion must suppress secondary contact motion");
+                game.save.reducedMotion=false;
+                game.save.effectsQuality=0;
+                Clear();Call(app,"DrawAuthoredEffect",hit);
+                Check(GUI.textureCalls.Count==1,
+                    "Lowest FX tier must retain one real readable impact");
+                game.save.effectsQuality=2;
+            }
+            Console.WriteLine(
+                "PASS actual hit/arrow/magic projectile contact: authored 3->2/4 short crossfade, exact pivot and opacity, reduced-motion/FX");
+        }
+        finally
+        {
+            GUI.matrix=originalMatrix;GUI.color=originalColor;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     private static void MagicImpactHasARealContactLightAndStableAnchor(
         FrontierRuntime app)
     {
@@ -2284,7 +2363,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

@@ -214,7 +214,31 @@ namespace Starfall
             if (effect.kind == "heal") color = new Color(.65f, 1, .8f, color.a);
             float height = effect.kind == "impact" || effect.kind == "hurt" || effect.kind == "spark" || effect.kind == "slash" || effect.kind == "projectileImpact" || effect.kind == "magicImpact" || effect.kind == "release" || effect.kind == "heal" ? 30 : effect.kind == "defeat" ? 18 : effect.kind == "enemyRelease" && id != 7 ? 38 : 0;
             if (effect.height >= 0) height = effect.height;
-            Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2 - height, size, size), color, false, angle);
+            Rect contactRect=new Rect(p.x-size/2,p.y-size/2-height,
+                size,size);
+            // Hit reactions previously replaced the bright contact star
+            // with an unrelated dust/deflection cell in ONE repaint. This
+            // made an otherwise continuous melee/arrow impact visibly pop.
+            // Overlap the two ORIGINAL hand-painted whole effect Sprites on
+            // the SAME GameCore contact pivot for just 16% of the effect
+            // lifetime; no new animation clock, collision or fake body art.
+            bool blendContact=Game.save.effectsQuality>0 &&
+                !Game.save.reducedMotion &&
+                (effect.kind=="impact"||effect.kind=="hurt"||
+                 effect.kind=="projectileImpact") &&
+                progress>.24f&&progress<.40f;
+            if(blendContact)
+            {
+                float mix=Mathf.Clamp01((progress-.24f)/.16f);
+                int releaseCell=effect.kind=="projectileImpact"?4:2;
+                Atlas(effectSheet,4,4,3,contactRect,
+                    new Color(color.r,color.g,color.b,color.a*(1f-mix)),
+                    false,angle);
+                Atlas(effectSheet,4,4,releaseCell,contactRect,
+                    new Color(color.r,color.g,color.b,color.a*mix),
+                    false,angle);
+            }
+            else Atlas(effectSheet,4,4,id,contactRect,color,false,angle);
             // A spell currently has a fine, illustrated teal vortex but its
             // point of contact looks static. Use the ORIGINAL authored
             // Effects.png contact star (cell 13) as a short-lived second
