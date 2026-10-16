@@ -214,6 +214,38 @@ namespace Starfall.Tests
                 Check(near, "Unreachable distant object in room " + g.save.room + ": " + o.id);
             }
         }
+        public static void CompanionPartySwapStartsFromPlantedOriginalGait(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.SelectCompanion(0);
+            Check(g.save.companion == 0,
+                "Unlocked starting follower must be selectable");
+            g.companionMoveTime = 4.25f;
+            g.companionMoving = true;
+            var pending = new ActorAction {
+                kind = "command", weapon = 0, duration = .42f,
+                contact = .16f, direction = new Point(1,0)
+            };
+            g.companionAction = pending;
+            g.SelectCompanion(0); // Existing command must never be canceled.
+            Check(g.companionAction == pending &&
+                Math.Abs(g.companionMoveTime-4.25f)<.00001f &&
+                g.companionMoving,
+                "Reselecting the SAME ally may not rewind feet or cancel commands");
+            g.SelectCompanion(1);
+            Check(g.save.companion == 1 &&
+                g.companionAction == null && !g.companionMoving &&
+                g.companionMoveTime == 0f &&
+                g.companionAim.Length > .9f,
+                "A real follower swap must not inherit the old outfit's airborne stride");
+            g.companionMoveTime = 2.4f;
+            g.companionMoving = true;
+            g.SelectCompanion(-1);
+            Check(g.save.companion == -1 &&
+                !g.companionMoving && g.companionMoveTime == 0f,
+                "Dismissed follower may not retain phantom walking animation");
+        }
+
         public static void DistantReachability(Campaign data)
         {
             var g = Unlocked(data);

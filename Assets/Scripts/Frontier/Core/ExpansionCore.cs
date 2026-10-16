@@ -252,7 +252,20 @@ namespace Starfall
             // its next automatic action just because the same icon was tapped.
             if (id == save.companion) return;
             if (!SafeTravel) return;
-            save.companion = id; companionAction = null; companionPosition = CompanionFollowTarget(); companionAttack = 1; revision++;
+            save.companion = id;
+            companionAction = null;
+            companionPosition = CompanionFollowTarget();
+            companionAttack = 1;
+            // A different companion is a new walking identity. The old
+            // follower's traveled-distance phase previously carried over
+            // mid-stride and made the new body start on an airborne leg.
+            // This is transient motion state only; saved relationships,
+            // commands and old save formats remain untouched.
+            companionMoveTime = 0f;
+            companionMoving = false;
+            companionAim = aim.Length > .001f ?
+                aim.Normalized : new Point(1,0);
+            revision++;
         }
         public void CompanionStory(int id)
         {
@@ -330,7 +343,13 @@ namespace Starfall
             }
             Point follow = CompanionFollowTarget();
             Point delta = follow - companionPosition;
-            if (!Fits(companionPosition)) companionPosition = follow; // Recovery only; never teleport to catch up.
+            if (!Fits(companionPosition))
+            {
+                companionPosition = follow; // Recovery only, never catch-up warp.
+                // A collision recovery is NOT a physical footstep. Restart
+                // the source contact phase at the valid planted root.
+                companionMoveTime = 0f;
+            }
             else if (delta.Length > .3f)
             {
                 Point heading = DirectionTo(companionPosition, follow), before = companionPosition;
