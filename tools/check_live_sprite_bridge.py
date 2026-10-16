@@ -426,7 +426,21 @@ def check():
         assert "Actor(original" not in fallback
         assert "Actor(source" not in preview
         assert '"Hero_"+FullHeroClasses[profession]+"_Idle_S"' in preview
-        assert "Resources.Load<Texture2D>" in preview
+        # The whole-body world fallback and the inventory MUST share
+        # one validated reimport-aware resource reader. Requiring a direct
+        # Resources.Load within the preview itself falsely rejected safe
+        # centralization and could not catch stale cached player costumes.
+        reader=actor_code[actor_code.index("private Texture2D PublishedFullBodyHeroAtlas("):
+                          actor_code.index("private bool ResolveFullBodyHeroFrame(")]
+        assert "PublishedFullBodyHeroAtlas(key,1)" in preview
+        assert "PublishedFullBodyHeroAtlas(key,frames)" in fallback
+        assert "PublishedFullBodyHeroAtlas(idleKey,1)" in fallback
+        assert 'Resources.Load<Texture2D>' in reader
+        assert '"Frontier/HeroAnimator/Canonical/"+key' in reader
+        assert 'candidate.width==expectedWidth' in reader
+        assert 'candidate.height==256' in reader
+        assert "fullBodyHeroSheetCache[key]=candidate;" in reader
+        assert "fullBodyHeroRecheckAt[key]=clock+2.5f;" in reader
         # Three disjoint production paths must source the SAME verified
         # canonical body: invalid-clip rejection, verified Animator sampling,
         # and direct Controller-unavailable fallback. This third binding
@@ -467,6 +481,12 @@ def check():
          actor,engine.replace(
              "heroPublishedUnavailable.Remove(key);",
              "/* permanent-missing */",1),core),
+        ("accept_truncated_hot_import",
+         actor.replace("candidate.width==expectedWidth",
+             "candidate.width>0",1),engine,core),
+        ("disconnect_preview_from_canonical_reader",
+         actor.replace("PublishedFullBodyHeroAtlas(key,1)",
+             "LoadOldUnreviewedAvatar(key)",1),engine,core),
     ):
         try:
             check_combat_identity(corrupt_actor,corrupt_engine,corrupt_core)
