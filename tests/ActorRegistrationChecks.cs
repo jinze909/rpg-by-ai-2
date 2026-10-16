@@ -1456,7 +1456,49 @@ public static class ActorRegistrationChecks
                 Math.Abs(alert.uv.width-.25f)<.00001f&&
                 alert.color.a>.6f&&alert.color.r>=.99f,
                 "Rescue danger symbol must use its own approved bottom pixel row");
-            Console.WriteLine("PASS production NPC conversation source pinning, distinct 4-frame painted speech/danger, body identity, world root, motion and FX controls");
+            // Simulate Unity's two-stage SpriteImporter replacement.
+            // A half-published atlas MUST NOT replace the valid whole
+            // 8-cell signal source in already running conversations.
+            const string overrideKey="Frontier/Art/NpcActionSignals";
+            Texture2D previousImport;
+            bool overridden=Resources.TextureOverrides.TryGetValue(
+                overrideKey,out previousImport);
+            Texture2D originalSheet=alert.texture;
+            try
+            {
+                Resources.TextureOverrides[overrideKey]=new Texture2D(
+                    95,40,TextureFormat.RGBA32,false){
+                    name="partially-imported-npc-cues"};
+                Set(app,"clock",12f);Clear();
+                Call(app,"DrawNpcActionSignal",new Point(320,360),1,14);
+                Check(object.ReferenceEquals(
+                    GUI.textureCalls.Single().texture,originalSheet),
+                    "Partial imported NPC art replaced a validated signal mid-scene");
+                var completed=new Texture2D(
+                    96,40,TextureFormat.RGBA32,false){
+                    name="validated-republished-npc-cues"};
+                Resources.TextureOverrides[overrideKey]=completed;
+                Set(app,"clock",15f);Clear();
+                Call(app,"DrawNpcActionSignal",new Point(320,360),1,14);
+                Check(object.ReferenceEquals(
+                    GUI.textureCalls.Single().texture,completed),
+                    "Complete late NPC art import failed to appear without scene reload");
+                // A new game or visual review can start at clock zero.
+                Resources.TextureOverrides[overrideKey]=originalSheet;
+                Set(app,"clock",0f);Clear();
+                Call(app,"DrawNpcActionSignal",new Point(320,360),0,0);
+                Check(object.ReferenceEquals(
+                    GUI.textureCalls.Single().texture,originalSheet),
+                    "Clock rewind kept NPC icon generation from previous save");
+            }
+            finally
+            {
+                if(overridden)Resources.TextureOverrides[overrideKey]=previousImport;
+                else Resources.TextureOverrides.Remove(overrideKey);
+                Set(app,"npcActionSignalSheet",originalSheet);
+                Set(app,"npcSignalRetryAt",float.NegativeInfinity);
+            }
+            Console.WriteLine("PASS production NPC speech/escort 8 painted frames, source pinning, feet/identity, low FX, reduced motion and atomic hot-reimport recovery");
         }
         finally
         {
