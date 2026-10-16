@@ -1985,6 +1985,108 @@ public static class RenderStateChecks
             Clear();
         }
     }
+    // A real authored sword uses two fully painted Effects.png contact
+    // poses. Their previous instantaneous 38% seam caused a one-frame
+    // jump even though the GameCore effect position never moved.
+    private static void SlashWholeEffectFramesHaveOneContactPivot(
+        FrontierRuntime app,string folder)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        var source=Get<Texture2D>(app,"effectSheet");
+        Check(source!=null,
+            "Original sword slash Sprite cells missing from production");
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        var existing=GUI.matrix;
+        var canvas=Matrix4x4.TRS(new Vector3(29,41,0),
+            Quaternion.identity,new Vector3(1.17f,1.17f,1));
+        var oldColor=GUI.color;
+        var look=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private).GetValue(app,null);
+        var width=look.GetType().GetField("slashBridgeFraction",
+            BindingFlags.Instance|BindingFlags.Public);
+        Check(width!=null,"Accepted visual settings omitted slash handoff");
+        float authored=(float)width.GetValue(look);
+        try
+        {
+            GUI.matrix=canvas;
+            GUI.color=new Color(.7f,.8f,.9f,.72f);
+            foreach(Point direction in new[]{new Point(1,0),
+                new Point(-1,0),new Point(0,1),new Point(0,-1)})
+            {
+                var slash=new Effect("slash",new Point(13.25f,14.75f),.5f){
+                    direction=direction};
+                slash.life=.48f; // first original drawn frame
+                Clear();Call(app,"DrawAuthoredEffect",slash);
+                Check(GUI.textureCalls.Count==1&&
+                    object.ReferenceEquals(GUI.textureCalls[0].texture,source)&&
+                    Math.Abs(GUI.textureCalls[0].uv.x)<.00001f,
+                    "First sword contact must show only original source cell zero");
+                slash.life=.31f; // progress .38, midpoint of authored seam
+                Clear();Call(app,"DrawAuthoredEffect",slash);
+                Check(GUI.textureCalls.Count==2,
+                    "Whole sword action must blend instead of teleporting at 38%");
+                var from=GUI.textureCalls[0];
+                var to=GUI.textureCalls[1];
+                Check(object.ReferenceEquals(from.texture,source)&&
+                    object.ReferenceEquals(to.texture,source)&&
+                    Math.Abs(from.uv.x)<.00001f&&
+                    Math.Abs(to.uv.x-.25f)<.00001f&&
+                    Math.Abs(from.uv.width-.25f)<.00001f&&
+                    Math.Abs(to.uv.width-.25f)<.00001f&&
+                    Math.Abs(from.color.a-.5f)<.02f&&
+                    Math.Abs(to.color.a-.5f)<.02f,
+                    "Sword blend may only use two original full contact paintings");
+                Near(Center(from),Center(to),
+                    "Blended sword sources moved to two unrelated weapon roots");
+                Same(from.matrix,to.matrix,
+                    "Original contact cells used different directional rotations");
+                Same(GUI.matrix,canvas,
+                    "Swords leaked their visual rotation into next world Sprite");
+                if(direction.x==1)
+                    GUI.Export(folder,"review-illustrated-sword-contact-overlap");
+                slash.life=.20f; // fully past authored source handoff
+                Clear();Call(app,"DrawAuthoredEffect",slash);
+                Check(GUI.textureCalls.Count==1&&
+                    Math.Abs(GUI.textureCalls[0].uv.x-.25f)<.00001f,
+                    "Recovery must settle on original fully authored second cell");
+                slash.life=.33f; // 34%: inside adjustable crossfade
+                Clear();Call(app,"DrawAuthoredEffect",slash);
+                Check(GUI.textureCalls.Count==2,
+                    "Source art seam width did not reach production renderer");
+                float oldMix=GUI.textureCalls[1].color.a;
+                width.SetValue(look,.10f);
+                Clear();Call(app,"DrawAuthoredEffect",slash);
+                Check(GUI.textureCalls.Count==2&&
+                    GUI.textureCalls[1].color.a<oldMix-.05f,
+                    "Changing WorldLook slash duration did not affect live frames");
+                width.SetValue(look,authored);
+                slash.life=.31f; // exact seam: low-tier disables extra draw
+                game.save.reducedMotion=true;
+                Clear();Call(app,"DrawAuthoredEffect",slash);
+                Check(GUI.textureCalls.Count==1,
+                    "Reduced motion must keep a single stable accepted sword Sprite");
+                game.save.reducedMotion=false;
+                game.save.effectsQuality=0;
+                Clear();Call(app,"DrawAuthoredEffect",slash);
+                Check(GUI.textureCalls.Count==1,
+                    "Minimum visual quality must not allocate extra sword art");
+                game.save.effectsQuality=2;
+            }
+            Console.WriteLine(
+                "PASS real slash action 0->1 source-art overlap, four cardinal directions, identical world pivot, 30-frame fallback, editable quality and accessibility");
+        }
+        finally
+        {
+            width.SetValue(look,authored);
+            GUI.matrix=existing;
+            GUI.color=oldColor;
+            app.EndVisualReview();
+            Clear();
+        }
+    }
+
     private static void AuthoredHitContactCrossfadePreservesWorldPivot(
         FrontierRuntime app)
     {
@@ -2819,7 +2921,7 @@ public static class RenderStateChecks
             "snowMoteWindX","desertMoteWindX","coastMoteLift",
             "groundFoliageSwayDegrees",
             "hazardRingAlpha","hazardCountdownAlpha",
-            "hitContactBlendFraction","impactFlourishAlpha",
+            "hitContactBlendFraction","slashBridgeFraction","impactFlourishAlpha",
             "deathPoseBlendFraction"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
@@ -2841,7 +2943,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 32 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 33 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
@@ -2856,7 +2958,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
