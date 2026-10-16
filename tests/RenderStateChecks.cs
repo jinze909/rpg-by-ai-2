@@ -3134,7 +3134,9 @@ public static class RenderStateChecks
             "snowMoteWindX","desertMoteWindX","coastMoteLift",
             "groundFoliageSwayDegrees",
             "hazardRingAlpha","hazardCountdownAlpha",
-            "hitContactBlendFraction","slashBridgeFraction","impactFlourishAlpha",
+            "hitContactBlendFraction","slashBridgeFraction",
+            "nonheroAtlasHandoffSeconds","bossPhaseMoteAlpha",
+            "impactFlourishAlpha",
             "deathPoseBlendFraction"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
@@ -3156,7 +3158,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 37 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 39 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,

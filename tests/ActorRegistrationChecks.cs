@@ -1699,6 +1699,46 @@ public static class ActorRegistrationChecks
                 "Phase VFX displaced relative to the physically rendered Boss body");
             GUI.Export(".starfall-checks/sprite-qa",
                 "review-boss-phase-source-painted-motes");
+            // These live artist parameters must REACH the real world
+            // renderer. A resource read alone is not sufficient.
+            var visual=typeof(FrontierRuntime).GetProperty(
+                "CurrentWorldVisualLook",
+                BindingFlags.Instance|BindingFlags.NonPublic)
+                .GetValue(app,null);
+            var visualType=visual.GetType();
+            var lightField=visualType.GetField("bossPhaseMoteAlpha");
+            var durationField=visualType.GetField(
+                "nonheroAtlasHandoffSeconds");
+            Check(lightField!=null&&durationField!=null,
+                "Boss rendering no longer exposes bounded WorldLook controls");
+            float originalLight=(float)lightField.GetValue(visual);
+            float originalDuration=(float)durationField.GetValue(visual);
+            try
+            {
+                lightField.SetValue(visual,originalLight*.5f);
+                Clear();
+                var dimmed=Draw(app,"DrawEnemyActor",boss);
+                var dimMote=dimmed.First(c=>c.texture.name==
+                    "resource:Frontier/Art/Effects");
+                Check(Math.Abs(dimMote.color.a-
+                    phaseMotes[0].color.a*.5f)<.0001f,
+                    "WorldLook Boss phase brightness was never used");
+                lightField.SetValue(visual,originalLight);
+                durationField.SetValue(visual,.15f);
+                Clear();
+                var slower=Draw(app,"DrawEnemyActor",boss);
+                float slowerWidth=slower.Single(c=>
+                    c.texture.name==walkName).rect.width;
+                Check(slowerWidth>sourceSize&&
+                    slowerWidth<phaseBody.rect.width-1f,
+                    "WorldLook nonhero transition duration does not drive real frame size");
+            }
+            finally
+            {
+                lightField.SetValue(visual,originalLight);
+                durationField.SetValue(visual,originalDuration);
+                Clear();Draw(app,"DrawEnemyActor",boss);
+            }
             // Interrupt midway: last actually painted size is the new
             // transition start, not the unseen 384px nominal source.
             boss.moving=false;
