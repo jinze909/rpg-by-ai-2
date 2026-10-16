@@ -676,6 +676,57 @@ public static class ActorRegistrationChecks
         }
         Console.WriteLine("PASS 3 actual raider/archer/guard moving deaths: stable pixel feet, accepted full-body handoff, backpedal and reduced-motion");
     }
+    static void EnemyAttackFramesHoldThroughFlash(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,2);
+        var g=app.Game;
+        foreach(int kind in new[]{0,1,2,3})
+        {
+            // All original enemy families including a regional Boss: the
+            // live windup/release must survive a damage flash. A genuinely
+            // cancelled attack (stagger resets state) uses Hit as normal.
+            var foe=new Enemy(94930+kind,kind==3?0:kind,
+                g.Position.x,g.Position.y,250f,kind==3){
+                facing=kind==1?new Point(0,-1):new Point(1,0),
+                windupDuration=1.1f,timer=.45f,state=1,
+                hitTime=.09f,flash=.08f
+            };
+            string name=kind==3?"Bosses":
+                kind==1?"EnemyArcherVertical":"Monsters";
+            Clear();var preparing=Draw(app,"DrawEnemyActor",foe);
+            var body=preparing.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/"+name);
+            int col=kind==3?1:kind==1?0:2;
+            int columns=kind==3?4:kind==1?3:6;
+            Check(body!=null&&Math.Abs(body.uv.x-
+                (float)col/columns)<.00001f,
+                "Enemy windup reverted to Hit/Idle pose during flash: "+name);
+            var outline=preparing.FirstOrDefault(c=>
+                c.texture.name=="resource:Frontier/Art/ActorMasks/flash_"+name||
+                c.texture.name=="flash_resource_Frontier_Art_"+name);
+            Check(outline!=null&&
+                Math.Abs(body.uv.x-outline.uv.x)<.00001f&&
+                Math.Abs(body.rect.y-outline.rect.y)<.001f,
+                "Damage flash masked an unrelated attack Sprite: "+name);
+            foe.state=0;foe.releaseTime=.14f;
+            Clear();var releasing=Draw(app,"DrawEnemyActor",foe);
+            var contact=releasing.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/"+name);
+            Check(contact!=null&&
+                Math.Abs(contact.uv.x-
+                    (float)(kind==3?2:kind==1?1:3)/columns)<.00001f,
+                "Hit briefly cancelled an already released attack frame: "+name);
+            foe.releaseTime=0;foe.hitTime=.09f;
+            Clear();var canceled=Draw(app,"DrawEnemyActor",foe);
+            var reactive=canceled.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/"+name);
+            int expected=kind==3?0:kind==1?0:4;
+            Check(reactive!=null&&
+                Math.Abs(reactive.uv.x-(float)expected/columns)<.00001f,
+                "Stagger-cancelled attack did not recover to Hit frame: "+name);
+        }
+        Console.WriteLine("PASS 4 real enemy/Boss classes: windup/release source frames persist through actual hit flash and cancelled attacks still react");
+    }
     static void PreparedMasks()
     {
         var source=Resources.Load<Texture2D>("Frontier/Art/Bosses");Check(source!=null&&source.isReadable,"Actual metadata must keep source alpha readable after import");
@@ -856,7 +907,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }

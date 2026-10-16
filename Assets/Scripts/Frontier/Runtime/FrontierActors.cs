@@ -437,10 +437,15 @@ namespace Starfall
         }
         private int EnemyPose(Enemy e)
         {
-            if (e.hitTime > 0) return 4;
-            // Keep the actual windup frame until Core releases damage.
+            // A legitimate hit flash cannot CANCEL the authored windup or
+            // contact drawing while GameCore still owns its live attack
+            // clock. The former hit-first priority swapped a real Boss or
+            // bowman to unrelated idle/Hurt art for 1-2 frames, then back.
+            // Actual stagger clears state in GameCore, so cancelled attacks
+            // STILL use the original reactive hit pose.
             if (e.state == 1) return 2;
             if (e.releaseTime > 0) return 3;
+            if (e.hitTime > 0) return 4;
             return e.moving ? 1 : 0;
         }
         private void DrawEnemyActor(Enemy e)
@@ -497,8 +502,8 @@ namespace Starfall
                     int bodyPhase = Math.Min(2, Math.Max(0, e.BossPhase - 1));
                     // Room 1 previously showed release art during the final
                     // 0.2 seconds of windup. Never expose contact until release.
-                    int action = e.hitTime > 0 ? 4 :
-                        e.state == 1 ? 2 : e.releaseTime > 0 ? 3 :
+                    int action = e.state == 1 ? 2 :
+                        e.releaseTime > 0 ? 3 : e.hitTime > 0 ? 4 :
                         e.moving ? 1 : 0;
                     float fraction = action == 2 ?
                         1f - e.timer / Math.Max(.01f, e.windupDuration) :
