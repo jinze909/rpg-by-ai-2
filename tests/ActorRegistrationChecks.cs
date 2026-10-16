@@ -771,6 +771,72 @@ public static class ActorRegistrationChecks
         }
         Console.WriteLine("PASS stationary Boss + three enemy classes: real last-hit full-body Sprite, two rooted death frames, final corpse, reduced motion");
     }
+    static void VerticalArcherDeathHandoffUsesBowIdentity(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        g.save.reducedMotion=false;
+        for(int direction=0;direction<2;direction++)
+        for(int release=0;release<2;release++)
+        {
+            int row=direction==0?0:1;
+            int baseCell=row*3;
+            var foe=new Enemy(94880+direction*2+release,1,
+                g.Position.x,g.Position.y,100){
+                facing=new Point(0,direction==0?-1f:1f),
+                releaseTime=release==1?.12f:0,
+                hitTime=.09f,flash=.06f
+            };
+            Place(app,foe.Position,new Point(420+direction*160,345));
+            Clear();var before=Draw(app,"DrawEnemyActor",foe)
+                .FirstOrDefault(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical");
+            Check(before!=null&&
+                Math.Abs(before.uv.x-
+                    (float)(release==1?1:0)/3f)<.00001f,
+                "Living archer release pose not sourced from its own atlas");
+            var fallen=new FallenActor{actor=foe,room=1,
+                life=.65f,duration=.65f};
+            Clear();var start=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical").ToArray();
+            Check(start.Length==1&&
+                Math.Abs(start[0].uv.x-before.uv.x)<.00001f&&
+                Math.Abs(start[0].uv.y-before.uv.y)<.00001f&&
+                Math.Abs(start[0].rect.x-before.rect.x)<.001f&&
+                Math.Abs(start[0].rect.y-before.rect.y)<.001f,
+                "North/south archer swapped face/bow or foot on lethal hit");
+            fallen.life=.572f;
+            Clear();var mid=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical").ToArray();
+            Check(mid.Length==2&&
+                Math.Abs(mid[0].uv.x-before.uv.x)<.00001f&&
+                Math.Abs(mid[1].uv.x-2f/3f)<.00001f&&
+                Math.Abs(mid[1].uv.y)<.00001f&&
+                Math.Abs(mid[0].color.a-mid[1].color.a)<.0001f&&
+                Math.Abs(mid[0].rect.y-mid[1].rect.y)<.001f,
+                "Death crossfade abandoned same-atlas archer silhouette");
+            fallen.life=.40f;
+            Clear();var complete=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical").ToArray();
+            Check(complete.Length==1&&
+                Math.Abs(complete[0].uv.x-2f/3f)<.00001f,
+                "Late archer death should show only genuine fallen body");
+            g.save.reducedMotion=true;
+            fallen.life=.65f;
+            Clear();var accessible=Draw(app,"DrawFallen",fallen)
+                .Where(c=>c.texture.name==
+                    "resource:Frontier/Art/EnemyArcherVertical").ToArray();
+            Check(accessible.Length==1&&
+                Math.Abs(accessible[0].uv.x-2f/3f)<.00001f,
+                "Reduced-motion archer corpse cannot animate");
+            g.save.reducedMotion=false;
+        }
+        Console.WriteLine(
+            "PASS N/S bowman lethal hit and contact: source bow identity, rooted whole Sprite handoff, same atlas authentic fallen cell and reduced motion");
+    }
     static void EnemyAttackFramesHoldThroughFlash(FrontierRuntime app)
     {
         app.BeginVisualReview(0,2);
@@ -1002,7 +1068,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
