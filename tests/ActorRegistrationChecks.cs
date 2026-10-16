@@ -1791,6 +1791,35 @@ public static class ActorRegistrationChecks
             Check(warped.Any(c=>c.texture.name==movingName)&&
                 !warped.Any(c=>c.texture.name==idleName),
                 "Teleport cannot crossfade a body from an old world coordinate");
+            if(boss)
+            {
+                // A genuine nonlethal Boss hit keeps the SAME accepted
+                // moving whole-body atlas while stunned. Immediately after
+                // hitTime reaches zero it changes to authored Idle. The old
+                // Hit silhouette must NEVER linger under it via a calm
+                // Idle/Walk crossfade. This failed with state.pose==4.
+                var recovering=new Enemy(99433,0,
+                    game.Position.x+1f,game.Position.y+.5f,120f,true);
+                recovering.moving=true;recovering.moveTime=.38f;
+                recovering.flash=0f;
+                Set(app,"clock",12f);Clear();
+                var stride=Draw(app,"DrawEnemyActor",recovering);
+                Check(stride.Any(c=>c.texture.name==movingName)&&
+                    !stride.Any(c=>c.texture.name==idleName),
+                    "Regression setup must start on a real accepted Boss walking Sprite");
+                recovering.hitTime=.07f;
+                Set(app,"clock",12.02f);Clear();
+                var recoiling=Draw(app,"DrawEnemyActor",recovering);
+                Check(recoiling.Any(c=>c.texture.name==movingName),
+                    "Moving Boss must keep its accepted full-body hit silhouette");
+                recovering.hitTime=0f;
+                recovering.moving=false;
+                Set(app,"clock",12.04f);Clear();
+                var recovered=Draw(app,"DrawEnemyActor",recovering);
+                Check(recovered.Any(c=>c.texture.name==idleName)&&
+                    !recovered.Any(c=>c.texture.name==movingName),
+                    "Old Boss moving Hit body ghosted under post-recoil Idle for one or more frames");
+            }
         }
         Console.WriteLine("PASS complete-body NPC-compatible native Sprite actor lane: common/Boss Idle->Walk planted cross-atlas timing, attack interrupt, face-safe old-art fade and accessibility");
     }

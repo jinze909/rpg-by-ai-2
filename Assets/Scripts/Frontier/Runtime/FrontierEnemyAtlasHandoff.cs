@@ -53,8 +53,12 @@ namespace Starfall
             // windup/contact remains instantaneous and fully readable at
             // its GameCore-selected source key. No old attack sprite can
             // conceal a projectile, parry cue or Boss phase transition.
+            // Only Idle <-> Walk are nonviolent handoffs. Letting an
+            // outgoing Hit pose (4) ghost underneath a new Idle body draws
+            // a stale striking silhouette after stun/recoil has already
+            // finished. Combat exits must show their NEW complete Sprite.
             bool quiet=(pose==0||pose==1)&&
-                (state.pose==0||state.pose==1||state.pose==4);
+                (state.pose==0||state.pose==1);
             bool allow=!Game.save.reducedMotion&&
                 Game.save.effectsQuality>0&&!Game.Dying&&
                 enemy.hp>0f&&enemy.state!=1&&
