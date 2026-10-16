@@ -48,9 +48,21 @@ namespace Starfall
         }
         internal static string FootSurface(GameCore game)
         {
-            int x = (int)game.save.x, y = (int)game.save.y;
-            char tile = y >= 0 && y < game.Map.rows.Length && x >= 0 && x < game.Map.rows[y].Length ? game.Map.rows[y][x] : '.';
-            return game.save.room == 9 || game.save.room == 5 && tile == '=' ? "wood" : game.save.room == 7 ? "snow" : game.save.room == 6 || game.save.room == 5 && tile == '%' ? "sand" : game.save.room == 2 || game.save.room == 3 || game.save.room == 4 || game.save.room == 8 || tile == '=' ? "stone" : "grass";
+            return FootSurface(game,game.Position);
+        }
+        // One terrain mapping for audio and visual contacts. An enemy or
+        // companion must sample the ground under ITS feet, not the hero's.
+        internal static string FootSurface(GameCore game,Point foot)
+        {
+            int x=(int)Math.Floor(foot.x),y=(int)Math.Floor(foot.y);
+            char tile=y>=0&&y<game.Map.rows.Length&&x>=0&&
+                x<game.Map.rows[y].Length?game.Map.rows[y][x]:'.';
+            return game.save.room==9 ||
+                game.save.room==5&&tile=='='?"wood":
+                game.save.room==7?"snow":
+                game.save.room==6||game.save.room==5&&tile=='%'?"sand":
+                game.save.room==2||game.save.room==3||
+                game.save.room==4||game.save.room==8||tile=='='?"stone":"grass";
         }
         public void Dispose() { foreach (AudioClip c in clips.Values) UnityEngine.Object.Destroy(c); }
     }
