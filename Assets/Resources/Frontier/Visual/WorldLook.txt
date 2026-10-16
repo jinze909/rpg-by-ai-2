@@ -41,6 +41,9 @@ projectileTrailFadeDistance=0.18
 # Portion of REAL hit lifetime used to overlap illustrated spark and debris.
 # Does not change damage/contact timing, Sprite pixels or low-FX motion.
 hitContactBlendFraction=0.16
+# Supplemental hand-painted full source Sprite intensity for contact art.
+# Never changes the original Effects.png or simulation hit/contact timing.
+impactFlourishAlpha=0.58
 # Front-most timed hazard warning: translucent outline preserves character
 # identity while the timer stays near full readability on crowded maps.
 # These tune the ACTUAL combat world, never any GameCore damage radius.

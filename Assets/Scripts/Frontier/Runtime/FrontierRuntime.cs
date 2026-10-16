@@ -559,6 +559,9 @@ namespace Starfall
             DrawHazardWarnings();
             foreach (Projectile p in Game.projectiles) DrawProjectileVisual(p);
             foreach (Effect e in Game.effects) if (!IsGroundEffect(e)) DrawCombatEffect(e);
+            // Actual GameCore effect clock drives source-painted impact frames,
+            // after all actors/projectiles but before final HUD interaction.
+            DrawAuthoredImpactFlourishes();
             DrawExpansionWorld();
             DrawAtmosphere(); DrawPolishWorld();
             WorldObject near = Game.Nearest();

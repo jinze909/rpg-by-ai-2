@@ -39,6 +39,7 @@ namespace Starfall
             public float hazardCountdownAlpha=.94f;
             public float projectileTrailFadeDistance=.18f;
             public float hitContactBlendFraction=.16f;
+            public float impactFlourishAlpha=.58f;
             // Source-authored companion cadence, not generated anatomy.
             // Each quarter-cycle uses an original full-body 256px cell.
             public float companionStrideDistanceFactor=1.20f;
@@ -144,6 +145,9 @@ namespace Starfall
                             case "hitContactBlendFraction":
                                 if(value>=.08f&&value<=.24f)
                                     settings.hitContactBlendFraction=value;break;
+                            case "impactFlourishAlpha":
+                                if(value>=.2f&&value<=.75f)
+                                    settings.impactFlourishAlpha=value;break;
                             case "companionStrideDistanceFactor":
                                 if(value>=.85f&&value<=1.60f)
                                     settings.companionStrideDistanceFactor=value;break;

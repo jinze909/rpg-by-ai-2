@@ -4,6 +4,61 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
+        // New 4-frame original 32px contact paintings: sword, arrow, magic.
+        // This supplementary texture NEVER replaces approved Effects.png,
+        // hero, enemy or Boss source art; it creates no gameplay hit event.
+        private Texture2D impactFlourishSheet;
+        private float impactFlourishRetryAt=float.NegativeInfinity;
+        private float impactFlourishLastChecked=float.NegativeInfinity;
+        private void DrawAuthoredImpactFlourishes()
+        {
+            if(Game==null||Game.save.effectsQuality<2||
+                Game.save.reducedMotion)return;
+            if(impactFlourishSheet==null||
+               impactFlourishSheet.width!=128||
+               impactFlourishSheet.height!=96)
+            {
+                if(clock<impactFlourishLastChecked||
+                   clock>=impactFlourishRetryAt)
+                {
+                    impactFlourishLastChecked=clock;
+                    impactFlourishRetryAt=clock+2f;
+                    impactFlourishSheet=Resources.Load<Texture2D>(
+                        "Frontier/Art/ImpactFlourish");
+                }
+            }
+            if(impactFlourishSheet==null||
+               impactFlourishSheet.width!=128||
+               impactFlourishSheet.height!=96)return;
+            foreach(Effect effect in Game.effects)
+            {
+                int category=effect.kind=="slash"?0:
+                    effect.kind=="projectileImpact"?1:
+                    effect.kind=="magicImpact"?2:-1;
+                if(category<0||effect.maxLife<=0f||
+                   effect.life<=0f||!WorldDrawable(effect.position.x,
+                       effect.position.y,115f,115f))continue;
+                // Sample discrete ORIGINAL pixel cells from the real
+                // damage-clock event, never independent free-running VFX.
+                float phase=Mathf.Clamp01(1f-effect.life/effect.maxLife);
+                int frame=Math.Min(3,(int)(phase*4f));
+                float size=category==0?
+                    (effect.variant==2?73f:57f):
+                    category==1?38f:58f;
+                Point point=ScreenPoint(effect.position);
+                float lift=effect.height>=0f?effect.height:30f;
+                float opacity=CurrentWorldVisualLook.impactFlourishAlpha*
+                    (1f-phase);
+                float angle=category==0?
+                    (float)(Math.Atan2(effect.direction.y,
+                        effect.direction.x)*180f/Math.PI):0f;
+                Atlas(impactFlourishSheet,4,3,category*4+frame,
+                    new Rect(point.x-size*.5f,point.y-lift-size*.5f,
+                        size,size),
+                    new Color(1f,1f,1f,opacity),false,angle);
+            }
+        }
+
         // A small, source-authored, alpha-only-detail Sprite sheet contains
         // four 24px motifs: forest fireflies, blown sand, coastal spray and
         // snow crystals. VFX remains world-rooted, never a stand-in for the
