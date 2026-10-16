@@ -687,8 +687,33 @@ namespace Starfall
                     p, BossCanvasSize(body.room), tint, body.actor.VisualFlip);
             }
             else if (body.actor.boss)
-                Actor(bossSheet, 4, 8, Math.Max(0, body.room - 1) * 4 + 3,
-                    p, BossCanvasSize(body.room), tint, body.actor.VisualFlip);
+            {
+                // Keep a moving regional Boss's ORIGINAL accepted full-body
+                // walking identity at the first death frame; then exchange
+                // WHOLE Sprite poses on the same anchored source boots.
+                // Never splice upper/lower halves or affect damage/death.
+                int row=Math.Min(7,Math.Max(0,body.room-1));
+                int walkAtlas=row/4;
+                bool transition=body.actor.moving && progress<.24f &&
+                    !Game.save.reducedMotion && bossWalkSheets!=null &&
+                    walkAtlas<bossWalkSheets.Length &&
+                    bossWalkSheets[walkAtlas]!=null;
+                float change=transition?Mathf.Clamp01(progress/.24f):1f;
+                if(transition&&change<1f)
+                {
+                    int stride=GameCore.GaitFrame(body.actor.moveTime,2.8f);
+                    Actor(bossWalkSheets[walkAtlas],4,4,
+                        row%4*4+stride,p,
+                        BossCanvasSize(body.room)*384f/320f,
+                        new Color(tint.r,tint.g,tint.b,
+                            tint.a*(1f-change)),body.actor.VisualFlip);
+                }
+                if(change>0f)
+                    Actor(bossSheet,4,8,row*4+3,p,
+                        BossCanvasSize(body.room),
+                        new Color(tint.r,tint.g,tint.b,tint.a*change),
+                        body.actor.VisualFlip);
+            }
             else if (body.actor.kind == 0 && mossboundRaiderSheet != null &&
                 mossboundRaiderSheet.width == 512 && mossboundRaiderSheet.height == 768)
             {

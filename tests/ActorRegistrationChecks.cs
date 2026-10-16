@@ -537,6 +537,59 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS source-consistent walking Boss hit/recovery + original windup/release, flash, footprint and room-2 HP tint");
     }
 
+    static void MovingBossDeathStaysOnOneRoot(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,2);
+        var g=app.Game;g.save.reducedMotion=false;
+        var boss=new Enemy(93999,0,g.Position.x,g.Position.y,200,true){
+            facing=new Point(-1f,0f),moving=true,moveTime=.8f
+        };
+        Point pixel=new Point(520f,350f);Place(app,boss.Position,pixel);
+        Clear();var alive=Draw(app,"DrawEnemyActor",boss);
+        var living=alive.FirstOrDefault(c=>c.texture.name==
+            "resource:Frontier/Art/WalkBossA");
+        Check(living!=null,"Approved walking Boss sheet missing");
+        var corpse=new FallenActor{actor=boss,room=2,life=1f,duration=1f};
+        Clear();var initial=Draw(app,"DrawFallen",corpse);
+        var original=initial.FirstOrDefault(c=>c.texture.name==
+            "resource:Frontier/Art/WalkBossA");
+        Check(original!=null&&
+            !initial.Any(c=>c.texture.name=="resource:Frontier/Art/Bosses")&&
+            Math.Abs(original.rect.x-living.rect.x)<.001f&&
+            Math.Abs(original.rect.y-living.rect.y)<.001f&&
+            Math.Abs(original.rect.width-living.rect.width)<.001f&&
+            Math.Abs(original.uv.x-living.uv.x)<.00001f&&
+            Math.Abs(original.uv.y-living.uv.y)<.00001f,
+            "Moving Boss first death frame swapped body/canvas/boots");
+        corpse.life=.88f; // 12% elapsed; halfway through handoff
+        Clear();var middle=Draw(app,"DrawFallen",corpse);
+        var walk=middle.FirstOrDefault(c=>c.texture.name==
+            "resource:Frontier/Art/WalkBossA");
+        var fallen=middle.FirstOrDefault(c=>c.texture.name==
+            "resource:Frontier/Art/Bosses");
+        Check(walk!=null&&fallen!=null&&
+            Math.Abs(walk.color.a-fallen.color.a)<.0001f&&
+            walk.color.a>.4f&&walk.color.a<.6f&&
+            Math.Abs(walk.rect.x+walk.rect.width*.5f-
+                (fallen.rect.x+fallen.rect.width*.5f))<.001f&&
+            Math.Abs(walk.rect.y+walk.rect.height*120f/128f-
+                (fallen.rect.y+fallen.rect.height*120f/128f))<.001f,
+            "Boss full-body death crossfade displaced original foot root");
+        corpse.life=.72f;Clear();var settled=Draw(app,"DrawFallen",corpse);
+        Check(!settled.Any(c=>c.texture.name==
+                "resource:Frontier/Art/WalkBossA")&&
+            settled.Any(c=>c.texture.name==
+                "resource:Frontier/Art/Bosses"),
+            "Finished Boss death retained standing walking Sprite");
+        g.save.reducedMotion=true;
+        corpse.life=1f;Clear();var accessible=Draw(app,"DrawFallen",corpse);
+        Check(!accessible.Any(c=>c.texture.name==
+                "resource:Frontier/Art/WalkBossA")&&
+            accessible.Any(c=>c.texture.name==
+                "resource:Frontier/Art/Bosses"),
+            "Reduced-motion must skip Boss death handoff");
+        Console.WriteLine("PASS moving Boss death: accepted stride/boots, rooted whole-body transition and accessible fixed corpse");
+    }
     static void PreparedMasks()
     {
         var source=Resources.Load<Texture2D>("Frontier/Art/Bosses");Check(source!=null&&source.isReadable,"Actual metadata must keep source alpha readable after import");
@@ -717,7 +770,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
