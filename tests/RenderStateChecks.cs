@@ -3339,7 +3339,9 @@ public static class RenderStateChecks
             "npcSignalFrameRate","npcTalkEntrySeconds",
             "escortWalkLeanDegrees",
             "escortHitLeanDegrees","combatWarningStrokePixels",
-            "projectileTrailFadeDistance","companionStrideDistanceFactor",
+            "projectileTrailFadeDistance",
+            "projectileTrailAlpha","projectileTrailFrameRate",
+            "companionStrideDistanceFactor",
             "companionFootfallSeconds","companionFacingThreshold",
             "companionAttackPlantSeconds",
             "ambientMoteDayAlpha","ambientMoteNightAlpha",
@@ -3370,7 +3372,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 45 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 47 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,
@@ -3437,6 +3439,39 @@ public static class RenderStateChecks
                 Math.Abs(animated.uv.x-first.uv.x)>.00001f&&
                 Math.Abs(animated.rect.x-first.rect.x)<.0001f,
                 "Projectile tail should change hand-painted poses, not shift collision root");
+            // Edits to the actual artist Resources profile must alter the
+            // production texture's alpha and pose, not merely parse text.
+            var look=typeof(FrontierRuntime).GetProperty(
+                "CurrentWorldVisualLook",Private).GetValue(app,null);
+            var intensity=look.GetType().GetField(
+                "projectileTrailAlpha",BindingFlags.Instance|BindingFlags.Public);
+            var rate=look.GetType().GetField(
+                "projectileTrailFrameRate",BindingFlags.Instance|BindingFlags.Public);
+            Check(intensity!=null&&rate!=null,
+                "Artist-facing hand-painted projectile controls are missing");
+            float originalAlpha=(float)intensity.GetValue(look);
+            float originalRate=(float)rate.GetValue(look);
+            try
+            {
+                intensity.SetValue(look,originalAlpha*.5f);
+                Clear();Call(app,"DrawProjectileVisual",arrow);
+                Check(GUI.textureCalls.Count==4&&
+                    Math.Abs(GUI.textureCalls[0].color.a-
+                        animated.color.a*.5f)<.00001f,
+                    "Published projectileTrailAlpha is not bound to live visual paint");
+                intensity.SetValue(look,originalAlpha);
+                rate.SetValue(look,14f);
+                Clear();Call(app,"DrawProjectileVisual",arrow);
+                Check(GUI.textureCalls.Count==4&&
+                    Math.Abs(GUI.textureCalls[0].uv.x-
+                        animated.uv.x)>.00001f,
+                    "Published projectileTrailFrameRate does not advance real art cells");
+            }
+            finally
+            {
+                intensity.SetValue(look,originalAlpha);
+                rate.SetValue(look,originalRate);
+            }
             var magic=new Projectile{
                 position=arrow.position,velocity=new Point(0,-10f),
                 age=.24f,visual="starfire",friendly=true,explosive=true};

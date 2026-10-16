@@ -224,10 +224,12 @@ namespace Starfall
                     // it, so inbound source silhouettes never linger.
                     int paintedFrame=(int)Math.Floor(
                         Math.Max(0f,projectile.age-
-                            projectile.trailResetAt)*9f+i)%4;
+                            projectile.trailResetAt)*
+                            CurrentWorldVisualLook.projectileTrailFrameRate+i)%4;
                     Color trailTint=new Color(
                         arrow?1f:tint.r,arrow?1f:tint.g,
-                        arrow?1f:tint.b,.42f/i*fade);
+                        arrow?1f:tint.b,
+                        CurrentWorldVisualLook.projectileTrailAlpha/i*fade);
                     if(authoredTail!=null)
                         Atlas(authoredTail,4,2,(arrow?0:4)+paintedFrame,
                             new Rect(tail.x-trailSize*.5f,
