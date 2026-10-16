@@ -290,6 +290,9 @@ namespace UnityEngine
             new Dictionary<string,Object>();
         public static readonly Dictionary<string,Sprite[]> RegisteredSprites =
             new Dictionary<string,Sprite[]>();
+        // Count actual import scans separately from native-Animator samples.
+        public static readonly Dictionary<string,int> LoadAllCounts =
+            new Dictionary<string,int>();
         public static T Load<T>(string path) where T : Object
         {
             Object found;
@@ -297,6 +300,9 @@ namespace UnityEngine
         }
         public static T[] LoadAll<T>(string path) where T : Object
         {
+            int calls;
+            LoadAllCounts.TryGetValue(path,out calls);
+            LoadAllCounts[path]=calls+1;
             Sprite[] sprites;
             if(typeof(T)==typeof(Sprite) &&
                 RegisteredSprites.TryGetValue(path,out sprites))

@@ -361,6 +361,60 @@ public static class NativeNonheroCaptureChecks
                 !slices[cells[cells.Length-1]].destroyed,
                 "Accepted original actor Sprite destroyed on cleanup");
         }
+        // A partial SpriteImporter pass must not trigger one expensive
+        // LoadAll scan per NPC pose, but once all twelve accepted cells are
+        // present the native source can recover without restarting Frontier.
+        const string reimportPath="Frontier/Art/WalkMira";
+        const string reimportController=
+            "Frontier/Actors/Native/Actor_WalkMira";
+        var reimportFrames=Resources.RegisteredSprites[reimportPath];
+        var reimportGraph=Resources.Registered[reimportController];
+        var walkAtlas=(Texture2D)Resources.Registered[reimportPath];
+        var loading=new FrontierRuntime();
+        var importedCache=(System.Collections.IDictionary)
+            typeof(FrontierRuntime).GetField("actorFrameSprites",
+                BindingFlags.Instance|BindingFlags.NonPublic).
+                GetValue(loading);
+        try
+        {
+            Resources.RegisteredSprites[reimportPath]=
+                new Sprite[]{reimportFrames[0]};
+            Resources.Registered.Remove(reimportController);
+            Resources.LoadAllCounts[reimportPath]=0;
+            for(int i=0;i<10;i++)
+            {
+                Time.frameCount=3500+i;
+                Require((bool)method.Invoke(loading,new object[]{
+                    walkAtlas,4,3,i,new Point(110,150),96f,
+                    Color.white,false,0f}),
+                    "Incomplete companion walk import disappeared mid-stride");
+                var owned=importedCache[walkAtlas.GetInstanceID()+
+                    ":4:3:"+i] as Sprite;
+                Require(owned!=null&&owned.texture==walkAtlas&&
+                    !ReferenceEquals(owned,reimportFrames[i]),
+                    "Partial companion art mixed imported and fallback cells");
+            }
+            Require(Resources.LoadAllCounts[reimportPath]==1,
+                "One partial companion reimport rescanned all Sprites per step");
+            Resources.RegisteredSprites[reimportPath]=reimportFrames;
+            Resources.Registered[reimportController]=reimportGraph;
+            Time.frameCount=3621;
+            Require((bool)method.Invoke(loading,new object[]{
+                walkAtlas,4,3,11,new Point(110,150),96f,
+                Color.white,false,0f}),
+                "Completed companion animation did not recover after cooldown");
+            Require(ReferenceEquals(importedCache[walkAtlas.GetInstanceID()+
+                ":4:3:11"],reimportFrames[11]),
+                "Complete imported companion stride still used temporary art");
+            Require(Resources.LoadAllCounts[reimportPath]>=2,
+                "SpriteImporter retry never retried after valid resource release");
+        }
+        finally
+        {
+            Resources.RegisteredSprites[reimportPath]=reimportFrames;
+            Resources.Registered[reimportController]=reimportGraph;
+            release.Invoke(loading,null);
+        }
         // Adversarial partial Unity SpriteImporter refresh: corrupt ONE
         // cell's pivot and keep the other 17 valid. Reusing imported cells
         // for part of the family would leak a raised-foot enemy silhouette

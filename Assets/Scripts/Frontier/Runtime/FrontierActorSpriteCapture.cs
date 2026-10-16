@@ -47,6 +47,11 @@ namespace Starfall
         // complete, frame-rect verified sets for the 17 native families.
         private readonly Dictionary<int,Sprite[]> actorImportedFrameSets =
             new Dictionary<int,Sprite[]>();
+        // Partial Editor SpriteImporter updates are common during art builds.
+        // Do not rescan every imported Sprite for each unseen movement or
+        // Boss attack cell while a family is incomplete; retry in 120 frames.
+        private readonly Dictionary<int,int> actorImportedRetryAt =
+            new Dictionary<int,int>();
         private readonly HashSet<Sprite> actorOwnedFrameSprites =
             new HashSet<Sprite>();
         // An actual imported SpriteRenderer.m_Sprite curve can drive any
@@ -265,10 +270,16 @@ namespace Starfall
             Sprite[] cells;
             if(!actorImportedFrameSets.TryGetValue(atlasId,out cells))
             {
+                int retryAt;
+                if(actorImportedRetryAt.TryGetValue(atlasId,out retryAt)&&
+                    Time.frameCount < retryAt)return null;
                 Sprite[] published=Resources.LoadAll<Sprite>(
                     "Frontier/Art/"+source.name);
                 if(published==null||published.Length<columns*rows)
+                {
+                    actorImportedRetryAt[atlasId]=Time.frameCount+120;
                     return null;
+                }
                 // LoadAll order is unspecified; index imported art using
                 // ORIGINAL atlas rectangles and published pixel-foot pivots.
                 // Do not transition one animation into a partially imported
@@ -296,7 +307,13 @@ namespace Starfall
                     if(ordered[index]!=null)continue;
                     ordered[index]=candidate;matched++;
                 }
-                if(matched!=ordered.Length)return null;
+                if(matched!=ordered.Length)
+                {
+                    // Never publish a mixed/partially reimported family.
+                    actorImportedRetryAt[atlasId]=Time.frameCount+120;
+                    return null;
+                }
+                actorImportedRetryAt.Remove(atlasId);
                 cells=ordered;
                 actorImportedFrameSets.Add(atlasId,cells);
             }
@@ -484,6 +501,7 @@ namespace Starfall
             actorOwnedFrameSprites.Clear();
             actorFrameSprites.Clear();
             actorImportedFrameSets.Clear();
+            actorImportedRetryAt.Clear();
             actorNativeControllers.Clear();
             actorNativeSource.Clear();
             actorNativeRetryAt.Clear();
