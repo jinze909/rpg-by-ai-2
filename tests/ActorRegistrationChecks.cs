@@ -1677,6 +1677,28 @@ public static class ActorRegistrationChecks
                 Math.Abs(phaseBody.uv.x-phaseFlash.uv.x)<.00001f&&
                 Math.Abs(phaseBody.uv.y-phaseFlash.uv.y)<.00001f,
                 "Boss phase flash used nominal 384px while body eased from 320px");
+            var phaseMotes=phasePaint.Where(c=>c.texture.name==
+                "resource:Frontier/Art/Effects").ToArray();
+            Check(phaseMotes.Length==2&&
+                phaseMotes[0].color.a>.05f&&
+                phaseMotes[0].color.a<.30f&&
+                phaseMotes[1].color.a<phaseMotes[0].color.a&&
+                Math.Abs(phaseMotes[0].uv.x-.25f)<.00001f&&
+                Math.Abs(phaseMotes[1].uv.x-.75f)<.00001f,
+                "Boss real HP stage change must paint TWO restrained original-source motes");
+            float bodyCenter=phaseBody.rect.x+phaseBody.rect.width*.5f;
+            float phaseFoot=phaseBody.rect.y+
+                phaseBody.rect.height*120f/128f;
+            float phaseScale=Math.Min(28f,phaseBody.rect.width*.12f);
+            Check(Math.Abs(phaseMotes[0].rect.x+phaseScale*.5f-
+                    (bodyCenter-phaseBody.rect.width*.23f))<.001f&&
+                Math.Abs(phaseMotes[1].rect.x+phaseScale*.5f-
+                    (bodyCenter+phaseBody.rect.width*.23f))<.001f&&
+                Math.Abs(phaseMotes[0].rect.y+phaseScale*.5f-
+                    (phaseFoot-phaseBody.rect.width*.60f))<.001f,
+                "Phase VFX displaced relative to the physically rendered Boss body");
+            GUI.Export(".starfall-checks/sprite-qa",
+                "review-boss-phase-source-painted-motes");
             // Interrupt midway: last actually painted size is the new
             // transition start, not the unseen 384px nominal source.
             boss.moving=false;
@@ -1713,7 +1735,19 @@ public static class ActorRegistrationChecks
                 Math.Abs(staticWalk.Single(c=>c.texture.name==walkName).
                     rect.width-sourceSize*384f/320f)<.001f,
                 "Low FX must retain original walk canvas without transition");
-            Console.WriteLine("PASS actual 320/384 Boss Sprite body scales: anchored eased walk entry, mid-attack reversals, final source, no-FX immediate");
+            Check(!staticWalk.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/Effects"),
+                "Zero effects must not add optional Boss stage-change particles");
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=true;
+            boss.hp=24f; // real stage-three HP threshold from stage two
+            Set(app,"clock",30.26f);Clear();
+            var stable=Draw(app,"DrawEnemyActor",boss);
+            Check(!stable.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/Effects")&&
+                stable.Any(c=>c.texture.name==walkName),
+                "Reduced motion must keep original Boss body/phase without staged VFX");
+            Console.WriteLine("PASS actual 320/384 Boss Sprite scales, exact phase flash, source-painted HP-stage motes, reverse handoff and no-FX/reduced-motion");
         }
         finally
         {
