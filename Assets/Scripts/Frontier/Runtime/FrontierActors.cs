@@ -226,7 +226,28 @@ namespace Starfall
                             string key="Hero_"+profession+"_"+action+"_"+direction;
                             fullBodyHeroSheetCache.Remove(key);
 #if UNITY_5_3_OR_NEWER
-                            heroPublishedSprites.Remove(key);
+                            // A six-to-seven-cell art publication (or rollback)
+                            // invalidates the whole family. Runtime Sprite.Create
+                            // wrappers belong to us, unlike imported Unity
+                            // Sprite sub-assets. Remove and dispose ONLY owned
+                            // wrappers; otherwise every hot art-family swap
+                            // leaks up to 18 complete sets of Sprite objects.
+                            Sprite[] displaced;
+                            if(heroPublishedSprites.TryGetValue(key,out displaced))
+                            {
+                                heroPublishedSprites.Remove(key);
+                                foreach(Sprite sprite in displaced)
+                                    if(sprite!=null&&heroOwnedPublishedSprites.Remove(sprite))
+                                    {
+                                        if(heroCaptureRenderer!=null&&
+                                            heroCaptureRenderer.sprite==sprite)
+                                            heroCaptureRenderer.sprite=null;
+                                        Destroy(sprite);
+                                    }
+                            }
+                            heroPublishedRecheckAt.Remove(key);
+                            heroPublishedUnavailable.Remove(key);
+                            heroPublishedIncomplete.Remove(key);
 #endif
                         }
             }
