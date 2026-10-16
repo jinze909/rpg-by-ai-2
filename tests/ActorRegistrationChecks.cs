@@ -565,6 +565,10 @@ public static class ActorRegistrationChecks
             var live=Draw(app,"DrawEnemyActor",boss)
                 .FirstOrDefault(c=>c.texture==source);
             Check(live!=null,"Real Briar Beast live windup was not drawn");
+            // Simulate an actual killing hit: the GameCore mutates HP before
+            // its first corpse paint. Last living HP phase and contact must
+            // not be recomputed from the new hp=0 phase-three silhouette.
+            boss.hp=0f;
             var fallen=new FallenActor{actor=boss,room=1,
                 life=1f,duration=1f};
             Clear();
@@ -611,7 +615,7 @@ public static class ActorRegistrationChecks
                 Math.Abs(accessible[0].uv.y)<.00001f,
                 "Reduced motion must skip Boss death interpolation");
             Console.WriteLine(
-                "PASS Briar Beast lethal windup->Death: same GameCore body, 18-row source atlas, fixed 120/128 feet, author-adjustable rooted crossfade and reduced-motion corpse");
+                "PASS Briar Beast HP-zero lethal windup->Death: last actually drawn source cell retained, 18-row atlas, planted foot and reduced-motion corpse");
         }
         finally
         {
@@ -648,6 +652,9 @@ public static class ActorRegistrationChecks
                 Check(alive!=null&&Math.Abs(alive.color.g-green)<.0001f&&
                     Math.Abs(alive.color.b-blue)<.0001f,
                     "Live high-detail Boss palette changed unexpectedly");
+                // The killing hit may overkill from ANY remaining HP stage.
+                // Actual DrawFallen must not jump to phase-three palette.
+                boss.hp=0f;
                 var dead=new FallenActor{actor=boss,room=2,life=1f,duration=1f};
                 Clear();
                 var first=Draw(app,"DrawFallen",dead)
@@ -694,7 +701,7 @@ public static class ActorRegistrationChecks
                     "Reduced-motion Boss death lost authentic phase tint");
                 game.save.reducedMotion=false;
             }
-            Console.WriteLine("PASS three real regional Boss phases: same high-detail living/death color, fixed foot through crossfade and reduced-motion accessibility");
+            Console.WriteLine("PASS three actual regional Boss stages killed down to zero HP: last live palette retained throughout grounded death handoff and reduced-motion accessibility");
         }
         finally {game.save.reducedMotion=savedReduced;}
     }
