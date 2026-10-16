@@ -44,6 +44,15 @@ namespace Starfall
         // corrected canonical texture resumes without forcing an F8 toggle.
         private readonly Dictionary<string,int> heroPublishedUnavailable =
             new Dictionary<string,int>();
+        // A complete canonical art import can change while a real GameView
+        // session stays open. Revalidate at bounded 180-frame intervals;
+        // old captured RenderTextures are immutable and remain queued-safe.
+        private readonly Dictionary<string,int> heroPublishedRecheckAt =
+            new Dictionary<string,int>();
+        // A partial SpriteImporter family must not let Animator play
+        // individually valid-looking cells from mixed asset generations.
+        private readonly HashSet<string> heroPublishedIncomplete =
+            new HashSet<string>();
         // An imported Animator can exist while its override still references
         // another class, stale clip or wrong direction. Never repeatedly
         // sample a known-mismatched native clip during this play session.
@@ -114,8 +123,11 @@ namespace Starfall
                 bool recentlyRejected =
                     heroRejectedNativeClips.TryGetValue(nativeClipKey,
                         out rejectedUntil) && Time.frameCount < rejectedUntil;
-                bool nativeReady=available && !recentlyRejected &&
-                    TryUseProductionHeroClip(facing);
+                bool nativeReady=available &&
+                    !heroPublishedIncomplete.Contains(
+                        "Hero_"+HeroLiveProfessions[equipment]+"_"+
+                        HeroLiveActions[action]+"_"+HeroLiveFacings[facing]) &&
+                    !recentlyRejected && TryUseProductionHeroClip(facing);
                 if(nativeReady)
                 {
                     // Animator never owns independent damage time.
@@ -313,8 +325,13 @@ namespace Starfall
             if(heroPublishedUnavailable.TryGetValue(key,out retryAt)&&
                 Time.frameCount<retryAt)return false;
             Sprite[] cells;
-            if (!heroPublishedSprites.TryGetValue(key, out cells))
+            bool cached=heroPublishedSprites.TryGetValue(key,out cells);
+            int nextReview;
+            if(!cached ||
+               !heroPublishedRecheckAt.TryGetValue(key,out nextReview) ||
+               Time.frameCount>=nextReview)
             {
+                Sprite[] previous=cached?cells:null;
                 Texture2D atlas = Resources.Load<Texture2D>(
                     "Frontier/HeroAnimator/Canonical/" + key);
                 // Reject stale or truncated publishers atomically. Never
@@ -360,12 +377,16 @@ namespace Starfall
                     matched++;
                 }
                 if (matched == expectedFrames)
+                {
                     cells = candidates; // Shared Unity-owned imported assets.
+                    heroPublishedIncomplete.Remove(key);
+                }
                 else
                 {
                     // Controlled whole-frame fallback, not limb synthesis.
                     // Keep ownership of ONLY these new Sprite wrappers, and
                     // never destroy a shared Texture2D from Resources.
+                    heroPublishedIncomplete.Add(key);
                     cells = new Sprite[expectedFrames];
                     for (int i = 0; i < cells.Length; i++)
                     {
@@ -377,7 +398,22 @@ namespace Starfall
                         heroOwnedPublishedSprites.Add(cells[i]);
                     }
                 }
-                heroPublishedSprites.Add(key, cells);
+                // In a second import, replace only after the complete
+                // source grid/controlled source-cell fallback exists. An
+                // older GUI draw already has its own captured GPU pixels.
+                // Only our temporary Sprite.Create wrappers are disposed;
+                // never release SpriteImporter/Resources assets.
+                if(previous!=null)
+                    foreach(Sprite old in previous)
+                        if(old!=null&&heroOwnedPublishedSprites.Remove(old))
+                        {
+                            if(heroCaptureRenderer!=null&&
+                                heroCaptureRenderer.sprite==old)
+                                heroCaptureRenderer.sprite=null;
+                            Destroy(old);
+                        }
+                heroPublishedSprites[key]=cells;
+                heroPublishedRecheckAt[key]=Time.frameCount+180;
             }
             if (frame < 0 || frame >= cells.Length) return false;
             sprite = cells[frame];
@@ -513,6 +549,8 @@ namespace Starfall
             heroOwnedPublishedSprites.Clear();
             heroPublishedSprites.Clear();
             heroPublishedUnavailable.Clear();
+            heroPublishedRecheckAt.Clear();
+            heroPublishedIncomplete.Clear();
             heroRejectedNativeClips.Clear();
             if (heroCaptureCamera != null) heroCaptureCamera.targetTexture = null;
             if (heroCaptureRoot != null) Destroy(heroCaptureRoot);
