@@ -368,20 +368,24 @@ namespace Starfall
                 int due;
                 if(!actorImportedRecheckAt.TryGetValue(atlasId,out due)||
                     Time.frameCount<due)return cells[frame];
-                // A complete family is republished ATOMICALLY: validate
-                // every source-pixel footprint before replacing any cell.
-                actorImportedFrameSets.Remove(atlasId);
+                // Hold the last COMPLETE family while a new import is
+                // being validated. Removing it before validation used to
+                // create temporary source wrappers and trigger an avoidable
+                // one-frame GPU recapture whenever a single new pivot was
+                // malformed. Only atomically publish the replacement once
+                // every source rect/PPU/foot pivot has passed below.
             }
             {
                 int retryAt;
                 if(actorImportedRetryAt.TryGetValue(atlasId,out retryAt)&&
-                    Time.frameCount < retryAt)return null;
+                    Time.frameCount < retryAt)
+                    return cells!=null?cells[frame]:null;
                 Sprite[] published=Resources.LoadAll<Sprite>(
                     "Frontier/Art/"+source.name);
                 if(published==null||published.Length<columns*rows)
                 {
                     actorImportedRetryAt[atlasId]=Time.frameCount+120;
-                    return null;
+                    return cells!=null?cells[frame]:null;
                 }
                 // LoadAll order is unspecified; index imported art using
                 // ORIGINAL atlas rectangles and published pixel-foot pivots.
@@ -414,12 +418,12 @@ namespace Starfall
                 {
                     // Never publish a mixed/partially reimported family.
                     actorImportedRetryAt[atlasId]=Time.frameCount+120;
-                    return null;
+                    return cells!=null?cells[frame]:null;
                 }
                 actorImportedRetryAt.Remove(atlasId);
                 actorImportedRecheckAt[atlasId]=Time.frameCount+180;
                 cells=ordered;
-                actorImportedFrameSets.Add(atlasId,cells);
+                actorImportedFrameSets[atlasId]=cells;
             }
             return cells[frame];
         }
