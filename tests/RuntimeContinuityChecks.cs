@@ -86,7 +86,7 @@ public static class RuntimeContinuityChecks
     // Actual Frontier.unity runtime now paints grounded contact sprites in
     // the world depth pass. Tests drive REAL GameCore walk distance/contacts,
     // never a mocked free-running animation or save file modification.
-    static void GroundedMaterialFootfalls(FrontierRuntime app)
+    static void GroundedMaterialFootfalls(FrontierRuntime app,string folder)
     {
         Prepare(app);
         var game=app.Game;
@@ -124,6 +124,22 @@ public static class RuntimeContinuityChecks
             calls[0].color.a<=.45f,
             "Paint source must remain low-alpha ORIGINAL accepted Effects.png");
         float screenX=calls[0].rect.x, screenY=calls[0].rect.y;
+        // Prove the real Frontier.unity depth-sorted production traversal
+        // includes the SAME painted source cell. A direct DrawFootfallMark
+        // preview alone would not establish that the actual game draws it.
+        ClearDraw();
+        Call(app,"OnGUI");
+        int cell=(int)paintType.GetField("variant",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        var worldContact=GUI.textureCalls.Find(c=>
+            c.texture.name=="resource:Frontier/Art/Effects"&&
+            Math.Abs(c.rect.width-(surface=="snow"?24f:26f))<.001f&&
+            Math.Abs(c.rect.height-(surface=="snow"?18f:13f))<.001f&&
+            Math.Abs(c.uv.x-(cell%4)/4f)<.00001f&&
+            Math.Abs(c.uv.y-(1f-(cell/4+1)/4f))<.00001f);
+        Check(worldContact!=null,
+            "Accepted rooted footstep source omitted from real ordered world draw");
+        GUI.Export(folder,"review-integrated-world-footfalls");
         Set(app,"camera",game.Position+new Point(1,0));
         ClearDraw();Call(app,"DrawFootfallMark",drawn);
         Check(GUI.textureCalls.Count==1&&
@@ -391,7 +407,7 @@ public static class RuntimeContinuityChecks
     }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app);NonheroGroundContactTracking(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }

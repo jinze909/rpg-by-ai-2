@@ -2,6 +2,15 @@
 
 > This is the authoritative **AI-2** handoff for `jinze909/rpg-by-ai-2/chatgpt/dev`. Update facts only when an actual change occurs; verify live GitHub HEAD / CI before starting, because the snapshot below ages. Do not replace this with `docs/AI_STATE.md` (a different Codex workflow).
 
+## 2026-10-16 AI-2 grounded materials and nonhero gait feedback
+
+- Started at real `chatgpt/dev` HEAD `5874336274dc871d5ee9c35d70a4336daf137811`; baseline [Actions SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38890258163). Only the authorized branch was written; no scheduler/task was created or modified.
+- [`40cf0d7`](https://github.com/jinze909/rpg-by-ai-2/commit/40cf0d7975dcf5cd164a9074844c7995833165f2): new `FrontierFootfallVisual.cs` (with a new Unity GUID) runs in the existing `FrontierRuntime.Update` and `DrawOrderedWorld` path, rendering brief, rooted `Effects.png` **original source cells** when `GameCore.footContacts` reports an actual protagonist footfall. Surface material is shared with `FrontierAudio`; `WorldLook.txt` adds safely bounded opacity/lifetime. No synthetic limbs, hero sprite edits, save-field changes or separate Animator clock. [CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38891504032).
+- [`899ebcb`](https://github.com/jinze909/rpg-by-ai-2/commit/899ebcb17a17574c562f7015b985cb2d12ac5155): offline world-coordinate/camera anchoring, low-FX, reduced-motion, ground-art source, and 12-or-fewer hero footprint checks. [CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38891648184).
+- [`53b59eb`](https://github.com/jinze909/rpg-by-ai-2/commit/53b59eb2762c78ef0368caa031c52804e44626e7): companion and ordinary/Boss **foot movement** now emits bounded low-alpha world decals from actual traversed distance, never from static idle/attack clocks. Enemy object identity uses weak references, not spawn IDs. Each actor samples terrain under its **own** feet. [CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38892050871).
+- [`70686d4`](https://github.com/jinze909/rpg-by-ai-2/commit/70686d42b277bd125c0f8be93b323c3f549e863b): offline C# tests cover companion and two enemies with identical IDs, standing/windup/corpse suppression, actor-specific ground anchors and reduced motion. [CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38892178011).
+- Source-only visual fallback remains the accepted detailed `Effects.png`, not a procedurally invented new sprite sheet. Source pixels and all previously accepted heroine/Boss/NPC images remain unmodified. Static grass/roof/water geometry and damage paths are unchanged. Native Unity 2022.3.53f1 Editor, GameView/Animator and human artistic visual assessment remain **NATIVE_UNVERIFIED / ART_REVIEW_REQUIRED**. Offline `review-integrated-world-footfalls` is NOT a licensed Unity GameView capture.
+
 ## 2026-10-16 follow-up — lethal animation continuity across all enemies (offline verified)
 
 - Baseline `chatgpt/dev` commit `17b87fe45259ddfb8d4073e31e7982cb06937801` had [passing core CI](https://github.com/jinze909/rpg-by-ai-2/actions/runs/38888616157). No schedule/task changes; only this branch was written.
