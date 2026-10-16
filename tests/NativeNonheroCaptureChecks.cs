@@ -591,6 +591,49 @@ public static class NativeNonheroCaptureChecks
             release.Invoke(controllerProbe,null);
         }
         Console.WriteLine("PASS native Actor AnimatorController hot-swap: source unchanged, normal/mirror GPU recapture, missing-import hold and bounded refresh");
+        // Verify the shared production Controller-swap path for a tall
+        // Boss, the original richly illustrated civilian sheet and a
+        // companion. This must not be a Monsters-only special case.
+        foreach(string family in new[]{"Bosses","Npcs","CompanionMira"})
+        {
+            int columns=family=="CompanionMira"?3:4;
+            int rows=family=="Bosses"?8:4;
+            var art=(Texture2D)Resources.Registered[
+                "Frontier/Art/"+family];
+            string path="Frontier/Actors/Native/Actor_"+family;
+            var oldController=(RuntimeAnimatorController)
+                Resources.Registered[path];
+            var probe=new FrontierRuntime();
+            try
+            {
+                Time.frameCount=8100;
+                Require((bool)method.Invoke(probe,new object[]{
+                    art,columns,rows,1,new Point(250,240),96f,
+                    Color.white,false,0f}),
+                    "Native nonhero Controller family could not render "+family);
+                var renderer=(Animator)controllerField.GetValue(probe);
+                Require(ReferenceEquals(
+                    renderer.runtimeAnimatorController,oldController),
+                    "Wrong first accepted Animator for "+family);
+                int count=Camera.RenderedTargets.Count;
+                var replacement=new RuntimeAnimatorController {
+                    className="Actor_"+family};
+                Resources.Registered[path]=replacement;
+                Time.frameCount=8280;
+                Require((bool)method.Invoke(probe,new object[]{
+                    art,columns,rows,1,new Point(250,240),96f,
+                    Color.white,false,0f})&&
+                    Camera.RenderedTargets.Count==count+1&&
+                    ReferenceEquals(renderer.runtimeAnimatorController,replacement),
+                    "Boss/NPC/companion Controller update kept obsolete GPU pose: "+family);
+            }
+            finally
+            {
+                Resources.Registered[path]=oldController;
+                release.Invoke(probe,null);
+            }
+        }
+        Console.WriteLine("PASS all tall Boss, detailed NPC and companion Animator Controllers hot-reimport with unchanged source paint");
         // DEVICE LOSS AFTER A DIFFERENT ACTOR: one mutable offscreen
         // SpriteRenderer draws many character identities. The old cache
         // recovery reused whichever Sprite was last seen instead of binding
