@@ -361,6 +361,83 @@ public static class NativeNonheroCaptureChecks
                 !slices[cells[cells.Length-1]].destroyed,
                 "Accepted original actor Sprite destroyed on cleanup");
         }
+        // DEVICE LOSS AFTER A DIFFERENT ACTOR: one mutable offscreen
+        // SpriteRenderer draws many character identities. The old cache
+        // recovery reused whichever Sprite was last seen instead of binding
+        // the lost target's exact authored frame. Exercise both a real
+        // imported Monsters Animator and the source-only fallback.
+        var restoration=new FrontierRuntime();
+        var nativeAtlas=(Texture2D)Resources.Registered[
+            "Frontier/Art/Monsters"];
+        var nativeCells=Resources.RegisteredSprites[
+            "Frontier/Art/Monsters"];
+        var restoredRenderer=typeof(FrontierRuntime).GetField(
+            "actorCaptureRenderer",BindingFlags.Instance|
+            BindingFlags.NonPublic);
+        var restoredAnimator=typeof(FrontierRuntime).GetField(
+            "actorCaptureAnimator",BindingFlags.Instance|
+            BindingFlags.NonPublic);
+        Time.frameCount=1760;
+        Require((bool)method.Invoke(restoration,new object[]{
+            nativeAtlas,6,3,2,new Point(200,220),96f,
+            Color.white,false,0f}),
+            "Native original monster capture setup failed");
+        var originalTarget=GUI.DrawnTextures[
+            GUI.DrawnTextures.Count-1] as RenderTexture;
+        Time.frameCount=1761;
+        Require((bool)method.Invoke(restoration,new object[]{
+            nativeAtlas,6,3,9,new Point(200,220),96f,
+            Color.white,false,0f}),
+            "Second original monster pose setup failed");
+        Require(ReferenceEquals((restoredRenderer.GetValue(restoration) as
+            SpriteRenderer).sprite,nativeCells[9]),
+            "Offscreen native renderer never switched to newer monster pose");
+        originalTarget.Release();
+        Time.frameCount=1762;
+        int beforeRebuild=Camera.RenderedTargets.Count;
+        Require((bool)method.Invoke(restoration,new object[]{
+            nativeAtlas,6,3,2,new Point(200,220),96f,
+            Color.white,false,0f})&&
+            Camera.RenderedTargets.Count==beforeRebuild+1&&
+            ReferenceEquals(GUI.DrawnTextures[
+                GUI.DrawnTextures.Count-1],originalTarget)&&
+            ReferenceEquals((restoredRenderer.GetValue(restoration) as
+                SpriteRenderer).sprite,nativeCells[2])&&
+            (restoredAnimator.GetValue(restoration) as Animator).enabled,
+            "GPU restoration captured another native monster pose");
+        release.Invoke(restoration,null);
+
+        var recoveryFallback=new FrontierRuntime();
+        var unknown=new Texture2D(512,512,TextureFormat.RGBA32,false);
+        Time.frameCount=1770;
+        Require((bool)method.Invoke(recoveryFallback,new object[]{
+            unknown,4,4,2,new Point(200,220),96f,
+            Color.white,false,0f}),
+            "Source fallback capture setup failed");
+        var fallbackTarget=GUI.DrawnTextures[
+            GUI.DrawnTextures.Count-1] as RenderTexture;
+        var sourceCache=(System.Collections.IDictionary)typeof(FrontierRuntime)
+            .GetField("actorFrameSprites",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(recoveryFallback);
+        var requiredSprite=sourceCache[unknown.GetInstanceID()+":4:4:2"]
+            as Sprite;
+        Time.frameCount=1771;
+        Require((bool)method.Invoke(recoveryFallback,new object[]{
+            unknown,4,4,3,new Point(200,220),96f,
+            Color.white,false,0f}),
+            "Second source fallback pose setup failed");
+        fallbackTarget.Release();
+        Time.frameCount=1772;
+        Require((bool)method.Invoke(recoveryFallback,new object[]{
+            unknown,4,4,2,new Point(200,220),96f,
+            Color.white,false,0f})&&
+            ReferenceEquals((restoredRenderer.GetValue(recoveryFallback) as
+                SpriteRenderer).sprite,requiredSprite)&&
+            !(restoredAnimator.GetValue(recoveryFallback) as Animator).enabled,
+            "GPU recovery kept stale foreign Sprite instead of exact source cell");
+        release.Invoke(recoveryFallback,null);
+        Console.WriteLine("PASS native and fallback GPU loss recovery rebinds exact whole-body source pose");
+
         // A partial SpriteImporter pass must not trigger one expensive
         // LoadAll scan per NPC pose, but once all twelve accepted cells are
         // present the native source can recover without restarting Frontier.

@@ -218,6 +218,14 @@ namespace Starfall
                         if (!entry.texture.Create() || !entry.texture.IsCreated())
                             throw new InvalidOperationException(
                                 "Nonhero whole-actor GPU target recovery failed");
+                        // The offscreen SpriteRenderer is shared by ALL
+                        // monsters, NPCs, companions and Bosses. Since this
+                        // target's last capture it may display a completely
+                        // different character. Revalidate/rebind THIS exact
+                        // GameCore frame before reconstructing lost pixels.
+                        // This also safely falls back to the whole source
+                        // Sprite if Unity lost its native Controller.
+                        entry.nativeClipVerified = false;
                         needsRender = true; // device/context loss
                     }
                     else if (!entry.nativeClipVerified && !alreadySubmitted &&
