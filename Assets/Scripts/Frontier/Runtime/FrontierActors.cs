@@ -312,11 +312,11 @@ namespace Starfall
                 accepted!=null&&accepted.width==expectedWidth&&
                 accepted.height==256;
             float next;
+            // Gameplay time may reset on load or a new review session.
+            // Without rewind detection, a previous long-running save would
+            // hold an old Sprite throughout the next newly loaded scene.
             if(!cached || !fullBodyHeroRecheckAt.TryGetValue(key,out next) ||
                 clock>=next || clock<next-2.5f)
-            // Gameplay time may reset on load or a new visual-review
-            // session. Without the rewind clause, a very large prior
-            // clock leaves the old Sprite cached for the next whole run.
             {
                 Texture2D candidate=Resources.Load<Texture2D>(
                     "Frontier/HeroAnimator/Canonical/"+key);

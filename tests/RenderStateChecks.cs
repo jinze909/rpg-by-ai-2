@@ -2962,7 +2962,15 @@ public static class RenderStateChecks
                 object.ReferenceEquals(GUI.textureCalls[0].texture,freshB)&&
                 Math.Abs(GUI.textureCalls[0].rect.width-192f)<.001f,
                 "GameView fallback and inventory displayed different hero generations");
-            Console.WriteLine("PASS whole-body hero production fallback hot-reimport: complete atlas publication, truncated-source hold, class identity and world/loadout parity");
+            // A new save/review can restart the world clock from zero.
+            // Refresh immediately, not after 10000 seconds of gameplay.
+            overrides[path]=freshA;
+            Set(app,"clock",0f);
+            Clear();Call(app,"DrawPlayerPreview",0,370f,290f,104f);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,freshA),
+                "Newly loaded game held an old class body after clock rewind");
+            Console.WriteLine("PASS whole-body hero production fallback hot-reimport: complete atlas publication, truncated-source hold, clock rewind, class identity and world/loadout parity");
         }
         finally
         {
