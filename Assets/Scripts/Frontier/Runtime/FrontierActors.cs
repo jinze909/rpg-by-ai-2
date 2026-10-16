@@ -1013,7 +1013,10 @@ namespace Starfall
                 if(mix>0f)
                     Actor(monsterSheet,6,3,kind*6+5,p,size,
                         new Color(tint.r,tint.g,tint.b,tint.a*mix),
-                        body.actor.VisualFlip);
+                        // Death body uses the same accepted flip as the
+                        // lethal attack. Postmortem Enemy.Face() is not
+                        // visual authority for this corpse.
+                        corpseFlip);
             }
             if (body.actor.boss && progress < .6f) Atlas(effectSheet, 4, 4, 15, new Rect(p.x - 52, p.y - 80 - progress * 40, 104, 104), new Color(.8f, .92f, .84f, .7f * (1 - progress)));
         }
