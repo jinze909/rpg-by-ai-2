@@ -491,6 +491,20 @@ namespace Starfall
             return (bodyPhase * 6 + action) * 4 + keyframe;
         }
 
+        // Regional Bosses already wear a phase tint while alive. A lethal
+        // hit must not repaint the same accepted full-body armor bright white
+        // on the first death frame, before the rooted death crossfade begins.
+        // Share this palette choice across the live and corpse renderers.
+        private static Color RegionalBossPhaseTint(Color tint, Enemy enemy, int room)
+        {
+            if(enemy!=null&&enemy.boss&&room!=1&&enemy.BossPhase>=2)
+            {
+                tint.g*=enemy.BossPhase==2?.94f:.82f;
+                tint.b*=enemy.BossPhase==2?.90f:.83f;
+            }
+            return tint;
+        }
+
         private void DrawEnemyActor(Enemy e)
         {
             Point p = ScreenPoint(e.Position); float size = e.boss ? BossCanvasSize(Game.save.room) : e.kind == 2 ? 106 : 96;
@@ -525,11 +539,7 @@ namespace Starfall
             // Other-room bosses lack three distinct authored body rows.
             // Their existing identity is preserved while later HP phases
             // receive a stable, readable warm tint (no extra GUI primitive).
-            if (e.boss && Game.save.room != 1 && e.BossPhase >= 2)
-            {
-                tint.g *= e.BossPhase == 2 ? .94f : .82f;
-                tint.b *= e.BossPhase == 2 ? .90f : .83f;
-            }
+            tint=RegionalBossPhaseTint(tint,e,Game.save.room);
             float phaseCue = e.boss ? BossPhaseCueOpacity(e) : 0f;
             if (e.boss)
             {
@@ -709,6 +719,7 @@ namespace Starfall
             // stays unchanged; reduced-motion retains one stable corpse.
             float deathBlendFraction=CurrentWorldVisualLook.deathPoseBlendFraction;
             Color tint = new Color(1, 1, 1, Math.Min(1, body.life / (body.duration * .45f)));
+            tint=RegionalBossPhaseTint(tint,body.actor,body.room);
             // Keep the contact patch as a corpse fades out; a death frame
             // otherwise snaps from a solid grounded sprite into a floating one.
             DrawActorContactShadow(p,body.actor.boss?BossCanvasSize(body.room)*.57f:
