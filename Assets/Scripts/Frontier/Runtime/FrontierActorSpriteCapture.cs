@@ -136,7 +136,11 @@ namespace Starfall
             if (capturePixels > 512) return false;
             if (actorCaptureBroken)
             {
-                if (Time.frameCount < actorCaptureRetryAt) return false;
+                // A fresh Play session / deterministic replay can restart the
+                // frame counter. Never carry a previous epoch's native-capture
+                // failure through the entire new epoch.
+                if (Time.frameCount < actorCaptureRetryAt &&
+                    Time.frameCount >= actorCaptureRetryAt - 120) return false;
                 actorCaptureBroken = false;
             }
             if (Event.current.type != EventType.Repaint) return true;
@@ -534,8 +538,11 @@ namespace Starfall
             if (!actorNativeControllers.TryGetValue(family, out controller))
             {
                 int retryAt;
+                // Missing Controllers are retried after 120 frames in the
+                // current epoch, but a clock rewind must invalidate that wait.
                 if (actorNativeRetryAt.TryGetValue(family, out retryAt) &&
-                    Time.frameCount < retryAt) return false;
+                    Time.frameCount < retryAt &&
+                    Time.frameCount >= retryAt - 120) return false;
                 controller = Resources.Load<RuntimeAnimatorController>(
                     "Frontier/Actors/Native/Actor_" + family);
                 if (controller == null)
@@ -551,7 +558,8 @@ namespace Starfall
             string poseKey = family + ":" + row;
             int rejectedUntil;
             if (actorNativeRejectedPoseUntil.TryGetValue(poseKey, out rejectedUntil) &&
-                Time.frameCount < rejectedUntil)
+                Time.frameCount < rejectedUntil &&
+                Time.frameCount >= rejectedUntil - 120)
             {
                 RuntimeAnimatorController formerlyRejected;
                 // Retain the cooldown if this is still the SAME bad

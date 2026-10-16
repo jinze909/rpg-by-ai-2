@@ -973,6 +973,45 @@ public static class NativeNonheroCaptureChecks
                 GUI.DrawnTextures[GUI.DrawnTextures.Count-1]),
             "late imported accepted-art controller never refreshed cached GPU pose");
         release.Invoke(late,null);
+        // A missing native Controller at a late game frame must not keep the
+        // exact-source fallback pinned after a Play session clock rewind.
+        var rewindLate=new FrontierRuntime();
+        Resources.Registered.Remove(latePath);
+        Time.frameCount=10000;
+        Require((bool)method.Invoke(rewindLate,new object[]{
+            lateAtlas,6,3,1,new Point(100,140),96f,
+            Color.white,false,0f}),"rewind precondition capture failed");
+        var rewindLateAnim=lateField.GetValue(rewindLate) as Animator;
+        Require(rewindLateAnim!=null&&!rewindLateAnim.enabled,
+            "missing-Controller precondition did not use safe source");
+        Resources.Registered[latePath]=importedController;
+        int beforeRewindController=Camera.RenderedTargets.Count;
+        Time.frameCount=40;
+        Require((bool)method.Invoke(rewindLate,new object[]{
+            lateAtlas,6,3,1,new Point(100,140),96f,
+            Color.white,false,0f})&&rewindLateAnim.enabled&&
+            Camera.RenderedTargets.Count==beforeRewindController+1,
+            "clock rewind kept a recovered nonhero Animator in fallback");
+        // Simulate an isolated capture failure's retry state. A fresh epoch
+        // must be able to reconstruct real GPU pixels instead of skipping it.
+        var captureFailed=typeof(FrontierRuntime).GetField(
+            "actorCaptureBroken",BindingFlags.Instance|BindingFlags.NonPublic);
+        var captureRetry=typeof(FrontierRuntime).GetField(
+            "actorCaptureRetryAt",BindingFlags.Instance|BindingFlags.NonPublic);
+        Require(captureFailed!=null&&captureRetry!=null,
+            "capture failure cooldown state is missing");
+        captureFailed.SetValue(rewindLate,true);
+        captureRetry.SetValue(rewindLate,10120);
+        int beforeCaptureRewind=Camera.RenderedTargets.Count;
+        Time.frameCount=41;
+        Require((bool)method.Invoke(rewindLate,new object[]{
+            lateAtlas,6,3,2,new Point(100,140),96f,
+            Color.white,false,0f})&&
+            !(bool)captureFailed.GetValue(rewindLate)&&
+            Camera.RenderedTargets.Count==beforeCaptureRewind+1,
+            "clock rewind kept healed whole-body GPU capture disabled");
+        release.Invoke(rewindLate,null);
+        Console.WriteLine("PASS nonhero Controller and GPU-capture retry windows reset on frame-count rewind");
         // A corrupted native clip must NEVER be rendered as a stitched,
         // foreign-actor or wrong-action body: use exact source Sprite instead.
         var brokenActor=new FrontierRuntime();
@@ -1016,6 +1055,27 @@ public static class NativeNonheroCaptureChecks
         }
         finally {Resources.Registered[raiderGraphKey]=rejectedGraph;}
         release.Invoke(brokenActor,null);
+        // A wrong imported pose is quarantined only for 120 frames of the
+        // SAME time epoch. The unmodified correct original Controller must
+        // recover after a frame-count rewind without a fake asset replacement.
+        var rewindRejected=new FrontierRuntime();
+        Animator.InjectWrongSpriteOnce=true;
+        Time.frameCount=11000;
+        Require((bool)method.Invoke(rewindRejected,new object[]{
+            offender,4,6,9,new Point(200,220),96f,
+            Color.white,false,0f}),"rejected-pose rewind setup failed");
+        var rewindRejectedAnim=animatorLookup.GetValue(rewindRejected) as Animator;
+        Require(rewindRejectedAnim!=null&&!rewindRejectedAnim.enabled,
+            "wrong Clip must first enter exact whole-Sprite fallback");
+        int beforePoseRewind=Camera.RenderedTargets.Count;
+        Time.frameCount=52;
+        Require((bool)method.Invoke(rewindRejected,new object[]{
+            offender,4,6,9,new Point(200,220),96f,
+            Color.white,false,0f})&&rewindRejectedAnim.enabled&&
+            Camera.RenderedTargets.Count==beforePoseRewind+1,
+            "stale rejected-pose quarantine survived frame-count rewind");
+        release.Invoke(rewindRejected,null);
+        Console.WriteLine("PASS rejected nonhero Animator poses recover after a new frame-count epoch");
         // Stress actual production RenderTexture allocation with authored-
         // scale 512px actor frames. The former count-only cap held 192
         // targets (~288 MiB estimated GPU color/depth for 512px sources).
