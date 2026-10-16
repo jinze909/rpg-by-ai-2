@@ -620,6 +620,85 @@ public static class ActorRegistrationChecks
         }
     }
 
+    // Real production path: the accepted detailed WalkBossA/B and Bosses
+    // atlases are loaded by LoadVisuals. An injury-phase Boss used to turn
+    // bright white on its lethal frame, even though the unchanged whole-body
+    // Sprite and fixed boots were otherwise correctly crossfaded.
+    static void RegionalBossDeathKeepsLivePhasePalette(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,2);
+        var game=app.Game;
+        bool savedReduced=game.save.reducedMotion;
+        try
+        {
+            game.save.reducedMotion=false;
+            var boss=new Enemy(94003,0,game.Position.x,game.Position.y,200,true){
+                facing=new Point(1,0),moving=true,moveTime=.65f
+            };
+            Place(app,boss.Position,new Point(530,360));
+            for(int phase=1;phase<=3;phase++)
+            {
+                boss.hp=phase==1?200f:phase==2?100f:20f;
+                float green=phase==1?1f:phase==2?.94f:.82f;
+                float blue=phase==1?1f:phase==2?.90f:.83f;
+                Clear();
+                var alive=Draw(app,"DrawEnemyActor",boss)
+                    .FirstOrDefault(c=>c.texture.name==
+                        "resource:Frontier/Art/WalkBossA");
+                Check(alive!=null&&Math.Abs(alive.color.g-green)<.0001f&&
+                    Math.Abs(alive.color.b-blue)<.0001f,
+                    "Live high-detail Boss palette changed unexpectedly");
+                var dead=new FallenActor{actor=boss,room=2,life=1f,duration=1f};
+                Clear();
+                var first=Draw(app,"DrawFallen",dead)
+                    .Where(c=>c.texture.name==
+                        "resource:Frontier/Art/WalkBossA").ToArray();
+                Check(first.Length==1&&
+                    Math.Abs(first[0].color.g-alive.color.g)<.0001f&&
+                    Math.Abs(first[0].color.b-alive.color.b)<.0001f&&
+                    Math.Abs(first[0].rect.y-alive.rect.y)<.001f,
+                    "Lethal frame flashed white on accepted WalkBoss Sprite");
+                dead.life=.88f;
+                Clear();
+                var blend=Draw(app,"DrawFallen",dead)
+                    .Where(c=>c.texture.name==
+                        "resource:Frontier/Art/WalkBossA"||
+                        c.texture.name=="resource:Frontier/Art/Bosses")
+                    .ToArray();
+                Check(blend.Length==2&&
+                    Math.Abs(blend[0].color.g-green)<.0001f&&
+                    Math.Abs(blend[1].color.g-green)<.0001f&&
+                    Math.Abs(blend[0].color.b-blue)<.0001f&&
+                    Math.Abs(blend[1].color.b-blue)<.0001f&&
+                    Math.Abs(blend[0].rect.y+blend[0].rect.height*120f/128f-
+                        blend[1].rect.y-blend[1].rect.height*120f/128f)<.001f,
+                    "Boss phase palette or planted foot changed during death fade");
+                dead.life=.65f;
+                Clear();
+                var corpse=Draw(app,"DrawFallen",dead)
+                    .FirstOrDefault(c=>c.texture.name==
+                        "resource:Frontier/Art/Bosses");
+                Check(corpse!=null&&
+                    Math.Abs(corpse.color.g-green)<.0001f&&
+                    Math.Abs(corpse.color.b-blue)<.0001f,
+                    "Dead Boss suddenly reset phase-three armor color");
+                game.save.reducedMotion=true;
+                dead.life=1f;
+                Clear();
+                var fixedBody=Draw(app,"DrawFallen",dead)
+                    .Where(c=>c.texture.name==
+                        "resource:Frontier/Art/Bosses").ToArray();
+                Check(fixedBody.Length==1&&
+                    Math.Abs(fixedBody[0].color.g-green)<.0001f&&
+                    Math.Abs(fixedBody[0].color.b-blue)<.0001f,
+                    "Reduced-motion Boss death lost authentic phase tint");
+                game.save.reducedMotion=false;
+            }
+            Console.WriteLine("PASS three real regional Boss phases: same high-detail living/death color, fixed foot through crossfade and reduced-motion accessibility");
+        }
+        finally {game.save.reducedMotion=savedReduced;}
+    }
+
     static void MovingBossDeathStaysOnOneRoot(FrontierRuntime app)
     {
         app.BeginVisualReview(0,2);
@@ -1151,7 +1230,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
