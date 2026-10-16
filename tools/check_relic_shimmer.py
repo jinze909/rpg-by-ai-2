@@ -60,6 +60,9 @@ def main():
     assert "relicShimmerRate=3.8" in palette
     tests=TESTS.read_text()
     assert "AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder)" in tests
+    combat=(ROOT/"tests/RuntimeCombatInputChecks.cs").read_text()
+    assert "RenderStateChecks.VerifyRelicArtAndWorldIllumination," in combat, (
+        "RELIC_VISUAL_ASSERTIONS_NEVER_EXECUTED_IN_REAL_CI")
     # Store the ACTUAL committed four-pose source, enlarged only for review.
     folder=ROOT/".starfall-checks/sprite-qa"
     folder.mkdir(parents=True,exist_ok=True)

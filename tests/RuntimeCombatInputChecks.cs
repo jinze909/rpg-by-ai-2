@@ -1483,6 +1483,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyResidentAnimation,
             ActorRegistrationChecks.VerifyCompanionGaitContinuity,
             RenderStateChecks.VerifyLiveVisualLookResource,
+            RenderStateChecks.VerifyRelicArtAndWorldIllumination,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
             AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,
             CanonicalHeroNeverDependsOnLegacyPlayerImports,

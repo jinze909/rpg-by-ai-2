@@ -3156,6 +3156,19 @@ public static class RenderStateChecks
         Console.WriteLine("PASS 37 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
+    // Invoke this DIRECTLY from the executable offline C# smoke suite,
+    // not just the optional visual-review gallery Run() that CI skips.
+    public static void VerifyRelicArtAndWorldIllumination(FrontierRuntime app)
+    {
+        try
+        {
+            AuthoredRelicGlintsStayOnActualDetailedWorldProps(
+                app,".starfall-checks/sprite-qa");
+            WorldLightsRemainAnchoredToDetailedProps(app);
+        }
+        finally{app.EndVisualReview();Clear();}
+    }
+
     // CI-executable resource integrity check, not merely an unused visual
     // review menu helper. Every source-controlled companion gait setting
     // must reach the ACTUAL Unity runtime profile from WorldLook.txt.
