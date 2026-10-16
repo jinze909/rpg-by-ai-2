@@ -703,19 +703,34 @@ namespace Starfall
                 // Never splice upper/lower halves or affect damage/death.
                 int row=Math.Min(7,Math.Max(0,body.room-1));
                 int walkAtlas=row/4;
-                bool transition=body.actor.moving &&
-                    progress<deathBlendFraction &&
-                    !Game.save.reducedMotion && bossWalkSheets!=null &&
+                bool transition=progress<deathBlendFraction &&
+                    !Game.save.reducedMotion && bossSheet!=null;
+                int livePose=EnemyPose(body.actor);
+                bool moving=body.actor.moving &&
+                    (livePose==1 || livePose==4 &&
+                     body.actor.state!=1 &&
+                     body.actor.releaseTime<=0f) &&
+                    bossWalkSheets!=null &&
                     walkAtlas<bossWalkSheets.Length &&
                     bossWalkSheets[walkAtlas]!=null;
                 float change=transition?
                     Mathf.Clamp01(progress/deathBlendFraction):1f;
                 if(transition&&change<1f)
                 {
+                    // The stationary body MUST retain its genuine Bosses
+                    // windup, released, or idle cell until death takes over.
+                    // A pre-existing hit flash does not authorize changing
+                    // armor or silhouette on the first corpse repaint.
                     int stride=GameCore.GaitFrame(body.actor.moveTime,2.8f);
-                    Actor(bossWalkSheets[walkAtlas],4,4,
-                        row%4*4+stride,p,
-                        BossCanvasSize(body.room)*384f/320f,
+                    Texture2D source=moving?
+                        bossWalkSheets[walkAtlas]:bossSheet;
+                    int rows=moving?4:8;
+                    int pose=moving?row%4*4+stride:
+                        row*4+(livePose==2?1:livePose==3?2:0);
+                    float sourceSize=moving?
+                        BossCanvasSize(body.room)*384f/320f:
+                        BossCanvasSize(body.room);
+                    Actor(source,4,rows,pose,p,sourceSize,
                         new Color(tint.r,tint.g,tint.b,
                             tint.a*(1f-change)),body.actor.VisualFlip);
                 }
@@ -762,21 +777,35 @@ namespace Starfall
                 // a moving footfall. Start from their last accepted whole
                 // WalkMonsters frame, then pass the SAME foot root to the
                 // actual Monsters death cell. Never cut or re-rig anatomy.
-                bool walking=body.actor.moving && monsterWalkSheet!=null &&
-                    progress<deathBlendFraction && !Game.save.reducedMotion;
-                float mix=walking?
+                bool transition=progress<deathBlendFraction &&
+                    !Game.save.reducedMotion && monsterSheet!=null;
+                bool walking=body.actor.moving && monsterWalkSheet!=null;
+                float mix=transition?
                     Mathf.Clamp01(progress/deathBlendFraction):1f;
                 float size=body.actor.kind==2?106f:96f;
                 int kind=Math.Min(2,body.actor.kind);
-                if(walking && mix<1f)
+                if(transition && mix<1f)
                 {
-                    int gait=GameCore.GaitFrame(body.actor.moveTime,
-                        body.actor.kind==0?1.35f:1.8f);
-                    int step=body.actor.backpedaling?(4-gait)%4:gait;
-                    Actor(monsterWalkSheet,4,3,kind*4+step,p,
-                        ActorCanvas(monsterWalkSheet,4,size/128f),
-                        new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
-                        body.actor.VisualFlip);
+                    if(walking)
+                    {
+                        int gait=GameCore.GaitFrame(body.actor.moveTime,
+                            body.actor.kind==0?1.35f:1.8f);
+                        int step=body.actor.backpedaling?(4-gait)%4:gait;
+                        Actor(monsterWalkSheet,4,3,kind*4+step,p,
+                            ActorCanvas(monsterWalkSheet,4,size/128f),
+                            new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
+                            body.actor.VisualFlip);
+                    }
+                    else
+                    {
+                        // Match the SAME current idle/windup/contact/hit
+                        // source cell last used by DrawEnemyActor, instead
+                        // of immediately posing a different corpse body.
+                        int sourcePose=Math.Min(4,EnemyPose(body.actor));
+                        Actor(monsterSheet,6,3,kind*6+sourcePose,p,size,
+                            new Color(tint.r,tint.g,tint.b,tint.a*(1f-mix)),
+                            body.actor.VisualFlip);
+                    }
                 }
                 if(mix>0f)
                     Actor(monsterSheet,6,3,kind*6+5,p,size,
