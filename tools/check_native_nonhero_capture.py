@@ -89,6 +89,8 @@ def main():
     assert "entry.lastUsedFrame = -1;" in native
     assert "entry.sourceDirty = true;" in native
     assert "actorCaptureTexture" not in native
+    assert "entry.sourceUpdateCount != sheet.updateCount" in native
+    assert "entry.sourceUpdateCount = sheet.updateCount;" in native
     assert "new Vector2(.5f, 1f - 120f / 128f)" in native
     assert "new Vector3((float)height / width, 1f, 1f)" in native
     assert "actorCaptureRenderer.flipX = flip;" in native
@@ -141,6 +143,28 @@ def main():
     assert missed.returncode!=0 and "NONHERO_CAPTURE_REGRESSION" in missed.stdout,(
         "NONHERO_GPU_BUDGET_MUTATION_FALSE_PASS",missed.stdout)
     print("PASS GPU byte-budget removal mutation hard-fails actual 512px capture stress")
+    # A true in-place Texture2D.Apply/import can keep the same Sprite
+    # references; removing revision detection must make the executed
+    # normal/mirrored GPU-capture probe hard-fail.
+    revision_signal = "if(entry.sourceUpdateCount != sheet.updateCount)"
+    assert native.count(revision_signal) == 1, "NONHERO_TEXTURE_REVISION_GATE_MISSING"
+    stale_pixels = native.replace(revision_signal, "if(false)", 1)
+    mutation_path = OUT / "faulted-stale-texture-pixels.cs"
+    mutation_path.write_text(stale_pixels)
+    mutation_exe = OUT / "faulted-stale-texture-pixels.exe"
+    mutation_compiled = subprocess.run([
+        os.environ.get("STARFALL_MCS", shutil.which("mcs")),
+        "-define:UNITY_5_3_OR_NEWER", "-out:" + str(mutation_exe),
+        str(STUB), str(mutation_path),
+        str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert mutation_compiled.returncode == 0, (
+        "NONHERO_SOURCE_UPLOAD_MUTATION_BUILD", mutation_compiled.stdout)
+    stale = subprocess.run([mono, str(mutation_exe)], cwd=ROOT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert stale.returncode != 0 and "NONHERO_CAPTURE_REGRESSION" in stale.stdout, (
+        "NONHERO_SAME_SOURCE_PIXEL_MUTATION_FALSE_PASS", stale.stdout)
+    print("PASS removal of source-pixel revision guard fails executable nonhero GPU probe")
     # A historical fixed-size 256px framebuffer MUST cause this real
     # runtime probe to FAIL on the 320px Boss source, not warn-and-pass.
     downgraded = native.replace(

@@ -30,6 +30,10 @@ namespace Starfall
             // A complete SpriteImporter refresh changed the source pixels.
             // Preserve an already queued GUI draw and recapture next repaint.
             internal bool sourceDirty;
+            // A Texture2D can upload new GPU pixels IN PLACE without
+            // replacing either the source object or its imported Sprites.
+            // Keep this revision per cached pose/flip, not per actor family.
+            internal uint sourceUpdateCount;
         }
         private const int MaxCachedActorFrames = 192;
         // Limit estimated color + 16-bit depth GPU targets as well as count.
@@ -298,6 +302,13 @@ namespace Starfall
                     // Do not rewrite a RenderTexture earlier in this GUI
                     // frame: a queued draw may still reference its old pixels.
                     bool alreadySubmitted = entry.lastUsedFrame == Time.frameCount;
+                    // Unity 2022.3 Texture.updateCount advances on source
+                    // pixel upload even if Sprite rects and references do not.
+                    // Queue recapture for each cached orientation separately.
+                    // Never overwrite a GUI target already submitted in THIS
+                    // repaint: the last accepted full body remains visible.
+                    if(entry.sourceUpdateCount != sheet.updateCount)
+                        entry.sourceDirty = true;
                     entry.lastUsedFrame = Time.frameCount;
                     if (!entry.texture.IsCreated())
                     {
@@ -376,7 +387,11 @@ namespace Starfall
                     actorCaptureCamera.orthographicSize = .5f;
                     actorCaptureCamera.aspect = 1f;
                     actorCaptureCamera.targetTexture = entry.texture;
-                    try { actorCaptureCamera.Render(); }
+                    try
+                    {
+                        actorCaptureCamera.Render();
+                        entry.sourceUpdateCount = sheet.updateCount;
+                    }
                     finally { actorCaptureCamera.targetTexture = null; }
                 }
                 Color previous = GUI.color;

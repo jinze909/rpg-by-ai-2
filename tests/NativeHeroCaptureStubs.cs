@@ -101,7 +101,13 @@ namespace UnityEngine
     public enum SpriteMeshType { FullRect }
     public enum RenderTextureFormat { ARGB32 }
     public enum CameraClearFlags { SolidColor }
-    public class Texture : Object { }
+    public class Texture : Object
+    {
+        // Unity 2022.3 exposes the source upload revision on Texture.
+        // Simulate a same-object Apply/reimport without replacing Sprites.
+        public uint updateCount { get; private set; }
+        public void IncrementUpdateCount() { updateCount++; }
+    }
     public class Texture2D : Texture
     {
         public int width,height;

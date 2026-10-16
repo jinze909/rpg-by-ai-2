@@ -668,6 +668,64 @@ public static class NativeNonheroCaptureChecks
             release.Invoke(rewindRetry,null);
         }
         Console.WriteLine("PASS nonhero hot-reimport clock rewind: original and mirrored GPU frames, partial-family atomic recovery");
+        // A source atlas's GPU pixel contents can change IN PLACE while the
+        // Texture2D, imported Sprite subassets, Controller and all cached
+        // pose keys remain exactly the same. Verify source updateCount drives
+        // both native capture orientations, without rewriting an already
+        // queued GUI target in the same repaint or recapturing every frame.
+        var pixelUploadRuntime=new FrontierRuntime();
+        var pixelUploadSheet=new Texture2D(512,512,TextureFormat.RGBA32,false);
+        int pixelUploadStart=Camera.RenderedTargets.Count;
+        try
+        {
+            Time.frameCount=20010;
+            Require((bool)method.Invoke(pixelUploadRuntime,new object[]{
+                pixelUploadSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                (bool)method.Invoke(pixelUploadRuntime,new object[]{
+                pixelUploadSheet,4,4,0,new Point(200,220),96f,
+                Color.white,true,0f})&&
+                Camera.RenderedTargets.Count==pixelUploadStart+2,
+                "Same-source mutation probe did not warm both orientations");
+            var pixelOriginalNormal=Camera.RenderedTargets[pixelUploadStart];
+            var pixelOriginalMirror=Camera.RenderedTargets[pixelUploadStart+1];
+            Time.frameCount=20011;
+            pixelUploadSheet.IncrementUpdateCount();
+            Require((bool)method.Invoke(pixelUploadRuntime,new object[]{
+                pixelUploadSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==pixelUploadStart+3&&
+                ReferenceEquals(Camera.RenderedTargets[pixelUploadStart+2],
+                    pixelOriginalNormal),
+                "Native actor retained stale source pixels after same-object texture upload");
+            pixelUploadSheet.IncrementUpdateCount();
+            Require((bool)method.Invoke(pixelUploadRuntime,new object[]{
+                pixelUploadSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==pixelUploadStart+3,
+                "GPU capture rewrote a previously submitted GUI target in one repaint");
+            Time.frameCount=20012;
+            Require((bool)method.Invoke(pixelUploadRuntime,new object[]{
+                pixelUploadSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                (bool)method.Invoke(pixelUploadRuntime,new object[]{
+                pixelUploadSheet,4,4,0,new Point(200,220),96f,
+                Color.white,true,0f})&&
+                Camera.RenderedTargets.Count==pixelUploadStart+5&&
+                ReferenceEquals(Camera.RenderedTargets[pixelUploadStart+3],
+                    pixelOriginalNormal)&&
+                ReferenceEquals(Camera.RenderedTargets[pixelUploadStart+4],
+                    pixelOriginalMirror),
+                "Latest source upload never refreshed both real actor facing captures");
+            Time.frameCount=20013;
+            Require((bool)method.Invoke(pixelUploadRuntime,new object[]{
+                pixelUploadSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==pixelUploadStart+5,
+                "Unchanged source was recaptured unnecessarily after acceptance");
+        }
+        finally {release.Invoke(pixelUploadRuntime,null);}
+        Console.WriteLine("PASS same-object Texture.updateCount recaptures current and flipped full bodies without tearing in-flight GUI targets");
         // Controller-only live art reimport: the 18 published Monsters
         // source cells stay IDENTICAL, but a new Animator Controller must
         // invalidate all previously rendered GPU pose caches (both faces).
