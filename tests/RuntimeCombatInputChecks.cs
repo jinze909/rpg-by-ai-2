@@ -1408,11 +1408,73 @@ public static class RuntimeCombatInputChecks
             " actual sword/impact/projectile effect lifetimes switch between authored Effects.png paintings without root drift");
     }
 
+    private static void AtomicHeroContactImportRecovery(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var installed=Resources.TextureOverrides;
+        var cache=(System.Collections.Generic.Dictionary<string,Texture2D>)
+            typeof(FrontierRuntime).GetField(
+                "fullBodyHeroSheetCache",Private).GetValue(app);
+        var actions=new System.Collections.Generic.List<string>();
+        const string root="Frontier/HeroAnimator/Canonical/";
+        foreach(string profession in new[]{"Vanguard","Ranger","Arcanist"})
+        foreach(string action in new[]{"Attack","Cast"})
+        foreach(string face in new[]{"E","N","S"})
+            actions.Add("Hero_"+profession+"_"+action+"_"+face);
+        try
+        {
+            installed.Clear();cache.Clear();
+            Set(app,"heroContactFamilyChecked",false);
+            Set(app,"clock",1f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "Existing six-frame hero art cannot masquerade as new contacts");
+            for(int i=0;i<17;i++)
+                installed[root+actions[i]]=new Texture2D(7*256,256,
+                    TextureFormat.RGBA32,false){name="staged:"+actions[i]};
+            Set(app,"clock",4f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "17-of-18 import must not switch any class to seven frames");
+            // A live scene may still hold the older six-cell texture.
+            // Completing the final import must remove stale entries.
+            cache[actions[0]]=new Texture2D(6*256,256,
+                TextureFormat.RGBA32,false){name="stale-six-cell"};
+            installed[root+actions[17]]=new Texture2D(7*256,256,
+                TextureFormat.RGBA32,false){name="staged:"+actions[17]};
+            Set(app,"clock",7f);
+            Check((bool)Call(app,"HasCompleteHeroContactArt"),
+                "Complete contact family never became live after Unity reimport");
+            Check(!cache.ContainsKey(actions[0]),
+                "Seven-frame switch reused stale six-cell cached art");
+            app.Game.SetAim(new Point(1,0));
+            app.Game.Attack(new Point(1,0));
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(GUI.textureCalls.Exists(t=>t.texture.name==
+                    "staged:Hero_Vanguard_Attack_E"),
+                "Actual player draw did not switch to fully imported action art");
+            installed.Remove(root+actions[17]);
+            Set(app,"clock",10f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "Broken contact family must atomically return to six cells");
+            Check(!cache.ContainsKey(actions[0]),
+                "Rollback retained a stale seven-frame render atlas");
+            Console.WriteLine(
+                "PASS 18-contact all-or-none hot-import, real game draw and safe reimport rollback");
+        }
+        finally
+        {
+            installed.Clear();cache.Clear();
+            Set(app,"heroContactFamilyChecked",false);
+            Set(app,"heroContactFamilyComplete",false);
+            Set(app,"heroContactLastCheckedAt",float.NegativeInfinity);
+            app.EndVisualReview();
+        }
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
