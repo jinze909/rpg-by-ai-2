@@ -177,9 +177,14 @@ namespace Starfall
                     int recheckAt;
                     bool familyAccepted=actorImportedFrameSets.TryGetValue(
                         id,out accepted);
+                    // An Editor play-session reload or deterministic capture
+                    // replay can rewind frameCount. The prior epoch's
+                    // deadline must not pin an obsolete imported body for
+                    // thousands of frames after the new Sprite is published.
                     bool refresh=familyAccepted &&
                         actorImportedRecheckAt.TryGetValue(id,out recheckAt)&&
-                        Time.frameCount>=recheckAt;
+                        (Time.frameCount>=recheckAt ||
+                         Time.frameCount<recheckAt-180);
                     bool changed=familyAccepted &&
                         accepted[frame]!=sprite;
                     bool needsFallback=!familyAccepted &&
@@ -380,7 +385,8 @@ namespace Starfall
             {
                 int due;
                 if(!actorImportedRecheckAt.TryGetValue(atlasId,out due)||
-                    Time.frameCount<due)return cells[frame];
+                    (Time.frameCount<due &&
+                     Time.frameCount>=due-180))return cells[frame];
                 // Hold the last COMPLETE family while a new import is
                 // being validated. Removing it before validation used to
                 // create temporary source wrappers and trigger an avoidable
@@ -391,7 +397,8 @@ namespace Starfall
             {
                 int retryAt;
                 if(actorImportedRetryAt.TryGetValue(atlasId,out retryAt)&&
-                    Time.frameCount < retryAt)
+                    Time.frameCount<retryAt &&
+                    Time.frameCount>=retryAt-120)
                     return cells!=null?cells[frame]:null;
                 Sprite[] published=Resources.LoadAll<Sprite>(
                     "Frontier/Art/"+source.name);

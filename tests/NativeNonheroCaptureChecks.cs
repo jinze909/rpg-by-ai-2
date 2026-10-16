@@ -502,6 +502,98 @@ public static class NativeNonheroCaptureChecks
             release.Invoke(upgrade,null);
         }
         Console.WriteLine("PASS complete native actor Sprite hot-reimport, mirrored GPU frames, atomic partial-import hold and zero-flash recovery");
+
+        // Editor restart / test replay can rewind the frame counter without
+        // replacing the live FrontierRuntime instance. A previous epoch's
+        // 180-frame cache deadline must not hide freshly republished complete
+        // imported actor poses. Both GPU orientations require a new capture.
+        const string rewindPath="Frontier/Art/Monsters";
+        var rewindSource=(Texture2D)Resources.Registered[rewindPath];
+        var rewindOriginal=Resources.RegisteredSprites[rewindPath];
+        var rewindRevision=new Sprite[rewindOriginal.Length];
+        for(int i=0;i<rewindRevision.Length;i++)
+        {
+            var original=rewindOriginal[i];
+            rewindRevision[i]=Sprite.Create(rewindSource,original.rect,
+                new Vector2(.5f,.0625f),original.pixelsPerUnit,0,
+                SpriteMeshType.FullRect);
+        }
+        var rewindProbe=new FrontierRuntime();
+        var rewindCache=(System.Collections.IDictionary)
+            typeof(FrontierRuntime).GetField("actorFrameSprites",
+                BindingFlags.Instance|BindingFlags.NonPublic).
+                GetValue(rewindProbe);
+        string rewindKey=rewindSource.GetInstanceID()+":6:3:2";
+        try
+        {
+            Time.frameCount=9600;
+            Require((bool)method.Invoke(rewindProbe,new object[]{
+                rewindSource,6,3,2,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                (bool)method.Invoke(rewindProbe,new object[]{
+                rewindSource,6,3,2,new Point(200,220),96f,
+                Color.white,true,0f})&&
+                ReferenceEquals(rewindCache[rewindKey],rewindOriginal[2]),
+                "Could not warm both approved original source orientations");
+            int beforeRewind=Camera.RenderedTargets.Count;
+            Resources.RegisteredSprites[rewindPath]=rewindRevision;
+            Time.frameCount=20; // new clock epoch, before old recheckAt=9780
+            Require((bool)method.Invoke(rewindProbe,new object[]{
+                rewindSource,6,3,2,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(rewindCache[rewindKey],rewindRevision[2])&&
+                Camera.RenderedTargets.Count==beforeRewind+1,
+                "A clock rewind preserved stale pre-import monster body pixels");
+            Time.frameCount=21;
+            Require((bool)method.Invoke(rewindProbe,new object[]{
+                rewindSource,6,3,2,new Point(200,220),96f,
+                Color.white,true,0f})&&
+                Camera.RenderedTargets.Count==beforeRewind+2,
+                "A clock rewind left the mirrored monster cache unrefreshed");
+            Require(!rewindOriginal[2].destroyed,
+                "Re-import recovery destroyed an original Unity-owned Sprite");
+        }
+        finally
+        {
+            Resources.RegisteredSprites[rewindPath]=rewindOriginal;
+            release.Invoke(rewindProbe,null);
+        }
+        // A previous epoch can also leave a partial SpriteImporter family
+        // in a 120-frame retry hold. Republish the complete family immediately
+        // after the rewind, without mixing any of the incomplete subassets.
+        var rewindRetry=new FrontierRuntime();
+        var retryCache=(System.Collections.IDictionary)
+            typeof(FrontierRuntime).GetField("actorFrameSprites",
+                BindingFlags.Instance|BindingFlags.NonPublic).
+                GetValue(rewindRetry);
+        try
+        {
+            Resources.RegisteredSprites[rewindPath]=
+                new Sprite[]{rewindOriginal[0]};
+            Time.frameCount=9800;
+            Require((bool)method.Invoke(rewindRetry,new object[]{
+                rewindSource,6,3,2,new Point(200,220),96f,
+                Color.white,false,0f}),
+                "Incomplete imported monster atlas lost its full-body fallback");
+            var incompleteWrapper=retryCache[rewindKey] as Sprite;
+            Require(incompleteWrapper!=null&&
+                !ReferenceEquals(incompleteWrapper,rewindOriginal[2]),
+                "The partial import did not quarantine its authored fallback");
+            Resources.RegisteredSprites[rewindPath]=rewindOriginal;
+            Time.frameCount=40;
+            Require((bool)method.Invoke(rewindRetry,new object[]{
+                rewindSource,6,3,2,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(retryCache[rewindKey],rewindOriginal[2])&&
+                incompleteWrapper.destroyed,
+                "Rewound partial-import retry remained stuck on obsolete fallback");
+        }
+        finally
+        {
+            Resources.RegisteredSprites[rewindPath]=rewindOriginal;
+            release.Invoke(rewindRetry,null);
+        }
+        Console.WriteLine("PASS nonhero hot-reimport clock rewind: original and mirrored GPU frames, partial-family atomic recovery");
         // Controller-only live art reimport: the 18 published Monsters
         // source cells stay IDENTICAL, but a new Animator Controller must
         // invalidate all previously rendered GPU pose caches (both faces).
