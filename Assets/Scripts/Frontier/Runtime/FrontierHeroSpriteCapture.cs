@@ -567,13 +567,19 @@ namespace Starfall
                 {
                     if(heroCaptureAnimator.runtimeAnimatorController!=controller)
                     {
+                        // A DIFFERENT equipped profession already owns its
+                        // own Sprite-cache keys. Switching the Animator
+                        // outfit is NOT an asset hot-reimport and must never
+                        // rewrite a cached combat contact during a return to
+                        // that profession. Only invalidate on a republished
+                        // Controller for the SAME current profession.
+                        if(heroProductionReady)
+                        {
+                            heroRejectedNativeClips.Clear();
+                            foreach(HeroCaptureEntry entry in heroCapturedFrames.Values)
+                                entry.sourceDirty=true;
+                        }
                         heroCaptureAnimator.runtimeAnimatorController=controller;
-                        heroRejectedNativeClips.Clear();
-                        // A live Animator graph reimport is independent of
-                        // source PNG/Sprite IDs. Recapture without changing
-                        // the GameCore-owned keyframe or root/foot geometry.
-                        foreach(HeroCaptureEntry entry in heroCapturedFrames.Values)
-                            entry.sourceDirty=true;
                     }
                     heroProductionReady=true;
                 }
