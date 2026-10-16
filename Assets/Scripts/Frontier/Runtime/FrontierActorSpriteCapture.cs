@@ -146,7 +146,9 @@ namespace Starfall
                     // can safely release it in ReleaseActorCapture().
                     actorCapturedFrames.Add(captureKey, entry);
                     actorCachedBytes += ActorCaptureCost(capturePixels,capturePixels);
-                    entry.texture.Create();
+                    if (!entry.texture.Create() || !entry.texture.IsCreated())
+                        throw new InvalidOperationException(
+                            "Nonhero whole-actor GPU target creation failed");
                     needsRender = true;
                 }
                 else
@@ -157,7 +159,11 @@ namespace Starfall
                     entry.lastUsedFrame = Time.frameCount;
                     if (!entry.texture.IsCreated())
                     {
-                        entry.texture.Create();
+                        // Repaint can outlive a lost GPU context. Do not
+                        // advertise an invisible/invalid native actor.
+                        if (!entry.texture.Create() || !entry.texture.IsCreated())
+                            throw new InvalidOperationException(
+                                "Nonhero whole-actor GPU target recovery failed");
                         needsRender = true; // device/context loss
                     }
                     else if (!entry.nativeClipVerified && !alreadySubmitted &&
