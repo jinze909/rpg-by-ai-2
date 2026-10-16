@@ -131,6 +131,7 @@ public static class ActorRegistrationChecks
             var g=app.Game;
             g.save.companion=id;
             g.save.reducedMotion=false;
+            g.save.effectsQuality=2;
             g.companionAim=Directions[heading];
             Point pixel=new Point(325,350);
             Place(app,g.companionPosition,pixel);
@@ -213,9 +214,10 @@ public static class ActorRegistrationChecks
                     "Already grounded ally must immediately show real attack windup");
                 g.companionAction=null;
 
-                // Genuine walking -> action must finish the NEXT planted
-                // foot (phase 1 goes to 2; phase 3 goes to 0), without
-                // repainting isolated limbs or moving the shadow.
+                // Genuine walking -> action MUST immediately show the
+                // full-body authored anticipation, never hold the old gait
+                // instead. An optional 24%-opacity rooted planted step
+                // is allowed behind the action for only a few action ticks.
                 g.companionMoving=true;
                 g.companionMoveTime=GameCore.WalkStride*stride*
                     (phase+.5f)/4f;
@@ -229,14 +231,33 @@ public static class ActorRegistrationChecks
                 };
                 Clear();
                 var planted=Draw(app,"DrawCompanionActor");
-                var foot=planted.Single(ActorTexture);
+                var bodies=planted.Where(ActorTexture).ToArray();
+                Check(bodies.Length==2,
+                    "Walking companion hid its authoritative first cast/attack frame");
+                var foot=bodies[0];
+                var windup=bodies[1];
                 int footFrame=(int)Math.Round(Math.Min(foot.uv.x,
                     foot.uv.x+foot.uv.width)*4f);
                 int contact=phase==1?2:phase==3?0:phase;
                 Check(foot.texture.name==approved&&
-                    footFrame==contact&&
-                    Math.Abs(foot.rect.y-strideDraw.rect.y)<.001f,
-                    "Walk->attack jumped backward instead of planting next foot");
+                    footFrame==contact&&foot.color.a>0f&&
+                    foot.color.a<=.241f&&
+                    windup.texture.name==actions&&
+                    windup.color.a>foot.color.a&&
+                    Math.Abs(foot.rect.y-strideDraw.rect.y)<.001f&&
+                    Math.Abs(windup.rect.y-strideDraw.rect.y)<.001f&&
+                    Math.Abs(windup.rect.width-192)<.001f,
+                    "Walk->command must keep one exact boot root and full current cast body");
+                g.companionAction.elapsed=.035f;
+                Clear();
+                var middle=Draw(app,"DrawCompanionActor")
+                    .Where(ActorTexture).ToArray();
+                Check(middle.Length==2&&
+                    middle[0].texture.name==approved&&
+                    middle[0].color.a<foot.color.a&&
+                    middle[1].texture.name==actions&&
+                    Math.Abs(middle[1].rect.y-windup.rect.y)<.001f,
+                    "Gait afterimage failed to fade while true skill windup continued");
                 g.companionAction.elapsed=.10f;
                 Clear();
                 var firing=Draw(app,"DrawCompanionActor");
@@ -245,6 +266,22 @@ public static class ActorRegistrationChecks
                     Math.Abs(armed.rect.y-strideDraw.rect.y)<.001f&&
                     Math.Abs(armed.rect.width-192)<.001f,
                     "Original bow/cast windup lost whole-body scale or boots");
+                // Reduced motion skips old gait entirely but must still
+                // paint the authoritative action body on its FIRST frame.
+                g.companionAction=null;
+                g.companionMoving=true;
+                Clear();Draw(app,"DrawCompanionActor");
+                g.companionMoving=false;
+                g.companionAction=new ActorAction{
+                    direction=Directions[heading],kind="command",
+                    contact=.20f,duration=.52f
+                };
+                g.save.reducedMotion=true;
+                Clear();var reduced=Draw(app,"DrawCompanionActor");
+                Check(reduced.Count(ActorTexture)==1&&
+                    reduced.Single(ActorTexture).texture.name==actions,
+                    "Reduced motion must render current companion action without legacy gait");
+                g.save.reducedMotion=false;
                 g.companionAction=null;
             }
             // Regression: the old Mira->dismiss (no render)->Mira
@@ -265,7 +302,7 @@ public static class ActorRegistrationChecks
             Check(fresh.texture.name==approved&&freshCell==0,
                 "Re-selected same companion must not retain hidden old airborne pose");
         }
-        Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: forward footfall recovery, rooted attack/command transitions, selection-generation reset and idle");
+        Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: forward footfall recovery, immediate full action frames and faded planted contacts, selection-generation reset and idle");
     }
     static void Enemies(FrontierRuntime app,string folder)
     {
