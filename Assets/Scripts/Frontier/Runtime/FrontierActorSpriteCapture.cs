@@ -438,6 +438,18 @@ namespace Starfall
         {
             if (actorCaptureAnimator == null || !NativeActorEligible(
                     source, columns, rows) || frame < 0) return false;
+            int atlasId=source.GetInstanceID();
+            if(actorImportedRetryAt.ContainsKey(atlasId)&&
+                !actorImportedFrameSets.ContainsKey(atlasId))
+            {
+                // A complete-family import was just rejected (one invalid
+                // pixel rect, PPU or foot pivot). Do NOT let Animator sample
+                // the other temporarily valid subassets: otherwise action
+                // contact art can mix two versions of one Boss/NPC body.
+                // DrawSpriteRendererActor must hold its exact original
+                // whole-body cell until ALL of the family revalidates.
+                return false;
+            }
             string family = source.name;
             Texture2D installed;
             if (!actorNativeSource.TryGetValue(family, out installed) ||
