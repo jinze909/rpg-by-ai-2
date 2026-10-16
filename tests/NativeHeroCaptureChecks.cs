@@ -400,6 +400,88 @@ public static class NativeHeroCaptureChecks
             Camera.RenderedTargets.Count==beforeCreate+1,
             "initial GPU creation failure permanently hid Arcanist Cast_S");
         release.Invoke(fresh,null);
+
+        // The artist can rebake ALL 63 canonical hero action/facing
+        // families while GameView remains open. An already accepted
+        // six-cell Vanguard attack must automatically adopt the new
+        // imported Sprite without resetting the character or repainting
+        // any earlier queued GPU image, then refuse a PARTIAL reimport.
+        const string hotPath=
+            "Frontier/HeroAnimator/Canonical/Hero_Vanguard_Attack_E";
+        var originalCells=Resources.RegisteredSprites[hotPath];
+        var rebaked=new Sprite[originalCells.Length];
+        for(int i=0;i<rebaked.Length;i++)
+            rebaked[i]=Sprite.Create(originalCells[i].texture,
+                originalCells[i].rect,new Vector2(.5f,.0625f),
+                128f,0,SpriteMeshType.FullRect);
+        var live=new FrontierRuntime();
+        live.Game.AppearanceWeapon=0;
+        live.ProbeAction=2;live.ProbeFrames=6;
+        live.ProbeFrame=2;live.ProbePosition=2f;
+        try
+        {
+            Time.frameCount=3000;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false}),
+                "Initial golden hero imported body did not render");
+            var heroView=renderField.GetValue(live) as SpriteRenderer;
+            var heroNative=animatorField.GetValue(live) as Animator;
+            RenderTexture originalTarget=GUI.DrawnTextures[
+                GUI.DrawnTextures.Count-1] as RenderTexture;
+            Require(heroView!=null&&heroNative!=null&&
+                ReferenceEquals(heroView.sprite,originalCells[2])&&
+                heroNative.enabled&&originalTarget!=null,
+                "Missing accepted full-body native source before hot-reimport");
+            Resources.RegisteredSprites[hotPath]=rebaked;
+            Time.frameCount=3001;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                ReferenceEquals(heroView.sprite,originalCells[2])&&
+                ReferenceEquals(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1],originalTarget),
+                "Canonical import scanned/mutated an earlier queued GUI pose");
+            Time.frameCount=3180; // one bounded 180-frame refresh
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                ReferenceEquals(heroView.sprite,rebaked[2])&&
+                heroNative.enabled&&
+                !ReferenceEquals(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1],originalTarget)&&
+                originalTarget.IsCreated(),
+                "Rebaked blonde Vanguard frames never reached native Animator");
+            var secondTarget=GUI.DrawnTextures[
+                GUI.DrawnTextures.Count-1] as RenderTexture;
+            // 5 of 6 present: NEVER allow a mixed-maturity attack
+            // clip to select valid-looking but partial weapon contact art.
+            var partial=new Sprite[rebaked.Length-1];
+            Array.Copy(rebaked,partial,partial.Length);
+            Resources.RegisteredSprites[hotPath]=partial;
+            Time.frameCount=3361;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                !heroNative.enabled&&
+                !ReferenceEquals(heroView.sprite,rebaked[2])&&
+                ReferenceEquals(heroView.sprite.texture,
+                    originalCells[2].texture)&&
+                secondTarget.IsCreated(),
+                "Partial imported hero atlas mixed two versions of Attack");
+            var fallback=heroView.sprite;
+            Resources.RegisteredSprites[hotPath]=rebaked;
+            Time.frameCount=3542;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                heroNative.enabled&&
+                ReferenceEquals(heroView.sprite,rebaked[2])&&
+                fallback.destroyed,
+                "Corrected hero art did not restore accepted native contact");
+        }
+        finally
+        {
+            Resources.RegisteredSprites[hotPath]=originalCells;
+            release.Invoke(live,null);
+        }
+        Require(!originalCells[2].destroyed&&!rebaked[2].destroyed,
+            "Canonical hot-refresh destroyed shared imported hero Sprite");
         release.Invoke(app,null);
         foreach(var target in textures)
             Require(target.releaseCount>0&&!target.IsCreated(),
