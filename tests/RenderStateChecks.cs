@@ -2897,6 +2897,85 @@ public static class RenderStateChecks
             " original soft grounded actor samples across NPC/hero/Boss sizes; no rejected contact sprite");
     }
 
+    private static void CanonicalHeroFallbackRecoversAfterPartialArtReimport(
+        FrontierRuntime app)
+    {
+        // The REAL world and inventory fallbacks use one accepted class-owned
+        // 256px source. Simulate an Editor reimport with the offline Resources
+        // override, not edits to any accepted on-disk hero artwork.
+        app.BeginVisualReview(0,1);
+        const string key="Hero_Vanguard_Idle_S";
+        string path="Frontier/HeroAnimator/Canonical/"+key;
+        var overrides=Resources.TextureOverrides;
+        Texture2D previousOverride;
+        bool had=overrides.TryGetValue(path,out previousOverride);
+        var cache=Get<System.Collections.Generic.Dictionary<string,Texture2D>>(
+            app,"fullBodyHeroSheetCache");
+        var rechecks=Get<System.Collections.Generic.Dictionary<string,float>>(
+            app,"fullBodyHeroRecheckAt");
+        Texture2D old;
+        bool cached=cache.TryGetValue(key,out old);
+        float previousClock=Get<float>(app,"clock");
+        var freshA=new Texture2D(256,256,TextureFormat.RGBA32,false){
+            name="offline-approved-Vanguard-Idle-A"};
+        var freshB=new Texture2D(256,256,TextureFormat.RGBA32,false){
+            name="offline-approved-Vanguard-Idle-B"};
+        var partial=new Texture2D(255,256,TextureFormat.RGBA32,false){
+            name="offline-incomplete-Vanguard"};
+        try
+        {
+            cache.Remove(key);rechecks.Remove(key);
+            overrides[path]=freshA;
+            Set(app,"clock",10000f);
+            Clear();Call(app,"DrawPlayerPreview",0,370f,290f,104f);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,freshA),
+                "Equipped hero preview failed to use first published whole-body atlas");
+            overrides[path]=freshB;
+            Set(app,"clock",10001f);
+            Clear();Call(app,"DrawPlayerPreview",0,370f,290f,104f);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,freshA),
+                "A hot import overwrote a live accepted Sprite mid-review");
+            // A truncated SpriteImport may occur between two stable assets.
+            // Keep last complete artwork without publishing a 255px torso.
+            overrides[path]=partial;
+            Set(app,"clock",10003f);
+            Clear();Call(app,"DrawPlayerPreview",0,370f,290f,104f);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,freshA),
+                "Incomplete canonical art replaced last validated protagonist");
+            overrides[path]=freshB;
+            Set(app,"clock",10006f);
+            Clear();Call(app,"DrawPlayerPreview",0,370f,290f,104f);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,freshB)&&
+                Math.Abs(GUI.textureCalls[0].rect.width-104f)<.001f,
+                "Accepted updated class body never reached real inventory pipeline");
+            // The whole-body GameView fallback shares the same atlas
+            // publication point; an inventory preview alone is insufficient.
+            app.Game.playerAction=null;app.Game.playerHitTime=0f;
+            app.Game.dashTime=0f;app.Game.deathTime=0f;
+            Clear();Call(app,"DrawWholeBodyHeroOnGUI",
+                new Point(330,420),Color.white,false,0,2,false);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,freshB)&&
+                Math.Abs(GUI.textureCalls[0].rect.width-192f)<.001f,
+                "GameView fallback and inventory displayed different hero generations");
+            Console.WriteLine("PASS whole-body hero production fallback hot-reimport: complete atlas publication, truncated-source hold, class identity and world/loadout parity");
+        }
+        finally
+        {
+            if(had)overrides[path]=previousOverride;
+            else overrides.Remove(path);
+            if(cached)cache[key]=old;
+            else cache.Remove(key);
+            rechecks.Remove(key);
+            Set(app,"clock",previousClock);
+            app.EndVisualReview();Clear();
+        }
+    }
+
     private static void EditableWorldVisualResourceDrivesLiveRender(FrontierRuntime app)
     {
         Prepare(app);
@@ -2958,7 +3037,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
