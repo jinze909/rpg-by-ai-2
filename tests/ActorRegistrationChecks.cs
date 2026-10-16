@@ -1431,6 +1431,88 @@ public static class ActorRegistrationChecks
         }
     }
 
+    // The ACTIVE DrawEnemyActor/Actor production chain, not a detached
+    // atlas preview, must preserve a complete planted body when GameCore
+    // swaps the enemy's Idle and Run art. No enemy combat contact is delayed.
+    static void EnemyAtlasHandoffsKeepOneGroundedIdentity(
+        FrontierRuntime app,string folder)
+    {
+        foreach(bool boss in new[]{false,true})
+        {
+            app.BeginVisualReview(0,2);
+            var game=app.Game;
+            game.enemies.Clear();
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            Set(app,"clock",10f);
+            var enemy=new Enemy(boss?99431:99430,0,
+                game.Position.x+1f,game.Position.y+.5f,120f,boss);
+            enemy.moving=false;
+            enemy.moveTime=.1f;
+            game.enemies.Add(enemy);
+            var still=Draw(app,"DrawEnemyActor",enemy);
+            string idleName="resource:Frontier/Art/"+(boss?"Bosses":"Monsters");
+            string movingName="resource:Frontier/Art/"+(boss?"WalkBossA":"WalkMonsters");
+            Check(still.Count(c=>c.texture.name==idleName)==1&&
+                !still.Any(c=>c.texture.name==movingName),
+                "Idle must start on only its published whole-body atlas");
+            enemy.moving=true;
+            enemy.moveTime=.36f;
+            Set(app,"clock",10.02f);
+            Clear();
+            var entering=Draw(app,"DrawEnemyActor",enemy);
+            var run=entering.FirstOrDefault(c=>c.texture.name==movingName);
+            var depart=entering.FirstOrDefault(c=>c.texture.name==idleName);
+            Check(run!=null&&depart!=null&&
+                depart.color.a>.10f&&depart.color.a<.40f,
+                "State transition must retain brief low-alpha source-complete Idle body");
+            Check(Math.Abs(run.rect.x-depart.rect.x)<.001f&&
+                Math.Abs(run.rect.y+run.rect.height*.9375f-
+                    depart.rect.y-depart.rect.height*.9375f)<.001f,
+                "Old and new whole-body sprites must plant the SAME boot root");
+            Check(!entering.Any(c=>c.texture.name.Contains("PlayerVanguard")||
+                c.texture.name.Contains("PlayerRanger")),
+                "Nonhero crossfade must not borrow player anatomy");
+            GUI.Export(folder,boss?"review-boss-walk-cross-atlas":"review-monster-walk-cross-atlas");
+            Set(app,"clock",10.08f);
+            Clear();var fading=Draw(app,"DrawEnemyActor",enemy);
+            var softer=fading.FirstOrDefault(c=>c.texture.name==idleName);
+            Check(softer!=null&&softer.color.a<depart.color.a&&
+                softer.color.a>0f,
+                "Atlas handoff must decay continuously on real animation time");
+            Set(app,"clock",10.15f);
+            Clear();var settled=Draw(app,"DrawEnemyActor",enemy);
+            Check(settled.Any(c=>c.texture.name==movingName)&&
+                !settled.Any(c=>c.texture.name==idleName),
+                "Transition afterimage must disappear after bounded window");
+            // A genuine attack is NEVER blended with a false old foot pose.
+            enemy.state=1;enemy.timer=.35f;enemy.windupDuration=.65f;
+            Set(app,"clock",10.17f);
+            Clear();var windup=Draw(app,"DrawEnemyActor",enemy);
+            Check(windup.Any(c=>c.texture.name==idleName)&&
+                !windup.Any(c=>c.texture.name==movingName),
+                "New GameCore windup must immediately own combat body art");
+            enemy.state=0;enemy.releaseTime=.18f;
+            Set(app,"clock",10.18f);
+            Clear();var released=Draw(app,"DrawEnemyActor",enemy);
+            Check(released.Any(c=>c.texture.name==idleName)&&
+                !released.Any(c=>c.texture.name==movingName),
+                "Contact/release may not be obscured by a walking afterimage");
+            enemy.releaseTime=0f;enemy.moving=false;
+            enemy.hitTime=0f;
+            Set(app,"clock",10.2f);Clear();
+            Draw(app,"DrawEnemyActor",enemy);
+            game.save.reducedMotion=true;
+            enemy.moving=true;
+            Set(app,"clock",10.22f);
+            Clear();var quiet=Draw(app,"DrawEnemyActor",enemy);
+            Check(quiet.Any(c=>c.texture.name==movingName)&&
+                !quiet.Any(c=>c.texture.name==idleName),
+                "Reduced motion must disable new transition ghosts");
+        }
+        Console.WriteLine("PASS complete-body NPC-compatible native Sprite actor lane: common/Boss Idle->Walk planted cross-atlas timing, attack interrupt, face-safe old-art fade and accessibility");
+    }
+
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
         try { CompanionGaitActuallyPlantsBothFeet(app); }
@@ -1440,7 +1522,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
