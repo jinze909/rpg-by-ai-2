@@ -912,6 +912,60 @@ public static class ActorRegistrationChecks
             accessible.Any(c=>c.texture.name==
                 "resource:Frontier/Art/Bosses"),
             "Reduced-motion must skip Boss death handoff");
+        // Lethal damage can land DURING an Idle -> Walk cross-atlas size
+        // interpolation. The previous implementation remembered the NEXT
+        // 384px walk canvas even though DrawEnemyAtlasHandoff had only
+        // displayed the initial 320px whole-body size. The first corpse
+        // frame then expanded the Boss by 20% in one repaint.
+        g.save.reducedMotion=false;
+        g.save.effectsQuality=2;
+        var interrupted=new Enemy(94001,0,g.Position.x,g.Position.y,200,true){
+            moving=false,moveTime=.12f,facing=new Point(1f,0f)
+        };
+        Set(app,"clock",33f);Clear();
+        var ready=Draw(app,"DrawEnemyActor",interrupted);
+        Check(ready.Any(c=>c.texture.name==
+            "resource:Frontier/Art/Bosses"),"Boss Idle source not ready");
+        interrupted.moving=true;interrupted.moveTime=.36f;
+        Set(app,"clock",33.02f);Clear();
+        var crossing=Draw(app,"DrawEnemyActor",interrupted);
+        var paintedCrossing=crossing.FirstOrDefault(c=>c.texture.name==
+            "resource:Frontier/Art/WalkBossA");
+        Check(paintedCrossing!=null&&
+            crossing.Any(c=>c.texture.name==
+                "resource:Frontier/Art/Bosses"),
+            "Must reproduce a REAL cross-atlas whole-body Boss handoff");
+        interrupted.hp=0f;
+        var suddenDeath=new FallenActor{
+            actor=interrupted,room=2,life=1f,duration=1f
+        };
+        Clear();var sameFrameCorpse=Draw(app,"DrawFallen",suddenDeath);
+        var rememberedCrossing=sameFrameCorpse.FirstOrDefault(c=>
+            c.texture.name=="resource:Frontier/Art/WalkBossA");
+        Check(rememberedCrossing!=null&&
+            !sameFrameCorpse.Any(c=>c.texture.name==
+                "resource:Frontier/Art/Bosses")&&
+            Math.Abs(rememberedCrossing.rect.width-
+                paintedCrossing.rect.width)<.001f&&
+            Math.Abs(rememberedCrossing.rect.height-
+                paintedCrossing.rect.height)<.001f&&
+            Math.Abs(rememberedCrossing.rect.x-
+                paintedCrossing.rect.x)<.001f&&
+            Math.Abs(rememberedCrossing.rect.y-
+                paintedCrossing.rect.y)<.001f&&
+            Math.Abs(rememberedCrossing.uv.x-
+                paintedCrossing.uv.x)<.00001f&&
+            Math.Abs(rememberedCrossing.uv.y-
+                paintedCrossing.uv.y)<.00001f,
+            "Lethal hit during Boss size easing popped the corpse head/body canvas");
+        suddenDeath.life=.88f;Clear();
+        var dyingCrossfade=Draw(app,"DrawFallen",suddenDeath);
+        Check(dyingCrossfade.Any(c=>c.texture.name==
+            "resource:Frontier/Art/WalkBossA")&&
+            dyingCrossfade.Any(c=>c.texture.name==
+            "resource:Frontier/Art/Bosses"),
+            "Mid-handoff lethal Boss did not continue into published death Sprite");
+        Console.WriteLine("PASS lethal Boss during Idle/Walk canvas easing: exact last visible painted size, planted corpse, no 20% frame pop");
         Console.WriteLine("PASS moving Boss death: accepted stride/boots, rooted whole-body transition and accessible fixed corpse");
     }
 

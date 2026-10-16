@@ -677,6 +677,8 @@ namespace Starfall
                 lastVisible.lastRegionalSheet=visibleBossSheet;
                 lastVisible.lastRegionalRows=visibleBossRows;
                 lastVisible.lastRegionalFrame=visibleBossFrame;
+                // Provisional nominal canvas until the real rooted handoff
+                // returns the exact canvas that appeared in THIS repaint.
                 lastVisible.lastRegionalSize=visibleBossSize;
                 lastVisible.lastRegionalFlip=e.VisualFlip;
                 lastVisible.lastRegionalTint=tint;
@@ -684,6 +686,11 @@ namespace Starfall
                     e,visibleBossSheet,4,visibleBossRows,visibleBossFrame,
                     p + offset,visibleBossSize,tint,e.VisualFlip,pose);
                 paintedBossCanvas=paintedBossSize;
+                // A lethal strike DURING the 320 -> 384 canvas handoff
+                // must remember the body pixels the player actually saw,
+                // not the not-yet-reached walk atlas's nominal 384px size.
+                // DrawFallen consumes this exact size on its first repaint.
+                lastVisible.lastRegionalSize=paintedBossSize;
                 float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                 if (!drawingOutline && flashAlpha > 0f && visibleBossSheet != null)
                     Actor(art.FlashMask(visibleBossSheet), 4, visibleBossRows,
