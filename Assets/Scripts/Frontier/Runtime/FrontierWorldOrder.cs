@@ -232,7 +232,21 @@ namespace Starfall
                 DrawActorContactShadow(p,canopy?76:prop.kind=="house"?122:108,
                     canopy?21:27,canopy?12:prop.kind=="house"?13:14,
                     occludes?.48f:.68f);
-            if(canopy)DrawRootedPlant(prop,rect,tint);else PropImage(prop.kind,variant,rect.x,rect.y,rect.width,rect.height,tint);
+            if(canopy)
+            {
+                // DrawRootedPlant displays an intact square 128px atlas
+                // Sprite with a painted soil/foot root at pixel 120. The
+                // inherited tall-prop rect used its bottom+8 as a proxy
+                // pivot: gust rotation kept that *wrong* point still and
+                // made trunks skate against the real terrain/shadow anchor.
+                // Register the accepted square's exact painted root with
+                // the source world coordinate BEFORE applying wind.
+                float side=Math.Min(rect.width,rect.height);
+                rect.y=p.y-side*120f/128f;
+                rect.height=side;
+                DrawRootedPlant(prop,rect,tint);
+            }
+            else PropImage(prop.kind,variant,rect.x,rect.y,rect.width,rect.height,tint);
             if(prop.kind=="well"&&Game.Has("ally_3"))Box(p.x-5,p.y-16,10,5,mint);
         }
         private void DrawEnemyWithBars(Enemy enemy)
