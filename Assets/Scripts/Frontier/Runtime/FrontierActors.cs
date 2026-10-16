@@ -24,6 +24,7 @@ namespace Starfall
             internal int lastVisibleRoom = -1;
             internal int lastVisiblePhase;
             internal int lastBriarCell = -1;
+            internal bool lastBriarFlip;
             // The other six-plus regional Bosses use accepted Bosses/WalkBoss
             // art, NOT the candidate Briar atlas. Capture the exact approved
             // source cell, foot scale, facing and flash tint last painted.
@@ -591,6 +592,7 @@ namespace Starfall
                 lastVisible.lastVisibleRoom=Game.save.room;
                 lastVisible.lastVisiblePhase=e.BossPhase;
                 lastVisible.lastBriarCell=-1;
+                lastVisible.lastBriarFlip=e.VisualFlip;
                 lastVisible.lastRegionalSheet=null;
                 // Keep base body and hit-flash on the identical authored
                 // frame, dimensions and foot pivot. Painting the idle sheet
@@ -797,30 +799,33 @@ namespace Starfall
                 observed.room==body.room && observed.sheet!=null &&
                 observed.columns>0 && observed.rows>0 && observed.size>0f)
                 lastEnemyPaint=observed;
+            // Freeze death orientation to the last full-body painting; an
+            // AI retreat/contact update after HP-zero may turn the Enemy.
             bool corpseFlip=lastEnemyPaint!=null?lastEnemyPaint.flip:
+                previousBoss!=null && previousBoss.lastBriarCell>=0?
+                    previousBoss.lastBriarFlip:
                 previousBoss!=null && previousBoss.lastRegionalSheet!=null?
                     previousBoss.lastRegionalFlip:body.actor.VisualFlip;
             float corpseMix=1f;
             if(lastEnemyPaint!=null && !Game.save.reducedMotion &&
                 progress<deathBlendFraction)
-            {
                 corpseMix=Mathf.Clamp01(progress/
                     Math.Max(.01f,deathBlendFraction));
-                if(corpseMix<1f)
-                    Actor(lastEnemyPaint.sheet,lastEnemyPaint.columns,
-                        lastEnemyPaint.rows,lastEnemyPaint.frame,p,
-                        lastEnemyPaint.size,
-                        new Color(lastEnemyPaint.tint.r,lastEnemyPaint.tint.g,
-                            lastEnemyPaint.tint.b,
-                            lastEnemyPaint.tint.a*tint.a*(1f-corpseMix)),
-                        lastEnemyPaint.flip);
-            }
-            // Keep the contact patch as a corpse fades out; a death frame
-            // otherwise snaps from a solid grounded sprite into a floating one.
+            // The contact shadow belongs BEHIND the full-body Sprite. If
+            // we draw a remembered pose before this, the next shadow is
+            // painted across its boots during lethal hit and death fade.
             DrawActorContactShadow(p,body.actor.boss?BossCanvasSize(body.room)*.57f:
                     body.actor.kind==2?60:54,body.actor.boss?24:16,
                 body.actor.boss?8:body.actor.kind==0?4:body.actor.kind==1?5:6,
                 tint.a*.84f);
+            if(lastEnemyPaint!=null && corpseMix<1f)
+                Actor(lastEnemyPaint.sheet,lastEnemyPaint.columns,
+                    lastEnemyPaint.rows,lastEnemyPaint.frame,p,
+                    lastEnemyPaint.size,
+                    new Color(lastEnemyPaint.tint.r,lastEnemyPaint.tint.g,
+                        lastEnemyPaint.tint.b,
+                        lastEnemyPaint.tint.a*tint.a*(1f-corpseMix)),
+                    lastEnemyPaint.flip);
             if (body.actor.boss && body.room == 1 &&
                 briarBeastSheet != null && briarBeastSheet.width == 1280 &&
                 briarBeastSheet.height == 5760)

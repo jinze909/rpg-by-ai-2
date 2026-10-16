@@ -569,6 +569,7 @@ public static class ActorRegistrationChecks
             // its first corpse paint. Last living HP phase and contact must
             // not be recomputed from the new hp=0 phase-three silhouette.
             boss.hp=0f;
+            boss.Face(new Point(-1,0)); // Death must retain rendered east pose.
             var fallen=new FallenActor{actor=boss,room=1,
                 life=1f,duration=1f};
             Clear();
@@ -577,6 +578,7 @@ public static class ActorRegistrationChecks
             Check(first.Length==1 &&
                 Math.Abs(first[0].uv.x-live.uv.x)<.00001f &&
                 Math.Abs(first[0].uv.y-live.uv.y)<.00001f &&
+                Math.Abs(first[0].uv.width-live.uv.width)<.00001f &&
                 Math.Abs(first[0].rect.y-live.rect.y)<.001f &&
                 Math.Abs(first[0].rect.width-live.rect.width)<.001f,
                 "First Boss death repaint flashed idle/dead instead of real windup");
@@ -597,8 +599,10 @@ public static class ActorRegistrationChecks
                 Math.Abs(blended[0].color.a-blended[1].color.a)<.0001f &&
                 Math.Abs(blended[0].rect.x-blended[1].rect.x)<.001f &&
                 Math.Abs(blended[0].rect.y-blended[1].rect.y)<.001f &&
+                Math.Abs(blended[0].uv.width-live.uv.width)<.00001f &&
+                Math.Abs(blended[1].uv.width-live.uv.width)<.00001f &&
                 Math.Abs(blended[1].uv.y)<.00001f,
-                "Briar handoff used mismatched identity, feet or alpha");
+                "Briar handoff used mismatched identity, facing, feet or alpha");
             fallen.life=1f-fraction-.05f;
             Clear();
             var finished=Draw(app,"DrawFallen",fallen)
@@ -789,6 +793,7 @@ public static class ActorRegistrationChecks
                         Math.Abs(blended[0].uv.x-alive.uv.x)<.00001f&&
                         Math.Abs(blended[0].uv.y-alive.uv.y)<.00001f&&
                         Math.Abs(blended[0].uv.width-alive.uv.width)<.00001f&&
+                        Math.Abs(blended[1].uv.width-alive.uv.width)<.00001f&&
                         Math.Abs(blended[0].rect.y-alive.rect.y)<.001f,
                         "Regional Boss death crossfade switched the original cell");
                 }
@@ -941,8 +946,10 @@ public static class ActorRegistrationChecks
                 Check(crossfade.Length==2&&
                     crossfade[0].texture.name==alive.texture.name&&
                     Math.Abs(crossfade[0].uv.x-alive.uv.x)<.00001f&&
-                    Math.Abs(crossfade[0].uv.y-alive.uv.y)<.00001f,
-                    "Enemy corpse crossfade resurrected a new postmortem action");
+                    Math.Abs(crossfade[0].uv.y-alive.uv.y)<.00001f&&
+                    Math.Abs(crossfade[0].uv.width-alive.uv.width)<.00001f&&
+                    Math.Abs(crossfade[1].uv.width-alive.uv.width)<.00001f,
+                    "Enemy corpse crossfade changed its published facing or action");
                 dead.life=.68f;Clear();
                 var settled=Draw(app,"DrawFallen",dead);
                 Check(settled.Count(c=>c.texture.name==
