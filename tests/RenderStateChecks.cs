@@ -3926,6 +3926,15 @@ public static class RenderStateChecks
                     object.ReferenceEquals(c.texture,accepted));
                 Check(body!=null&&glint!=null,
                     "Real sorted WorldProps tree lost its original body or 8-frame canopy accent");
+                Same(body.matrix,glint.matrix,
+                    "Painted leaf motion drifts away from real rooted tree gust transform");
+                var planted=(Point)Call(app,"ScreenPoint",
+                    new Point(plant.x,plant.y));
+                Near(body.matrix.MultiplyPoint3x4(
+                        new Vector3(planted.x,planted.y,0f)),
+                    glint.matrix.MultiplyPoint3x4(
+                        new Vector3(planted.x,planted.y,0f)),
+                    "Tree trunk and secondary canopy highlight have different wind roots");
                 float row=kind=="palm"?1:kind=="snowpine"?2:0;
                 Check(Math.Abs(glint.uv.y-(1f-(row+1f)/3f))<.0001f&&
                     Math.Abs(glint.uv.height-1f/3f)<.0001f&&
@@ -3937,6 +3946,12 @@ public static class RenderStateChecks
                 Call(app,"DrawWorldDecoration",plant);
                 glint=GUI.textureCalls.Find(c=>
                     object.ReferenceEquals(c.texture,accepted));
+                var swayedBody=GUI.textureCalls.Find(c=>
+                    object.ReferenceEquals(c.texture,original));
+                Check(glint!=null&&swayedBody!=null,
+                    "Moving secondary foliage or original tree vanished");
+                Same(swayedBody.matrix,glint.matrix,
+                    "Wind changed but canopy highlights did not follow the body");
                 Check(glint!=null&&
                     Math.Abs(first.uv.x-glint.uv.x)>.0001f&&
                     Math.Abs(first.rect.x-glint.rect.x)<.0001f&&

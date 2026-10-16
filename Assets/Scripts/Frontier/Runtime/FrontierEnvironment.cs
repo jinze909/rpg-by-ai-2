@@ -209,8 +209,17 @@ namespace Starfall
             float width=originalSize*.54f;
             Rect crown=new Rect(foot.x-width*.5f,
                 foot.y-originalSize*.64f-width*.5f,width,width);
-            Atlas(canopyWhispersSheet,8,3,row*8+frame,crown,
-                new Color(1f,1f,1f,alpha));
+            Matrix4x4 originalMatrix=GUI.matrix;
+            try
+            {
+                float sway=RootedCanopyGustDegrees(prop);
+                if(sway!=0f)
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(
+                        originalMatrix,new Vector2(foot.x,foot.y),sway);
+                Atlas(canopyWhispersSheet,8,3,row*8+frame,crown,
+                    new Color(1f,1f,1f,alpha*worldActorOpacity));
+            }
+            finally {GUI.matrix=originalMatrix;}
         }
 
         // Source-preserving shoreline animation: one subdued crest sampled
@@ -471,6 +480,24 @@ namespace Starfall
             }
             finally { GUI.matrix=canvas; }
         }
+        // One wind clock for both the ORIGINAL whole WorldProps painting
+        // and its optional source-illustrated leaf/glint layer. The old
+        // overlay stayed static while the canopy swayed, so highlights
+        // visibly crawled away from branches at every gust extrema.
+        private float RootedCanopyGustDegrees(Decoration prop)
+        {
+            if(Game.save.reducedMotion||Game.save.effectsQuality==0)return 0f;
+            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),
+                Game.save.room);
+            float phase=(seed%997)*.01f;
+            float gust=(float)(Math.Sin(clock*.82f+phase)*.72+
+                Math.Sin(clock*1.43f+phase*1.73f)*.28);
+            WorldVisualLook visual=CurrentWorldVisualLook;
+            float strength=prop.kind=="palm"?visual.palmSwayDegrees:
+                prop.kind=="snowpine"?visual.snowpineSwayDegrees:
+                visual.treeSwayDegrees;
+            return gust*strength;
+        }
         private void DrawRootedPlant(Decoration prop, Rect rect, Color tint)
         {
             if (worldProps == null)
@@ -487,7 +514,6 @@ namespace Starfall
             rect=new Rect(rect.x+(rect.width-side)*.5f,
                 rect.y+rect.height-side,side,side);
             int id=prop.kind=="palm"?5:prop.kind=="snowpine"?6:0;
-            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),Game.save.room);
             Matrix4x4 originalMatrix=GUI.matrix;
             Color originalTint=GUI.color;
             try
@@ -495,19 +521,13 @@ namespace Starfall
                 // Anchor all gentle foliage motion to the authored foot,
                 // NOT the painted canvas centre. The trunk/root must remain
                 // at the actual depth-sort/collision location during gusts.
-                if (!Game.save.reducedMotion && Game.save.effectsQuality>0)
+                float sway=RootedCanopyGustDegrees(prop);
+                if (sway!=0f)
                 {
-                    float phase=(seed%997)*.01f;
-                    float gust=(float)(Math.Sin(clock*.82f+phase)*.72+
-                        Math.Sin(clock*1.43f+phase*1.73f)*.28);
-                    WorldVisualLook visual=CurrentWorldVisualLook;
-                    float strength=prop.kind=="palm"?visual.palmSwayDegrees:
-                        prop.kind=="snowpine"?visual.snowpineSwayDegrees:
-                        visual.treeSwayDegrees;
                     Vector2 foot=new Vector2(rect.x+rect.width*.5f,
                         rect.y+rect.height*(120f/128f));
                     GUI.matrix=GuiGeometry.RotateAroundPivot(
-                        originalMatrix,foot,gust*strength);
+                        originalMatrix,foot,sway);
                 }
                 tint.a*=worldActorOpacity;
                 GUI.color=tint;
