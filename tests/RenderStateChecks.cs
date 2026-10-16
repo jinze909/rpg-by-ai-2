@@ -1321,6 +1321,118 @@ public static class RenderStateChecks
     }
     private static float TileMinusTwo() { return 34f; }
 
+    // Actually executable offline C# scene renderer assertion; this does
+    // not merely examine the generated PNG. Production must paint both the
+    // ORIGINAL accepted water line and a new complete 32x12 foam pose.
+    public static void VerifyPaintedShorelineFoamInLiveWorld(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,5);
+        var g=app.Game;
+        var oldQuality=g.save.effectsQuality;
+        var oldReduced=g.save.reducedMotion;
+        var oldMatrix=GUI.matrix;
+        var oldColor=GUI.color;
+        const int y=14;
+        int x=-1;
+        for(int k=14;k<26;k++)
+            if(((int)Call(app,"PreparedTileSeed",k,y)&1)==0)
+            {x=k;break;}
+        Check(x>=0,"Cannot select stable even-seeded shoreline tile");
+        var rows=g.Map.rows;
+        string[] original={rows[y-1],rows[y],rows[y+1]};
+        var source=Get<Texture2D>(app,"terrainVariants");
+        var foam=Get<Texture2D>(app,"shorelineFoamSheet");
+        Check(source!=null&&foam!=null&&
+            foam.width==128&&foam.height==12,
+            "Production renderer did not load new four-frame painted foam");
+        try
+        {
+            g.save.effectsQuality=2;g.save.reducedMotion=false;
+            var canvas=Matrix4x4.TRS(new Vector3(13,21,0),
+                Quaternion.identity,new Vector3(1.15f,1.15f,1));
+            var incoming=new Color(.4f,.6f,.8f,.9f);
+            GUI.matrix=canvas;GUI.color=incoming;
+            for(int side=0;side<4;side++)
+            {
+                char[] top=original[0].ToCharArray();
+                char[] middle=original[1].ToCharArray();
+                char[] bottom=original[2].ToCharArray();
+                top[x]='~';middle[x-1]='~';middle[x]='~';
+                middle[x+1]='~';bottom[x]='~';
+                if(side==0)top[x]='.';
+                if(side==1)middle[x+1]='.';
+                if(side==2)bottom[x]='.';
+                if(side==3)middle[x-1]='.';
+                rows[y-1]=new string(top);
+                rows[y]=new string(middle);
+                rows[y+1]=new string(bottom);
+                Set(app,"clock",2.12f);
+                Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                Check(GUI.textureCalls.Count==2,
+                    "A real "+side+" shoreline must paint old water and new foam once");
+                var old=GUI.textureCalls[0];
+                var painted=GUI.textureCalls[1];
+                Check(object.ReferenceEquals(old.texture,source)&&
+                    object.ReferenceEquals(painted.texture,foam)&&
+                    Math.Abs(painted.uv.width-.25f)<.00001f&&
+                    Math.Abs(painted.uv.height-1f)<.00001f&&
+                    painted.rect.width==32&&painted.rect.height==12&&
+                    painted.color.a>.06f&&painted.color.a<.28f,
+                    "New animation did not use one valid transparent original 32x12 cell");
+                Check(Math.Abs(painted.rect.x+16f-
+                    (old.rect.x+12f))<=4f&&
+                    Math.Abs(painted.rect.y+6f-
+                    (old.rect.y+3.5f))<.0001f,
+                    "New material crest detached from published bank center");
+                Check((side==1||side==3)?
+                    Math.Abs(painted.matrix.m01)>.1f:
+                    Math.Abs(painted.matrix.m01)<.0001f,
+                    "Foam art must orient as the complete bank-facing crest");
+                Same(GUI.matrix,canvas,"Foam leaked rotation into next tile");
+                Same(GUI.color,incoming,"Foam leaked tint into characters");
+                float startUv=painted.uv.x;
+                Set(app,"clock",2.55f);
+                Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                var next=GUI.textureCalls[1];
+                Check(GUI.textureCalls.Count==2&&
+                    Math.Abs(next.uv.x-startUv)>.00001f&&
+                    Math.Abs(next.rect.x-painted.rect.x)<.0001f&&
+                    Math.Abs(next.rect.y-painted.rect.y)<.0001f,
+                    "Painted shoreline did not animate whole source poses at one root");
+                if(side==0)
+                    GUI.Export(".starfall-checks/sprite-qa",
+                        "review-painted-foam-over-original-live-water");
+                g.save.reducedMotion=true;Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                Check(GUI.textureCalls.Count==0,
+                    "Reduced motion must not draw new shoreline foam");
+                g.save.reducedMotion=false;g.save.effectsQuality=0;
+                Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                Check(GUI.textureCalls.Count==0,
+                    "Zero FX must keep original water but skip foam and wave VFX");
+                g.save.effectsQuality=2;
+                Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'=',
+                    new Point(230,180));
+                Check(GUI.textureCalls.Count==0,
+                    "Dry roads must not acquire waterline foam");
+            }
+            Console.WriteLine("PASS four actual shore orientations with approved terrain plus painted changing source foam, zero slide, reduced-motion and zero-FX");
+        }
+        finally
+        {
+            rows[y-1]=original[0];rows[y]=original[1];rows[y+1]=original[2];
+            g.save.effectsQuality=oldQuality;g.save.reducedMotion=oldReduced;
+            GUI.matrix=oldMatrix;GUI.color=oldColor;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     private static void ShorelineUsesOriginalWaterArtAndHonorsSettings(FrontierRuntime app)
     {
         app.BeginVisualReview(0,5);
@@ -1367,7 +1479,7 @@ public static class RenderStateChecks
                 Set(app,"clock",4.2f);
                 Clear();
                 Call(app,"DrawAuthoredShorelineWash",x,y,'~',position);
-                Check(GUI.textureCalls.Count==1,
+                Check(GUI.textureCalls.Count==2,
                     "Water-land edge must draw one subtle existing-art crest");
                 var first=GUI.textureCalls[0];
                 Check(object.ReferenceEquals(first.texture,source)&&
@@ -1383,7 +1495,7 @@ public static class RenderStateChecks
                 Same(GUI.color,incoming,"Shoreline cannot tint later sprites");
                 Set(app,"clock",6.9f);Clear();
                 Call(app,"DrawAuthoredShorelineWash",x,y,'~',position);
-                Check(GUI.textureCalls.Count==1&&
+                Check(GUI.textureCalls.Count==2&&
                     Math.Abs(GUI.textureCalls[0].uv.x-first.uv.x)<.00001f&&
                     Math.Abs(GUI.textureCalls[0].rect.x-first.rect.x)<.0001f&&
                     Math.Abs(GUI.textureCalls[0].color.a-first.color.a)>.00001f,
@@ -1417,10 +1529,10 @@ public static class RenderStateChecks
             map.rows[y+1]=new string(cornerBottom);
             Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',
                 new Point(230,180));
-            Check(GUI.textureCalls.Count==2,
+            Check(GUI.textureCalls.Count==4,
                 "River corner must animate BOTH exposed banks");
             var north=GUI.textureCalls[0];
-            var east=GUI.textureCalls[1];
+            var east=GUI.textureCalls[2];
             Check(object.ReferenceEquals(north.texture,source)&&
                 object.ReferenceEquals(east.texture,source)&&
                 Math.Abs(north.matrix.m01)<.00001f&&
@@ -1438,7 +1550,7 @@ public static class RenderStateChecks
             map.rows[y+1]=new string(cornerBottom);
             Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',
                 new Point(230,180));
-            Check(GUI.textureCalls.Count==4,
+            Check(GUI.textureCalls.Count==8,
                 "Water island with four exposed banks must draw four valid crests");
             game.save.reducedMotion=true;
             Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',
