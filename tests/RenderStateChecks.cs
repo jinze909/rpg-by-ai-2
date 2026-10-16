@@ -2426,6 +2426,102 @@ public static class RenderStateChecks
             "PASS original 4-motif WeatherWisps PNG: forest/sand/snow frame mapping, full DrawWorld integration, fallback, spatial continuity, accessibility and GUI isolation");
     }
 
+    private static void OrientedCoastlineRetainsApprovedWaterArt(
+        FrontierRuntime app,string folder)
+    {
+        // Exercise the real scene's active water renderer, with four bank
+        // directions on a temporary map-row fixture (restored in finally).
+        app.BeginVisualReview(0,5);
+        var g=app.Game;
+        var source=Get<Texture2D>(app,"terrainVariants");
+        Check(source!=null,"Approved source-painted shore atlas missing");
+        string[] rows=g.Map.rows;
+        int y=16,x=20;
+        while(((int)Call(app,"PreparedTileSeed",x,y)&1)!=0) x++;
+        Check(y>1&&y+1<rows.Length&&x+1<rows[y].Length,
+            "Shoreline test location must be inside an actual map");
+        string n=rows[y-1],c=rows[y],b=rows[y+1];
+        bool reduced=g.save.reducedMotion;
+        int effects=g.save.effectsQuality;
+        Matrix4x4 originalMatrix=GUI.matrix;
+        Color originalColor=GUI.color;
+        try
+        {
+            char[] north=n.ToCharArray(),middle=c.ToCharArray(),
+                south=b.ToCharArray();
+            north[x]='.';south[x]='.';
+            middle[x]='~';middle[x-1]='.';middle[x+1]='.';
+            rows[y-1]=new string(north);rows[y]=new string(middle);
+            rows[y+1]=new string(south);
+            g.save.reducedMotion=false;g.save.effectsQuality=2;
+            var root=new Point(375,283);
+            Set(app,"clock",1.4f);
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',root);
+            Check(GUI.textureCalls.Count==4,
+                "Four exposed original water banks must each paint a crest");
+            var all=GUI.textureCalls.ToArray();
+            foreach(var crest in all)
+                Check(object.ReferenceEquals(crest.texture,source)&&
+                    Math.Abs(crest.uv.width-24f/192f)<.00001f&&
+                    Math.Abs(crest.uv.height-7f/192f)<.00001f&&
+                    Math.Abs(crest.rect.width-24f)<.001f&&
+                    crest.color.a>0&&crest.color.a<.18f,
+                    "Coastline cannot replace detailed water with coarse bars");
+            Check(all[0].matrix.m00*all[2].matrix.m00<-.8f&&
+                all[1].matrix.m01*all[3].matrix.m01<-.8f,
+                "North/south and east/west must face opposing coastlines");
+            Same(GUI.matrix,originalMatrix,
+                "Shoreline animation leaked rotation onto nearby actors");
+            Same(GUI.color,originalColor,
+                "Shoreline left tinted HUD, hero or vegetation");
+            GUI.Export(folder,"review-four-way-source-painted-shorebreak");
+            Set(app,"clock",3.2f);
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',root);
+            Check(GUI.textureCalls.Count==4,
+                "Author source bank waves disappeared on next frame");
+            bool moving=false;
+            for(int i=0;i<4;i++)
+            {
+                var after=GUI.textureCalls[i];
+                Check(Math.Abs(after.uv.x-all[i].uv.x)<.00001f&&
+                    Math.Abs(after.uv.y-all[i].uv.y)<.00001f&&
+                    Math.Abs(after.rect.x-all[i].rect.x)<=5f&&
+                    Math.Abs(after.rect.y-all[i].rect.y)<.001f,
+                    "Shoreline jumped, stretched or changed source pixels");
+                if(Math.Abs(after.rect.x-all[i].rect.x)>.01f)moving=true;
+            }
+            Check(moving,"Surf does not animate at all between gameplay frames");
+            // No water/land interface: ALL four neighbouring tiles flood.
+            north[x]='~';south[x]='~';
+            middle[x-1]='~';middle[x+1]='~';
+            rows[y-1]=new string(north);rows[y]=new string(middle);
+            rows[y+1]=new string(south);
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',root);
+            Check(GUI.textureCalls.Count==0,
+                "Open sea center must not draw phantom shore foam");
+            north[x]='.';rows[y-1]=new string(north);
+            g.save.reducedMotion=true;
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',root);
+            Check(GUI.textureCalls.Count==0,
+                "Reduced motion must suppress moving water foam");
+            g.save.reducedMotion=false;g.save.effectsQuality=0;
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'~',root);
+            Check(GUI.textureCalls.Count==0,
+                "Zero-effects mode cannot create extra water samples");
+            g.save.effectsQuality=2;
+            Clear();Call(app,"DrawAuthoredShorelineWash",x,y,'.',root);
+            Check(GUI.textureCalls.Count==0,
+                "Dry terrain cannot acquire ocean break");
+            Console.WriteLine("PASS actual 4-way accepted-water shorebreak orientation, continuous root, UV, low-FX and reduced-motion");
+        }
+        finally
+        {
+            rows[y-1]=n;rows[y]=c;rows[y+1]=b;
+            g.save.reducedMotion=reduced;g.save.effectsQuality=effects;
+            GUI.matrix=originalMatrix;GUI.color=originalColor;
+        }
+    }
+
     private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
     {
         app.BeginVisualReview(5,1);
@@ -2611,6 +2707,7 @@ public static class RenderStateChecks
         var current=profile.GetValue(app,null);
         string[] names={"treeSwayDegrees","palmSwayDegrees",
             "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
+            "shorelineWashAlpha","shorelineTravelPixels",
             "lampRadius","nightLightAlpha","dayLightAlpha",
             "npcTalkLeanDegrees","escortWalkLeanDegrees",
             "escortHitLeanDegrees","combatWarningStrokePixels",
@@ -2643,7 +2740,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 28 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 30 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
@@ -2658,7 +2755,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
