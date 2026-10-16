@@ -455,6 +455,57 @@ namespace Starfall
                     new Color(1f,.67f,.38f,amplitude*.52f));
         }
 
+        // Four newly illustrated TRANSPARENT 24px whole-sprite light poses
+        // for the real FieldProps crystal, mirror, altar and obelisk bodies.
+        // This is an emissive particle decoration, NOT actor anatomy; a
+        // GameCore-independent 4-cell point-sampled sprite sequence is more
+        // appropriate than an Animator attached to a fixed map obstacle.
+        private Texture2D relicShimmerSheet;
+        private float relicShimmerRetryAt=float.NegativeInfinity;
+        private float relicShimmerLastCheck=float.NegativeInfinity;
+        private void DrawAuthoredRelicShimmer(int id,int variant,Point foot,
+            float size,Color originalTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality==0)return;
+            if(clock<relicShimmerLastCheck||clock>=relicShimmerRetryAt)
+            {
+                relicShimmerLastCheck=clock;
+                relicShimmerRetryAt=clock+2f;
+                Texture2D imported=Resources.Load<Texture2D>(
+                    "Frontier/Art/RelicShimmer");
+                // Hold the last complete validated source during Editor
+                // partial import; original FieldProps always remains drawn.
+                if(imported!=null&&imported.width==96&&
+                    imported.height==24)
+                    relicShimmerSheet=imported;
+            }
+            if(relicShimmerSheet==null)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float alpha=look.relicShimmerAlpha*
+                (Game.Night?1f:.75f)*
+                (Game.save.effectsQuality==1?.65f:1f)*
+                worldActorOpacity*originalTint.a;
+            if(alpha<=0f)return;
+            int cell=((int)Math.Floor(clock*look.relicShimmerRate+
+                id*.43f+variant*.83f)%4+4)%4;
+            float height=id==3?.79f:id==12?.67f:
+                id==14?.65f:.72f;
+            float offset=id==14?size*.09f:0f;
+            float side=Math.Min(35f,size*.37f);
+            // Plant the complete transparent glint on the SAME accepted
+            // world Sprite root. No canvas scale/pivot/UV changes to body.
+            Point center=new Point(foot.x+offset,
+                foot.y-size*height);
+            Color glow=id==12?
+                new Color(1f,.85f,.67f,alpha):
+                id==14?new Color(.96f,.94f,1f,alpha):
+                new Color(.73f,.96f,1f,alpha);
+            Atlas(relicShimmerSheet,4,1,cell,
+                new Rect(center.x-side*.5f,center.y-side*.5f,
+                    side,side),glow);
+        }
+
         private bool DrawFieldProp(string kind, int variant, float x, float y, float w, float h, Color? tint)
         {
             if (fieldProps == null) return false;
@@ -466,6 +517,9 @@ namespace Starfall
                     Math.Max(w,h),tint??Color.white);
                 if(id==13)
                     DrawAuthoredCampfireEmbers(foot,Math.Max(w,h),variant);
+                else if(id==3||id==4||id==12||id==14)
+                    DrawAuthoredRelicShimmer(id,variant,foot,
+                        Math.Max(w,h),tint??Color.white);
                 return true;
             }
             id = kind == "crate" ? 6 : kind == "barrel" ? 7 : kind == "fence" ? 11 : kind == "bridge" ? 12 : kind == "bed" ? 13 : kind == "bookshelf" ? 14 : kind == "table" || kind == "counter" ? 15 : -1;

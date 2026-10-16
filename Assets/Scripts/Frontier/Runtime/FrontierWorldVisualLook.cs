@@ -21,6 +21,8 @@ namespace Starfall
             public float shorelineTravelPixels=1.5f;
             public float emberFlickerAlpha=.20f;
             public float emberLiftPixels=7f;
+            public float relicShimmerAlpha=.24f;
+            public float relicShimmerRate=3.8f;
             // Approved illustrated Effects.png air movement. Artist-editable
             // Resources fields control density/flow without touching hero art,
             // quest data or inventing new standalone sprite animations.
@@ -117,6 +119,12 @@ namespace Starfall
                             case "emberLiftPixels":
                                 if(value>=0f&&value<=14f)
                                     settings.emberLiftPixels=value;break;
+                            case "relicShimmerAlpha":
+                                if(value>=.08f&&value<=.32f)
+                                    settings.relicShimmerAlpha=value;break;
+                            case "relicShimmerRate":
+                                if(value>=1.8f&&value<=6f)
+                                    settings.relicShimmerRate=value;break;
                             case "ambientMoteDayAlpha":
                                 if(value>=.04f&&value<=.18f)
                                     settings.ambientMoteDayAlpha=value;break;

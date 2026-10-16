@@ -81,3 +81,9 @@ footfallLifetime=0.32
 # rooted floating embers; never trigger combat, physics or an Animator.
 emberFlickerAlpha=0.20
 emberLiftPixels=7.0
+
+# Four hand-directed 24px source-painted crystalline light poses. These
+# decorate original mature FieldProps crystal/obelisk/mirror/altar bodies
+# without changing interaction, terrain or their actual sprite identity.
+relicShimmerAlpha=0.24
+relicShimmerRate=3.8
