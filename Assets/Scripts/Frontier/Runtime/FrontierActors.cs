@@ -593,7 +593,15 @@ namespace Starfall
                 else
                 {
                 if (pose == 1 && monsterWalkSheet != null) { sheet = monsterWalkSheet; columns = 4; rows = 3; int gait=GameCore.GaitFrame(e.moveTime,e.kind==0?1.35f:1.8f);frame=Math.Min(2,e.kind)*4+(e.backpedaling?(4-gait)%4:gait); }
-                vertical = e.kind == 1 && enemyArcherVertical != null && (pose == 2 || pose == 3) && Math.Abs(e.facing.y) > Math.Abs(e.facing.x);
+                // A projectile/contact hit flash must not abruptly turn a
+                // north/south bowman into the unrelated Monsters body for
+                // 0.1 seconds before restoring the illustrated bow pose.
+                // Keep the locked native bow cell during an interrupted
+                // windup/release; unrelated idle hits retain original art.
+                vertical = e.kind == 1 && enemyArcherVertical != null &&
+                    (pose == 2 || pose == 3 ||
+                     (pose == 4 && (e.state == 1 || e.releaseTime > 0))) &&
+                    Math.Abs(e.facing.y) > Math.Abs(e.facing.x);
                 if (vertical)
                 {
                     sheet = enemyArcherVertical; columns = 3; rows = 2;
@@ -603,7 +611,8 @@ namespace Starfall
                     // whole-body row boundary at contact and flashed a
                     // north-facing pose one frame before south-facing art.
                     // Never sample cell 5's unrelated fallen silhouette.
-                    frame = (e.facing.y < 0 ? 0 : 3) + (pose == 3 ? 1 : 0);
+                    frame = (e.facing.y < 0 ? 0 : 3) +
+                        (pose == 3 || pose == 4 && e.releaseTime > 0 ? 1 : 0);
                 }
                 }
                 float canvas=ActorCanvas(sheet,columns,size/128);
