@@ -518,13 +518,13 @@ public static class NativeNonheroCaptureChecks
                 Color.white,false,0f})&&
                 Camera.RenderedTargets.Count==start+1,
                 "Epoch GPU re-render setup did not capture an actor");
-            var originalTarget=Camera.RenderedTargets[start];
+            var epochFirstTarget=Camera.RenderedTargets[start];
             Time.frameCount=17; // fresh Play/replay session, unchanged art
             Require((bool)method.Invoke(epochCapture,new object[]{
                 epochAtlas,4,4,0,new Point(200,220),96f,
                 Color.white,false,0f})&&
                 Camera.RenderedTargets.Count==start+2&&
-                ReferenceEquals(Camera.RenderedTargets[start+1],originalTarget),
+                ReferenceEquals(Camera.RenderedTargets[start+1],epochFirstTarget),
                 "Rewound Play clock reused stale actor pixels instead of recapturing");
             Time.frameCount=18;
             Require((bool)method.Invoke(epochCapture,new object[]{
@@ -560,8 +560,8 @@ public static class NativeNonheroCaptureChecks
                     earliestEpochTarget=Camera.RenderedTargets[
                         Camera.RenderedTargets.Count-1];
             }
-            long before=(long)epochBytes.GetValue(epochBudget);
-            Require(before>64L*1024*1024 && epochTargets.Count==50&&
+            long beforeEpochBytes=(long)epochBytes.GetValue(epochBudget);
+            Require(beforeEpochBytes>64L*1024*1024 && epochTargets.Count==50&&
                 earliestEpochTarget.releaseCount==0,
                 "Frame-local soft GPU cache setup did not exceed the budget safely");
             Time.frameCount=22;
