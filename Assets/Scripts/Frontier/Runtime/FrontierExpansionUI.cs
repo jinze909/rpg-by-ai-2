@@ -48,6 +48,16 @@ namespace Starfall
             bool publishedWalk=companionWalkSheets!=null &&
                 id<companionWalkSheets.Length&&companionWalkSheets[id]!=null;
             int row=GameCore.DirectionRow(direction);
+            // Avoid north/east sheet flip-flop at 45-degree pathfinding
+            // boundaries, but NEVER preserve a south facing when heading
+            // north (or the reverse). A distinct actual direction wins.
+            bool sameHemisphere=companionLastWalkFacing==0||
+                (companionLastWalkFacing==1&&direction.y<0f)||
+                (companionLastWalkFacing==2&&direction.y>0f);
+            if(action==null&&Game.companionMoving&&
+                companionVisualId==id&&sameHemisphere&&
+                Math.Abs(Math.Abs(direction.x)-Math.Abs(direction.y))<.15f)
+                row=companionLastWalkFacing;
             bool flip=row==0&&direction.x<-.1f;
             if(companionVisualId!=id)
             {
@@ -93,11 +103,21 @@ namespace Starfall
                     row*4+(settling?planted:0),
                     p,192f,tint,flip);
             }
+            else if(action!=null&&!action.released&&
+                    action.elapsed<Math.Min(.065f,action.contact*.42f)&&
+                    publishedWalk)
+            {
+                // Finish the previous planted stride before the published
+                // bow/skill anticipation body. Real release time is owned
+                // solely by GameCore; this frame never launches a weapon.
+                int plant=companionLastWalkFacing==row&&
+                    companionLastWalkFrame>=2?2:0;
+                companionWasWalking=false;
+                Actor(companionWalkSheets[id],4,3,
+                    row*4+plant,p,192f,tint,flip);
+            }
             else
             {
-                // A command or attack owns its original authored full-body
-                // action art. Footplant state must not leak into that clip,
-                // and the next walk starts from actual travelled distance.
                 companionWasWalking=false;
                 Actor(companionSheets[id],3,4,frame,p,192f,tint,
                     !north&&!(south&&action!=null)&&direction.x<-.1f);

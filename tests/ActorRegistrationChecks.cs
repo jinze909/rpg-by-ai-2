@@ -174,8 +174,34 @@ public static class ActorRegistrationChecks
             };
             Clear();
             var attacking=Draw(app,"DrawCompanionActor");
-            Check(attacking.Count(ActorTexture)==1,
-                "Attack transition must keep one whole authored companion Sprite");
+            Check(attacking.Count(ActorTexture)==1&&
+                attacking.Single(ActorTexture).texture.name==approved,
+                "Attack starts from a planted original gait frame, not an airborne cross-sheet pop");
+            g.companionAction.elapsed=.085f;
+            Clear();
+            var windup=Draw(app,"DrawCompanionActor");
+            var wholeBody=windup.Single(ActorTexture);
+            Check(wholeBody.texture.name==
+                "resource:Frontier/Art/Companion"+names[id]&&
+                Math.Abs(wholeBody.rect.width-192)<.001f&&
+                Math.Abs(wholeBody.rect.height-192)<.001f&&
+                Math.Abs(wholeBody.rect.y-stride.rect.y)<.001f,
+                "Action windup must switch to its true source with no scaling or foot-root shift");
+            g.companionAction=null;
+            g.companionMoving=true;
+            g.companionAim=new Point(.70f,heading==3?.71f:-.71f);
+            g.companionMoveTime=GameCore.WalkStride*1.20f*.625f;
+            Clear();
+            var nearDiagonal=Draw(app,"DrawCompanionActor");
+            int newRow=GameCore.DirectionRow(g.companionAim);
+            int actualRow=(int)Math.Floor(nearDiagonal.Single(c=>
+                c.texture.name==approved).uv.y*-3f+2f+.00001f);
+            // The diagonal fall-back may be the previous direction in a
+            // narrow angle band, but never a different costume or atlas.
+            Check(actualRow>=0&&actualRow<=2&&
+                nearDiagonal.Count(ActorTexture)==1,
+                "Diagonal companion path lost full-body identity");
+
         }
         Console.WriteLine(
             "PASS 3 companions x 4 facings: real stride contact, rooted stop-to-idle, constant 192px body and intact attack transition");
