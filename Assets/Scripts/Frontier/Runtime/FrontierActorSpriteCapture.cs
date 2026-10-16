@@ -183,11 +183,27 @@ namespace Starfall
                         actorCaptureAnimator.enabled = false;
                         actorCaptureRenderer.sprite = sprite;
                     }
+                    // Native Pose_X animation may import stale Transform
+                    // position, scale or capture-camera curves. The correct
+                    // high-detail Sprite can otherwise suddenly grow, wander
+                    // above the planted shadow, or change size on a Boss
+                    // state transition even though the source cell is valid.
+                    // Reset the isolated OFFSCREEN rig AFTER sampling its
+                    // SpriteRenderer.m_Sprite curve, never the game actor.
+                    actorCaptureRoot.transform.localScale =
+                        new Vector3(1f,1f,1f);
+                    actorCaptureRenderer.transform.localPosition =
+                        new Vector3(0f,0f,0f);
                     actorCaptureRenderer.flipX = flip;
-                    // Legacy Actor() fills a square regardless of atlas cell
-                    // aspect ratio. Preserve the exact foot/pivot position.
+                    // Original rectangular sheets retain their cell ratio.
                     actorCaptureRenderer.transform.localScale =
                         new Vector3((float)height / width, 1f, 1f);
+                    actorCaptureCamera.transform.localScale =
+                        new Vector3(1f,1f,1f);
+                    actorCaptureCamera.transform.localPosition =
+                        new Vector3(0f,120f/128f-.5f,-10f);
+                    actorCaptureCamera.orthographicSize = .5f;
+                    actorCaptureCamera.aspect = 1f;
                     actorCaptureCamera.targetTexture = entry.texture;
                     try { actorCaptureCamera.Render(); }
                     finally { actorCaptureCamera.targetTexture = null; }

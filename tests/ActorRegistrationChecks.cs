@@ -197,7 +197,8 @@ public static class ActorRegistrationChecks
                     var stepped=Draw(app,"DrawCompanionActor").Single(ActorTexture);
                     int actual=(int)Math.Round(Math.Min(stepped.uv.x,
                         stepped.uv.x+stepped.uv.width)*4f);
-                    int expected=n>=4-phase?0:(phase+n)%4;
+                    int expected=phase==0||n>=4-phase?
+                        0:(phase+n)%4;
                     Check(actual==expected&&stepped.texture.name==approved&&
                         Math.Abs(stepped.rect.y-strideDraw.rect.y)<.001f,
                         "Stop recovery reversed the stride or shifted the planted root");

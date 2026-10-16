@@ -61,6 +61,42 @@ public static class NativeNonheroCaptureChecks
         Require(Camera.RenderedTargets.Count == 4 &&
             ReferenceEquals(Camera.RenderedTargets[3], first),
             "lost render target must be reconstructed before drawing");
+        // Source animation clips may carry stale scale/position curves on
+        // a reused offscreen rig. Inject this exact failure BEFORE a new
+        // captured contact, then inspect the REAL native capture path.
+        var rigField=typeof(FrontierRuntime).GetField("actorCaptureRoot",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        var cameraField=typeof(FrontierRuntime).GetField("actorCaptureCamera",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        var spriteField=typeof(FrontierRuntime).GetField("actorCaptureRenderer",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        var rig=rigField.GetValue(runtime) as GameObject;
+        var captureCam=cameraField.GetValue(runtime) as Camera;
+        var captureSprite=spriteField.GetValue(runtime) as SpriteRenderer;
+        Require(rig!=null&&captureCam!=null&&captureSprite!=null,
+            "native actor capture rig was not constructed");
+        rig.transform.localScale=new Vector3(1.75f,1.75f,1f);
+        captureSprite.transform.localPosition=new Vector3(.24f,.31f,0f);
+        captureSprite.transform.localScale=new Vector3(2.2f,2.2f,1f);
+        captureCam.transform.localScale=new Vector3(1.4f,1.4f,1f);
+        captureCam.transform.localPosition=new Vector3(1f,1f,-9f);
+        captureCam.orthographicSize=.9f;
+        captureCam.aspect=1.6f;
+        Time.frameCount=102;
+        draw(2,false);
+        Require(rig.transform.localScale.x==1f&&
+            rig.transform.localScale.y==1f&&
+            captureSprite.transform.localScale.x==1f&&
+            captureSprite.transform.localScale.y==1f&&
+            captureSprite.transform.localPosition.x==0f&&
+            captureSprite.transform.localPosition.y==0f&&
+            captureCam.transform.localScale.x==1f&&
+            captureCam.transform.localScale.y==1f&&
+            Math.Abs(captureCam.transform.localPosition.x)<.0001f&&
+            Math.Abs(captureCam.transform.localPosition.y-.4375f)<.0001f&&
+            Math.Abs(captureCam.orthographicSize-.5f)<.0001f&&
+            Math.Abs(captureCam.aspect-1f)<.0001f,
+            "nonhero native Animator inherited stale transform/zoom; source body may enlarge or float");
         // Actual phase-2 Boss cells are 320px; preserve each source pixel
         // in the SpriteRenderer capture rather than shrinking 320 -> 256.
         var bossSheet = new Texture2D(1280, 5760, TextureFormat.RGBA32, false);
