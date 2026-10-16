@@ -1619,6 +1619,15 @@ public static class RenderStateChecks
         Console.WriteLine("PASS seventeen source-controlled WorldLook values for terrain, companion gait, actors and combat FX");
     }
 
+    // CI-executable resource integrity check, not merely an unused visual
+    // review menu helper. Every source-controlled companion gait setting
+    // must reach the ACTUAL Unity runtime profile from WorldLook.txt.
+    public static void VerifyLiveVisualLookResource(FrontierRuntime app)
+    {
+        try { EditableWorldVisualResourceDrivesLiveRender(app); }
+        finally { app.EndVisualReview(); Clear(); }
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
