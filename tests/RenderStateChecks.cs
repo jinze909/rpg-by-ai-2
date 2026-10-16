@@ -2624,6 +2624,100 @@ public static class RenderStateChecks
         }
     }
 
+    private static void AuthoredRelicGlintsStayOnActualDetailedWorldProps(
+        FrontierRuntime app,string folder)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        bool reduced=game.save.reducedMotion;
+        int quality=game.save.effectsQuality;
+        var field=Get<Texture2D>(app,"fieldProps");
+        var palette=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private).GetValue(app,null);
+        var alphaField=palette.GetType().GetField("relicShimmerAlpha",
+            BindingFlags.Instance|BindingFlags.Public);
+        Check(alphaField!=null,"New authored shimmer must be artist-tunable");
+        float original=(float)alphaField.GetValue(palette);
+        try
+        {
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=2;
+            string[] types={"crystal","ore","obelisk","altar","engine","mirror"};
+            int[] cells={4,4,3,12,12,14};
+            for(int i=0;i<types.Length;i++)
+            {
+                Set(app,"clock",1.25f+i*.3f);
+                Clear();Call(app,"PropImage",types[i],i,
+                    320f,280f,86f,90f,Color.white);
+                Check(GUI.textureCalls.Count==2,
+                    "Actual "+types[i]+" world prop did not receive an authored light cell");
+                var body=GUI.textureCalls[0];
+                var gleam=GUI.textureCalls[1];
+                Check(object.ReferenceEquals(body.texture,field)&&
+                    Math.Abs(body.uv.x-cells[i]%4/4f)<.00001f&&
+                    Math.Abs(body.uv.y-(1f-(cells[i]/4+1)/4f))<.00001f&&
+                    Math.Abs(body.rect.width-90f)<.001f,
+                    "Relic lighting replaced the detailed published original body");
+                Check(gleam.texture.name=="resource:Frontier/Art/RelicShimmer"&&
+                    gleam.texture.width==96&&gleam.texture.height==24&&
+                    Math.Abs(Math.Abs(gleam.uv.width)-.25f)<.00001f&&
+                    Math.Abs(gleam.uv.height-1f)<.00001f&&
+                    gleam.color.a>.01f&&gleam.color.a<=.32f,
+                    "Relic glow must be one complete original authored 24px cell");
+                Check(gleam.rect.width<=35f&&gleam.rect.height<=35f&&
+                    gleam.rect.x>=body.rect.x&&
+                    gleam.rect.x+gleam.rect.width<=body.rect.x+body.rect.width&&
+                    gleam.rect.y>=body.rect.y&&
+                    gleam.rect.y+gleam.rect.height<=body.rect.y+body.rect.height,
+                    "Relic glint escaped the parent world object or changed its scale");
+                float glowX=gleam.rect.x,glowY=gleam.rect.y;
+                float uvBefore=gleam.uv.x;
+                float priorOpacity=gleam.color.a;
+                alphaField.SetValue(palette,original*.5f);
+                Clear();Call(app,"PropImage",types[i],i,
+                    320f,280f,86f,90f,Color.white);
+                Check(GUI.textureCalls.Count==2&&
+                    Math.Abs(GUI.textureCalls[1].color.a-priorOpacity*.5f)<.0001f,
+                    "Editable WorldLook relic light alpha did not drive production");
+                alphaField.SetValue(palette,original);
+                Set(app,"clock",2.15f+i*.3f);
+                Clear();Call(app,"PropImage",types[i],i,
+                    320f,280f,86f,90f,Color.white);
+                var subsequent=GUI.textureCalls[1];
+                Check(Math.Abs(subsequent.rect.x-glowX)<.001f&&
+                    Math.Abs(subsequent.rect.y-glowY)<.001f&&
+                    Math.Abs(subsequent.uv.x-uvBefore)>.00001f,
+                    "Relic animation must change painted frames without sliding world root");
+                if(i==0)GUI.Export(folder,"review-relic-shimmer-original-world-prop");
+            }
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawFieldProp","crystal",0,
+                320f,280f,86f,90f,Color.white);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,field),
+                "Reduced-motion must preserve crystal source body without animation");
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=0;
+            Clear();Call(app,"DrawFieldProp","mirror",0,
+                320f,280f,86f,90f,Color.white);
+            Check(GUI.textureCalls.Count==1,
+                "Zero-FX must preserve original mirror body without extra texture");
+            game.save.effectsQuality=2;
+            Clear();Call(app,"DrawFieldProp","well",0,
+                320f,280f,86f,90f,Color.white);
+            Check(GUI.textureCalls.Count==1,
+                "Non-magical world furniture acquired an unrelated glow Sprite");
+            Console.WriteLine("PASS six real detailed relic objects with new four-frame painted glow, fixed original body/anchor, WorldLook, reduced motion and low FX");
+        }
+        finally
+        {
+            alphaField.SetValue(palette,original);
+            game.save.reducedMotion=reduced;
+            game.save.effectsQuality=quality;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     private static void OriginalCampfireFlameGetsRootedEmbers(
         FrontierRuntime app,string folder)
     {
@@ -2998,6 +3092,7 @@ public static class RenderStateChecks
             "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
             "shorelineWashAlpha","shorelineTravelPixels",
             "emberFlickerAlpha","emberLiftPixels",
+            "relicShimmerAlpha","relicShimmerRate",
             "lampRadius","nightLightAlpha","dayLightAlpha",
             "npcTalkLeanDegrees","escortWalkLeanDegrees",
             "escortHitLeanDegrees","combatWarningStrokePixels",
@@ -3030,7 +3125,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 33 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 35 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
@@ -3045,7 +3140,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

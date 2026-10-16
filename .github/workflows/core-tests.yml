@@ -73,6 +73,8 @@ jobs:
         run: python3 tools/check_visual_sprites.py
       - name: Verify new world-weather pixel art, Unity source GUID and actual scene wiring
         run: python3 tools/check_weather_wisps.py
+      - name: Verify authored relic glow sprites, Unity importer and production scene
+        run: python3 tools/check_relic_shimmer.py
       - name: Verify 12-frame original sword, projectile and magic contact pixel art
         run: python3 tools/check_impact_flourish.py
       - name: Enforce single-class waist/palette/proportion QA for all Sprite cells
