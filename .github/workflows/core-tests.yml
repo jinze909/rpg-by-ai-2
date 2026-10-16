@@ -75,6 +75,8 @@ jobs:
         run: python3 tools/check_canopy_whispers.py
       - name: Verify new world-weather pixel art, Unity source GUID and actual scene wiring
         run: python3 tools/check_weather_wisps.py
+      - name: Hard-gate original animated ruin masonry glyphs and real sorted scene rendering
+        run: python3 tools/check_ruin_sigils.py
       - name: Verify authored relic glow sprites, Unity importer and production scene
         run: python3 tools/check_relic_shimmer.py
       - name: Verify painted shoreline foam atlas and installed Unity scene use

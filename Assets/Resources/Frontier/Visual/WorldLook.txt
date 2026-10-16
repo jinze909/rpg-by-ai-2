@@ -144,3 +144,9 @@ castSigilBossPixels=58
 # The body stays intact. Low FX and Reduced Motion omit added movement.
 canopyWhisperAlpha=0.53
 canopyWhisperFrameRate=5.5
+
+# Original two-palette 4-frame ancient masonry rune art. Static under
+# Reduced Motion, optional at low FX, always behind foreground actors.
+# The accepted full illustrated WorldProps ruin remains unchanged.
+ruinSigilAlpha=0.42
+ruinSigilFrameRate=3.5

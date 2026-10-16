@@ -3890,6 +3890,115 @@ public static class RenderStateChecks
     // Actual depth-sorted tree/palm/snowpine production path: original
     // accepted WorldProps remains unchanged while 24 painted transparent
     // canopy overlay frames select the biome and share a stationary crown.
+
+    // A genuine authored environment VFX, not a detached preview: exercise
+    // the same DrawWorldDecoration/PropImage source used by every mapped ruin.
+    // Both accepted masonry pixels and the animated rune remain rooted and
+    // are depth-sorted together; all motion/palette/reimport gates are live.
+    public static void VerifyRuinSigilsInProduction(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        bool oldMotion=game.save.reducedMotion;
+        int oldQuality=game.save.effectsQuality;
+        const string key="Frontier/Art/RuinSigils";
+        Texture2D oldOverride;
+        bool had=Resources.TextureOverrides.TryGetValue(key,out oldOverride);
+        var original=Get<Texture2D>(app,"worldProps");
+        var visual=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private).GetValue(app,null);
+        var alphaField=visual.GetType().GetField("ruinSigilAlpha");
+        float originalAlpha=(float)alphaField.GetValue(visual);
+        var ruin=new Decoration{kind="ruin",variant=0,x=12f,y=14f};
+        Texture2D accepted=null;
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            Set(app,"clock",10f);Clear();
+            Call(app,"DrawWorldDecoration",ruin);
+            accepted=Get<Texture2D>(app,"ruinSigilsSheet");
+            var sigil=GUI.textureCalls.Find(c=>
+                object.ReferenceEquals(c.texture,accepted));
+            Check(accepted!=null&&accepted.width==128&&
+                accepted.height==64&&sigil!=null&&
+                GUI.textureCalls.Exists(c=>
+                    object.ReferenceEquals(c.texture,original)),
+                "Actual ruin lost accepted WorldProps masonry or painted glyph");
+            Check(Math.Abs(sigil.uv.width-.25f)<.0001f&&
+                Math.Abs(sigil.uv.height-.5f)<.0001f,
+                "Ruin animation sampled the wrong original Sprite cell");
+            var first=sigil;
+            float baseAlpha=sigil.color.a;
+            Set(app,"clock",10.7f);Clear();
+            Call(app,"DrawWorldDecoration",ruin);
+            sigil=GUI.textureCalls.Find(c=>
+                object.ReferenceEquals(c.texture,accepted));
+            Check(sigil!=null&&Math.Abs(sigil.uv.x-first.uv.x)>.0001f&&
+                Math.Abs(sigil.rect.x-first.rect.x)<.0001f&&
+                Math.Abs(sigil.rect.y-first.rect.y)<.0001f,
+                "The animated rune is frozen or floats off painted masonry");
+            alphaField.SetValue(visual,originalAlpha*.5f);
+            Clear();Call(app,"DrawWorldDecoration",ruin);
+            sigil=GUI.textureCalls.Find(c=>
+                object.ReferenceEquals(c.texture,accepted));
+            Check(sigil!=null&&
+                Math.Abs(sigil.color.a-baseAlpha*.5f)<.0001f,
+                "Artist WorldLook rune alpha never reached game");
+            alphaField.SetValue(visual,originalAlpha);
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawWorldDecoration",ruin);
+            sigil=GUI.textureCalls.Find(c=>
+                object.ReferenceEquals(c.texture,accepted));
+            Check(sigil!=null&&Math.Abs(sigil.uv.x)<.0001f,
+                "Reduced motion must hold the first static rune frame");
+            game.save.effectsQuality=0;
+            Clear();Call(app,"DrawWorldDecoration",ruin);
+            Check(!GUI.textureCalls.Exists(c=>
+                object.ReferenceEquals(c.texture,accepted))&&
+                GUI.textureCalls.Exists(c=>
+                    object.ReferenceEquals(c.texture,original)),
+                "Low FX should omit glow but preserve full masonry");
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=2;
+            Resources.TextureOverrides[key]=new Texture2D(
+                127,64,TextureFormat.RGBA32,false){
+                name="incomplete-ruin-rune-art"};
+            Set(app,"clock",14f);Clear();
+            Call(app,"DrawWorldDecoration",ruin);
+            Check(GUI.textureCalls.Exists(c=>
+                object.ReferenceEquals(c.texture,accepted)),
+                "Half-imported rune destroyed last complete published art");
+            var rebuilt=new Texture2D(128,64,TextureFormat.RGBA32,false){
+                name="accepted-ruin-rune-reimport"};
+            Resources.TextureOverrides[key]=rebuilt;
+            Set(app,"clock",17f);Clear();
+            Call(app,"DrawWorldDecoration",ruin);
+            Check(GUI.textureCalls.Exists(c=>
+                object.ReferenceEquals(c.texture,rebuilt)),
+                "Corrected whole ruin Rune sheet did not publish at runtime");
+            Resources.TextureOverrides[key]=accepted;
+            Set(app,"clock",0f);Clear();
+            Call(app,"DrawWorldDecoration",ruin);
+            Check(GUI.textureCalls.Exists(c=>
+                object.ReferenceEquals(c.texture,accepted)),
+                "Game clock rewind stranded an obsolete rune import");
+            Console.WriteLine("PASS actual depth-sorted ruins: original stone, animated 8-cell glyph, planted root, artist tuning, low FX, reduced motion and atomic import");
+        }
+        finally
+        {
+            if(had)Resources.TextureOverrides[key]=oldOverride;
+            else Resources.TextureOverrides.Remove(key);
+            Set(app,"ruinSigilsSheet",accepted);
+            Set(app,"ruinSigilsLastChecked",float.NegativeInfinity);
+            Set(app,"ruinSigilsNextCheck",float.NegativeInfinity);
+            alphaField.SetValue(visual,originalAlpha);
+            game.save.reducedMotion=oldMotion;
+            game.save.effectsQuality=oldQuality;
+            Clear();
+        }
+    }
+
     public static void VerifyCanopyWhispersInProduction(FrontierRuntime app)
     {
         Prepare(app);
@@ -4112,7 +4221,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

@@ -17,6 +17,8 @@ namespace Starfall
             public float groundFoliageSwayDegrees=.65f;
             public float canopyWhisperAlpha=.53f;
             public float canopyWhisperFrameRate=5.5f;
+            public float ruinSigilAlpha=.42f;
+            public float ruinSigilFrameRate=3.5f;
             public float waterGlintAlpha=.12f;
             public float waterGlintRate=.89f;
             public float waterRippleAlpha=.21f;
@@ -129,6 +131,12 @@ namespace Starfall
                             case "canopyWhisperFrameRate":
                                 if(value>=2f&&value<=8f)
                                     settings.canopyWhisperFrameRate=value;break;
+                            case "ruinSigilAlpha":
+                                if(value>=.1f&&value<=.65f)
+                                    settings.ruinSigilAlpha=value;break;
+                            case "ruinSigilFrameRate":
+                                if(value>=1.5f&&value<=6f)
+                                    settings.ruinSigilFrameRate=value;break;
                             case "waterGlintAlpha":
                                 if(value>=0&&value<=.18f)
                                     settings.waterGlintAlpha=value;break;

@@ -222,6 +222,46 @@ namespace Starfall
             finally {GUI.matrix=originalMatrix;}
         }
 
+
+        // Whole, illustrated ruined-stone masonry stays in WorldProps. This
+        // lightweight transparent eight-cell rune is ONLY a rooted lighting
+        // treatment, depth-sorted with the real ruin; never an actor body.
+        private Texture2D ruinSigilsSheet;
+        private float ruinSigilsLastChecked=float.NegativeInfinity;
+        private float ruinSigilsNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredRuinSigils(Decoration ruin,Point foot,Color masonryTint)
+        {
+            if(drawingOutline||Game.save.effectsQuality==0)return;
+            if(clock<ruinSigilsLastChecked||clock>=ruinSigilsNextCheck)
+            {
+                ruinSigilsLastChecked=clock;
+                ruinSigilsNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/RuinSigils");
+                // Keep the last complete source sheet while an Editor
+                // importer is halfway through publishing its new pixels.
+                if(candidate!=null&&candidate.width==128&&candidate.height==64)
+                    ruinSigilsSheet=candidate;
+            }
+            if(ruinSigilsSheet==null||ruinSigilsSheet.width!=128||
+               ruinSigilsSheet.height!=64)return;
+            int seed=TileSeed((int)(ruin.x*7),(int)(ruin.y*7),Game.save.room);
+            int frame=Game.save.reducedMotion?0:
+                ((int)Math.Floor(clock*CurrentWorldVisualLook.ruinSigilFrameRate+
+                (seed%19)*.27f)%4+4)%4;
+            int row=Game.save.room==3||Game.save.room==6?1:0;
+            float alpha=CurrentWorldVisualLook.ruinSigilAlpha*
+                masonryTint.a*worldActorOpacity*
+                (Game.Night?1f:.78f)*
+                (Game.save.effectsQuality==1?.56f:1f);
+            // The source mural is attached to ORIGINAL ruin screen-foot,
+            // independent of actor/camera state; its exact 32px source
+            // origin never wanders as the rune animates.
+            Atlas(ruinSigilsSheet,4,2,row*4+frame,
+                new Rect(foot.x-21f,foot.y-111f,42f,42f),
+                new Color(1f,1f,1f,alpha));
+        }
+
         // Source-preserving shoreline animation: one subdued crest sampled
         // from the existing high-detail 48px water painting, never a coarse
         // newly drawn rectangle. Its center stays anchored to the authored
