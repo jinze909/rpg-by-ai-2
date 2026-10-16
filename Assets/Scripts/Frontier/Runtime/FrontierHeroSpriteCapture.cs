@@ -162,7 +162,18 @@ namespace Starfall
                                 "and retrying the Animator after cooldown.");
                     }
                     else
+                    {
+                        // An Animator may pick a freshly imported Sprite
+                        // BEFORE the entire six-cell published family has
+                        // passed its next bounded integrity review. Equal
+                        // geometry alone cannot prove a complete new atlas.
+                        // Drive the formal Animator timeline, but render
+                        // the exact WHOLE canonical cell selected from the
+                        // last atomically validated family. New source art
+                        // becomes visible only after full revalidation.
+                        heroCaptureRenderer.sprite=canonical;
                         heroRejectedNativeClips.Remove(nativeClipKey);
+                    }
                 }
                 else
                 {
