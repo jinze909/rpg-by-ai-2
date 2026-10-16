@@ -31,7 +31,7 @@ namespace Starfall
             new ConditionalWeakTable<Enemy,EnemyAtlasTransition>();
         private const float EnemyAtlasHandoffSeconds=.105f;
 
-        private void DrawEnemyAtlasHandoff(Enemy enemy,Texture2D sheet,
+        private float DrawEnemyAtlasHandoff(Enemy enemy,Texture2D sheet,
             int columns,int rows,int frame,Point foot,float size,Color tint,
             bool flip,int pose)
         {
@@ -41,7 +41,7 @@ namespace Starfall
             if(enemy==null||sheet==null||drawingOutline)
             {
                 Actor(sheet,columns,rows,frame,foot,size,tint,flip);
-                return;
+                return size;
             }
             EnemyAtlasTransition state=enemyAtlasTransitions.GetValue(enemy,
                 ignored=>new EnemyAtlasTransition());
@@ -130,6 +130,10 @@ namespace Starfall
             // The authoritative current frame is always visible at full
             // opacity. Only its PRESENTATION size is gently interpolated.
             Actor(sheet,columns,rows,frame,foot,drawSize,tint,flip);
+            // The caller must use this SAME visible canvas for phase/hit
+            // flash: otherwise mask and body diverge by up to 20% during
+            // the crossing between two approved full-body source atlases.
+            return drawSize;
         }
     }
 }

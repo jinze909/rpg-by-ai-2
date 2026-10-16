@@ -629,7 +629,8 @@ namespace Starfall
                     // Sprite in living draws and death handoff.
                     int liveCell = BriarBeastLiveCell(e);
                     lastVisible.lastBriarCell=liveCell;
-                    DrawEnemyAtlasHandoff(e,briarBeastSheet,4,18,liveCell,
+                    float paintedBossSize=DrawEnemyAtlasHandoff(
+                        e,briarBeastSheet,4,18,liveCell,
                         p + offset,size,tint,e.VisualFlip,pose);
                     // On an HP phase transition the *current* whole-body
                     // silhouette glows briefly, even after the ordinary hit
@@ -637,7 +638,7 @@ namespace Starfall
                     float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                     if (!drawingOutline && flashAlpha > 0f)
                         Actor(art.FlashMask(briarBeastSheet), 4, 18,
-                            liveCell, p + offset, size,
+                            liveCell, p + offset, paintedBossSize,
                             new Color(1, 1, 1, flashAlpha * tint.a),
                             e.VisualFlip);
                 }
@@ -674,13 +675,13 @@ namespace Starfall
                 lastVisible.lastRegionalSize=visibleBossSize;
                 lastVisible.lastRegionalFlip=e.VisualFlip;
                 lastVisible.lastRegionalTint=tint;
-                DrawEnemyAtlasHandoff(e,visibleBossSheet,4,
-                    visibleBossRows,visibleBossFrame,p + offset,
-                    visibleBossSize,tint,e.VisualFlip,pose);
+                float paintedBossSize=DrawEnemyAtlasHandoff(
+                    e,visibleBossSheet,4,visibleBossRows,visibleBossFrame,
+                    p + offset,visibleBossSize,tint,e.VisualFlip,pose);
                 float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                 if (!drawingOutline && flashAlpha > 0f && visibleBossSheet != null)
                     Actor(art.FlashMask(visibleBossSheet), 4, visibleBossRows,
-                        visibleBossFrame, p + offset, visibleBossSize,
+                        visibleBossFrame, p + offset, paintedBossSize,
                         new Color(1, 1, 1, flashAlpha * tint.a),
                         e.VisualFlip);
                 }
@@ -758,9 +759,10 @@ namespace Starfall
                 float canvas=ActorCanvas(sheet,columns,size/128);
                 bool renderFlip=!vertical && e.VisualFlip;
                 RememberEnemyPaint(e,sheet,columns,rows,frame,canvas,tint,renderFlip);
-                DrawEnemyAtlasHandoff(e,sheet,columns,rows,frame,
+                float paintedEnemySize=DrawEnemyAtlasHandoff(
+                    e,sheet,columns,rows,frame,
                     p + offset,canvas,tint,renderFlip,pose);
-                if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, canvas, new Color(1, 1, 1, e.flash / .09f * .86f), renderFlip);
+                if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, paintedEnemySize, new Color(1, 1, 1, e.flash / .09f * .86f), renderFlip);
             }
             // 16 real authored supplemental frames, synchronized to the
             // exact game-core enemy state and attack-release timestamps:
