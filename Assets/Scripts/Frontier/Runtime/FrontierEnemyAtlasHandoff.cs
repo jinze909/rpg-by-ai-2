@@ -17,7 +17,7 @@ namespace Starfall
             internal Point position;
             internal Texture2D sheet;
             internal int columns,rows,frame;
-            internal float size;
+            internal float size,displaySize;
             internal Color tint;
             internal bool flip;
             internal Texture2D departing;
@@ -71,7 +71,12 @@ namespace Starfall
                     state.departingColumns=state.columns;
                     state.departingRows=state.rows;
                     state.departingFrame=state.frame;
-                    state.departingSize=state.size;
+                    // A second, rapid atlas switch can interrupt an
+                    // unfinished size transition. The next one must begin
+                    // from the size actually PAINTED on the previous frame,
+                    // not an unseen source atlas's nominal dimensions.
+                    state.departingSize=state.displaySize>0f?
+                        state.displaySize:state.size;
                     state.departingTint=state.tint;
                     state.departingFlip=state.flip;
                     state.startedAt=clock;
@@ -92,30 +97,39 @@ namespace Starfall
             state.position=enemy.Position;state.sheet=sheet;
             state.columns=columns;state.rows=rows;state.frame=frame;
             state.size=size;state.tint=tint;state.flip=flip;
-            if(state.active && state.departing!=null)
+            float drawSize=size;
+            if(state.active&&state.departing!=null)
             {
                 float progress=Mathf.Clamp01(
                     (clock-state.startedAt)/EnemyAtlasHandoffSeconds);
                 if(progress>=1f)state.active=false;
                 else
                 {
-                    // Retain one complete previous body at exactly the
-                    // CURRENT world foot. This is presentation only, less
-                    // than 106ms, no extra movement or gameplay input.
+                    // Regional Boss Idle and Walk source paintings use
+                    // different accepted native canvases (320 vs 384 px).
+                    // Blending their opacity but swapping their size at
+                    // once left a 20% HEAD/BODY pop at animation entry.
+                    // Smooth the dimensions of the WHOLE source body,
+                    // never rescale separate limbs or change game motion.
+                    float eased=progress*progress*(3f-2f*progress);
+                    drawSize=state.departingSize+
+                        (size-state.departingSize)*eased;
                     float alpha=(1f-progress)*.38f;
                     Actor(state.departing,state.departingColumns,
                         state.departingRows,state.departingFrame,foot,
-                        state.departingSize,
+                        drawSize,
                         new Color(state.departingTint.r,
                             state.departingTint.g,state.departingTint.b,
                             state.departingTint.a*alpha),
                         state.departingFlip);
                 }
             }
-            // The active frame is ALWAYS drawn at full gameplay-authorized
-            // opacity over the decaying afterimage. Weapon contact, hurt
-            // geometry and source frame identity remain authoritative.
-            Actor(sheet,columns,rows,frame,foot,size,tint,flip);
+            // Persist the ACTUAL drawn canvas for interrupted transitions.
+            // Every complete Sprite shares the original world-foot pivot.
+            state.displaySize=drawSize;
+            // The authoritative current frame is always visible at full
+            // opacity. Only its PRESENTATION size is gently interpolated.
+            Actor(sheet,columns,rows,frame,foot,drawSize,tint,flip);
         }
     }
 }
