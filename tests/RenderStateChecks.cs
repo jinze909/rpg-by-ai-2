@@ -2530,7 +2530,8 @@ public static class RenderStateChecks
             "snowMoteWindX","desertMoteWindX","coastMoteLift",
             "groundFoliageSwayDegrees",
             "hazardRingAlpha","hazardCountdownAlpha",
-            "hitContactBlendFraction","impactFlourishAlpha"};
+            "hitContactBlendFraction","impactFlourishAlpha",
+            "deathPoseBlendFraction"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -2551,7 +2552,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 27 source-controlled WorldLook values for terrain, foliage, ambient motion, painted impacts, hit contact, hazard warnings, companion gait, actors and combat FX");
+        Console.WriteLine("PASS 28 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual

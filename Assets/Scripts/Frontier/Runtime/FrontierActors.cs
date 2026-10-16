@@ -671,6 +671,10 @@ namespace Starfall
         private void DrawFallen(FallenActor body)
         {
             Point p = ScreenPoint(body.actor.Position); float progress = 1 - body.life / body.duration;
+            // One bounded, artist-authored whole-Sprite transition length
+            // for all mobile Bosses and common foes. Core death/loot time
+            // stays unchanged; reduced-motion retains one stable corpse.
+            float deathBlendFraction=CurrentWorldVisualLook.deathPoseBlendFraction;
             Color tint = new Color(1, 1, 1, Math.Min(1, body.life / (body.duration * .45f)));
             // Keep the contact patch as a corpse fades out; a death frame
             // otherwise snaps from a solid grounded sprite into a floating one.
@@ -694,11 +698,13 @@ namespace Starfall
                 // Never splice upper/lower halves or affect damage/death.
                 int row=Math.Min(7,Math.Max(0,body.room-1));
                 int walkAtlas=row/4;
-                bool transition=body.actor.moving && progress<.24f &&
+                bool transition=body.actor.moving &&
+                    progress<deathBlendFraction &&
                     !Game.save.reducedMotion && bossWalkSheets!=null &&
                     walkAtlas<bossWalkSheets.Length &&
                     bossWalkSheets[walkAtlas]!=null;
-                float change=transition?Mathf.Clamp01(progress/.24f):1f;
+                float change=transition?
+                    Mathf.Clamp01(progress/deathBlendFraction):1f;
                 if(transition&&change<1f)
                 {
                     int stride=GameCore.GaitFrame(body.actor.moveTime,2.8f);
@@ -752,8 +758,9 @@ namespace Starfall
                 // WalkMonsters frame, then pass the SAME foot root to the
                 // actual Monsters death cell. Never cut or re-rig anatomy.
                 bool walking=body.actor.moving && monsterWalkSheet!=null &&
-                    progress<.24f && !Game.save.reducedMotion;
-                float mix=walking?Mathf.Clamp01(progress/.24f):1f;
+                    progress<deathBlendFraction && !Game.save.reducedMotion;
+                float mix=walking?
+                    Mathf.Clamp01(progress/deathBlendFraction):1f;
                 float size=body.actor.kind==2?106f:96f;
                 int kind=Math.Min(2,body.actor.kind);
                 if(walking && mix<1f)

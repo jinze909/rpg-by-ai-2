@@ -575,6 +575,27 @@ public static class ActorRegistrationChecks
             Math.Abs(walk.rect.y+walk.rect.height*120f/128f-
                 (fallen.rect.y+fallen.rect.height*120f/128f))<.001f,
             "Boss full-body death crossfade displaced original foot root");
+        // An actual edit to the Unity Resources WorldLook value must
+        // alter the same gameplay-rooted death image, not only a config.
+        var property=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private);
+        Check(property!=null,"Death art-direction resource not connected");
+        var look=property.GetValue(app,null);
+        var tuning=look.GetType().GetField("deathPoseBlendFraction",
+            BindingFlags.Instance|BindingFlags.Public);
+        Check(tuning!=null,"Death blend width not artist editable");
+        float originalDuration=(float)tuning.GetValue(look);
+        try
+        {
+            tuning.SetValue(look,.16f);
+            corpse.life=.88f;
+            Clear();var shorter=Draw(app,"DrawFallen",corpse);
+            var next=shorter.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/Bosses");
+            Check(next!=null&&next.color.a>.72f&&next.color.a<.78f,
+                "Changing accepted art resource did not alter real Boss death");
+        }
+        finally{tuning.SetValue(look,originalDuration);}
         corpse.life=.72f;Clear();var settled=Draw(app,"DrawFallen",corpse);
         Check(!settled.Any(c=>c.texture.name==
                 "resource:Frontier/Art/WalkBossA")&&

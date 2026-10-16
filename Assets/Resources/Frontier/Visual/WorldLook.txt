@@ -44,6 +44,10 @@ hitContactBlendFraction=0.16
 # Supplemental hand-painted full source Sprite intensity for contact art.
 # Never changes the original Effects.png or simulation hit/contact timing.
 impactFlourishAlpha=0.58
+# Fraction of the real corpse lifetime used to hand off one accepted
+# WHOLE body Sprite to another while preserving the original foot pivot.
+# It cannot extend death/loot time and is skipped under reduced-motion.
+deathPoseBlendFraction=0.24
 # Front-most timed hazard warning: translucent outline preserves character
 # identity while the timer stays near full readability on crowded maps.
 # These tune the ACTUAL combat world, never any GameCore damage radius.
