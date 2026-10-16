@@ -164,7 +164,8 @@ def main():
     print("PASS regression mutation: forced 256px Boss downsampling hard-fails")
     # An exception used to permanently disable every actor's native
     # renderer. Deliberately restore that unsafe behaviour: CI must reject.
-    retry_guard = "if (Time.frameCount < actorCaptureRetryAt) return false;"
+    retry_guard = ("if (Time.frameCount < actorCaptureRetryAt &&\n"
+                   "                    Time.frameCount >= actorCaptureRetryAt - 120) return false;")
     assert native.count(retry_guard) == 1, "NONHERO_GPU_RETRY_GUARD_MISSING"
     stuck = native.replace(retry_guard, "if (true) return false;", 1)
     stuck_path = OUT / "faulted-permanent-fallback.cs"
@@ -184,6 +185,34 @@ def main():
         "NONHERO_CAPTURE_REGRESSION" in blocked.stdout), (
         "NONHERO_PERMANENT_GPU_FALLBACK_FALSE_PASS", blocked.stdout)
     print("PASS regression mutation: permanent nonhero GPU fallback hard-fails")
+    # Each cooldown belongs to the frame-count epoch that created it.
+    # Regressing ANY one to the old clock-agnostic wait must make the
+    # executable same-Controller/same-Sprite recovery witness fail.
+    for label, epoch_guard in (
+        ("capture", "Time.frameCount >= actorCaptureRetryAt - 120"),
+        ("controller", "Time.frameCount >= retryAt - 120"),
+        ("rejected-pose", "Time.frameCount >= rejectedUntil - 120"),
+    ):
+        assert native.count(epoch_guard) == 1, (
+            "NONHERO_EPOCH_GUARD_MISSING", label)
+        old_epoch = native.replace(epoch_guard, "true", 1)
+        mutation = OUT / ("faulted-old-epoch-" + label + ".cs")
+        mutation.write_text(old_epoch)
+        exe = OUT / ("faulted-old-epoch-" + label + ".exe")
+        compiled = subprocess.run([
+            os.environ.get("STARFALL_MCS", shutil.which("mcs")),
+            "-define:UNITY_5_3_OR_NEWER", "-out:" + str(exe),
+            str(STUB), str(mutation),
+            str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
+            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        assert compiled.returncode == 0, (
+            "NONHERO_EPOCH_FAULT_COMPILE", label, compiled.stdout)
+        observed = subprocess.run([mono, str(exe)], cwd=ROOT,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        assert observed.returncode != 0 and (
+            "NONHERO_CAPTURE_REGRESSION" in observed.stdout), (
+            "NONHERO_EPOCH_REWIND_FALSE_PASS", label, observed.stdout)
+    print("PASS three independent actor clock-rewind cooldown removal mutations hard-fail")
     # Mutation: force every row to Idle despite GameCore choosing Attack,
     # phase changes, talking or death. The same real native C# probe MUST
     # fail instead of green-lighting a placeholder Animator component.
