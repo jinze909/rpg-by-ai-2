@@ -1509,6 +1509,20 @@ public static class RenderStateChecks
             "ambient sprite rotation leaked into the rest of the GameView");
         Same(GUI.color,firstColor,
             "ambient drawing left GUI tint on the player or HUD");
+        // Direct-function QA is insufficient if the actual Frontier scene
+        // stops invoking it. Exercise the full depth-sorted DrawWorld path,
+        // then require the same approved 8px Effects.png cells in the live
+        // scene command buffer, not standalone preview commands.
+        Clear();
+        Call(app,"DrawWorld");
+        int integrated=GUI.textureCalls.FindAll(t=>
+            object.ReferenceEquals(t.texture,original)&&
+            Math.Abs(t.uv.x-.25f)<.0001f&&
+            Math.Abs(t.uv.y)<.0001f&&
+            Math.Abs(t.rect.width-8f)<.001f&&
+            Math.Abs(t.rect.height-8f)<.001f).Count;
+        Check(integrated>=strokes.Length && integrated>0,
+            "Full production DrawWorld lost its illustrated biome particles");
         game.save.reducedMotion=true;
         Clear();Call(app,"DrawAuthoredAtmosphericMotes");
         Check(GUI.textureCalls.Count==0,
