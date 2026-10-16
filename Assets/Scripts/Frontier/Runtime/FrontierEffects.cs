@@ -449,9 +449,18 @@ namespace Starfall
                     new Color(warning.r,warning.g,warning.b,.18f+progress*.15f));
             DrawWarningArc(enemy.target,radius,0f,
                 (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,.85f),36);
-            DrawWarningArc(enemy.target,radius*(.2f+progress*.8f),0f,
+            // The large safety outline remains visible to everybody.
+            // The concentric INNER ring formerly expanded for every
+            // GameCore tick even in Reduced Motion. Hold a fixed 90%-radius
+            // secondary outline for motion-sensitive players; impact range
+            // and the persistent outer circle never change.
+            float innerRadius=Game.save.reducedMotion?
+                radius*.90f:radius*(.2f+progress*.8f);
+            float innerAlpha=Game.save.reducedMotion?
+                .56f:.35f+progress*.35f;
+            DrawWarningArc(enemy.target,innerRadius,0f,
                 (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,
-                .35f+progress*.35f),24);
+                innerAlpha),24);
             // Old renderer scaled one 32px Effects cell to the COMPLETE
             // attack radius (sometimes 200+ screen pixels), smearing its
             // pixels across scenery and burying the original terrain.
