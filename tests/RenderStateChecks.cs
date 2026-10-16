@@ -1523,6 +1523,64 @@ public static class RenderStateChecks
             Math.Abs(t.rect.height-8f)<.001f).Count;
         Check(integrated>=strokes.Length && integrated>0,
             "Full production DrawWorld lost its illustrated biome particles");
+        // Critical production-layer invariant: atmospheric flecks belong
+        // BELOW both the canonical blonde hero and any gameplay warning.
+        // A source-correct atlas painted after the actor still makes dots
+        // drift over the actor's face and equipped weapon.
+        int lastMote=-1, firstCanonicalHero=-1;
+        for(int index=0;index<GUI.textureCalls.Count;index++)
+        {
+            var item=GUI.textureCalls[index];
+            if(object.ReferenceEquals(item.texture,original)&&
+                Math.Abs(item.uv.x-.25f)<.00001f&&
+                Math.Abs(item.uv.y)<.00001f&&
+                Math.Abs(item.rect.width-8f)<.001f&&
+                Math.Abs(item.rect.height-8f)<.001f)
+                lastMote=index;
+            if(firstCanonicalHero<0&&item.texture!=null&&
+                item.texture.name!=null&&item.texture.name.IndexOf(
+                    "Frontier/HeroAnimator/Canonical/Hero_Vanguard",
+                    StringComparison.Ordinal)>=0)
+                firstCanonicalHero=index;
+        }
+        Check(lastMote>=0&&firstCanonicalHero>lastMote,
+            "World particles render OVER the actual hero body/weapon");
+        // Test distinctive but rooted regional travel instead of merely
+        // checking the palette strings exist in source.
+        foreach(int biome in new[]{6,7})
+        {
+            app.BeginVisualReview(0,biome);
+            Set(app,"camera",app.Game.Position);
+            Set(app,"clock",3.1f);
+            app.Game.save.effectsQuality=2;
+            app.Game.save.reducedMotion=false;
+            Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+            var ambient=GUI.textureCalls.ToArray();
+            Check(ambient.Length>0,
+                "desert and snow must still expose animated original art");
+            Color expected=biome==7?new Color(.82f,.92f,1f):
+                new Color(1f,.84f,.61f);
+            foreach(var item in ambient)
+                Check(object.ReferenceEquals(item.texture,original)&&
+                    Math.Abs(item.color.r-expected.r)<.001f&&
+                    Math.Abs(item.color.g-expected.g)<.001f&&
+                    Math.Abs(item.color.b-expected.b)<.001f&&
+                    item.color.a>0f&&item.color.a<=.22f,
+                    "biome VFX switched to incompatible palette or primitive");
+            Set(app,"clock",4.7f);
+            Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+            Check(GUI.textureCalls.Count==ambient.Length,
+                "wind should not spawn or drop snow/desert sprites by frame");
+            for(int i=0;i<ambient.Length;i++)
+                Check(Math.Abs(GUI.textureCalls[i].rect.x-ambient[i].rect.x)<
+                        12f&&Math.Abs(GUI.textureCalls[i].rect.y-
+                        ambient[i].rect.y)<12f,
+                    "biome wind disconnected its world-seeded Sprite");
+        }
+        // Return to the forest fixture for the reduced-motion guarantee.
+        app.BeginVisualReview(0,1);
+        game=app.Game;
+        game.save.effectsQuality=2;
         game.save.reducedMotion=true;
         Clear();Call(app,"DrawAuthoredAtmosphericMotes");
         Check(GUI.textureCalls.Count==0,

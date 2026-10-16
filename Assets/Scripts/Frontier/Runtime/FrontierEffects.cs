@@ -41,13 +41,20 @@ namespace Starfall
                         (seed%337)/100f,gy*5f+.4f+
                         ((seed/337)%371)/110f);
                     // Camera pan changes only the projection, never the
-                    // source coordinate. Sine drift is < one painted pixel
-                    // in world space; the original source cell never warps.
+                    // world seed. Snow gusts sideways, warm desert dust
+                    // drifts along the horizon, and coast spray lifts;
+                    // forest motes retain their existing soft float.
+                    // All are smooth, short-range motions of the ORIGINAL
+                    // painted source cell, never resynthesized body pixels.
                     float phase=(seed%211)*.071f;
                     float flicker=.5f+.5f*(float)Math.Sin(clock*.9f+phase);
+                    float windX=region==7?.13f:region==6?.16f:
+                        region==5?.10f:.06f;
+                    float windY=region==7?.11f:region==6?.035f:
+                        region==5?.12f:.08f;
                     Point drift=anchor+new Point(
-                        (float)Math.Sin(clock*.35f+phase)*.06f,
-                        (float)Math.Sin(clock*.44f+phase*1.3f)*.08f);
+                        (float)Math.Sin(clock*.35f+phase)*windX,
+                        (float)Math.Sin(clock*.44f+phase*1.3f)*windY);
                     if(!WorldDrawable(drift.x,drift.y,18f,18f))continue;
                     Point p=ScreenPoint(drift);
                     float alpha=baseOpacity*(.25f+.75f*flicker);

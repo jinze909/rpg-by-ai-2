@@ -543,6 +543,12 @@ namespace Starfall
                     Box(p.x, p.y, Tile + .5f, Tile + .5f, new Color(fadeBase.r,fadeBase.g,fadeBase.b,
                         WorldStreaming.TerrainVeilOpacity(reveal)));
             }
+            // Atmosphere belongs in the world background. Painting motes
+            // AFTER the depth-sorted cast made stars crawl over faces,
+            // equipped weapons, hit flashes and red combat telegraphs.
+            // Terrain is already in place; all game actors/props/HUD now
+            // occlude these subtle authored particles naturally.
+            DrawAuthoredAtmosphericMotes();
             DrawArenaBoundary();
             // Sort scenery and actors by their ground position, for proper overlap.
             DrawHazardWarnings();
@@ -551,9 +557,6 @@ namespace Starfall
             foreach (Projectile p in Game.projectiles) DrawProjectileVisual(p);
             foreach (Effect e in Game.effects) if (!IsGroundEffect(e)) DrawCombatEffect(e);
             DrawExpansionWorld();
-            // True painted, world-anchored region atmosphere, never the
-            // same detached 2px debug squares laid over every biome.
-            DrawAuthoredAtmosphericMotes();
             DrawAtmosphere(); DrawPolishWorld();
             WorldObject near = Game.Nearest();
             if (near != null && Game.mode == "world" && Game.SafeTravel)
