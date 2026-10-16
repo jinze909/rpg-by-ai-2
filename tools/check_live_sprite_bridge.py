@@ -427,8 +427,13 @@ def check():
         assert "Actor(source" not in preview
         assert '"Hero_"+FullHeroClasses[profession]+"_Idle_S"' in preview
         assert "Resources.Load<Texture2D>" in preview
-        assert capture.count("heroCaptureRenderer.sprite=canonical;") == 2, (
-            "BOTH_NATIVE_CLIP_AND_DIRECT_FRAME_MUST_BIND_SAME_CANONICAL_BODY")
+        # Three disjoint production paths must source the SAME verified
+        # canonical body: invalid-clip rejection, verified Animator sampling,
+        # and direct Controller-unavailable fallback. This third binding
+        # closes a real hot-import race where a single same-rect new Sprite
+        # could bypass whole-family validation and repaint the pending GPU.
+        assert capture.count("heroCaptureRenderer.sprite=canonical;") == 3, (
+            "ALL_THREE_NATIVE_OUTCOMES_MUST_BIND_VALIDATED_CANONICAL_BODY")
         assert "if(available)" in capture
         assert "if(!TryUsePublishedHeroFrame(equipment,0,facing," in capture
         assert "HeroSpriteMatchesPublishedFrame(" in capture
