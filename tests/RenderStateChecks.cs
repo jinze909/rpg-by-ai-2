@@ -1405,6 +1405,59 @@ public static class RenderStateChecks
         Console.WriteLine(
             "PASS original hand-painted magic vortex+contact star: one pivot, real lifecycle fade and reduced-motion/FX tiers");
     }
+    private static void DryShoalDetailsFollowActualTide(FrontierRuntime app)
+    {
+        // The real Farshore terrain renderer draws GroundDetail after Surface.
+        // An exposed '%' tile is dry only while GameCore.LowTide is true.
+        // Otherwise a ground decal appears to float above the water atlas.
+        app.BeginVisualReview(0,5);
+        var game=app.Game;
+        var detail=Get<Texture2D>(app,"detailSheet");
+        Check(detail!=null,"Approved detailed foliage resource missing");
+        int pickedX=-1,pickedY=-1;
+        for(int y=3;y<30 && pickedX<0;y++)
+        for(int x=3;x<40;x++)
+        {
+            if((int)Call(app,"PreparedTileSeed",x,y)%17!=0 ||
+               (bool)Call(app,"GroundDetailOccluded",x,y)) continue;
+            pickedX=x;pickedY=y;break;
+        }
+        Check(pickedX>=0,"No valid dry-shoal detail sample found");
+        game.save.tideHeldUntil=0;
+        game.save.totalTime=1f;
+        Check(game.LowTide,"Setup must exercise the actual ebb interval");
+        var point=new Point(250,190);
+        Clear();
+        Call(app,"DrawGroundDetail",pickedX,pickedY,'%',point);
+        Check(GUI.textureCalls.Count==1 &&
+              object.ReferenceEquals(GUI.textureCalls[0].texture,detail),
+              "Low tide must retain detailed authored shoal vegetation");
+        var grounded=GUI.textureCalls[0];
+        game.save.totalTime=26f;
+        Check(!game.LowTide,"Setup must reach the actual flooded interval");
+        Clear();
+        Call(app,"DrawGroundDetail",pickedX,pickedY,'%',point);
+        Check(GUI.textureCalls.Count==0,
+              "Flooded shoal still draws terrestrial foliage above water");
+        // Adjacent fixed land never loses its ground detail when the tide rises.
+        Clear();
+        Call(app,"DrawGroundDetail",pickedX,pickedY,'.',point);
+        Check(GUI.textureCalls.Count==1 &&
+              object.ReferenceEquals(GUI.textureCalls[0].texture,detail) &&
+              Math.Abs(GUI.textureCalls[0].rect.y-grounded.rect.y)<.001f,
+              "High tide must not remove dry-land detail or move its root");
+        Clear();
+        Call(app,"DrawGroundDetail",pickedX,pickedY,'~',point);
+        Check(GUI.textureCalls.Count==0,
+              "Deep water may never grow a terrestrial decal");
+        game.save.totalTime=1f;
+        Clear();
+        Call(app,"DrawGroundDetail",pickedX,pickedY,'%',point);
+        Check(GUI.textureCalls.Count==1,
+              "Ebb must restore grounded painted detail without relaunching scene");
+        Console.WriteLine("PASS Farshore dry/higher-tide surface details: low-tide rooted land, flood no vegetation, immutable painting and dry-land continuity");
+    }
+
     private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
     {
         app.BeginVisualReview(5,1);
@@ -1631,7 +1684,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
