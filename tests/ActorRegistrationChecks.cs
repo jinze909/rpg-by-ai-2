@@ -1415,6 +1415,11 @@ public static class ActorRegistrationChecks
                 Math.Abs(cue.rect.x+cue.rect.width*.5f-
                     (body.rect.x+body.rect.width*.5f))<.001f,
                 "NPC signal must stay above the same rooted body, not overdraw face or feet");
+            // Preserve the REAL production world-body plus its animated
+            // speaker overlay in the CI visual artifact, not just a
+            // disconnected 8-cell resource gallery.
+            GUI.Export(".starfall-checks/sprite-qa",
+                "review-actual-NPC-guild-pinned-dialogue");
             var newClock=2.35f;
             Set(app,"clock",newClock);
             Clear();
