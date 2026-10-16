@@ -49,7 +49,16 @@ namespace UnityEngine
     public class Transform
     {
         public Vector3 position, localPosition, localScale;
+        public Quaternion localRotation;
         public void SetParent(Transform target, bool preserveWorldPosition) { }
+    }
+    public struct Quaternion
+    {
+        // This offline probe only models the z-axis tilt, not Unity geometry.
+        public float zAngle;
+        public static Quaternion identity { get { return new Quaternion(); } }
+        public static Quaternion Euler(float x,float y,float z)
+        { return new Quaternion { zAngle=z }; }
     }
     public struct Vector2
     {
@@ -72,6 +81,7 @@ namespace UnityEngine
         public float r,g,b,a;
         public Color(float r,float g,float b,float a=1f)
         {this.r=r;this.g=g;this.b=b;this.a=a;}
+        public static Color white { get { return new Color(1f,1f,1f,1f); } }
     }
     public struct Rect
     {
@@ -129,6 +139,7 @@ namespace UnityEngine
     public class SpriteRenderer : Behaviour
     {
         public Sprite sprite;
+        public Color color;
         public bool flipX;
         public int sortingOrder;
     }
@@ -146,6 +157,7 @@ namespace UnityEngine
         public int sampleCount;
         public static bool InjectWrongSpriteOnce;
         public static bool InjectOverscaledHeroOnce;
+        public static bool InjectRotatedFadedHeroOnce;
         private int action, facing, pose;
         private static readonly string[] Actions =
             { "Idle","Run","Attack","Cast","Dodge","Hit","Death" };
@@ -203,6 +215,12 @@ namespace UnityEngine
                 InjectOverscaledHeroOnce=false;
                 targetRenderer.transform.localScale =
                     new Vector3(1.8f,1.8f,1f);
+            }
+            if(InjectRotatedFadedHeroOnce)
+            {
+                InjectRotatedFadedHeroOnce=false;
+                targetRenderer.transform.localRotation=Quaternion.Euler(0f,0f,42f);
+                targetRenderer.color=new Color(.3f,.6f,.1f,.15f);
             }
             string key="Frontier/HeroAnimator/Canonical/Hero_"+
                 runtimeAnimatorController.className+"_"+Actions[action]+"_"+

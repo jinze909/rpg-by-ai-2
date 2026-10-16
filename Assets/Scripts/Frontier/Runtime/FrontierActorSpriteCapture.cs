@@ -192,6 +192,11 @@ namespace Starfall
                     // SpriteRenderer.m_Sprite curve, never the game actor.
                     actorCaptureRoot.transform.localScale =
                         new Vector3(1f,1f,1f);
+                    actorCaptureRoot.transform.position =
+                        new Vector3(9200f,9200f,0f);
+                    actorCaptureRoot.transform.localRotation = Quaternion.identity;
+                    actorCaptureRenderer.transform.localRotation = Quaternion.identity;
+                    actorCaptureRenderer.color = Color.white;
                     actorCaptureRenderer.transform.localPosition =
                         new Vector3(0f,0f,0f);
                     actorCaptureRenderer.flipX = flip;
@@ -200,6 +205,7 @@ namespace Starfall
                         new Vector3((float)height / width, 1f, 1f);
                     actorCaptureCamera.transform.localScale =
                         new Vector3(1f,1f,1f);
+                    actorCaptureCamera.transform.localRotation = Quaternion.identity;
                     actorCaptureCamera.transform.localPosition =
                         new Vector3(0f,120f/128f-.5f,-10f);
                     actorCaptureCamera.orthographicSize = .5f;

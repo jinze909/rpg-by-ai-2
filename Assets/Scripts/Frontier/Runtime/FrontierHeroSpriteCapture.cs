@@ -181,6 +181,11 @@ namespace Starfall
                 // artwork, boots or the actual game-world actor position.
                 heroCaptureRoot.transform.localScale =
                     new Vector3(1f,1f,1f);
+                // Old Animator object curves can rotate or fade a correct
+                // whole-body Sprite without changing its atlas rect/pivot.
+                // Neutralize the capture rig AFTER native sampling.
+                heroCaptureRoot.transform.localRotation = Quaternion.identity;
+                heroCaptureRenderer.color = Color.white;
                 // Renderer and Animator share this transform. A stale
                 // m_LocalPosition curve can shift the sampled hero 1-2 feet
                 // relative to the GameCore boot anchor even at correct scale.
@@ -190,6 +195,7 @@ namespace Starfall
                     new Vector3(9000f,9000f,0f);
                 heroCaptureCamera.transform.localScale =
                     new Vector3(1f,1f,1f);
+                heroCaptureCamera.transform.localRotation = Quaternion.identity;
                 heroCaptureCamera.transform.localPosition =
                     new Vector3(0f,
                         (CanonicalHeroSpriteFactory.FootTop-HeroCell*.5f)/

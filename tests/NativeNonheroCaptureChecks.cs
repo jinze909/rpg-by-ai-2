@@ -76,9 +76,14 @@ public static class NativeNonheroCaptureChecks
         Require(rig!=null&&captureCam!=null&&captureSprite!=null,
             "native actor capture rig was not constructed");
         rig.transform.localScale=new Vector3(1.75f,1.75f,1f);
+        rig.transform.position=new Vector3(9300f,9400f,0f);
+        rig.transform.localRotation=Quaternion.Euler(0f,0f,24f);
+        captureSprite.transform.localRotation=Quaternion.Euler(0f,0f,-18f);
+        captureSprite.color=new Color(.7f,.4f,.2f,.12f);
         captureSprite.transform.localPosition=new Vector3(.24f,.31f,0f);
         captureSprite.transform.localScale=new Vector3(2.2f,2.2f,1f);
         captureCam.transform.localScale=new Vector3(1.4f,1.4f,1f);
+        captureCam.transform.localRotation=Quaternion.Euler(0f,0f,11f);
         captureCam.transform.localPosition=new Vector3(1f,1f,-9f);
         captureCam.orthographicSize=.9f;
         captureCam.aspect=1.6f;
@@ -86,6 +91,13 @@ public static class NativeNonheroCaptureChecks
         draw(2,false);
         Require(rig.transform.localScale.x==1f&&
             rig.transform.localScale.y==1f&&
+            Math.Abs(rig.transform.position.x-9200f)<.0001f&&
+            Math.Abs(rig.transform.position.y-9200f)<.0001f&&
+            rig.transform.localRotation.zAngle==0f&&
+            captureSprite.transform.localRotation.zAngle==0f&&
+            captureCam.transform.localRotation.zAngle==0f&&
+            captureSprite.color.r==1f&&captureSprite.color.g==1f&&
+            captureSprite.color.b==1f&&captureSprite.color.a==1f&&
             captureSprite.transform.localScale.x==1f&&
             captureSprite.transform.localScale.y==1f&&
             captureSprite.transform.localPosition.x==0f&&

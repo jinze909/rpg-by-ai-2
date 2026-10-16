@@ -127,9 +127,14 @@ public static class NativeHeroCaptureChecks
             Require(staleRoot!=null&&staleCam!=null,
                 "native hero capture rig disappeared");
             staleRoot.transform.position=new Vector3(9018f,9100f,0f);
+            staleRoot.transform.localRotation=Quaternion.Euler(0f,0f,-25f);
             staleCam.transform.localPosition=new Vector3(3f,5f,-8f);
+            staleCam.transform.localRotation=Quaternion.Euler(0f,0f,17f);
             staleCam.aspect=1.6f;
             Animator.InjectOverscaledHeroOnce=true;
+            // Also poison the sampled native pose itself, not only the
+            // state inherited from the previous offscreen capture.
+            Animator.InjectRotatedFadedHeroOnce=true;
             bool northDraw=(bool)draw.Invoke(app,new object[]{
                 new Point(100,140),new Color(1,1,1,1),false,1,false});
             var root=rootField.GetValue(app) as GameObject;
@@ -140,6 +145,10 @@ public static class NativeHeroCaptureChecks
                 root.transform.localScale.x==1f&&
                 root.transform.localScale.y==1f&&
                 root.transform.localScale.z==1f&&
+                root.transform.localRotation.zAngle==0f&&
+                current.color.r==1f&&current.color.g==1f&&
+                current.color.b==1f&&current.color.a==1f&&
+                cam.transform.localRotation.zAngle==0f&&
                 cam.transform.localScale.x==1f&&
                 cam.transform.localScale.y==1f&&
                 Math.Abs(root.transform.position.x-9000f)<.0001f&&
@@ -161,6 +170,7 @@ public static class NativeHeroCaptureChecks
                 "north action lost canonical "+classes[cls]+" source frame");
         }
         Animator.InjectOverscaledHeroOnce=false;
+        Animator.InjectRotatedFadedHeroOnce=false;
         // Repeat E after W within the SAME frame; it must still reference
         // its original texture, not a changed left-facing image.
         app.Game.AppearanceWeapon=0;
