@@ -189,28 +189,49 @@ namespace Starfall
         // An incomplete art drop leaves all established six-cell art intact.
         private bool heroContactFamilyChecked;
         private bool heroContactFamilyComplete;
+        private float heroContactLastCheckedAt=float.NegativeInfinity;
 
         private bool HasCompleteHeroContactArt()
         {
-            if(heroContactFamilyChecked)return heroContactFamilyComplete;
+            // Art release is atomic for all equipment/directions. Recover
+            // after Editor reimport without a scene restart, but never query
+            // 18 Resources files on every IMGUI repaint.
+            if(heroContactFamilyChecked && clock>=heroContactLastCheckedAt &&
+                clock-heroContactLastCheckedAt<2f)
+                return heroContactFamilyComplete;
             heroContactFamilyChecked=true;
+            heroContactLastCheckedAt=clock;
+            bool complete=true;
             foreach(string profession in FullHeroClasses)
                 foreach(string action in new[]{"Attack","Cast"})
                     foreach(string direction in FullHeroFacings)
                     {
                         string key="Hero_"+profession+"_"+action+"_"+direction;
-                        Texture2D atlas;
-                        if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas))
-                        {
-                            atlas=Resources.Load<Texture2D>(
-                                "Frontier/HeroAnimator/Canonical/"+key);
-                            fullBodyHeroSheetCache[key]=atlas;
-                        }
+                        // Bypass previously cached six-cell atlases: those
+                        // would permanently hide newly imported 7-cell art.
+                        Texture2D atlas=Resources.Load<Texture2D>(
+                            "Frontier/HeroAnimator/Canonical/"+key);
                         if(atlas==null||atlas.height!=256||atlas.width!=7*256)
-                            return false;
+                            complete=false;
                     }
-            heroContactFamilyComplete=true;
-            return true;
+            if(complete!=heroContactFamilyComplete)
+            {
+                // Never destroy an in-flight GPU target or imported Sprite.
+                // Only invalidate references; cached RenderTextures retire
+                // through the existing previous-frame eviction policy.
+                foreach(string profession in FullHeroClasses)
+                    foreach(string action in new[]{"Attack","Cast"})
+                        foreach(string direction in FullHeroFacings)
+                        {
+                            string key="Hero_"+profession+"_"+action+"_"+direction;
+                            fullBodyHeroSheetCache.Remove(key);
+#if UNITY_5_3_OR_NEWER
+                            heroPublishedSprites.Remove(key);
+#endif
+                        }
+            }
+            heroContactFamilyComplete=complete;
+            return complete;
         }
 
         private bool ResolveFullBodyHeroFrame(bool moving,int facing,
@@ -664,10 +685,14 @@ namespace Starfall
             }
             else if (body.actor.kind == 1 && enemyArcherVertical != null &&
                 enemyArcherVertical.width % 3 == 0 &&
-                enemyArcherVertical.height % 2 == 0)
+                enemyArcherVertical.height % 2 == 0 &&
+                Math.Abs(body.actor.facing.y) > Math.Abs(body.actor.facing.x))
             {
                 // The accepted 3x2 archer painting reserves cell 5 for its
-                // original fallen full-body silhouette. The old generic
+                // original fallen full-body silhouette. Use it only when the
+                // living archer used this N/S atlas; horizontal archers keep
+                // the same approved Monsters atlas through death.
+                // The old generic
                 // Monsters death swapped face/outfit immediately on death.
                 // Keep the SAME canvas density and foot root as the live
                 // north/south archer's production SpriteRenderer pose.
