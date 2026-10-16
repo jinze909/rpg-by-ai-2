@@ -84,7 +84,7 @@ namespace Starfall
                 row=companionLastWalkFacing;
             bool flip=row==0&&direction.x<-.1f;
             if(companionVisualId!=id ||
-                !Object.ReferenceEquals(companionVisualOwner,Game) ||
+                !System.Object.ReferenceEquals(companionVisualOwner,Game) ||
                 companionVisualGeneration!=Game.companionPresentationGeneration)
             {
                 companionVisualOwner=Game;
