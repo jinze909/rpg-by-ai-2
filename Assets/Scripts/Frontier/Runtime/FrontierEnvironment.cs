@@ -125,6 +125,9 @@ namespace Starfall
         // newly drawn rectangle. Its center stays anchored to the authored
         // water tile. Side-facing crests rotate as a SINGLE complete sample.
         // Reduced-motion/low-FX modes never receive moving embellishment.
+        // An edge-facing crest sampled from ORIGINAL detailed water pixels.
+        // Preserve the source UV and tile anchor across every tide/frame;
+        // orient and slightly advect the entire wave along the bank.
         private void DrawAuthoredShorelineWash(int x,int y,char tile,Point p)
         {
             if(terrainVariants==null || Game.save.reducedMotion ||
@@ -132,54 +135,53 @@ namespace Starfall
                 !IsSurfaceWater(tile,Game.save.room,Game.LowTide))
                 return;
             int seed=PreparedTileSeed(x,y);
-            // Sparse stable shorebreak instead of a solid bright tile border.
             if((seed&1)!=0)return;
             bool north=!WaterAt(x,y-1),east=!WaterAt(x+1,y),
                 south=!WaterAt(x,y+1),west=!WaterAt(x-1,y);
-            if(!north&&!east&&!south&&!west)return;
+            int shores=(north?1:0)+(east?1:0)+(south?1:0)+(west?1:0);
+            if(shores==0)return;
             WorldVisualLook look=CurrentWorldVisualLook;
-            float strength=Math.Min(.12f,look.waterGlintAlpha*.88f);
             float wave=(float)Math.Sin(clock*look.waterGlintRate+
                 (seed%37)*.31f);
-            float opacity=strength*(.72f+.16f*wave);
+            float opacity=look.shorelineWashAlpha*(.76f+.16f*wave)*
+                (shores>1?.82f:1f);
             if(Game.save.effectsQuality==1)opacity*=.64f;
             int variant=(seed/7)%4;
             Rect uv=new Rect((variant*48f+8f)/192f,
                 18f/192f,24f/192f,7f/192f);
             Matrix4x4 original=GUI.matrix;
-            Color originalColor=GUI.color;
+            Color color=GUI.color;
             try
             {
                 GUI.color=new Color(1.04f,1.09f,1.14f,
                     opacity*worldActorOpacity);
-                // The old first-match if/else left one edge of corner
-                // riverbanks dry. Each physically exposed side now has a
-                // separate authored wave sample, with one stable tile root.
-                // Individual edge transforms are RESET before the next
-                // sample so turns never inherit another edge's rotation.
                 for(int edge=0;edge<4;edge++)
                 {
-                    bool exposed=edge==0?north:edge==1?east:
-                        edge==2?south:west;
-                    if(!exposed)continue;
+                    if(!(edge==0?north:edge==1?east:
+                        edge==2?south:west))continue;
                     float cx=p.x+Tile*.5f,cy=p.y+Tile*.5f;
-                    bool vertical=edge==1||edge==3;
                     if(edge==0)cy=p.y+5f;
                     else if(edge==1)cx=p.x+Tile-5f;
                     else if(edge==2)cy=p.y+Tile-5f;
                     else cx=p.x+5f;
-                    GUI.matrix=vertical?GuiGeometry.RotateAroundPivot(
-                        original,new Vector2(cx,cy),90f):original;
+                    // Opposite shore faces are no longer painted with
+                    // identical orientation; no Sprite splice or material
+                    // replacement. All movement is a bounded continuous
+                    // 2D drift of one accepted complete source sample.
+                    float drift=(float)Math.Sin(clock*
+                        look.waterGlintRate*1.3f+
+                        (seed%29)*.23f+edge*1.57f)*
+                        look.shorelineTravelPixels;
+                    GUI.matrix=edge==0?original:
+                        GuiGeometry.RotateAroundPivot(original,
+                        new Vector2(cx,cy),edge==1?90f:
+                        edge==2?180f:-90f);
                     GUI.DrawTextureWithTexCoords(
-                        new Rect(cx-12f,cy-3.5f,24f,7f),
+                        new Rect(cx-12f+drift,cy-3.5f,24f,7f),
                         terrainVariants,uv);
                 }
             }
-            finally
-            {
-                GUI.matrix=original;
-                GUI.color=originalColor;
-            }
+            finally {GUI.matrix=original;GUI.color=color;}
         }
 
         // Pixel-authored material accents from TerrainAccentRemaster.png:

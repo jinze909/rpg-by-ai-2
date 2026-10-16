@@ -12,6 +12,10 @@ groundFoliageSwayDegrees=0.65
 # Fractional alpha of a source-pixel water sample; not an opaque tile overlay.
 waterGlintAlpha=0.12
 waterGlintRate=0.89
+# Existing source-painted TerrainVariants coastline wash: direction-specific
+# banks, bounded tangential travel, softened corners and no new artwork.
+shorelineWashAlpha=0.10
+shorelineTravelPixels=1.50
 
 # Existing hand-painted Effects.png atmosphere (not procedural square art).
 # Mote alpha stays below character and combat highlight opacity.

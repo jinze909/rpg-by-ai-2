@@ -17,6 +17,8 @@ namespace Starfall
             public float groundFoliageSwayDegrees=.65f;
             public float waterGlintAlpha=.12f;
             public float waterGlintRate=.89f;
+            public float shorelineWashAlpha=.10f;
+            public float shorelineTravelPixels=1.5f;
             // Approved illustrated Effects.png air movement. Artist-editable
             // Resources fields control density/flow without touching hero art,
             // quest data or inventing new standalone sprite animations.
@@ -100,6 +102,12 @@ namespace Starfall
                             case "waterGlintRate":
                                 if(value>=.1f&&value<=2f)
                                     settings.waterGlintRate=value;break;
+                            case "shorelineWashAlpha":
+                                if(value>=.02f&&value<=.18f)
+                                    settings.shorelineWashAlpha=value;break;
+                            case "shorelineTravelPixels":
+                                if(value>=0f&&value<=2.5f)
+                                    settings.shorelineTravelPixels=value;break;
                             case "ambientMoteDayAlpha":
                                 if(value>=.04f&&value<=.18f)
                                     settings.ambientMoteDayAlpha=value;break;
