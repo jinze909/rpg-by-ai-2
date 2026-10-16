@@ -343,6 +343,31 @@ namespace Starfall
                 if (oldestKey == null) return;
                 RenderTexture old = actorCapturedFrames[oldestKey].texture;
                 actorCapturedFrames.Remove(oldestKey);
+                // The original implementation retired GPU targets but
+                // accumulated one Sprite.Create wrapper for EVERY visited
+                // NPC/monster/Boss cell across rooms. A companion's two
+                // mirrored captures also share that wrapper: release the
+                // temporary Sprite only after its LAST GPU variant goes.
+                // Last-use < current frame guarantees no live GUI command
+                // depends on either the old texture or this wrapper.
+                int split = oldestKey.LastIndexOf(':');
+                if (split > 0)
+                {
+                    string frameKey = oldestKey.Substring(0, split);
+                    if (!actorCapturedFrames.ContainsKey(frameKey + ":normal") &&
+                        !actorCapturedFrames.ContainsKey(frameKey + ":flipped"))
+                    {
+                        Sprite retired;
+                        if (actorFrameSprites.TryGetValue(frameKey, out retired))
+                        {
+                            actorFrameSprites.Remove(frameKey);
+                            if (actorCaptureRenderer != null &&
+                                actorCaptureRenderer.sprite == retired)
+                                actorCaptureRenderer.sprite = null;
+                            if (retired != null) Destroy(retired);
+                        }
+                    }
+                }
                 if (actorCaptureCamera != null &&
                     actorCaptureCamera.targetTexture == old)
                     actorCaptureCamera.targetTexture = null;

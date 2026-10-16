@@ -11,6 +11,12 @@ public static class NativeNonheroCaptureChecks
     static void Require(bool ok, string why)
     { if (!ok) throw new Exception("NONHERO_CAPTURE_REGRESSION: " + why); }
 
+    static int MaxExpectedSpriteWrappersForBudget()
+    {
+        // A 512px ARGB32 + 16-bit depth capture is at least 1.5MiB.
+        // Room-spanning evictions may retain fewer, never indefinitely more.
+        return 46;
+    }
     static void Main()
     {
         var runtime = new FrontierRuntime();
@@ -399,6 +405,13 @@ public static class NativeNonheroCaptureChecks
             "actorCachedBytes",BindingFlags.Instance|BindingFlags.NonPublic);
         Require(bytesField!=null,"nonhero GPU byte-budget counter missing");
         long budget=64L*1024L*1024L;
+        var spriteMap=(System.Collections.IDictionary)typeof(FrontierRuntime).
+            GetField("actorFrameSprites",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(limited);
+        var renderMap=(System.Collections.IDictionary)typeof(FrontierRuntime).
+            GetField("actorCapturedFrames",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(limited);
+        Sprite earliestSprite=null;
         for(int frame=0;frame<70;frame++)
         {
             Time.frameCount=2400+frame;
@@ -409,10 +422,72 @@ public static class NativeNonheroCaptureChecks
             Require(ok,"native large frame dropped instead of LRU eviction");
             Require((long)bytesField.GetValue(limited)<=budget,
                 "nonhero GPU cache exceeds 64MiB after an ordinary repaint");
+            string currentKey=large.GetInstanceID()+":4:4:0";
+            if(frame==0)earliestSprite=spriteMap[currentKey] as Sprite;
+            Require(spriteMap.Count<=renderMap.Count&&
+                spriteMap.Count<MaxExpectedSpriteWrappersForBudget(),
+                "GPU eviction orphaned runtime Sprite.Create wrappers across room loads");
+            foreach(System.Collections.DictionaryEntry item in spriteMap)
+            {
+                string key=(string)item.Key;
+                Require(renderMap.Contains(key+":normal")||
+                    renderMap.Contains(key+":flipped"),
+                    "Owned Sprite survived eviction of both orientation targets");
+            }
         }
+        Require(earliestSprite!=null&&earliestSprite.destroyed,
+            "First room's owned Sprite wrapper survived 70 newer Boss frames");
         var firstBatch=Camera.RenderedTargets[Camera.RenderedTargets.Count-70];
         Require(firstBatch.releaseCount>=1,
             "old large GPU captures were not evicted by byte pressure");
+        // The unflipped and flipped versions of ONE painted frame own
+        // different GPU targets, but must share a single live Sprite.
+        // Reclamation may never destroy that Sprite when only one of the
+        // orientation targets has been retired.
+        var mirroredOwner=new FrontierRuntime();
+        var dual=new Texture2D(2048,2048,TextureFormat.RGBA32,false);
+        Time.frameCount=2900;
+        Require((bool)method.Invoke(mirroredOwner,new object[]{
+            dual,4,4,0,new Point(200,220),96f,Color.white,false,0f})&&
+            (bool)method.Invoke(mirroredOwner,new object[]{
+            dual,4,4,0,new Point(200,220),96f,Color.white,true,0f}),
+            "Both orientations of one native actor must be renderable");
+        var dualSprites=(System.Collections.IDictionary)typeof(FrontierRuntime).
+            GetField("actorFrameSprites",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(mirroredOwner);
+        var dualTargets=(System.Collections.IDictionary)typeof(FrontierRuntime).
+            GetField("actorCapturedFrames",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(mirroredOwner);
+        string dualKey=dual.GetInstanceID()+":4:4:0";
+        Sprite shared=dualSprites[dualKey] as Sprite;
+        Require(shared!=null&&dualTargets.Contains(dualKey+":normal")&&
+            dualTargets.Contains(dualKey+":flipped"),
+            "Mirrored source art must use one owned full-body Sprite");
+        bool sawOneOrientation=false;
+        for(int i=0;i<72;i++)
+        {
+            Time.frameCount=2901+i;
+            var newSheet=new Texture2D(2048,2048,
+                TextureFormat.RGBA32,false);
+            Require((bool)method.Invoke(mirroredOwner,new object[]{
+                newSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f}),
+                "Mirrored artist source eviction stress dropped a real actor");
+            int surviving=(dualTargets.Contains(dualKey+":normal")?1:0)+
+                (dualTargets.Contains(dualKey+":flipped")?1:0);
+            if(surviving==1)
+            {
+                sawOneOrientation=true;
+                Require(dualSprites.Contains(dualKey)&&!shared.destroyed,
+                    "Evicted one mirror and prematurely destroyed shared Sprite");
+            }
+            if(surviving==0)
+                Require(!dualSprites.Contains(dualKey)&&shared.destroyed,
+                    "Last orientation lost GPU target but leaked its Sprite");
+        }
+        Require(sawOneOrientation&&shared.destroyed,
+            "Never exercised both sides of the last-variant Sprite retirement");
+        release.Invoke(mirroredOwner,null);
         var burst=new FrontierRuntime();
         Time.frameCount=3300;
         int burstStart=Camera.RenderedTargets.Count;
