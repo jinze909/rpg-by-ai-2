@@ -469,6 +469,16 @@ namespace Starfall
             // NOT permission to overwrite the last validated asset.
             if(incoming==null||incoming==installed)return;
             actorNativeControllers[family]=incoming;
+            // A previously WRONG Clip/Pose from the old controller must
+            // not remain quarantined for another 120 frames after a newly
+            // accepted corrected Controller is installed. Scope cleanup
+            // precisely to this native family.
+            var rejected=new List<string>();
+            foreach(string pose in actorNativeRejectedPoseUntil.Keys)
+                if(pose.StartsWith(family+":",StringComparison.Ordinal))
+                    rejected.Add(pose);
+            foreach(string pose in rejected)
+                actorNativeRejectedPoseUntil.Remove(pose);
             string prefix=source.GetInstanceID()+":";
             foreach(var frame in actorCapturedFrames)
                 if(frame.Key.StartsWith(prefix,StringComparison.Ordinal))
