@@ -71,13 +71,11 @@ namespace Starfall
                 }
             foreach(Enemy e in Game.enemies)
             {
-                // Combat simulation remains active everywhere; visuals still
-                // draw well beyond the viewport to keep long-range warnings.
+                // Enemy bodies are culled independently from attack targets.
+                // A visible landing zone must NEVER lose its warning merely
+                // because its long-range caster is beyond actor draw margin.
                 if(WorldDrawable(e.x,e.y,450,450))
-                {
-                    DrawEnemyWarning(e);
                     AddWorldEntry(new WorldDrawEntry{depth=e.y,kind=WorldDrawKind.Enemy,enemy=e});
-                }
             }
             foreach(FallenActor f in Game.fallen)
                 if(WorldDrawable(f.actor.x,f.actor.y))
@@ -121,6 +119,20 @@ namespace Starfall
                 worldActorOpacity=1f;
                 worldDrawEntries.Clear();
             }
+            DrawVisibleEnemyWarnings();
+        }
+        // Combat preview outlines are gameplay signals, not scenery. Draw
+        // AFTER depth-sorted trees, NPCs, the hero and Boss bodies so opaque
+        // canopies/ruins cannot erase a real locked hit radius or rescue
+        // interception lane. The existing slim strokes and subdued fill
+        // preserve the character silhouette; damage/timing are unchanged.
+        private void DrawVisibleEnemyWarnings()
+        {
+            foreach(Enemy e in Game.enemies)
+                if(e.state==1 &&
+                   (WorldDrawable(e.x,e.y,450,450) ||
+                    WorldDrawable(e.target.x,e.target.y,120,120)))
+                    DrawEnemyWarning(e);
         }
         // Canopy/ruin occlusion is a presentation-only mask. Test every
         // actor that actually enters the depth-sorted world pass; a companion

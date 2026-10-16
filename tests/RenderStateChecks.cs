@@ -1484,6 +1484,85 @@ public static class RenderStateChecks
         Console.WriteLine(
             "PASS original 128px flight trail gradual emergence, true projectile anchor, 3 FX tiers and reduced motion");
     }
+    private static void AttackWarningsRemainReadableThroughWorldCover(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        game.enemies.Clear();
+        game.effects.Clear();
+        game.save.effectsQuality=0;
+        game.save.reducedMotion=true;
+        Set(app,"camera",game.Position);
+        Enemy boss=new Enemy(93241,2,game.Position.x+2f,
+            game.Position.y,480,true)
+        {
+            state=1,timer=.42f,windupDuration=1.1f,
+            target=game.Position
+        };
+        game.enemies.Add(boss);
+        var source=Get<Texture2D>(app,"effectSheet");
+        Check(source!=null,"Original combat warning Sprite atlas missing");
+        try
+        {
+            Clear();Call(app,"DrawWorld");
+            int heroIndex=-1,warningIndex=-1;
+            for(int i=0;i<GUI.textureCalls.Count;i++)
+            {
+                var c=GUI.textureCalls[i];
+                if(heroIndex<0&&c.texture!=null&&c.texture.name!=null&&
+                    c.texture.name.IndexOf(
+                        "Frontier/HeroAnimator/Canonical/Hero_Vanguard",
+                        StringComparison.Ordinal)>=0)
+                    heroIndex=i;
+                if(object.ReferenceEquals(c.texture,source)&&
+                    Math.Abs(c.uv.x-.5f)<.00001f&&
+                    Math.Abs(c.uv.y)<.00001f&&
+                    Math.Abs(c.uv.width-.25f)<.00001f&&
+                    c.rect.width>40f)
+                    warningIndex=i;
+            }
+            Check(heroIndex>=0&&warningIndex>heroIndex,
+                "Boss hit-radius signal disappeared behind foreground hero/cover");
+            // Rendering is target-aware. Enemy bodies can be more than a
+            // full screen outside the viewport while their LOCKED strikes
+            // land directly on the player; warnings must remain visible.
+            boss.x=game.Position.x+55f;
+            Clear();Call(app,"DrawWorld");
+            heroIndex=-1;warningIndex=-1;
+            bool drawnOffscreenBody=false;
+            for(int i=0;i<GUI.textureCalls.Count;i++)
+            {
+                var c=GUI.textureCalls[i];
+                if(heroIndex<0&&c.texture!=null&&c.texture.name!=null&&
+                    c.texture.name.IndexOf(
+                        "Frontier/HeroAnimator/Canonical/Hero_Vanguard",
+                        StringComparison.Ordinal)>=0)
+                    heroIndex=i;
+                if(c.texture!=null&&c.texture.name!=null&&
+                    c.texture.name.IndexOf("Frontier/Art/BriarBeast",
+                        StringComparison.Ordinal)>=0)
+                    drawnOffscreenBody=true;
+                if(object.ReferenceEquals(c.texture,source)&&
+                    Math.Abs(c.uv.x-.5f)<.00001f&&
+                    Math.Abs(c.uv.y)<.00001f&&
+                    Math.Abs(c.uv.width-.25f)<.00001f&&
+                    c.rect.width>40f)
+                    warningIndex=i;
+            }
+            Check(!drawnOffscreenBody&&warningIndex>heroIndex&&heroIndex>=0,
+                "Offscreen Boss body culled its still-visible target warning");
+            // Original world scene keeps stationary danger readable even
+            // when reduced motion and the low-FX setting are enabled.
+            Console.WriteLine(
+                "PASS production DrawWorld danger layering and offscreen Boss target warning: exact source art, native hero readability, reduced-motion/FX");
+        }
+        finally
+        {
+            game.enemies.Clear();
+            app.EndVisualReview();Clear();
+        }
+    }
     private static void CombatWarningUsesConnectedTrueRadiusGeometry(
         FrontierRuntime app)
     {
@@ -2092,7 +2171,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
