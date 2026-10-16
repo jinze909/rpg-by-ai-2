@@ -1366,6 +1366,108 @@ public static class ActorRegistrationChecks
             "canonical scale/root, no torso/head/leg puppetry");
     }
 
+    // CI MUST execute the real DrawNpc production branch (not only an
+    // isolated frame preview), and verify the speaker is the pinned
+    // dialogue source. No low-resolution body replacement is allowed.
+    public static void VerifyNpcActionSignalProduction(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,2);
+        var game=app.Game;
+        string original="resource:Frontier/Art/Npcs";
+        string signals="resource:Frontier/Art/NpcActionSignals";
+        var npc=new WorldObject{
+            id="speech-qa",kind="guild",
+            x=game.Position.x+1f,y=game.Position.y+.5f
+        };
+        var conversation=game.conversation;
+        var source=game.conversationSource;
+        bool reduced=game.save.reducedMotion;
+        int quality=game.save.effectsQuality;
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            game.conversation=null;game.conversationSource=null;
+            Set(app,"clock",2.02f);Clear();
+            var idle=Draw(app,"DrawNpc","guild",
+                new Point(npc.x,npc.y),-1);
+            Check(idle.Count(c=>c.texture.name==original)==1&&
+                !idle.Any(c=>c.texture.name==signals),
+                "Ordinary detailed resident must not emit a fake conversation");
+            game.conversation=new Conversation("guild","guild","hello","hello");
+            game.conversationSource=npc;
+            Clear();
+            var active=Draw(app,"DrawNpc","guild",
+                new Point(npc.x,npc.y),-1);
+            var body=active.Single(c=>c.texture.name==original);
+            var cue=active.Single(c=>c.texture.name==signals);
+            Check(cue.texture.width==96&&cue.texture.height==40&&
+                Math.Abs(cue.uv.width-.25f)<.00001f&&
+                Math.Abs(cue.uv.height-.5f)<.00001f&&
+                Math.Abs(cue.uv.y-.5f)<.00001f&&
+                Math.Abs(cue.rect.width-30f)<.001f&&
+                Math.Abs(cue.rect.height-25f)<.001f&&
+                cue.color.a>.60f&&cue.color.a<.8f,
+                "Real NPC speech must sample one original top-row 24x20 pixel cell");
+            float foot=body.rect.y+body.rect.height*120f/128f;
+            Check(Math.Abs(cue.rect.y+119f-foot)<.001f&&
+                cue.rect.y+cue.rect.height<body.rect.y&&
+                Math.Abs(cue.rect.x+cue.rect.width*.5f-
+                    (body.rect.x+body.rect.width*.5f))<.001f,
+                "NPC signal must stay above the same rooted body, not overdraw face or feet");
+            var newClock=2.35f;
+            Set(app,"clock",newClock);
+            Clear();
+            var later=Draw(app,"DrawNpc","guild",
+                new Point(npc.x,npc.y),-1);
+            var nextCue=later.Single(c=>c.texture.name==signals);
+            Check(Math.Abs(nextCue.uv.x-cue.uv.x)>.00001f&&
+                Math.Abs(nextCue.rect.y-cue.rect.y)<.001f,
+                "Four source speech poses must animate while world root stays fixed");
+            var bystander=new Point(npc.x+4f,npc.y);
+            Clear();var other=Draw(app,"DrawNpc","guild",bystander,-1);
+            Check(other.Any(c=>c.texture.name==original)&&
+                !other.Any(c=>c.texture.name==signals),
+                "Same-kind bystander inherited another resident's pinned dialogue");
+            game.save.reducedMotion=true;Clear();
+            var still=Draw(app,"DrawNpc","guild",
+                new Point(npc.x,npc.y),-1);
+            var fixedCue=still.Single(c=>c.texture.name==signals);
+            Set(app,"clock",2.82f);Clear();
+            var stillLater=Draw(app,"DrawNpc","guild",
+                new Point(npc.x,npc.y),-1);
+            Check(stillLater.Single(c=>c.texture.name==signals).uv.x==
+                fixedCue.uv.x,
+                "Reduced-motion must keep one stable readable speech symbol");
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=0;Clear();
+            var disabled=Draw(app,"DrawNpc","guild",
+                new Point(npc.x,npc.y),-1);
+            Check(disabled.Any(c=>c.texture.name==original)&&
+                !disabled.Any(c=>c.texture.name==signals),
+                "Zero visual effects must preserve original NPC and skip only cue");
+            game.save.effectsQuality=2;game.conversation=null;
+            // Row-one amber danger belongs to a genuine escort distress
+            // branch; exercise the same renderer with both asset rows.
+            Clear();Call(app,"DrawNpcActionSignal",
+                new Point(320,360),1,14);
+            var alert=GUI.textureCalls.Single(c=>c.texture.name==signals);
+            Check(Math.Abs(alert.uv.y)<.00001f&&
+                Math.Abs(alert.uv.width-.25f)<.00001f&&
+                alert.color.a>.6f&&alert.color.r>=.99f,
+                "Rescue danger symbol must use its own approved bottom pixel row");
+            Console.WriteLine("PASS production NPC conversation source pinning, distinct 4-frame painted speech/danger, body identity, world root, motion and FX controls");
+        }
+        finally
+        {
+            game.conversation=conversation;
+            game.conversationSource=source;
+            game.save.reducedMotion=reduced;
+            game.save.effectsQuality=quality;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyResidentAnimation(FrontierRuntime app)
     {
         // VISUAL FIDELITY ROLLBACK: the older Npcs.png contains the carefully

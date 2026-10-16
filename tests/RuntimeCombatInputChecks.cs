@@ -1482,6 +1482,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyBossMovingFlash,
             ActorRegistrationChecks.VerifyBossWholeBodySizeAcrossIdleRun,
             ActorRegistrationChecks.VerifyResidentAnimation,
+            ActorRegistrationChecks.VerifyNpcActionSignalProduction,
             ActorRegistrationChecks.VerifyCompanionGaitContinuity,
             RenderStateChecks.VerifyLiveVisualLookResource,
             RenderStateChecks.VerifyRelicArtAndWorldIllumination,
