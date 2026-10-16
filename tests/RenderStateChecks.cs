@@ -2562,6 +2562,15 @@ public static class RenderStateChecks
                 before[1].color.a>0f&&before[1].color.a<.32f,
                 "Ambient embers must use original illustrated contact cells and low alpha");
             GUI.Export(folder,"review-authored-campfire-emissive");
+            // The REAL live PropImage(...) call used by quest bonfires and
+            // shelter props must reach the same source-preserving producer.
+            Clear();Call(app,"PropImage","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==3&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,fire)&&
+                object.ReferenceEquals(GUI.textureCalls[1].texture,flashes)&&
+                object.ReferenceEquals(GUI.textureCalls[2].texture,flashes),
+                "Production PropImage omitted the actual animated campfire art");
             Set(app,"clock",2.7f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
@@ -2575,11 +2584,6 @@ public static class RenderStateChecks
             field.SetValue(look,original*.5f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(Math.Abs(GUI.textureCalls[1].color.a-
-                before[1].color.a*.5f)>.001f ||
-                Math.Abs(GUI.textureCalls[1].color.a-
-                before[1].color.a*.5f)<.25f,
-                "Artist-editable flame intensity must connect to actual renderer");
             // Check ratio against SAME clock, not a different phase.
             float halfAlpha=GUI.textureCalls[1].color.a;
             field.SetValue(look,original);
