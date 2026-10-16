@@ -281,7 +281,10 @@ namespace Starfall
 
         private void DrawGroundDetail(int x, int y, char tile, Point p)
         {
-            if (detailSheet == null || Game.save.room == 9 || tile != '.' && tile != '%') return;
+            if (detailSheet == null || Game.save.room == 9 ||
+                (tile != '.' && tile != '%') ||
+                IsSurfaceWater(tile,Game.save.room,Game.LowTide))
+                return; // High-tide shoals are water, not a bed for dry plants.
             int seed = PreparedTileSeed(x, y);
             if (seed % 17 != 0 || GroundDetailOccluded(x, y)) return;
             Point world = new Point(x + .35f + seed % 5 * .07f, y + .65f);
