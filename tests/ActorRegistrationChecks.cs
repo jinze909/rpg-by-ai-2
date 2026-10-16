@@ -335,6 +335,33 @@ public static class ActorRegistrationChecks
                 previous=body;
                 GUI.Export(folder,"review-archer-"+heading+"-action-"+phase);
             }
+            // Reproduce a true damage-reaction overlap with the in-flight
+            // north/south arrow release. The combat pose selector chooses Hit
+            // first, but the whole-body bow identity must not flash back to
+            // a different monster for one reaction frame.
+            foe.hitTime=.1f;
+            foe.flash=.08f;
+            foe.releaseTime=.12f;
+            Clear();Place(app,foe.Position,new Point(410+heading*300,350));
+            var interrupted=Draw(app,"DrawEnemyActor",foe);
+            var contact=interrupted.FirstOrDefault(c=>c.texture.name==
+                "resource:Frontier/Art/EnemyArcherVertical");
+            var contactFlash=interrupted.FirstOrDefault(c=>c.texture.name.Contains(
+                "flash_EnemyArcherVertical")||c.texture.name.Contains(
+                "flash_resource_Frontier_Art_EnemyArcherVertical"));
+            Check(contact!=null&&contactFlash!=null&&
+                !interrupted.Any(c=>c.texture.name=="resource:Frontier/Art/Monsters"),
+                "Hit during vertical arrow contact flashed a generic creature body");
+            Check(Math.Abs(contact.uv.y-previous.uv.y)<.00001f&&
+                Math.Abs(contact.uv.x-previous.uv.x)<.00001f&&
+                Math.Abs(contactFlash.uv.x-contact.uv.x)<.00001f&&
+                Math.Abs(contactFlash.uv.y-contact.uv.y)<.00001f&&
+                Math.Abs(contact.rect.y-previous.rect.y)<.001f,
+                "Vertical bow hit flash must retain release facing, source cell and boots");
+            GUI.Export(folder,"review-archer-"+heading+"-contact-hit");
+            foe.hitTime=0;
+            foe.flash=0;
+            foe.releaseTime=0;
             // The sixth cell on the same accepted atlas is a genuine
             // authored fallen archer. Death must not turn into a generic
             // monster/another face when live hitboxes are removed.
