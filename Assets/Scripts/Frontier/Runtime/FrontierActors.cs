@@ -607,6 +607,7 @@ namespace Starfall
             // receive a stable, readable warm tint (no extra GUI primitive).
             tint=RegionalBossPhaseTint(tint,e,Game.save.room);
             float phaseCue = e.boss ? BossPhaseCueOpacity(e) : 0f;
+            float paintedBossCanvas=size;
             if (e.boss)
             {
                 // Capture the most recently drawn living HP stage. Lethal
@@ -632,6 +633,7 @@ namespace Starfall
                     float paintedBossSize=DrawEnemyAtlasHandoff(
                         e,briarBeastSheet,4,18,liveCell,
                         p + offset,size,tint,e.VisualFlip,pose);
+                    paintedBossCanvas=paintedBossSize;
                     // On an HP phase transition the *current* whole-body
                     // silhouette glows briefly, even after the ordinary hit
                     // flash expires. No second offset body or old-phase pose.
@@ -678,6 +680,7 @@ namespace Starfall
                 float paintedBossSize=DrawEnemyAtlasHandoff(
                     e,visibleBossSheet,4,visibleBossRows,visibleBossFrame,
                     p + offset,visibleBossSize,tint,e.VisualFlip,pose);
+                paintedBossCanvas=paintedBossSize;
                 float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                 if (!drawingOutline && flashAlpha > 0f && visibleBossSheet != null)
                     Actor(art.FlashMask(visibleBossSheet), 4, visibleBossRows,
@@ -763,6 +766,33 @@ namespace Starfall
                     e,sheet,columns,rows,frame,
                     p + offset,canvas,tint,renderFlip,pose);
                 if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, paintedEnemySize, new Color(1, 1, 1, e.flash / .09f * .86f), renderFlip);
+            }
+            // A real HP threshold crossing, not an arbitrary idle clock,
+            // briefly exposes the Boss's new stage with two SMALL painted
+            // Effects.png motes. Bind their shoulder positions to the
+            // actually VISIBLE whole-body canvas (320->384 easing), never
+            // the not-yet-displayed target atlas or an unrelated projectile.
+            // This is intentionally an ambient VFX, not a fake Animator
+            // contact or gameplay hitbox.
+            if(e.boss&&phaseCue>.001f&&!drawingOutline&&
+               !Game.save.reducedMotion&&
+               Game.save.effectsQuality>0&&effectSheet!=null)
+            {
+                float scale=Math.Min(28f,paintedBossCanvas*.12f);
+                float beamY=p.y-paintedBossCanvas*.60f;
+                float spread=paintedBossCanvas*.23f;
+                Color gleam=e.BossPhase>=3?
+                    new Color(1f,.69f,.44f,phaseCue*.26f*tint.a):
+                    new Color(.56f,.94f,1f,phaseCue*.26f*tint.a);
+                Atlas(effectSheet,4,4,13,
+                    new Rect(p.x-spread-scale*.5f,
+                        beamY-scale*.5f,scale,scale),gleam);
+                if(Game.save.effectsQuality>=2)
+                    Atlas(effectSheet,4,4,3,
+                        new Rect(p.x+spread-scale*.5f,
+                            beamY-scale*.5f,scale,scale),
+                        new Color(gleam.r,gleam.g,gleam.b,
+                            gleam.a*.72f));
             }
             // 16 real authored supplemental frames, synchronized to the
             // exact game-core enemy state and attack-release timestamps:
