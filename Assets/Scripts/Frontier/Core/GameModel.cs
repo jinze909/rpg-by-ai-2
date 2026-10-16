@@ -130,6 +130,11 @@ namespace Starfall
         public bool roadTrialOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned;
         public string source, visual;
         public float age, height = 32, launchHeight = -1, flightHeight = -1;
+        // Visual-only origin for the CURRENT direction's painted projectile
+        // tail. When a sword guard reflects a shot, the old inbound trail
+        // must not instantly appear behind the new outbound direction.
+        // This field is transient; GameCore SaveData and snapshots are intact.
+        public float trailResetAt;
         public ImpactProfile impact;
         public float Radius { get { return visual == "arrow" || visual == "enemyArrow" ? .14f : .28f; } }
         public int theme;

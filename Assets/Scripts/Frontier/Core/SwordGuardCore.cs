@@ -58,6 +58,11 @@ namespace Starfall
             save.energy-=7;
             deflectCooldown=.28f;deflectFlash=.34f;
             p.friendly=true;
+            // A deflected projectile starts an entirely NEW outbound visual
+            // wake; retaining inbound age creates three fully bright ghost
+            // arrows on the first reflected frame. Keep original real
+            // lifetime/position/collision unchanged.
+            p.trailResetAt=p.age;
             p.velocity=fromEnemy*Math.Max(7f,p.velocity.Length);
             p.damage=Math.Max(14f,Math.Min(68f,Damage*.85f));
             p.life=Math.Min(1.6f,p.life);

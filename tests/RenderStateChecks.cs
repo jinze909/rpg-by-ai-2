@@ -1206,6 +1206,27 @@ public static class RenderStateChecks
                 Check(GUI.textureCalls[i].color.a>0f&&
                     GUI.textureCalls[i].color.a<=.42f,
                     "Established trail alpha outside source-approved bounds");
+            // Sword guard reverses the SAME simulated projectile: its
+            // cumulative age is still old, but its outbound painted tail
+            // must restart at the actual guard contact timestamp.
+            flight.age=.9f;
+            flight.trailResetAt=.9f;
+            flight.velocity=new Point(-10f,0f);
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,
+                    Get<Texture2D>(app,"effectSheet")),
+                "Parried arrow instantly acquired a full inbound-age ghost trail");
+            flight.age=.919f;
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==2&&
+                GUI.textureCalls[0].color.a>0f&&
+                GUI.textureCalls[0].color.a<.04f,
+                "Outbound original arrow trail must fade in from its new travel origin");
+            flight.age=.99f;
+            Clear();Call(app,"DrawProjectileVisual",flight);
+            Check(GUI.textureCalls.Count==4,
+                "Reflected shot failed to regrow the original three-cell authored tail");
             g.save.effectsQuality=1;
             Clear();Call(app,"DrawProjectileVisual",flight);
             Check(GUI.textureCalls.Count==3,

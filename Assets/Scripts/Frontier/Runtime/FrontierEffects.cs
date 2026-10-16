@@ -85,7 +85,12 @@ namespace Starfall
             if(effectSheet!=null && Game.save.effectsQuality>0 &&
                 !Game.save.reducedMotion)
             {
-                float travelled=projectile.age*projectile.velocity.Length;
+                // Derive tail growth from the CURRENT flight direction,
+                // not the inbound age accumulated before a warrior parry.
+                // The gameplay projectile (and its hitbox/age) never resets.
+                float travelled=Math.Max(0f,
+                    projectile.age-projectile.trailResetAt)*
+                    projectile.velocity.Length;
                 int maxTrail=Game.save.effectsQuality==1?2:3;
                 for(int i=maxTrail;i>0;i--)
                 {

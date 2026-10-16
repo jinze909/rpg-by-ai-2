@@ -34,6 +34,9 @@ namespace Starfall.Tests
                 g.projectiles.Contains(arrow)&&
                 g.save.health==oldHP&&g.deflectCooldown>0,
                 "A genuinely sweeping frontal hostile shot reverses into a friendly projectile without hurting the hero");
+            Check(arrow.age>0f&&
+                Math.Abs(arrow.trailResetAt-arrow.age)<.00001f,
+                "Real sword reflection must reset outbound visual trail at contact without resetting gameplay age");
             Check(g.effects.Exists(e=>e.kind=="number"&&
                 e.text.Contains("弹反")),
                 "Sword-guard contact announces its real successful timing");
