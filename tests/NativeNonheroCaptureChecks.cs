@@ -912,14 +912,14 @@ public static class NativeNonheroCaptureChecks
             var correctedGraph=new RuntimeAnimatorController{
                 className="Actor_MossboundRaider"};
             Resources.Registered[raiderGraphKey]=correctedGraph;
-            int beforeRecovery=Camera.RenderedTargets.Count;
+            int beforeCorrectedClip=Camera.RenderedTargets.Count;
             Time.frameCount=1401;
             Require((bool)method.Invoke(brokenActor,new object[]{
                 offender,4,6,9,new Point(200,220),96f,
                 Color.white,false,0f})&&stopped.enabled&&
                 ReferenceEquals(stopped.runtimeAnimatorController,
                     correctedGraph)&&
-                Camera.RenderedTargets.Count==beforeRecovery+1,
+                Camera.RenderedTargets.Count==beforeCorrectedClip+1,
                 "Corrected native pose remained quarantined after actual Controller replacement");
         }
         finally {Resources.Registered[raiderGraphKey]=rejectedGraph;}
