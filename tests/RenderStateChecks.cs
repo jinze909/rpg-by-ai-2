@@ -1422,7 +1422,54 @@ public static class RenderStateChecks
                 Check(GUI.textureCalls.Count==0,
                     "Dry roads must not acquire waterline foam");
             }
-            Console.WriteLine("PASS four actual shore orientations with approved terrain plus painted changing source foam, zero slide, reduced-motion and zero-FX");
+            // Simulate the editor replacing the imported PNG while the
+            // shoreline scene is already visible, without any scene reload.
+            // A malformed replacement must never cause one-frame missing
+            // foam, a 127px crop, or a per-tile Resource load storm.
+            const string key="Frontier/Art/ShorelineFoam";
+            Texture2D priorOverride;
+            bool overridden=Resources.TextureOverrides.TryGetValue(
+                key,out priorOverride);
+            try
+            {
+                Resources.TextureOverrides[key]=new Texture2D(
+                    127,12,TextureFormat.RGBA32,false){
+                    name="partial-broken-water-import"};
+                Set(app,"clock",10f);Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                Check(GUI.textureCalls.Count==2&&
+                    object.ReferenceEquals(GUI.textureCalls[1].texture,foam),
+                    "Incomplete water import replaced last correct four-frame source");
+                var accepted=new Texture2D(
+                    128,12,TextureFormat.RGBA32,false){
+                    name="published-new-water-four-poses"};
+                Resources.TextureOverrides[key]=accepted;
+                Set(app,"clock",12.55f);Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                Check(GUI.textureCalls.Count==2&&
+                    object.ReferenceEquals(GUI.textureCalls[1].texture,accepted),
+                    "Complete painted wave reimport never reached live shoreline");
+                // Rewinding to an earlier save must not leave the newer
+                // atlas cached merely because the last scene was long lived.
+                Resources.TextureOverrides[key]=foam;
+                Set(app,"clock",0f);Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                Check(GUI.textureCalls.Count==2&&
+                    object.ReferenceEquals(GUI.textureCalls[1].texture,foam),
+                    "World clock rewind held an unrelated past importer generation");
+            }
+            finally
+            {
+                if(overridden)Resources.TextureOverrides[key]=priorOverride;
+                else Resources.TextureOverrides.Remove(key);
+                Set(app,"shorelineFoamSheet",foam);
+                Set(app,"shoreFoamCheckedAt",float.NegativeInfinity);
+                Set(app,"shoreFoamNextCheck",float.NegativeInfinity);
+            }
+            Console.WriteLine("PASS four actual shore orientations with approved terrain + four painted pixel cells, low FX, reimport hold/recovery and clock rewind");
         }
         finally
         {

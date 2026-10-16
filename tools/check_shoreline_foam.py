@@ -47,6 +47,7 @@ def main():
         assert marker in ACTOR,("FOAM_NOT_LOADED_AT_RUNTIME",marker)
     for marker in ("new Rect(cx-16f,cy-6f,32f,12f)",
         "shorelineFoamSheet,foamUv","if(paintedFoam&&foamAlpha>.001f)",
+        "RefreshAuthoredShoreFoam();","candidate.width==128&&",
         "Game.save.reducedMotion","IsSurfaceWater(tile,Game.save.room,Game.LowTide)"):
         assert marker in ENV,("FOAM_NOT_IN_REAL_TIDE_WATER_PATH",marker)
     assert "RenderStateChecks.VerifyPaintedShorelineFoamInLiveWorld," in TEST,(
