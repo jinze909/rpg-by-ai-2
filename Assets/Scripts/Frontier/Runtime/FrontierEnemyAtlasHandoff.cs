@@ -88,7 +88,13 @@ namespace Starfall
                     // next fully authored frame. Cancel, never rewind.
                     state.flip!=flip||enemy.flash>0f||
                     enemy.hp<=0f||enemy.state==1||
-                    enemy.releaseTime>0f)
+                    enemy.releaseTime>0f||
+                    // Regional Bosses intentionally keep their WalkBoss
+                    // source while a hit reaction is active. If the bright
+                    // hit flash expires first, a still-running Idle->Walk
+                    // blend must not paint an old idle BODY over the actual
+                    // hit keyframe. Cancel every non-locomotion pose here.
+                    (pose!=0&&pose!=1))
                 state.active=false;
             // Record the LAST authored cell for the next true source change.
             // This does not affect death snapshots or actual action clocks.

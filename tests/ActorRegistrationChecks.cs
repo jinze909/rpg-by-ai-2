@@ -1691,6 +1691,22 @@ public static class ActorRegistrationChecks
             Check(softer!=null&&softer.color.a<depart.color.a&&
                 softer.color.a>0f,
                 "Atlas handoff must decay continuously on real animation time");
+            // A walking Boss retains its WalkBoss atlas during Hit,
+            // even when the hit flash has expired. The old IDLE silhouette
+            // must not bleed through the same-source hit keyframe while an
+            // Idle->Walk crossfade remains active in its 105ms window.
+            // This is the real production DrawEnemyActor/Actor path.
+            if(boss)
+            {
+                enemy.hitTime=.07f;
+                enemy.flash=0f;
+                Set(app,"clock",10.09f);Clear();
+                var hurtDuringBlend=Draw(app,"DrawEnemyActor",enemy);
+                Check(hurtDuringBlend.Any(c=>c.texture.name==movingName)&&
+                    !hurtDuringBlend.Any(c=>c.texture.name==idleName),
+                    "Boss hit after flash expiry kept an obsolete idle body over its authored WalkBoss hit pose");
+                enemy.hitTime=0f;
+            }
             Set(app,"clock",10.15f);
             Clear();var settled=Draw(app,"DrawEnemyActor",enemy);
             Check(settled.Any(c=>c.texture.name==movingName)&&
