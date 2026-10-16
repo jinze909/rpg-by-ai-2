@@ -1703,7 +1703,7 @@ public static class RenderStateChecks
             Check(GUI.textureCalls.Count==2,
                 "Newly born arrow trail must fade in before the second cell");
             var early=GUI.textureCalls[0];
-            Check(early.texture.name=="resource:Frontier/Art/Effects"&&
+            Check(early.texture.name=="resource:Frontier/Art/ProjectileTrails"&&
                 early.color.a>0f&&early.color.a<.04f,
                 "First trail suddenly appeared at full opacity");
             flight.age=.03f;

@@ -191,16 +191,17 @@ namespace Starfall
             float angle = (float)(Math.Atan2(projectile.velocity.y, projectile.velocity.x) * 180 / Math.PI);
             float size = arrow ? 30 : projectile.explosive ? 28 : 22;
             Color tint = projectile.friendly ? Color.white : BossEffectColor(projectile.theme);
-            // Tail cells are the original illustrated Effects.png pixels.
-            // Previously each ghost materialized at FULL alpha as soon as a
-            // discrete distance threshold was crossed: fast arrows showed
-            // three visible duplicate silhouettes in successive frames.
-            // Ease each independent tail IN over 0.18 world units. Nothing
-            // changes projectile collision, velocity or real emission time.
-            // Reduced motion never adds trailing moving silhouettes.
-            if(effectSheet!=null && Game.save.effectsQuality>0 &&
-                !Game.save.reducedMotion)
+            // A separate hand-painted four-pose motion trail now follows
+            // the ACTUAL projectile in flight. Never ghost the projectile
+            // head itself: a streak of real 24px painted filaments conveys
+            // arrow speed and magic energy without fake duplicate missiles.
+            // The original Effects.png remains the exact safe fallback.
+            // GameCore owns travel, reflection, collision and hit timing.
+            if(Game.save.effectsQuality>0&&!Game.save.reducedMotion)
             {
+                Texture2D authoredTail=PublishedProjectileTrailArt();
+                if(authoredTail==null&&effectSheet==null)
+                    RecoverPublishedVisualAtlases();
                 // Derive tail growth from the CURRENT flight direction,
                 // not the inbound age accumulated before a warrior parry.
                 // The gameplay projectile (and its hitbox/age) never resets.
@@ -217,10 +218,25 @@ namespace Starfall
                     Point tail=ScreenPoint(projectile.position-
                         projectile.velocity.Normalized*i*.18f);
                     tail.y-=height;
-                    Atlas(effectSheet,4,4,arrow?11:12,
-                        new Rect(tail.x-size/2,tail.y-size/2,size,size),
-                        new Color(tint.r,tint.g,tint.b,
-                            .42f/i*fade),false,angle);
+                    float trailSize=arrow?24f:26f;
+                    // Frame choice is based ONLY on real time since the
+                    // current heading's launch/reflection. A parry resets
+                    // it, so inbound source silhouettes never linger.
+                    int paintedFrame=(int)Math.Floor(
+                        Math.Max(0f,projectile.age-
+                            projectile.trailResetAt)*9f+i)%4;
+                    Color trailTint=new Color(
+                        arrow?1f:tint.r,arrow?1f:tint.g,
+                        arrow?1f:tint.b,.42f/i*fade);
+                    if(authoredTail!=null)
+                        Atlas(authoredTail,4,2,(arrow?0:4)+paintedFrame,
+                            new Rect(tail.x-trailSize*.5f,
+                                tail.y-trailSize*.5f,trailSize,trailSize),
+                            trailTint,false,angle);
+                    else if(effectSheet!=null)
+                        Atlas(effectSheet,4,4,arrow?11:12,
+                            new Rect(tail.x-size*.5f,tail.y-size*.5f,
+                                size,size),trailTint,false,angle);
                 }
             }
             if (effectSheet != null) Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2, size, size), tint, false, arrow ? angle : 0);
