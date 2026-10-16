@@ -459,23 +459,37 @@ public static class NativeNonheroCaptureChecks
                 liveTexture,6,3,2,new Point(180,215),96f,
                 Color.white,false,0f}),
                 "Missing one imported foot pivot hid the live monster");
-            var safeFallback=framesInUse[face2] as Sprite;
-            Require(safeFallback!=null&&
-                !ReferenceEquals(safeFallback,newSprites[2])&&
-                ReferenceEquals(safeFallback.texture,liveTexture)&&
+            var safeAccepted=framesInUse[face2] as Sprite;
+            Require(safeAccepted!=null&&
+                ReferenceEquals(safeAccepted,newSprites[2])&&
+                !safeAccepted.destroyed&&
+                ReferenceEquals(safeAccepted.texture,liveTexture)&&
                 ReferenceEquals((typeof(FrontierRuntime).GetField(
                     "actorCaptureRenderer",BindingFlags.Instance|
                     BindingFlags.NonPublic).GetValue(upgrade) as
-                    SpriteRenderer).sprite,safeFallback),
-                "Partial new art leaked an unrelated or raised-foot pose");
+                    SpriteRenderer).sprite,safeAccepted)&&
+                Camera.RenderedTargets.Count==afterBoundedImport+3,
+                "Partial reimport must retain the last complete accepted source and GPU pose");
+            // A second frame within the retry cooldown must not re-scan
+            // the importer or recapture unrelated active animation frames.
+            int beforeRetryScan=Resources.LoadAllCounts[livePath];
+            Time.frameCount=4363;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,3,new Point(180,215),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(framesInUse[face3],newSprites[3])&&
+                Resources.LoadAllCounts[livePath]==beforeRetryScan&&
+                Camera.RenderedTargets.Count==afterBoundedImport+3,
+                "Partial actor art retried or invalidated sibling animation cells every repaint");
             Resources.RegisteredSprites[livePath]=newSprites;
             Time.frameCount=4483;
             Require((bool)method.Invoke(upgrade,new object[]{
                 liveTexture,6,3,2,new Point(180,215),96f,
                 Color.white,false,0f})&&
                 ReferenceEquals(framesInUse[face2],newSprites[2])&&
-                safeFallback.destroyed,
-                "Corrected complete actor art failed to heal cached source");
+                !safeAccepted.destroyed&&
+                Camera.RenderedTargets.Count==afterBoundedImport+3,
+                "Corrected complete actor art unnecessarily replaced an already accepted frame");
             release.Invoke(upgrade,null);
             Require(!oldSprites[2].destroyed&&
                 !newSprites[2].destroyed&&
@@ -487,7 +501,7 @@ public static class NativeNonheroCaptureChecks
             Resources.RegisteredSprites[livePath]=oldSprites;
             release.Invoke(upgrade,null);
         }
-        Console.WriteLine("PASS complete native actor Sprite hot-reimport, both mirrored GPU frames, partial-import rollback and recovery");
+        Console.WriteLine("PASS complete native actor Sprite hot-reimport, mirrored GPU frames, atomic partial-import hold and zero-flash recovery");
         // DEVICE LOSS AFTER A DIFFERENT ACTOR: one mutable offscreen
         // SpriteRenderer draws many character identities. The old cache
         // recovery reused whichever Sprite was last seen instead of binding
