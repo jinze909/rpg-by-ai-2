@@ -424,13 +424,50 @@ namespace Starfall
             }
             finally {GUI.matrix=original;}
         }
+        // Real, active PropImage -> DrawFieldProp("fire") lane: the accepted
+        // 128px original campfire remains the ONLY object body. Small
+        // hand-painted Effects.png embers provide world-rooted atmosphere;
+        // particles do not replace the fireplace Sprite or own an Animator.
+        private void DrawAuthoredCampfireEmbers(Point foot,float size,int variant)
+        {
+            if(effectSheet==null||drawingOutline||
+                Game.save.reducedMotion||Game.save.effectsQuality==0)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float phase=foot.x*.037f+foot.y*.019f+variant*.93f;
+            float beat=(float)Math.Sin(clock*4.6f+phase);
+            float amplitude=look.emberFlickerAlpha*(.72f+.28f*beat)*
+                worldActorOpacity;
+            float spread=size*.125f;
+            float centerY=foot.y-size*.55f;
+            float lift=look.emberLiftPixels*
+                (.5f+.5f*(float)Math.Sin(clock*2.8f+phase));
+            // Two complete ORIGINAL illustration samples; never generate
+            // rectangular interpolations, animated limb seams or a second
+            // body identity. Their base follows the fixed campfire foot.
+            Atlas(effectSheet,4,4,13,
+                new Rect(foot.x-spread-9f,
+                    centerY-lift-11f,22f,22f),
+                new Color(1f,.80f,.53f,amplitude));
+            if(Game.save.effectsQuality>1)
+                Atlas(effectSheet,4,4,3,
+                    new Rect(foot.x+spread-7f,
+                        centerY-lift*.64f-8f,16f,16f),
+                    new Color(1f,.67f,.38f,amplitude*.52f));
+        }
+
         private bool DrawFieldProp(string kind, int variant, float x, float y, float w, float h, Color? tint)
         {
             if (fieldProps == null) return false;
             int id = kind == "well" ? 0 : kind == "boat" ? 1 : kind == "column" ? 2 : kind == "obelisk" ? 3 : kind == "crystal" || kind == "ore" ? 4 : kind == "post" ? 5 : kind == "herb" ? 6 : kind == "wood" ? 7 : kind == "bell" ? 8 : kind == "tent" ? 9 : kind == "skiff" ? 10 : kind == "root" ? 11 : kind == "altar" || kind == "engine" ? 12 : kind == "fire" ? 13 : kind == "mirror" ? 14 : kind == "cache" ? 15 : -1;
             Point foot = new Point(x + w / 2, y + h - 8);
-            if (id >= 0) { DrawStaticFieldSprite(fieldProps,id,foot,
-                Math.Max(w,h),tint??Color.white); return true; }
+            if (id >= 0)
+            {
+                DrawStaticFieldSprite(fieldProps,id,foot,
+                    Math.Max(w,h),tint??Color.white);
+                if(id==13)
+                    DrawAuthoredCampfireEmbers(foot,Math.Max(w,h),variant);
+                return true;
+            }
             id = kind == "crate" ? 6 : kind == "barrel" ? 7 : kind == "fence" ? 11 : kind == "bridge" ? 12 : kind == "bed" ? 13 : kind == "bookshelf" ? 14 : kind == "table" || kind == "counter" ? 15 : -1;
             if (id >= 0 && detailSheet != null)
             {

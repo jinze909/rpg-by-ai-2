@@ -72,3 +72,9 @@ companionAttackPlantSeconds=0.065
 # Reduced-motion / low-FX disables them and the saved player is untouched.
 footfallAlpha=0.26
 footfallLifetime=0.32
+
+# Campfire live decoration: the accepted illustrated FieldProps flame
+# remains unchanged. Two already-painted Effects.png cells add optional,
+# rooted floating embers; never trigger combat, physics or an Animator.
+emberFlickerAlpha=0.20
+emberLiftPixels=7.0
