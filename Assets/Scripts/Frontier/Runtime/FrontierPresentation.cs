@@ -161,15 +161,22 @@ namespace Starfall
         {
             if (Game.save.effectsQuality==0 || opacity<=.001f) return;
             bool signal=kind=="outerrelay";
-            bool cool=signal||kind=="crystal"||kind=="root";
+            // Only reflective ore and mirror objects receive a NEW
+            // small diffuse relay halo; existing source-painted map props
+            // and approved glow textures retain their identity.
+            bool reflective=kind=="ore"||kind=="mirror";
+            bool cool=signal||reflective||kind=="crystal"||kind=="root";
             float height=kind=="lighthouse"?1.95f:
                 kind=="lamp"?1.12f:
                 kind=="crystal"?.65f:
+                kind=="ore"?.66f:
+                kind=="mirror"?.70f:
                 kind=="root"?.45f:
                 kind=="fire"||kind=="campfire"||kind=="brazier"?.28f:.52f;
             Point flame=anchor-new Point(0,height);
             float radius=kind=="lighthouse"?178:
                 kind=="lamp"?CurrentWorldVisualLook.lampRadius:
+                reflective?CurrentWorldVisualLook.relicHaloRadius:
                 cool?106:96;
             // Continuous, world-seeded flame rhythm. Animation never moves
             // the light's attachment, so neighbouring actors do not strobe
@@ -185,6 +192,9 @@ namespace Starfall
             float alpha=(Game.Night?CurrentWorldVisualLook.nightLightAlpha:
                 CurrentWorldVisualLook.dayLightAlpha)*opacity*flicker;
             if(signal)alpha=.27f*opacity*flicker;
+            if(reflective)
+                alpha=CurrentWorldVisualLook.relicHaloAlpha*opacity*flicker*
+                    (Game.Night?1f:.44f);
             halo.a=alpha;
             Light(flame,radius,halo);
             if(Game.save.effectsQuality>=2)
@@ -202,6 +212,7 @@ namespace Starfall
             {
                 foreach (var d in Game.Map.decor)
                     if ((d.kind=="lamp"||d.kind=="lighthouse"||d.kind=="crystal"||
+                         d.kind=="ore"||d.kind=="mirror"||
                          d.kind=="root"||d.kind=="fire") && WorldDrawable(d.x,d.y,180,180))
                     {
                         DrawWorldEmitter(new Point(d.x,d.y),d.kind,
@@ -212,7 +223,9 @@ namespace Starfall
                 {
                     bool warm=o.kind=="campfire"||o.kind=="brazier"&&Game.Has("warm_"+o.id);
                     bool signal=o.kind=="outerrelay"&&Game.OuterRelayRestored(Game.save.room);
-                    if(!(warm||signal)||!WorldDrawable(o.x,o.y,180,180))continue;
+                    bool reflective=o.kind=="ore"||o.kind=="mirror";
+                    if(!(warm||signal||reflective)||
+                        !WorldDrawable(o.x,o.y,180,180))continue;
                     DrawWorldEmitter(new Point(o.x,o.y),
                         signal?"outerrelay":o.kind,
                         FadeWorldProp(o.x,o.y),

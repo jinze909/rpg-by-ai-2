@@ -87,3 +87,9 @@ emberLiftPixels=7.0
 # without changing interaction, terrain or their actual sprite identity.
 relicShimmerAlpha=0.24
 relicShimmerRate=3.8
+
+# Grounded soft world-space illumination from original art.Glow for
+# reflective ore and mirrors, independent of the painted 24px glint.
+# At daytime glow is attenuated rather than washed across entire rooms.
+relicHaloRadius=83
+relicHaloAlpha=0.18

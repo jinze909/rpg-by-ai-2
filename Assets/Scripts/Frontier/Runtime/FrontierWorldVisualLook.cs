@@ -23,6 +23,8 @@ namespace Starfall
             public float emberLiftPixels=7f;
             public float relicShimmerAlpha=.24f;
             public float relicShimmerRate=3.8f;
+            public float relicHaloRadius=83f;
+            public float relicHaloAlpha=.18f;
             // Approved illustrated Effects.png air movement. Artist-editable
             // Resources fields control density/flow without touching hero art,
             // quest data or inventing new standalone sprite animations.
@@ -125,6 +127,12 @@ namespace Starfall
                             case "relicShimmerRate":
                                 if(value>=1.8f&&value<=6f)
                                     settings.relicShimmerRate=value;break;
+                            case "relicHaloRadius":
+                                if(value>=56f&&value<=108f)
+                                    settings.relicHaloRadius=value;break;
+                            case "relicHaloAlpha":
+                                if(value>=.07f&&value<=.26f)
+                                    settings.relicHaloAlpha=value;break;
                             case "ambientMoteDayAlpha":
                                 if(value>=.04f&&value<=.18f)
                                     settings.ambientMoteDayAlpha=value;break;
