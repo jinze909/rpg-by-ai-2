@@ -179,6 +179,52 @@ public static class NativeNonheroCaptureChecks
         release.Invoke(recovering, null);
         Require(recoveredTarget.releaseCount >= 1 && !recoveredTarget.IsCreated(),
             "GPU fault recovery leaked restored render target");
+        // An actual device can refuse a RenderTexture.Create() call with
+        // false instead of an exception. No native Actor draw may claim
+        // success while its target was never allocated.
+        var noMemory=new FrontierRuntime();
+        int beforeAlloc=Camera.RenderedTargets.Count;
+        RenderTexture.InjectCreateFailureOnce=true;
+        Time.frameCount=1450;
+        bool allocDenied=(bool)method.Invoke(noMemory,new object[]{
+            bossSheet,4,18,17,new Point(200,220),240f,
+            Color.white,false,0f});
+        Require(!allocDenied&&Camera.RenderedTargets.Count==beforeAlloc&&
+            !RenderTexture.InjectCreateFailureOnce,
+            "nonhero ignored false Create() and drew a transparent Boss");
+        Time.frameCount=1451;
+        bool allocThrottle=(bool)method.Invoke(noMemory,new object[]{
+            bossSheet,4,18,17,new Point(200,220),240f,
+            Color.white,false,0f});
+        Require(!allocThrottle&&Camera.RenderedTargets.Count==beforeAlloc,
+            "native Boss retried refused RenderTexture.Create every frame");
+        Time.frameCount=1570;
+        bool allocRecovered=(bool)method.Invoke(noMemory,new object[]{
+            bossSheet,4,18,17,new Point(200,220),240f,
+            Color.white,false,0f});
+        Require(allocRecovered&&Camera.RenderedTargets.Count==beforeAlloc+1,
+            "original 320px Boss Sprite failed to recover native GPU capture");
+        var createdTarget=GUI.DrawnTextures[GUI.DrawnTextures.Count-1]
+            as RenderTexture;
+        Require(createdTarget!=null&&createdTarget.width==320,
+            "Boss GPU allocation recovery shrank source pixels");
+        createdTarget.Release();
+        int beforeLost=Camera.RenderedTargets.Count;
+        RenderTexture.InjectCreateFailureOnce=true;
+        Time.frameCount=1580;
+        bool recreateDenied=(bool)method.Invoke(noMemory,new object[]{
+            bossSheet,4,18,17,new Point(200,220),240f,
+            Color.white,false,0f});
+        Require(!recreateDenied&&Camera.RenderedTargets.Count==beforeLost,
+            "device-loss recreation failure submitted uncreated Actor target");
+        Time.frameCount=1700;
+        bool recreateRecovered=(bool)method.Invoke(noMemory,new object[]{
+            bossSheet,4,18,17,new Point(200,220),240f,
+            Color.white,false,0f});
+        Require(recreateRecovered&&Camera.RenderedTargets.Count==beforeLost+1,
+            "nonhero native Sprite failed to recover from denied GPU recreation");
+        release.Invoke(noMemory,null);
+
         // Native animator is no longer a disabled placeholder. Four actual
         // art families: raid monster, guard, 3-phase Boss and talking NPC.
         // Every imported Sprite key points at its original full-body atlas.
