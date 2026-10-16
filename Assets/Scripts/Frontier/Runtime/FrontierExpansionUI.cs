@@ -146,15 +146,30 @@ namespace Starfall
                         CurrentWorldVisualLook.companionAttackPlantSeconds,
                         action.contact*.42f)&&publishedWalk)
             {
-                // Resolve an airborne source pose FORWARD to the proper
-                // opposite foot before the full-body cast/bow sheet. Only
-                // actions entered FROM genuine travel get this delay:
-                // standing allies must show attack anticipation instantly.
+                // Do not BLOCK the real windup with one or two old walking
+                // frames. GameCore's attack begins immediately, and its
+                // WHOLE authored bow/cast body must be visible from the
+                // very first action repaint. Only an optional lightweight
+                // planted-boot afterimage holds the gait continuity.
                 int plant=companionLastWalkFacing==row?
                     NextCompanionGroundContact(companionLastWalkFrame):0;
                 companionWasWalking=false;
-                Actor(companionWalkSheets[id],4,3,
-                    row*4+plant,p,192f,tint,flip);
+                float duration=Math.Min(
+                    CurrentWorldVisualLook.companionAttackPlantSeconds,
+                    action.contact*.42f);
+                if(!Game.save.reducedMotion&&Game.save.effectsQuality>0&&
+                    !drawingOutline&&duration>.001f)
+                {
+                    float fade=Mathf.Clamp01(1f-action.elapsed/duration);
+                    Actor(companionWalkSheets[id],4,3,row*4+plant,
+                        p,192f,new Color(tint.r,tint.g,tint.b,
+                            tint.a*.24f*fade),flip);
+                }
+                // The action cell is rendered LAST and at full visibility.
+                // No combat timeline, input, weapon mount or feet are
+                // synthesized or delayed.
+                Actor(companionSheets[id],3,4,frame,p,192f,tint,
+                    !north&&!(south&&action!=null)&&direction.x<-.1f);
             }
             else
             {
