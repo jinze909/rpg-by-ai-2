@@ -527,7 +527,16 @@ namespace Starfall
                 int row = Math.Min(7, Math.Max(0, Game.save.room - 1));
                 int frame = pose == 2 ? 1 : pose == 3 ? 2 : 0;
                 int walkAtlas = row / 4;
-                bool walking = pose == 1 && bossWalkSheets != null &&
+                // A moving Boss hit previously swapped its complete
+                // WalkBoss body for the static Bosses.png idle silhouette
+                // for ~0.18 s, then snapped back. Hold the EXACT accepted
+                // moving source cell and matching flash mask through a
+                // non-attacking hit reaction; real windup/release still
+                // choose their authored Bosses combat cells.
+                bool walking = (pose == 1 ||
+                    (pose == 4 && e.moving &&
+                     e.state != 1 && e.releaseTime <= 0f)) &&
+                    bossWalkSheets != null &&
                     walkAtlas < bossWalkSheets.Length &&
                     bossWalkSheets[walkAtlas] != null;
                 Texture2D visibleBossSheet = walking ?

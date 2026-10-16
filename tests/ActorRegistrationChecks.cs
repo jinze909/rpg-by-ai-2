@@ -486,6 +486,29 @@ public static class ActorRegistrationChecks
         Check(!moving.Any(c=>c.texture.name==
             "resource:Frontier/Art/BriarBeast"),
             "Unapproved prototype Boss displaced the detailed production body");
+        var stride=actor(moving,"WalkBossA");
+        boss.hitTime=.09f;
+        boss.flash=.08f;
+        Clear();var impacted=Draw(app,"DrawEnemyActor",boss);
+        var hitBody=actor(impacted,"WalkBossA");
+        sameFrame(hitBody,mask(impacted,"WalkBossA"));
+        Check(hitBody!=null&&
+            Math.Abs(hitBody.uv.x-stride.uv.x)<.00001f&&
+            Math.Abs(hitBody.uv.y-stride.uv.y)<.00001f&&
+            Math.Abs(hitBody.rect.x-stride.rect.x)<.001f&&
+            Math.Abs(hitBody.rect.y-stride.rect.y)<.001f&&
+            Math.Abs(hitBody.rect.width-stride.rect.width)<.001f&&
+            !impacted.Any(c=>c.texture.name==
+                "resource:Frontier/Art/Bosses"),
+            "Moving Boss hit reaction changed entire body, boots or GPU art identity");
+        boss.hitTime=0;
+        boss.flash=0;
+        Clear();var resumed=Draw(app,"DrawEnemyActor",boss);
+        var walkAfter=actor(resumed,"WalkBossA");
+        Check(walkAfter!=null&&
+            Math.Abs(walkAfter.uv.x-stride.uv.x)<.00001f&&
+            Math.Abs(walkAfter.rect.y-stride.rect.y)<.001f,
+            "Boss hit recovery jumped to a different moving source frame");
         // The original authored Bosses atlas must not show release art during
         // the final 0.1 seconds of still-active GameCore windup.
         boss.moving=false;boss.flash=0;boss.state=1;
@@ -511,7 +534,7 @@ public static class ActorRegistrationChecks
         var second=actor(nextDraw,"WalkBossA");
         Check(second.color.g<first.color.g&&second.color.b<first.color.b,
             "Original moving Boss must retain visible later HP phases");
-        Console.WriteLine("PASS detailed original Bosses/WalkBoss bodies, flash, winding/release and room-2 HP tint");
+        Console.WriteLine("PASS source-consistent walking Boss hit/recovery + original windup/release, flash, footprint and room-2 HP tint");
     }
 
     static void PreparedMasks()
