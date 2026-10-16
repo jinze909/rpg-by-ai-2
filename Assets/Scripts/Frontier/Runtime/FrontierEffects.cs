@@ -4,6 +4,11 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
+        // A small, source-authored, alpha-only-detail Sprite sheet contains
+        // four 24px motifs: forest fireflies, blown sand, coastal spray and
+        // snow crystals. VFX remains world-rooted, never a stand-in for the
+        // real character SpriteRenderer/Animator production architecture.
+        private Texture2D weatherWispSheet;
         // Biome-specific air motion uses genuine illustrated Effects.png
         // star/speck pixels. The old 18 looping, screen-space square boxes
         // looked identical in forest, snow and volcanic areas, and snapped
@@ -18,8 +23,18 @@ namespace Starfall
             // Citadel interiors and abyss dungeons have their own authored
             // sources/light cues; do not paint outdoor fireflies across them.
             if (region==4 || region==9) return;
-            if(effectSheet==null)RecoverPublishedVisualAtlases();
-            if(effectSheet==null)return;
+            if(weatherWispSheet==null)
+                weatherWispSheet=Resources.Load<Texture2D>(
+                    "Frontier/Art/WeatherWisps");
+            bool authoredWisps=weatherWispSheet!=null &&
+                weatherWispSheet.width==96&&weatherWispSheet.height==24;
+            // Never blank out ambience if Unity has not imported the new
+            // art yet. Its original approved Effects.png is a safe fallback.
+            if(!authoredWisps)
+            {
+                if(effectSheet==null)RecoverPublishedVisualAtlases();
+                if(effectSheet==null)return;
+            }
             int density=Game.save.effectsQuality==1?13:8;
             WorldVisualLook look=CurrentWorldVisualLook;
             float baseOpacity=Game.Night?
@@ -62,9 +77,18 @@ namespace Starfall
                     Point p=ScreenPoint(drift);
                     float alpha=baseOpacity*(.25f+.75f*flicker);
                     float size=region==7?9f:region==6?7f:8f;
-                    Atlas(effectSheet,4,4,13,
-                        new Rect(p.x-size*.5f,p.y-size*.5f,size,size),
-                        new Color(ink.r,ink.g,ink.b,alpha));
+                    int motif=region==7?3:region==6||region==3?1:
+                        region==5||region==2?2:0;
+                    if(authoredWisps)
+                        Atlas(weatherWispSheet,4,1,motif,
+                            new Rect(p.x-size*.5f,p.y-size*.5f,
+                                size,size),
+                            new Color(ink.r,ink.g,ink.b,alpha));
+                    else
+                        Atlas(effectSheet,4,4,13,
+                            new Rect(p.x-size*.5f,p.y-size*.5f,
+                                size,size),
+                            new Color(ink.r,ink.g,ink.b,alpha));
                 }
         }
 

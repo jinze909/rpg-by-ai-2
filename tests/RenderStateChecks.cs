@@ -1882,9 +1882,10 @@ public static class RenderStateChecks
         Set(app,"clock",3.1f);
         Clear();
         Call(app,"DrawAuthoredAtmosphericMotes");
-        var original=Get<Texture2D>(app,"effectSheet");
-        Check(original!=null&&GUI.textureCalls.Count>0,
-            "forest biome must emit sparse live illustrated motes");
+        var original=Get<Texture2D>(app,"weatherWispSheet");
+        Check(original!=null&&original.width==96&&original.height==24&&
+              GUI.textureCalls.Count>0,
+            "forest biome must emit real new 4-motif painted PNG sprites");
         var strokes=GUI.textureCalls.ToArray();
         // The on-disk Unity TextAsset MUST actually control the real
         // painted atmosphere, not merely document unused look constants.
@@ -1911,9 +1912,10 @@ public static class RenderStateChecks
             "Visual profile edit invalidated stable biome emitters");
         foreach(var fleck in strokes)
             Check(object.ReferenceEquals(fleck.texture,original)&&
-                Math.Abs(fleck.uv.x-.25f)<.0001f&&
+                Math.Abs(fleck.uv.x)<.0001f&&
                 Math.Abs(fleck.uv.y)<.0001f&&
                 Math.Abs(fleck.uv.width-.25f)<.0001f&&
+                Math.Abs(fleck.uv.height-1f)<.0001f&&
                 fleck.rect.width>=7f&&fleck.rect.width<=9f&&
                 fleck.color.a>0f&&fleck.color.a<.23f,
                 "world motes must preserve original Effects cell 13 and low alpha");
@@ -1949,7 +1951,7 @@ public static class RenderStateChecks
         Call(app,"DrawWorld");
         int integrated=GUI.textureCalls.FindAll(t=>
             object.ReferenceEquals(t.texture,original)&&
-            Math.Abs(t.uv.x-.25f)<.0001f&&
+            Math.Abs(t.uv.x)<.0001f&&
             Math.Abs(t.uv.y)<.0001f&&
             Math.Abs(t.rect.width-8f)<.001f&&
             Math.Abs(t.rect.height-8f)<.001f).Count;
@@ -1964,7 +1966,7 @@ public static class RenderStateChecks
         {
             var item=GUI.textureCalls[index];
             if(object.ReferenceEquals(item.texture,original)&&
-                Math.Abs(item.uv.x-.25f)<.00001f&&
+                Math.Abs(item.uv.x)<.00001f&&
                 Math.Abs(item.uv.y)<.00001f&&
                 Math.Abs(item.rect.width-8f)<.001f&&
                 Math.Abs(item.rect.height-8f)<.001f)
@@ -1994,6 +1996,10 @@ public static class RenderStateChecks
                 new Color(1f,.84f,.61f);
             foreach(var item in ambient)
                 Check(object.ReferenceEquals(item.texture,original)&&
+                    Math.Abs(item.uv.x-(biome==7?.75f:.25f))<.00001f&&
+                    Math.Abs(item.uv.y)<.00001f&&
+                    Math.Abs(item.uv.width-.25f)<.00001f&&
+                    Math.Abs(item.uv.height-1f)<.00001f&&
                     Math.Abs(item.color.r-expected.r)<.001f&&
                     Math.Abs(item.color.g-expected.g)<.001f&&
                     Math.Abs(item.color.b-expected.b)<.001f&&
@@ -2009,6 +2015,23 @@ public static class RenderStateChecks
                         ambient[i].rect.y)<12f,
                     "biome wind disconnected its world-seeded Sprite");
         }
+        // A corrupt/missing sheet must fall back to approved Effects.png
+        // rather than turning all regions' air particles invisible.
+        var oldSource=Get<Texture2D>(app,"effectSheet");
+        Set(app,"weatherWispSheet",
+            new Texture2D(1,1,TextureFormat.RGBA32,false));
+        app.BeginVisualReview(0,1);
+        game=app.Game;
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+        Check(oldSource!=null&&GUI.textureCalls.Count>0&&
+            GUI.textureCalls.TrueForAll(c=>
+                object.ReferenceEquals(c.texture,oldSource)&&
+                Math.Abs(c.uv.x-.25f)<.00001f&&
+                Math.Abs(c.uv.y)<.00001f),
+            "Malformed weather sprites must preserve approved Effects fallback");
+        Set(app,"weatherWispSheet",original);
         // Return to the forest fixture for the reduced-motion guarantee.
         app.BeginVisualReview(0,1);
         game=app.Game;
@@ -2028,7 +2051,7 @@ public static class RenderStateChecks
         Check(GUI.textureCalls.Count==0,
             "citadel interior cannot receive outdoor forest motes");
         Console.WriteLine(
-            "PASS source-painted world motes: stable atlas, spatial continuity, biome gating, accessibility and GUI isolation");
+            "PASS original 4-motif WeatherWisps PNG: forest/sand/snow frame mapping, full DrawWorld integration, fallback, spatial continuity, accessibility and GUI isolation");
     }
 
     private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
