@@ -1487,6 +1487,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyLiveVisualLookResource,
             RenderStateChecks.VerifyPaintedShorelineFoamInLiveWorld,
             RenderStateChecks.VerifyAuthoredProjectileTrailsAndHotImport,
+            RenderStateChecks.VerifyCastSigilSourceAndCombatWarning,
             RenderStateChecks.VerifyRelicArtAndWorldIllumination,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
             AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,

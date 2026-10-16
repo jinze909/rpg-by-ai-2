@@ -3341,6 +3341,7 @@ public static class RenderStateChecks
             "escortHitLeanDegrees","combatWarningStrokePixels",
             "projectileTrailFadeDistance",
             "projectileTrailAlpha","projectileTrailFrameRate",
+            "castSigilAlpha","castSigilBossPixels",
             "companionStrideDistanceFactor",
             "companionFootfallSeconds","companionFacingThreshold",
             "companionAttackPlantSeconds",
@@ -3372,7 +3373,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 47 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 49 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,
@@ -3394,6 +3395,146 @@ public static class RenderStateChecks
     // Real DrawProjectileVisual in actual C# CI: two distinct original
     // material-specific painted tails, exact world flight geometry, no
     // false projectile-body silhouettes, and atomic importer recovery.
+    // This is called from the executable RuntimeCombatInputChecks runner,
+    // not merely the offline visual review gallery. It uses the ACTUAL
+    // GameCore windup owner and formally rendered warning path.
+    public static void VerifyCastSigilSourceAndCombatWarning(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        int quality=g.save.effectsQuality;
+        bool reduced=g.save.reducedMotion;
+        var prev=GUI.matrix;var prevColor=GUI.color;
+        const string resource="Frontier/Art/CastSigils";
+        Texture2D replacement;
+        bool overridden=Resources.TextureOverrides.TryGetValue(
+            resource,out replacement);
+        try
+        {
+            g.save.effectsQuality=2;g.save.reducedMotion=false;
+            g.enemies.Clear();
+            Point pos=g.Position+new Point(1f,.5f);
+            var boss=new Enemy(91395,0,pos.x,pos.y,120f,true){
+                state=1,timer=1.05f,windupDuration=1.2f,
+                target=pos+new Point(1f,0f)
+            };
+            Set(app,"clock",1.3f);
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            Check(GUI.textureCalls.Count>=61,
+                "Boss warning radius no longer uses BOTH real attack boundary rings");
+            var cue=GUI.textureCalls.Single(c=>
+                c.texture.name=="resource:Frontier/Art/CastSigils");
+            Check(cue.texture.width==128&&cue.texture.height==64&&
+                Math.Abs(cue.uv.width-.25f)<.00001f&&
+                Math.Abs(cue.uv.height-.5f)<.00001f&&
+                Math.Abs(cue.uv.y-.5f)<.00001f&&
+                cue.rect.width==58f&&
+                cue.color.a>.3f&&cue.color.a<.7f,
+                "Boss must render ONLY one complete small original warm sigil cell");
+            var locked=(Point)Call(app,"ScreenPoint",boss.target);
+            Check(Math.Abs(cue.rect.x+cue.rect.width*.5f-locked.x)<.001f&&
+                Math.Abs(cue.rect.y+cue.rect.height*.5f-locked.y)<.001f,
+                "Boss sigil diverged from real GameCore locked damage target");
+            Check(!GUI.textureCalls.Any(c=>
+                c.texture.name=="resource:Frontier/Art/Effects"&&
+                c.rect.width>100f),
+                "Old 32px Effects cell still flood-stretches across an entire Boss arena");
+            boss.timer=.15f;
+            Set(app,"clock",1.53f);
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            var nearly=GUI.textureCalls.Single(c=>c.texture.name==
+                "resource:Frontier/Art/CastSigils");
+            Check(Math.Abs(nearly.uv.x-cue.uv.x)>.00001f&&
+                Math.Abs(nearly.rect.x-cue.rect.x)<.001f&&
+                Math.Abs(nearly.rect.y-cue.rect.y)<.001f,
+                "Authored windup glyph must progress with real attack timer, not slide");
+            GUI.Export(".starfall-checks/sprite-qa",
+                "review-original-Boss-target-rune-real-windup");
+            var elite=new Enemy(91396,2,pos.x,pos.y,80f){
+                state=1,timer=.3f,windupDuration=.65f,
+                target=pos+new Point(1f,0f)
+            };
+            Clear();Call(app,"DrawEnemyWarning",elite);
+            var cold=GUI.textureCalls.Single(c=>c.texture.name==
+                "resource:Frontier/Art/CastSigils");
+            Check(Math.Abs(cold.uv.y)<.00001f&&
+                Math.Abs(cold.rect.width-58f*.72f)<.001f,
+                "Elite area telegraph reused warm Boss art instead of cold source row");
+            var look=typeof(FrontierRuntime).GetProperty(
+                "CurrentWorldVisualLook",Private).GetValue(app,null);
+            var alpha=look.GetType().GetField("castSigilAlpha");
+            var radius=look.GetType().GetField("castSigilBossPixels");
+            Check(alpha!=null&&radius!=null,
+                "Original attack rune sizing/intensity not artist-adjustable");
+            float oldAlpha=(float)alpha.GetValue(look);
+            float oldRadius=(float)radius.GetValue(look);
+            try
+            {
+                alpha.SetValue(look,oldAlpha*.75f);
+                radius.SetValue(look,64f);
+                Clear();Call(app,"DrawEnemyWarning",boss);
+                var edited=GUI.textureCalls.Single(c=>c.texture.name==
+                    "resource:Frontier/Art/CastSigils");
+                Check(Math.Abs(edited.rect.width-64f)<.001f&&
+                    edited.color.a<nearly.color.a,
+                    "Live WorldLook parameters were not driving real attack warning");
+            }
+            finally
+            {
+                alpha.SetValue(look,oldAlpha);
+                radius.SetValue(look,oldRadius);
+            }
+            g.save.reducedMotion=true;boss.timer=.5f;
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            var still=GUI.textureCalls.Single(c=>c.texture.name==
+                "resource:Frontier/Art/CastSigils");
+            Check(Math.Abs(still.uv.x)<.00001f&&
+                GUI.textureCalls.Count>=61,
+                "Reduced-motion must keep readable static telegraph plus real radius");
+            g.save.reducedMotion=false;g.save.effectsQuality=0;
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            Check(!GUI.textureCalls.Any(c=>c.texture.name==
+                "resource:Frontier/Art/CastSigils")&&
+                GUI.textureCalls.Count>=60,
+                "Zero-FX mode must retain hit-radius rings while removing decoration");
+            g.save.effectsQuality=2;
+            Texture2D last=Get<Texture2D>(app,"castSigilSource");
+            Resources.TextureOverrides[resource]=new Texture2D(
+                127,64,TextureFormat.RGBA32,false){
+                name="partial-import-cast-sigils"};
+            Set(app,"clock",4f);Clear();
+            Call(app,"DrawCastSigil",boss,.5f);
+            Check(object.ReferenceEquals(GUI.textureCalls.Single().texture,last),
+                "Half-written telegraph atlas destroyed last accepted art");
+            var newSource=new Texture2D(
+                128,64,TextureFormat.RGBA32,false){
+                name="accepted-cast-sigils-reimport"};
+            Resources.TextureOverrides[resource]=newSource;
+            Set(app,"clock",7f);Clear();
+            Call(app,"DrawCastSigil",boss,.5f);
+            Check(object.ReferenceEquals(
+                GUI.textureCalls.Single().texture,newSource),
+                "Corrected 8-pose source failed to recover without scene reload");
+            // Same WorldLook/texture pipeline must not strand art on rewind.
+            Resources.TextureOverrides[resource]=last;
+            Set(app,"clock",0f);Clear();
+            Call(app,"DrawCastSigil",boss,.5f);
+            Check(object.ReferenceEquals(
+                GUI.textureCalls.Single().texture,last),
+                "New game clock rewind retained telegraph art from prior session");
+            Console.WriteLine("PASS full Boss/elite original pixel attack glyph, 60 real hit-radius strokes, GameCore windup UV, stationary target, WorldLook, motion, FX, atomic hot-import and rewind");
+        }
+        finally
+        {
+            if(overridden)Resources.TextureOverrides[resource]=replacement;
+            else Resources.TextureOverrides.Remove(resource);
+            g.save.effectsQuality=quality;
+            g.save.reducedMotion=reduced;
+            GUI.matrix=prev;GUI.color=prevColor;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyAuthoredProjectileTrailsAndHotImport(
         FrontierRuntime app)
     {
