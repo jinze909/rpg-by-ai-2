@@ -67,6 +67,8 @@ jobs:
         run: python3 tools/check_native_hero_capture_compile.py
       - name: Reconstruct actual three-class action frame traces into GPU-free review filmstrips
         run: python3 tools/render_hero_gameplay_traces.py
+      - name: Source-pixel QA - companion gait and leg movement across all directions
+        run: python3 tools/check_companion_gait_source.py
       - name: Sprite animation QA - original hero, Boss cues and remastered PNGs
         run: python3 tools/check_visual_sprites.py
       - name: Enforce single-class waist/palette/proportion QA for all Sprite cells

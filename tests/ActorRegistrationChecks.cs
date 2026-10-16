@@ -119,6 +119,67 @@ public static class ActorRegistrationChecks
             }GUI.Export(folder,"review-registered-companion-"+direction);
         }Console.WriteLine("PASS "+total+" companion bodies: same source face, fixed density and foot-rooted animated ally cue");
     }
+    static void CompanionGaitActuallyPlantsBothFeet(FrontierRuntime app)
+    {
+        string[] names={"Mira","Ivo","Sen"};
+        for(int id=0;id<3;id++)
+        for(int heading=0;heading<4;heading++)
+        {
+            app.BeginVisualReview(0,0);
+            var g=app.Game;
+            g.save.companion=id;
+            g.companionAction=null;
+            g.companionAim=Directions[heading];
+            g.companionMoving=true;
+            // 0.625 cycles must select authored contact cell 2.
+            g.companionMoveTime=GameCore.WalkStride*1.20f*.625f;
+            Set(app,"clock",10f);
+            Point pixel=new Point(325,350);
+            Place(app,g.companionPosition,pixel);
+            int row=GameCore.DirectionRow(Directions[heading]);
+            string approved="resource:Frontier/Art/Walk"+names[id];
+            Clear();
+            var moving=Draw(app,"DrawCompanionActor");
+            var stride=moving.SingleOrDefault(c=>c.texture.name==approved);
+            Check(stride!=null,
+                "Moving companion lost its original full-body walking art");
+            Check(Math.Abs(stride.uv.x-.5f)<.00001f&&
+                Math.Abs(stride.uv.y-(1f-(row+1)/3f))<.00001f,
+                "Four-frame distance gait did not reach opposite planted step");
+            Check(Math.Abs(stride.rect.width-192)<.01f&&
+                Math.Abs(stride.rect.height-192)<.01f,
+                "Walking companion suddenly enlarged or shrank");
+            g.companionMoving=false;
+            Set(app,"clock",10.02f);
+            Clear();
+            var initial=Draw(app,"DrawCompanionActor");
+            var landing=initial.SingleOrDefault(c=>c.texture.name==approved);
+            Check(landing!=null&&
+                Math.Abs(landing.uv.x-.5f)<.00001f&&
+                Math.Abs(landing.rect.y-stride.rect.y)<.001f,
+                "Abruptly stopped companion must plant its actual stride foot");
+            Set(app,"clock",10.20f);
+            Clear();
+            var stopped=Draw(app,"DrawCompanionActor");
+            var idle=stopped.SingleOrDefault(c=>c.texture.name==approved);
+            Check(idle!=null&&Math.Abs(idle.uv.x)<.00001f&&
+                Math.Abs(idle.rect.y-stride.rect.y)<.001f&&
+                Math.Abs(idle.rect.width-stride.rect.width)<.001f,
+                "Stopped E/N/S companion changed atlas, body size or foot root");
+            Check(stopped.Count(ActorTexture)==1,
+                "Settling legs cannot duplicate the whole companion body");
+            g.companionAction=new ActorAction{
+                direction=Directions[heading],kind="attack",
+                released=false,contact=.16f,duration=.42f
+            };
+            Clear();
+            var attacking=Draw(app,"DrawCompanionActor");
+            Check(attacking.Count(ActorTexture)==1,
+                "Attack transition must keep one whole authored companion Sprite");
+        }
+        Console.WriteLine(
+            "PASS 3 companions x 4 facings: real stride contact, rooted stop-to-idle, constant 192px body and intact attack transition");
+    }
     static void Enemies(FrontierRuntime app,string folder)
     {
         int total=0;
@@ -443,7 +504,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }

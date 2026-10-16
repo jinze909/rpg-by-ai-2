@@ -11,6 +11,12 @@ namespace Starfall
             Point a = ScreenPoint(from), b = ScreenPoint(to); int count = Math.Max(1, (int)((b - a).Length / 5));
             for (int i = 0; i <= count; i++) { Point p = a + (b - a) * (i / (float)count); Box(p.x - 2, p.y - 2, 4, 4, color); }
         }
+        // Visual-only full-body gait continuity, never serialized to saves.
+        private int companionVisualId=-1;
+        private int companionLastWalkFrame;
+        private int companionLastWalkFacing;
+        private bool companionWasWalking;
+        private float companionStopTime;
         private void DrawCompanionActor()
         {
             Point p = ScreenPoint(Game.companionPosition); int id = Game.save.companion;
@@ -39,18 +45,63 @@ namespace Starfall
             // Companion models ALSO use the complete approved Sprite.
             // Retire the old five-part HumanActor neck/body reattachment
             // without changing companion AI, action phase, or facing logic.
-            if (Game.companionMoving && action == null && companionWalkSheets[id] != null)
+            bool publishedWalk=companionWalkSheets!=null &&
+                id<companionWalkSheets.Length&&companionWalkSheets[id]!=null;
+            int row=GameCore.DirectionRow(direction);
+            bool flip=row==0&&direction.x<-.1f;
+            if(companionVisualId!=id)
             {
-                int row=GameCore.DirectionRow(direction);
-                Actor(companionWalkSheets[id],4,3,
-                    row*4+GameCore.GaitFrame(Game.companionMoveTime,GameCore.WalkStride),
-                    p,192f,tint,row==0&&direction.x<0);
+                companionVisualId=id;
+                companionWasWalking=false;
+                companionLastWalkFrame=0;
+                companionLastWalkFacing=row;
+                companionStopTime=clock-.5f;
             }
-            else if(south&&action==null&&companionWalkSheets[id]!=null)
-                Actor(companionWalkSheets[id],4,3,8,p,192f,tint,false);
+            if(Game.companionMoving&&action==null&&publishedWalk)
+            {
+                // Gait is distance-locked to real companion feet, not an
+                // unrelated FPS or decorative elapsed-time oscillator.
+                // Slightly longer travel per 4-cell loop makes each source
+                // leg-extension pose read as a full step instead of rapid
+                // shuffling; it cannot cause in-place foot cycling.
+                const float StrideLengthFactor=1.20f;
+                int step=GameCore.GaitFrame(Game.companionMoveTime,
+                    GameCore.WalkStride*StrideLengthFactor);
+                companionLastWalkFrame=step;
+                companionLastWalkFacing=row;
+                companionWasWalking=true;
+                Actor(companionWalkSheets[id],4,3,row*4+step,
+                    p,192f,tint,flip);
+            }
+            else if(action==null&&publishedWalk)
+            {
+                // Idle is the same detailed authored WALK cell family for
+                // EAST, NORTH and SOUTH. Old code switched E/N abruptly
+                // into a different Companion sheet (only SOUTH was safe).
+                // When stopping on an airborne key (1/3), briefly resolve
+                // to its nearest planted contact (0/2). Never jump from an
+                // airborne foot to an unrelated body/face in one repaint.
+                if(companionWasWalking)
+                {
+                    companionWasWalking=false;
+                    companionStopTime=clock;
+                }
+                int planted=(companionLastWalkFrame>=2)?2:0;
+                bool settling=companionLastWalkFacing==row&&
+                    clock-companionStopTime<.13f;
+                Actor(companionWalkSheets[id],4,3,
+                    row*4+(settling?planted:0),
+                    p,192f,tint,flip);
+            }
             else
+            {
+                // A command or attack owns its original authored full-body
+                // action art. Footplant state must not leak into that clip,
+                // and the next walk starts from actual travelled distance.
+                companionWasWalking=false;
                 Actor(companionSheets[id],3,4,frame,p,192f,tint,
                     !north&&!(south&&action!=null)&&direction.x<-.1f);
+            }
         }
         private void DrawHazardWarnings()
         {
