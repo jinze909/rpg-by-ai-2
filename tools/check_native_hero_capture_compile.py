@@ -250,8 +250,8 @@ def run():
         ("pixel-reimport","if(previous!=null)","if(false)"),
         ("controller-hot-reimport","if(controller!=null)",
             "if(!heroProductionReady&&controller!=null)"),
-        ("gpu-backlog","while(heroCapturedFrames.Count>=MaxCachedHeroFrames)",
-            "if(heroCapturedFrames.Count>=MaxCachedHeroFrames)"),
+        ("gpu-backlog","                Destroy(old);\n            }",
+            "                Destroy(old);\n                break;\n            }"),
     ):
         assert original.count(old)==1,("HERO_VISUAL_MUTATION_SIGNAL",label)
         brokenSource=OUT/("broken-hero-"+label+".cs")
