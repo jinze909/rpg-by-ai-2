@@ -1685,7 +1685,7 @@ public static class ActorRegistrationChecks
             var reverse=Draw(app,"DrawEnemyActor",boss);
             var resumed=reverse.Single(c=>c.texture.name==idleName);
             var prior=reverse.Single(c=>c.texture.name==walkName);
-            Check(Math.Abs(resumed.rect.width-running.rect.width)<.001f&&
+            Check(Math.Abs(resumed.rect.width-phaseBody.rect.width)<.001f&&
                 Math.Abs(prior.rect.width-resumed.rect.width)<.001f,
                 "Rapid Run->Idle reversal returned to old nominal canvas size");
             Set(app,"clock",30.14f);
