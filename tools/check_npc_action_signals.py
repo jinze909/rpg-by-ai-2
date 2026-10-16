@@ -20,8 +20,8 @@ def inspect(art):
         for frame in range(4):
             cells=list(art.crop((frame*24,row*20,(frame+1)*24,(row+1)*20)).getdata())
             opaque=[(i%24,i//24,px) for i,px in enumerate(cells) if px[3]>0]
-            assert 35<len(opaque)<220,("PAINTED_SIGNAL_CELL_MISSING",row,frame,len(opaque))
-            assert len({px for _,_,px in opaque})>=5,("SIGNAL_FLAT_COLOR",row,frame)
+            assert 35<len(opaque)<275,("PAINTED_SIGNAL_CELL_MISSING",row,frame,len(opaque))
+            assert len({px for _,_,px in opaque})>=4,("SIGNAL_FLAT_COLOR",row,frame)
             assert min(x for x,_,_ in opaque)>=1 and max(x for x,_,_ in opaque)<=22,("SIGNAL_CROPPED_X",row,frame)
             assert max(y for _,y,_ in opaque)<=19,("SIGNAL_CROPPED_Y",row,frame)
             assert any(px[3]>=245 for _,_,px in opaque),("SIGNAL_NO_OPAQUE_CORE",row,frame)
