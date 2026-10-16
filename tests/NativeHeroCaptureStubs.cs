@@ -13,7 +13,12 @@ namespace UnityEngine
     public class Object
     {
         public string name;
-        public static void Destroy(Object value) { }
+        // Native-conditional probe only: track Destroy ownership so LRU
+        // tests can distinguish a retired Sprite.Create wrapper from a
+        // Unity-owned imported Resources Sprite, without running the Editor.
+        public bool destroyed;
+        public static void Destroy(Object value)
+        { if (value != null) value.destroyed = true; }
         // Unity gives every live atlas its own instance identity. Returning
         // a constant hid real cache collisions in multi-atlas probes.
         private static int nextInstanceId;
