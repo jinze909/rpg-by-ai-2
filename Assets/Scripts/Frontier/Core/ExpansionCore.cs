@@ -8,6 +8,12 @@ namespace Starfall
     {
         public readonly List<Hazard> hazards = new List<Hazard>();
         public Point companionPosition;
+        // Transient pose identity generation; not serialized and never
+        // participates in battle, damage, relationship or save formats.
+        // When a player dismisses Mira then later reselects Mira WITHOUT
+        // rendering an intermediate NPC frame, the old foot phase must not
+        // leak into the new character instance.
+        public int companionPresentationGeneration;
         public float companionCooldown, raceTime, comboTimer, riposteTime;
         public int raceCheckpoint, combo;
         public bool racing, perfectDodgeArmed;
@@ -144,6 +150,7 @@ namespace Starfall
         {
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
+            companionPresentationGeneration++;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
             climateTimer = 1; stormTimer = 6; ClearFrost(); ResetFieldStationSurvey();
             combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; dashOrigin = new Point(); dodgeEscapeTime = 0; previousLowTide = LowTide;
@@ -253,6 +260,7 @@ namespace Starfall
             if (id == save.companion) return;
             if (!SafeTravel) return;
             save.companion = id;
+            companionPresentationGeneration++;
             companionAction = null;
             companionPosition = CompanionFollowTarget();
             companionAttack = 1;

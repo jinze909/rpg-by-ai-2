@@ -247,8 +247,25 @@ public static class ActorRegistrationChecks
                     "Original bow/cast windup lost whole-body scale or boots");
                 g.companionAction=null;
             }
+            // Regression: the old Mira->dismiss (no render)->Mira
+            // sequence reused the same visualId and left the previous
+            // airborne leg visible even though GameCore reset distance.
+            g.companionMoving=true;
+            g.companionMoveTime=GameCore.WalkStride*stride*.875f;
+            Set(app,"clock",28f);
+            Clear();Draw(app,"DrawCompanionActor");
+            g.companionPresentationGeneration++;
+            g.companionMoving=false;
+            g.companionMoveTime=0f;
+            Set(app,"clock",28.02f);
+            Clear();
+            var fresh=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+            int freshCell=(int)Math.Round(Math.Min(fresh.uv.x,
+                fresh.uv.x+fresh.uv.width)*4f);
+            Check(fresh.texture.name==approved&&freshCell==0,
+                "Re-selected same companion must not retain hidden old airborne pose");
         }
-        Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: complete forward footfall recovery, grounded attack/command transitions and stationary immediate windup");
+        Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: forward footfall recovery, rooted attack/command transitions, selection-generation reset and idle");
     }
     static void Enemies(FrontierRuntime app,string folder)
     {

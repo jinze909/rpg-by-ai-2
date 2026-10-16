@@ -68,11 +68,11 @@ public static class NativeNonheroCaptureChecks
             BindingFlags.Instance|BindingFlags.NonPublic);
         var cameraField=typeof(FrontierRuntime).GetField("actorCaptureCamera",
             BindingFlags.Instance|BindingFlags.NonPublic);
-        var spriteField=typeof(FrontierRuntime).GetField("actorCaptureRenderer",
+        var offscreenRendererField=typeof(FrontierRuntime).GetField("actorCaptureRenderer",
             BindingFlags.Instance|BindingFlags.NonPublic);
         var rig=rigField.GetValue(runtime) as GameObject;
         var captureCam=cameraField.GetValue(runtime) as Camera;
-        var captureSprite=spriteField.GetValue(runtime) as SpriteRenderer;
+        var captureSprite=offscreenRendererField.GetValue(runtime) as SpriteRenderer;
         Require(rig!=null&&captureCam!=null&&captureSprite!=null,
             "native actor capture rig was not constructed");
         rig.transform.localScale=new Vector3(1.75f,1.75f,1f);

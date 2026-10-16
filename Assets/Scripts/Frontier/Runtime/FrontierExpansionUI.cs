@@ -13,6 +13,8 @@ namespace Starfall
         }
         // Visual-only full-body gait continuity, never serialized to saves.
         private int companionVisualId=-1;
+        private GameCore companionVisualOwner;
+        private int companionVisualGeneration=-1;
         private int companionLastWalkFrame;
         private int companionLastWalkFacing;
         private bool companionWasWalking;
@@ -81,8 +83,12 @@ namespace Starfall
                     CurrentWorldVisualLook.companionFacingThreshold)
                 row=companionLastWalkFacing;
             bool flip=row==0&&direction.x<-.1f;
-            if(companionVisualId!=id)
+            if(companionVisualId!=id ||
+                !Object.ReferenceEquals(companionVisualOwner,Game) ||
+                companionVisualGeneration!=Game.companionPresentationGeneration)
             {
+                companionVisualOwner=Game;
+                companionVisualGeneration=Game.companionPresentationGeneration;
                 companionVisualId=id;
                 companionWasWalking=false;
                 companionLastWalkFrame=0;

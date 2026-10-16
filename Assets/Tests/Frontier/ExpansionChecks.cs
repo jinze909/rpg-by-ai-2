@@ -227,13 +227,16 @@ namespace Starfall.Tests
                 contact = .16f, direction = new Point(1,0)
             };
             g.companionAction = pending;
+            int firstGeneration=g.companionPresentationGeneration;
             g.SelectCompanion(0); // Existing command must never be canceled.
             Check(g.companionAction == pending &&
                 Math.Abs(g.companionMoveTime-4.25f)<.00001f &&
-                g.companionMoving,
-                "Reselecting the SAME ally may not rewind feet or cancel commands");
+                g.companionMoving &&
+                g.companionPresentationGeneration==firstGeneration,
+                "Reselecting the SAME ally may not rewind feet, invalidate pose or cancel commands");
             g.SelectCompanion(1);
             Check(g.save.companion == 1 &&
+                g.companionPresentationGeneration==firstGeneration+1 &&
                 g.companionAction == null && !g.companionMoving &&
                 g.companionMoveTime == 0f &&
                 g.companionAim.Length > .9f,
@@ -242,8 +245,16 @@ namespace Starfall.Tests
             g.companionMoving = true;
             g.SelectCompanion(-1);
             Check(g.save.companion == -1 &&
+                g.companionPresentationGeneration==firstGeneration+2 &&
                 !g.companionMoving && g.companionMoveTime == 0f,
                 "Dismissed follower may not retain phantom walking animation");
+            // A same-ID return separated by an unseen dismissal must not
+            // inherit the old movement phase merely because the name matches.
+            g.SelectCompanion(0);
+            Check(g.save.companion == 0 &&
+                g.companionPresentationGeneration==firstGeneration+3 &&
+                g.companionMoveTime==0f,
+                "Recruited-again original companion requires a fresh presentation generation");
         }
 
         public static void DistantReachability(Campaign data)
