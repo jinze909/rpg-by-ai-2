@@ -676,6 +676,101 @@ public static class ActorRegistrationChecks
         }
         Console.WriteLine("PASS 3 actual raider/archer/guard moving deaths: stable pixel feet, accepted full-body handoff, backpedal and reduced-motion");
     }
+    static void StationaryDeathUsesActualLastPose(FrontierRuntime app)
+    {
+        // Most lethal strikes set hitTime even on a stationary actor.
+        // Test the ACTUAL production DrawEnemyActor source frame just
+        // before death, not merely an assumed generic Idle picture.
+        app.BeginVisualReview(0,2);
+        var g=app.Game;
+        g.save.reducedMotion=false;
+        var boss=new Enemy(94721,0,g.Position.x,g.Position.y,170,true){
+            facing=new Point(-1,0),moving=false,hitTime=.09f
+        };
+        Point bossFeet=new Point(520,360);
+        Place(app,boss.Position,bossFeet);
+        Clear();var before=Draw(app,"DrawEnemyActor",boss);
+        var live=before.FirstOrDefault(c=>
+            c.texture.name=="resource:Frontier/Art/Bosses");
+        Check(live!=null&&Math.Abs(live.uv.x)<.00001f,
+            "Stationary live Boss source not available");
+        var dead=new FallenActor{actor=boss,room=2,life=1f,duration=1f};
+        Clear();var start=Draw(app,"DrawFallen",dead);
+        var first=start.FirstOrDefault(c=>
+            c.texture.name=="resource:Frontier/Art/Bosses");
+        Check(first!=null&&start.Count(c=>
+                c.texture.name=="resource:Frontier/Art/Bosses")==1&&
+            Math.Abs(first.uv.x-live.uv.x)<.00001f&&
+            Math.Abs(first.uv.y-live.uv.y)<.00001f&&
+            Math.Abs(first.rect.x-live.rect.x)<.001f&&
+            Math.Abs(first.rect.y-live.rect.y)<.001f,
+            "First stationary Boss death frame changed complete body/root");
+        dead.life=.88f;
+        Clear();var dual=Draw(app,"DrawFallen",dead).Where(c=>
+            c.texture.name=="resource:Frontier/Art/Bosses").ToArray();
+        Check(dual.Length==2&&
+            Math.Abs(dual[0].uv.x)<.00001f&&
+            Math.Abs(dual[1].uv.x-.75f)<.00001f&&
+            Math.Abs(dual[0].color.a-dual[1].color.a)<.0001f&&
+            Math.Abs(dual[0].rect.y-dual[1].rect.y)<.001f,
+            "Standing Boss death failed original full-body rooted handoff");
+        dead.life=.7f;
+        Clear();var complete=Draw(app,"DrawFallen",dead).Where(c=>
+            c.texture.name=="resource:Frontier/Art/Bosses").ToArray();
+        Check(complete.Length==1&&
+            Math.Abs(complete[0].uv.x-.75f)<.00001f,
+            "Standing Boss death never finishes on genuine corpse");
+        g.save.reducedMotion=true;
+        dead.life=1f;
+        Clear();var accessible=Draw(app,"DrawFallen",dead).Where(c=>
+            c.texture.name=="resource:Frontier/Art/Bosses").ToArray();
+        Check(accessible.Length==1&&
+            Math.Abs(accessible[0].uv.x-.75f)<.00001f,
+            "Reduced-motion standing Boss death must use one corpse");
+        g.save.reducedMotion=false;
+        app.BeginVisualReview(0,1);
+        g=app.Game;g.save.reducedMotion=false;
+        for(int kind=0;kind<3;kind++)
+        {
+            var foe=new Enemy(94730+kind,kind,g.Position.x,
+                g.Position.y,120){
+                facing=new Point(1,0),moving=false,hitTime=.09f
+            };
+            Place(app,foe.Position,new Point(420+kind*120,350));
+            Clear();var original=Draw(app,"DrawEnemyActor",foe)
+                .FirstOrDefault(c=>
+                    c.texture.name=="resource:Frontier/Art/Monsters");
+            Check(original!=null,"Stationary enemy hit picture missing");
+            var corpse=new FallenActor{actor=foe,room=1,
+                life=.65f,duration=.65f};
+            Clear();var firstFrame=Draw(app,"DrawFallen",corpse)
+                .Where(c=>c.texture.name==
+                    "resource:Frontier/Art/Monsters").ToArray();
+            Check(firstFrame.Length==1&&
+                Math.Abs(firstFrame[0].uv.x-original.uv.x)<.00001f&&
+                Math.Abs(firstFrame[0].uv.y-original.uv.y)<.00001f&&
+                Math.Abs(firstFrame[0].rect.y-original.rect.y)<.001f,
+                "Stationary raider/archer/guard death replaced the hit body");
+            corpse.life=.572f;
+            Clear();var blend=Draw(app,"DrawFallen",corpse)
+                .Where(c=>c.texture.name==
+                    "resource:Frontier/Art/Monsters").ToArray();
+            Check(blend.Length==2&&
+                Math.Abs(blend[0].color.a-blend[1].color.a)<.0001f&&
+                Math.Abs(blend[0].rect.y-blend[1].rect.y)<.001f&&
+                Math.Abs(blend[1].uv.x-5f/6f)<.00001f,
+                "Stationary enemy full-body pose did not fade into corpse");
+            g.save.reducedMotion=true;corpse.life=.65f;
+            Clear();var fixedCorpse=Draw(app,"DrawFallen",corpse)
+                .Where(c=>c.texture.name==
+                    "resource:Frontier/Art/Monsters").ToArray();
+            Check(fixedCorpse.Length==1&&
+                Math.Abs(fixedCorpse[0].uv.x-5f/6f)<.00001f,
+                "Reduced-motion enemy death did not use accepted corpse");
+            g.save.reducedMotion=false;
+        }
+        Console.WriteLine("PASS stationary Boss + three enemy classes: real last-hit full-body Sprite, two rooted death frames, final corpse, reduced motion");
+    }
     static void EnemyAttackFramesHoldThroughFlash(FrontierRuntime app)
     {
         app.BeginVisualReview(0,2);
@@ -907,7 +1002,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);BossFlashFollowsActualMovingSilhouette(app);MovingBossDeathStaysOnOneRoot(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
