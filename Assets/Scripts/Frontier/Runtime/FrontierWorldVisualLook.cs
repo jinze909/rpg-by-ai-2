@@ -47,6 +47,10 @@ namespace Starfall
             public float companionFootfallSeconds=.075f;
             public float companionFacingThreshold=.15f;
             public float companionAttackPlantSeconds=.065f;
+            // Brief, accepted Effects.png soil contacts driven by real steps.
+            // These never manufacture an extra walk/body animation.
+            public float footfallAlpha=.26f;
+            public float footfallLifetime=.32f;
         }
         private WorldVisualLook worldVisualLook;
 
@@ -164,6 +168,12 @@ namespace Starfall
                             case "companionAttackPlantSeconds":
                                 if(value>=.025f&&value<=.10f)
                                     settings.companionAttackPlantSeconds=value;break;
+                            case "footfallAlpha":
+                                if(value>=0f&&value<=.45f)
+                                    settings.footfallAlpha=value;break;
+                            case "footfallLifetime":
+                                if(value>=.16f&&value<=.50f)
+                                    settings.footfallLifetime=value;break;
                         }
                     }
                 }

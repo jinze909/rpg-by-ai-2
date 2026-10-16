@@ -153,6 +153,9 @@ namespace Starfall
                 Game.Tick(step, movement, frameAim);
                 timeLeft -= step;
             }
+            // Spawn from actual GameCore foot contacts, never from IMGUI
+            // repaints or a free-running artificial walking animation.
+            AdvanceFootfallVisual(frameDelta);
             UpdatePresentation(frameDelta); UpdateMenuInput(frameDelta);
             if (Game.mode == "world" && beganInWorld)
             {

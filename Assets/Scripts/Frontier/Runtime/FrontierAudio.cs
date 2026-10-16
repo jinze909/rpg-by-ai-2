@@ -46,7 +46,7 @@ namespace Starfall
             lastContact = game.footContacts;
             playedEvents.Clear(); int count = 0; while (game.sounds.Count > 0 && count++ < 24) { string name = game.sounds.Dequeue(); AudioClip c; if (playedEvents.Add(name) && effects.volume > 0 && clips.TryGetValue(name, out c)) effects.PlayOneShot(c); }
         }
-        private static string FootSurface(GameCore game)
+        internal static string FootSurface(GameCore game)
         {
             int x = (int)game.save.x, y = (int)game.save.y;
             char tile = y >= 0 && y < game.Map.rows.Length && x >= 0 && x < game.Map.rows[y].Length ? game.Map.rows[y][x] : '.';

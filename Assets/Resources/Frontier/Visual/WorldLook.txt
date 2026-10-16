@@ -61,3 +61,10 @@ companionStrideDistanceFactor=1.20
 companionFootfallSeconds=0.075
 companionFacingThreshold=0.15
 companionAttackPlantSeconds=0.065
+
+# Material-aware grounded foot contacts; the EXISTING detailed Effects.png
+# is sampled at an actual GameCore footstep (not synthesized walk frames).
+# Short, low-opacity, depth-sorted, capped at twelve live marks.
+# Reduced-motion / low-FX disables them and the saved player is untouched.
+footfallAlpha=0.26
+footfallLifetime=0.32

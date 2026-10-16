@@ -6,7 +6,7 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion, Survivor, ImpactFlourish }
+        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion, Survivor, ImpactFlourish, Footfall }
         private struct WorldDrawEntry
         {
             public float depth;
@@ -17,6 +17,7 @@ namespace Starfall
             public Enemy enemy;
             public FallenActor fallen;
             public Effect effect;
+            public FootfallMark footfall;
         }
         private sealed class WorldDepthComparer:IComparer<WorldDrawEntry>
         {
@@ -93,6 +94,16 @@ namespace Starfall
                         AddWorldEntry(new WorldDrawEntry{
                             depth=effect.position.y+.001f,
                             kind=WorldDrawKind.ImpactFlourish,effect=effect});
+            // Material-aware foot contacts are rooted to their ORIGINAL
+            // terrain position, not screen-space ankle offsets. Sort below
+            // bodies and prop occluders just like other world details.
+            if(effectSheet!=null)
+                foreach(FootfallMark contact in footfallMarks)
+                    if(contact.room==Game.save.room &&
+                        WorldDrawable(contact.position.x,contact.position.y,40,40))
+                        AddWorldEntry(new WorldDrawEntry{
+                            depth=contact.position.y-.035f,
+                            kind=WorldDrawKind.Footfall,footfall=contact});
             AddWorldEntry(new WorldDrawEntry{depth=Game.save.y+.002f,kind=WorldDrawKind.Player});
             if(Game.save.companion>=0)AddWorldEntry(new WorldDrawEntry{depth=Game.companionPosition.y,kind=WorldDrawKind.Companion});
             // Keep the moving rescue survivor in the same depth pass as every
@@ -123,6 +134,7 @@ namespace Starfall
                         case WorldDrawKind.Companion:DrawCompanionActor();break;
                         case WorldDrawKind.Survivor:DrawRescueSurvivorActor();break;
                         case WorldDrawKind.ImpactFlourish:DrawAuthoredImpactFlourish(entry.effect);break;
+                        case WorldDrawKind.Footfall:DrawFootfallMark(entry.footfall);break;
                     }
                 }
             }
