@@ -503,6 +503,80 @@ public static class NativeNonheroCaptureChecks
         }
         Console.WriteLine("PASS complete native actor Sprite hot-reimport, mirrored GPU frames, atomic partial-import hold and zero-flash recovery");
 
+        // Epoch rewind, even with UNCHANGED source art: the old native GPU
+        // target is not an already-submitted texture in the new repaint.
+        // Recapture its same full-body Sprite rather than displaying an old
+        // Controller pose or leaving an unbounded previous-session GPU cache.
+        var epochCapture=new FrontierRuntime();
+        var epochAtlas=new Texture2D(512,512,TextureFormat.RGBA32,false);
+        try
+        {
+            Time.frameCount=17000;
+            int start=Camera.RenderedTargets.Count;
+            Require((bool)method.Invoke(epochCapture,new object[]{
+                epochAtlas,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==start+1,
+                "Epoch GPU re-render setup did not capture an actor");
+            var originalTarget=Camera.RenderedTargets[start];
+            Time.frameCount=17; // fresh Play/replay session, unchanged art
+            Require((bool)method.Invoke(epochCapture,new object[]{
+                epochAtlas,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==start+2&&
+                ReferenceEquals(Camera.RenderedTargets[start+1],originalTarget),
+                "Rewound Play clock reused stale actor pixels instead of recapturing");
+            Time.frameCount=18;
+            Require((bool)method.Invoke(epochCapture,new object[]{
+                epochAtlas,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                Camera.RenderedTargets.Count==start+2,
+                "Epoch-recaptured native art was unnecessarily rendered every frame");
+        }
+        finally {release.Invoke(epochCapture,null);}
+        // One crowded offscreen repaint may legitimately exceed the soft
+        // GPU budget: no in-flight target can be freed until the NEXT frame.
+        // The next frame may be frame 22 rather than 17001 after reload.
+        // Old-epoch targets must become reclaimable to protect performance.
+        var epochBudget=new FrontierRuntime();
+        var epochBytes=typeof(FrontierRuntime).GetField(
+            "actorCachedBytes",BindingFlags.Instance|BindingFlags.NonPublic);
+        var epochTargets=(System.Collections.IDictionary)
+            typeof(FrontierRuntime).GetField("actorCapturedFrames",
+                BindingFlags.Instance|BindingFlags.NonPublic).
+                GetValue(epochBudget);
+        RenderTexture earliestEpochTarget=null;
+        try
+        {
+            Time.frameCount=17500;
+            for(int i=0;i<50;i++)
+            {
+                var huge=new Texture2D(2048,2048,TextureFormat.RGBA32,false);
+                Require((bool)method.Invoke(epochBudget,new object[]{
+                    huge,4,4,0,new Point(200,220),96f,
+                    Color.white,false,0f}),
+                    "Epoch GPU soft-budget setup dropped a real 512px actor");
+                if(i==0)
+                    earliestEpochTarget=Camera.RenderedTargets[
+                        Camera.RenderedTargets.Count-1];
+            }
+            long before=(long)epochBytes.GetValue(epochBudget);
+            Require(before>64L*1024*1024 && epochTargets.Count==50&&
+                earliestEpochTarget.releaseCount==0,
+                "Frame-local soft GPU cache setup did not exceed the budget safely");
+            Time.frameCount=22;
+            var newest=new Texture2D(2048,2048,TextureFormat.RGBA32,false);
+            Require((bool)method.Invoke(epochBudget,new object[]{
+                newest,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f}),
+                "Epoch-reset GPU budget rejected the new current-frame actor");
+            Require((long)epochBytes.GetValue(epochBudget)<=64L*1024*1024&&
+                earliestEpochTarget.releaseCount>=1&&epochTargets.Count<50,
+                "Future-dated old-epoch actor targets escaped GPU pressure on rewind");
+        }
+        finally {release.Invoke(epochBudget,null);}
+        Console.WriteLine("PASS nonhero GPU epoch reset: same-source pose recaptured once, stale 512px captures reclaimed under 64MiB budget");
+
         // Editor restart / test replay can rewind the frame counter without
         // replacing the live FrontierRuntime instance. A previous epoch's
         // 180-frame cache deadline must not hide freshly republished complete

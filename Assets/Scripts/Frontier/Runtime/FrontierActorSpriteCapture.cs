@@ -112,6 +112,29 @@ namespace Starfall
         // Retry at most once per 120 frames; until then the SAME source
         // complete-body frame remains visible through Actor() fallback.
         private int actorCaptureRetryAt;
+        // The same FrontierRuntime can survive a PlayMode/replay clock rewind.
+        // Previously stale GPU targets remained "in the future", could not
+        // be evicted by byte pressure, and could be sampled without rerender.
+        private int actorCaptureObservedFrame = -1;
+        private void RefreshActorCaptureEpoch()
+        {
+            int current = Time.frameCount;
+            if (actorCaptureObservedFrame >= 0 &&
+                current < actorCaptureObservedFrame)
+            {
+                // A prior epoch's IMGUI submissions cannot still be in the
+                // current frame's draw queue. Mark every complete-body target
+                // dirty rather than wiping already approved imported Sprites.
+                // All of them become safe GPU eviction candidates immediately.
+                foreach (CapturedActorFrame entry in actorCapturedFrames.Values)
+                {
+                    entry.lastUsedFrame = -1;
+                    entry.sourceDirty = true;
+                    entry.nativeClipVerified = false;
+                }
+            }
+            actorCaptureObservedFrame = current;
+        }
 
         // Returns false on a recoverable/native failure, so the EXACT same
         // whole source cell can still be drawn by the existing GUI fallback.
@@ -146,6 +169,7 @@ namespace Starfall
             if (Event.current.type != EventType.Repaint) return true;
             try
             {
+                RefreshActorCaptureEpoch();
                 EnsureActorCapture();
                 RefreshNativeActorController(sheet,columns,rows);
                 frame = Math.Max(0, Math.Min(columns * rows - 1, frame));
@@ -736,6 +760,7 @@ namespace Starfall
                 }
             actorCapturedFrames.Clear();
             actorCachedBytes = 0L;
+            actorCaptureObservedFrame = -1;
             actorCaptureRoot = null;
             actorCaptureCamera = null;
             actorCaptureRenderer = null;

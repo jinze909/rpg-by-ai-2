@@ -85,6 +85,9 @@ def main():
     assert "EvictUnusedActorCapture(capturePixels);" in native
     assert "actorCachedBytes + incomingBytes > MaxCachedActorBytes" in native
     assert "item.Value.lastUsedFrame < Time.frameCount" in native
+    assert "RefreshActorCaptureEpoch();" in native
+    assert "entry.lastUsedFrame = -1;" in native
+    assert "entry.sourceDirty = true;" in native
     assert "actorCaptureTexture" not in native
     assert "new Vector2(.5f, 1f - 120f / 128f)" in native
     assert "new Vector3((float)height / width, 1f, 1f)" in native
