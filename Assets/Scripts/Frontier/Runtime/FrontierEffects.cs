@@ -319,12 +319,26 @@ namespace Starfall
                 (effect.kind=="impact"||effect.kind=="hurt"||
                  effect.kind=="projectileImpact") &&
                 progress>beginContact&&progress<endContact;
-            if(blendContact)
+            // A sword previously teleported between its two WHOLE authored
+            // slash silhouettes at 38% effect progress. Interleave the
+            // original cell 0 and 1 only around that existing seam.
+            // No extra hit event, independent Animator, weapon translation,
+            // collision extension or invented body parts.
+            float slashWindow=CurrentWorldVisualLook.slashBridgeFraction;
+            float slashBegin=.38f-slashWindow*.5f;
+            bool blendSlash=Game.save.effectsQuality>0 &&
+                !Game.save.reducedMotion&&effect.kind=="slash"&&
+                progress>slashBegin&&
+                progress<slashBegin+slashWindow;
+            if(blendContact||blendSlash)
             {
-                float mix=Mathf.Clamp01((progress-beginContact)/
-                    contactWindow);
-                int releaseCell=effect.kind=="projectileImpact"?4:2;
-                Atlas(effectSheet,4,4,3,contactRect,
+                float start=blendSlash?slashBegin:beginContact;
+                float duration=blendSlash?slashWindow:contactWindow;
+                float mix=Mathf.Clamp01((progress-start)/duration);
+                int sourceCell=blendSlash?0:3;
+                int releaseCell=blendSlash?1:
+                    effect.kind=="projectileImpact"?4:2;
+                Atlas(effectSheet,4,4,sourceCell,contactRect,
                     new Color(color.r,color.g,color.b,color.a*(1f-mix)),
                     false,angle);
                 Atlas(effectSheet,4,4,releaseCell,contactRect,
