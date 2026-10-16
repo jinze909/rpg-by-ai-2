@@ -3127,7 +3127,8 @@ public static class RenderStateChecks
             "lampRadius","nightLightAlpha","dayLightAlpha",
             "npcTalkLeanDegrees",
             "npcSignalSpeechAlpha","npcSignalDangerAlpha",
-            "npcSignalFrameRate","escortWalkLeanDegrees",
+            "npcSignalFrameRate","npcTalkEntrySeconds",
+            "escortWalkLeanDegrees",
             "escortHitLeanDegrees","combatWarningStrokePixels",
             "projectileTrailFadeDistance","companionStrideDistanceFactor",
             "companionFootfallSeconds","companionFacingThreshold",
@@ -3160,7 +3161,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 42 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 43 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,

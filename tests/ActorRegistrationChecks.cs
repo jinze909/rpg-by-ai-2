@@ -1505,6 +1505,8 @@ public static class ActorRegistrationChecks
                     Math.Abs(body.uv.width-.25f)<.0001f&&
                     Math.Abs(body.uv.height-.25f)<.0001f,
                     "Guild/forge must draw the intact original high-detail source cell");
+                float dialogueStart=20f+expectedIndex;
+                Set(app,"clock",dialogueStart);
                 game.conversation=new Conversation("speaker","speaker","hello","hello");
                 game.conversationSource=npc;
                 Clear();
@@ -1517,10 +1519,13 @@ public static class ActorRegistrationChecks
                     Math.Abs(spoken.rect.x-body.rect.x)<.001f&&
                     Math.Abs(spoken.rect.y-body.rect.y)<.001f,
                     "Talking must not switch original NPC to a coarse or offset body");
+                Check(Math.Abs(spoken.matrix.m01)<.00001f&&
+                    Math.Abs(spoken.matrix.m10)<.00001f,
+                    "Actual first dialogue repaint must NEVER start with an arbitrary tilted waist");
                 // The same rich high-detail full-body source now has a
                 // tiny dialogue weight-shift around the correct planted foot.
                 // No Sprite cell, class face, render bounds or hitbox changes.
-                Set(app,"clock",.48f);
+                Set(app,"clock",dialogueStart+.48f);
                 Clear();
                 var motion=Draw(app,"DrawNpc",npc.kind,
                     new Point(npc.x,npc.y),-1);
@@ -1540,13 +1545,33 @@ public static class ActorRegistrationChecks
                     Math.Abs(still.matrix.m10)<.00001f,
                     "Reduced-motion player preference must disable NPC body sway");
                 game.save.reducedMotion=false;
-                Set(app,"clock",1.25f);
+                Set(app,"clock",dialogueStart+1.25f);
                 Clear();
                 var later=Draw(app,"DrawNpc",npc.kind,
                     new Point(npc.x,npc.y),-1).First(c=>c.texture.name==original);
                 Check(Math.Abs(later.matrix.m01-speaking.matrix.m01)>.0001f &&
                     Math.Abs(later.uv.x-speaking.uv.x)<.0001f,
                     "Dialogue animation must evolve without changing authored cells");
+                // Opening another conversation with the SAME speaker is a
+                // separate event, not a stale continuation of old body sway.
+                Set(app,"clock",dialogueStart+1.5f);
+                game.conversation=new Conversation("speaker","speaker",
+                    "new lines","new lines");
+                Clear();
+                var restarted=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1);
+                var fresh=restarted.Single(c=>c.texture.name==original);
+                Check(Math.Abs(fresh.matrix.m01)<.00001f&&
+                    Math.Abs(fresh.matrix.m10)<.00001f,
+                    "New dialogue reused previous absolute-clock tilt instead of easing in");
+                Set(app,"clock",dialogueStart+1.62f);
+                Clear();
+                var growing=Draw(app,"DrawNpc",npc.kind,
+                    new Point(npc.x,npc.y),-1).Single(c=>c.texture.name==original);
+                Check(Math.Abs(growing.matrix.m01)>.0001f&&
+                    Math.Abs(growing.uv.x-fresh.uv.x)<.00001f,
+                    "New dialogue failed to resume stable whole-body foot sway");
+
             }
             game.conversation=new Conversation("speaker","speaker","hello","hello");
             game.conversationSource=guild;
