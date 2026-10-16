@@ -98,6 +98,10 @@ namespace UnityEngine
     public static class Debug {public static void LogWarning(object o){Console.Error.WriteLine(o);}public static void LogError(object o){Console.Error.WriteLine(o);}public static void Log(object o){Console.WriteLine(o);} }
     public static class Resources
     {
+        // Offline-only asset import sandbox: exercises a complete 18-file
+        // sprite release without touching accepted on-disk source art.
+        public static readonly Dictionary<string,Texture2D> TextureOverrides =
+            new Dictionary<string,Texture2D>();
         public static T Load<T>(string p) where T:class
         {
             if(typeof(T)==typeof(TextAsset)) {
@@ -107,6 +111,9 @@ namespace UnityEngine
                 return new TextAsset {text="campaign"} as T;
             }
             if(typeof(T)==typeof(Texture2D)) {
+                Texture2D candidate;
+                if(TextureOverrides.TryGetValue(p,out candidate))
+                    return candidate as T;
                 string path="Assets/Resources/"+p+".png";
                 if(!File.Exists(path))return null;
                 var header=File.ReadAllBytes(path); int w=(header[16]<<24)|(header[17]<<16)|(header[18]<<8)|header[19],h=(header[20]<<24)|(header[21]<<16)|(header[22]<<8)|header[23];
