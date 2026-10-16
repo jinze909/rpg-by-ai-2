@@ -3500,6 +3500,41 @@ public static class RenderStateChecks
                     "resource:Frontier/Art/Effects",
                 "Reduced motion must keep the unchanged real projectile head");
             game.save.reducedMotion=false;game.save.effectsQuality=2;
+            // A real full world/HUD repaint, not a detached atlas preview.
+            // The two GameCore projectiles must overlay the accepted hero,
+            // terrain and original missile head in the live scene.
+            game.projectiles.Clear();
+            game.projectiles.Add(new Projectile{
+                position=game.Position+new Point(1.4f,.1f),
+                velocity=new Point(9,0),age=.24f,
+                friendly=true,visual="arrow"});
+            game.projectiles.Add(new Projectile{
+                position=game.Position+new Point(-.7f,.6f),
+                velocity=new Point(0,-9),age=.26f,
+                friendly=true,explosive=true,visual="starfire"});
+            Clear();Call(app,"OnGUI");
+            bool arrowSeen=false,magicSeen=false,headSeen=false,heroSeen=false;
+            foreach(var paint in GUI.textureCalls)
+            {
+                if(paint.texture==null)continue;
+                string name=paint.texture.name;
+                if(name=="resource:Frontier/Art/ProjectileTrails")
+                {
+                    if(Math.Abs(paint.uv.y-.5f)<.00001f)arrowSeen=true;
+                    if(Math.Abs(paint.uv.y)<.00001f)magicSeen=true;
+                }
+                if(name=="resource:Frontier/Art/Effects"&&
+                    paint.rect.width>=22f&&paint.rect.width<=30f)
+                    headSeen=true;
+                if(name!=null&&name.IndexOf(
+                    "Frontier/HeroAnimator/Canonical/Hero_",
+                    StringComparison.Ordinal)>=0)heroSeen=true;
+            }
+            Check(arrowSeen&&magicSeen&&headSeen&&heroSeen,
+                "Production world pass omitted real painted arrow/magic tails or original hero and missile");
+            GUI.Export(".starfall-checks/sprite-qa",
+                "review-real-game-projectile-arrow-magic-filaments");
+            game.projectiles.Clear();
             Texture2D accepted=Get<Texture2D>(app,"projectileTrailArt");
             Resources.TextureOverrides[resource]=new Texture2D(
                 95,48,TextureFormat.RGBA32,false){
@@ -3532,6 +3567,7 @@ public static class RenderStateChecks
             else Resources.TextureOverrides.Remove(resource);
             Set(app,"projectileTrailArt",saved);
             Set(app,"projectileTrailNextImport",float.NegativeInfinity);
+            game.projectiles.Clear();
             game.save.effectsQuality=quality;
             game.save.reducedMotion=motion;
             app.EndVisualReview();Clear();
