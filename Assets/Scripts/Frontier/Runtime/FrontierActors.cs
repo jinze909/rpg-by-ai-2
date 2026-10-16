@@ -767,9 +767,29 @@ namespace Starfall
                 // Monsters death swapped face/outfit immediately on death.
                 // Keep the SAME canvas density and foot root as the live
                 // north/south archer's production SpriteRenderer pose.
-                Actor(enemyArcherVertical, 3, 2, 5, p,
-                    ActorCanvas(enemyArcherVertical, 3, 96f / 128f),
-                    tint, false);
+                // North/south bowmen own a distinct illustrated full
+                // body, so a lethal hit must not jump directly from bow
+                // release into cell 5's fallen painting in ONE repaint.
+                // Handoff the two source-authored WHOLE cells; every pose
+                // uses the same 120/128 boot anchor and no invented limbs.
+                float fraction=CurrentWorldVisualLook.deathPoseBlendFraction;
+                bool blend=progress<fraction &&
+                    !Game.save.reducedMotion;
+                float mix=blend?Mathf.Clamp01(progress/fraction):1f;
+                float canvas=ActorCanvas(enemyArcherVertical,3,96f/128f);
+                if(blend&&mix<1f)
+                {
+                    int pose=EnemyPose(body.actor);
+                    int start=(body.actor.facing.y<0?0:3)+
+                        (pose==3 || pose==4 &&
+                         body.actor.releaseTime>0f?1:0);
+                    Actor(enemyArcherVertical,3,2,start,p,canvas,
+                        new Color(tint.r,tint.g,tint.b,
+                            tint.a*(1f-mix)),false);
+                }
+                if(mix>0f)
+                    Actor(enemyArcherVertical,3,2,5,p,canvas,
+                        new Color(tint.r,tint.g,tint.b,tint.a*mix),false);
             }
             else
             {
