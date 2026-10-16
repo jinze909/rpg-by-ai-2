@@ -153,6 +153,75 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS GameCore-driven terrain foot contacts, source-illustrated world sprites, planted camera root, FX budget, reduced motion and pause");
     }
 
+
+    static void NonheroGroundContactTracking(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        var field=app.GetType().GetField("footfallMarks",Private);
+        var marks=(System.Collections.IList)field.GetValue(app);
+        // Companion movement is measured from its own world position;
+        // merely toggling an Animator gait flag cannot generate dust.
+        game.save.companion=0;
+        game.companionPosition=new Point(12,14);
+        game.companionMoving=true;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        game.companionPosition=new Point(12.25f,14);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,"Companion foot animation spawned dust without a contact");
+        game.companionPosition=new Point(12.53f,14);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==1,"Companion failed to plant a real traveled footstep");
+        object buddy=marks[0];
+        var type=buddy.GetType();
+        var coord=type.GetField("position",Private);
+        var strength=type.GetField("intensity",Private);
+        Check(((Point)coord.GetValue(buddy)-game.companionPosition).Length<.001f&&
+            Math.Abs((float)strength.GetValue(buddy)-.84f)<.001f,
+            "Companion planted contact at protagonist instead of own boots");
+        game.companionMoving=false;
+        game.companionPosition=new Point(13.12f,14);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==1,
+            "Stopped companion spawned a phantom gait/teleport footstep");
+        // Newly spawned two enemies with identical numeric IDs must own
+        // separate weak-keyed travel histories and real world anchors.
+        var first=new Enemy(99955,0,14,14,100){moving=true};
+        var second=new Enemy(99955,2,18,14,100){moving=true};
+        game.enemies.Clear();
+        game.enemies.Add(first);game.enemies.Add(second);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        first.x+=.25f;second.x+=.24f;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==1,"Enemy pre-contact falsely displayed gait dust");
+        first.x+=.24f;second.x+=.24f;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==3,
+            "Different enemies with matching numeric ID shared contact history");
+        int x0=0,x1=0;
+        foreach(object mark in marks)
+        {
+            Point position=(Point)coord.GetValue(mark);
+            if((position-first.Position).Length<.001f)x0++;
+            if((position-second.Position).Length<.001f)x1++;
+        }
+        Check(x0==1&&x1==1,
+            "Enemy marks must remain at individual source feet");
+        first.state=1;first.x+=.52f;
+        second.hp=0f;second.x+=.52f;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==3,
+            "Boss windup or corpse generated extra decorative steps");
+        game.save.reducedMotion=true;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,
+            "Reduced motion must clear ALL enemy and companion contact FX");
+        Console.WriteLine("PASS world-rooted moving companion and two same-ID enemies, no idle/windup/death ghosts, correct anchors and accessibility");
+    }
+
     static void HudReadability(FrontierRuntime app,string folder)
     {
         Point[] pixels={new Point(220,100),new Point(1210,90),new Point(470,775),new Point(620,85),new Point(180,159)};
@@ -322,7 +391,7 @@ public static class RuntimeContinuityChecks
     }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app);NonheroGroundContactTracking(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }
