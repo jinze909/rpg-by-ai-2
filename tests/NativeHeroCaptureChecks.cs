@@ -466,8 +466,21 @@ public static class NativeHeroCaptureChecks
                 secondTarget.IsCreated(),
                 "Partial imported hero atlas mixed two versions of Attack");
             var fallback=heroView.sprite;
+            var fallbackGpu=GUI.DrawnTextures[
+                GUI.DrawnTextures.Count-1] as RenderTexture;
+            int beforeRetest=Camera.RenderedTargets.Count;
+            Time.frameCount=3542; // still only 5 imported cells
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                !heroNative.enabled&&
+                ReferenceEquals(heroView.sprite,fallback)&&
+                !fallback.destroyed&&
+                ReferenceEquals(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1],fallbackGpu)&&
+                Camera.RenderedTargets.Count==beforeRetest,
+                "Unchanged partial hero art kept recreating stale frames/GPU buffers");
             Resources.RegisteredSprites[hotPath]=rebaked;
-            Time.frameCount=3542;
+            Time.frameCount=3723;
             Require((bool)draw.Invoke(live,new object[]{
                 new Point(100,140),Color.white,false,0,false})&&
                 heroNative.enabled&&
