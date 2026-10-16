@@ -797,13 +797,16 @@ public static class RenderStateChecks
             Check(GUI.textureCalls.Count==1,
                 "Ground tuft must draw one full accepted source image");
             var first=GUI.textureCalls[0];
+            bool mirrored=(seed&1)==1;
+            float sourceU=(frame%4+(mirrored?1:0))/4f;
+            float sourceWidth=mirrored?-.25f:.25f;
             Check(object.ReferenceEquals(first.texture,detailed)&&
                 Math.Abs(first.rect.x-rect.x)<.001f&&
                 Math.Abs(first.rect.y-rect.y)<.001f&&
                 Math.Abs(first.rect.width-size)<.001f&&
-                Math.Abs(first.uv.x-(frame%4+.0f)/4f)<.0001f&&
+                Math.Abs(first.uv.x-sourceU)<.0001f&&
                 Math.Abs(first.uv.y-(1f-(frame/4+1)/4f))<.0001f&&
-                Math.Abs(first.uv.width)>.24f&&
+                Math.Abs(first.uv.width-sourceWidth)<.0001f&&
                 Math.Abs(first.color.a-.8f)<.0001f,
                 "Foliage switched from original painted Details sprite or resized");
             Vector3 root=canvas.MultiplyPoint3x4(new Vector3(
