@@ -225,7 +225,9 @@ namespace Starfall
                     // Record ownership before GPU allocation: release also
                     // cleans up a failed Create or Render.
                     heroCapturedFrames.Add(captureKey, entry);
-                    entry.texture.Create();
+                    if (!entry.texture.Create() || !entry.texture.IsCreated())
+                        throw new InvalidOperationException(
+                            "Hero source-pose GPU target creation failed");
                     needsRender = true;
                 }
                 else
@@ -233,7 +235,11 @@ namespace Starfall
                     entry.lastUsedFrame = Time.frameCount;
                     if (!entry.texture.IsCreated())
                     {
-                        entry.texture.Create();
+                        // A failed device-loss recovery must NEVER submit an
+                        // uncreated/transparent target as the canonical hero.
+                        if (!entry.texture.Create() || !entry.texture.IsCreated())
+                            throw new InvalidOperationException(
+                                "Hero source-pose GPU target recovery failed");
                         needsRender = true;
                     }
                 }
