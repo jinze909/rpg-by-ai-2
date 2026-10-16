@@ -14,6 +14,7 @@ namespace Starfall
             public float treeSwayDegrees=.80f;
             public float palmSwayDegrees=1.35f;
             public float snowpineSwayDegrees=.24f;
+            public float groundFoliageSwayDegrees=.65f;
             public float waterGlintAlpha=.12f;
             public float waterGlintRate=.89f;
             // Approved illustrated Effects.png air movement. Artist-editable
@@ -78,6 +79,9 @@ namespace Starfall
                             case "snowpineSwayDegrees":
                                 if(value>=0&&value<=1f)
                                     settings.snowpineSwayDegrees=value;break;
+                            case "groundFoliageSwayDegrees":
+                                if(value>=0&&value<=1.3f)
+                                    settings.groundFoliageSwayDegrees=value;break;
                             case "waterGlintAlpha":
                                 if(value>=0&&value<=.18f)
                                     settings.waterGlintAlpha=value;break;

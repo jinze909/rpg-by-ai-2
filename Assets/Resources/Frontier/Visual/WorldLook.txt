@@ -6,6 +6,9 @@
 treeSwayDegrees=0.80
 palmSwayDegrees=1.35
 snowpineSwayDegrees=0.24
+# Full authored ground grass/flower sprites, rooted at their planted foot.
+# Pebbles, snow debris and fixed world props do not rotate.
+groundFoliageSwayDegrees=0.65
 # Fractional alpha of a source-pixel water sample; not an opaque tile overlay.
 waterGlintAlpha=0.12
 waterGlintRate=0.89

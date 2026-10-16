@@ -758,6 +758,99 @@ public static class RenderStateChecks
         Console.WriteLine("PASS "+count+
             " original full-body foliage variants: one draw, accurate pivots, reduced motion and preserved GUI state");
     }
+    private static void GroundFoliageKeepsSourcePixelsAndRoot(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        var detailed=Get<Texture2D>(app,"detailSheet");
+        Check(detailed!=null,"Original ground-detail atlas missing");
+        int tileX=-1,tileY=-1,frame=-1,seed=0;
+        for(int y=2;y<Math.Min(g.Map.rows.Length-2,36)&&tileX<0;y++)
+        for(int x=2;x<Math.Min(g.Map.rows[y].Length-2,48);x++)
+        {
+            int candidate=(int)Call(app,"PreparedTileSeed",x,y);
+            if(candidate%17!=0||(bool)Call(app,"GroundDetailOccluded",x,y))
+                continue;
+            int[] approved={0,1,3,4,10};
+            int selected=approved[(candidate/17)%approved.Length];
+            if(selected!=0&&selected!=1&&selected!=10)continue;
+            tileX=x;tileY=y;frame=selected;seed=candidate;break;
+        }
+        Check(tileX>=0,"Could not find original ground foliage review sample");
+        float size=frame==10?33f:23f;
+        Point planted=new Point(tileX+.35f+seed%5*.07f,tileY+.65f);
+        Point foot=(Point)Call(app,"ScreenPoint",planted);
+        var rect=new Rect(foot.x-size*.5f,foot.y-size*120f/128f,size,size);
+        Matrix4x4 original=GUI.matrix;
+        Color oldColor=GUI.color;
+        var canvas=Matrix4x4.TRS(new Vector3(31,27,0),
+            Quaternion.identity,new Vector3(1.35f,1.35f,1f));
+        try
+        {
+            GUI.matrix=canvas;
+            GUI.color=new Color(.3f,.5f,.7f,.8f);
+            g.save.effectsQuality=2;g.save.reducedMotion=false;
+            Set(app,"clock",5.1f);
+            Clear();Call(app,"DrawGroundDetail",
+                tileX,tileY,'.',new Point(160,150));
+            Check(GUI.textureCalls.Count==1,
+                "Ground tuft must draw one full accepted source image");
+            var first=GUI.textureCalls[0];
+            Check(object.ReferenceEquals(first.texture,detailed)&&
+                Math.Abs(first.rect.x-rect.x)<.001f&&
+                Math.Abs(first.rect.y-rect.y)<.001f&&
+                Math.Abs(first.rect.width-size)<.001f&&
+                Math.Abs(first.uv.x-(frame%4+.0f)/4f)<.0001f&&
+                Math.Abs(first.uv.y-(1f-(frame/4+1)/4f))<.0001f&&
+                Math.Abs(first.uv.width)>.24f&&
+                Math.Abs(first.color.a-.8f)<.0001f,
+                "Foliage switched from original painted Details sprite or resized");
+            Vector3 root=canvas.MultiplyPoint3x4(new Vector3(
+                foot.x,foot.y,0));
+            Near(first.matrix.MultiplyPoint3x4(new Vector3(
+                foot.x,foot.y,0)),root,
+                "Waving grass uprooted its painted foot/soil attachment");
+            Same(GUI.matrix,canvas,
+                "Single-Sprite foliage leaked camera rotation");
+            Set(app,"clock",8.4f);
+            Clear();Call(app,"DrawGroundDetail",
+                tileX,tileY,'.',new Point(160,150));
+            Check(GUI.textureCalls.Count==1,
+                "Foliage disappeared on later animation frame");
+            var second=GUI.textureCalls[0];
+            Near(second.matrix.MultiplyPoint3x4(new Vector3(
+                foot.x,foot.y,0)),root,"Wind drift moved grass root");
+            Check(Math.Abs(second.matrix.m01-first.matrix.m01)>.00001f,
+                "Living undergrowth failed to animate authored whole Sprite");
+            Check(Math.Abs(second.uv.x-first.uv.x)<.00001f&&
+                Math.Abs(second.uv.y-first.uv.y)<.00001f,
+                "Foliage wind must not synthesize or exchange atlas cells");
+            g.save.reducedMotion=true;
+            Clear();Call(app,"DrawGroundDetail",
+                tileX,tileY,'.',new Point(160,150));
+            Check(GUI.textureCalls.Count==1,
+                "Reduced-motion foliage cannot disappear");
+            Same(GUI.textureCalls[0].matrix,canvas,
+                "Reduced-motion must disable all undergrowth swaying");
+            g.save.reducedMotion=false;g.save.effectsQuality=0;
+            Clear();Call(app,"DrawGroundDetail",
+                tileX,tileY,'.',new Point(160,150));
+            Same(GUI.textureCalls[0].matrix,canvas,
+                "Lowest FX tier must avoid optional animated undergrowth");
+            Check(GUI.textureCalls.Count==1,
+                "Low-FX undergrowth must retain its accepted picture");
+            Same(GUI.matrix,canvas,"Ground detail leaked GUI matrix state");
+            Same(GUI.color,new Color(.3f,.5f,.7f,.8f),
+                "Ground detail leaked tint to actor and gameplay HUD");
+            Console.WriteLine("PASS rooted one-Sprite ground art; animated flora vs low-FX/reduced-motion, source UV/foot/GPU bypass");
+        }
+        finally
+        {
+            GUI.matrix=original;GUI.color=oldColor;
+            app.EndVisualReview();Clear();
+        }
+    }
     private static void WorldLightsRemainAnchoredToDetailedProps(FrontierRuntime app)
     {
         Prepare(app);
@@ -1835,7 +1928,8 @@ public static class RenderStateChecks
             "companionFootfallSeconds","companionFacingThreshold",
             "companionAttackPlantSeconds",
             "ambientMoteDayAlpha","ambientMoteNightAlpha",
-            "snowMoteWindX","desertMoteWindX","coastMoteLift"};
+            "snowMoteWindX","desertMoteWindX","coastMoteLift",
+            "groundFoliageSwayDegrees"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -1856,7 +1950,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 22 source-controlled WorldLook values for terrain, ambient motion, companion gait, actors and combat FX");
+        Console.WriteLine("PASS 23 source-controlled WorldLook values for terrain, foliage, ambient motion, companion gait, actors and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
@@ -1871,7 +1965,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

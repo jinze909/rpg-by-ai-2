@@ -138,6 +138,24 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_VISUAL_CI: invisible moving attack gait accepted")
+    # Static ground tiles are NOT characters. The world renderer must not
+    # allocate a SpriteRenderer/RenderTexture for every scattered 23px tuft;
+    # original UVs render directly while dynamic bosses/NPCs/companions
+    # still require the whole-body native actor path.
+    environment = (RUNTIME / "FrontierEnvironment.cs").read_text()
+    ground = environment.split("private void DrawGroundDetail(")[1]
+    ground = ground.split("private void DrawRootedPlant(")[0]
+    assert "Atlas(detailSheet,4,4,id,sourceBounds," in ground, (
+        "GROUND_DETAIL_LOST_DIRECT_SOURCE_ATLAS_PATH")
+    assert "if(drawingOutline)" in ground and (
+        "Actor(detailSheet,4,4,id,foot,size," in ground), (
+        "GROUND_DETAIL_OUTLINE_MASK_FALLBACK_LOST")
+    assert ground.index("Actor(detailSheet,4,4,id,foot,size,") < (
+        ground.index("Atlas(detailSheet,4,4,id,sourceBounds,")), (
+        "GROUND_LITTER_USES_NATIVE_ACTOR_GPU_CAPTURE_IN_WORLD_PATH")
+    assert "GuiGeometry.RotateAroundPivot(canvas," in ground and (
+        "groundFoliageSwayDegrees" in ground), (
+        "LIVING_GROUND_FOLIAGE_LOST_ROOTED_WIND")
     # Native PlayMode contract must target Frontier.unity, not only a
     # preview prefab or a spare SpriteRenderer. Native runner remains
     # NATIVE_UNVERIFIED until Unity 2022.3 actually executes these checks.

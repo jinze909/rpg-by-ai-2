@@ -293,7 +293,41 @@ namespace Starfall
             int id = options[(seed / 17) % options.Length];
             if (id == 9) id = 4; // Large fallen trunks belong to fixed solid edge scenery.
             float size = id == 10 ? 33 : id == 8 ? 38 : 23;
-            Actor(detailSheet, 4, 4, id, ScreenPoint(world), size, new Color(1, 1, 1, .8f), (seed & 1) == 1);
+            Point foot=ScreenPoint(world);
+            bool flip=(seed & 1)==1;
+            // Ground litter is not a character. Sending every tiny grass
+            // tuft/rock through SpriteRenderer -> 128px RenderTexture was
+            // allocating offscreen actor targets for non-actors on map
+            // entry. Sample the SAME accepted Details.png cell directly.
+            // Keep original outline-mask behaviour in outline review:
+            // Actor() bypasses the native capture for drawingOutline.
+            if(drawingOutline)
+            {
+                Actor(detailSheet,4,4,id,foot,size,new Color(1,1,1,.8f),flip);
+                return;
+            }
+            Rect sourceBounds=new Rect(foot.x-size*.5f,
+                foot.y-size*120f/128f,size,size);
+            Matrix4x4 canvas=GUI.matrix;
+            try
+            {
+                // Only living green tufts/flowers sway, NEVER stone, snow
+                // debris or harvested paths. Rotate ONE complete authored
+                // Sprite around the same 120/128 painted boot/soil pivot.
+                if((id==0||id==1||id==10)&&
+                    !Game.save.reducedMotion&&Game.save.effectsQuality>0)
+                {
+                    float phase=(seed%997)*.017f;
+                    float wind=(float)(Math.Sin(clock*.91f+phase)*.73+
+                        Math.Sin(clock*1.61f+phase*.67f)*.27);
+                    float degrees=wind*CurrentWorldVisualLook.groundFoliageSwayDegrees;
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(canvas,
+                        new Vector2(foot.x,foot.y),degrees);
+                }
+                Atlas(detailSheet,4,4,id,sourceBounds,
+                    new Color(1f,1f,1f,.8f),flip);
+            }
+            finally { GUI.matrix=canvas; }
         }
         private void DrawRootedPlant(Decoration prop, Rect rect, Color tint)
         {
