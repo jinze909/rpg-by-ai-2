@@ -37,8 +37,10 @@ def main():
     effect=FX.read_text()
     scene=WORLD.read_text()
     for token in ('"Frontier/Art/ImpactFlourish"',
-        'effect.kind=="slash"?0:', 'effect.kind=="projectileImpact"?1:',
-        'effect.kind=="magicImpact"?2:-1;',
+        'effect.kind=="slash"', 'effect.kind=="impact"',
+        'effect.kind=="hurt"', 'effect.kind=="projectileImpact"?1:',
+        'effect.kind=="magicImpact"',
+        'effect.kind=="enemyRelease"&&effect.variant>=10',
         'Atlas(impactFlourishSheet,4,3,category*4+frame',
         'effect.life/effect.maxLife', 'Game.save.reducedMotion',
         'Game.save.effectsQuality<2'):

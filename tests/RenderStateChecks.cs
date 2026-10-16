@@ -1825,6 +1825,38 @@ public static class RenderStateChecks
                     "Changing source-art opacity did not affect live combat");
             }
             finally{intensity.SetValue(look,original);}
+            // Core Hit/Hurt and the true room-specific Boss release now
+            // use the same approved source art; ordinary patrol release
+            // must NOT masquerade as a magical Boss attack.
+            game.effects.Clear();
+            foreach(string kind in new[]{"impact","hurt","enemyRelease"})
+            {
+                var hit=new Effect(kind,game.Position,.24f);
+                hit.life=.18f;
+                hit.variant=kind=="enemyRelease"?11:0;
+                game.effects.Add(hit);
+            }
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Check(GUI.textureCalls.Count==3&&
+                GUI.textureCalls.TrueForAll(c=>
+                    object.ReferenceEquals(c.texture,atlas))&&
+                Math.Abs(GUI.textureCalls[0].uv.y-2f/3f)<.00001f&&
+                Math.Abs(GUI.textureCalls[1].uv.y-2f/3f)<.00001f&&
+                Math.Abs(GUI.textureCalls[2].uv.y)<.00001f,
+                "Real melee damage or Boss release lost original contact art");
+            game.effects[2].variant=1;
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Check(GUI.textureCalls.Count==2,
+                "Ordinary enemy release got an invented magical Boss effect");
+            game.effects.Clear();
+            foreach(string kind in new[]{"slash","projectileImpact",
+                "magicImpact"})
+            {
+                var hit=new Effect(kind,game.Position,.5f);
+                hit.life=.15f;
+                hit.direction=new Point(1f,0f);
+                game.effects.Add(hit);
+            }
             // Crucial: these art cells must appear in the ACTUAL world
             // draw queue, not just a disconnected reviewer/preview.
             Clear();Call(app,"DrawWorld");
@@ -1850,7 +1882,7 @@ public static class RenderStateChecks
                 "Malformed impact atlas must safely fall back to original FX");
             Same(GUI.matrix,matrix,"Impact sprites polluted actor GUI matrix");
             Same(GUI.color,color,"Impact sprites polluted HUD tint");
-            Console.WriteLine("PASS 12 hand-painted impact frames in real DrawWorld: 3 event kinds, exact source UV, world root, alpha, accessibility, fallback");
+            Console.WriteLine("PASS 12 hand-painted impact frames in real DrawWorld: 6 effect events and non-Boss exclusion, source UV, world root, alpha and accessibility");
         }
         finally
         {

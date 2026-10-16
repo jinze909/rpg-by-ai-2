@@ -32,9 +32,13 @@ namespace Starfall
                impactFlourishSheet.height!=96)return;
             foreach(Effect effect in Game.effects)
             {
-                int category=effect.kind=="slash"?0:
+                // One source-painted identity for real contact and Boss
+                // release; never draw a purple Boss rune on a patrol shot.
+                int category=effect.kind=="slash"||
+                    effect.kind=="impact"||effect.kind=="hurt"?0:
                     effect.kind=="projectileImpact"?1:
-                    effect.kind=="magicImpact"?2:-1;
+                    effect.kind=="magicImpact"||
+                    (effect.kind=="enemyRelease"&&effect.variant>=10)?2:-1;
                 if(category<0||effect.maxLife<=0f||
                    effect.life<=0f||!WorldDrawable(effect.position.x,
                        effect.position.y,115f,115f))continue;
@@ -43,10 +47,13 @@ namespace Starfall
                 float phase=Mathf.Clamp01(1f-effect.life/effect.maxLife);
                 int frame=Math.Min(3,(int)(phase*4f));
                 float size=category==0?
-                    (effect.variant==2?73f:57f):
-                    category==1?38f:58f;
+                    (effect.kind=="slash"?
+                        (effect.variant==2?73f:57f):44f):
+                    category==1?38f:
+                    effect.kind=="enemyRelease"?65f:58f;
                 Point point=ScreenPoint(effect.position);
-                float lift=effect.height>=0f?effect.height:30f;
+                float lift=effect.height>=0f?effect.height:
+                    effect.kind=="enemyRelease"?38f:30f;
                 float opacity=CurrentWorldVisualLook.impactFlourishAlpha*
                     (1f-phase);
                 float angle=category==0?
