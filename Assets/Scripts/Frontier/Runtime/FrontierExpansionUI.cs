@@ -165,11 +165,25 @@ namespace Starfall
         }
         private void DrawHazardWarnings()
         {
-            foreach (Hazard h in Game.hazards)
+            foreach(Hazard h in Game.hazards)
             {
-                Color warning = HazardWarningColor(h);
-                Ring(h.position, h.radius, warning); Point p = ScreenPoint(h.position);
-                Text(p.x - 25, p.y - 25, 50, 24, h.timer.ToString("0.0"), 13, warning, TextAnchor.MiddleCenter);
+                if(h.radius<=0f)continue;
+                // Include edge-overlap hazards but skip warning canvases
+                // completely outside the visible world. Damage continues
+                // under GameCore regardless of presentation culling.
+                float margin=h.radius*Tile+55f;
+                if(!WorldDrawable(h.position.x,h.position.y,
+                    margin,margin))continue;
+                Color warning=HazardWarningColor(h);
+                // 32 detached 4px debug dots are not a readable area-of-
+                // effect circle. The same joined, source-independent thin
+                // 36-segment stroke used for enemy telegraphs preserves
+                // the exact radius on 1x/2x and ultrawide canvases.
+                DrawWarningArc(h.position,h.radius,0f,
+                    (float)(Math.PI*2),warning,36);
+                Point p=ScreenPoint(h.position);
+                Text(p.x-25,p.y-25,50,24,h.timer.ToString("0.0"),
+                    13,warning,TextAnchor.MiddleCenter);
             }
         }
         private Color HazardWarningColor(Hazard hazard)

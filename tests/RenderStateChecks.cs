@@ -1563,6 +1563,72 @@ public static class RenderStateChecks
             app.EndVisualReview();Clear();
         }
     }
+    private static void LiveHazardOutlinesStayAboveActorsAndClipAtView(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        game.enemies.Clear();game.effects.Clear();game.hazards.Clear();
+        game.save.reducedMotion=true;game.save.effectsQuality=0;
+        Set(app,"camera",game.Position);
+        var hazard=new Hazard{
+            position=game.Position,radius=1.2f,timer=1.3f,
+            kind="root"
+        };
+        game.hazards.Add(hazard);
+        var tint=PixelArt.C("#82d9a3");
+        try
+        {
+            Clear();Call(app,"DrawWorld");
+            int hero=-1,lastRing=-1,segments=0;
+            for(int i=0;i<GUI.textureCalls.Count;i++)
+            {
+                var call=GUI.textureCalls[i];
+                if(hero<0&&call.texture!=null&&call.texture.name!=null&&
+                    call.texture.name.IndexOf(
+                        "Frontier/HeroAnimator/Canonical/Hero_Vanguard",
+                        StringComparison.Ordinal)>=0)hero=i;
+                if(object.ReferenceEquals(call.texture,Texture2D.whiteTexture)&&
+                    Math.Abs(call.color.r-tint.r)<.0001f&&
+                    Math.Abs(call.color.g-tint.g)<.0001f&&
+                    Math.Abs(call.color.b-tint.b)<.0001f&&
+                    Math.Abs(call.rect.height-1.8f)<.0001f)
+                {
+                    lastRing=i;segments++;
+                }
+            }
+            Check(hero>=0&&lastRing>hero&&segments==36,
+                "Actual timed hazard outline was behind the hero/cover or still 32 disconnected dots");
+            // Offscreen warnings with no visible damage footprint should
+            // not waste GUI submits; partial edge circles still render.
+            hazard.position=game.Position+new Point(55f,0f);
+            Clear();Call(app,"DrawHazardWarnings");
+            Check(GUI.textureCalls.Count==0,
+                "Offscreen hazards issued unrelated warning draw calls");
+            hazard.position=game.Position+new Point(18f,0f);
+            Clear();Call(app,"DrawHazardWarnings");
+            int edgeCount=0;
+            foreach(var c in GUI.textureCalls)
+                if(object.ReferenceEquals(c.texture,Texture2D.whiteTexture)&&
+                   Math.Abs(c.color.r-tint.r)<.0001f&&
+                   Math.Abs(c.color.g-tint.g)<.0001f&&
+                   Math.Abs(c.rect.height-1.8f)<.0001f)edgeCount++;
+            Check(edgeCount==36,
+                "Screen-edge hazard lost its real AoE radius warning");
+            game.save.reducedMotion=false;game.save.effectsQuality=2;
+            hazard.position=game.Position;
+            Clear();Call(app,"DrawHazardWarnings");
+            Check(GUI.textureCalls.Count==36,
+                "High-quality hazard must keep the same damage radius");
+            Console.WriteLine("PASS real DrawWorld hazard ordering, connected 36-piece AoE edge, border clipping and reduced-motion/FX");
+        }
+        finally
+        {
+            game.hazards.Clear();
+            app.EndVisualReview();Clear();
+        }
+    }
+
     private static void CombatWarningUsesConnectedTrueRadiusGeometry(
         FrontierRuntime app)
     {
@@ -2171,7 +2237,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

@@ -551,9 +551,12 @@ namespace Starfall
             DrawAuthoredAtmosphericMotes();
             DrawArenaBoundary();
             // Sort scenery and actors by their ground position, for proper overlap.
-            DrawHazardWarnings();
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);
             DrawOrderedWorld();
+            // Timed hazards are an active GAMEPLAY warning, never floor
+            // decoration. Render their lean outlines after solid scenery
+            // and actor bodies, before flying projectiles and impacts.
+            DrawHazardWarnings();
             foreach (Projectile p in Game.projectiles) DrawProjectileVisual(p);
             foreach (Effect e in Game.effects) if (!IsGroundEffect(e)) DrawCombatEffect(e);
             DrawExpansionWorld();
