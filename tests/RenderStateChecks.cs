@@ -946,8 +946,8 @@ public static class RenderStateChecks
                 Clear();
                 bool rendered=(bool)Call(app,"DrawFieldProp",
                     names[t],0,170f,180f,76f,88f,null);
-                Check(rendered&&GUI.textureCalls.Count==1,
-                    "World object drew absent/multiple bodies: "+names[t]);
+                Check(rendered&&GUI.textureCalls.Count==(names[t]=="fire"?4:1),
+                    "World object drew missing or unwanted prop frames: "+names[t]);
                 var sprite=GUI.textureCalls[0];
                 Texture2D expected=t<7?field:detail;
                 int cell=indices[t];
@@ -3116,56 +3116,63 @@ public static class RenderStateChecks
             Set(app,"clock",1.4f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(GUI.textureCalls.Count==3,
-                "Campfire must contain one intact static body and two authored ember cells");
+            Check(GUI.textureCalls.Count==4,
+                "Fire must keep the accepted body, original flame paintings and two embers");
             var before=GUI.textureCalls.ToArray();
             Check(object.ReferenceEquals(before[0].texture,fire)&&
                 Math.Abs(before[0].uv.x-.25f)<.00001f&&
                 Math.Abs(before[0].uv.y)<.00001f,
                 "Fireplace lost the original complete FieldProps.png body");
-            Check(object.ReferenceEquals(before[1].texture,flashes)&&
+            Check(before[1].texture.name=="resource:Frontier/Art/CampfireFlames"&&
+                Math.Abs(before[1].uv.width-.25f)<.00001f&&
+                before[1].rect.width==24f&&before[1].rect.height==32f&&
                 object.ReferenceEquals(before[2].texture,flashes)&&
-                Math.Abs(before[1].uv.x-.25f)<.00001f&&
-                Math.Abs(before[1].uv.y)<.00001f&&
-                Math.Abs(before[2].uv.x-.75f)<.00001f&&
-                Math.Abs(before[2].uv.y-.75f)<.00001f&&
-                before[1].color.a>0f&&before[1].color.a<.32f,
+                object.ReferenceEquals(before[3].texture,flashes)&&
+                Math.Abs(before[2].uv.x-.25f)<.00001f&&
+                Math.Abs(before[2].uv.y)<.00001f&&
+                Math.Abs(before[3].uv.x-.75f)<.00001f&&
+                Math.Abs(before[3].uv.y-.75f)<.00001f&&
+                before[2].color.a>0f&&before[2].color.a<.32f,
                 "Ambient embers must use original illustrated contact cells and low alpha");
             GUI.Export(folder,"review-authored-campfire-emissive");
             // The REAL live PropImage(...) call used by quest bonfires and
             // shelter props must reach the same source-preserving producer.
             Clear();Call(app,"PropImage","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(GUI.textureCalls.Count==3&&
+            Check(GUI.textureCalls.Count==4&&
                 object.ReferenceEquals(GUI.textureCalls[0].texture,fire)&&
-                object.ReferenceEquals(GUI.textureCalls[1].texture,flashes)&&
-                object.ReferenceEquals(GUI.textureCalls[2].texture,flashes),
+                GUI.textureCalls[1].texture.name=="resource:Frontier/Art/CampfireFlames"&&
+                object.ReferenceEquals(GUI.textureCalls[2].texture,flashes)&&
+                object.ReferenceEquals(GUI.textureCalls[3].texture,flashes),
                 "Production PropImage omitted the actual animated campfire art");
             Set(app,"clock",2.7f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(GUI.textureCalls.Count==3&&
+            Check(GUI.textureCalls.Count==4&&
                 Math.Abs(GUI.textureCalls[0].rect.x-before[0].rect.x)<.0001f&&
                 Math.Abs(GUI.textureCalls[0].rect.y-before[0].rect.y)<.0001f&&
                 Math.Abs(GUI.textureCalls[0].uv.x-before[0].uv.x)<.00001f&&
-                Math.Abs(GUI.textureCalls[1].rect.y-before[1].rect.y)<=14.01f&&
-                Math.Abs(GUI.textureCalls[1].rect.y-before[1].rect.y)>.02f,
+                Math.Abs(GUI.textureCalls[2].rect.y-before[2].rect.y)<=14.01f&&
+                Math.Abs(GUI.textureCalls[2].rect.y-before[2].rect.y)>.02f&&
+                Math.Abs(GUI.textureCalls[1].uv.x-before[1].uv.x)>.00001f&&
+                Math.Abs(GUI.textureCalls[1].rect.x-before[1].rect.x)<.0001f,
                 "Flicker displaced original fire body or animated discontinuously");
             field.SetValue(look,original*.5f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
             // Check ratio against SAME clock, not a different phase.
-            float halfAlpha=GUI.textureCalls[1].color.a;
+            float halfAlpha=GUI.textureCalls[2].color.a;
             field.SetValue(look,original);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(Math.Abs(halfAlpha-GUI.textureCalls[1].color.a*.5f)<.0001f,
+            Check(Math.Abs(halfAlpha-GUI.textureCalls[2].color.a*.5f)<.0001f,
                 "WorldLook ember brightness did not drive actual art");
             g.save.effectsQuality=1;
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(GUI.textureCalls.Count==2,
-                "Medium effects should keep one subtle source-art ember");
+            Check(GUI.textureCalls.Count==3&&
+                Math.Abs(GUI.textureCalls[1].uv.x)<.00001f,
+                "Medium effects should keep a static full flame and one source-art ember");
             g.save.reducedMotion=true;
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
@@ -3182,7 +3189,7 @@ public static class RenderStateChecks
             Check(GUI.textureCalls.Count==1,
                 "Ordinary solid environment props must not acquire fire particles");
             Console.WriteLine(
-                "PASS original complete-body campfire + two source-painted ambient embers: world root, temporal drift, material, low-FX and reduced motion");
+                "PASS original body and four original full-flame poses: planted frame animation, original embers, world root, low FX and reduced motion");
         }
         finally
         {
@@ -3468,6 +3475,7 @@ public static class RenderStateChecks
             "shorelineWashAlpha","shorelineTravelPixels",
             "shoreFoamAlpha","shoreFoamFrameRate",
             "emberFlickerAlpha","emberLiftPixels",
+            "campfireFlameAlpha","campfireFlameFrameRate",
             "relicShimmerAlpha","relicShimmerRate",
             "relicHaloRadius","relicHaloAlpha",
             "lampRadius","nightLightAlpha","dayLightAlpha",
@@ -3510,7 +3518,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 51 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 53 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,
@@ -3874,6 +3882,85 @@ public static class RenderStateChecks
             game.projectiles.Clear();
             game.save.effectsQuality=quality;
             game.save.reducedMotion=motion;
+            app.EndVisualReview();Clear();
+        }
+    }
+
+
+    // Runnable through the main C# CI lane. Validate the entire real
+    // PropImage body/lit full-frame animation and complete/rejected hot
+    // reimport, rather than only inspecting an isolated PNG atlas.
+    public static void VerifyPaintedCampfireFlamesInProduction(
+        FrontierRuntime app)
+    {
+        OriginalCampfireFlameGetsRootedEmbers(app,
+            ".starfall-checks/sprite-qa");
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        bool oldMotion=game.save.reducedMotion;
+        int oldQuality=game.save.effectsQuality;
+        const string key="Frontier/Art/CampfireFlames";
+        Texture2D priorOverride=null;
+        bool had=Resources.TextureOverrides.TryGetValue(key,
+            out priorOverride);
+        var accepted=Get<Texture2D>(app,"campfireFlamesSheet");
+        var palette=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private).GetValue(app,null);
+        var alphaField=palette.GetType().GetField("campfireFlameAlpha");
+        float originalAlpha=(float)alphaField.GetValue(palette);
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            Set(app,"clock",18f);Clear();
+            Call(app,"DrawFieldProp","fire",2,
+                320f,280f,76f,78f,Color.white);
+            accepted=Get<Texture2D>(app,"campfireFlamesSheet");
+            Check(accepted!=null&&
+                object.ReferenceEquals(GUI.textureCalls[1].texture,accepted),
+                "Production campfire no longer draws a complete accepted flame keypose");
+            float full=GUI.textureCalls[1].color.a;
+            alphaField.SetValue(palette,originalAlpha*.5f);
+            Clear();Call(app,"DrawFieldProp","fire",2,
+                320f,280f,76f,78f,Color.white);
+            Check(Math.Abs(GUI.textureCalls[1].color.a-full*.5f)<.0001f,
+                "WorldLook artist campfire flame alpha did not reach actual game");
+            alphaField.SetValue(palette,originalAlpha);
+            Resources.TextureOverrides[key]=new Texture2D(
+                95,32,TextureFormat.RGBA32,false){
+                name="incomplete-fire-sheet"};
+            Set(app,"clock",21f);Clear();
+            Call(app,"DrawFieldProp","fire",2,
+                320f,280f,76f,78f,Color.white);
+            Check(object.ReferenceEquals(GUI.textureCalls[1].texture,accepted),
+                "Partial Editor imported flames replaced last complete art");
+            var next=new Texture2D(96,32,TextureFormat.RGBA32,
+                false){name="reimported-four-flame-art"};
+            Resources.TextureOverrides[key]=next;
+            Set(app,"clock",23.7f);Clear();
+            Call(app,"DrawFieldProp","fire",2,
+                320f,280f,76f,78f,Color.white);
+            Check(object.ReferenceEquals(GUI.textureCalls[1].texture,next),
+                "Corrected four-keypose fire art failed runtime hot import");
+            Resources.TextureOverrides[key]=accepted;
+            Set(app,"clock",0f);Clear();
+            Call(app,"DrawFieldProp","fire",2,
+                320f,280f,76f,78f,Color.white);
+            Check(object.ReferenceEquals(GUI.textureCalls[1].texture,accepted),
+                "Clock rewind kept stale imported campfire flame sheet");
+            Console.WriteLine(
+                "PASS original fire's 4 painted whole-flame motion frames in real world and source-atomic reimport");
+        }
+        finally
+        {
+            if(had)Resources.TextureOverrides[key]=priorOverride;
+            else Resources.TextureOverrides.Remove(key);
+            Set(app,"campfireFlamesSheet",accepted);
+            Set(app,"campfireFlamesLastChecked",float.NegativeInfinity);
+            Set(app,"campfireFlamesNextCheck",float.NegativeInfinity);
+            alphaField.SetValue(palette,originalAlpha);
+            game.save.reducedMotion=oldMotion;
+            game.save.effectsQuality=oldQuality;
             app.EndVisualReview();Clear();
         }
     }

@@ -549,6 +549,46 @@ namespace Starfall
                     new Color(1f,.67f,.38f,amplitude*.52f));
         }
 
+        // Four original FULL flame-body 24x32 paintings. Their bottom
+        // stays at a fixed offset from the mature campfire's foot; no
+        // procedural limb/shape stretching or duplicate fireplace body.
+        // Decorative sprites use a bounded 4-cell sequence rather than
+        // independent Animator components for every stationary fire.
+        private Texture2D campfireFlamesSheet;
+        private float campfireFlamesLastChecked=float.NegativeInfinity;
+        private float campfireFlamesNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredCampfireFlames(Point foot,float size,
+            int variant,Color originalTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality==0)return;
+            if(clock<campfireFlamesLastChecked||
+                clock>=campfireFlamesNextCheck)
+            {
+                campfireFlamesLastChecked=clock;
+                campfireFlamesNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/CampfireFlames");
+                if(candidate!=null&&candidate.width==96&&
+                    candidate.height==32)
+                    campfireFlamesSheet=candidate;
+            }
+            if(campfireFlamesSheet==null||
+                campfireFlamesSheet.width!=96||
+                campfireFlamesSheet.height!=32)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            int cell=Game.save.effectsQuality==1?0:
+                ((int)Math.Floor(clock*look.campfireFlameFrameRate+
+                    variant*.31f)%4+4)%4;
+            float alpha=look.campfireFlameAlpha*
+                (Game.Night?1f:.83f)*
+                (Game.save.effectsQuality==1?.63f:1f)*
+                worldActorOpacity*originalTint.a;
+            Atlas(campfireFlamesSheet,4,1,cell,
+                new Rect(foot.x-12f,foot.y-size*.73f,24f,32f),
+                new Color(1f,1f,1f,alpha));
+        }
+
         // Four newly illustrated TRANSPARENT 24px whole-sprite light poses
         // for the real FieldProps crystal, mirror, altar and obelisk bodies.
         // This is an emissive particle decoration, NOT actor anatomy; a
@@ -613,7 +653,11 @@ namespace Starfall
                 DrawStaticFieldSprite(fieldProps,id,foot,
                     Math.Max(w,h),tint??Color.white);
                 if(id==13)
+                {
+                    DrawAuthoredCampfireFlames(foot,Math.Max(w,h),
+                        variant,tint??Color.white);
                     DrawAuthoredCampfireEmbers(foot,Math.Max(w,h),variant);
+                }
                 else if(id==3||id==4||id==12||id==14)
                     DrawAuthoredRelicShimmer(id,variant,foot,
                         Math.Max(w,h),tint??Color.white);

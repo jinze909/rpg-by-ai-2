@@ -25,6 +25,8 @@ namespace Starfall
             public float shoreFoamFrameRate=3.6f;
             public float emberFlickerAlpha=.20f;
             public float emberLiftPixels=7f;
+            public float campfireFlameAlpha=.70f;
+            public float campfireFlameFrameRate=5f;
             public float relicShimmerAlpha=.24f;
             public float relicShimmerRate=3.8f;
             public float relicHaloRadius=83f;
@@ -149,6 +151,12 @@ namespace Starfall
                             case "emberLiftPixels":
                                 if(value>=0f&&value<=14f)
                                     settings.emberLiftPixels=value;break;
+                            case "campfireFlameAlpha":
+                                if(value>=.24f&&value<=.84f)
+                                    settings.campfireFlameAlpha=value;break;
+                            case "campfireFlameFrameRate":
+                                if(value>=2f&&value<=8f)
+                                    settings.campfireFlameFrameRate=value;break;
                             case "relicShimmerAlpha":
                                 if(value>=.08f&&value<=.32f)
                                     settings.relicShimmerAlpha=value;break;

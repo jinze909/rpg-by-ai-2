@@ -132,6 +132,7 @@ namespace Starfall
             terrainVariants = Resources.Load<Texture2D>(root + "TerrainVariants");
             shorelineFoamSheet = Resources.Load<Texture2D>(root + "ShorelineFoam");
             waterRipplesSheet = Resources.Load<Texture2D>(root + "WaterRipples");
+            campfireFlamesSheet = Resources.Load<Texture2D>(root + "CampfireFlames");
             detailSheet = Resources.Load<Texture2D>(root + "Details"); effectSheet = Resources.Load<Texture2D>(root + "Effects"); iconSheet = Resources.Load<Texture2D>(root + "Icons");
         }
         // Recover high-detail authored HUD/combat atlases after a temporary

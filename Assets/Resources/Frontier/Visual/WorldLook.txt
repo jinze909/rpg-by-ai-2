@@ -90,6 +90,10 @@ footfallLifetime=0.32
 # rooted floating embers; never trigger combat, physics or an Animator.
 emberFlickerAlpha=0.20
 emberLiftPixels=7.0
+# Four 24x32 connected whole-flame paintings on top of the unchanged
+# detailed FieldProps fire. No extra campfire object, AI, physics or save data.
+campfireFlameAlpha=0.70
+campfireFlameFrameRate=5.0
 
 # Four hand-directed 24px source-painted crystalline light poses. These
 # decorate original mature FieldProps crystal/obelisk/mirror/altar bodies
