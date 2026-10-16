@@ -4,6 +4,60 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
+        // Biome-specific air motion uses genuine illustrated Effects.png
+        // star/speck pixels. The old 18 looping, screen-space square boxes
+        // looked identical in forest, snow and volcanic areas, and snapped
+        // under camera panning. Samples are world-seeded, pinned near their
+        // own source tile, and fade instead of teleported screen confetti.
+        // Small drifting flecks are VFX, not gameplay Animator actors.
+        private void DrawAuthoredAtmosphericMotes()
+        {
+            if (Game.save.reducedMotion || Game.save.effectsQuality==0)
+                return;
+            int region=Game.save.room;
+            // Citadel interiors and abyss dungeons have their own authored
+            // sources/light cues; do not paint outdoor fireflies across them.
+            if (region==4 || region==9) return;
+            if(effectSheet==null)RecoverPublishedVisualAtlases();
+            if(effectSheet==null)return;
+            int density=Game.save.effectsQuality==1?13:8;
+            float baseOpacity=Game.Night?.21f:.13f;
+            Color ink=region==0||region==1?
+                new Color(.80f,.95f,.67f,1f):region==2?
+                new Color(.77f,.89f,.90f,1f):region==3?
+                new Color(1f,.72f,.53f,1f):region==5?
+                new Color(.72f,.91f,1f,1f):region==6?
+                new Color(1f,.84f,.61f,1f):region==7?
+                new Color(.82f,.92f,1f,1f):
+                new Color(.88f,.81f,1f,1f);
+            int cx=(int)Math.Floor(camera.x/5f);
+            int cy=(int)Math.Floor(camera.y/5f);
+            for(int gy=cy-5;gy<=cy+5;gy++)
+                for(int gx=cx-5;gx<=cx+5;gx++)
+                {
+                    int seed=TileSeed(gx,gy,region);
+                    if(seed%density!=0)continue;
+                    Point anchor=new Point(gx*5f+.3f+
+                        (seed%337)/100f,gy*5f+.4f+
+                        ((seed/337)%371)/110f);
+                    // Camera pan changes only the projection, never the
+                    // source coordinate. Sine drift is < one painted pixel
+                    // in world space; the original source cell never warps.
+                    float phase=(seed%211)*.071f;
+                    float flicker=.5f+.5f*(float)Math.Sin(clock*.9f+phase);
+                    Point drift=anchor+new Point(
+                        (float)Math.Sin(clock*.35f+phase)*.06f,
+                        (float)Math.Sin(clock*.44f+phase*1.3f)*.08f);
+                    if(!WorldDrawable(drift.x,drift.y,18f,18f))continue;
+                    Point p=ScreenPoint(drift);
+                    float alpha=baseOpacity*(.25f+.75f*flicker);
+                    float size=region==7?9f:region==6?7f:8f;
+                    Atlas(effectSheet,4,4,13,
+                        new Rect(p.x-size*.5f,p.y-size*.5f,size,size),
+                        new Color(ink.r,ink.g,ink.b,alpha));
+                }
+        }
+
         private void DrawProjectileVisual(Projectile projectile)
         {
             if (effectSheet == null) RecoverPublishedVisualAtlases();
