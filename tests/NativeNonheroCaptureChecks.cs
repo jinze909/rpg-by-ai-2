@@ -541,6 +541,15 @@ public static class NativeNonheroCaptureChecks
                 Camera.RenderedTargets.Count==initialCaptures&&
                 ReferenceEquals(graphAnimator.runtimeAnimatorController,graphOld),
                 "Loading Actor Controller every repaint disturbed stable art");
+            // Old Controller had rejected its pose state; the newly
+            // published correct Controller must clear THIS family-only
+            // quarantine instead of retaining a stale 120-frame lockout.
+            var rejectionMap=(System.Collections.IDictionary)
+                typeof(FrontierRuntime).GetField(
+                    "actorNativeRejectedPoseUntil",BindingFlags.Instance|
+                    BindingFlags.NonPublic).GetValue(controllerProbe);
+            rejectionMap["Monsters:0"]=5100;
+            rejectionMap["WalkBossA:0"]=5100;
             Time.frameCount=4880;
             Require((bool)method.Invoke(controllerProbe,new object[]{
                 graphTexture,6,3,2,new Point(200,235),96f,
@@ -548,8 +557,10 @@ public static class NativeNonheroCaptureChecks
                 ReferenceEquals(graphAnimator.runtimeAnimatorController,nextGraph)&&
                 ReferenceEquals(GUI.DrawnTextures[
                     GUI.DrawnTextures.Count-1],firstNormal)&&
-                Camera.RenderedTargets.Count==initialCaptures+1,
-                "New native Controller did not repaint existing actor GPU pose");
+                Camera.RenderedTargets.Count==initialCaptures+1&&
+                !rejectionMap.Contains("Monsters:0")&&
+                rejectionMap.Contains("WalkBossA:0"),
+                "Corrected native Controller failed to unblock only its own rejected pose");
             // Normal and mirror MUST remain independent references. A
             // simultaneous old pending command cannot be overwritten.
             Require((bool)method.Invoke(controllerProbe,new object[]{
