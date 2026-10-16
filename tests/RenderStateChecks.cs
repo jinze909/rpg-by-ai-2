@@ -2522,6 +2522,102 @@ public static class RenderStateChecks
         }
     }
 
+    private static void OriginalCampfireFlameGetsRootedEmbers(
+        FrontierRuntime app,string folder)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        Texture2D fire=Get<Texture2D>(app,"fieldProps");
+        Texture2D flashes=Get<Texture2D>(app,"effectSheet");
+        Check(fire!=null&&flashes!=null,
+            "Actual accepted field and painted effect Sprite resources missing");
+        bool reduced=g.save.reducedMotion;
+        int quality=g.save.effectsQuality;
+        var look=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private).GetValue(app,null);
+        var field=look.GetType().GetField("emberFlickerAlpha",
+            BindingFlags.Instance|BindingFlags.Public);
+        Check(field!=null,"Campfire requires live author-editable light intensity");
+        float original=(float)field.GetValue(look);
+        try
+        {
+            g.save.reducedMotion=false;
+            g.save.effectsQuality=2;
+            Set(app,"clock",1.4f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==3,
+                "Campfire must contain one intact static body and two authored ember cells");
+            var before=GUI.textureCalls.ToArray();
+            Check(object.ReferenceEquals(before[0].texture,fire)&&
+                Math.Abs(before[0].uv.x-.25f)<.00001f&&
+                Math.Abs(before[0].uv.y)<.00001f,
+                "Fireplace lost the original complete FieldProps.png body");
+            Check(object.ReferenceEquals(before[1].texture,flashes)&&
+                object.ReferenceEquals(before[2].texture,flashes)&&
+                Math.Abs(before[1].uv.x-.25f)<.00001f&&
+                Math.Abs(before[1].uv.y)<.00001f&&
+                Math.Abs(before[2].uv.x-.75f)<.00001f&&
+                Math.Abs(before[2].uv.y-.75f)<.00001f&&
+                before[1].color.a>0f&&before[1].color.a<.32f,
+                "Ambient embers must use original illustrated contact cells and low alpha");
+            GUI.Export(folder,"review-authored-campfire-emissive");
+            Set(app,"clock",2.7f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==3&&
+                Math.Abs(GUI.textureCalls[0].rect.x-before[0].rect.x)<.0001f&&
+                Math.Abs(GUI.textureCalls[0].rect.y-before[0].rect.y)<.0001f&&
+                Math.Abs(GUI.textureCalls[0].uv.x-before[0].uv.x)<.00001f&&
+                Math.Abs(GUI.textureCalls[1].rect.y-before[1].rect.y)<=14.01f&&
+                Math.Abs(GUI.textureCalls[1].rect.y-before[1].rect.y)>.02f,
+                "Flicker displaced original fire body or animated discontinuously");
+            field.SetValue(look,original*.5f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(Math.Abs(GUI.textureCalls[1].color.a-
+                before[1].color.a*.5f)>.001f ||
+                Math.Abs(GUI.textureCalls[1].color.a-
+                before[1].color.a*.5f)<.25f,
+                "Artist-editable flame intensity must connect to actual renderer");
+            // Check ratio against SAME clock, not a different phase.
+            float halfAlpha=GUI.textureCalls[1].color.a;
+            field.SetValue(look,original);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(Math.Abs(halfAlpha-GUI.textureCalls[1].color.a*.5f)<.0001f,
+                "WorldLook ember brightness did not drive actual art");
+            g.save.effectsQuality=1;
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==2,
+                "Medium effects should keep one subtle source-art ember");
+            g.save.reducedMotion=true;
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==1&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,fire),
+                "Reduced motion must retain original static fire body without sparks");
+            g.save.reducedMotion=false;g.save.effectsQuality=0;
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==1,
+                "Low-FX must not remove the campsite nor emit fake embers");
+            Clear();Call(app,"DrawFieldProp","well",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==1,
+                "Ordinary solid environment props must not acquire fire particles");
+            Console.WriteLine(
+                "PASS original complete-body campfire + two source-painted ambient embers: world root, temporal drift, material, low-FX and reduced motion");
+        }
+        finally
+        {
+            field.SetValue(look,original);
+            g.save.reducedMotion=reduced;
+            g.save.effectsQuality=quality;
+        }
+    }
+
     private static void WaterKeepsItsHandPaintedTextureAcrossTides(FrontierRuntime app)
     {
         app.BeginVisualReview(5,1);
@@ -2708,6 +2804,7 @@ public static class RenderStateChecks
         string[] names={"treeSwayDegrees","palmSwayDegrees",
             "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
             "shorelineWashAlpha","shorelineTravelPixels",
+            "emberFlickerAlpha","emberLiftPixels",
             "lampRadius","nightLightAlpha","dayLightAlpha",
             "npcTalkLeanDegrees","escortWalkLeanDegrees",
             "escortHitLeanDegrees","combatWarningStrokePixels",
@@ -2740,7 +2837,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 30 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 32 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
@@ -2755,7 +2852,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
