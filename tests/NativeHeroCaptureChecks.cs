@@ -118,6 +118,17 @@ public static class NativeHeroCaptureChecks
             app.ProbeFrames=6;
             app.ProbeFrame=cell;
             app.ProbePosition=cell;
+            // Poison a reused OFFSCREEN Animator root and framing camera
+            // exactly as an old imported m_LocalPosition clip might do.
+            // The newly sampled native Sprite must remain rooted at the
+            // same original boot regardless of state/direction.
+            var staleRoot=rootField.GetValue(app) as GameObject;
+            var staleCam=cameraField.GetValue(app) as Camera;
+            Require(staleRoot!=null&&staleCam!=null,
+                "native hero capture rig disappeared");
+            staleRoot.transform.position=new Vector3(9018f,9100f,0f);
+            staleCam.transform.localPosition=new Vector3(3f,5f,-8f);
+            staleCam.aspect=1.6f;
             Animator.InjectOverscaledHeroOnce=true;
             bool northDraw=(bool)draw.Invoke(app,new object[]{
                 new Point(100,140),new Color(1,1,1,1),false,1,false});
@@ -131,6 +142,12 @@ public static class NativeHeroCaptureChecks
                 root.transform.localScale.z==1f&&
                 cam.transform.localScale.x==1f&&
                 cam.transform.localScale.y==1f&&
+                Math.Abs(root.transform.position.x-9000f)<.0001f&&
+                Math.Abs(root.transform.position.y-9000f)<.0001f&&
+                Math.Abs(cam.transform.localPosition.x)<.0001f&&
+                Math.Abs(cam.transform.localPosition.y-.875f)<.0001f&&
+                Math.Abs(cam.transform.localPosition.z+10f)<.0001f&&
+                Math.Abs(cam.aspect-1f)<.0001f&&
                 Math.Abs(cam.orthographicSize-1f)<.0001f,
                 "north action Animator magnified "+classes[cls]+
                 " action "+action+" frame "+cell);

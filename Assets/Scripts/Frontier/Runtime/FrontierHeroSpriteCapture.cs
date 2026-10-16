@@ -181,10 +181,22 @@ namespace Starfall
                 // artwork, boots or the actual game-world actor position.
                 heroCaptureRoot.transform.localScale =
                     new Vector3(1f,1f,1f);
+                // Renderer and Animator share this transform. A stale
+                // m_LocalPosition curve can shift the sampled hero 1-2 feet
+                // relative to the GameCore boot anchor even at correct scale.
+                // The offscreen root is deliberately remote from world play;
+                // never move or modify the actual hero world position.
+                heroCaptureRoot.transform.position =
+                    new Vector3(9000f,9000f,0f);
                 heroCaptureCamera.transform.localScale =
                     new Vector3(1f,1f,1f);
+                heroCaptureCamera.transform.localPosition =
+                    new Vector3(0f,
+                        (CanonicalHeroSpriteFactory.FootTop-HeroCell*.5f)/
+                        CanonicalHeroSpriteFactory.PixelsPerUnit,-10f);
                 heroCaptureCamera.orthographicSize =
                     HeroCell/(2f*CanonicalHeroSpriteFactory.PixelsPerUnit);
+                heroCaptureCamera.aspect=1f;
                 heroCaptureRenderer.flipX = flip;
                 // An E->W flip or windup->contact transition within a
                 // single GUI repaint must never overwrite an earlier queued
