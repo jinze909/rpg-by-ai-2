@@ -1374,8 +1374,15 @@ public static class RenderStateChecks
                     "A real "+side+" shoreline must paint old water and new foam once");
                 var old=GUI.textureCalls[0];
                 var painted=GUI.textureCalls[1];
+                // The offline Unity Resources stub creates a new Texture2D
+                // object per LOAD; actual Unity returns its shared imported
+                // subasset. Assert against the CURRENT validated production
+                // field after the timed recheck, not the stale pre-draw
+                // reference read before source import.
+                foam=Get<Texture2D>(app,"shorelineFoamSheet");
                 Check(object.ReferenceEquals(old.texture,source)&&
                     object.ReferenceEquals(painted.texture,foam)&&
+                    painted.texture.name=="resource:Frontier/Art/ShorelineFoam"&&
                     Math.Abs(painted.uv.width-.25f)<.00001f&&
                     Math.Abs(painted.uv.height-1f)<.00001f&&
                     painted.rect.width==32&&painted.rect.height==12&&
