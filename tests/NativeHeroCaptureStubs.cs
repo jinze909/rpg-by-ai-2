@@ -131,8 +131,21 @@ namespace UnityEngine
         public readonly int width,height;
         public RenderTexture(int width,int height,int depth,RenderTextureFormat format)
         { this.width=width; this.height=height; }
+        public static bool InjectCreateFailureOnce;
         public bool IsCreated() { return created; }
-        public void Create() { created=true; }
+        public bool Create()
+        {
+            // Unity's bool-returning RenderTexture.Create can reject GPU
+            // allocation without throwing. Model that real failure signal.
+            if (InjectCreateFailureOnce)
+            {
+                InjectCreateFailureOnce=false;
+                created=false;
+                return false;
+            }
+            created=true;
+            return true;
+        }
         public void Release() { created=false; releaseCount++; }
     }
     public class Behaviour : Component { public bool enabled; }
