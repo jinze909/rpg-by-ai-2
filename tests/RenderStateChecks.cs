@@ -1055,7 +1055,7 @@ public static class RenderStateChecks
         Color incoming=GUI.color;
         int verified=0;
         foreach(string kind in new[]{"lamp","lighthouse","crystal","root",
-            "fire","brazier","outerrelay"})
+            "fire","brazier","outerrelay","ore","mirror"})
         {
             g.save.reducedMotion=true;
             var root=new Point(12.25f,14.5f);
@@ -1070,8 +1070,35 @@ public static class RenderStateChecks
             Check(core.rect.width<outer.rect.width*.5f&&
                 core.rect.height<outer.rect.height*.5f,
                 "World lamps require a bounded core, not a massive flat overlay");
+            if(kind=="ore"||kind=="mirror")
+            {
+                var look=typeof(FrontierRuntime).GetProperty(
+                    "CurrentWorldVisualLook",Private).GetValue(app,null);
+                var radius=look.GetType().GetField("relicHaloRadius",
+                    BindingFlags.Instance|BindingFlags.Public);
+                var intensity=look.GetType().GetField("relicHaloAlpha",
+                    BindingFlags.Instance|BindingFlags.Public);
+                Check(radius!=null&&intensity!=null&&
+                    Math.Abs(outer.rect.width-(float)radius.GetValue(look))<.001f,
+                    "Reflective relic halo must be tuned from actual Unity WorldLook resource");
+                float original=(float)intensity.GetValue(look);
+                try
+                {
+                    intensity.SetValue(look,original*.5f);
+                    Clear();Call(app,"DrawWorldEmitter",root,kind,1f,229);
+                    Check(GUI.textureCalls.Count==2&&
+                        Math.Abs(GUI.textureCalls[0].color.a-
+                            outer.color.a*.5f)<.0001f,
+                        "Relic light intensity did not control actual world illumination");
+                }
+                finally{intensity.SetValue(look,original);}
+                Clear();Call(app,"DrawWorldEmitter",root,kind,1f,229);
+                outer=GUI.textureCalls[0];
+                core=GUI.textureCalls[1];
+            }
             float offset=kind=="lighthouse"?1.95f:kind=="lamp"?1.12f:
-                kind=="crystal"?.65f:kind=="root"?.45f:
+                kind=="crystal"?.65f:kind=="ore"?.66f:
+                kind=="mirror"?.70f:kind=="root"?.45f:
                 kind=="fire"||kind=="brazier"?.28f:.52f;
             var at=(Point)Call(app,"ScreenPoint",root-new Point(0,offset));
             Vector3 expected=canvas.MultiplyPoint3x4(
@@ -3093,6 +3120,7 @@ public static class RenderStateChecks
             "shorelineWashAlpha","shorelineTravelPixels",
             "emberFlickerAlpha","emberLiftPixels",
             "relicShimmerAlpha","relicShimmerRate",
+            "relicHaloRadius","relicHaloAlpha",
             "lampRadius","nightLightAlpha","dayLightAlpha",
             "npcTalkLeanDegrees","escortWalkLeanDegrees",
             "escortHitLeanDegrees","combatWarningStrokePixels",
@@ -3125,7 +3153,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 35 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 37 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // CI-executable resource integrity check, not merely an unused visual
