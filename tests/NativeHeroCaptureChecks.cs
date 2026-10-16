@@ -763,8 +763,11 @@ public static class NativeHeroCaptureChecks
                 "same-frame hero action render prematurely evicted queued images");
             Time.frameCount=31;
             heroCrowd.Game.AppearanceWeapon=1;
-            heroCrowd.ProbeAction=2;heroCrowd.ProbeFrames=6;
-            heroCrowd.ProbeFrame=2;heroCrowd.ProbePosition=2f;
+            // Action 6 was not in the initial 51 cached poses (0..50).
+            // A NEW capture is required to exercise eviction, rather
+            // than silently revisiting an already captured frame.
+            heroCrowd.ProbeAction=6;heroCrowd.ProbeFrames=4;
+            heroCrowd.ProbeFrame=1;heroCrowd.ProbePosition=1f;
             Require((bool)draw.Invoke(heroCrowd,new object[]{
                 new Point(100,140),Color.white,false,2,false})&&
                 crowdCache.Count<=48&&
