@@ -102,6 +102,7 @@ namespace UnityEngine
         // sprite release without touching accepted on-disk source art.
         public static readonly Dictionary<string,Texture2D> TextureOverrides =
             new Dictionary<string,Texture2D>();
+        public static int weatherWispImportLoads;
         public static T Load<T>(string p) where T:class
         {
             if(typeof(T)==typeof(TextAsset)) {
@@ -111,6 +112,7 @@ namespace UnityEngine
                 return new TextAsset {text="campaign"} as T;
             }
             if(typeof(T)==typeof(Texture2D)) {
+                if(p=="Frontier/Art/WeatherWisps")weatherWispImportLoads++;
                 Texture2D candidate;
                 if(TextureOverrides.TryGetValue(p,out candidate))
                     return candidate as T;

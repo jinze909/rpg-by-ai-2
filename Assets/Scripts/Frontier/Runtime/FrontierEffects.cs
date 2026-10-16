@@ -9,6 +9,8 @@ namespace Starfall
         // snow crystals. VFX remains world-rooted, never a stand-in for the
         // real character SpriteRenderer/Animator production architecture.
         private Texture2D weatherWispSheet;
+        private float weatherWispNextImportCheck=float.NegativeInfinity;
+        private float weatherWispLastImportClock=float.NegativeInfinity;
         // Biome-specific air motion uses genuine illustrated Effects.png
         // star/speck pixels. The old 18 looping, screen-space square boxes
         // looked identical in forest, snow and volcanic areas, and snapped
@@ -23,11 +25,23 @@ namespace Starfall
             // Citadel interiors and abyss dungeons have their own authored
             // sources/light cues; do not paint outdoor fireflies across them.
             if (region==4 || region==9) return;
-            if(weatherWispSheet==null)
-                weatherWispSheet=Resources.Load<Texture2D>(
-                    "Frontier/Art/WeatherWisps");
             bool authoredWisps=weatherWispSheet!=null &&
                 weatherWispSheet.width==96&&weatherWispSheet.height==24;
+            if(!authoredWisps &&
+               (clock<weatherWispLastImportClock ||
+                clock>=weatherWispNextImportCheck))
+            {
+                // During Unity art reimport a temporarily missing/wrong-
+                // dimension atlas must never leave permanent coarse VFX or
+                // trigger Resources.Load on EVERY world repaint. Re-attempt
+                // once per two seconds, including timeline/review rewind.
+                weatherWispLastImportClock=clock;
+                weatherWispNextImportCheck=clock+2f;
+                weatherWispSheet=Resources.Load<Texture2D>(
+                    "Frontier/Art/WeatherWisps");
+                authoredWisps=weatherWispSheet!=null &&
+                    weatherWispSheet.width==96&&weatherWispSheet.height==24;
+            }
             // Never blank out ambience if Unity has not imported the new
             // art yet. Its original approved Effects.png is a safe fallback.
             if(!authoredWisps)

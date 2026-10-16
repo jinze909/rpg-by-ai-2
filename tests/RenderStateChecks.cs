@@ -2130,23 +2130,53 @@ public static class RenderStateChecks
                         ambient[i].rect.y)<12f,
                     "biome wind disconnected its world-seeded Sprite");
         }
-        // A corrupt/missing sheet must fall back to approved Effects.png
-        // rather than turning all regions' air particles invisible.
+        // A corrupt/missing sheet must fall back to approved Effects.png,
+        // then adopt the REPAIRED original art after a bounded import
+        // cooldown. A permanently stale source disables the newest art
+        // for the entire scene, while loading it every repaint causes jank.
         var oldSource=Get<Texture2D>(app,"effectSheet");
-        Set(app,"weatherWispSheet",
-            new Texture2D(1,1,TextureFormat.RGBA32,false));
+        var invalid=new Texture2D(1,1,TextureFormat.RGBA32,false);
+        const string wispPath="Frontier/Art/WeatherWisps";
+        Resources.TextureOverrides[wispPath]=invalid;
+        Set(app,"weatherWispSheet",invalid);
         app.BeginVisualReview(0,1);
         game=app.Game;
         game.save.effectsQuality=2;
         game.save.reducedMotion=false;
-        Clear();Call(app,"DrawAuthoredAtmosphericMotes");
-        Check(oldSource!=null&&GUI.textureCalls.Count>0&&
-            GUI.textureCalls.TrueForAll(c=>
-                object.ReferenceEquals(c.texture,oldSource)&&
-                Math.Abs(c.uv.x-.25f)<.00001f&&
-                Math.Abs(c.uv.y)<.00001f),
-            "Malformed weather sprites must preserve approved Effects fallback");
-        Set(app,"weatherWispSheet",original);
+        Set(app,"clock",20f);
+        try
+        {
+            int beforeLoads=Resources.weatherWispImportLoads;
+            Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+            Check(Resources.weatherWispImportLoads==beforeLoads+1&&
+                oldSource!=null&&GUI.textureCalls.Count>0&&
+                GUI.textureCalls.TrueForAll(c=>
+                    object.ReferenceEquals(c.texture,oldSource)&&
+                    Math.Abs(c.uv.x-.25f)<.00001f&&
+                    Math.Abs(c.uv.y)<.00001f),
+                "Malformed imported weather art lost accepted Effects fallback");
+            Resources.TextureOverrides.Remove(wispPath);
+            Set(app,"clock",21f);
+            Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+            Check(Resources.weatherWispImportLoads==beforeLoads+1&&
+                GUI.textureCalls.Count>0&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,oldSource),
+                "Weather art retried every repaint instead of using fallback");
+            Set(app,"clock",22.2f);
+            Clear();Call(app,"DrawAuthoredAtmosphericMotes");
+            var refreshed=Get<Texture2D>(app,"weatherWispSheet");
+            Check(Resources.weatherWispImportLoads==beforeLoads+2&&
+                refreshed!=null&&refreshed.width==96&&refreshed.height==24&&
+                GUI.textureCalls.Count>0&&
+                object.ReferenceEquals(GUI.textureCalls[0].texture,refreshed)&&
+                Math.Abs(GUI.textureCalls[0].uv.x)<.00001f,
+                "Completed Unity weather import never restored original forest art");
+        }
+        finally
+        {
+            Resources.TextureOverrides.Remove(wispPath);
+            Set(app,"weatherWispSheet",original);
+        }
         // Return to the forest fixture for the reduced-motion guarantee.
         app.BeginVisualReview(0,1);
         game=app.Game;
