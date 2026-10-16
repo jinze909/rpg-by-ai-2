@@ -758,6 +758,71 @@ public static class RenderStateChecks
         Console.WriteLine("PASS "+count+
             " original full-body foliage variants: one draw, accurate pivots, reduced motion and preserved GUI state");
     }
+    // Covers the PRODUCTION DrawWorldDecoration -> DrawRootedPlant path,
+    // not just a hand-constructed direct wind pivot. Every accepted canopy
+    // must plant its actual 120/128 sprite pixel at the ground shadow's
+    // ScreenPoint while wind changes its rotation.
+    private static void WorldCanopyPaintedRootsMatchActualTerrain(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        bool priorReduced=game.save.reducedMotion;
+        int priorQuality=game.save.effectsQuality;
+        Matrix4x4 originalMatrix=GUI.matrix;
+        Color originalColor=GUI.color;
+        var atlas=Get<Texture2D>(app,"worldProps");
+        Check(atlas!=null,"Original WorldProps source missing for canopy");
+        try
+        {
+            var canvas=Matrix4x4.TRS(new Vector3(23f,41f,0f),
+                Quaternion.identity,new Vector3(1.5f,1.5f,1f));
+            GUI.matrix=canvas;
+            game.save.effectsQuality=2;
+            int count=0;
+            foreach(string kind in new[]{"tree","palm","snowpine"})
+            foreach(bool reduced in new[]{false,true})
+            {
+                game.save.reducedMotion=reduced;
+                var prop=new Decoration {kind=kind,x=12.45f,y=14.3f,
+                    variant=0};
+                var ground=(Point)Call(app,"ScreenPoint",
+                    new Point(prop.x,prop.y));
+                var planted=new Vector3(ground.x,ground.y,0f);
+                var expected=canvas.MultiplyPoint3x4(planted);
+                for(int frame=0;frame<2;frame++)
+                {
+                    Set(app,"clock",frame==0?3.5f:8.1f);
+                    Clear();
+                    Call(app,"DrawWorldDecoration",prop);
+                    var body=GUI.textureCalls.Find(c=>
+                        object.ReferenceEquals(c.texture,atlas));
+                    Check(body!=null&&
+                        Math.Abs(body.rect.width-body.rect.height)<.0001f,
+                        "Production canopy lost its intact square source Sprite");
+                    Check(Math.Abs(body.rect.x+body.rect.width*.5f-
+                        planted.x)<.001f &&
+                        Math.Abs(body.rect.y+body.rect.height*120f/128f-
+                        planted.y)<.001f,
+                        "Production canopy's illustrated trunk foot is not on its actual world anchor");
+                    Near(body.matrix.MultiplyPoint3x4(planted),expected,
+                        "Production canopy wind drifted the base off its shadow");
+                    Same(GUI.matrix,canvas,
+                        "Production canopy leaked world/camera transform");
+                    count++;
+                }
+            }
+            Console.WriteLine("PASS "+count+
+                " production canopy frames: original illustrated tree/palm/pine feet planted at exact terrain collision roots through wind and reduced-motion");
+        }
+        finally
+        {
+            GUI.matrix=originalMatrix;
+            GUI.color=originalColor;
+            game.save.reducedMotion=priorReduced;
+            game.save.effectsQuality=priorQuality;
+        }
+    }
     private static void GroundFoliageKeepsSourcePixelsAndRoot(
         FrontierRuntime app)
     {
@@ -2593,7 +2658,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
