@@ -17,6 +17,39 @@ OUT=ROOT/".starfall-checks/native-hero-compile"
 CAPTURE=ROOT/"Assets/Scripts/Frontier/Runtime/FrontierHeroSpriteCapture.cs"
 FACTORY=ROOT/"Assets/Scripts/Frontier/Runtime/CanonicalHeroSpriteFactory.cs"
 STUB=ROOT/"tests/NativeHeroCaptureStubs.cs"
+ACTORS=ROOT/"Assets/Scripts/Frontier/Runtime/FrontierActors.cs"
+GATE=OUT/"real-hero-contact-family.cs"
+
+
+def prepare_actual_contact_gate():
+    """Compile the actual, extracted FrontierActors publication method in
+    the strict native Sprite probe. Do not copy or reimplement its logic.
+    FrontierActors' unrelated world/UI methods need the full game runtime,
+    so only its unchanged real method body is injected into a partial class.
+    """
+    actors=ACTORS.read_text(encoding="utf-8")
+    begin="        private bool HasCompleteHeroContactArt()"
+    end="        private bool ResolveFullBodyHeroFrame("
+    assert actors.count(begin)==1 and actors.count(end)==1, (
+        "NATIVE_HERO_CONTACT_GATE_MOVED_OR_REMOVED",)
+    body=begin+actors.split(begin,1)[1].split(end,1)[0]
+    boilerplate=(
+        "using System;\nusing System.Collections.Generic;\n"
+        "using UnityEngine;\nnamespace Starfall {\n"
+        "public sealed partial class FrontierRuntime {\n"
+        "private float clock;\n"
+        "private bool heroContactFamilyChecked;\n"
+        "private bool heroContactFamilyComplete;\n"
+        "private float heroContactLastCheckedAt=float.NegativeInfinity;\n"
+        "private readonly Dictionary<string,Texture2D> fullBodyHeroSheetCache = "
+        "new Dictionary<string,Texture2D>();\n"
+        "private static readonly string[] FullHeroClasses = "
+        "{\"Vanguard\",\"Ranger\",\"Arcanist\"};\n"
+        "private static readonly string[] FullHeroFacings = {\"E\",\"N\",\"S\"};\n"
+    )
+    GATE.write_text(boilerplate+body+"\n}\n}\n",encoding="utf-8")
+
+
 
 
 def compiler():
@@ -33,6 +66,7 @@ def compile_native(source,out):
         "-target:library",
         "-out:"+str(out),
         str(STUB),
+        str(GATE),
         str(FACTORY),
         str(source),
     ]
@@ -42,6 +76,7 @@ def compile_native(source,out):
 
 def run():
     OUT.mkdir(parents=True,exist_ok=True)
+    prepare_actual_contact_gate()
     assert CAPTURE.is_file() and FACTORY.is_file() and STUB.is_file()
     good=compile_native(CAPTURE,OUT/"native-hero-real-source.dll")
     assert good.returncode==0, (
@@ -68,7 +103,7 @@ def run():
     exe=OUT/"native-hero-capture.exe"
     good_probe=subprocess.run(compiler()+[
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(exe),
-        str(STUB),str(FACTORY),str(CAPTURE),str(probe)],
+        str(STUB),str(GATE),str(FACTORY),str(CAPTURE),str(probe)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert good_probe.returncode==0,(
         "NATIVE_HERO_PROBE_COMPILE",good_probe.stdout)
@@ -89,7 +124,7 @@ def run():
     bad_exe=OUT/"broken-shared-hero-capture.exe"
     build_bad=subprocess.run(compiler()+[
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(bad_exe),
-        str(STUB),str(FACTORY),str(bad_path),str(probe)],
+        str(STUB),str(GATE),str(FACTORY),str(bad_path),str(probe)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert build_bad.returncode==0,(
         "NATIVE_HERO_FAULTED_BUILD",build_bad.stdout)
@@ -109,7 +144,7 @@ def run():
     wrong_exe=OUT/"broken-hero-action-timing.exe"
     built_wrong=subprocess.run(compiler()+[
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(wrong_exe),
-        str(STUB),str(FACTORY),str(wrong_path),str(probe)],
+        str(STUB),str(GATE),str(FACTORY),str(wrong_path),str(probe)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert built_wrong.returncode==0,(
         "HERO_ACTION_TIMING_MUTATION_INVALID",built_wrong.stdout)
@@ -131,7 +166,7 @@ def run():
     unstableExe=OUT/"broken-hero-repaint-cached-pose.exe"
     unstableCompile=subprocess.run(compiler()+[
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(unstableExe),
-        str(STUB),str(FACTORY),str(unstablePath),str(probe)],
+        str(STUB),str(GATE),str(FACTORY),str(unstablePath),str(probe)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert unstableCompile.returncode==0,(
         "HERO_REPAINT_MUTATION_BUILD_FAILED",unstableCompile.stdout)
@@ -151,7 +186,7 @@ def run():
     stuckExe=OUT/"broken-hero-animator-stuck.exe"
     builtStuck=subprocess.run(compiler()+[
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(stuckExe),
-        str(STUB),str(FACTORY),str(stuckPath),str(probe)],
+        str(STUB),str(GATE),str(FACTORY),str(stuckPath),str(probe)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert builtStuck.returncode==0,(
         "HERO_STALE_ANIMATOR_MUTATION_INVALID",builtStuck.stdout)
@@ -174,7 +209,7 @@ def run():
     oneShotExe=OUT/"broken-hero-controller-one-shot.exe"
     builtOneShot=subprocess.run(compiler()+[
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(oneShotExe),
-        str(STUB),str(FACTORY),str(oneShotPath),str(probe)],
+        str(STUB),str(GATE),str(FACTORY),str(oneShotPath),str(probe)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert builtOneShot.returncode==0,(
         "HERO_CONTROLLER_RETRY_MUTATION_INVALID",builtOneShot.stdout)
@@ -195,7 +230,7 @@ def run():
     permanentExe=OUT/"broken-permanent-hero-gpu.exe"
     gpuCompile=subprocess.run(compiler()+[
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(permanentExe),
-        str(STUB),str(FACTORY),str(permanentPath),str(probe)],
+        str(STUB),str(GATE),str(FACTORY),str(permanentPath),str(probe)],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert gpuCompile.returncode==0,(
         "HERO_GPU_RECOVERY_MUTATION_INVALID",gpuCompile.stdout)
