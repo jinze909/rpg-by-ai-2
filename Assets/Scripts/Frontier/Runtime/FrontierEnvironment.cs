@@ -167,6 +167,52 @@ namespace Starfall
                 new Color(1f,1f,1f,alpha*worldActorOpacity));
         }
 
+
+        // An original 3-biome x 8-pose transparent CANOPY highlight atlas.
+        // This is foliage/weather decoration, not a second tree body or a
+        // SpriteRenderer-driven character. The accepted WorldProps tree keeps
+        // its unchanged 120/128 rooted foot, original texture and occlusion.
+        private Texture2D canopyWhispersSheet;
+        private float canopyWhispersLastChecked=float.NegativeInfinity;
+        private float canopyWhispersNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredCanopyWhispers(Decoration prop,Point foot,
+            float originalSize,Color bodyTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality<2)return;
+            if(clock<canopyWhispersLastChecked||
+                clock>=canopyWhispersNextCheck)
+            {
+                canopyWhispersLastChecked=clock;
+                canopyWhispersNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/CanopyWhispers");
+                // Keep last verified full family throughout a partial Editor
+                // import. Never expose a truncated cell or hide the old tree.
+                if(candidate!=null&&candidate.width==256&&
+                    candidate.height==96)canopyWhispersSheet=candidate;
+            }
+            if(canopyWhispersSheet==null||
+                canopyWhispersSheet.width!=256||
+                canopyWhispersSheet.height!=96)return;
+            int row=prop.kind=="palm"?1:prop.kind=="snowpine"?2:0;
+            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),
+                Game.save.room);
+            float rate=CurrentWorldVisualLook.canopyWhisperFrameRate;
+            int frame=((int)Math.Floor(clock*rate+
+                (seed%29)*.23f)%8+8)%8;
+            float alpha=CurrentWorldVisualLook.canopyWhisperAlpha*
+                bodyTint.a*(Game.Night?.78f:1f);
+            // All eight frames share one unchanged 32px transparent canvas.
+            // Their artwork moves within it, while the draw origin stays on
+            // the same tree crown rooted to the original shadow/terrain.
+            float width=originalSize*.54f;
+            Rect crown=new Rect(foot.x-width*.5f,
+                foot.y-originalSize*.64f-width*.5f,width,width);
+            Atlas(canopyWhispersSheet,8,3,row*8+frame,crown,
+                new Color(1f,1f,1f,alpha));
+        }
+
         // Source-preserving shoreline animation: one subdued crest sampled
         // from the existing high-detail 48px water painting, never a coarse
         // newly drawn rectangle. Its center stays anchored to the authored

@@ -138,3 +138,9 @@ shoreFoamFrameRate=3.6
 # precise world-radius warning ring remains unchanged and always visible.
 castSigilAlpha=0.68
 castSigilBossPixels=58
+
+# Three-biome (deciduous/palm/frost) 24-frame original illustrated
+# canopy glints use a rooted 32px overlay on each EXISTING WorldProps tree.
+# The body stays intact. Low FX and Reduced Motion omit added movement.
+canopyWhisperAlpha=0.53
+canopyWhisperFrameRate=5.5

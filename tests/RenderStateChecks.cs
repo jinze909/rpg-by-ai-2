@@ -3887,6 +3887,129 @@ public static class RenderStateChecks
     }
 
 
+    // Actual depth-sorted tree/palm/snowpine production path: original
+    // accepted WorldProps remains unchanged while 24 painted transparent
+    // canopy overlay frames select the biome and share a stationary crown.
+    public static void VerifyCanopyWhispersInProduction(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        bool originalMotion=game.save.reducedMotion;
+        int originalQuality=game.save.effectsQuality;
+        float oldX=game.save.x,oldY=game.save.y;
+        const string key="Frontier/Art/CanopyWhispers";
+        Texture2D oldOverride;
+        bool had=Resources.TextureOverrides.TryGetValue(key,out oldOverride);
+        var original=Get<Texture2D>(app,"worldProps");
+        var look=typeof(FrontierRuntime).GetProperty(
+            "CurrentWorldVisualLook",Private).GetValue(app,null);
+        var alphaField=look.GetType().GetField("canopyWhisperAlpha");
+        float originalAlpha=(float)alphaField.GetValue(look);
+        Texture2D accepted=null;
+        try
+        {
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=2;
+            game.save.x=30f;game.save.y=30f;
+            int count=0;
+            foreach(string kind in new[]{"tree","palm","snowpine"})
+            {
+                var plant=new Decoration{kind=kind,x=12f,y=14f};
+                Set(app,"clock",10f);Clear();
+                Call(app,"DrawWorldDecoration",plant);
+                accepted=Get<Texture2D>(app,"canopyWhispersSheet");
+                Check(accepted!=null&&accepted.width==256&&
+                    accepted.height==96,"Original canopy 24-cell source not imported");
+                var body=GUI.textureCalls.Find(c=>
+                    object.ReferenceEquals(c.texture,original));
+                var glint=GUI.textureCalls.Find(c=>
+                    object.ReferenceEquals(c.texture,accepted));
+                Check(body!=null&&glint!=null,
+                    "Real sorted WorldProps tree lost its original body or 8-frame canopy accent");
+                float row=kind=="palm"?1:kind=="snowpine"?2:0;
+                Check(Math.Abs(glint.uv.y-(1f-(row+1f)/3f))<.0001f&&
+                    Math.Abs(glint.uv.height-1f/3f)<.0001f&&
+                    Math.Abs(glint.uv.width-1f/8f)<.0001f,
+                    "Wrong authored deciduous/coastal/frost frame in production");
+                var first=glint;
+                var baselineAlpha=glint.color.a;
+                Set(app,"clock",10.65f);Clear();
+                Call(app,"DrawWorldDecoration",plant);
+                glint=GUI.textureCalls.Find(c=>
+                    object.ReferenceEquals(c.texture,accepted));
+                Check(glint!=null&&
+                    Math.Abs(first.uv.x-glint.uv.x)>.0001f&&
+                    Math.Abs(first.rect.x-glint.rect.x)<.0001f&&
+                    Math.Abs(first.rect.y-glint.rect.y)<.0001f,
+                    "Animation was frozen or uprooted the tree crown between keyframes");
+                alphaField.SetValue(look,originalAlpha*.5f);
+                Clear();Call(app,"DrawWorldDecoration",plant);
+                glint=GUI.textureCalls.Find(c=>
+                    object.ReferenceEquals(c.texture,accepted));
+                Check(glint!=null&&
+                    Math.Abs(glint.color.a-baselineAlpha*.5f)<.0001f,
+                    "WorldLook alpha did not reach live canopy Sprite");
+                alphaField.SetValue(look,originalAlpha);
+                count++;
+            }
+            var tree=new Decoration{kind="tree",x=12f,y=14f};
+            game.save.reducedMotion=true;Clear();
+            Call(app,"DrawWorldDecoration",tree);
+            Check(!GUI.textureCalls.Exists(c=>
+                object.ReferenceEquals(c.texture,accepted))&&
+                GUI.textureCalls.Exists(c=>object.ReferenceEquals(c.texture,original)),
+                "Reduced Motion lost the original tree or kept moving overlay");
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=1;Clear();
+            Call(app,"DrawWorldDecoration",tree);
+            Check(!GUI.textureCalls.Exists(c=>
+                object.ReferenceEquals(c.texture,accepted)),
+                "Low FX wasted extra canopy VFX draw");
+            game.save.effectsQuality=2;
+            game.save.x=12f;game.save.y=13f;
+            Clear();Call(app,"DrawWorldDecoration",tree);
+            var occluded=GUI.textureCalls.Find(c=>
+                object.ReferenceEquals(c.texture,accepted));
+            Check(occluded!=null&&
+                occluded.color.a<originalAlpha*.5f,
+                "Leaf accents must fade with their accepted covering tree, never hide actors");
+            game.save.x=30f;game.save.y=30f;
+            Resources.TextureOverrides[key]=new Texture2D(
+                255,96,TextureFormat.RGBA32,false){name="partial-canopy-import"};
+            Set(app,"clock",18f);Clear();
+            Call(app,"DrawWorldDecoration",tree);
+            Check(GUI.textureCalls.Exists(c=>object.ReferenceEquals(c.texture,accepted)),
+                "Incomplete imported canopy art replaced last valid complete family");
+            var replacement=new Texture2D(256,96,TextureFormat.RGBA32,false){
+                name="accepted-canopy-reimport"};
+            Resources.TextureOverrides[key]=replacement;
+            Set(app,"clock",21f);Clear();
+            Call(app,"DrawWorldDecoration",tree);
+            Check(GUI.textureCalls.Exists(c=>object.ReferenceEquals(c.texture,replacement)),
+                "Imported corrected 24-cell canopy never reached the actual tree");
+            Resources.TextureOverrides[key]=accepted;
+            Set(app,"clock",0f);Clear();
+            Call(app,"DrawWorldDecoration",tree);
+            Check(GUI.textureCalls.Exists(c=>object.ReferenceEquals(c.texture,accepted)),
+                "Rewound scene clock preserved stale foliage after an art repair");
+            Console.WriteLine("PASS "+count+
+                " original 8-frame canopy species, stable crown root, actual depth occlusion, low FX, reduced motion and atomic reimport");
+        }
+        finally
+        {
+            if(had)Resources.TextureOverrides[key]=oldOverride;
+            else Resources.TextureOverrides.Remove(key);
+            Set(app,"canopyWhispersSheet",accepted);
+            Set(app,"canopyWhispersLastChecked",float.NegativeInfinity);
+            Set(app,"canopyWhispersNextCheck",float.NegativeInfinity);
+            alphaField.SetValue(look,originalAlpha);
+            game.save.reducedMotion=originalMotion;
+            game.save.effectsQuality=originalQuality;
+            game.save.x=oldX;game.save.y=oldY;
+            Clear();
+        }
+    }
+
     // Runnable through the main C# CI lane. Validate the entire real
     // PropImage body/lit full-frame animation and complete/rejected hot
     // reimport, rather than only inspecting an isolated PNG atlas.
@@ -3974,7 +4097,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
