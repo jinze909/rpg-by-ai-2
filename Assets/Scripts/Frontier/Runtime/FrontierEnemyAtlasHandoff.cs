@@ -79,7 +79,12 @@ namespace Starfall
             }
             else if(!sameRoom||!closeEnough||clock<state.startedAt||
                     Game.save.reducedMotion||Game.save.effectsQuality==0||
-                    enemy.state==1||enemy.releaseTime>0f)
+                    // A live hit-flash, turned actor or ongoing contact must
+                    // not inherit a stale old-facing silhouette under the
+                    // next fully authored frame. Cancel, never rewind.
+                    state.flip!=flip||enemy.flash>0f||
+                    enemy.hp<=0f||enemy.state==1||
+                    enemy.releaseTime>0f)
                 state.active=false;
             // Record the LAST authored cell for the next true source change.
             // This does not affect death snapshots or actual action clocks.
