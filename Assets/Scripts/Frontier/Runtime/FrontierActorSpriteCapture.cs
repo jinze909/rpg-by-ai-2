@@ -27,6 +27,9 @@ namespace Starfall
             // The GPU capture may initially contain the lossless whole-body
             // fallback while Unity finishes importing a native Controller.
             internal bool nativeClipVerified;
+            // A complete SpriteImporter refresh changed the source pixels.
+            // Preserve an already queued GUI draw and recapture next repaint.
+            internal bool sourceDirty;
         }
         private const int MaxCachedActorFrames = 192;
         // Limit estimated color + 16-bit depth GPU targets as well as count.
@@ -47,6 +50,8 @@ namespace Starfall
         // complete, frame-rect verified sets for the 17 native families.
         private readonly Dictionary<int,Sprite[]> actorImportedFrameSets =
             new Dictionary<int,Sprite[]>();
+        private readonly Dictionary<int,int> actorImportedRecheckAt =
+            new Dictionary<int,int>();
         // Partial Editor SpriteImporter updates are common during art builds.
         // Do not rescan every imported Sprite for each unseen movement or
         // Boss attack cell while a family is incomplete; retry in 120 frames.
@@ -147,39 +152,76 @@ namespace Starfall
                     }
                     actorFrameSprites.Add(key,sprite);
                 }
-                else if(actorOwnedFrameSprites.Contains(sprite))
+                else
                 {
-                    // The fallback frame can remain cached for hours after
-                    // a previously incomplete SpriteImporter recovers. Check
-                    // at the bounded retry interval and upgrade ALL views
-                    // of the same original cell without a scene restart.
-                    // Never change a Sprite while a GUI capture referencing
-                    // it is still queued for THIS repaint.
-                    CapturedActorFrame normal,mirrored;
-                    bool pending =
-                        actorCapturedFrames.TryGetValue(key+":normal",out normal)&&
-                            normal.lastUsedFrame==Time.frameCount ||
-                        actorCapturedFrames.TryGetValue(key+":flipped",out mirrored)&&
-                            mirrored.lastUsedFrame==Time.frameCount;
-                    if(!pending)
+                    // SpriteImporter may REPLACE an already accepted complete
+                    // family while the game runs. Old native sprites and GPU
+                    // targets otherwise stay cached forever. Inspect at most
+                    // once per 180 frames per atlas, but apply a validated
+                    // new family to every visited frame (including mirrors).
+                    int id=sheet.GetInstanceID();
+                    Sprite[] accepted;
+                    int recheckAt;
+                    bool familyAccepted=actorImportedFrameSets.TryGetValue(
+                        id,out accepted);
+                    bool refresh=familyAccepted &&
+                        actorImportedRecheckAt.TryGetValue(id,out recheckAt)&&
+                        Time.frameCount>=recheckAt;
+                    bool changed=familyAccepted &&
+                        accepted[frame]!=sprite;
+                    bool needsFallback=!familyAccepted &&
+                        actorImportedRetryAt.ContainsKey(id);
+                    bool owned=actorOwnedFrameSprites.Contains(sprite);
+                    if(owned||refresh||changed||needsFallback)
                     {
-                        Sprite imported=FindImportedActorFrame(sheet,columns,
-                            rows,frame,width,height);
-                        if(imported!=null)
+                        CapturedActorFrame normal,mirrored;
+                        bool pending =
+                            actorCapturedFrames.TryGetValue(
+                                key+":normal",out normal)&&
+                                normal.lastUsedFrame==Time.frameCount ||
+                            actorCapturedFrames.TryGetValue(
+                                key+":flipped",out mirrored)&&
+                                mirrored.lastUsedFrame==Time.frameCount;
+                        if(!pending)
                         {
-                            actorFrameSprites[key]=imported;
-                            actorOwnedFrameSprites.Remove(sprite);
-                            if(actorCaptureRenderer!=null&&
-                                actorCaptureRenderer.sprite==sprite)
-                                actorCaptureRenderer.sprite=null;
-                            Destroy(sprite); // never an imported Resources Sprite
-                            sprite=imported;
-                            if(actorCapturedFrames.TryGetValue(
-                                key+":normal",out normal))
-                                normal.nativeClipVerified=false;
-                            if(actorCapturedFrames.TryGetValue(
-                                key+":flipped",out mirrored))
-                                mirrored.nativeClipVerified=false;
+                            Sprite next=FindImportedActorFrame(sheet,columns,
+                                rows,frame,width,height);
+                            if(next==null&&!owned)
+                            {
+                                // A partial atlas is NEVER mixed with the
+                                // old accepted cells. Hold only the exact
+                                // original rectangular source painting.
+                                int x=frame%columns*width;
+                                int y=sheet.height-
+                                    (frame/columns+1)*height;
+                                next=Sprite.Create(sheet,
+                                    new Rect(x,y,width,height),
+                                    new Vector2(.5f, 1f - 120f / 128f),
+                                    height,0,SpriteMeshType.FullRect);
+                                actorOwnedFrameSprites.Add(next);
+                            }
+                            if(next!=null&&next!=sprite)
+                            {
+                                actorFrameSprites[key]=next;
+                                if(actorOwnedFrameSprites.Remove(sprite))
+                                    Destroy(sprite);
+                                if(actorCaptureRenderer!=null&&
+                                    actorCaptureRenderer.sprite==sprite)
+                                    actorCaptureRenderer.sprite=null;
+                                sprite=next;
+                                if(actorCapturedFrames.TryGetValue(
+                                    key+":normal",out normal))
+                                {
+                                    normal.nativeClipVerified=false;
+                                    normal.sourceDirty=true;
+                                }
+                                if(actorCapturedFrames.TryGetValue(
+                                    key+":flipped",out mirrored))
+                                {
+                                    mirrored.nativeClipVerified=false;
+                                    mirrored.sourceDirty=true;
+                                }
+                            }
                         }
                     }
                 }
@@ -226,7 +268,16 @@ namespace Starfall
                         // This also safely falls back to the whole source
                         // Sprite if Unity lost its native Controller.
                         entry.nativeClipVerified = false;
+                        entry.sourceDirty = false;
                         needsRender = true; // device/context loss
+                    }
+                    else if(entry.sourceDirty&&!alreadySubmitted)
+                    {
+                        // Asset reimport replacement uses this SAME GPU
+                        // target only when prior GUI submissions are done.
+                        entry.nativeClipVerified=false;
+                        entry.sourceDirty=false;
+                        needsRender=true;
                     }
                     else if (!entry.nativeClipVerified && !alreadySubmitted &&
                              NativeActorEligible(sheet, columns, rows) &&
@@ -312,7 +363,15 @@ namespace Starfall
             if(!NativeActorEligible(source,columns,rows))return null;
             int atlasId=source.GetInstanceID();
             Sprite[] cells;
-            if(!actorImportedFrameSets.TryGetValue(atlasId,out cells))
+            if(actorImportedFrameSets.TryGetValue(atlasId,out cells))
+            {
+                int due;
+                if(!actorImportedRecheckAt.TryGetValue(atlasId,out due)||
+                    Time.frameCount<due)return cells[frame];
+                // A complete family is republished ATOMICALLY: validate
+                // every source-pixel footprint before replacing any cell.
+                actorImportedFrameSets.Remove(atlasId);
+            }
             {
                 int retryAt;
                 if(actorImportedRetryAt.TryGetValue(atlasId,out retryAt)&&
@@ -358,6 +417,7 @@ namespace Starfall
                     return null;
                 }
                 actorImportedRetryAt.Remove(atlasId);
+                actorImportedRecheckAt[atlasId]=Time.frameCount+180;
                 cells=ordered;
                 actorImportedFrameSets.Add(atlasId,cells);
             }
@@ -545,6 +605,7 @@ namespace Starfall
             actorOwnedFrameSprites.Clear();
             actorFrameSprites.Clear();
             actorImportedFrameSets.Clear();
+            actorImportedRecheckAt.Clear();
             actorImportedRetryAt.Clear();
             actorNativeControllers.Clear();
             actorNativeSource.Clear();
