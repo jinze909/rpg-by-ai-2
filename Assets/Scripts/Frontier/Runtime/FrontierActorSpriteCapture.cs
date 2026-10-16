@@ -43,6 +43,12 @@ namespace Starfall
             new Dictionary<string, CapturedActorFrame>();
         private readonly Dictionary<string, Sprite> actorFrameSprites =
             new Dictionary<string, Sprite>();
+        // Imported Unity Sprite sub-assets are shared, not owned. Cache
+        // complete, frame-rect verified sets for the 17 native families.
+        private readonly Dictionary<int,Sprite[]> actorImportedFrameSets =
+            new Dictionary<int,Sprite[]>();
+        private readonly HashSet<Sprite> actorOwnedFrameSprites =
+            new HashSet<Sprite>();
         // An actual imported SpriteRenderer.m_Sprite curve can drive any
         // verified four-column authored actor family. GameCore, not Animator,
         // owns the row and exact frame (windup/release/hit/death/dialogue).
@@ -123,11 +129,18 @@ namespace Starfall
                 {
                     int x = frame % columns * width;
                     int y = sheet.height - (frame / columns + 1) * height;
-                    sprite = Sprite.Create(sheet,
-                        new Rect(x, y, width, height),
-                        new Vector2(.5f, 1f - 120f / 128f),
-                        height, 0, SpriteMeshType.FullRect);
-                    actorFrameSprites.Add(key, sprite);
+                    sprite = FindImportedActorFrame(sheet,columns,rows,
+                        frame,width,height);
+                    if(sprite==null)
+                    {
+                        // Incomplete or invalid native art may still be
+                        // shown as the SAME whole authored source cell.
+                        sprite=Sprite.Create(sheet,new Rect(x,y,width,height),
+                            new Vector2(.5f,1f-120f/128f),
+                            height,0,SpriteMeshType.FullRect);
+                        actorOwnedFrameSprites.Add(sprite);
+                    }
+                    actorFrameSprites.Add(key,sprite);
                 }
                 string captureKey = key + (flip ? ":flipped" : ":normal");
                 CapturedActorFrame entry;
@@ -242,6 +255,52 @@ namespace Starfall
                 ReleaseActorCapture();
                 return false;
             }
+        }
+
+        private Sprite FindImportedActorFrame(Texture2D source,int columns,
+            int rows,int frame,int width,int height)
+        {
+            if(!NativeActorEligible(source,columns,rows))return null;
+            int atlasId=source.GetInstanceID();
+            Sprite[] cells;
+            if(!actorImportedFrameSets.TryGetValue(atlasId,out cells))
+            {
+                Sprite[] published=Resources.LoadAll<Sprite>(
+                    "Frontier/Art/"+source.name);
+                if(published==null||published.Length<columns*rows)
+                    return null;
+                // LoadAll order is unspecified; index imported art using
+                // ORIGINAL atlas rectangles and published pixel-foot pivots.
+                // Do not transition one animation into a partially imported
+                // different cell family.
+                Sprite[] ordered=new Sprite[columns*rows];
+                int matched=0;
+                foreach(Sprite candidate in published)
+                {
+                    if(candidate==null||candidate.texture!=source||
+                        Mathf.Abs(candidate.rect.width-width)>.05f||
+                        Mathf.Abs(candidate.rect.height-height)>.05f||
+                        Mathf.Abs(candidate.pixelsPerUnit-height)>.05f||
+                        Vector2.Distance(candidate.pivot,new Vector2(
+                            width*.5f,height*(1f-120f/128f)))>.05f)
+                        continue;
+                    int col=Mathf.RoundToInt(candidate.rect.x/width);
+                    int row=Mathf.RoundToInt(
+                        (source.height-candidate.rect.y)/height-1f);
+                    if(col<0||col>=columns||row<0||row>=rows||
+                        Mathf.Abs(candidate.rect.x-col*width)>.05f||
+                        Mathf.Abs(candidate.rect.y-
+                            (source.height-(row+1)*height))>.05f)
+                        continue;
+                    int index=row*columns+col;
+                    if(ordered[index]!=null)continue;
+                    ordered[index]=candidate;matched++;
+                }
+                if(matched!=ordered.Length)return null;
+                cells=ordered;
+                actorImportedFrameSets.Add(atlasId,cells);
+            }
+            return cells[frame];
         }
 
         private static bool NativeActorEligible(Texture2D source, int columns,
@@ -364,7 +423,10 @@ namespace Starfall
                             if (actorCaptureRenderer != null &&
                                 actorCaptureRenderer.sprite == retired)
                                 actorCaptureRenderer.sprite = null;
-                            if (retired != null) Destroy(retired);
+                            // Resources Sprite sub-assets belong to Unity,
+                            // never to the temporary capture target cache.
+                            if(retired!=null&&actorOwnedFrameSprites.Remove(retired))
+                                Destroy(retired);
                         }
                     }
                 }
@@ -417,9 +479,11 @@ namespace Starfall
 
         private void ReleaseActorCapture()
         {
-            foreach (Sprite sprite in actorFrameSprites.Values)
-                if (sprite != null) Destroy(sprite);
+            foreach(Sprite sprite in actorOwnedFrameSprites)
+                if(sprite!=null)Destroy(sprite);
+            actorOwnedFrameSprites.Clear();
             actorFrameSprites.Clear();
+            actorImportedFrameSets.Clear();
             actorNativeControllers.Clear();
             actorNativeSource.Clear();
             actorNativeRetryAt.Clear();

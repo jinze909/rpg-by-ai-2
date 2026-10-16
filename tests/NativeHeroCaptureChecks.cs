@@ -60,7 +60,8 @@ public static class NativeHeroCaptureChecks
                 var sprites=new Sprite[lengths[cmd]];
                 for(int cell=0;cell<sprites.Length;cell++)
                     sprites[cell]=Sprite.Create(atlas,
-                        new Rect(cell*256,0,256,256),new Vector2(128,16),
+                        new Rect(cell*256,0,256,256),
+                        new Vector2(.5f,.0625f),
                         128f,0,SpriteMeshType.FullRect);
                 Resources.RegisteredSprites.Add(key,sprites);
             }

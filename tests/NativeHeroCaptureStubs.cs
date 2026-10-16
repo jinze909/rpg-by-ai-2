@@ -123,7 +123,10 @@ namespace UnityEngine
         public static Sprite Create(Texture2D texture,Rect rect,Vector2 pivot,
             float pixelsPerUnit,uint extrude,SpriteMeshType meshType)
         {
-            return new Sprite { texture=texture,rect=rect,pivot=pivot,
+            // Unity accepts NORMALIZED Sprite.Create pivots but exposes
+            // Sprite.pivot in source PIXELS, not 0..1 coordinates.
+            return new Sprite { texture=texture,rect=rect,
+                pivot=new Vector2(pivot.x*rect.width,pivot.y*rect.height),
                 pixelsPerUnit=pixelsPerUnit };
         }
     }
@@ -253,7 +256,7 @@ namespace UnityEngine
                 InjectWrongSpriteOnce=false;
                 targetRenderer.sprite=Sprite.Create(
                     new Texture2D(256,256,TextureFormat.RGBA32,false),
-                    new Rect(0,0,256,256),new Vector2(128,16),128f,0,
+                    new Rect(0,0,256,256),new Vector2(.5f,.0625f),128f,0,
                     SpriteMeshType.FullRect);
             }
             else targetRenderer.sprite=frames[slot];
