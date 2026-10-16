@@ -361,6 +361,60 @@ public static class NativeNonheroCaptureChecks
                 !slices[cells[cells.Length-1]].destroyed,
                 "Accepted original actor Sprite destroyed on cleanup");
         }
+        // Adversarial partial Unity SpriteImporter refresh: corrupt ONE
+        // cell's pivot and keep the other 17 valid. Reusing imported cells
+        // for part of the family would leak a raised-foot enemy silhouette
+        // when animation reaches the malformed cell. Fall back atomically
+        // to the exact source pixels and NEVER own/destroy the source art.
+        string guardedFamily="Frontier/Art/Monsters";
+        var acceptedFrames=Resources.RegisteredSprites[guardedFamily];
+        var partial=(Sprite[])acceptedFrames.Clone();
+        var damaged=acceptedFrames[4];
+        partial[4]=Sprite.Create(damaged.texture,damaged.rect,
+            new Vector2(.5f,.25f),damaged.pixelsPerUnit,0,
+            SpriteMeshType.FullRect);
+        Resources.RegisteredSprites[guardedFamily]=partial;
+        try
+        {
+            var corrupt=new FrontierRuntime();
+            var originalMonsters=(Texture2D)Resources.Registered[guardedFamily];
+            var sourceCells=(System.Collections.IDictionary)
+                typeof(FrontierRuntime).GetField("actorFrameSprites",
+                    BindingFlags.Instance|BindingFlags.NonPublic).
+                    GetValue(corrupt);
+            Time.frameCount=1790;
+            Require((bool)method.Invoke(corrupt,new object[]{
+                originalMonsters,6,3,2,new Point(180,210),96f,
+                Color.white,false,0f}),
+                "Partial imported atlas made the real original monster invisible");
+            string goodKey=originalMonsters.GetInstanceID()+":6:3:2";
+            var safeCell=sourceCells[goodKey] as Sprite;
+            Require(safeCell!=null&&!ReferenceEquals(safeCell,acceptedFrames[2])&&
+                ReferenceEquals(safeCell.texture,originalMonsters),
+                "One wrong importer foot pivot was not rejected for WHOLE atlas");
+            Time.frameCount=1791;
+            Require((bool)method.Invoke(corrupt,new object[]{
+                originalMonsters,6,3,4,new Point(180,210),96f,
+                Color.white,false,0f}),
+                "Actual malformed hit-frame must still show exact source cell");
+            var rendered=typeof(FrontierRuntime).GetField(
+                "actorCaptureRenderer",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(corrupt) as SpriteRenderer;
+            var animator=typeof(FrontierRuntime).GetField(
+                "actorCaptureAnimator",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(corrupt) as Animator;
+            var fallbackCell=sourceCells[
+                originalMonsters.GetInstanceID()+":6:3:4"] as Sprite;
+            Require(fallbackCell!=null&&rendered!=null&&
+                ReferenceEquals(rendered.sprite,fallbackCell)&&
+                animator!=null&&!animator.enabled,
+                "Malformed imported pose bypassed exact source/full-body fallback");
+            release.Invoke(corrupt,null);
+            Require(safeCell.destroyed&&fallbackCell.destroyed&&
+                !acceptedFrames[2].destroyed&&!damaged.destroyed,
+                "Owned wrapper cleanup incorrectly destroyed accepted Unity art");
+        }
+        finally { Resources.RegisteredSprites[guardedFamily]=acceptedFrames; }
         // A first-frame missing Controller must not permanently lock a
         // cached whole-body sprite out of the real Animator after import.
         var late=new FrontierRuntime();
