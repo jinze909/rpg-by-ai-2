@@ -452,7 +452,7 @@ namespace Starfall
                                     spriteId+":right",out cachedTarget))
                                     cachedTarget.sourceDirty=true;
                             }
-                    cells=candidates; // Unity-owned imported sub-assets.
+                    cells = candidates; // Unity-owned imported sub-assets.
                     heroPublishedIncomplete.Remove(key);
                 }
                 else
