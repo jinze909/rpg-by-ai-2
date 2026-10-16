@@ -294,6 +294,47 @@ namespace Starfall
             return complete;
         }
 
+        // The native Animator path rechecks installed Sprite families
+        // after an Editor import, but the exact whole-body GUI fallback
+        // previously held its FIRST Texture2D reference indefinitely.
+        // Recovery from a GPU failure could therefore resurrect stale
+        // Attack/Skill art until the next scene reload. Publish a complete
+        // replacement atomically, and keep the last validated body while
+        // an incoming import is missing or geometrically incomplete.
+        private readonly System.Collections.Generic.Dictionary<string,float>
+            fullBodyHeroRecheckAt =
+            new System.Collections.Generic.Dictionary<string,float>();
+        private Texture2D PublishedFullBodyHeroAtlas(string key,int frames)
+        {
+            int expectedWidth=frames*256;
+            Texture2D accepted;
+            bool cached=fullBodyHeroSheetCache.TryGetValue(key,out accepted)&&
+                accepted!=null&&accepted.width==expectedWidth&&
+                accepted.height==256;
+            float next;
+            if(!cached || !fullBodyHeroRecheckAt.TryGetValue(key,out next) ||
+                clock>=next)
+            {
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/HeroAnimator/Canonical/"+key);
+                // Never expose a partially imported 6/7-frame atlas,
+                // different class, or broken boot/cell canvas.
+                if(candidate!=null&&candidate.width==expectedWidth&&
+                    candidate.height==256)
+                {
+                    fullBodyHeroSheetCache[key]=candidate;
+                    accepted=candidate;
+                    cached=true;
+                }
+                // A failed source import does not delete the last valid
+                // whole-body class-owned Sprite. While missing entirely,
+                // retry on each draw (as before), so import recovery is fast.
+                if(cached)fullBodyHeroRecheckAt[key]=clock+2.5f;
+                else fullBodyHeroRecheckAt.Remove(key);
+            }
+            return cached?accepted:null;
+        }
+
         private bool ResolveFullBodyHeroFrame(bool moving,int facing,
             out int action,out int frames,out int index,out float position)
         {
@@ -356,16 +397,8 @@ namespace Starfall
             {
                 string key="Hero_"+FullHeroClasses[profession]+"_"+
                     FullHeroActions[action]+"_"+FullHeroFacings[facing];
-                Texture2D atlas;
-                if(!fullBodyHeroSheetCache.TryGetValue(key,out atlas)||atlas==null)
-                {
-                    atlas=Resources.Load<Texture2D>(
-                        "Frontier/HeroAnimator/Canonical/"+key);
-                    // Do not cache a missing import: allow Editor rebakes and
-                    // asset refresh to recover without restarting the scene.
-                    if(atlas!=null)fullBodyHeroSheetCache[key]=atlas;
-                }
-                if(atlas!=null&&atlas.width==frames*256&&atlas.height==256)
+                Texture2D atlas=PublishedFullBodyHeroAtlas(key,frames);
+                if(atlas!=null)
                 {
                     Atlas(atlas,frames,1,index,
                         new Rect(foot.x-96,foot.y-180,192,192),tint,flip);
@@ -376,14 +409,8 @@ namespace Starfall
             // Never resurface pre-remaster Player/Walk/Rear/South sprites.
             string idleKey="Hero_"+FullHeroClasses[profession]+"_Idle_"+
                 FullHeroFacings[facing];
-            Texture2D idle;
-            if(!fullBodyHeroSheetCache.TryGetValue(idleKey,out idle)||idle==null)
-            {
-                idle=Resources.Load<Texture2D>(
-                    "Frontier/HeroAnimator/Canonical/"+idleKey);
-                if(idle!=null)fullBodyHeroSheetCache[idleKey]=idle;
-            }
-            if(idle!=null&&idle.width==256&&idle.height==256)
+            Texture2D idle=PublishedFullBodyHeroAtlas(idleKey,1);
+            if(idle!=null)
             {
                 Atlas(idle,1,1,0,
                     new Rect(foot.x-96,foot.y-180,192,192),tint,flip);
@@ -407,15 +434,9 @@ namespace Starfall
             // by 192 before calling Actor(), accidentally drawing a ~0.5px
             // avatar for the inventory's 104px preview.
             string key="Hero_"+FullHeroClasses[profession]+"_Idle_S";
-            Texture2D published;
-            if(!fullBodyHeroSheetCache.TryGetValue(key,out published)||published==null)
-            {
-                published=Resources.Load<Texture2D>(
-                    "Frontier/HeroAnimator/Canonical/"+key);
-                if(published!=null)fullBodyHeroSheetCache[key]=published;
-            }
+            Texture2D published=PublishedFullBodyHeroAtlas(key,1);
             Rect bounds=new Rect(x-size/2f,y-size*240f/256f,size,size);
-            if(published!=null&&published.width==256&&published.height==256)
+            if(published!=null)
             {
                 Atlas(published,1,1,0,bounds,
                     drawingOutline?new Color(1f,.56f,.35f,.85f):Color.white);
