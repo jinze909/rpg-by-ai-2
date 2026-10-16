@@ -241,6 +241,10 @@ namespace UnityEngine
             {
                 InjectRotatedFadedHeroOnce=false;
                 targetRenderer.transform.localRotation=Quaternion.Euler(0f,0f,42f);
+                // A stale m_LocalPosition curve shifts the REAL source
+                // feet without changing either imported Sprite or pivot.
+                targetRenderer.transform.localPosition=
+                    new Vector3(1.5f,2.75f,-.3f);
                 targetRenderer.color=new Color(.3f,.6f,.1f,.15f);
             }
             string key="Frontier/HeroAnimator/Canonical/Hero_"+

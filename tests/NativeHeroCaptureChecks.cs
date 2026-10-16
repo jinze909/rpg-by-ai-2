@@ -147,6 +147,13 @@ public static class NativeHeroCaptureChecks
                 root.transform.localScale.y==1f&&
                 root.transform.localScale.z==1f&&
                 root.transform.localRotation.zAngle==0f&&
+                current.transform.localRotation.zAngle==0f&&
+                Math.Abs(current.transform.localPosition.x)<.0001f&&
+                Math.Abs(current.transform.localPosition.y)<.0001f&&
+                Math.Abs(current.transform.localPosition.z)<.0001f&&
+                Math.Abs(current.transform.localScale.x-1f)<.0001f&&
+                Math.Abs(current.transform.localScale.y-1f)<.0001f&&
+                Math.Abs(current.transform.localScale.z-1f)<.0001f&&
                 current.color.r==1f&&current.color.g==1f&&
                 current.color.b==1f&&current.color.a==1f&&
                 cam.transform.localRotation.zAngle==0f&&
@@ -159,7 +166,7 @@ public static class NativeHeroCaptureChecks
                 Math.Abs(cam.transform.localPosition.z+10f)<.0001f&&
                 Math.Abs(cam.aspect-1f)<.0001f&&
                 Math.Abs(cam.orthographicSize-1f)<.0001f,
-                "north action Animator magnified "+classes[cls]+
+                "north action Animator displaced/rotated/scaled the child body "+classes[cls]+
                 " action "+action+" frame "+cell);
             Require(Math.Abs(rect.width-192f)<.0001f&&
                 Math.Abs(rect.height-192f)<.0001f,
