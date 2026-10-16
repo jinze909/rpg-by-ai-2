@@ -1476,7 +1476,49 @@ public static class RenderStateChecks
                 Set(app,"shoreFoamCheckedAt",float.NegativeInfinity);
                 Set(app,"shoreFoamNextCheck",float.NegativeInfinity);
             }
-            Console.WriteLine("PASS four actual shore orientations with approved terrain + four painted pixel cells, low FX, reimport hold/recovery and clock rewind");
+            // Prove the editable source-controlled settings actually
+            // modulate the real production foam draw, not just parse text.
+            var visual=typeof(FrontierRuntime).GetProperty(
+                "CurrentWorldVisualLook",Private).GetValue(app,null);
+            var light=visual.GetType().GetField("shoreFoamAlpha",
+                BindingFlags.Public|BindingFlags.Instance);
+            var rate=visual.GetType().GetField("shoreFoamFrameRate",
+                BindingFlags.Public|BindingFlags.Instance);
+            Check(light!=null&&rate!=null,
+                "New source-controlled shoreline art controls not exposed");
+            float oldLight=(float)light.GetValue(visual);
+            float oldRate=(float)rate.GetValue(visual);
+            try
+            {
+                Set(app,"clock",2.12f);Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                var before=GUI.textureCalls[1];
+                light.SetValue(visual,oldLight*.5f);
+                Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                var dimmed=GUI.textureCalls[1];
+                Check(Math.Abs(dimmed.color.a-before.color.a*.5f)<.0001f,
+                    "Artist foam opacity was not used by actual world renderer");
+                light.SetValue(visual,oldLight);
+                rate.SetValue(visual,5f);
+                Clear();
+                Call(app,"DrawAuthoredShorelineWash",x,y,'~',
+                    new Point(230,180));
+                int seed=(int)Call(app,"PreparedTileSeed",x,y);
+                int expected=((int)Math.Floor(2.12f*5f+
+                    (seed%13)*.23f)%4+4)%4;
+                Check(Math.Abs(GUI.textureCalls[1].uv.x-
+                    expected*.25f)<.00001f,
+                    "Artist foam frame-rate failed to drive actual atlas cell selection");
+            }
+            finally
+            {
+                light.SetValue(visual,oldLight);
+                rate.SetValue(visual,oldRate);
+            }
+            Console.WriteLine("PASS four actual shore orientations, authoritative source pixels, art-directed foam rate/opacity, zero FX, reimport hold and clock rewind");
         }
         finally
         {
@@ -3287,6 +3329,7 @@ public static class RenderStateChecks
         string[] names={"treeSwayDegrees","palmSwayDegrees",
             "snowpineSwayDegrees","waterGlintAlpha","waterGlintRate",
             "shorelineWashAlpha","shorelineTravelPixels",
+            "shoreFoamAlpha","shoreFoamFrameRate",
             "emberFlickerAlpha","emberLiftPixels",
             "relicShimmerAlpha","relicShimmerRate",
             "relicHaloRadius","relicHaloAlpha",
@@ -3327,7 +3370,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 43 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 45 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,
