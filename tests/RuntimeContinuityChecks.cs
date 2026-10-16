@@ -82,6 +82,77 @@ public static class RuntimeContinuityChecks
         Prepare(app);ClearDraw();Call(app,"DrawProjectileVisual",new Projectile{position=app.Game.Position,velocity=new Point(12,0),friendly=true,visual="arrow"});Check(GUI.textureCalls.Count==1,"A newborn missile does not already have a full trail behind its bow");
         Console.WriteLine("PASS Fixed roots, independent canopy wind, common pixel grid, age-driven trails and contact-driven quiet footsteps (offline geometry/audio)");
     }
+
+    // Actual Frontier.unity runtime now paints grounded contact sprites in
+    // the world depth pass. Tests drive REAL GameCore walk distance/contacts,
+    // never a mocked free-running animation or save file modification.
+    static void GroundedMaterialFootfalls(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        Set(app,"camera",game.Position);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        var field=app.GetType().GetField("footfallMarks",Private);
+        Check(field!=null,"Material footfall scene producer missing");
+        var marks=(System.Collections.IList)field.GetValue(app);
+        Check(marks.Count==0,"Stationary actor generated phantom dust");
+        int initialContacts=game.footContacts;
+        for(int i=0;i<160;i++)
+        {
+            game.Tick(.02f,new Point(1,0));
+            Call(app,"AdvanceFootfallVisual",.02f);
+        }
+        Check(game.footContacts>initialContacts&&marks.Count>0&&
+              marks.Count<=12,
+            "Movement-driven world-footprint budget or GameCore contacts broken");
+        object drawn=marks[marks.Count-1];
+        var paintType=drawn.GetType();
+        var at=(Point)paintType.GetField("position",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        var surface=(string)paintType.GetField("surface",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        Check(surface=="grass"||surface=="stone"||surface=="sand"||
+              surface=="snow"||surface=="wood",
+            "Footsteps must use real terrain, not arbitrary visual variants");
+        ClearDraw();
+        Call(app,"DrawFootfallMark",drawn);
+        var calls=GUI.textureCalls.ToArray();
+        Check(calls.Length==1&&calls[0].texture.name==
+            "resource:Frontier/Art/Effects"&&calls[0].color.a>.005f&&
+            calls[0].color.a<=.45f,
+            "Paint source must remain low-alpha ORIGINAL accepted Effects.png");
+        float screenX=calls[0].rect.x, screenY=calls[0].rect.y;
+        Set(app,"camera",game.Position+new Point(1,0));
+        ClearDraw();Call(app,"DrawFootfallMark",drawn);
+        Check(GUI.textureCalls.Count==1&&
+            Math.Abs(GUI.textureCalls[0].rect.x-screenX+36f)<.01f&&
+            Math.Abs(GUI.textureCalls[0].rect.y-screenY)<.01f&&
+            ((Point)paintType.GetField("position",
+                BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn)-at).Length<.001f,
+            "Dust must remain planted in the world while camera moves");
+        game.save.reducedMotion=true;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,"Reduced motion left fading ground ghosts behind");
+        ClearDraw();Call(app,"DrawFootfallMark",drawn);
+        Check(GUI.textureCalls.Count==0,
+            "Accessibility mode must suppress contact motion completely");
+        game.save.reducedMotion=false;
+        game.save.effectsQuality=0;
+        for(int i=0;i<80;i++)
+        {
+            game.Tick(.02f,new Point(1,0));
+            Call(app,"AdvanceFootfallVisual",.02f);
+        }
+        Check(marks.Count==0,"Low-effects mode incorrectly allocates VFX");
+        game.save.effectsQuality=2;
+        game.mode="pause";
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,"Paused menu must never retain dust sprites");
+        Console.WriteLine("PASS GameCore-driven terrain foot contacts, source-illustrated world sprites, planted camera root, FX budget, reduced motion and pause");
+    }
+
     static void HudReadability(FrontierRuntime app,string folder)
     {
         Point[] pixels={new Point(220,100),new Point(1210,90),new Point(470,775),new Point(620,85),new Point(180,159)};
@@ -251,7 +322,7 @@ public static class RuntimeContinuityChecks
     }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }
