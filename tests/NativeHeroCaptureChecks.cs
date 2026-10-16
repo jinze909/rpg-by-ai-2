@@ -13,6 +13,89 @@ public static class NativeHeroCaptureChecks
     static void Require(bool ok,string why)
     { if(!ok) throw new Exception("HERO_CAPTURE_REGRESSION: "+why); }
 
+    // Actual Resources and the actual HasCompleteHeroContactArt publication
+    // gate: repeated six/seven-cell swaps must not leak runtime Sprite.Create
+    // wrappers, yet Unity-imported sub-assets must never be destroyed.
+    static void VerifyAtomicHeroFamilySwap(MethodInfo release,BindingFlags flags)
+    {
+        var app=new FrontierRuntime();
+        var kind=typeof(FrontierRuntime);
+        var gate=kind.GetMethod("HasCompleteHeroContactArt",flags);
+        var spritesField=kind.GetField("heroPublishedSprites",flags);
+        var ownedField=kind.GetField("heroOwnedPublishedSprites",flags);
+        var clockField=kind.GetField("clock",flags);
+        Require(gate!=null&&spritesField!=null&&ownedField!=null&&clockField!=null,
+            "atomic hero contact publish/cache gate missing");
+        var published=(Dictionary<string,Sprite[]>)spritesField.GetValue(app);
+        var owned=(HashSet<Sprite>)ownedField.GetValue(app);
+        var originals=new Dictionary<string,Texture2D>();
+        var temporaries=new List<Sprite>();
+        var imported=new List<Sprite>();
+        string[] classes={"Vanguard","Ranger","Arcanist"};
+        string[] facings={"E","N","S"};
+        try
+        {
+            foreach(string cls in classes)
+            foreach(string action in new[]{"Attack","Cast"})
+            foreach(string face in facings)
+            {
+                string key="Hero_"+cls+"_"+action+"_"+face;
+                string path="Frontier/HeroAnimator/Canonical/"+key;
+                var old=(Texture2D)Resources.Registered[path];
+                originals.Add(path,old);
+                // Preserve a real imported subasset in the stale cache: it
+                // is shared with the production Animator and is NOT ours.
+                var asset=Resources.RegisteredSprites[path][0];
+                imported.Add(asset);
+                var wrapper=Sprite.Create(old,new Rect(256,0,256,256),
+                    new Vector2(.5f,.0625f),128f,0,SpriteMeshType.FullRect);
+                temporaries.Add(wrapper);
+                owned.Add(wrapper);
+                published.Add(key,new[]{asset,wrapper});
+                Resources.Registered[path]=new Texture2D(7*256,256,
+                    TextureFormat.RGBA32,false);
+            }
+            Require((bool)gate.Invoke(app,null),
+                "all 18 valid seven-cell sheets did not switch atomically");
+            Require(published.Count==0&&owned.Count==0,
+                "six-to-seven-frame family swap retained stale cache owners");
+            foreach(var item in temporaries)
+                Require(item.destroyed,"runtime-owned Sprite leaked after publish");
+            foreach(var item in imported)
+                Require(!item.destroyed,"atomic publish destroyed imported Animator Sprite");
+            temporaries.Clear();
+            foreach(var pair in originals)
+            {
+                string key=pair.Key.Substring(
+                    "Frontier/HeroAnimator/Canonical/".Length);
+                var wrapper=Sprite.Create(
+                    (Texture2D)Resources.Registered[pair.Key],
+                    new Rect(0,0,256,256),new Vector2(.5f,.0625f),
+                    128f,0,SpriteMeshType.FullRect);
+                temporaries.Add(wrapper);
+                owned.Add(wrapper);
+                published.Add(key,new[]{wrapper});
+                Resources.Registered[pair.Key]=pair.Value;
+            }
+            clockField.SetValue(app,3f); // exceed the two-second family review
+            Require(!(bool)gate.Invoke(app,null),
+                "withdrawn action atlas did not roll back the entire family");
+            Require(published.Count==0&&owned.Count==0,
+                "seven-to-six-frame family rollback retained stale owners");
+            foreach(var item in temporaries)
+                Require(item.destroyed,
+                    "runtime-owned Sprite leaked after all-or-none rollback");
+            foreach(var item in imported)
+                Require(!item.destroyed,
+                    "contact rollback destroyed shared imported Hero Sprite");
+        }
+        finally
+        {
+            foreach(var pair in originals)Resources.Registered[pair.Key]=pair.Value;
+            release.Invoke(app,null);
+        }
+    }
+
     static void Main()
     {
         var app=new FrontierRuntime();
@@ -495,6 +578,7 @@ public static class NativeHeroCaptureChecks
         }
         Require(!originalCells[2].destroyed&&!rebaked[2].destroyed,
             "Canonical hot-refresh destroyed shared imported hero Sprite");
+        VerifyAtomicHeroFamilySwap(release,flags);
         release.Invoke(app,null);
         foreach(var target in textures)
             Require(target.releaseCount>0&&!target.IsCreated(),
