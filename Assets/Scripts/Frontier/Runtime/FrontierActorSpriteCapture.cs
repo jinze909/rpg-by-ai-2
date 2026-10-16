@@ -91,6 +91,12 @@ namespace Starfall
             new Dictionary<string,RuntimeAnimatorController>();
         private readonly Dictionary<string,int> actorNativeRetryAt =
             new Dictionary<string,int>();
+        // A changed AnimatorController can leave OLD GPU pose pixels in
+        // the capture cache even if every SpriteImporter cell is unchanged.
+        // Check the installed family infrequently; never churn Controllers
+        // on each actor repaint.
+        private readonly Dictionary<string,int> actorNativeControllerCheckAt =
+            new Dictionary<string,int>();
         private readonly Dictionary<string,int> actorNativeRejectedPoseUntil =
             new Dictionary<string,int>();
         private readonly Dictionary<string,Texture2D> actorNativeSource =
@@ -131,6 +137,7 @@ namespace Starfall
             try
             {
                 EnsureActorCapture();
+                RefreshNativeActorController(sheet,columns,rows);
                 frame = Math.Max(0, Math.Min(columns * rows - 1, frame));
                 string key = sheet.GetInstanceID() + ":" +
                     columns + ":" + rows + ":" + frame;
@@ -437,6 +444,40 @@ namespace Starfall
                 rows == NativeActorRowCounts[kind];
         }
 
+        // A NEW Unity AnimatorController import is distinct from a sprite
+        // atlas reimport: the original sprites and pivots may be identical
+        // while an AnimationClip/transition is modified. Without this
+        // bound check the old cached RenderTexture never re-samples native
+        // poses, even after the new controller is fully installed.
+        // Keep already submitted GUI textures intact until later repaints.
+        private void RefreshNativeActorController(Texture2D source,
+            int columns,int rows)
+        {
+            if(!NativeActorEligible(source,columns,rows))return;
+            string family=source.name;
+            RuntimeAnimatorController installed;
+            if(!actorNativeControllers.TryGetValue(family,out installed)||
+                installed==null)return;
+            int at;
+            if(actorNativeControllerCheckAt.TryGetValue(family,out at)&&
+                Time.frameCount<at&&Time.frameCount>=at-180)return;
+            actorNativeControllerCheckAt[family]=Time.frameCount+180;
+            RuntimeAnimatorController incoming=
+                Resources.Load<RuntimeAnimatorController>(
+                    "Frontier/Actors/Native/Actor_"+family);
+            // During an Editor import a temporarily missing controller is
+            // NOT permission to overwrite the last validated asset.
+            if(incoming==null||incoming==installed)return;
+            actorNativeControllers[family]=incoming;
+            string prefix=source.GetInstanceID()+":";
+            foreach(var frame in actorCapturedFrames)
+                if(frame.Key.StartsWith(prefix,StringComparison.Ordinal))
+                {
+                    frame.Value.sourceDirty=true;
+                    frame.Value.nativeClipVerified=false;
+                }
+        }
+
         private bool TryPlayNativeActorPose(Texture2D source, int columns,
             int rows, int frame, Sprite expected)
         {
@@ -478,6 +519,7 @@ namespace Starfall
                 }
                 actorNativeControllers[family] = controller;
                 actorNativeRetryAt.Remove(family);
+                actorNativeControllerCheckAt[family]=Time.frameCount+180;
             }
             int row = frame / columns;
             string poseKey = family + ":" + row;
@@ -633,6 +675,7 @@ namespace Starfall
             actorNativeControllers.Clear();
             actorNativeSource.Clear();
             actorNativeRetryAt.Clear();
+            actorNativeControllerCheckAt.Clear();
             actorNativeRejectedPoseUntil.Clear();
             if (actorCaptureCamera != null)
                 actorCaptureCamera.targetTexture = null;
