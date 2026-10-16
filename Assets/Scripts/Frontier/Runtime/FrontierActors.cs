@@ -1130,6 +1130,11 @@ namespace Starfall
                 Actor(npcSheet, 4, 4, npcKey, p, 96, tint);
             }
             finally { GUI.matrix=originalMatrix; }
+            // ONLY the pinned conversation target carries speech motion.
+            // Keep the original detailed NPC body untouched and paint a
+            // separately authored, complete 24x20 transparent cue ABOVE it.
+            if(isTalking&&!drawingOutline)
+                DrawNpcActionSignal(p,0,npcKey);
         }
     }
 }

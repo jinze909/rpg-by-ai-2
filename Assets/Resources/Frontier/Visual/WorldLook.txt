@@ -101,3 +101,10 @@ nonheroAtlasHandoffSeconds=0.105
 # Two quiet ORIGINAL Effects.png sources on HP stage change. This affects
 # visual alpha only, not hit timing, Boss identity or saved HP thresholds.
 bossPhaseMoteAlpha=0.26
+
+# Two original 4-frame 24x20 transparent pixel-symbol rows. The speech
+# bubble belongs ONLY to the pinned interlocutor; the warning belongs
+# ONLY to a genuinely endangered/rescued civilian. Bodies never replaced.
+npcSignalSpeechAlpha=0.70
+npcSignalDangerAlpha=0.78
+npcSignalFrameRate=4.0

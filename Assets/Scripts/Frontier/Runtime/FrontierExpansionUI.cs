@@ -232,6 +232,9 @@ namespace Starfall
             // Both movement and injury must now keep their planted root.
             Color tint=justHit ? PixelArt.C("#ffe2bd") : Color.white;
             DrawRootedCivilianBody(p,lean,tint,Game.reliefFollowerFacingLeft);
+            if(!drawingOutline &&
+                (Game.ReliefEscortUnderAttack||justHit))
+                DrawNpcActionSignal(p,1,14);
         }
 
         // Shared by the production survivor draw and direct render QA.

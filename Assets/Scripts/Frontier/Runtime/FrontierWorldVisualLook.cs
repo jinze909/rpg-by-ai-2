@@ -36,6 +36,9 @@ namespace Starfall
             public float lampRadius=114f;
             public float nightLightAlpha=.29f;
             public float dayLightAlpha=.13f;
+            public float npcSignalSpeechAlpha=.70f;
+            public float npcSignalDangerAlpha=.78f;
+            public float npcSignalFrameRate=4f;
             public float npcTalkLeanDegrees=.72f;
             public float escortWalkLeanDegrees=1.15f;
             public float escortHitLeanDegrees=1.35f;
@@ -163,6 +166,15 @@ namespace Starfall
                                     settings.dayLightAlpha=value;break;
                             // Whole-body NPC movement never changes the
                             // underlying 128px source painting or world root.
+                            case "npcSignalSpeechAlpha":
+                                if(value>=.2f&&value<=.9f)
+                                    settings.npcSignalSpeechAlpha=value;break;
+                            case "npcSignalDangerAlpha":
+                                if(value>=.3f&&value<=.95f)
+                                    settings.npcSignalDangerAlpha=value;break;
+                            case "npcSignalFrameRate":
+                                if(value>=2f&&value<=6f)
+                                    settings.npcSignalFrameRate=value;break;
                             case "npcTalkLeanDegrees":
                                 if(value>=0f&&value<=1.5f)
                                     settings.npcTalkLeanDegrees=value;break;
