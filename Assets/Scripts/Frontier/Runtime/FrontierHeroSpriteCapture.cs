@@ -384,18 +384,48 @@ namespace Starfall
                 else
                 {
                     // Controlled whole-frame fallback, not limb synthesis.
-                    // Keep ownership of ONLY these new Sprite wrappers, and
-                    // never destroy a shared Texture2D from Resources.
+                    // During long partial imports, a repeatedly re-created
+                    // Sprite has a NEW ID and unnecessarily forces a fresh
+                    // GPU capture, even though every pixel is unchanged.
+                    // Keep the same valid, runtime-owned whole-body source
+                    // until an actually complete Unity atlas replaces it.
+                    bool reusable=previous!=null &&
+                        previous.Length==expectedFrames &&
+                        heroPublishedIncomplete.Contains(key);
+                    if(reusable)
+                        for(int i=0;i<previous.Length;i++)
+                        {
+                            Sprite old=previous[i];
+                            if(old==null ||
+                               !heroOwnedPublishedSprites.Contains(old) ||
+                               old.texture!=atlas ||
+                               Mathf.Abs(old.rect.x-i*HeroCell)>.05f ||
+                               Mathf.Abs(old.rect.y)>.05f ||
+                               Mathf.Abs(old.rect.width-HeroCell)>.05f ||
+                               Mathf.Abs(old.rect.height-HeroCell)>.05f ||
+                               Mathf.Abs(old.pixelsPerUnit-
+                                   CanonicalHeroSpriteFactory.PixelsPerUnit)>.05f ||
+                               Vector2.Distance(old.pivot,new Vector2(
+                                   CanonicalHeroSpriteFactory.FootX,
+                                   HeroCell-CanonicalHeroSpriteFactory.FootTop))>.05f)
+                            {
+                                reusable=false;break;
+                            }
+                        }
                     heroPublishedIncomplete.Add(key);
-                    cells = new Sprite[expectedFrames];
-                    for (int i = 0; i < cells.Length; i++)
+                    if(reusable)cells=previous;
+                    else
                     {
-                        cells[i] = Sprite.Create(atlas,
-                            new Rect(i * HeroCell, 0, HeroCell, HeroCell),
-                            CanonicalHeroSpriteFactory.FootPivot,
-                            CanonicalHeroSpriteFactory.PixelsPerUnit, 0,
-                            SpriteMeshType.FullRect);
-                        heroOwnedPublishedSprites.Add(cells[i]);
+                        cells = new Sprite[expectedFrames];
+                        for (int i = 0; i < cells.Length; i++)
+                        {
+                            cells[i] = Sprite.Create(atlas,
+                                new Rect(i * HeroCell, 0, HeroCell, HeroCell),
+                                CanonicalHeroSpriteFactory.FootPivot,
+                                CanonicalHeroSpriteFactory.PixelsPerUnit, 0,
+                                SpriteMeshType.FullRect);
+                            heroOwnedPublishedSprites.Add(cells[i]);
+                        }
                     }
                 }
                 // In a second import, replace only after the complete
@@ -403,7 +433,7 @@ namespace Starfall
                 // older GUI draw already has its own captured GPU pixels.
                 // Only our temporary Sprite.Create wrappers are disposed;
                 // never release SpriteImporter/Resources assets.
-                if(previous!=null)
+                if(previous!=null&&!ReferenceEquals(previous,cells))
                     foreach(Sprite old in previous)
                         if(old!=null&&heroOwnedPublishedSprites.Remove(old))
                         {
