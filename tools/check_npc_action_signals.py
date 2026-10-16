@@ -3,6 +3,7 @@
 NPC and rescue identities remain their accepted source whole-body Sprites.
 """
 from pathlib import Path
+import runpy
 from PIL import Image
 ROOT=Path(__file__).resolve().parents[1]
 source=ROOT/"Assets/Resources/Frontier/Art/NpcActionSignals.png"
@@ -36,6 +37,9 @@ def main():
         assert file.format=="PNG" and file.mode=="RGBA"
         artwork=file.copy()
     inspect(artwork)
+    painter=runpy.run_path(str(ROOT/"tools/generate_npc_action_signals.py"))["build"]
+    assert painter().tobytes()==artwork.tobytes(), (
+        "SHIPPED_NPC_PIXEL_ATLAS_DIFFERS_FROM_COMMITTED_REPRODUCIBLE_PAINTER")
     copied=Image.new("RGBA",(96,40))
     for row in range(2):
         block=artwork.crop((0,row*20,24,(row+1)*20))
