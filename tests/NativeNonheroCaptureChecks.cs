@@ -361,6 +361,116 @@ public static class NativeNonheroCaptureChecks
                 !slices[cells[cells.Length-1]].destroyed,
                 "Accepted original actor Sprite destroyed on cleanup");
         }
+        // Hot-reimport of an ALREADY ACCEPTED family: unlike startup
+        // recovery, every pose owns cached GPU pixels from the old full-
+        // body art. Refresh one complete SpriteImporter family atomically,
+        // and invalidate normal/mirrored captures on safe later repaints.
+        var upgrade=new FrontierRuntime();
+        const string livePath="Frontier/Art/Monsters";
+        var liveTexture=(Texture2D)Resources.Registered[livePath];
+        var oldSprites=Resources.RegisteredSprites[livePath];
+        var newSprites=new Sprite[oldSprites.Length];
+        for(int i=0;i<newSprites.Length;i++)
+        {
+            var old=oldSprites[i];
+            newSprites[i]=Sprite.Create(liveTexture,old.rect,
+                new Vector2(.5f,.0625f),old.pixelsPerUnit,0,
+                SpriteMeshType.FullRect);
+        }
+        var spriteFieldForRefresh=typeof(FrontierRuntime).GetField(
+            "actorFrameSprites",BindingFlags.Instance|
+                BindingFlags.NonPublic);
+        var framesInUse=(System.Collections.IDictionary)
+            spriteFieldForRefresh.GetValue(upgrade);
+        string face2=liveTexture.GetInstanceID()+":6:3:2";
+        string face3=liveTexture.GetInstanceID()+":6:3:3";
+        try
+        {
+            Time.frameCount=4000;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,2,new Point(180,215),96f,
+                Color.white,false,0f}),"Warm original whole-body pose failed");
+            var originalGpu=GUI.DrawnTextures[
+                GUI.DrawnTextures.Count-1] as RenderTexture;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,2,new Point(180,215),96f,
+                Color.white,true,0f})&&
+                (bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,3,new Point(180,215),96f,
+                Color.white,false,0f}),
+                "Initial imported normal and mirror frames missing");
+            int oldRenderCount=Camera.RenderedTargets.Count;
+            Resources.RegisteredSprites[livePath]=newSprites;
+            Time.frameCount=4001;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,2,new Point(180,215),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(framesInUse[face2],oldSprites[2])&&
+                Camera.RenderedTargets.Count==oldRenderCount,
+                "Imported Source was rescanned/repainted on every frame");
+            Time.frameCount=4181;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,2,new Point(180,215),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(framesInUse[face2],newSprites[2])&&
+                ReferenceEquals(GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1],originalGpu)&&
+                Camera.RenderedTargets.Count==oldRenderCount+1,
+                "Native accepted hot-reimport did not refresh existing GPU pose");
+            Time.frameCount=4182;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,3,new Point(180,215),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(framesInUse[face3],newSprites[3])&&
+                Camera.RenderedTargets.Count==oldRenderCount+2,
+                "Full-family artist revision left neighboring action stale");
+            Time.frameCount=4183;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,2,new Point(180,215),96f,
+                Color.white,true,0f})&&
+                Camera.RenderedTargets.Count==oldRenderCount+3,
+                "Flipped GPU pose remained a pre-reimport enemy silhouette");
+            // Corrupt one frame in the next complete import. Nothing may
+            // mix old, new, and corrupted importer Sprites.
+            var incomplete=(Sprite[])newSprites.Clone();
+            incomplete[4]=Sprite.Create(liveTexture,
+                newSprites[4].rect,new Vector2(.5f,.3f),
+                newSprites[4].pixelsPerUnit,0,SpriteMeshType.FullRect);
+            Resources.RegisteredSprites[livePath]=incomplete;
+            Time.frameCount=4362;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,2,new Point(180,215),96f,
+                Color.white,false,0f}),
+                "Missing one imported foot pivot hid the live monster");
+            var safeFallback=framesInUse[face2] as Sprite;
+            Require(safeFallback!=null&&
+                !ReferenceEquals(safeFallback,newSprites[2])&&
+                ReferenceEquals(safeFallback.texture,liveTexture)&&
+                ReferenceEquals((typeof(FrontierRuntime).GetField(
+                    "actorCaptureRenderer",BindingFlags.Instance|
+                    BindingFlags.NonPublic).GetValue(upgrade) as
+                    SpriteRenderer).sprite,safeFallback),
+                "Partial new art leaked an unrelated or raised-foot pose");
+            Resources.RegisteredSprites[livePath]=newSprites;
+            Time.frameCount=4483;
+            Require((bool)method.Invoke(upgrade,new object[]{
+                liveTexture,6,3,2,new Point(180,215),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(framesInUse[face2],newSprites[2])&&
+                safeFallback.destroyed,
+                "Corrected complete actor art failed to heal cached source");
+            release.Invoke(upgrade,null);
+            Require(!oldSprites[2].destroyed&&
+                !newSprites[2].destroyed&&
+                !newSprites[3].destroyed,
+                "Source hot-reimport released original Unity-owned art");
+        }
+        finally
+        {
+            Resources.RegisteredSprites[livePath]=oldSprites;
+            release.Invoke(upgrade,null);
+        }
+        Console.WriteLine("PASS complete native actor Sprite hot-reimport, both mirrored GPU frames, partial-import rollback and recovery");
         // DEVICE LOSS AFTER A DIFFERENT ACTOR: one mutable offscreen
         // SpriteRenderer draws many character identities. The old cache
         // recovery reused whichever Sprite was last seen instead of binding
