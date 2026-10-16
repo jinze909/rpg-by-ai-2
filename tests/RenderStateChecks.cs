@@ -1863,6 +1863,32 @@ public static class RenderStateChecks
             Check(GUI.textureCalls.FindAll(c=>
                 object.ReferenceEquals(c.texture,atlas)).Count==3,
                 "New impact art not actually integrated into DrawWorld");
+            // The new art is decoration, NOT a combat telegraph: on a
+            // sprite painter's stage it belongs behind a nearer real
+            // golden-haired actor and above a farther one. Exercise the
+            // actual whole-world painter rather than a detached utility.
+            game.effects.Clear();
+            var spatial=new Effect("magicImpact",
+                new Point(game.Position.x,game.Position.y-1f),.5f);
+            spatial.life=.15f;
+            game.effects.Add(spatial);
+            for(int side=0;side<2;side++)
+            {
+                spatial.position=new Point(game.Position.x,
+                    game.Position.y+(side==0?-1f:1f));
+                Clear();Call(app,"DrawWorld");
+                int paint=GUI.textureCalls.FindIndex(c=>
+                    object.ReferenceEquals(c.texture,atlas));
+                int protagonist=GUI.textureCalls.FindIndex(c=>
+                    c.texture.name.StartsWith(
+                        "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(paint>=0&&protagonist>=0&&
+                    (side==0?paint<protagonist:paint>protagonist),
+                    "World-anchored impact ignored original hero/prop depth");
+                Check(GUI.textureCalls.FindAll(c=>
+                    object.ReferenceEquals(c.texture,atlas)).Count==1,
+                    "Depth painter duplicated one real combat embellishment");
+            }
             game.save.reducedMotion=true;
             Clear();Call(app,"DrawAuthoredImpactFlourishes");
             Check(GUI.textureCalls.Count==0,
@@ -1882,7 +1908,7 @@ public static class RenderStateChecks
                 "Malformed impact atlas must safely fall back to original FX");
             Same(GUI.matrix,matrix,"Impact sprites polluted actor GUI matrix");
             Same(GUI.color,color,"Impact sprites polluted HUD tint");
-            Console.WriteLine("PASS 12 hand-painted impact frames in real DrawWorld: 6 effect events and non-Boss exclusion, source UV, world root, alpha and accessibility");
+            Console.WriteLine("PASS 12 painted impact frames in actual sorted DrawWorld: near/far hero occlusion, 6 effects and non-Boss exclusion, UV, world roots and accessibility");
         }
         finally
         {
