@@ -1605,6 +1605,104 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS complete-body NPC-compatible native Sprite actor lane: common/Boss Idle->Walk planted cross-atlas timing, attack interrupt, face-safe old-art fade and accessibility");
     }
 
+    // This is called by the executable core C# suite, not only by
+    // ActorRegistrationChecks.Run's optional review-gallery entrypoint.
+    // The accepted regional Boss Idle (320px) and Walk (384px) canvases
+    // previously popped 20% in one repaint despite a fade of two bodies.
+    public static void VerifyBossWholeBodySizeAcrossIdleRun(FrontierRuntime ignored)
+    {
+        var app=new FrontierRuntime();
+        Call(app,"Awake");
+        try
+        {
+            app.BeginVisualReview(0,2);
+            var game=app.Game;
+            game.enemies.Clear();
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            var boss=new Enemy(99435,0,
+                game.Position.x+1f,game.Position.y+.5f,120f,true);
+            game.enemies.Add(boss);
+            string idleName="resource:Frontier/Art/Bosses";
+            string walkName="resource:Frontier/Art/WalkBossA";
+            boss.moving=false;
+            Set(app,"clock",30f);
+            Clear();
+            var idle=Draw(app,"DrawEnemyActor",boss)
+                .Single(c=>c.texture.name==idleName);
+            float sourceSize=idle.rect.width;
+            boss.moving=true;boss.moveTime=.31f;
+            Set(app,"clock",30.02f);
+            Clear();
+            var entering=Draw(app,"DrawEnemyActor",boss);
+            var initial=entering.Single(c=>c.texture.name==walkName);
+            var leaving=entering.Single(c=>c.texture.name==idleName);
+            Check(Math.Abs(initial.rect.width-sourceSize)<.001f&&
+                Math.Abs(leaving.rect.width-sourceSize)<.001f,
+                "Regional Boss instantly grew 20 percent at Idle->Walk entry");
+            Check(Math.Abs(initial.rect.y+initial.rect.height*120f/128f-
+                leaving.rect.y-leaving.rect.height*120f/128f)<.001f,
+                "Original Boss body and moving overlay lost their shared foot");
+            Set(app,"clock",30.0725f);
+            Clear();
+            var middle=Draw(app,"DrawEnemyActor",boss);
+            var running=middle.Single(c=>c.texture.name==walkName);
+            var old=middle.Single(c=>c.texture.name==idleName);
+            Check(running.rect.width>sourceSize*1.04f&&
+                running.rect.width<sourceSize*1.17f&&
+                Math.Abs(running.rect.width-old.rect.width)<.001f,
+                "The complete Boss body size must smoothly interpolate 320-to-384");
+            float worldFoot=running.rect.y+running.rect.height*120f/128f;
+            float oldFoot=old.rect.y+old.rect.height*120f/128f;
+            Check(Math.Abs(worldFoot-oldFoot)<.001f,
+                "Intermediate transition distorted the original foot pivot");
+            GUI.Export(".starfall-checks/sprite-qa",
+                "review-boss-full-body-canvas-continuity");
+            // Interrupt midway: last actually painted size is the new
+            // transition start, not the unseen 384px nominal source.
+            boss.moving=false;
+            Set(app,"clock",30.079f);
+            Clear();
+            var reverse=Draw(app,"DrawEnemyActor",boss);
+            var resumed=reverse.Single(c=>c.texture.name==idleName);
+            var prior=reverse.Single(c=>c.texture.name==walkName);
+            Check(Math.Abs(resumed.rect.width-running.rect.width)<.001f&&
+                Math.Abs(prior.rect.width-resumed.rect.width)<.001f,
+                "Rapid Run->Idle reversal returned to old nominal canvas size");
+            Set(app,"clock",30.14f);
+            Clear();
+            var shrinking=Draw(app,"DrawEnemyActor",boss);
+            float sizeNow=shrinking.Single(c=>c.texture.name==idleName).rect.width;
+            Check(sizeNow>sourceSize&&sizeNow<running.rect.width,
+                "Reverse animation should decrease one complete-body canvas");
+            Set(app,"clock",30.22f);
+            Clear();
+            var settled=Draw(app,"DrawEnemyActor",boss);
+            Check(settled.Count(c=>c.texture.name==idleName)==1&&
+                !settled.Any(c=>c.texture.name==walkName)&&
+                Math.Abs(settled.Single(c=>c.texture.name==idleName).rect.width-
+                    sourceSize)<.001f,
+                "Boss transition still paints stale afterimage after 105ms");
+            // Native alpha and gameplay contact remain fully authoritative:
+            // zero FX must select immediate full-size source without blend.
+            game.save.effectsQuality=0;
+            boss.moving=true;
+            Set(app,"clock",30.25f);Clear();
+            var staticWalk=Draw(app,"DrawEnemyActor",boss);
+            Check(staticWalk.Count(c=>c.texture.name==walkName)==1&&
+                !staticWalk.Any(c=>c.texture.name==idleName)&&
+                Math.Abs(staticWalk.Single(c=>c.texture.name==walkName).
+                    rect.width-sourceSize*384f/320f)<.001f,
+                "Low FX must retain original walk canvas without transition");
+            Console.WriteLine("PASS actual 320/384 Boss Sprite body scales: anchored eased walk entry, mid-attack reversals, final source, no-FX immediate");
+        }
+        finally
+        {
+            Call(app,"OnDestroy");
+            Clear();
+        }
+    }
+
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
         try { CompanionGaitActuallyPlantsBothFeet(app); }

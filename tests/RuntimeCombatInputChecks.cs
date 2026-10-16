@@ -1480,6 +1480,7 @@ public static class RuntimeCombatInputChecks
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
+            ActorRegistrationChecks.VerifyBossWholeBodySizeAcrossIdleRun,
             ActorRegistrationChecks.VerifyResidentAnimation,
             ActorRegistrationChecks.VerifyCompanionGaitContinuity,
             RenderStateChecks.VerifyLiveVisualLookResource,
