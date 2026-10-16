@@ -54,6 +54,8 @@ namespace Starfall
             public float projectileTrailFadeDistance=.18f;
             public float projectileTrailAlpha=.42f;
             public float projectileTrailFrameRate=9f;
+            public float castSigilAlpha=.68f;
+            public float castSigilBossPixels=58f;
             public float hitContactBlendFraction=.16f;
             public float slashBridgeFraction=.18f;
             // Artist-facing, bounded transitions for whole painted enemy
@@ -216,6 +218,12 @@ namespace Starfall
                             case "projectileTrailFrameRate":
                                 if(value>=4f&&value<=14f)
                                     settings.projectileTrailFrameRate=value;break;
+                            case "castSigilAlpha":
+                                if(value>=.35f&&value<=.85f)
+                                    settings.castSigilAlpha=value;break;
+                            case "castSigilBossPixels":
+                                if(value>=40f&&value<=72f)
+                                    settings.castSigilBossPixels=value;break;
                             case "hitContactBlendFraction":
                                 if(value>=.08f&&value<=.24f)
                                     settings.hitContactBlendFraction=value;break;

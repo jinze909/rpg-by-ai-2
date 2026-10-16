@@ -452,8 +452,13 @@ namespace Starfall
             DrawWarningArc(enemy.target,radius*(.2f+progress*.8f),0f,
                 (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,
                 .35f+progress*.35f),24);
-            Point p = ScreenPoint(enemy.target);
-            Atlas(effectSheet, 4, 4, 14, new Rect(p.x - radius * Tile, p.y - radius * Tile, radius * Tile * 2, radius * Tile * 2), new Color(warning.r, warning.g, warning.b, .1f + progress * .13f));
+            // Old renderer scaled one 32px Effects cell to the COMPLETE
+            // attack radius (sometimes 200+ screen pixels), smearing its
+            // pixels across scenery and burying the original terrain.
+            // Keep both mathematically accurate GameCore radius rings,
+            // but put a genuine artist-painted four-pose glyph only at
+            // the LOCKED attack target. Actor sprites and collision survive.
+            DrawCastSigil(enemy,progress);
         }
         private void DrawEnemyWarning(Enemy enemy)
         {

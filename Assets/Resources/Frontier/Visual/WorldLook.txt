@@ -123,3 +123,9 @@ npcTalkEntrySeconds=0.18
 # Subtle material-only visual detail, no tides/collision/save changes.
 shoreFoamAlpha=0.19
 shoreFoamFrameRate=3.6
+
+# Replaces the previous massive stretched 32px Boss/elite telegraph fill
+# with a 4x2 set of original hand-painted 32px attack-target glyphs. The
+# precise world-radius warning ring remains unchanged and always visible.
+castSigilAlpha=0.68
+castSigilBossPixels=58
