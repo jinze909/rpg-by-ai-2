@@ -3389,6 +3389,120 @@ public static class RenderStateChecks
     // CI-executable resource integrity check, not merely an unused visual
     // review menu helper. Every source-controlled companion gait setting
     // must reach the ACTUAL Unity runtime profile from WorldLook.txt.
+    // Real DrawProjectileVisual in actual C# CI: two distinct original
+    // material-specific painted tails, exact world flight geometry, no
+    // false projectile-body silhouettes, and atomic importer recovery.
+    public static void VerifyAuthoredProjectileTrailsAndHotImport(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        int quality=game.save.effectsQuality;
+        bool motion=game.save.reducedMotion;
+        const string resource="Frontier/Art/ProjectileTrails";
+        Texture2D overridden;
+        bool hadOverride=Resources.TextureOverrides.TryGetValue(
+            resource,out overridden);
+        Texture2D saved=Get<Texture2D>(app,"projectileTrailArt");
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            Set(app,"clock",.09f);
+            var arrow=new Projectile{position=game.Position+new Point(1f,0f),
+                velocity=new Point(10f,0f),age=.09f,
+                visual="arrow",friendly=true};
+            Clear();Call(app,"DrawProjectileVisual",arrow);
+            Check(GUI.textureCalls.Count==4,
+                "Original projectile source needs three real location tails and one head");
+            var first=GUI.textureCalls[0];
+            Check(first.texture.name=="resource:Frontier/Art/ProjectileTrails"&&
+                first.texture.width==96&&first.texture.height==48&&
+                Math.Abs(first.uv.y-.5f)<.00001f&&
+                Math.Abs(first.uv.width-.25f)<.00001f&&
+                Math.Abs(first.uv.height-.5f)<.00001f&&
+                first.rect.width==24f,
+                "Arrow tail must sample ONLY one published 24px filament image");
+            var head=GUI.textureCalls[3];
+            Check(head.texture.name=="resource:Frontier/Art/Effects"&&
+                head.rect.width==30f&&
+                first.rect.x<head.rect.x&&
+                first.color.a<=.42f,
+                "Arrow head became a phantom trail or changed gameplay centre");
+            Set(app,"clock",.24f);
+            arrow.age=.24f;
+            Clear();Call(app,"DrawProjectileVisual",arrow);
+            var animated=GUI.textureCalls[0];
+            Check(animated.texture.name==first.texture.name&&
+                Math.Abs(animated.uv.x-first.uv.x)>.00001f&&
+                Math.Abs(animated.rect.x-first.rect.x)<.0001f,
+                "Projectile tail should change hand-painted poses, not shift collision root");
+            var magic=new Projectile{
+                position=arrow.position,velocity=new Point(0,-10f),
+                age=.24f,visual="starfire",friendly=true,explosive=true};
+            Clear();Call(app,"DrawProjectileVisual",magic);
+            Check(GUI.textureCalls.Count==4&&
+                GUI.textureCalls[0].texture.name==
+                    "resource:Frontier/Art/ProjectileTrails"&&
+                Math.Abs(GUI.textureCalls[0].uv.y)<.00001f&&
+                GUI.textureCalls[0].rect.width==26f&&
+                GUI.textureCalls[3].texture.name==
+                    "resource:Frontier/Art/Effects",
+                "Cast projectiles must use ORIGINAL distinct plasma row and original missile head");
+            magic.trailResetAt=.24f;
+            Clear();Call(app,"DrawProjectileVisual",magic);
+            Check(GUI.textureCalls.Count==1,
+                "Reflected or new flight heading leaked old painted magic trail");
+            game.save.effectsQuality=1;
+            magic.trailResetAt=0f;
+            Clear();Call(app,"DrawProjectileVisual",magic);
+            Check(GUI.textureCalls.Count==3,
+                "Reduced effects tier must keep original missile and two authored tails");
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawProjectileVisual",magic);
+            Check(GUI.textureCalls.Count==1&&
+                GUI.textureCalls[0].texture.name==
+                    "resource:Frontier/Art/Effects",
+                "Reduced motion must keep the unchanged real projectile head");
+            game.save.reducedMotion=false;game.save.effectsQuality=2;
+            Texture2D accepted=Get<Texture2D>(app,"projectileTrailArt");
+            Resources.TextureOverrides[resource]=new Texture2D(
+                95,48,TextureFormat.RGBA32,false){
+                    name="unusable-half-import-projectile"};
+            Set(app,"clock",4f);
+            Clear();Call(app,"DrawProjectileVisual",magic);
+            Check(object.ReferenceEquals(
+                GUI.textureCalls[0].texture,accepted),
+                "Incomplete Unity VFX import overwrote last valid 8-frame source");
+            var replacement=new Texture2D(
+                96,48,TextureFormat.RGBA32,false){
+                    name="corrected-8-frame-projectile-art"};
+            Resources.TextureOverrides[resource]=replacement;
+            Set(app,"clock",7f);
+            Clear();Call(app,"DrawProjectileVisual",magic);
+            Check(object.ReferenceEquals(
+                GUI.textureCalls[0].texture,replacement),
+                "Full Unity art import did not update live visual source");
+            Resources.TextureOverrides[resource]=accepted;
+            Set(app,"clock",0f);
+            Clear();Call(app,"DrawProjectileVisual",arrow);
+            Check(object.ReferenceEquals(
+                GUI.textureCalls[0].texture,accepted),
+                "Reload/clock rewind kept a stale projectile visual source");
+            Console.WriteLine("PASS original eight painted arrow/plasma trail poses in LIVE projectile, actual anchored head, reflect, 3 quality tiers and atomic importer recovery");
+        }
+        finally
+        {
+            if(hadOverride)Resources.TextureOverrides[resource]=overridden;
+            else Resources.TextureOverrides.Remove(resource);
+            Set(app,"projectileTrailArt",saved);
+            Set(app,"projectileTrailNextImport",float.NegativeInfinity);
+            game.save.effectsQuality=quality;
+            game.save.reducedMotion=motion;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyLiveVisualLookResource(FrontierRuntime app)
     {
         try { EditableWorldVisualResourceDrivesLiveRender(app); }

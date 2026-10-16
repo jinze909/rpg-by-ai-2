@@ -77,6 +77,8 @@ jobs:
         run: python3 tools/check_relic_shimmer.py
       - name: Verify painted shoreline foam atlas and installed Unity scene use
         run: python3 tools/check_shoreline_foam.py
+      - name: Verify eight original projectile trail poses and live flight wiring
+        run: python3 tools/check_projectile_trails.py
       - name: Verify NPC dialogue and rescue signals are hand-painted and wired
         run: python3 tools/check_npc_action_signals.py
       - name: Verify 12-frame original sword, projectile and magic contact pixel art
