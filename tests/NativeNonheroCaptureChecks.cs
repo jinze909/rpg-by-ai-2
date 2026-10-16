@@ -408,6 +408,31 @@ public static class NativeNonheroCaptureChecks
                 "Complete imported companion stride still used temporary art");
             Require(Resources.LoadAllCounts[reimportPath]>=2,
                 "SpriteImporter retry never retried after valid resource release");
+            // A previously visited frame was cached from an incomplete
+            // import, unlike the newly visited index 11. On recovery that
+            // existing full-body pose should adopt the approved Sprite and
+            // resample the imported native Controller automatically.
+            string oldKey=walkAtlas.GetInstanceID()+":4:3:2";
+            var oldWrapper=importedCache[oldKey] as Sprite;
+            Require(oldWrapper!=null&&!oldWrapper.destroyed&&
+                !ReferenceEquals(oldWrapper,reimportFrames[2]),
+                "Partial import setup did not cache authored fallback stride");
+            Time.frameCount=3622;
+            var renderer=typeof(FrontierRuntime).GetField(
+                "actorCaptureRenderer",BindingFlags.Instance|
+                BindingFlags.NonPublic);
+            var animator=typeof(FrontierRuntime).GetField(
+                "actorCaptureAnimator",BindingFlags.Instance|
+                BindingFlags.NonPublic);
+            Require((bool)method.Invoke(loading,new object[]{
+                walkAtlas,4,3,2,new Point(110,150),96f,
+                Color.white,false,0f})&&
+                ReferenceEquals(importedCache[oldKey],reimportFrames[2])&&
+                oldWrapper.destroyed&&
+                ReferenceEquals((renderer.GetValue(loading) as
+                    SpriteRenderer).sprite,reimportFrames[2])&&
+                (animator.GetValue(loading) as Animator).enabled,
+                "Previously visited companion walk frame failed to upgrade to native imported art after recovery");
         }
         finally
         {

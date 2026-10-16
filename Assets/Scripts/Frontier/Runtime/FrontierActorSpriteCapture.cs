@@ -147,6 +147,42 @@ namespace Starfall
                     }
                     actorFrameSprites.Add(key,sprite);
                 }
+                else if(actorOwnedFrameSprites.Contains(sprite))
+                {
+                    // The fallback frame can remain cached for hours after
+                    // a previously incomplete SpriteImporter recovers. Check
+                    // at the bounded retry interval and upgrade ALL views
+                    // of the same original cell without a scene restart.
+                    // Never change a Sprite while a GUI capture referencing
+                    // it is still queued for THIS repaint.
+                    CapturedActorFrame normal,mirrored;
+                    bool pending =
+                        actorCapturedFrames.TryGetValue(key+":normal",out normal)&&
+                            normal.lastUsedFrame==Time.frameCount ||
+                        actorCapturedFrames.TryGetValue(key+":flipped",out mirrored)&&
+                            mirrored.lastUsedFrame==Time.frameCount;
+                    if(!pending)
+                    {
+                        Sprite imported=FindImportedActorFrame(sheet,columns,
+                            rows,frame,width,height);
+                        if(imported!=null)
+                        {
+                            actorFrameSprites[key]=imported;
+                            actorOwnedFrameSprites.Remove(sprite);
+                            if(actorCaptureRenderer!=null&&
+                                actorCaptureRenderer.sprite==sprite)
+                                actorCaptureRenderer.sprite=null;
+                            Destroy(sprite); // never an imported Resources Sprite
+                            sprite=imported;
+                            if(actorCapturedFrames.TryGetValue(
+                                key+":normal",out normal))
+                                normal.nativeClipVerified=false;
+                            if(actorCapturedFrames.TryGetValue(
+                                key+":flipped",out mirrored))
+                                mirrored.nativeClipVerified=false;
+                        }
+                    }
+                }
                 string captureKey = key + (flip ? ":flipped" : ":normal");
                 CapturedActorFrame entry;
                 bool needsRender = false;
