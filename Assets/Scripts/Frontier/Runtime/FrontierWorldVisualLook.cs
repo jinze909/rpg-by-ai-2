@@ -24,6 +24,12 @@ namespace Starfall
             public float escortHitLeanDegrees=1.35f;
             public float combatWarningStrokePixels=1.8f;
             public float projectileTrailFadeDistance=.18f;
+            // Source-authored companion cadence, not generated anatomy.
+            // Each quarter-cycle uses an original full-body 256px cell.
+            public float companionStrideDistanceFactor=1.20f;
+            public float companionFootfallSeconds=.075f;
+            public float companionFacingThreshold=.15f;
+            public float companionAttackPlantSeconds=.065f;
         }
         private WorldVisualLook worldVisualLook;
 
@@ -96,6 +102,18 @@ namespace Starfall
                             case "projectileTrailFadeDistance":
                                 if(value>=.08f&&value<=.32f)
                                     settings.projectileTrailFadeDistance=value;break;
+                            case "companionStrideDistanceFactor":
+                                if(value>=.85f&&value<=1.60f)
+                                    settings.companionStrideDistanceFactor=value;break;
+                            case "companionFootfallSeconds":
+                                if(value>=.05f&&value<=.12f)
+                                    settings.companionFootfallSeconds=value;break;
+                            case "companionFacingThreshold":
+                                if(value>=.06f&&value<=.22f)
+                                    settings.companionFacingThreshold=value;break;
+                            case "companionAttackPlantSeconds":
+                                if(value>=.025f&&value<=.10f)
+                                    settings.companionAttackPlantSeconds=value;break;
                         }
                     }
                 }

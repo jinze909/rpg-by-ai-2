@@ -119,6 +119,8 @@ public static class ActorRegistrationChecks
             }GUI.Export(folder,"review-registered-companion-"+direction);
         }Console.WriteLine("PASS "+total+" companion bodies: same source face, fixed density and foot-rooted animated ally cue");
     }
+    // Real production OnGUI output, not helper-only math. Four poses x four
+    // facings x three separate original full-body art identities.
     static void CompanionGaitActuallyPlantsBothFeet(FrontierRuntime app)
     {
         string[] names={"Mira","Ivo","Sen"};
@@ -128,83 +130,124 @@ public static class ActorRegistrationChecks
             app.BeginVisualReview(0,0);
             var g=app.Game;
             g.save.companion=id;
-            g.companionAction=null;
+            g.save.reducedMotion=false;
             g.companionAim=Directions[heading];
-            g.companionMoving=true;
-            // 0.625 cycles must select authored contact cell 2.
-            g.companionMoveTime=GameCore.WalkStride*1.20f*.625f;
-            Set(app,"clock",10f);
             Point pixel=new Point(325,350);
             Place(app,g.companionPosition,pixel);
             int row=GameCore.DirectionRow(Directions[heading]);
             string approved="resource:Frontier/Art/Walk"+names[id];
-            Clear();
-            var moving=Draw(app,"DrawCompanionActor");
-            var stride=moving.SingleOrDefault(c=>c.texture.name==approved);
-            Check(stride!=null,
-                "Moving companion lost its original full-body walking art");
-            Check(Math.Abs(Math.Min(stride.uv.x,stride.uv.x+stride.uv.width)-.5f)<.00001f&&
-                Math.Abs(stride.uv.y-(1f-(row+1)/3f))<.00001f,
-                "Four-frame distance gait did not reach opposite planted step");
-            Check(Math.Abs(stride.rect.width-192)<.01f&&
-                Math.Abs(stride.rect.height-192)<.01f,
-                "Walking companion suddenly enlarged or shrank");
+            string actions="resource:Frontier/Art/Companion"+names[id];
+            const float stride=1.20f;
+            // Static state: no need to artificially wait for a footstep
+            // when drawing a bow or casting from standing still.
             g.companionMoving=false;
-            Set(app,"clock",10.02f);
+            g.companionAction=null;
+            Set(app,"clock",9f);
             Clear();
             var initial=Draw(app,"DrawCompanionActor");
-            var landing=initial.SingleOrDefault(c=>c.texture.name==approved);
-            Check(landing!=null&&
-                Math.Abs(Math.Min(landing.uv.x,landing.uv.x+landing.uv.width)-.5f)<.00001f&&
-                Math.Abs(landing.rect.y-stride.rect.y)<.001f,
-                "Abruptly stopped companion must plant its actual stride foot");
-            Set(app,"clock",10.20f);
-            Clear();
-            var stopped=Draw(app,"DrawCompanionActor");
-            var idle=stopped.SingleOrDefault(c=>c.texture.name==approved);
-            Check(idle!=null&&Math.Abs(Math.Min(idle.uv.x,idle.uv.x+idle.uv.width))<.00001f&&
-                Math.Abs(idle.rect.y-stride.rect.y)<.001f&&
-                Math.Abs(idle.rect.width-stride.rect.width)<.001f,
-                "Stopped E/N/S companion changed atlas, body size or foot root");
-            Check(stopped.Count(ActorTexture)==1,
-                "Settling legs cannot duplicate the whole companion body");
-            g.companionAction=new ActorAction{
-                direction=Directions[heading],kind="attack",
-                released=false,contact=.16f,duration=.42f
+            Check(initial.Count(ActorTexture)==1&&
+                initial.Single(ActorTexture).texture.name==approved,
+                "Standing companion must share its approved full-body walk identity");
+            var standingAction=new ActorAction{
+                direction=Directions[heading],kind="command",
+                contact=.20f,duration=.52f
             };
-            Clear();
-            var attacking=Draw(app,"DrawCompanionActor");
-            Check(attacking.Count(ActorTexture)==1&&
-                attacking.Single(ActorTexture).texture.name==approved,
-                "Attack starts from a planted original gait frame, not an airborne cross-sheet pop");
-            g.companionAction.elapsed=.085f;
-            Clear();
-            var windup=Draw(app,"DrawCompanionActor");
-            var wholeBody=windup.Single(ActorTexture);
-            Check(wholeBody.texture.name==
-                "resource:Frontier/Art/Companion"+names[id]&&
-                Math.Abs(wholeBody.rect.width-192)<.001f&&
-                Math.Abs(wholeBody.rect.height-192)<.001f&&
-                Math.Abs(wholeBody.rect.y-stride.rect.y)<.001f,
-                "Action windup must switch to its true source with no scaling or foot-root shift");
+            g.companionAction=standingAction;
+            Clear();var standCombat=Draw(app,"DrawCompanionActor");
+            Check(standCombat.Single(ActorTexture).texture.name==actions,
+                "Stationary companion commands must NOT freeze in walking pose");
             g.companionAction=null;
-            g.companionMoving=true;
-            g.companionAim=new Point(.70f,heading==3?.71f:-.71f);
-            g.companionMoveTime=GameCore.WalkStride*1.20f*.625f;
-            Clear();
-            var nearDiagonal=Draw(app,"DrawCompanionActor");
-            int newRow=GameCore.DirectionRow(g.companionAim);
-            int actualRow=(int)Math.Floor(nearDiagonal.Single(c=>
-                c.texture.name==approved).uv.y*-3f+2f+.00001f);
-            // The diagonal fall-back may be the previous direction in a
-            // narrow angle band, but never a different costume or atlas.
-            Check(actualRow>=0&&actualRow<=2&&
-                nearDiagonal.Count(ActorTexture)==1,
-                "Diagonal companion path lost full-body identity");
+            for(int phase=0;phase<4;phase++)
+            {
+                g.companionMoving=true;
+                g.companionAim=Directions[heading];
+                g.companionMoveTime=GameCore.WalkStride*stride*
+                    (phase+.5f)/4f;
+                Set(app,"clock",10f+phase);
+                Clear();
+                var moving=Draw(app,"DrawCompanionActor");
+                var strideDraw=moving.Single(ActorTexture);
+                Check(strideDraw.texture.name==approved,
+                    "Moving companion lost its original source body");
+                int source=(int)Math.Round(Math.Min(strideDraw.uv.x,
+                    strideDraw.uv.x+strideDraw.uv.width)*4f);
+                Check(source==phase&&
+                    Math.Abs(strideDraw.uv.y-
+                        (1f-(row+1)/3f))<.00001f,
+                    "Distance-based animation skipped/duplicated a leg key");
+                Check(Math.Abs(strideDraw.rect.width-192)<.01f&&
+                    Math.Abs(strideDraw.rect.height-192)<.01f,
+                    "Moving companion suddenly changed overall dimensions");
 
+                // Stop must finish FORWARD through actual artist-approved
+                // complete-body cells (1->2->3->0, 2->3->0, 3->0).
+                g.companionMoving=false;
+                Set(app,"clock",10.01f+phase);
+                Clear();
+                var firstStop=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                int first=(int)Math.Round(Math.Min(firstStop.uv.x,
+                    firstStop.uv.x+firstStop.uv.width)*4f);
+                Check(first==phase&&firstStop.texture.name==approved&&
+                    Math.Abs(firstStop.rect.y-strideDraw.rect.y)<.001f,
+                    "Abrupt stop jumped across gait cycle or floated boots");
+                for(int n=1;n<=4;n++)
+                {
+                    Set(app,"clock",10.01f+phase+.075f*n+.002f);
+                    Clear();
+                    var stepped=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                    int actual=(int)Math.Round(Math.Min(stepped.uv.x,
+                        stepped.uv.x+stepped.uv.width)*4f);
+                    int expected=n>=4-phase?0:(phase+n)%4;
+                    Check(actual==expected&&stepped.texture.name==approved&&
+                        Math.Abs(stepped.rect.y-strideDraw.rect.y)<.001f,
+                        "Stop recovery reversed the stride or shifted the planted root");
+                }
+                g.companionAction=new ActorAction{
+                    direction=Directions[heading],kind="attack",
+                    contact=.16f,duration=.42f
+                };
+                Clear();
+                var afterStop=Draw(app,"DrawCompanionActor");
+                Check(afterStop.Single(ActorTexture).texture.name==actions,
+                    "Already grounded ally must immediately show real attack windup");
+                g.companionAction=null;
+
+                // Genuine walking -> action must finish the NEXT planted
+                // foot (phase 1 goes to 2; phase 3 goes to 0), without
+                // repainting isolated limbs or moving the shadow.
+                g.companionMoving=true;
+                g.companionMoveTime=GameCore.WalkStride*stride*
+                    (phase+.5f)/4f;
+                Set(app,"clock",12f+phase);
+                Clear();
+                Draw(app,"DrawCompanionActor");
+                g.companionMoving=false;
+                g.companionAction=new ActorAction{
+                    direction=Directions[heading],kind="command",
+                    contact=.20f,duration=.52f
+                };
+                Clear();
+                var planted=Draw(app,"DrawCompanionActor");
+                var foot=planted.Single(ActorTexture);
+                int footFrame=(int)Math.Round(Math.Min(foot.uv.x,
+                    foot.uv.x+foot.uv.width)*4f);
+                int contact=phase==1?2:phase==3?0:phase;
+                Check(foot.texture.name==approved&&
+                    footFrame==contact&&
+                    Math.Abs(foot.rect.y-strideDraw.rect.y)<.001f,
+                    "Walk->attack jumped backward instead of planting next foot");
+                g.companionAction.elapsed=.10f;
+                Clear();
+                var firing=Draw(app,"DrawCompanionActor");
+                var armed=firing.Single(ActorTexture);
+                Check(armed.texture.name==actions&&
+                    Math.Abs(armed.rect.y-strideDraw.rect.y)<.001f&&
+                    Math.Abs(armed.rect.width-192)<.001f,
+                    "Original bow/cast windup lost whole-body scale or boots");
+                g.companionAction=null;
+            }
         }
-        Console.WriteLine(
-            "PASS 3 companions x 4 facings: real stride contact, rooted stop-to-idle, constant 192px body and intact attack transition");
+        Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: complete forward footfall recovery, grounded attack/command transitions and stationary immediate windup");
     }
     static void Enemies(FrontierRuntime app,string folder)
     {

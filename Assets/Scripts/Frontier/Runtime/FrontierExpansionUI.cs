@@ -17,6 +17,27 @@ namespace Starfall
         private int companionLastWalkFacing;
         private bool companionWasWalking;
         private float companionStopTime;
+        private ActorAction companionTrackedAction;
+        private bool companionAttackStartedFromWalk;
+        // Map four complete authored poses to contacts/flight phases. A
+        // shuffle must resolve FORWARD to the next real ground contact:
+        // lift(1)->opposite plant(2), lift(3)->original plant(0).
+        // Never repaint or translate isolated limbs.
+        private static int NextCompanionGroundContact(int phase)
+        {
+            phase=(phase%4+4)%4;
+            return phase==1?2:phase==3?0:phase;
+        }
+        private int CompanionStopPose(float seconds)
+        {
+            int from=(companionLastWalkFrame%4+4)%4;
+            if(from==0 || Game.save.reducedMotion)return 0;
+            float interval=CurrentWorldVisualLook.companionFootfallSeconds;
+            int advanced=(int)Math.Floor(Math.Max(0f,seconds)/interval);
+            // At most three TRUE authored whole-body frames. Complete
+            // the forward cycle; an earlier revision snapped 2 -> 0.
+            return advanced>=4-from?0:(from+advanced)%4;
+        }
         private void DrawCompanionActor()
         {
             Point p = ScreenPoint(Game.companionPosition); int id = Game.save.companion;
@@ -56,7 +77,8 @@ namespace Starfall
                 (companionLastWalkFacing==2&&direction.y>0f);
             if(action==null&&Game.companionMoving&&
                 companionVisualId==id&&sameHemisphere&&
-                Math.Abs(Math.Abs(direction.x)-Math.Abs(direction.y))<.15f)
+                Math.Abs(Math.Abs(direction.x)-Math.Abs(direction.y))<
+                    CurrentWorldVisualLook.companionFacingThreshold)
                 row=companionLastWalkFacing;
             bool flip=row==0&&direction.x<-.1f;
             if(companionVisualId!=id)
@@ -66,6 +88,17 @@ namespace Starfall
                 companionLastWalkFrame=0;
                 companionLastWalkFacing=row;
                 companionStopTime=clock-.5f;
+                companionTrackedAction=null;
+                companionAttackStartedFromWalk=false;
+            }
+            if(action!=companionTrackedAction)
+            {
+                // An in-flight command is not the same as ordinary idle.
+                // Keep one stance for its entire actual GameCore action;
+                // drawingOutline or a second OnGUI pass must not restart it.
+                companionAttackStartedFromWalk=action!=null&&
+                    companionWasWalking;
+                companionTrackedAction=action;
             }
             if(Game.companionMoving&&action==null&&publishedWalk)
             {
@@ -74,9 +107,9 @@ namespace Starfall
                 // Slightly longer travel per 4-cell loop makes each source
                 // leg-extension pose read as a full step instead of rapid
                 // shuffling; it cannot cause in-place foot cycling.
-                const float StrideLengthFactor=1.20f;
                 int step=GameCore.GaitFrame(Game.companionMoveTime,
-                    GameCore.WalkStride*StrideLengthFactor);
+                    GameCore.WalkStride*
+                        CurrentWorldVisualLook.companionStrideDistanceFactor);
                 companionLastWalkFrame=step;
                 companionLastWalkFacing=row;
                 companionWasWalking=true;
@@ -96,22 +129,23 @@ namespace Starfall
                     companionWasWalking=false;
                     companionStopTime=clock;
                 }
-                int planted=(companionLastWalkFrame>=2)?2:0;
-                bool settling=companionLastWalkFacing==row&&
-                    clock-companionStopTime<.13f;
+                int finish=companionLastWalkFacing==row?
+                    CompanionStopPose(clock-companionStopTime):0;
                 Actor(companionWalkSheets[id],4,3,
-                    row*4+(settling?planted:0),
-                    p,192f,tint,flip);
+                    row*4+finish,p,192f,tint,flip);
             }
             else if(action!=null&&!action.released&&
-                    action.elapsed<Math.Min(.065f,action.contact*.42f)&&
-                    publishedWalk)
+                    companionAttackStartedFromWalk&&
+                    action.elapsed<Math.Min(
+                        CurrentWorldVisualLook.companionAttackPlantSeconds,
+                        action.contact*.42f)&&publishedWalk)
             {
-                // Finish the previous planted stride before the published
-                // bow/skill anticipation body. Real release time is owned
-                // solely by GameCore; this frame never launches a weapon.
-                int plant=companionLastWalkFacing==row&&
-                    companionLastWalkFrame>=2?2:0;
+                // Resolve an airborne source pose FORWARD to the proper
+                // opposite foot before the full-body cast/bow sheet. Only
+                // actions entered FROM genuine travel get this delay:
+                // standing allies must show attack anticipation instantly.
+                int plant=companionLastWalkFacing==row?
+                    NextCompanionGroundContact(companionLastWalkFrame):0;
                 companionWasWalking=false;
                 Actor(companionWalkSheets[id],4,3,
                     row*4+plant,p,192f,tint,flip);

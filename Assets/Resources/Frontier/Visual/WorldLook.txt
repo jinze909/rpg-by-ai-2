@@ -24,3 +24,11 @@ escortHitLeanDegrees=1.35
 # Whole-Sprite combat readability; bounds enforced at runtime.
 combatWarningStrokePixels=1.80
 projectileTrailFadeDistance=0.18
+
+# Original 256px full-body Mira/Ivo/Sen gait art direction.
+# Per-step world-distance, next-contact timing, diagonal-facing stability,
+# and walk-to-action foot plant. These never manipulate torso/legs separately.
+companionStrideDistanceFactor=1.20
+companionFootfallSeconds=0.075
+companionFacingThreshold=0.15
+companionAttackPlantSeconds=0.065

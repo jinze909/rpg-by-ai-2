@@ -1593,7 +1593,9 @@ public static class RenderStateChecks
             "lampRadius","nightLightAlpha","dayLightAlpha",
             "npcTalkLeanDegrees","escortWalkLeanDegrees",
             "escortHitLeanDegrees","combatWarningStrokePixels",
-            "projectileTrailFadeDistance"};
+            "projectileTrailFadeDistance","companionStrideDistanceFactor",
+            "companionFootfallSeconds","companionFacingThreshold",
+            "companionAttackPlantSeconds"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
         Check(authored!=null&&!String.IsNullOrEmpty(authored.text),
             "Real Unity WorldLook TextAsset cannot be missing or replaced by defaults");
@@ -1614,7 +1616,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS thirteen source-controlled WorldLook values for terrain, native actor gestures and combat animation art direction");
+        Console.WriteLine("PASS seventeen source-controlled WorldLook values for terrain, companion gait, actors and combat FX");
     }
 
     public static void Run(FrontierRuntime app,string folder)
