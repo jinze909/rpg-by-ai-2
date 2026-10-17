@@ -1470,6 +1470,46 @@ public static class RuntimeCombatInputChecks
         }
     }
 
+    private static void RejectedRegionLoadReturnsToRealInn(FrontierRuntime app)
+    {
+        Campaign world = CampaignFixture.Create();
+        var game = new GameCore(world);
+        game.NewGame(0); game.Close();
+        // A new hero cannot enter the final citadel, even if legacy save
+        // coordinates happen to be legal floor tiles in the home town.
+        SaveData slot = game.save;
+        slot.room = 4; slot.x = 12; slot.y = 14; slot.coins = 73;
+        slot.snapshotRoom = 4; slot.worldEnemies = new EnemyRecord[] { new EnemyRecord() };
+        game.Load(slot);
+        Check(game.save.room == 0 &&
+            Math.Abs(game.save.x - world.maps[0].spawnX) < .0001f &&
+            Math.Abs(game.save.y - world.maps[0].spawnY) < .0001f,
+            "Locked-region save must respawn at the real inn, not an old world coordinate");
+        Check(game.save.snapshotRoom == -1 && game.save.worldEnemies == null &&
+            game.save.coins == 73,
+            "Rejected region must retire stale enemy snapshot but preserve economy");
+        // A corrupt region index previously collapsed to town before the
+        // locked-room check, retaining the same invalid source coordinates.
+        slot = game.save;
+        slot.room = int.MaxValue; slot.x = 12; slot.y = 14;
+        slot.snapshotRoom = 4; slot.worldEnemies = new EnemyRecord[] { new EnemyRecord() };
+        game.Load(slot);
+        Check(game.save.room == 0 &&
+            Math.Abs(game.save.x - world.maps[0].spawnX) < .0001f &&
+            Math.Abs(game.save.y - world.maps[0].spawnY) < .0001f &&
+            game.save.snapshotRoom == -1 && game.save.worldEnemies == null,
+            "Out-of-range region must be treated as a rejected placement too");
+        // Legal saves must not be forced back to their spawn each load.
+        slot = game.save;
+        slot.room = 0; slot.x = 12; slot.y = 14;
+        game.Load(slot);
+        Check(game.save.room == 0 &&
+            Math.Abs(game.save.x - 12) < .0001f &&
+            Math.Abs(game.save.y - 14) < .0001f,
+            "Valid walkable town saves must retain their exact player position");
+        Console.WriteLine("PASS locked/out-of-range saved region returns to inn without stale enemies or lost items");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -1510,7 +1550,7 @@ public static class RuntimeCombatInputChecks
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
-            RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
+            RenderStateChecks.MapRasterRegression, RejectedRegionLoadReturnsToRealInn, SaveRecoveryUsesNewestVerifiedCopy,
             PortableSaveCommitNeverLosesLastGoodPrimary,
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,

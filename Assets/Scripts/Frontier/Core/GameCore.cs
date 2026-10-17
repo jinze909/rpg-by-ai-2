@@ -77,7 +77,12 @@ namespace Starfall
             for (int i = 0; i < 8; i++) save.inventory[i] = Math.Max(0, Math.Min(9999, save.inventory[i]));
             for (int i = 0; i < 3; i++) save.talents[i] = Math.Max(0, Math.Min(5, save.talents[i]));
             for (int i = 0; i < save.kills.Length; i++) save.kills[i] = Math.Max(0, Math.Min(99999, save.kills[i]));
-            save.stage = (int)Clamp(save.stage, 0, 3); save.room = save.room < 0 || save.room >= data.maps.Length ? 0 : save.room;
+            save.stage = (int)Clamp(save.stage, 0, 3);
+            // An out-of-range region is not an authorized town location.
+            // Preserve the fact that this slot needs safe respawning even
+            // when its old coordinates happen to be walkable in Emberfall.
+            bool invalidSavedRoom = save.room < 0 || save.room >= data.maps.Length;
+            if (invalidSavedRoom) save.room = 0;
             // Expansion sanitization checks "technique_<profession>" before
             // any further class handling. Repair the profession first so a
             // valid unlocked second technique is not erased on load.
@@ -91,7 +96,16 @@ namespace Starfall
                 save.flags.Remove("recovery_pending"); save.room = 0; save.x = data.maps[0].spawnX; save.y = data.maps[0].spawnY;
                 save.health = 9999; save.energy = 100; save.snapshotRoom = -1; save.worldEnemies = null;
             }
-            if (!CanEnter(save.room)) save.room = 0;
+            if (invalidSavedRoom || !CanEnter(save.room))
+            {
+                // Never inherit another region's player coordinates or
+                // enemy snapshot after a locked/invalid save is returned home.
+                // Keep story flags, rewards and inventory from the original
+                // slot: only its invalid world placement is discarded.
+                save.room = 0;
+                save.x = data.maps[0].spawnX; save.y = data.maps[0].spawnY;
+                save.snapshotRoom = -1; save.worldEnemies = null;
+            }
             if (save.room == 8) GenerateAbyss();
             save.difficulty = (int)Clamp(save.difficulty, 0, 2);
             save.upgrades = (int)Clamp(save.upgrades, 0, 5); save.level = (int)Clamp(save.level, 1, 30);
