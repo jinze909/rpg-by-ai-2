@@ -13,7 +13,7 @@ namespace Starfall
         private float enemyReleaseDustNextCheck=float.NegativeInfinity;
 
         private void DrawAuthoredEnemyReleaseDust(Enemy enemy,Point foot,
-            float fullBodySize)
+            float fullBodySize,bool mirrored,float bodyAlpha)
         {
             if(enemy==null||enemy.hp<=0f||enemy.state==1||
                 enemy.releaseTime<=.001f||enemy.stun>0f||
@@ -55,6 +55,7 @@ namespace Starfall
             Rect grounded=new Rect(foot.x-extent*.5f,
                 foot.y-height*.88f,extent,height);
             float opacity=CurrentWorldVisualLook.enemyReleaseDustAlpha*
+                Mathf.Clamp01(bodyAlpha)*
                 (Game.Night?.84f:1f)*(1f-progress*.38f);
             float sample=progress*4f;
             int frame=Math.Min(3,Math.Max(0,(int)Math.Floor(sample)));
@@ -70,13 +71,13 @@ namespace Starfall
                 float blend=Mathf.Clamp01(
                     (sample-seam+half)/(2f*half));
                 Atlas(enemyReleaseDustSheet,4,3,first+seam-1,
-                    grounded,new Color(1f,1f,1f,opacity*(1f-blend)));
+                    grounded,new Color(1f,1f,1f,opacity*(1f-blend)),mirrored);
                 Atlas(enemyReleaseDustSheet,4,3,first+seam,
-                    grounded,new Color(1f,1f,1f,opacity*blend));
+                    grounded,new Color(1f,1f,1f,opacity*blend),mirrored);
             }
             else
                 Atlas(enemyReleaseDustSheet,4,3,first+frame,
-                    grounded,new Color(1f,1f,1f,opacity));
+                    grounded,new Color(1f,1f,1f,opacity),mirrored);
         }
     }
 }

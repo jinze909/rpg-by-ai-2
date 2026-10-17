@@ -2005,6 +2005,41 @@ public static class ActorRegistrationChecks
                     "resource:Frontier/Art/BriarBeast"||
                     c.texture.name=="resource:Frontier/Art/Bosses"),
                 "Live original Boss release lost rooted material dust or whole-body animation");
+            // Ground contact fragments must use the same actually painted
+            // facing as each 48px whole-body source, including the two
+            // distinct native North/South archer cells.
+            var left=new Enemy(99475,0,12,14,125){
+                releaseTime=.18f,facing=new Point(-1,0)};
+            Clear();var leftDust=Draw(app,"DrawEnemyActor",left)
+                .Where(c=>c.texture==originalSheet).ToArray();
+            Check(leftDust.Length==2&&leftDust.All(c=>
+                    Math.Abs(c.uv.width+1f/4f)<.00001f),
+                "Left-facing enemy released unmirrored world-contact dust");
+            var bowman=new Enemy(99476,1,12,14,125){releaseTime=.12f};
+            bowman.Face(new Point(-1,0));bowman.Face(new Point(0,-1));
+            Check(bowman.VisualFlip,"Bow fixture lost its stored left look");
+            Clear();var north=Draw(app,"DrawEnemyActor",bowman)
+                .Where(c=>c.texture==originalSheet).ToArray();
+            Check(north.Length==2&&north.All(c=>
+                    Math.Abs(c.uv.width-1f/4f)<.00001f),
+                "North/South archer retained stale side-facing contact dust");
+            // The same foreground cover that dims the Boss's complete body
+            // must dim its ground release wave; it cannot float at full alpha.
+            float savedX=game.save.x,savedY=game.save.y;
+            try
+            {
+                game.save.x=boss.x+4f;game.save.y=boss.y+4f;
+                Clear();var clearWave=Draw(app,"DrawEnemyActor",boss)
+                    .Where(c=>c.texture==originalSheet).ToArray();
+                game.save.x=boss.x;game.save.y=boss.y-1f;
+                Clear();var dimWave=Draw(app,"DrawEnemyActor",boss)
+                    .Where(c=>c.texture==originalSheet).ToArray();
+                Check(clearWave.Length==2&&dimWave.Length==2&&
+                    Math.Abs(dimWave[0].color.a-clearWave[0].color.a*.55f)<.00001f&&
+                    Math.Abs(dimWave[1].color.a-clearWave[1].color.a*.55f)<.00001f,
+                    "Boss ground shock remained opaque behind a faded body");
+            }
+            finally { game.save.x=savedX;game.save.y=savedY; }
             // No pre-hit telegraph, stun or corpse may emit fake contact.
             forest.state=1;
             Clear();Check(!Draw(app,"DrawEnemyActor",forest).Any(c=>

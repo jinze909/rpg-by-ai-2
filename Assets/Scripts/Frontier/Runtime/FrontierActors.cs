@@ -589,7 +589,18 @@ namespace Starfall
             Point p = ScreenPoint(e.Position); float size = e.boss ? BossCanvasSize(Game.save.room) : e.kind == 2 ? 106 : 96;
             // GameCore-release ground contact paints BEFORE the native
             // whole-body Sprite; original boots, weapons and hit frames win.
-            DrawAuthoredEnemyReleaseDust(e,p,size);
+            // A moving archer can preserve a previous left-facing look
+            // while its approved North/South bow Sprite is UNMIRRORED.
+            // The ground-release painting follows that real source facing.
+            bool uprightArcher=!e.boss&&e.kind==1&&
+                enemyArcherVertical!=null&&
+                Math.Abs(e.facing.y)>Math.Abs(e.facing.x);
+            float coverAlpha=e.boss&&
+                Math.Abs(e.x-Game.save.x)<1.4f&&
+                Game.save.y<e.y-.01f&&Game.save.y>e.y-2.7f?
+                .55f:1f;
+            DrawAuthoredEnemyReleaseDust(e,p,size,
+                e.VisualFlip&&!uprightArcher,coverAlpha);
             DrawActorContactShadow(p,size*.57f,e.boss?24:16,
                 e.boss?8+GameCore.GaitFrame(e.moveTime,2.8f):
                     e.kind==0?4:e.kind==1?5:6,.84f);
@@ -617,7 +628,7 @@ namespace Starfall
             Point offset = new Point();
             // Recoil is swept in Core rather than sliding the drawing through walls.
             Color tint = e.flash > 0 ? new Color(1.55f, 1.55f, 1.55f) : Color.white;
-            if (e.boss && Math.Abs(e.x - Game.save.x) < 1.4f && Game.save.y < e.y - .01f && Game.save.y > e.y - 2.7f) tint.a = .55f;
+            tint.a=coverAlpha;
             // Other-room bosses lack three distinct authored body rows.
             // Their existing identity is preserved while later HP phases
             // receive a stable, readable warm tint (no extra GUI primitive).

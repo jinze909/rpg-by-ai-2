@@ -70,8 +70,13 @@ def main():
             "enemyReleaseDustAlpha","enemyReleaseDustSeam"):
         assert required in code,("RELEASE_NOT_IN_PRODUCTION_RENDERER",required)
     actor=ACTORS.read_text()
-    assert "DrawAuthoredEnemyReleaseDust(e,p,size);" in actor
-    assert actor.index("DrawAuthoredEnemyReleaseDust(e,p,size);")<actor.index(
+    assert "DrawAuthoredEnemyReleaseDust(e,p,size," in actor
+    assert "e.VisualFlip&&!uprightArcher,coverAlpha" in actor
+    assert "Mathf.Clamp01(bodyAlpha)" in code
+    assert "opacity*(1f-blend)),mirrored)" in code
+    assert "opacity*blend),mirrored)" in code
+    assert "opacity),mirrored)" in code
+    assert actor.index("DrawAuthoredEnemyReleaseDust(e,p,size,")<actor.index(
         "DrawActorContactShadow(p,size*.57f"),(
         "RELEASE_CONTACT_OVERPAINTS_ORIGINAL_FOOT_OR_WEAPON")
     assert "ActorRegistrationChecks.VerifyOriginalEnemyReleaseDust," in RUNNER.read_text()
