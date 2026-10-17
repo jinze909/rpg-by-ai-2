@@ -36,6 +36,7 @@ namespace Starfall.Tests
         [Test] public void LateAttackBufferHonorsStyleAndWeaponChanges() { CoreChecks.LateBasicAttacksBufferOnceAndRespectCombatProfiles(Data()); }
         [Test] public void RangedAttackChainsPayOffWithRealProjectileEffects() { CoreChecks.RangedThirdHitsProduceDistinctRealProjectiles(Data()); }
         [Test] public void CompanionSelfTargetFallsBackToFacing() { CoreChecks.ArcherCompanionCannotWasteVolleyOnItsOwnFootTarget(Data()); }
+        [Test] public void StarfireExplodesOnNearSideOfWalls() { CoreChecks.StarfireDetonatesOnNearSideOfRealCover(Data()); }
         [Test] public void CompanionPicksNearestVisibleEnemy() { CoreChecks.CompanionAutoTargetsNearestReachableThreat(Data()); }
         [Test] public void AutoHealingRequiresRealLineOfSight() { CoreChecks.CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Data()); }
         [Test] public void AllyFeetNeverOverlapHeroOnNarrowBridges() { CoreChecks.CompanionNarrowBridgesKeepSeparateSafeFeet(Data()); }

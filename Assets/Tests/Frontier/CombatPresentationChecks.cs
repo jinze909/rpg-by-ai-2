@@ -481,6 +481,78 @@ namespace Starfall.Tests
             g.PrepareSave(); var loaded = new GameCore(data, CloneSave(g.save)); Check(loaded.enemies.Count == 0, "A visual corpse cannot respawn as a living loot source");
             Advance(g, 1); Check(g.fallen.Count == 0 && g.save.kills[1] == kills + 1, "The corpse fades without awarding twice");
         }
+        public static void StarfireDetonatesOnNearSideOfRealCover(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                // Two fully traversable chambers divided by a solid wall.
+                // The same 1.8-tile detonation radius overlaps targets on
+                // both sides; only the visible side may receive splash.
+                var rows=new string[16];
+                for(int y=0;y<16;y++)
+                {
+                    char[] tiles=new string('.',16).ToCharArray();
+                    for(int x=0;x<16;x++)
+                        if(x<2||x>=14||y<2||y>=14||x==8)
+                            tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{id=0,rows=rows,
+                    spawnX=4.5f,spawnY=8.5f,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                GameCore g=Fresh(data,2);
+                g.enemies.Clear();g.save.reducedMotion=true;
+                var exposed=new Enemy(77711,0,7f,9.5f,400){stun=99,timer=999};
+                var sheltered=new Enemy(77712,0,9.5f,8.5f,400){stun=99,timer=999};
+                g.enemies.Add(exposed);g.enemies.Add(sheltered);
+                Check(g.CanStand(exposed.Position)&&g.CanStand(sheltered.Position)&&
+                    g.Blocked(8.1f,8.5f),
+                    "Starfire test enemies must have real safe feet on opposite sides of a solid wall");
+                var bolt=new Projectile{position=new Point(6.5f,8.5f),
+                    velocity=new Point(20,0),life=1f,damage=70,
+                    friendly=true,explosive=true,visual="starfire"};
+                g.projectiles.Add(bolt);
+                for(int i=0;i<4 && g.projectiles.Contains(bolt);i++)
+                    g.Tick(.05f,new Point());
+                Check(!g.projectiles.Contains(bolt)&&
+                    exposed.hp<400&&sheltered.hp==400,
+                    "Solid cover must cause real near-side starfire splash without damaging the occluded enemy");
+                Check(g.effects.Exists(e=>e.kind=="magicImpact"&&
+                    Math.Abs(e.radius-1.8f)<.001f&&e.position.x<8f),
+                    "Wall contact must generate the real 1.8-tile impact on the near face");
+                int effects=g.effects.FindAll(e=>e.kind=="magicImpact").Count;
+                for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+                Check(g.effects.FindAll(e=>e.kind=="magicImpact").Count<=effects,
+                    "A terrain impact must not repeat damage or create duplicate explosions");
+
+                // A projectile born in cover or one without an explosive
+                // profile must not bypass walls via an area hit.
+                g.enemies.Clear();g.enemies.Add(exposed);exposed.hp=400;
+                g.effects.Clear();g.projectiles.Clear();
+                var invalid=new Projectile{position=new Point(7.5f,8.5f),
+                    velocity=new Point(20,0),life=1,damage=70,
+                    friendly=true,explosive=true,visual="starfire",
+                    blockedAtSpawn=true};
+                g.projectiles.Add(invalid);
+                g.Tick(.05f,new Point());
+                Check(exposed.hp==400&&
+                    !g.effects.Exists(e=>e.kind=="magicImpact"&&e.radius>0),
+                    "Spawn-blocked explosive shots cannot grant free terrain-area damage");
+                g.projectiles.Clear();g.effects.Clear();
+                g.projectiles.Add(new Projectile{
+                    position=new Point(7.5f,8.5f),
+                    velocity=new Point(20,0),life=1,damage=70,
+                    friendly=true,visual="arrow"});
+                g.Tick(.05f,new Point());
+                Check(exposed.hp==400&&
+                    !g.effects.Exists(e=>e.kind=="magicImpact"),
+                    "A blocked ordinary arrow must not gain the mage's area attack");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void PhysicalAttacksAndDodgeRespectWalls(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear(); g.save.reducedMotion = true;

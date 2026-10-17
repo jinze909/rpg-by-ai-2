@@ -958,7 +958,28 @@ namespace Starfall
                 {
                     Point next = p.position + p.velocity * (flightDt / steps);
                     // Resolve the first obstruction along flight, not its endpoint.
-                    if (ShotBlocked(p,next)) { dead = true; break; }
+                    // A starfire bolt striking solid cover must detonate on
+                    // the NEAR side of the wall. Its 1.8-tile blast can hit
+                    // visible nearby enemies, but never a target shielded
+                    // behind the same wall. Spawn-blocked shots, normal arrows
+                    // and range-expired projectiles do not create free blasts.
+                    if (ShotBlocked(p,next))
+                    {
+                        dead = true;
+                        if (p.friendly && p.explosive && !p.blockedAtSpawn)
+                        {
+                            impactRadius = 1.8f;
+                            splashTargets.Clear();
+                            splashTargets.AddRange(enemies);
+                            foreach (Enemy other in splashTargets)
+                                if ((other.Position-p.position).Length<impactRadius &&
+                                    ClearAttackPath(p.position,other.Position))
+                                    Hit(other,p.damage*.6f,false,
+                                        (other.Position-p.position).Normalized,p.impact);
+                            splashTargets.Clear();
+                        }
+                        break;
+                    }
                     p.position = next;
                     if (p.friendly)
                     {
