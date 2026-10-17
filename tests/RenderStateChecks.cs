@@ -3092,8 +3092,12 @@ public static class RenderStateChecks
                 Set(app,"clock",1.25f+i*.3f);
                 Clear();Call(app,"PropImage",types[i],i,
                     320f,280f,86f,90f,Color.white);
-                Check(GUI.textureCalls.Count==2,
-                    "Actual "+types[i]+" world prop did not receive an authored light cell");
+                // Altar/engine now additionally paint a distinct four-frame
+                // spectral vapor source after their existing full-body relic
+                // gleam. The accepted source body and glint remain at [0/1].
+                int expectedCells=cells[i]==12?3:2;
+                Check(GUI.textureCalls.Count==expectedCells,
+                    "Actual "+types[i]+" world prop lost original light/vapor cells");
                 var body=GUI.textureCalls[0];
                 var gleam=GUI.textureCalls[1];
                 Check(object.ReferenceEquals(body.texture,field)&&
@@ -3119,7 +3123,7 @@ public static class RenderStateChecks
                 alphaField.SetValue(palette,original*.5f);
                 Clear();Call(app,"PropImage",types[i],i,
                     320f,280f,86f,90f,Color.white);
-                Check(GUI.textureCalls.Count==2&&
+                Check(GUI.textureCalls.Count==expectedCells&&
                     Math.Abs(GUI.textureCalls[1].color.a-priorOpacity*.5f)<.0001f,
                     "Editable WorldLook relic light alpha did not drive production");
                 alphaField.SetValue(palette,original);
@@ -4305,14 +4309,17 @@ public static class RenderStateChecks
         Texture2D previousOverride=null;
         bool overridden=Resources.TextureOverrides.TryGetValue(
             path,out previousOverride);
+        string vaporStage="init";
         try
         {
+            vaporStage="quality/clock";
             game.save.effectsQuality=2;
             game.save.reducedMotion=false;
             Set(app,"worldActorOpacity",1f);
             Set(app,"clock",4f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
+            vaporStage="check-fire";
             var fire=GUI.textureCalls.ToArray();
             var vapors=Get<Texture2D>(app,"propVaporsSheet");
             Check(fire.Length==5&&vapors!=null&&
@@ -4329,6 +4336,7 @@ public static class RenderStateChecks
                 "Campfire smoke shifted away from the same planted source root");
             Clear();Call(app,"DrawFieldProp","altar",0,
                 320f,280f,76f,78f,Color.white);
+            vaporStage="check-altar";
             var altar=GUI.textureCalls.ToArray();
             Check(altar.Length==3&&
                 altar[0].texture==fire[0].texture&&
@@ -4337,6 +4345,7 @@ public static class RenderStateChecks
                 altar[2].rect.x==fire[4].rect.x&&
                 altar[2].rect.y==fire[4].rect.y,
                 "Real altar lost the distinct cold vapor row or moved its world root");
+            vaporStage="advance";
             Set(app,"clock",4.34f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
@@ -4347,6 +4356,7 @@ public static class RenderStateChecks
                 "Original vapor frames failed to animate within their anchored canvas");
             // Atlas alone multiplies worldActorOpacity. All painted layers
             // must fade precisely once, matching the existing solid body.
+            vaporStage="opacity";
             Set(app,"worldActorOpacity",.5f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
@@ -4362,6 +4372,7 @@ public static class RenderStateChecks
                     unoccluded[i].color.a*.5f)<.00015f,
                     "Campfire body, flame or vapor double-applied world cover alpha: "+i);
             // An incomplete Editor reimport cannot replace any valid frame.
+            vaporStage="partial-import";
             var incomplete=new Texture2D(127,96,TextureFormat.RGBA32,false);
             Resources.TextureOverrides[path]=incomplete;
             Set(app,"clock",7f);
@@ -4370,6 +4381,7 @@ public static class RenderStateChecks
             Check(GUI.textureCalls.Count==5&&
                 GUI.textureCalls[4].texture==vapors,
                 "Half-imported vapor PNG overrode the last approved source");
+            vaporStage="complete-import";
             var complete=new Texture2D(128,96,TextureFormat.RGBA32,false);
             Resources.TextureOverrides[path]=complete;
             Set(app,"clock",10f);
@@ -4377,12 +4389,14 @@ public static class RenderStateChecks
                 320f,280f,76f,78f,Color.white);
             Check(GUI.textureCalls[4].texture==complete,
                 "Corrected eight-frame source failed live hot import");
+            vaporStage="rewind";
             Resources.TextureOverrides[path]=vapors;
             Set(app,"clock",0f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
             Check(GUI.textureCalls[4].texture==vapors,
                 "Rewound world clock failed to restore complete vapor atlas");
+            vaporStage="accessibility";
             game.save.effectsQuality=1;
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
@@ -4395,6 +4409,11 @@ public static class RenderStateChecks
             Check(!GUI.textureCalls.Any(c=>c.texture==vapors),
                 "Reduced motion did not hide only supplemental animated vapor");
             Console.WriteLine("PASS two original 4-frame fire/altar vapor families in live world, rooted motion, alpha cover once, source-import recovery, accessibility");
+        }
+        catch(Exception error)
+        {
+            throw new Exception("VAPOR_VISUAL_STAGE_"+vaporStage+": "+
+                error.ToString(),error);
         }
         finally
         {
