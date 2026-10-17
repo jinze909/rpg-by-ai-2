@@ -654,10 +654,13 @@ namespace Starfall.Tests
                 restored.save.coins == 999999 && restored.save.shards == 99999 &&
                 restored.save.skillPoints == 99,
                 "Public wind charter and bounded one-time payout survive a genuine old-format save reload");
-            Action(restored, author.kind, "glasswind_publish");
-            Check(restored.save.coins == 999999 && restored.save.shards == 99999 &&
+            restored.Talk(author);
+            Check(restored.mode == "dialog" && restored.conversation != null &&
+                !Array.Exists(restored.conversation.choices,
+                    c => c.action == "glasswind_publish") &&
+                restored.save.coins == 999999 && restored.save.shards == 99999 &&
                 restored.save.skillPoints == 99,
-                "An already published charter cannot issue another payout");
+                "After publication the real NPC removes its one-shot claim option and cannot issue another payout");
         }
 
         public static void TriadAuditPublicationCreditsRealStoryWithoutSaveOverflow(Campaign data)
