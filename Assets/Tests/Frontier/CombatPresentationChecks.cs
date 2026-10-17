@@ -364,6 +364,41 @@ namespace Starfall.Tests
                 "Completed archer attack must restore travel eligibility");
         }
 
+        public static void ApproachingFarMissileBlocksTravelButOutgoingDoesNot(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.hazards.Clear();g.projectiles.Clear();
+            g.save.x=12f;g.save.y=14f;
+            var incoming=new Projectile
+            {
+                position=new Point(20f,14f),
+                velocity=new Point(-10f,0),
+                life=1.2f,damage=14f,visual="enemyArrow",
+                friendly=false
+            };
+            Check(g.CanStand(incoming.position)&&g.SafeTravel,
+                "Projectile interception test needs a real open road and safe baseline");
+            g.projectiles.Add(incoming);
+            Check(!g.SafeTravel,
+                "Fast travel erased a distant arrow that will cross the hero's real vicinity");
+            incoming.velocity=new Point(10f,0);
+            Check(g.SafeTravel,
+                "Already outbound hostile arrow must not prevent unrelated travel");
+            incoming.velocity=new Point(0,-10f);
+            Check(g.SafeTravel,
+                "A parallel projectile whose path misses the hero may not stop travel");
+            incoming.velocity=new Point(-10f,0);
+            incoming.life=.1f;
+            Check(g.SafeTravel,
+                "Expiring arrow unable to reach the safe zone must not block travel");
+            incoming.life=1.2f;incoming.friendly=true;
+            Check(g.SafeTravel,
+                "A friendly or sword-reflected projectile may not block its owner");
+            incoming.friendly=false;incoming.damage=0f;
+            Check(g.SafeTravel,
+                "A harmless visual projectile may not masquerade as active combat");
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)

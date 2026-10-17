@@ -87,6 +87,24 @@ namespace Starfall
                         continue;
                     float dx = shot.position.x - x, dy = shot.position.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
+                    // The incoming projectile may be beyond the safety
+                    // circle *now* but cross it in the next second. Predict
+                    // the closest point on its real velocity segment, bound
+                    // the forecast by remaining flight lifetime, and reject
+                    // shots already flying away or blocked by actual terrain.
+                    // Never consume ammo, create collisions or change saves.
+                    float speed2=shot.velocity.x*shot.velocity.x+
+                        shot.velocity.y*shot.velocity.y;
+                    if(speed2<=.0001f)continue;
+                    float approach=((x-shot.position.x)*shot.velocity.x+
+                        (y-shot.position.y)*shot.velocity.y)/speed2;
+                    float horizon=Math.Min(shot.life,1.25f);
+                    if(approach<0f||approach>horizon)continue;
+                    Point nearest=shot.position+shot.velocity*approach;
+                    float nx=nearest.x-x,ny=nearest.y-y;
+                    if(nx*nx+ny*ny<rangeSquared&&
+                        ClearAttackPath(shot.position,nearest))
+                        return false;
                 }
                 // A live telegraphed explosion is also combat. Previously
                 // resting or quick travel could erase its pending contact
