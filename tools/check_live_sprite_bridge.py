@@ -119,15 +119,15 @@ def check():
             "HERO_ACTION_STARTS_WITH_OLD_STRIDE")
         section = locomotion_code.split("private void TickMovement(", 1)[1]
         section = section.split("private void MoveAttackStep(", 1)[0]
-        compact = re.sub(r"\\s+", "", section)
+        compact = re.sub(r"\s+", "", section)
         # Real recoil and input displacement are separate now. The actual
         # walking phase MUST sample input-only 'walking', never the recoil
         # delta, and may only advance inside the null-action guard.
         assert "movementDirection=walking;" in compact, (
             "HERO_RECOIL_MUST_NOT_BECOME_RUNNING_GAIT")
         assert re.search(
-            r"if\\s*\\(\\s*playerAction\\s*==\\s*null\\s*\\)\\s*"
-            r"\\{\\s*int before.*?walkDistance\\s*\\+=\\s*walking\\.Length;",
+            r"if\s*\(\s*playerAction\s*==\s*null\s*\)\s*"
+            r"\{\s*int before.*?walkDistance\s*\+=\s*walking\.Length;",
             section, re.S), "INVISIBLE_WALK_FRAMES_ADVANCE_DURING_ATTACK_RECOVERY"
         assert "footContacts+=" in compact
         assert "if(playerAction==null||PlayerPhase==ActionPhase.Recovery)" not in compact
