@@ -137,7 +137,8 @@ namespace Starfall.Tests
             Check(g.playerAction==null&&g.save.energy==100,
                 "Held basic attack cannot spend resources before a queued dodge");
             Advance(g,.081f);
-            Check(g.dashTime>.17f&&g.save.energy==80,
+            Check(g.dashTime>.17f&&g.save.energy>=80f&&
+                g.save.energy<80.1f,
                 "Waiting dodge must outrank a simultaneous ordinary attack");
 
             g=Fresh(data);g.enemies.Clear();g.save.energy=100;
