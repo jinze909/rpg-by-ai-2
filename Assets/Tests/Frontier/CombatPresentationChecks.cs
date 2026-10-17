@@ -285,6 +285,52 @@ namespace Starfall.Tests
                 "A lethal unbroken raider left a phantom rescue warning or lost its normal corpse");
         }
 
+        public static void PlayerHitRecoveryUsesOnlyTrueFreeMovementAndContactTime(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.x=12f;g.save.y=14f;
+            g.playerRecoil=new Point(0,1);
+            g.recoilSpeed=1f;g.playerHitTime=.04f;
+            float stride=g.walkDistance;
+            g.Tick(.05f,new Point(1,0));
+            Check(g.save.x>12.035f&&g.save.x<12.075f&&
+                g.save.y>14.03f&&g.save.y<14.05f,
+                "Last 40ms of hit recoil granted 50ms free walking or lost the final push");
+            Check(g.ActuallyMoving&&g.PlayerPose>=2&&g.PlayerPose<=3&&
+                g.walkDistance>stride&&g.walkDistance<stride+.075f,
+                "Completed hit recoil did not resume the rooted walk for ONLY 10ms");
+
+            var noInput=Fresh(data);noInput.Enter(1);noInput.enemies.Clear();
+            noInput.save.x=12f;noInput.save.y=14f;
+            noInput.playerHitTime=.04f;
+            noInput.playerRecoil=new Point(0,1);
+            noInput.recoilSpeed=1f;
+            int contacts=noInput.footContacts;
+            noInput.Tick(.05f,new Point());
+            Check(noInput.save.y>14.03f&&!noInput.ActuallyMoving&&
+                noInput.footContacts==contacts&&
+                noInput.HeroAnimationState==0,
+                "Final recoil generated a phantom run pose or unearned footsteps");
+
+            // A sword action already approaching its contact must be
+            // PAUSED by real hit recovery, without releasing damage early.
+            var attack=Fresh(data);attack.Enter(1);attack.enemies.Clear();
+            attack.save.x=12f;attack.save.y=14f;
+            attack.Attack(new Point(1,0));
+            ActorAction action=attack.playerAction;
+            Check(action!=null,"Actual hero swing missing");
+            action.elapsed=action.contact-.02f;
+            attack.playerHitTime=.04f;
+            attack.playerRecoil=new Point(0,0);
+            attack.Tick(.05f,new Point());
+            Check(attack.playerAction==action&&!action.released&&
+                action.elapsed<action.contact-.005f,
+                "Player contact crossed 20ms boundary after only 10ms of free time");
+            attack.Tick(.02f,new Point());
+            Check(action.released,
+                "Deferred hero contact never released on the next real free tick");
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)

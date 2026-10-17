@@ -87,60 +87,78 @@ namespace Starfall
         { if (Finite(direction.x) && Finite(direction.y) && direction.Length > .05f) aim = direction.Normalized; }
         private void ResetContinuity()
         { walkDistance = gateOpeningTime = 0; footContacts = 0; locomotionFacing = aim; aimTarget=null; }
-        private void TickMovement(float dt, Point movement, Point? explicitAim)
+        private void TickMovement(float dt, Point movement, Point? explicitAim,
+            float hitLockedDt)
         {
-            Point start = Position; bool wasDashing = dashTime > 0;
-            if (explicitAim.HasValue) SetAim(explicitAim.Value);
-            else if (movement.Length > .1f && (playerAction == null || PlayerPhase == ActionPhase.Recovery)) SetAim(movement);
-            if (dashTime > 0)
+            Point start=Position;
+            bool wasDashing=dashTime>0;
+            if(explicitAim.HasValue)SetAim(explicitAim.Value);
+            else if(movement.Length>.1f &&
+                (playerAction==null||PlayerPhase==ActionPhase.Recovery))
+                SetAim(movement);
+
+            Point movementStart=start;
+            if(dashTime>0)
             {
-                // Consume only the remaining dash interval: a coarse final tick
-                // must not add extra travel beyond the authored 0.18 seconds.
-                float dashStep = Math.Min(dt, dashTime);
-                dashTime = Math.Max(0, dashTime - dt);
-                // Avoid a phantom sub-microsecond dash tick from float rounding:
-                // the final visible translation must also finish the dodge.
-                if (dashTime < .00001f) dashTime = 0;
-                Move(dashDirection * dashStep * 15);
+                // Use only the remaining dash interval on the final frame.
+                float dashStep=Math.Min(dt,dashTime);
+                dashTime=Math.Max(0f,dashTime-dt);
+                if(dashTime<.00001f)dashTime=0f;
+                Move(dashDirection*dashStep*15f);
             }
-            else if (playerHitTime > 0) Move(playerRecoil * dt * recoilSpeed);
             else
             {
-                MobilityRule mobility = PlayerMobility;
-                if (mobility == MobilityRule.Full || mobility == MobilityRule.Reduced) Move(movement * dt * Speed * (mobility == MobilityRule.Reduced ? .7f : 1));
-                if (mobility == MobilityRule.AttackMovement)
+                // Hit recoil and player control are disjoint slices of the
+                // SAME frame. Previous TickVisuals consumed the hit timer
+                // first, granting an unearned entire tick of walking/swing
+                // and suppressing the last frame of actual knockback.
+                float locked=Math.Min(dt,Math.Max(0f,hitLockedDt));
+                if(locked>0f)
+                    Move(playerRecoil*locked*recoilSpeed);
+                movementStart=Position;
+                float freeDt=dt-locked;
+                if(freeDt>.000001f)
                 {
-                    ActorAction a = playerAction;
-                    // The authored sword contact moves the body forward. Sweep
-                    // every step; it cannot cross gates, trees or wall corners.
-                    float previous = Clamp(a.elapsed / Math.Max(.01f, a.contact), 0, 1);
-                    float next = Clamp((a.elapsed + dt) / Math.Max(.01f, a.contact), 0, 1);
-                    float step = (a.kind == "skill" ? .45f : a.combo == 2 ? .42f : .34f) * (next * next - previous * previous);
-                    MoveAttackStep(a.direction * step);
+                    MobilityRule mobility=PlayerMobility;
+                    if(mobility==MobilityRule.Full||
+                       mobility==MobilityRule.Reduced)
+                        Move(movement*freeDt*Speed*
+                            (mobility==MobilityRule.Reduced?.7f:1f));
+                    if(mobility==MobilityRule.AttackMovement)
+                    {
+                        ActorAction action=playerAction;
+                        float previous=Clamp(action.elapsed/
+                            Math.Max(.01f,action.contact),0,1);
+                        float next=Clamp((action.elapsed+freeDt)/
+                            Math.Max(.01f,action.contact),0,1);
+                        float stride=(action.kind=="skill"?.45f:
+                            action.combo==2?.42f:.34f)*
+                            (next*next-previous*previous);
+                        MoveAttackStep(action.direction*stride);
+                    }
                 }
             }
-            Point actual = Position - start;
-            movementDirection = actual;
-            // The final dodge tick still draws moving legs after dashTime reaches zero.
-            // Carry the dodge heading into that frame instead of an older walk heading.
-            if (wasDashing && dashTime <= 0 && actual.Length > .001f)
-                locomotionFacing = dashDirection;
-            bool translating = actual.Length > .001f && !wasDashing &&
-                playerHitTime <= 0 && (playerAction == null ||
-                PlayerPhase == ActionPhase.Recovery);
-            if (translating)
+            Point actual=Position-start;
+            // Only input-driven translation is locomotion. A final recoil
+            // sample may move the world root, but must not make the hero
+            // snap into Run, change walk facing or invent a footstep.
+            Point walking=wasDashing?actual:Position-movementStart;
+            movementDirection=walking;
+            if(wasDashing&&dashTime<=0f&&actual.Length>.001f)
+                locomotionFacing=dashDirection;
+            bool translating=walking.Length>.001f&&!wasDashing&&
+                playerHitTime<=0f&&(playerAction==null||
+                    PlayerPhase==ActionPhase.Recovery);
+            if(translating)
             {
-                // The *world root* can move during recovery while the complete
-                // authored Attack/Cast body stays visibly planted. Do NOT
-                // advance an INVISIBLE Run animation or emit footsteps from
-                // unanimated legs; that phase previously reappeared suddenly
-                // at an arbitrary foot position when the action ended.
-                locomotionFacing = actual.Normalized;
-                if (playerAction == null)
+                locomotionFacing=walking.Normalized;
+                if(playerAction==null)
                 {
-                    int before = (int)Math.Floor(walkDistance / (WalkStride / 2));
-                    walkDistance += actual.Length;
-                    footContacts += (int)Math.Floor(walkDistance / (WalkStride / 2)) - before;
+                    int before=(int)Math.Floor(
+                        walkDistance/(WalkStride/2f));
+                    walkDistance+=walking.Length;
+                    footContacts+=(int)Math.Floor(
+                        walkDistance/(WalkStride/2f))-before;
                 }
             }
         }

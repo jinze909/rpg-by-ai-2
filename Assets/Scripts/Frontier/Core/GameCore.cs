@@ -458,6 +458,11 @@ namespace Starfall
             if (playerAction != null)
                 attackReadyDelay = Math.Max(attackReadyDelay,
                     Math.Max(0, playerAction.duration - playerAction.elapsed));
+            // TickVisuals drains hitTime before locomotion and action
+            // release. Preserve the START-OF-FRAME stun slice so a final
+            // 40ms hit in a 50ms frame cannot grant 50ms of free movement
+            // or release an attack ten milliseconds before its pose.
+            float hitLockedDt=Math.Min(dt,Math.Max(0f,playerHitTime));
             movementDirection = new Point();
             TickVisuals(dt); if (mode != "world") return; TickGate(dt);
             for (int i = effects.Count - 1; i >= 0; i--) { effects[i].life -= dt; if (effects[i].life <= 0) effects.RemoveAt(i); }
@@ -476,8 +481,12 @@ namespace Starfall
                     TrailCircuitComplete(save.room) ? 2 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
-            TickMovement(dt, movement, explicitAim);
-            TickAction(dt);
+            TickMovement(dt, movement, explicitAim, hitLockedDt);
+            // An UNRELEASED action is planted through hit recoil. Only
+            // the unlocked remainder may advance its contact/damage clock;
+            // already-released animation recovery keeps its old duration.
+            TickAction(playerAction!=null&&!playerAction.released?
+                Math.Max(0f,dt-hitLockedDt):dt);
             if (mode != "world" || beganInPractice && !practicing) return;
             // A buffered dodge wins the newly available movement frame.
             // Fresh avoidance never fires a queued Q or swing in that tick.
