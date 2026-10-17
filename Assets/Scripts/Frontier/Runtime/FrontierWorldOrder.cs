@@ -97,8 +97,7 @@ namespace Starfall
             // Material-aware foot contacts are rooted to their ORIGINAL
             // terrain position, not screen-space ankle offsets. Sort below
             // bodies and prop occluders just like other world details.
-            if(effectSheet!=null)
-                foreach(FootfallMark contact in footfallMarks)
+            foreach(FootfallMark contact in footfallMarks)
                     if(contact.room==Game.save.room &&
                         WorldDrawable(contact.position.x,contact.position.y,40,40))
                         AddWorldEntry(new WorldDrawEntry{

@@ -2252,6 +2252,111 @@ public static class ActorRegistrationChecks
     // not just an unused optional visual contact sheet.
     // Exercise the REAL enemy/Boss DrawEnemyActor body and genuine
     // Enemy.hitTime, never just an isolated VFX gallery.
+    public static void VerifyMaterialGroundContactFrames(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        float originalClock=(float)typeof(FrontierRuntime)
+            .GetField("clock",Private).GetValue(app);
+        bool reduced=g.save.reducedMotion;
+        int quality=g.save.effectsQuality;
+        try
+        {
+            g.save.reducedMotion=false;g.save.effectsQuality=2;
+            Set(app,"clock",16f);
+            var list=(System.Collections.IList)typeof(FrontierRuntime)
+                .GetField("footfallMarks",Private).GetValue(app);
+            string[] terrain={"grass","stone","sand","snow","wood"};
+            for(int material=0;material<terrain.Length;material++)
+            {
+                list.Clear();
+                Call(app,"EmitFootfall",new Point(12,14),1,
+                    terrain[material],material%2==0,1f);
+                var mark=list[0];
+                var age=mark.GetType().GetField("age",
+                    BindingFlags.Instance|BindingFlags.NonPublic|
+                    BindingFlags.Public);
+                Check(age!=null,"Footfall missing age clock");
+                float rootX=0,rootY=0,oldAlpha=float.PositiveInfinity;
+                for(int frame=0;frame<4;frame++)
+                {
+                    age.SetValue(mark,.32f*(frame+.1f)/4f);
+                    Clear();
+                    var cells=Draw(app,"DrawFootfallMark",mark);
+                    Check(cells.Length==1&&cells[0].texture.name==
+                        "resource:Frontier/Art/GroundContactFrames"&&
+                        cells[0].texture.width==128&&
+                        cells[0].texture.height==100,
+                        "Production footstep skipped painted material atlas");
+                    var sprite=cells[0];
+                    float expectedX=(frame+(material%2==0?1:0))/4f;
+                    float expectedY=(4-material)/5f;
+                    Check(Math.Abs(sprite.uv.x-expectedX)<.00001f&&
+                        Math.Abs(sprite.uv.y-expectedY)<.00001f&&
+                        Math.Abs(Math.Abs(sprite.uv.width)-.25f)<.00001f&&
+                        Math.Abs(sprite.uv.height-.2f)<.00001f,
+                        "Material timeline/mirroring selected wrong authored frame");
+                    float x=sprite.rect.x+sprite.rect.width*.5f;
+                    float y=sprite.rect.y+sprite.rect.height*.70f;
+                    if(frame>0)Check(Math.Abs(x-rootX)<.00001f&&
+                        Math.Abs(y-rootY)<.00001f,
+                        "Real actor foot root drifted between contact keyframes");
+                    rootX=x;rootY=y;
+                    Check(sprite.color.a<=oldAlpha,
+                        "Footstep grows brighter after the planted contact");
+                    oldAlpha=sprite.color.a;
+                }
+            }
+            list.Clear();
+            Call(app,"EmitFootfall",new Point(12,14),1,"snow",false,.84f);
+            var low=list[0];
+            low.GetType().GetField("age",
+                BindingFlags.Instance|BindingFlags.NonPublic|
+                BindingFlags.Public).SetValue(low,.22f);
+            g.save.effectsQuality=1;Clear();
+            var still=Draw(app,"DrawFootfallMark",low);
+            Check(still.Length==1&&Math.Abs(still[0].uv.x)<.00001f&&
+                Math.Abs(still[0].uv.y-.2f)<.00001f,
+                "Medium quality did not retain static snow contact Sprite");
+            g.save.reducedMotion=true;Clear();
+            Check(Draw(app,"DrawFootfallMark",low).Length==0,
+                "Reduced motion drew optional contact particles");
+            g.save.reducedMotion=false;g.save.effectsQuality=2;
+            const string key="Frontier/Art/GroundContactFrames";
+            Texture2D prior;
+            bool had=Resources.TextureOverrides.TryGetValue(key,out prior);
+            try
+            {
+                var accepted=(Texture2D)typeof(FrontierRuntime).GetField(
+                    "groundContactSheet",Private).GetValue(app);
+                Resources.TextureOverrides[key]=new Texture2D(
+                    127,100,TextureFormat.RGBA32,false){name="partial-contact"};
+                Set(app,"clock",19f);Clear();
+                var partial=Draw(app,"DrawFootfallMark",low);
+                Check(partial.Length==1&&partial[0].texture==accepted,
+                    "Partial Editor import dropped last complete 20-cell atlas");
+                var updated=new Texture2D(
+                    128,100,TextureFormat.RGBA32,false){name="complete-contact"};
+                Resources.TextureOverrides[key]=updated;
+                Set(app,"clock",22f);Clear();
+                Check(Draw(app,"DrawFootfallMark",low)[0].texture==updated,
+                    "Reimport did not replace old contact atlas in live rendering");
+            }
+            finally
+            {
+                if(had)Resources.TextureOverrides[key]=prior;
+                else Resources.TextureOverrides.Remove(key);
+            }
+            Console.WriteLine("PASS 20 authentic terrain contacts: 5 materials, four phases, stable foot roots, mirroring, low FX and Editor import");
+        }
+        finally
+        {
+            Set(app,"clock",originalClock);
+            g.save.reducedMotion=reduced;g.save.effectsQuality=quality;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyAuthoredEnemyHitSparks(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);

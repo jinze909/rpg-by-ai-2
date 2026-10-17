@@ -13,7 +13,7 @@ namespace Starfall
         private sealed class FootfallMark
         {
             internal Point position;
-            internal int room, variant;
+            internal int room, material;
             internal string surface;
             internal float age;
             internal bool alternate;
@@ -24,6 +24,35 @@ namespace Starfall
             new List<FootfallMark>(18);
         private int paintedFootContact = -1, paintedFootRoom = -1;
         private const int MaxFootfallMarks = 18;
+        private Texture2D groundContactSheet;
+        private float groundContactLastCheck=float.NegativeInfinity;
+        private float groundContactNextCheck=float.NegativeInfinity;
+
+        private static int GroundContactMaterial(string surface)
+        {
+            switch(surface)
+            {
+                case "stone":return 1;
+                case "sand":return 2;
+                case "snow":return 3;
+                case "wood":return 4;
+                default:return 0;
+            }
+        }
+
+        private void RefreshGroundContactSource()
+        {
+            if(clock<groundContactLastCheck||clock>=groundContactNextCheck)
+            {
+                groundContactLastCheck=clock;
+                groundContactNextCheck=clock+2.5f;
+                Texture2D incoming=Resources.Load<Texture2D>(
+                    "Frontier/Art/GroundContactFrames");
+                // Publish only a complete five-material, four-frame source.
+                if(incoming!=null&&incoming.width==128&&
+                    incoming.height==100)groundContactSheet=incoming;
+            }
+        }
         private sealed class StepTracker
         {
             internal Point previous;
@@ -91,7 +120,7 @@ namespace Starfall
         {
             var mark=new FootfallMark{
                 position=at,room=room,surface=surface,age=0f,
-                alternate=alternate,variant=surface=="snow"?6:2,
+                alternate=alternate,material=GroundContactMaterial(surface),
                 intensity=intensity
             };
             // Bounded even in multi-enemy fights. Never reallocate a texture
@@ -175,8 +204,8 @@ namespace Starfall
 
         private void DrawFootfallMark(FootfallMark mark)
         {
-            if(effectSheet==null || mark.room!=Game.save.room ||
-               Game.save.reducedMotion || Game.save.effectsQuality==0)
+            if(mark.room!=Game.save.room||
+               Game.save.reducedMotion||Game.save.effectsQuality==0)
                 return;
             float life=CurrentWorldVisualLook.footfallLifetime;
             float progress=Mathf.Clamp01(mark.age/Math.Max(.01f,life));
@@ -184,13 +213,31 @@ namespace Starfall
                 mark.intensity*(1f-progress)*(1f-progress);
             if(opacity<=.001f)return;
             Point p=ScreenPoint(mark.position);
-            // One original source cell and one planted position. This is
-            // world-ground detail: NOT a SpriteRenderer character, limb
-            // animation, input event, gameplay projectile or raised HUD FX.
-            float width=mark.surface=="snow"?24f:26f;
-            float height=mark.surface=="snow"?18f:13f;
-            Atlas(effectSheet,4,4,mark.variant,
-                new Rect(p.x-width/2f,p.y-height*.58f,width,height),
+            RefreshGroundContactSource();
+            if(groundContactSheet!=null)
+            {
+                // Each material has four real 32x20 contact keyframes.
+                // Root stays fixed under the actor; GameCore owns movement.
+                int frame=Game.save.effectsQuality==1?0:
+                    Math.Min(3,(int)Math.Floor(progress*4f));
+                float width=mark.intensity>.88f?44f:
+                    mark.intensity<.75f?30f:36f;
+                float height=width*20f/32f;
+                Rect onGround=new Rect(p.x-width*.5f,
+                    p.y-height*.70f,width,height);
+                Atlas(groundContactSheet,4,5,mark.material*4+frame,
+                    onGround,new Color(1f,1f,1f,opacity),
+                    mark.alternate);
+                return;
+            }
+            // Missing art falls back to prior source without mutating
+            // movement, attack timing, terrain or old save data.
+            if(effectSheet==null)return;
+            float legacyWidth=mark.surface=="snow"?24f:26f;
+            float legacyHeight=mark.surface=="snow"?18f:13f;
+            Atlas(effectSheet,4,4,mark.surface=="snow"?6:2,
+                new Rect(p.x-legacyWidth/2f,
+                    p.y-legacyHeight*.58f,legacyWidth,legacyHeight),
                 FootfallTint(mark.surface,opacity),mark.alternate);
         }
     }
