@@ -3,6 +3,38 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
+        {
+            var g = Fresh(data); g.Enter(1); g.enemies.Clear();
+            g.save.x=12;g.save.y=14;g.save.reducedMotion=true;
+            g.save.coins=999999;g.save.inventory[2]=9999;g.save.kills[1]=99999;
+            int xp=g.save.xp;
+            var raider=new Enemy(765,0,13,14,1) { stun=99 };
+            g.enemies.Add(raider);
+            g.Attack(new Point(1,0));
+            Advance(g,.45f);
+            Check(!g.enemies.Contains(raider) && g.save.xp>xp &&
+                g.effects.Exists(e=>e.kind=="loot"),
+                "A full bag must not suppress a real enemy defeat, XP or contact");
+            Check(g.save.coins==999999 && g.save.inventory[2]==9999 &&
+                g.save.kills[1]==99999,
+                "Actual combat rewards cannot exceed the on-disk coin, item and kill caps");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.coins==999999 && loaded.save.inventory[2]==9999 &&
+                loaded.save.kills[1]==99999,
+                "A full reward state roundtrips without hidden reload-only loss");
+            // Partial capacity still awards the usual loot exactly once.
+            g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;g.save.reducedMotion=true;
+            g.save.coins=999998;g.save.inventory[2]=9998;g.save.kills[1]=99998;
+            g.enemies.Add(new Enemy(766,0,13,14,1){stun=99});
+            g.Attack(new Point(1,0));Advance(g,.45f);
+            Check(g.save.coins==999999 && g.save.inventory[2]==9999 &&
+                g.save.kills[1]==99999,
+                "Last available resource slots are filled, never skipped or overrun");
+        }
+
         public static void BoundedEnemyOpeningDelaysAndRestoredPatrols(Campaign data)
         {
             // The original early patrol rhythm must remain unchanged.

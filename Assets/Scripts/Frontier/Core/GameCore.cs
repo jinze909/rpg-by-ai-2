@@ -737,14 +737,21 @@ namespace Starfall
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
             {
-                save.kills[save.room]++;
+                // Gameplay can keep running for hours after a full bag/
+                // journal. Apply the SAME caps as SaveData.Load at the
+                // original combat reward, rather than silently trimming
+                // progress or overflowing counters on the next reload.
+                save.kills[save.room] = Math.Min(99999, save.kills[save.room] + 1);
                 OnExpansionKill(e, profile.masteryWeapon, profile.playerOwned);
             }
             if (!specialEncounterEnemy) effects.Add(new Effect("loot", e.Position, .75f) { variant = e.boss ? 5 : e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2 });
             if (!InAbyss && !specialEncounterEnemy)
             {
-                save.coins += e.boss ? 70 : 6; GrantXp(e.boss ? 80 : 12, true);
-                save.inventory[e.boss ? 5 : (e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2)]++;
+                save.coins = Math.Min(999999,
+                    save.coins + (e.boss ? 70 : 6));
+                GrantXp(e.boss ? 80 : 12, true);
+                int lootSlot = e.boss ? 5 : e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2;
+                save.inventory[lootSlot] = Math.Min(9999, save.inventory[lootSlot] + 1);
             }
             effects.Add(new Effect("defeat", e.Position, .5f) { variant = e.boss ? 1 : 0 }); sound = "reward";
             // Optional Skywatch's armored elite is NOT a main chapter boss.
