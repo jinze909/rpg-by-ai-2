@@ -246,7 +246,10 @@ namespace Starfall
                 bool open=action=="hearing_verdict_public";
                 Flag(open?"hearing_public":"hearing_reserve");
                 Flag("hearing_complete");
-                save.coins+=85;save.shards+=2;AddXp(100);
+                // One-time civic outcomes are permanent even at a full
+                // wallet. The published v2 save must not silently truncate
+                // chapter-seven currency when reopened.
+                CreditCoins(85); CreditShards(2); AddXp(100);
                 revision++;sound="reward";
                 RecordMoment(open?
                     "三位居民的选择经公开听证后生效：余烬镇公民医疗灯开放，三地的碑文和照护责任永久保留。":

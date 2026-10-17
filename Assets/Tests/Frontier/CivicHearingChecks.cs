@@ -268,5 +268,41 @@ namespace Starfall.Tests
         }
 
 
+        public static void FullWalletCannotCorruptEitherChapterSevenPublicVerdict(Campaign data)
+        {
+            foreach (bool open in new[] { true, false })
+            {
+                var g = Fresh(data);
+                g.save.stage = 3; g.save.ending = 2;
+                foreach (string flag in new[] { "afterlight_complete", "storm_complete",
+                    "storm_orrin_guard", "hearing_started",
+                    "hearing_voice_1_care", "hearing_voice_2_watch",
+                    "hearing_voice_3_care" }) g.save.flags.Add(flag);
+                var dais = Object(g, "hearingdais");
+                g.save.x = dais.x; g.save.y = dais.y;
+                g.save.coins = 999997; g.save.shards = 99998;
+                int startingXp = g.save.xp;
+                Action(g, dais.kind, open ? "hearing_verdict_public" :
+                    "hearing_verdict_reserve");
+                Check(g.HearingComplete && g.HearingVerdict == (open ? 1 : 2) &&
+                    g.save.coins == 999999 && g.save.shards == 99999 &&
+                    g.save.xp > startingXp && g.save.ending == 2,
+                    "Actual civic hearing ratifies the independent votes and XP without overflowing either money field");
+                g.PrepareSave();
+                var loaded = new GameCore(data, CloneSave(g.save));
+                Check(loaded.HearingComplete && loaded.HearingVerdict == (open ? 1 : 2) &&
+                    loaded.HearingSignatures == 3 &&
+                    loaded.save.coins == 999999 && loaded.save.shards == 99999 &&
+                    loaded.save.ending == 2,
+                    "Completed medical or reserve ruling and legal cash survive unmodified v2 save format");
+                loaded.Talk(dais);
+                Check(loaded.conversation != null &&
+                    !Array.Exists(loaded.conversation.choices,
+                        c => c.action == "hearing_verdict_public" ||
+                             c.action == "hearing_verdict_reserve"),
+                    "Both previously selected hearing results are irreversible after reload, without repeat payments");
+            }
+        }
+
     }
 }
