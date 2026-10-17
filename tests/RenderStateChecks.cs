@@ -3552,6 +3552,8 @@ public static class RenderStateChecks
             "shoreFoamAlpha","shoreFoamFrameRate",
             "emberFlickerAlpha","emberLiftPixels",
             "campfireFlameAlpha","campfireFlameFrameRate",
+            "propVaporAlpha","propVaporFrameRate",
+            "gardenLivingAlpha","gardenLivingFrameRate",
             "relicShimmerAlpha","relicShimmerRate",
             "relicHaloRadius","relicHaloAlpha",
             "lampRadius","nightLightAlpha","dayLightAlpha",
@@ -3572,6 +3574,7 @@ public static class RenderStateChecks
             "hazardRingAlpha","hazardCountdownAlpha",
             "hitContactBlendFraction","slashBridgeFraction",
             "nonheroAtlasHandoffSeconds","bossPhaseMoteAlpha",
+            "enemyReleaseDustAlpha","enemyReleaseDustSeam",
             "impactFlourishAlpha",
             "deathPoseBlendFraction"};
         var authored=Resources.Load<TextAsset>("Frontier/Visual/WorldLook");
@@ -3594,7 +3597,7 @@ public static class RenderStateChecks
             Check(Math.Abs((float)field.GetValue(current)-expected)<.00001f,
                 "Current runtime did not read an edited WorldLook value: "+key);
         }
-        Console.WriteLine("PASS 53 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
+        Console.WriteLine("PASS 59 source-controlled WorldLook values including bounded full-Sprite death handoff for all accepted actors, painted impacts, terrain, foliage, ambient motion, hit contact and combat FX");
     }
 
     // Invoke this DIRECTLY from the executable offline C# smoke suite,
@@ -3971,6 +3974,117 @@ public static class RenderStateChecks
     // the same DrawWorldDecoration/PropImage source used by every mapped ruin.
     // Both accepted masonry pixels and the animated rune remain rooted and
     // are depth-sorted together; all motion/palette/reimport gates are live.
+    // Production map-decoration integration, not merely a PNG gallery.
+    // Planted, sprouting and grown stages use the original garden body
+    // plus an anchored, genuinely painted transparent leaf family.
+    public static void VerifyLivingGardenInProduction(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        float savedPlant=game.save.plantedAt;
+        float savedTotal=game.save.totalTime;
+        bool wasReduced=game.save.reducedMotion;
+        int savedQuality=game.save.effectsQuality;
+        float oldClock=Get<float>(app,"clock");
+        float oldOpacity=Get<float>(app,"worldActorOpacity");
+        Texture2D imported;
+        const string key="Frontier/Art/GardenLiving";
+        bool hadImport=Resources.TextureOverrides.TryGetValue(key,out imported);
+        var plot=new Decoration{kind="garden",variant=0,x=12f,y=14f};
+        var original=Get<Texture2D>(app,"worldProps");
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            game.save.totalTime=100f;
+            game.save.plantedAt=-1f;
+            Set(app,"worldActorOpacity",1f);
+            Set(app,"clock",10f);
+            Clear();Call(app,"DrawWorldDecoration",plot);
+            Check(GUI.textureCalls.Exists(c=>c.texture==original)&&
+                !GUI.textureCalls.Exists(c=>c.texture.name==
+                    "resource:Frontier/Art/GardenLiving"),
+                "Unplanted original garden must not sprout fake extra foliage");
+            game.save.plantedAt=90f; // genuine not-yet-mature Core stage
+            Clear();Call(app,"DrawWorldDecoration",plot);
+            var accepted=Get<Texture2D>(app,"livingGardenSheet");
+            var first=GUI.textureCalls.Single(c=>c.texture==accepted);
+            Check(accepted!=null&&accepted.width==128&&
+                accepted.height==64&&
+                GUI.textureCalls.Exists(c=>c.texture==original)&&
+                first.rect.width==46f&&first.rect.height==46f&&
+                Math.Abs(first.uv.y-.5f)<.00001f&&
+                Math.Abs(first.uv.height-.5f)<.00001f,
+                "Actual planted Moonherb did not retain mature soil body and new seedling Sprite");
+            float x=first.rect.x,y=first.rect.y;
+            Set(app,"clock",10.4f);
+            Clear();Call(app,"DrawWorldDecoration",plot);
+            var moving=GUI.textureCalls.Single(c=>c.texture==accepted);
+            Check(Math.Abs(moving.uv.x-first.uv.x)>.00001f&&
+                moving.rect.x==x&&moving.rect.y==y,
+                "Seedling foliage is static or crawls away from planted soil");
+            game.save.totalTime=151f; // now past real 60-second growth
+            Clear();Call(app,"DrawWorldDecoration",plot);
+            var bloomed=GUI.textureCalls.Single(c=>c.texture==accepted);
+            Check(Math.Abs(bloomed.uv.y)<.00001f&&
+                bloomed.rect.x==x&&bloomed.rect.y==y&&
+                GUI.textureCalls.Exists(c=>c.texture==original),
+                "Mature flowers replaced soil/shifted the garden pivot");
+            // Existing cover/occlusion fades on the atlas exactly once.
+            Set(app,"worldActorOpacity",.5f);
+            Clear();Call(app,"DrawWorldDecoration",plot);
+            var covered=GUI.textureCalls.Single(c=>c.texture==accepted);
+            Check(Math.Abs(covered.color.a-bloomed.color.a*.5f)<.0001f,
+                "Mature garden applied world cover opacity twice or not at all");
+            Set(app,"worldActorOpacity",1f);
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawWorldDecoration",plot);
+            var frozen=GUI.textureCalls.Single(c=>c.texture==accepted);
+            Check(Math.Abs(frozen.uv.x)<.00001f&&
+                Math.Abs(frozen.uv.y)<.00001f,
+                "Reduced motion should display a stable complete mature garden");
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=0;
+            Clear();Call(app,"DrawWorldDecoration",plot);
+            Check(GUI.textureCalls.Exists(c=>c.texture==original)&&
+                !GUI.textureCalls.Exists(c=>c.texture==accepted),
+                "Low FX must keep original soil without optional leaf overdraw");
+            game.save.effectsQuality=2;
+            Resources.TextureOverrides[key]=new Texture2D(
+                127,64,TextureFormat.RGBA32,false){
+                name="half-imported-living-garden"};
+            Set(app,"clock",14f);Clear();
+            Call(app,"DrawWorldDecoration",plot);
+            Check(GUI.textureCalls.Exists(c=>c.texture==accepted),
+                "Partial imported garden PNG replaced the last complete source");
+            var revised=new Texture2D(128,64,TextureFormat.RGBA32,false){
+                name="reimported-original-garden-poses"};
+            Resources.TextureOverrides[key]=revised;
+            Set(app,"clock",18f);Clear();
+            Call(app,"DrawWorldDecoration",plot);
+            Check(GUI.textureCalls.Exists(c=>c.texture==revised),
+                "Corrected mature garden source did not reload in actual world");
+            Resources.TextureOverrides[key]=accepted;
+            Set(app,"clock",0f);Clear();
+            Call(app,"DrawWorldDecoration",plot);
+            Check(GUI.textureCalls.Exists(c=>c.texture==accepted),
+                "Rewound Unity source clock kept a stale Moonherb Sprite");
+            Console.WriteLine("PASS original sprouting/blooming eight-frame garden: true plantedAt growth, rooted live WorldProps, alpha once, motion accessibility, partial/full reimport");
+        }
+        finally
+        {
+            if(hadImport)Resources.TextureOverrides[key]=imported;
+            else Resources.TextureOverrides.Remove(key);
+            Set(app,"clock",oldClock);
+            Set(app,"worldActorOpacity",oldOpacity);
+            game.save.plantedAt=savedPlant;
+            game.save.totalTime=savedTotal;
+            game.save.reducedMotion=wasReduced;
+            game.save.effectsQuality=savedQuality;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyRuinSigilsInProduction(FrontierRuntime app)
     {
         Prepare(app);

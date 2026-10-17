@@ -33,6 +33,8 @@ namespace Starfall
             public float campfireFlameFrameRate=5f;
             public float propVaporAlpha=.38f;
             public float propVaporFrameRate=3.8f;
+            public float gardenLivingAlpha=.62f;
+            public float gardenLivingFrameRate=3.2f;
             public float relicShimmerAlpha=.24f;
             public float relicShimmerRate=3.8f;
             public float relicHaloRadius=83f;
@@ -183,6 +185,12 @@ namespace Starfall
                             case "propVaporFrameRate":
                                 if(value>=1.5f&&value<=7f)
                                     settings.propVaporFrameRate=value;break;
+                            case "gardenLivingAlpha":
+                                if(value>=.20f&&value<=.80f)
+                                    settings.gardenLivingAlpha=value;break;
+                            case "gardenLivingFrameRate":
+                                if(value>=1.5f&&value<=6f)
+                                    settings.gardenLivingFrameRate=value;break;
                             case "relicShimmerAlpha":
                                 if(value>=.08f&&value<=.32f)
                                     settings.relicShimmerAlpha=value;break;

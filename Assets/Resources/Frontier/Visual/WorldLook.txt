@@ -162,3 +162,9 @@ ruinSigilFrameRate=3.5
 # Driven ONLY by GameCore Enemy.releaseTime. No new gameplay hit radius.
 enemyReleaseDustAlpha=0.48
 enemyReleaseDustSeam=0.18
+
+# The ORIGINAL garden/soil WorldProps stays intact. Only planted plots
+# add a 4-frame original seedling/blossom transparent foliage paint, rooted
+# to the same scene foot. Harvest, timers and SaveData remain GameCore-owned.
+gardenLivingAlpha=0.62
+gardenLivingFrameRate=3.2

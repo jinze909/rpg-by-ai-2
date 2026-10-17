@@ -263,6 +263,8 @@ namespace Starfall
             {
                 PropImage(prop.kind,variant,rect.x,rect.y,rect.width,rect.height,tint);
                 if(prop.kind=="ruin")DrawAuthoredRuinSigils(prop,p,tint);
+                if(prop.kind=="garden")
+                    DrawAuthoredLivingGarden(prop,p,variant,tint);
             }
             if(prop.kind=="well"&&Game.Has("ally_3"))Box(p.x-5,p.y-16,10,5,mint);
         }
