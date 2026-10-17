@@ -47,6 +47,9 @@ namespace Starfall
             public Point direction;
         }
         private DodgeIntent bufferedDodge;
+        // Renderers can display the accepted input without owning its clock
+        // or creating a new serialized gameplay state.
+        public bool DodgeQueued { get { return bufferedDodge != null; } }
         private void ClearBufferedDodge() { bufferedDodge = null; }
         public void ClearBufferedCombatInputs()
         {

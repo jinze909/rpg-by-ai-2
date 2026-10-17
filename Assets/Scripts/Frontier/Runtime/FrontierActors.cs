@@ -466,6 +466,12 @@ namespace Starfall
         private void DrawPlayerActor()
         {
             Point p = ScreenPoint(Game.Position);
+            // Confirm a real buffered dodge with a STATIC planted cyan cue.
+            // Do not animate/swivel character limbs or invent a second dash.
+            // Remains readable with reduced-motion accessibility enabled.
+            if(!drawingOutline&&Game.DodgeQueued&&!Game.Dying)
+                Ring(Game.Position,.49f,
+                    new Color(.48f,.78f,1f,.66f),16);
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline)
                 PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);

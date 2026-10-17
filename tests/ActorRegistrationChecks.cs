@@ -2287,6 +2287,64 @@ public static class ActorRegistrationChecks
     // not just an unused optional visual contact sheet.
     // Exercise the REAL enemy/Boss DrawEnemyActor body and genuine
     // Enemy.hitTime, never just an isolated VFX gallery.
+    public static void VerifyBufferedDodgeWorldCue(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        bool reduced=game.save.reducedMotion;
+        int quality=game.save.effectsQuality;
+        float previousOpacity=(float)typeof(FrontierRuntime)
+            .GetField("worldActorOpacity",Private).GetValue(app);
+        try
+        {
+            Set(app,"worldActorOpacity",1f);
+            game.enemies.Clear();
+            game.save.energy=100;game.save.reducedMotion=true;
+            game.save.effectsQuality=1;
+            game.dashCooldown=.10f;
+            game.Dash(new Point(0,-1));
+            Check(game.DodgeQueued&&game.dashTime<=0f,
+                "Dodge confirmation must represent a real queued input");
+            Clear();
+            var pending=Draw(app,"DrawPlayerActor");
+            var marks=pending.Where(c=>c.rect.width==4f&&
+                c.rect.height==4f&&
+                Math.Abs(c.color.r-.48f)<.00001f&&
+                Math.Abs(c.color.g-.78f)<.00001f&&
+                Math.Abs(c.color.b-1f)<.00001f&&
+                Math.Abs(c.color.a-.66f)<.00001f).ToArray();
+            Check(marks.Length==16,
+                "Production hero does not show its 16 planted dodge-confirmation pixels");
+            Point foot=(Point)Call(app,"ScreenPoint",game.Position);
+            foreach(var mark in marks)
+            {
+                float dx=mark.rect.x+2f-foot.x;
+                float dy=mark.rect.y+2f-foot.y;
+                float distance=(float)Math.Sqrt(dx*dx+dy*dy);
+                Check(Math.Abs(distance-.49f*36f)<.01f,
+                    "Buffered dodge confirmation drifted from rooted hero feet");
+            }
+            game.ClearBufferedCombatInputs();
+            Clear();
+            Check(!game.DodgeQueued&&!Draw(app,"DrawPlayerActor").Any(c=>
+                c.rect.width==4f&&
+                Math.Abs(c.color.r-.48f)<.00001f&&
+                Math.Abs(c.color.g-.78f)<.00001f),
+                "Cancelled dodge must immediately retire its world confirmation");
+            game.dashCooldown=.10f;game.Dash(new Point(1,0));
+            game.mode="pause";
+            Check(!game.DodgeQueued,"Pause must retire queued dodge cue and input");
+            Console.WriteLine("PASS queued dodge is visibly confirmed beneath actual hero; no fake dash, static reduced-motion cue, anchored 16-pixel ring and immediate cancellation");
+        }
+        finally
+        {
+            game.save.reducedMotion=reduced;
+            game.save.effectsQuality=quality;
+            Set(app,"worldActorOpacity",previousOpacity);
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyMaterialGroundContactFrames(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
