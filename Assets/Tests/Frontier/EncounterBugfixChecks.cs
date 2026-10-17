@@ -582,5 +582,48 @@ namespace Starfall.Tests
                 "World-route completion and legal coin/shard totals persist through the original v2 save");
         }
 
+        public static void DeepAbyssGalleryRewardsRespectRealMidrunSaveCaps(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.frontierEnding = 1;
+            g.StartAbyss(0);
+            Check(g.InAbyss, "A real authorized expedition starts before gallery reward tests");
+            WorldObject survey = Object(g, "abyssFarSurvey");
+            WorldObject cache = Object(g, "abyssFarCache");
+            WorldObject echo = Object(g, "abyssFarEcho");
+            g.save.runXp = g.save.runCoins = g.save.runShards = 9998;
+            g.save.x = survey.x; g.save.y = survey.y;
+            g.Talk(survey); g.Close();
+            Check(g.Has("abyss_annex_far_survey_1") &&
+                g.save.runXp == 9999,
+                "Physical lower-gallery testimony caps pending XP without erasing its discovery");
+            g.save.x = cache.x; g.save.y = cache.y;
+            g.Talk(cache); g.Close();
+            Check(g.Has("abyss_annex_far_cache_1") &&
+                g.save.runCoins == 9999 && g.save.runShards == 9999,
+                "Real remote supply cache limits both unbanked physical resources to the persisted v2 bounds");
+            g.save.x = echo.x; g.save.y = echo.y;
+            g.Talk(echo); g.Close();
+            Check(g.Has("abyss_annex_far_echo_1") && g.save.runXp == 9999,
+                "Echo evidence completes the narrative without overflowing pending XP");
+            g.Talk(echo); g.Close();
+            Check(g.save.runXp == 9999,
+                "Repeated dialogue cannot duplicate lower-gallery pending rewards");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss && restored.save.runXp == 9999 &&
+                restored.save.runCoins == 9999 && restored.save.runShards == 9999 &&
+                restored.Has("abyss_annex_far_cache_1") &&
+                restored.Has("abyss_annex_far_echo_1"),
+                "All three original-save-format unbanked resources and discovery flags survive reload");
+            restored.enemies.Clear();
+            int coins = restored.save.coins, shards = restored.save.shards;
+            Action(restored, "abyssGate", "abyssBank");
+            Check(!restored.InAbyss && restored.save.room == 0 &&
+                restored.save.coins == coins + 9999 &&
+                restored.save.shards == shards + 9999,
+                "Authentic cleared-floor extraction banks preserved gallery loot exactly once");
+        }
+
     }
 }
