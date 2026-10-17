@@ -662,7 +662,19 @@ namespace Starfall
             bool crit = Random() < profile.criticalChance;
             if (crit) damage *= 1.7f;
             if (e.staggerRecovery <= 0) e.stagger += damage * (profile.weapon == 0 ? .7f : .45f) * (profile.weapon == 0 && profile.style == 2 ? 1.4f : 1);
-            if (e.stagger >= (e.boss ? 95 : 30)) { e.stagger = 0; e.staggerRecovery = e.boss ? 4 : 2; e.stun = Math.Max(e.stun,e.boss ? 1.1f : 1.7f); e.state = 0; e.timer = 1; effects.Add(new Effect("break", e.Position, .7f, L("破势", "BREAK"))); }
+            if (e.stagger >= (e.boss ? 95 : 30))
+            {
+                e.stagger = 0;
+                e.staggerRecovery = e.boss ? 4 : 2;
+                // A damage-earned Break is a REAL hard crowd control,
+                // exactly like frost, not just a status label. Reuse its
+                // authoritative interruption/cue cleanup before publishing
+                // the stagger reward. Preserve the original 1s recovery.
+                ApplyEnemyControl(e,e.boss ? 1.1f : 1.7f);
+                e.state = 0; e.timer = 1;
+                effects.Add(new Effect("break",e.Position,.7f,
+                    L("破势","BREAK")));
+            }
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact", e.Position, .22f) { direction = e.recoil });
             if (!save.reducedMotion) { hitStop = Math.Max(hitStop, technique ? .05f : .025f); impactShake = Math.Max(impactShake, technique ? .12f : profile.weapon == 0 && profile.combo == 2 ? .07f : 0); }

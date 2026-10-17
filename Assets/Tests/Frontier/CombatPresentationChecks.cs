@@ -219,6 +219,33 @@ namespace Starfall.Tests
                 g.effects.Contains(environmental)&&
                 !second.targetingReliefCivilian&&second.state==0,
                 "Second stunned enemy failed to retire only its own live telegraph");
+
+            // The OTHER entry point into full control is damage-earned
+            // poise Break, which must retract exactly the same pending
+            // civilian target circle. This actually executes projectile ->
+            // Hit -> stagger threshold -> control helper -> cue ownership.
+            var staggered=new Enemy(96917,0,13,14,10000)
+            {
+                state=1,timer=.21f,windupDuration=.65f,
+                target=target,targetingReliefCivilian=true,
+                stagger=29f,staggerRecovery=0f
+            };
+            g.enemies.Add(staggered);
+            var staggerCue=new Effect("danger",target,.21f)
+                {radius=1.5f,reliefMissionOwned=true};
+            g.effects.Add(staggerCue);
+            table.Add(staggered,staggerCue);
+            g.projectiles.Add(new Projectile
+            {
+                position=staggered.Position,velocity=new Point(1,0),
+                life=1f,damage=20f,friendly=true,visual="arrow"
+            });
+            g.Tick(.01f,new Point());
+            Check(staggered.staggerRecovery>0f&&staggered.state==0&&
+                !staggered.targetingReliefCivilian&&
+                !g.effects.Contains(staggerCue)&&
+                g.effects.Contains(environmental),
+                "Real projectile poise Break failed to retract its canceled civilian danger ring");
         }
 
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
