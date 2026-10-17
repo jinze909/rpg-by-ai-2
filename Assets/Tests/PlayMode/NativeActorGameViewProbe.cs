@@ -33,6 +33,5 @@ namespace Starfall.Tests
             finally {completed=true;}
         }
     }
-#endif
 }
 #endif
