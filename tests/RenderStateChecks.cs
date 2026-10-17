@@ -2089,6 +2089,56 @@ public static class RenderStateChecks
         }
     }
 
+    private static void AreaWarningsUseTrueDamageCircleAtScreenCorners(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        game.enemies.Clear();game.effects.Clear();
+        game.save.effectsQuality=0;
+        game.save.reducedMotion=true;
+        Point camera=game.Position;
+        Set(app,"camera",camera);
+        var center=(Point)Call(app,"ScreenPoint",camera);
+        var boss=new Enemy(93287,2,camera.x+55f,camera.y+55f,480,true)
+        {
+            state=1,timer=.42f,windupDuration=1.1f,
+            facing=new Point(1,0)
+        };
+        float radius=GameCore.EnemyAreaRadius(boss)*36f;
+        Check(radius>8f,"Boss simulation has no genuine target circle");
+        try
+        {
+            game.enemies.Add(boss);
+            // Place the strike at the bottom-right viewport CORNER.
+            // 0.5R in each axis intersects; 0.85R in each axis falls
+            // outside the real circle despite overlapping its AABB.
+            boss.target=camera+new Point(
+                (1280f-center.x+radius*.5f)/36f,
+                (800f-center.y+radius*.5f)/36f);
+            Check((bool)Call(app,"WarningFootprintVisible",boss),
+                "Circle reaching GameView corner was incorrectly culled");
+            Clear();Call(app,"DrawVisibleEnemyWarnings");
+            Check(GUI.textureCalls.Count>0,
+                "Actual boss AoE outline disappeared when crossing screen corner");
+
+            boss.target=camera+new Point(
+                (1280f-center.x+radius*.85f)/36f,
+                (800f-center.y+radius*.85f)/36f);
+            Check(!(bool)Call(app,"WarningFootprintVisible",boss),
+                "Diagonal outside-corner footprint used a false rectangular radius");
+            Clear();Call(app,"DrawVisibleEnemyWarnings");
+            Check(GUI.textureCalls.Count==0,
+                "Offscreen boss circle displayed a phantom on-screen damage zone");
+            Console.WriteLine(
+                "PASS real GameCore boss AoE corner overlap, outside diagonal circle rejection and zero FX");
+        }
+        finally
+        {
+            game.enemies.Clear();app.EndVisualReview();Clear();
+        }
+    }
+
     private static void LiveHazardOutlinesStayAboveActorsAndClipAtView(
         FrontierRuntime app)
     {
@@ -4643,7 +4693,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }

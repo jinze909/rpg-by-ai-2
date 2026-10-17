@@ -198,19 +198,25 @@ namespace Starfall
         }
         private bool WarningFootprintVisible(Enemy enemy)
         {
-            // AoE circles are centered on the locked GameCore target. The
-            // visual can intrude into the screen even if its CENTER is out.
-            float reach=GameCore.EnemyAreaRadius(enemy)*Tile+28f;
-            return WorldDrawable(enemy.target.x,enemy.target.y,reach,reach);
+            // A circle can touch a screen border with its center outside,
+            // but a rectangular center-margin test spuriously flags diagonal
+            // screen corners. Measure the true circle-to-viewport distance,
+            // using the authoritative GameCore damage radius in canvas px.
+            Point center=ScreenPoint(enemy.target);
+            float radius=GameCore.EnemyAreaRadius(enemy)*Tile;
+            float dx=Math.Max(0f,Math.Max(-center.x,center.x-Width));
+            float dy=Math.Max(0f,Math.Max(-center.y,center.y-Height));
+            return dx*dx+dy*dy<=(radius+2f)*(radius+2f);
         }
         private void DrawVisibleEnemyWarnings()
         {
             foreach(Enemy e in Game.enemies)
             {
                 if(e.state!=1)continue;
+                bool areaAttack=e.boss||e.kind==2;
                 bool anchored=WorldDrawable(e.x,e.y,450,450) ||
-                    WorldDrawable(e.target.x,e.target.y,120,120);
-                bool area=(e.boss||e.kind==2)&&WarningFootprintVisible(e);
+                    !areaAttack&&WorldDrawable(e.target.x,e.target.y,120,120);
+                bool area=areaAttack&&WarningFootprintVisible(e);
                 // For melee there is no offscreen line to recover. Archers
                 // use the SAME GameCore weapon origin as their emitted bolt;
                 // Bosses only draw a long lane if their lock exceeds 3 tiles.
