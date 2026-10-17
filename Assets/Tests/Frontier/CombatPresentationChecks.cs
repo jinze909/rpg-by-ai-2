@@ -1202,6 +1202,28 @@ namespace Starfall.Tests
                 GameCore.DirectionRow(g.companionAim)==
                     GameCore.DirectionRow(windup.direction),
                 "Companion shot retained stale target coordinates or changed full-body pose");
+            // Cross the east/south authored-direction seam without
+            // actually moving BEHIND the shooter. Its existing forward
+            // sprite is still legal; keep the original shot rather than
+            // starving ranged companions in long procedural encounters.
+            var seam=Fresh(data,1);seam.Enter(1);
+            seam.enemies.Clear();seam.save.x=13.5f;seam.save.y=14f;
+            seam.save.flags.Add("companion_1");
+            seam.SelectCompanion(1);
+            seam.companionPosition=new Point(12,14);
+            var seamFoe=new Enemy(97813,0,15,14,10000)
+                {stun=99f,timer=9999f};
+            seam.enemies.Add(seamFoe);
+            cadence.SetValue(seam,0f);
+            seam.Tick(.02f,new Point());
+            ActorAction seamCast=seam.companionAction;
+            Check(seamCast!=null&&seamCast.kind=="attack",
+                "Painted facing seam requires a real prepared companion shot");
+            seamFoe.x=14f;seamFoe.y=16.8f;
+            Advance(seam,.18f);
+            Check(seamCast.released&&seam.projectiles.Count==1&&
+                (float)cadence.GetValue(seam)>2f,
+                "Crossing a facing row edge incorrectly canceled an otherwise valid forward shot");
             var blocked=Fresh(data,1);blocked.Enter(1);
             blocked.enemies.Clear();blocked.save.x=13.5f;
             blocked.save.y=14f;blocked.save.flags.Add("companion_1");

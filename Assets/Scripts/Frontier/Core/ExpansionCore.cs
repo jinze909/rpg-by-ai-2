@@ -500,14 +500,19 @@ namespace Starfall
                             Point heading=changed.Normalized;
                             float facing=heading.x*action.direction.x+
                                 heading.y*action.direction.y;
-                            if(changed.Length<.05f||facing<.55f||
-                                DirectionRow(heading)!=DirectionRow(action.direction))
+                            if(changed.Length<.05f||facing<-.25f)
                                 rejected=true;
-                            else
+                            else if(facing>=.55f&&
+                                DirectionRow(heading)==DirectionRow(action.direction))
                             {
                                 releaseDirection=heading;
                                 releaseTarget=locked.Position;
                             }
+                            // Target crossed only the row edge of the
+                            // painted facing during the brief windup: keep
+                            // the original source-legal forward release
+                            // instead of starving the companion's attack
+                            // cadence on moving bosses or abyss monsters.
                         }
                         if(rejected)
                             companionAttack=Math.Min(companionAttack,.22f);
