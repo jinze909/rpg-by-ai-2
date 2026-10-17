@@ -447,7 +447,18 @@ namespace Starfall
                 return true;
             }
             if (action == "practice") { StartPractice(); return true; }
-            if (action == "scoutgift") { if (Has("scout_saved") && !Has("scout_gift")) { Flag("scout_gift"); save.inventory[6]++; RecordMoment("侦察员回家了，并送来一份热汤。", "The scout made it home and brought you a warm stew."); } return true; }
+            if (action == "scoutgift")
+            {
+                // A one-time gift is not collected until the stew is stored.
+                // Leaving the gift unclaimed lets the player clear a stack
+                // and return without permanently losing it on the next load.
+                if (Has("scout_saved") && !Has("scout_gift") && HasInventoryRoom(6, 1))
+                {
+                    CreditInventory(6, 1); Flag("scout_gift");
+                    RecordMoment("侦察员回家了，并送来一份热汤。", "The scout made it home and brought you a warm stew.");
+                }
+                return true;
+            }
             return false;
         }
         private void CaptureWorld()

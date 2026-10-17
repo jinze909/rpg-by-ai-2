@@ -335,5 +335,57 @@ namespace Starfall.Tests
                 "Reloaded capped rewards settle once without bank overflow or a stranded Abyss run");
         }
 
+        public static void OneTimeStorySuppliesWaitForActualStorageCapacity(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.flags.Add("scout_saved");
+            g.save.inventory[6] = 9999;
+            int history = g.save.moments.Count;
+            Action(g, "returnscout", "scoutgift");
+            Check(!g.Has("scout_gift") && g.save.inventory[6] == 9999 &&
+                g.save.moments.Count == history,
+                "Full stew stack must not burn scout's one-time gift or fabricate a gift journal entry");
+            g.save.inventory[6] = 9998;
+            Action(g, "returnscout", "scoutgift");
+            Check(g.Has("scout_gift") && g.save.inventory[6] == 9999 &&
+                g.save.moments.Count == history + 1,
+                "Returning after using stew grants the real gift once");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            loaded.save.inventory[6] = 9998;
+            Action(loaded, "returnscout", "scoutgift");
+            Check(loaded.save.inventory[6] == 9998 && loaded.Has("scout_gift"),
+                "Previously received scout gift stays claimed after a v2 reload");
+
+            g = Fresh(data);
+            g.Enter(1);
+            g.save.coins = 999999; g.save.inventory[1] = 9999;
+            g.Talk(Object(g, "lore"));
+            Check(g.Has("lore_1") && !g.Has("treasure_1") &&
+                g.save.coins == 999999 && g.save.inventory[1] == 9999 &&
+                g.conversation.textEn.Contains("remain"),
+                "Full wallet and crystals must preserve the region's lore and leave its first loot recoverable");
+            g.Close();
+            g.save.coins = 999979; g.save.inventory[1] = 9998;
+            g.Talk(Object(g, "lore"));
+            Check(!g.Has("treasure_1") && g.save.coins == 999979 &&
+                g.save.inventory[1] == 9998,
+                "Partial crystal capacity may not consume an atomic two-crystal relic prize");
+            g.Close();
+            g.save.inventory[1] = 9997;
+            g.Talk(Object(g, "lore"));
+            Check(g.Has("treasure_1") && g.save.coins == 999999 &&
+                g.save.inventory[1] == 9999,
+                "Making exactly enough room awards all first relic resources together");
+            g.Close(); g.Talk(Object(g, "lore"));
+            Check(g.save.coins == 999999 && g.save.inventory[1] == 9999,
+                "Repeated lore interactions do not mint duplicate rewards");
+            g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save));
+            Check(resumed.Has("lore_1") && resumed.Has("treasure_1") &&
+                resumed.save.coins == 999999 && resumed.save.inventory[1] == 9999,
+                "Both lore discovery and the legitimately collected treasure survive reload");
+        }
+
     }
 }

@@ -1528,8 +1528,25 @@ namespace Starfall
             {
                 if (save.room > 3) { Notify("堡垒的能源，都来自边境的星核。", "The citadel draws its power from the frontier's cores."); return; }
                 int id = save.room; Flag("lore_" + id); LoreData l = data.lore[id - 1];
-                if (!Has("treasure_" + id)) { Flag("treasure_" + id); CreditCoins(20); CreditInventory(1, 2); }
-                Dialog(l.title, l.en, l.zh + "\n\n找到遗物：硬币 ×20，星晶 ×2（首次）。", l.text + "\n\nRelic found: 20 coins, 2 crystals (first discovery).", C("记入手帐", "Record it in the journal", "close")); sound = "reward"; return;
+                // Record the region's history even when full, but keep its
+                // one-time physical treasure available until both resources
+                // can actually fit. The lore flag is unrelated to pickup.
+                bool unclaimed = !Has("treasure_" + id);
+                bool collected = unclaimed && save.inventory[1] <= 9997 &&
+                    save.coins <= 999979;
+                if (collected)
+                {
+                    CreditCoins(20); CreditInventory(1, 2);
+                    Flag("treasure_" + id); sound = "reward";
+                }
+                string rewardZh = collected ? "\n\n首次获得：硬币 ×20，星晶 ×2。" :
+                    unclaimed ? "\n\n遗物补给还在这里。留出20硬币和2星晶的容量后回来领取。" :
+                    "\n\n遗物补给已领取。";
+                string rewardEn = collected ? "\n\nFirst discovery: +20 coins, +2 crystals." :
+                    unclaimed ? "\n\nRelic supplies remain here. Free room for 20 coins and 2 crystals, then return." :
+                    "\n\nRelic supplies already collected.";
+                Dialog(l.title, l.en, l.zh + rewardZh, l.text + rewardEn,
+                    C("记入手帐", "Record it in the journal", "close")); return;
             }
             if (kind == "herb" || kind == "wood" || kind == "ore")
             {
