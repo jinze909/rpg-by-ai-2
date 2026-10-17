@@ -1015,6 +1015,48 @@ namespace Starfall.Tests
             g.Attack(new Point(0, 1)); Advance(g, .25f);
             Check(open.hp < 999, "The obstruction fix preserves normal open-lane melee contacts");
         }
+        public static void MiraCommandCannotHealThroughWallOrWasteCooldown(Campaign data)
+        {
+            // Real forest obstacle already blocks Mira's auto heal. The
+            // explicit 18s command must obey the same line at CONTACT,
+            // including a hero who escaped behind a wall during windup.
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.flags.Add("companion_0");g.SelectCompanion(0);
+            g.save.x=9.5f;g.save.y=8.8f;
+            g.companionPosition=new Point(10.5f,8.8f);
+            g.save.health=30f;g.save.energy=20f;
+            Check(g.CanStand(g.Position)&&g.CanStand(g.companionPosition),
+                "Mira command source/recipient must start on legal ground");
+            g.CommandCompanion();
+            ActorAction cast=g.companionAction;
+            Check(cast!=null&&!cast.released&&g.companionCooldown>17f,
+                "Mira command starts a real delayed cast and reserves cooldown");
+            // Cross the production wall before the same action contact.
+            g.save.x=9.5f;g.save.y=10.2f;
+            Check(g.Blocked(9.5f,9.5f),
+                "Forest command test requires actual solid line-of-sight cover");
+            Advance(g,.22f);
+            Check(cast.released&&g.companionAction==cast&&
+                g.save.health==30f&&g.save.energy<24f&&
+                g.guardTime<=0f&&g.companionCooldown<=0f&&
+                !g.effects.Exists(e=>e.kind=="heal"),
+                "Mira's invalid remote heal crossed the wall, granted a shield or spent 18s");
+            // The same player can command again on a clear physical lane,
+            // without waiting through a cooldown for the rejected heal.
+            g.save.x=9.5f;g.save.y=8.8f;
+            g.companionPosition=new Point(10.5f,8.8f);
+            g.CommandCompanion();
+            ActorAction retry=g.companionAction;
+            Check(retry!=null&&retry!=cast&&!retry.released,
+                "Rejected Mira command did not become payable again");
+            Advance(g,.22f);
+            Check(retry.released&&g.save.health==48f&&
+                g.save.energy>20f&&g.guardTime>2.7f&&
+                g.companionCooldown>17f&&
+                g.effects.Exists(e=>e.kind=="heal"),
+                "Real unobstructed Mira command lost its heal, energy, guard or cooldown");
+        }
+
         public static void CompanionAutoFireCannotSpendCadenceOnExpiredEnemy(Campaign data)
         {
             // The real hero can kill an enemy during a companion's .16s

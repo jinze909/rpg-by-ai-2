@@ -325,7 +325,22 @@ namespace Starfall
         {
             int bond = action.combo; sound = "skill";
             if (action.weapon == 0)
-            { save.health = Math.Min(save.maxHealth, save.health + 18 + bond * 3); save.energy = Math.Min(100, save.energy + 15); guardTime = Math.Max(guardTime, 3); }
+            {
+                // The player's commanded Mira heal is a PHYSICAL support
+                // contact, just like Mira's automatic heal. If the hero
+                // stepped behind a wall/portal during her 200ms cast, a
+                // global heal and 18s spent cooldown would be misleading.
+                // Retain the full authored command recovery pose, but refund
+                // the invalid contact; never award HP, energy or guard.
+                if (!CanCompanionHeal())
+                {
+                    companionCooldown=0f;
+                    return;
+                }
+                save.health = Math.Min(save.maxHealth, save.health + 18 + bond * 3);
+                save.energy = Math.Min(100, save.energy + 15);
+                guardTime = Math.Max(guardTime, 3);
+            }
             else if (action.weapon == 1)
                 for (int i = -1; i <= 1; i++)
                 {
