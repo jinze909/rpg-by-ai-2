@@ -1335,14 +1335,14 @@ namespace Starfall
             bool first = !Has(flag);
             if (first)
             {
-                Flag(flag); save.coins += 8; save.shards += 1; revision++;
+                Flag(flag); CreditCoins(8); CreditShards(1); revision++;
                 sound = "reward";
                 bool completed = true;
                 for (int i = 0; i < 8; i++)
                     if (!Has("waytrail_waytrail" + i + "s") || !Has("waytrail_waytrail" + i + "e"))
                         completed = false;
                 if (completed && !Has("waytrail_complete"))
-                { Flag("waytrail_complete"); save.skillPoints++; revision++; }
+                { Flag("waytrail_complete"); CreditSkillPoints(1); revision++; }
             }
             string[] southZh = { "南侧坐标还留着一条朝旅店走的小路。补给不多，但曾足够把迷路的孩子送回镇里。", "树根下藏着巡路人的行程：先找失踪的侦察员，再问为什么林地成了禁区。", "沉桥岸边写着一长串无名者。每次潮水上涨，名单都比货单长。", "工棚旧门上有一道划痕，工人们在这里商量停机，拒绝把伤亡当作损耗。", "堡垒南侧没有城门，只有一条隐蔽的疏散坡道。有人从这里带孩子逃过星雨。", "旧码头的补给栏记着一艘未能返航的船；每一盏亮起的灯都是给它留下的位置。", "遮阴石板背面记录了绿洲水份额。这个数字和仓库的配给账本并不相同。", "雪路旁的余烬已经熄灭，留下的柴枝整齐地指向最近的有人居住的院落。" };
             string[] southEn = { "A southern bearing leads to the inn. Small provisions once guided lost children home.", "A road-warden's note lies beneath the roots: find the scout, then ask why the forest was sealed.", "A line of unnamed people runs along the drowned bridge. With each tide it grew longer than the cargo manifest.", "Workers marked this shed when they voted to stop the machines, refusing to call casualties mere wastage.", "A hidden southern evacuation slope leads away from the citadel: someone led children through the Starfall here.", "An old dock log names a boat that never returned. Every lit lamp kept a place for its crew.", "The shade marker lists the oasis water share, different from the numbers in the depot ledger.", "The fire has gone out, but neatly arranged twigs point toward the nearest inhabited shelter." };
@@ -1528,7 +1528,7 @@ namespace Starfall
             {
                 if (save.room > 3) { Notify("堡垒的能源，都来自边境的星核。", "The citadel draws its power from the frontier's cores."); return; }
                 int id = save.room; Flag("lore_" + id); LoreData l = data.lore[id - 1];
-                if (!Has("treasure_" + id)) { Flag("treasure_" + id); save.coins += 20; save.inventory[1] += 2; }
+                if (!Has("treasure_" + id)) { Flag("treasure_" + id); CreditCoins(20); CreditInventory(1, 2); }
                 Dialog(l.title, l.en, l.zh + "\n\n找到遗物：硬币 ×20，星晶 ×2（首次）。", l.text + "\n\nRelic found: 20 coins, 2 crystals (first discovery).", C("记入手帐", "Record it in the journal", "close")); sound = "reward"; return;
             }
             if (kind == "herb" || kind == "wood" || kind == "ore")
@@ -1575,6 +1575,19 @@ namespace Starfall
                 Dialog(b.name, b.en, save.room == 4 ? (Has("triad_complete") ? "你带来了三核审计的原始记录。厄洛终于看到森林、河流与矿工分别失去的份额。他沉默了一阵，却仍握住武器：如果停下这道屏障，谁来保护里面的孩子？让我看看你的勇气，而不是另一道命令。\n\n" : "") + "厄洛：我见过屏障熄灭的那一晚。孩子们冻得发抖，我一个一个把他们抱进避难室。我发誓再也不让城墙倒下。\n\n你说星核在抽干城外的村庄？我知道。但现在停机，又该让谁在下一场灾害里死去？如果你有能真正运转的办法，就让我看见；否则先打败我。" : "守护者仍依照失控的星根旧指令驱赶靠近者。地面预警标出它即将攻击的区域。闪避后反击，并查清这一带的机关为何不能停止。", save.room == 4 ? (Has("triad_complete") ? "Your original audit lists the forests, rivers and miners stripped of their share. Orrin sees the accounts and falls silent, but grips his weapon: Who protects the children inside if the shield stops? Show me courage, not another command.\n\n" : "") + "Orrin: I remember the night the lights died. I carried freezing children into shelter, one by one. I swore no wall would fall again.\n\nYou say the cores are draining the villages? I know. But if I stop the shield now, who dies in the next storm? Show me an alternative that actually works—or defeat me first." : "The guardian still obeys an unstable ancient starroot command. Ground warnings reveal its next real contacts. Dodge and counter, then investigate why the regional machinery cannot stop.", C(save.room == 4 ? "为边境而战" : "开始挑战", save.room == 4 ? "Fight for the frontier" : "Challenge the guardian", "boss"), C("准备一下", "Prepare first", "close"));
             }
         }
+        // Progress and rewards must already match v1/v2 save caps BEFORE a
+        // save is written, not be quietly truncated at the next Load().
+        // Use long arithmetic for large accumulated Abyss payouts.
+        private static int CappedReward(int current, int reward, int maximum)
+        {
+            return (int)Math.Max(0L, Math.Min((long)maximum,
+                (long)current + Math.Max(0L, (long)reward)));
+        }
+        private void CreditCoins(int amount) { save.coins = CappedReward(save.coins, amount, 999999); }
+        private void CreditShards(int amount) { save.shards = CappedReward(save.shards, amount, 99999); }
+        private void CreditSkillPoints(int amount) { save.skillPoints = CappedReward(save.skillPoints, amount, 99); }
+        private void CreditInventory(int index, int amount)
+        { save.inventory[index] = CappedReward(save.inventory[index], amount, 9999); }
         private bool Spend(int wood, int crystal, int herb, int fish, int gear, int coins = 0)
         {
             int[] costs = { wood, crystal, herb, fish, gear };
@@ -1668,7 +1681,7 @@ namespace Starfall
                 ResolveRestTimeSkip(45f);
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
             }
-            if (action == "scout" && save.kills[1] >= 4) { Flag("scout_saved"); save.coins += 20; Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }
+            if (action == "scout" && save.kills[1] >= 4 && !Has("scout_saved")) { Flag("scout_saved"); CreditCoins(20); Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }
             if (action == "engine" && Spend(0, 0, 0, 0, 3)) { Flag("gate_3"); sound = "reward"; Notify("升降机启动，工厂入口开启。", "Elevator repaired. The workshop is open."); }
             if (action == "plant")
             {
@@ -1705,13 +1718,13 @@ namespace Starfall
             if (action == "fish" && HasInventoryRoom(3, 1))
             { fishTime = fishCursor = 0; fishHits = fishMisses = 0; mode = "fish"; }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
-            { save.stage++; save.coins += 40; save.inventory[6]++; save.inventory[0] += 3; save.inventory[1] += 2; revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
+            { save.stage++; CreditCoins(40); CreditInventory(6, 1); CreditInventory(0, 3); CreditInventory(1, 2); revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
             if (action.StartsWith("ally"))
             {
                 int id = int.Parse(action.Substring(4));
                 if (Has("ally_" + id)) return;
                 if (Spend(0, 0, id == 1 ? 6 : 0, id == 2 ? 3 : 0, id == 3 ? 5 : 0))
-                { Flag("ally_" + id); save.coins += 40; save.inventory[6]++; save.skillPoints++; sound = "reward"; Notify("支线完成！获得同伴支持、40 硬币和 1 技能点。", "Commission complete! An ally, 40 coins and 1 skill point."); }
+                { Flag("ally_" + id); CreditCoins(40); CreditInventory(6, 1); CreditSkillPoints(1); sound = "reward"; Notify("支线完成！获得同伴支持、40 硬币和 1 技能点。", "Commission complete! An ally, 40 coins and 1 skill point."); }
             }
             if (action == "boss")
             {

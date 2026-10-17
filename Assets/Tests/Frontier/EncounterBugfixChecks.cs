@@ -178,5 +178,71 @@ namespace Starfall.Tests
                 !g.enemies.Exists(e => e.id >= 82000 && e.id < 82100),
                 "Roadside ambush cannot start during an atlas echo challenge");
         }
+        public static void FullStackStoryRewardsPreserveQuestProgress(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.coins = 999995;
+            g.save.inventory[0] = g.save.inventory[1] = 9998;
+            g.save.inventory[6] = 9999;
+            g.save.flags.Add("core_1");
+            Action(g, "guild", "deliver");
+            Check(g.save.stage == 1 && g.save.coins == 999999 &&
+                g.save.inventory[0] == 9999 && g.save.inventory[1] == 9999 &&
+                g.save.inventory[6] == 9999,
+                "Main story delivery progresses while each resource stays within its saved cap");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.save.stage == 1 && restored.save.coins == 999999 &&
+                restored.save.inventory[0] == 9999 && restored.save.inventory[6] == 9999,
+                "New chapter and legal inventory persist exactly across the v2 save roundtrip");
+
+            g = Fresh(data);
+            g.save.inventory[2] = 6; g.save.inventory[6] = 9999;
+            g.save.coins = 999999; g.save.skillPoints = 99;
+            Action(g, "garden", "ally1");
+            Check(g.Has("ally_1") && g.save.inventory[2] == 0 &&
+                g.save.inventory[6] == 9999 && g.save.coins == 999999 &&
+                g.save.skillPoints == 99,
+                "Commission consumes its materials, marks the ally and cannot overflow stew, cash or skill points");
+            g = Fresh(data); g.Enter(1);
+            g.save.coins = 999999; g.save.inventory[1] = 9999;
+            g.Talk(Object(g, "lore"));
+            Check(g.Has("treasure_1") && g.Has("lore_1") &&
+                g.save.coins == 999999 && g.save.inventory[1] == 9999,
+                "First lore discovery preserves its permanent flags without invalid crystal rewards");
+            g.Close(); g.save.kills[1] = 4; g.save.coins = 999999;
+            Action(g, "scout", "scout");
+            Check(g.Has("scout_saved") && g.save.coins == 999999,
+                "Scout rescue unlocks the road without overfilling the saved wallet");
+        }
+
+        public static void FullWalletBountyAndAbyssBankingDoNotOverflow(Campaign data)
+        {
+            var g = Fresh(data);
+            g.AcceptBounty(0);
+            g.save.bountyProgress = GameCore.BountyTargets[0];
+            g.save.coins = 999999; g.save.shards = 99999;
+            int beforeXp = g.save.xp;
+            Check(g.ClaimBounty() && g.save.bounty == -1 &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.xp > beforeXp,
+                "Completed bounty pays experience and clears its contract at full monetary caps");
+            var abyss = Fresh(data);
+            abyss.save.frontierEnding = 1;
+            abyss.StartAbyss(0);
+            Check(abyss.InAbyss, "Legal covenant actually starts a real procedural abyss run");
+            abyss.enemies.Clear();
+            abyss.save.flags.Add("abyss_clear_1");
+            abyss.save.coins = 999998;
+            abyss.save.shards = 99998;
+            abyss.save.runCoins = int.MaxValue;
+            abyss.save.runShards = int.MaxValue;
+            abyss.TakeBoon(0);
+            Check(abyss.save.abyssFloor == 2 && abyss.save.coins == 999999 &&
+                abyss.save.shards == 99999 && abyss.save.runCoins == 0 &&
+                abyss.save.runShards == 0 && abyss.save.boons[0] == 1,
+                "Real Abyss floor banking saturates oversized unbanked wealth and still grants the next floor boon");
+        }
+
     }
 }

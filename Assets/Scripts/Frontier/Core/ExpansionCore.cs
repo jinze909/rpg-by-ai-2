@@ -290,7 +290,7 @@ namespace Starfall
             while (save.level < 30 && save.xp >= save.level * 40)
             {
                 save.xp -= save.level * 40;
-                save.level++; save.skillPoints++; save.health = save.maxHealth;
+                save.level++; CreditSkillPoints(1); save.health = save.maxHealth;
                 if (announce)
                     Notify("升级！生命回满，获得 1 技能点。按 K 分配。",
                         "Level up! Health restored, +1 skill point. Open K to spend it.");
@@ -1037,7 +1037,7 @@ namespace Starfall
         public bool ClaimBounty()
         {
             if (save.bounty < 0 || save.bountyProgress < BountyTargets[save.bounty]) return false;
-            save.coins += 35; save.shards += 3 + (save.frontierEnding == 3 ? 1 : 0); AddXp(30); save.bounty = -1; save.bountyProgress = 0; save.bountyCycle++; revision++; sound = "reward"; return true;
+            CreditCoins(35); CreditShards(3 + (save.frontierEnding == 3 ? 1 : 0)); AddXp(30); save.bounty = -1; save.bountyProgress = 0; save.bountyCycle++; revision++; sound = "reward"; return true;
         }
         public void AbandonBounty() { save.bounty = -1; save.bountyProgress = 0; revision++; }
         private int RescueCount { get { int n = 0; for (int i = 0; i < 3; i++) if (Has("rescue_" + i)) n++; return n; } }
@@ -1241,7 +1241,7 @@ namespace Starfall
             if (action == "parley")
             {
                 if (save.room != 4 || Proofs != 3 || save.frontierEnding != 3 || Has("boss_4") || TriadDefenseActive) return true;
-                enemies.Clear(); projectiles.Clear(); hazards.Clear(); Flag("boss_4"); Flag("warden_stood_down"); save.coins += 70; AddXp(80); FinalConversation(); revision++; return true;
+                enemies.Clear(); projectiles.Clear(); hazards.Clear(); Flag("boss_4"); Flag("warden_stood_down"); CreditCoins(70); AddXp(80); FinalConversation(); revision++; return true;
             }
             if (action.StartsWith("pledge"))
             {
@@ -1256,27 +1256,27 @@ namespace Starfall
                 bool rescue = action.StartsWith("rescue"); int id = int.Parse(action.Substring(rescue ? 6 : 5)); string flag = (rescue ? "rescue_" : "relay_") + id;
                 if (save.room != 5 || id < 0 || id > 2 || Has(flag)) return true;
                 if (Spend(rescue ? 1 : 0, 0, rescue ? 1 : 0, 0, rescue ? 0 : 1))
-                { Flag(flag); save.coins += 12; Reputation(rescue ? 1 : 0, 1); CheckHarborGate(); sound = "reward"; }
+                { Flag(flag); CreditCoins(12); Reputation(rescue ? 1 : 0, 1); CheckHarborGate(); sound = "reward"; }
                 return true;
             }
             if (action == "holdtide") { if (save.room == 5 && Spend(0, 2, 0, 0, 0)) { save.tideHeldUntil = save.totalTime + 90; Notify("闸门固定低潮 90 秒。", "Low tide held for 90 seconds."); } return true; }
             if (action == "harbor_report")
             {
                 if (!Has("boss_5") || Has("harbor_report")) return true;
-                Flag("harbor_report"); Flag("companion_0"); RewardRelic(0); save.relationships[0] = Math.Max(1, save.relationships[0]); save.coins += 65; save.shards += 5; save.companion = 0; AddXp(45); revision++;
+                Flag("harbor_report"); Flag("companion_0"); RewardRelic(0); save.relationships[0] = Math.Max(1, save.relationships[0]); CreditCoins(65); CreditShards(5); save.companion = 0; AddXp(45); revision++;
                 Notify("港口证词已归档。米拉加入，获得回潮瓶；玻璃沙海开放。", "Tide log filed. Mira joins; Tide Flask found. Glass Desert opens."); return true;
             }
             if (action.StartsWith("desert") && action.Length == 7)
             {
                 if (!Has("boss_6") || !Has("mirrors_lit") || Has("desert_report")) return true;
-                save.desertChoice = int.Parse(action.Substring(6)); Flag("desert_report"); Flag("companion_1"); RewardRelic(2); save.relationships[1] = Math.Max(1, save.relationships[1]); Reputation(save.desertChoice == 1 ? 2 : 0, 3); Reputation(1, 1); save.coins += 70; save.shards += 6; AddXp(50); revision++;
+                save.desertChoice = int.Parse(action.Substring(6)); Flag("desert_report"); Flag("companion_1"); RewardRelic(2); save.relationships[1] = Math.Max(1, save.relationships[1]); Reputation(save.desertChoice == 1 ? 2 : 0, 3); Reputation(1, 1); CreditCoins(70); CreditShards(6); AddXp(50); revision++;
                 RecordMoment(save.desertChoice == 1 ? "公开沙海调度，山野议会更支持你。" : "保留沙海机器，守灯会更支持你。", save.desertChoice == 1 ? "Published desert allocations; Assembly trust grew." : "Retained desert machines; Lamplighter trust grew.");
                 Notify("调度日志已归档。伊沃加入，风蚀罗盘入手；霜钟高原开放。", "Allocation log filed. Ivo joins; Wind Compass found. Frostchime opens."); return true;
             }
             if (action.StartsWith("mountain") && action.Length == 9)
             {
                 if (!Has("boss_7") || !Has("gate_7") || Has("mountain_report")) return true;
-                save.mountainChoice = int.Parse(action.Substring(8)); Flag("mountain_report"); Flag("companion_2"); RewardRelic(3); save.relationships[2] = Math.Max(1, save.relationships[2]); Reputation(save.mountainChoice == 1 ? 0 : 2, 3); Reputation(1, 1); save.coins += 75; save.shards += 6; AddXp(60); revision++;
+                save.mountainChoice = int.Parse(action.Substring(8)); Flag("mountain_report"); Flag("companion_2"); RewardRelic(3); save.relationships[2] = Math.Max(1, save.relationships[2]); Reputation(save.mountainChoice == 1 ? 0 : 2, 3); Reputation(1, 1); CreditCoins(75); CreditShards(6); AddXp(60); revision++;
                 RecordMoment(save.mountainChoice == 1 ? "封存高原记录，守灯会更支持你。" : "公开高原名字，山野议会更支持你。", save.mountainChoice == 1 ? "Sealed mountain records; Lamplighter trust grew." : "Published mountain names; Assembly trust grew.");
                 Notify("高原记录已归档。森加入，断钟片入手；回雾港召开议事会。", "Mountain record filed. Sen joins; Broken Chime found. Convene Mistport's council."); return true;
             }
@@ -1359,7 +1359,7 @@ namespace Starfall
             if (id == 0 && !Has("manifest_found")) { Notify("先调查雾港西北的乘客名册（8,5）。", "Find the passenger manifest in northwest Mistport (8,5)."); return; }
             if (id == 1 && !Spend(0, 4, 0, 0, 4)) return;
             if (id == 2 && (!Has("lore_1") || !Spend(0, 0, 4, 0, 0))) { Notify("需要密林侦察记录与药草4。", "You need the forest scouting log and 4 herbs."); return; }
-            Flag("personal_" + id); save.relationships[id] = Math.Min(5, save.relationships[id] + 2); save.coins += 35; save.shards += 3; save.skillPoints++;
+            Flag("personal_" + id); save.relationships[id] = Math.Min(5, save.relationships[id] + 2); CreditCoins(35); CreditShards(3); CreditSkillPoints(1);
             if (Has("personal_0") && Has("personal_1") && Has("personal_2")) RewardRelic(4);
             Notify("同伴故事完成。羁绊提升，获得 1 技能点与记忆碎片。", "Companion story complete. Bond improved; +1 point and memory shards."); revision++; sound = "reward";
         }
@@ -1367,9 +1367,9 @@ namespace Starfall
         {
             racing = false; int tenths = Math.Max(1, (int)(raceTime * 10));
             bool first = !Has("race_finished"), record = save.bestRace == 0 || tenths < save.bestRace;
-            if (first) { Flag("race_finished"); save.coins += 25; save.shards += 3; }
+            if (first) { Flag("race_finished"); CreditCoins(25); CreditShards(3); }
             if (record) save.bestRace = tenths;
-            if (raceTime <= 16 && !Has("race_badge")) { Flag("race_badge"); save.shards += 5; save.skillPoints++; }
+            if (raceTime <= 16 && !Has("race_badge")) { Flag("race_badge"); CreditShards(5); CreditSkillPoints(1); }
             revision++; sound = "reward"; Notify("竞速完成！用时 " + raceTime.ToString("0.0") + " 秒。首次与风行徽章奖励只发一次。", "Race finished in " + raceTime.ToString("0.0") + "s. First-finish and badge rewards are one-time.");
         }
         public bool CouncilPactReady { get { return ProjectTiers >= 3 && CompanionCount >= 2 && save.reputation[0] >= 2 && save.reputation[1] >= 2 && save.reputation[2] >= 2; } }
@@ -1385,7 +1385,7 @@ namespace Starfall
         private void ResolveCouncil(int ending)
         {
             if (Proofs < 3 || save.frontierEnding > 0 || ending < 1 || ending > 3 || (ending == 3 && !CouncilPactReady)) return;
-            save.frontierEnding = ending; Flag("frontier_settled"); save.shards += 10; save.skillPoints += 2; save.coins += 100; revision++; CouncilEpilogue();
+            save.frontierEnding = ending; Flag("frontier_settled"); CreditShards(10); CreditSkillPoints(2); CreditCoins(100); revision++; CouncilEpilogue();
         }
         private void CouncilEpilogue()
         {
@@ -1406,7 +1406,7 @@ namespace Starfall
         {
             if (id < 0 || id >= data.lore.Length) return;
             bool first = !Has("history_" + id); Flag("history_" + id);
-            if (first) { save.shards += 2; save.coins += 10; revision++; }
+            if (first) { CreditShards(2); CreditCoins(10); revision++; }
             LoreData book = data.lore[id]; Dialog(book.title, book.en, book.zh, book.text, C("记入手帐", "Record in journal", "close"));
         }
         public void OpenCodex(int id)
@@ -1569,11 +1569,11 @@ namespace Starfall
         private void BankFloor()
         {
             if (Dying || !InAbyss || enemies.Count > 0 || !Has("abyss_clear_" + save.abyssFloor)) return;
-            save.coins += save.runCoins; save.shards += save.runShards + (save.frontierEnding == 3 ? 2 : 0); AddXp(save.runXp);
+            CreditCoins(save.runCoins); CreditShards(CappedReward(save.runShards, save.frontierEnding == 3 ? 2 : 0, int.MaxValue)); AddXp(save.runXp);
             save.runCoins = save.runShards = save.runXp = 0; save.bestFloor = Math.Max(save.bestFloor, save.abyssFloor);
             BountyEvent(5, 1);
             if (save.abyssFloor >= 3) RewardRelic(5);
-            if (save.abyssFloor == 6 && !Has("abyss_complete")) { Flag("abyss_complete"); save.skillPoints += 2; save.shards += 12; }
+            if (save.abyssFloor == 6 && !Has("abyss_complete")) { Flag("abyss_complete"); CreditSkillPoints(2); CreditShards(12); }
             revision++;
         }
         public void TakeBoon(int id)

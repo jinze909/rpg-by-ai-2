@@ -199,7 +199,7 @@ namespace Starfall
         {
             if (!practicing || practiceStage != 2) return;
             save.practiceBits = 7; TutorialAction(5); bool first = !Has("practice_reward"); EndPractice();
-            if (first) { Flag("practice_reward"); save.skillPoints++; save.coins += 15; }
+            if (first) { Flag("practice_reward"); CreditSkillPoints(1); CreditCoins(15); }
             RecordMoment("完成训练场：攻击、观察预告、闪避与职业战技。", "Practice complete: attack, read a tell, dodge and use your technique.");
             Notify(first ? "练习完成：技能点1、硬币15！可以出发去密林了。" : "练习完成！随时可以再来。", first ? "Practice complete: 1 point, 15 coins. Ready for Thornwood." : "Practice complete! Return anytime.");
         }
@@ -297,7 +297,7 @@ namespace Starfall
                 bool first = !Has("survey_" + signal);
                 if (first)
                 {
-                    Flag("survey_" + signal); save.coins += 12; save.shards++; AddXp(15); revision++; sound = "reward";
+                    Flag("survey_" + signal); CreditCoins(12); CreditShards(1); AddXp(15); revision++; sound = "reward";
                     RecordMoment("恢复巡路信号 " + signal + "/3：" + o.name + "。", "Recovered road signal " + signal + "/3: " + o.en + ".");
                 }
                 var signalChoices = new List<Choice> { C("记住这条路", "Remember the road", "close") };
@@ -323,7 +323,7 @@ namespace Starfall
             {
                 if (!Has("seal_" + save.room)) { Notify("先解除入口的封印。", "Release the entrance seal first."); return true; }
                 string flag = "cache_" + save.room; bool first = !Has(flag);
-                if (first) { Flag(flag); save.coins += 30; save.shards += 3; save.inventory[6]++; save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 8);
+                if (first) { Flag(flag); CreditCoins(30); CreditShards(3); CreditInventory(6, 1); save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 8);
                     RecordMoment("发现旧日补给：" + Map.name + "。硬币30、碎片3、炖汤1、熟练度8。", "Found a forgotten cache in " + Map.en + ": 30 coins, 3 shards, 1 stew, 8 mastery."); }
                 LoreData note = o.lore >= 0 && o.lore < data.lore.Length ? data.lore[o.lore] : null;
                 if (note != null) Flag("history_" + o.lore);
@@ -440,7 +440,7 @@ namespace Starfall
             {
                 if (!Has("survey_complete") && Has("survey_1") && Has("survey_2") && Has("survey_3"))
                 {
-                    Flag("survey_complete"); save.coins += 60; save.shards += 5; save.skillPoints++; AddXp(50); revision++; sound = "reward";
+                    Flag("survey_complete"); CreditCoins(60); CreditShards(5); CreditSkillPoints(1); AddXp(50); revision++; sound = "reward";
                     RecordMoment("三段巡路信号拼成了归乡星图：永久移动速度+0.25，技能点1。", "The road signals became a homeward chart: +0.25 permanent movement speed and 1 talent point.");
                     Notify("巡路图完成！移速+0.25、技能点+1，三座信标快速往返已解锁！", "Chart complete! +0.25 speed, +1 talent point; fast travel to all three beacons unlocked!");
                 }
