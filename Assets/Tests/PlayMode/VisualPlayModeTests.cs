@@ -586,6 +586,121 @@ namespace Starfall.Tests
             }
         }
 
+
+        // Runs ONLY inside licensed Unity PlayMode with the real Frontier.unity
+        // scene loaded. The offline C# stubs cannot establish GPU visibility.
+        // Unlike atlas-only import tests, exercise the actual scene's private
+        // shared SpriteRenderer -> Camera -> RenderTexture actor production
+        // method using four accepted, whole-body families.
+        [UnityTest] public IEnumerator RealFrontierSceneRendersNonheroWholeBodyPixels()
+        {
+#if UNITY_EDITOR
+            var scene=EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Scenes/Frontier.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            host=null;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Assert.IsTrue(scene.IsValid()&&scene.isLoaded);
+            Assert.AreEqual("Frontier",SceneManager.GetActiveScene().name);
+            app=Object.FindObjectOfType<FrontierRuntime>();
+            Assert.NotNull(app,"Production scene did not boot FrontierRuntime");
+            Assert.NotNull(app.Game,"Production Campaign did not initialize");
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var type=typeof(FrontierRuntime);
+            Assert.IsTrue((bool)type.GetField(
+                "useSpriteRendererActors",flags).GetValue(app),
+                "Scene must enable nonhero SpriteRenderer production bridge");
+            var cachedSprites=type.GetField("actorFrameSprites",flags);
+            var cachedCaptures=type.GetField("actorCapturedFrames",flags);
+            // Exact original resource families, NOT low-resolution candidates.
+            string[] sources={"Monsters","Bosses","Npcs","CompanionMira"};
+            int[] columns={6,4,4,3},rows={3,8,4,4};
+            for(int family=0;family<sources.Length;family++)
+            {
+                Texture2D atlas=Resources.Load<Texture2D>(
+                    "Frontier/Art/"+sources[family]);
+                Assert.NotNull(atlas,"Accepted production art missing: "+sources[family]);
+                Assert.AreEqual(0,atlas.width%columns[family]);
+                Assert.AreEqual(0,atlas.height%rows[family]);
+                int width=atlas.width/columns[family];
+                int height=atlas.height/rows[family];
+                var probeHost=new GameObject("Starfall GPU actor probe "+
+                    sources[family]);
+                var probe=probeHost.AddComponent<NativeActorGameViewProbe>();
+                probe.runtime=app;probe.atlas=atlas;
+                probe.columns=columns[family];probe.rows=rows[family];
+                try
+                {
+                    for(int attempt=0;attempt<8&&!probe.completed;attempt++)
+                    {
+                        yield return null;
+                        yield return new WaitForEndOfFrame();
+                    }
+                    Assert.IsTrue(probe.completed,
+                        "Native OnGUI/Repaint never submitted "+sources[family]);
+                    Assert.IsNull(probe.failure,
+                        "Native whole-body capture threw for "+sources[family]);
+                    Assert.IsTrue(probe.drawn,
+                        "Native actor path fell back in actual GameView: "+sources[family]);
+                    string key=atlas.GetInstanceID()+":"+
+                        columns[family]+":"+rows[family]+":0";
+                    var sprites=(System.Collections.IDictionary)
+                        cachedSprites.GetValue(app);
+                    var captures=(System.Collections.IDictionary)
+                        cachedCaptures.GetValue(app);
+                    var sprite=sprites[key] as Sprite;
+                    Assert.NotNull(sprite,
+                        "Actual GameView did not capture authored source: "+sources[family]);
+                    Assert.AreSame(atlas,sprite.texture,
+                        "Captured Sprite used a different actor identity");
+                    Assert.AreEqual(width,sprite.rect.width,.05f);
+                    Assert.AreEqual(height,sprite.rect.height,.05f);
+                    Assert.AreEqual(height,sprite.pixelsPerUnit,.05f);
+                    Assert.AreEqual(width*.5f,sprite.pivot.x,.05f);
+                    Assert.AreEqual(height*8f/128f,sprite.pivot.y,.05f);
+                    var entry=captures[key+":normal"];
+                    Assert.NotNull(entry,
+                        "GPU target missing from native capture cache: "+sources[family]);
+                    var gpu=(RenderTexture)entry.GetType().GetField(
+                        "texture",flags).GetValue(entry);
+                    Assert.NotNull(gpu);
+                    Assert.IsTrue(gpu.IsCreated());
+                    int pixels=Mathf.Max(128,Mathf.Max(width,height));
+                    Assert.AreEqual(pixels,gpu.width,
+                        "Painted whole-body source was downsampled");
+                    Assert.AreEqual(pixels,gpu.height);
+                    var previous=RenderTexture.active;
+                    var readback=new Texture2D(pixels,pixels,
+                        TextureFormat.RGBA32,false);
+                    try
+                    {
+                        RenderTexture.active=gpu;
+                        readback.ReadPixels(new Rect(0,0,pixels,pixels),
+                            0,0,false);
+                        readback.Apply(false,false);
+                        bool visible=false;
+                        foreach(Color32 color in readback.GetPixels32())
+                            if(color.a>16) {visible=true;break;}
+                        Assert.IsTrue(visible,
+                            "Native GPU body rendered fully transparent: "+sources[family]);
+                    }
+                    finally
+                    {
+                        RenderTexture.active=previous;
+                        Object.Destroy(readback);
+                    }
+                }
+                finally
+                {
+                    Object.Destroy(probeHost);
+                    yield return null;
+                }
+            }
+#endif
+        }
+
         [UnityTest] public IEnumerator NativeWalkingAndPlantedAttackTransitions()
         {
             string folder=Path.GetFullPath(Path.Combine(Application.dataPath,"../docs/native-captures"));Directory.CreateDirectory(folder);
@@ -622,5 +737,38 @@ namespace Starfall.Tests
             }
         }
     }
+
+#if UNITY_EDITOR
+    // Actual Unity OnGUI Repaint is required for FrontierRuntime's private
+    // native production bridge. Reflection outside Repaint skips GPU draws,
+    // creating a false positive in a Test Runner coroutine.
+    public sealed class NativeActorGameViewProbe : MonoBehaviour
+    {
+        public FrontierRuntime runtime;
+        public Texture2D atlas;
+        public int columns,rows;
+        public bool completed,drawn;
+        public System.Exception failure;
+        private void OnGUI()
+        {
+            if(completed||runtime==null||atlas==null||
+                Event.current.type!=EventType.Repaint)return;
+            try
+            {
+                var method=typeof(FrontierRuntime).GetMethod(
+                    "DrawSpriteRendererActor",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                if(method==null)throw new System.MissingMethodException(
+                    "Production nonhero native capture missing");
+                drawn=(bool)method.Invoke(runtime,new object[]{
+                    atlas,columns,rows,0,new Point(128,128),96f,
+                    Color.white,false,0f});
+            }
+            catch(System.Exception ex){failure=ex;}
+            finally {completed=true;}
+        }
+    }
+#endif
 }
 #endif
