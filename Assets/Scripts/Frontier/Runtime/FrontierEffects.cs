@@ -76,7 +76,7 @@ namespace Starfall
             // window. This leaves action/gameplay timing and true contact
             // pivot unchanged, with no frame interpolation or limb grafting.
             float scaled=phase*4f;
-            int boundary=Mathf.RoundToInt(scaled);
+            int boundary=(int)Math.Floor(scaled+.5f);
             const float seamHalfWidth=.20f;
             if(boundary>0&&boundary<4&&
                scaled>boundary-seamHalfWidth&&
