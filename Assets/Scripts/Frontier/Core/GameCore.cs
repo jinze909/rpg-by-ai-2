@@ -1534,7 +1534,13 @@ namespace Starfall
             if (kind == "herb" || kind == "wood" || kind == "ore")
             {
                 if (Has("node_" + o.id)) { Notify("已经采集过了。回镇休息后资源会更新。", "Already gathered. Rest in town to renew resources."); return; }
-                Flag("node_" + o.id); int item = kind == "herb" ? 2 : kind == "wood" ? 0 : 1;
+                int item = kind == "herb" ? 2 : kind == "wood" ? 0 : 1;
+                // One-time gathering yields exactly three items (and ore
+                // grants three parts). Do not permanently consume this node
+                // unless BOTH resource stacks can accept the entire pickup.
+                if (!HasInventoryRoom(item, 3) ||
+                    kind == "ore" && !HasInventoryRoom(4, 3)) return;
+                Flag("node_" + o.id);
                 save.inventory[item] += 3; if (kind == "ore") save.inventory[4] += 3;
                 if (kind == "ore") BountyEvent(1, 1);
                 Notify(o.name + " +3" + (kind == "ore" ? "，零件 +3" : ""), o.en + " +3" + (kind == "ore" ? ", parts +3" : "")); sound = "reward"; return;
@@ -1582,8 +1588,8 @@ namespace Starfall
         private bool HasInventoryRoom(int index, int quantity)
         {
             if (save.inventory[index] <= 9999 - quantity) return true;
-            Notify("背包数量已达上限。先使用或出售一些物品再购买。",
-                "Inventory stack is full. Use some items before buying more.");
+            Notify("背包数量已达上限。请先腾出物品空间后再领取。",
+                "Inventory stack is full. Free space before collecting more.");
             return false;
         }
         // Inn and upgraded field camps must advance the same transient
@@ -1675,7 +1681,11 @@ namespace Starfall
                 if (save.plantedAt < 0) return;
                 if (save.totalTime - save.plantedAt < 60) { Notify("还需 " + (int)Math.Ceiling(60 - (save.totalTime - save.plantedAt)) + " 秒。", "Ready in " + (int)Math.Ceiling(60 - (save.totalTime - save.plantedAt)) + " seconds."); return; }
                 int harvest = 5 + save.projects[0] * 2 + (save.frontierEnding == 1 ? 2 : 0);
-                save.inventory[2] += harvest; save.inventory[7] += 2; save.plantedAt = -1; save.coins += 8; revision++; sound = "reward"; Notify("收获：月光草 ×" + harvest + "，种子 ×2，硬币 +8。", "Harvest: " + harvest + " Moonherbs, 2 seeds, 8 coins."); return;
+                // Ready crops do not disappear when either herb or seed stack
+                // is full. Keep plantedAt so the same mature garden can be
+                // harvested after the player spends some materials.
+                if (!HasInventoryRoom(2, harvest) || !HasInventoryRoom(7, 2)) return;
+                save.inventory[2] += harvest; save.inventory[7] += 2; save.plantedAt = -1; save.coins = Math.Min(999999, save.coins + 8); revision++; sound = "reward"; Notify("收获：月光草 ×" + harvest + "，种子 ×2，硬币 +8。", "Harvest: " + harvest + " Moonherbs, 2 seeds, 8 coins."); return;
             }
             if (action == "seeds" && HasInventoryRoom(7, 3) && Spend(0, 0, 0, 0, 0, 5)) { save.inventory[7] += 3; Notify("种子 ×3", "Seeds ×3"); }
             if (action == "upgrade")
@@ -1692,7 +1702,8 @@ namespace Starfall
             if (action == "cook" && HasInventoryRoom(6, 1) && Spend(0, 0, 2, 1, 0)) { save.inventory[6]++; sound = "reward"; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buymeal" && HasInventoryRoom(6, 1) && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
-            if (action == "fish") { fishTime = fishCursor = 0; fishHits = fishMisses = 0; mode = "fish"; }
+            if (action == "fish" && HasInventoryRoom(3, 1))
+            { fishTime = fishCursor = 0; fishHits = fishMisses = 0; mode = "fish"; }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
             { save.stage++; save.coins += 40; save.inventory[6]++; save.inventory[0] += 3; save.inventory[1] += 2; revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
             if (action.StartsWith("ally"))
@@ -1752,7 +1763,16 @@ namespace Starfall
         {
             if (mode != "fish") return;
             if (Math.Abs(fishCursor - .5f) <= .18f) { fishHits++; sound = "reward"; } else { fishMisses++; sound = "hurt"; }
-            if (fishHits >= 3) { save.inventory[3]++; save.coins += 4; BountyEvent(2, 1); Close(); revision++; Notify("钓到银鳍鱼 ×1！", "Caught a Silverfin!"); }
+            if (fishHits >= 3)
+            {
+                // Normal play enters this minigame only when a fish slot was
+                // available. Keep the final reward safe if a developer or
+                // future UI changes the inventory during the reel sequence.
+                save.inventory[3] = Math.Min(9999, save.inventory[3] + 1);
+                save.coins = Math.Min(999999, save.coins + 4);
+                BountyEvent(2, 1); Close(); revision++;
+                Notify("钓到银鳍鱼 ×1！", "Caught a Silverfin!");
+            }
             else if (fishMisses >= 3) { Close(); Notify("鱼游走了。没有损失，再试一次吧。", "The fish slipped away. Nothing lost; try again."); }
         }
         private void FinalConversation()

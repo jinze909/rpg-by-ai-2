@@ -35,6 +35,64 @@ namespace Starfall.Tests
                 "Last available resource slots are filled, never skipped or overrun");
         }
 
+        public static void FullBagNeverConsumesGatherNodesOrReadyCrops(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            var plant=new WorldObject { id="qa-herb-stack", kind="herb", x=12, y=14, name="Moonherb", en="Moonherb" };
+            g.save.inventory[2]=9999;
+            g.Talk(plant);
+            Check(!g.Has("node_"+plant.id) && g.save.inventory[2]==9999,
+                "A full herb stack leaves the physical gathering node available");
+            g.save.inventory[2]=9996;
+            g.Talk(plant);
+            Check(g.Has("node_"+plant.id) && g.save.inventory[2]==9999,
+                "Freed capacity allows the same real node to deliver its three herbs");
+            var ore=new WorldObject { id="qa-ore-stack", kind="ore", x=12, y=14, name="Ore", en="Ore" };
+            g.save.inventory[1]=9996;g.save.inventory[4]=9999;
+            g.save.bounty=1;g.save.bountyProgress=0;
+            g.Talk(ore);
+            Check(!g.Has("node_"+ore.id) && g.save.inventory[1]==9996 &&
+                g.save.bountyProgress==0,
+                "Multi-resource ore node cannot spend itself or bounty credit on partial capacity");
+            g.save.inventory[4]=9996;g.Talk(ore);
+            Check(g.Has("node_"+ore.id) && g.save.inventory[1]==9999 &&
+                g.save.inventory[4]==9999 && g.save.bountyProgress==1,
+                "Full ore and parts reward and actual bounty credit arrive together");
+            g=Fresh(data);g.save.plantedAt=0;g.save.totalTime=61;
+            g.save.inventory[2]=9999;g.save.inventory[7]=9997;
+            int coins=g.save.coins;
+            Action(g,"garden","harvest");
+            Check(g.save.plantedAt==0 && g.save.coins==coins &&
+                g.save.inventory[7]==9997,
+                "Ready garden cannot consume a harvest if Moonherbs are full");
+            g.save.inventory[2]=9994;g.save.inventory[7]=9999;
+            Action(g,"garden","harvest");
+            Check(g.save.plantedAt==0 && g.save.coins==coins &&
+                g.save.inventory[2]==9994,
+                "Ready garden remains available if only the seed stack is full");
+            g.save.inventory[7]=9997;
+            Action(g,"garden","harvest");
+            Check(g.save.plantedAt==-1 && g.save.inventory[2]==9999 &&
+                g.save.inventory[7]==9999 && g.save.coins==coins+8,
+                "A mature saved crop pays its complete reward exactly once after freeing space");
+        }
+
+        public static void FullFishStackStopsWastedCastWithoutBreakingCatch(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.inventory[3]=9999;g.save.bounty=2;g.save.bountyProgress=0;
+            Action(g,"fish","fish");
+            Check(g.mode=="world" && g.save.bountyProgress==0,
+                "Full fish stack refuses minigame before any wasted cast");
+            g.save.inventory[3]=9998;g.save.coins=999999;
+            Action(g,"fish","fish");
+            Check(g.mode=="fish","A freed stack can resume normal fishing");
+            for (int i=0;i<3;i++){g.fishCursor=.5f;g.FishHit();}
+            Check(g.mode=="world" && g.save.inventory[3]==9999 &&
+                g.save.coins==999999 && g.save.bountyProgress==1,
+                "Normal three-hit catch awards one bounded fish and real bounty progress");
+        }
+
         public static void BoundedEnemyOpeningDelaysAndRestoredPatrols(Campaign data)
         {
             // The original early patrol rhythm must remain unchanged.
