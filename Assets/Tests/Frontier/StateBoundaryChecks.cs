@@ -335,5 +335,65 @@ namespace Starfall.Tests
             }
         }
 
+        public static void SkywatchBossCancellationRetiresRealOutgoingOrbVolley(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            g.save.flags.Add("harbor_report");
+            g.save.flags.Add("desert_report");
+            g.Enter(7); g.enemies.Clear(); g.projectiles.Clear(); g.effects.Clear();
+            g.save.x = 18.5f; g.save.y = 14.5f;
+            g.invulnerable = 100;
+            var guardian = new Enemy(89701, 3, 21.5f, 14.5f, 240, true);
+            guardian.state = 1; guardian.timer = .005f;
+            guardian.target = g.Position; guardian.Face(new Point(-1, 0));
+            g.enemies.Add(guardian);
+            var unrelated = new Projectile {
+                position = new Point(12, 14), velocity = new Point(1, 0),
+                friendly = true, life = 3, damage = 0 };
+            g.projectiles.Add(unrelated);
+            g.Tick(.05f, new Point());
+            Check(g.projectiles.Exists(p => p.skywatchOwned) &&
+                g.projectiles.Exists(p => p.skywatchOwned && !p.friendly),
+                "Real Frostchime guardian attack emits genuine mission-owned airborne hostile orbs");
+            var reset = typeof(GameCore).GetMethod("ResetSkywatch",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Check(reset != null, "Observatory uses its real original cleanup");
+            reset.Invoke(g, new object[0]);
+            Check(!g.enemies.Contains(guardian) &&
+                !g.projectiles.Exists(p => p.skywatchOwned) &&
+                g.projectiles.Contains(unrelated),
+                "Retiring the observatory boss removes all its outgoing orbs without deleting unrelated friendly projectiles");
+        }
+
+        public static void AtlasEchoAndRoadwardenWarningsRetireWithoutGhosts(Campaign data)
+        {
+            foreach (bool atlas in new[] { true, false })
+            {
+                var g = Fresh(data); g.enemies.Clear(); g.effects.Clear();
+                g.save.x = 18.5f; g.save.y = 14.5f;
+                g.invulnerable = 100;
+                var unrelated = new Effect("discover", new Point(12, 14), 3);
+                g.effects.Add(unrelated);
+                var attacker = new Enemy(atlas ? 83001 : 81011, 2,
+                    20.5f, 14.5f, 220);
+                attacker.timer = 0; g.enemies.Add(attacker);
+                g.Tick(.05f, new Point());
+                Check(g.effects.Exists(e => e.kind == "danger" &&
+                    (atlas ? e.atlasEchoOwned : e.roadTrialOwned)),
+                    "Actual elite windup is tagged to its Atlas Echo or roadwarden defense owner");
+                var reset = typeof(GameCore).GetMethod(atlas ?
+                    "ResetAtlasEcho" : "ResetRoadwardenTrial",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(reset != null, "Original encounter reset is callable");
+                reset.Invoke(g, new object[0]);
+                Check(!g.effects.Exists(e => atlas ? e.atlasEchoOwned : e.roadTrialOwned) &&
+                    g.effects.Contains(unrelated),
+                    "Retiring a mission removes only its pending danger circle, never unrelated exploration effects");
+            }
+        }
+
     }
 }

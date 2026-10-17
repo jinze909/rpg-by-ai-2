@@ -24,6 +24,8 @@ namespace Starfall
         private void ResetSkywatch()
         {
             enemies.RemoveAll(IsSkywatchEnemy);
+            projectiles.RemoveAll(p => p.skywatchOwned);
+            effects.RemoveAll(e => e.skywatchOwned);
             hazards.RemoveAll(h => h.skywatchOwned);
             SkywatchRoom = 0; SkywatchTime = 0;
             skywatchPulseTime = 0; skywatchPulseCycle = 0;

@@ -138,6 +138,7 @@ namespace Starfall
             // A stopped drill must not leave its already-fired arrows active.
             // Keep unrelated patrol and player projectiles intact.
             projectiles.RemoveAll(p => p.roadTrialOwned);
+            effects.RemoveAll(e => e.roadTrialOwned);
             roadTrialRoom = roadTrialWave = 0;
             roadTrialVeteran = false;
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;

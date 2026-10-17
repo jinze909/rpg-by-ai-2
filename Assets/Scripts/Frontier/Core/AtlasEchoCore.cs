@@ -14,6 +14,8 @@ namespace Starfall
         private void ResetAtlasEcho()
         {
             enemies.RemoveAll(IsAtlasEchoEnemy);
+            projectiles.RemoveAll(p => p.atlasEchoOwned);
+            effects.RemoveAll(e => e.atlasEchoOwned);
             hazards.RemoveAll(h => h.atlasEchoOwned);
             atlasEchoRoom = atlasEchoCycle = 0;
             atlasEchoPulseTime = atlasEchoOpenTime = 0;

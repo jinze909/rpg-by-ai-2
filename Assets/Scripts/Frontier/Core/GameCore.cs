@@ -873,6 +873,9 @@ namespace Starfall
             bool targetsCivilian = false)
         {
             effect.reliefMissionOwned = IsReliefMissionEnemy(attacker) || targetsCivilian;
+            effect.roadTrialOwned = IsRoadwardenTrialEnemy(attacker);
+            effect.skywatchOwned = IsSkywatchEnemy(attacker);
+            effect.atlasEchoOwned = IsAtlasEchoEnemy(attacker);
             effect.rootHarmonyOwned = IsRootHarmonyEnemy(attacker);
             effect.commonsRelayOwned = IsCommonsRelayEnemy(attacker);
             effect.glasswindOwned = IsGlasswindEnemy(attacker);
@@ -1082,7 +1085,10 @@ namespace Starfall
             tickingEnemies.Clear();
         }
         private void Fire(Enemy e, Point dir, float speed)
-        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.courierOwned=IsFarCourierRaider(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
+        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);
+            shot.skywatchOwned = IsSkywatchEnemy(e);
+            shot.atlasEchoOwned = IsAtlasEchoEnemy(e);
+            shot.courierOwned=IsFarCourierRaider(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
                 e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);
             shot.commonsRelayOwned=IsCommonsRelayEnemy(e);
@@ -1113,6 +1119,7 @@ namespace Starfall
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
                         mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
                         commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
+                        roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned });
         }
@@ -1302,6 +1309,7 @@ namespace Starfall
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
                         mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
                         commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
+                        roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned });
                 }
