@@ -574,9 +574,10 @@ namespace Starfall.Tests
                     Check(g.save.health<oldHealth&&
                         Math.Abs(g.reliefFollowerSafety-100f)<.1f,
                         "Hero physically ahead of civilian must really intercept the enemy arrow");
-                Check(g.effects.Exists(e=>e.kind=="projectileImpact"&&
-                    e.position.x>11f&&e.position.x<13f),
-                    "Actual actor-first contact must still show a real impact at the collision point");
+                Check(g.effects.FindAll(e=>e.kind=="projectileImpact").Count==1&&
+                    g.effects.Exists(e=>e.kind=="projectileImpact"&&
+                        e.position.x>11f&&e.position.x<13f),
+                    "One authoritative body hit must draw exactly ONE projectile impact, not duplicate civilian and generic sprites");
             }
         }
 
@@ -637,8 +638,9 @@ namespace Starfall.Tests
                 g.projectiles.Add(invalid);
                 g.Tick(.05f,new Point());
                 Check(exposed.hp==400&&
-                    !g.effects.Exists(e=>e.kind=="magicImpact"&&e.radius>0),
-                    "Spawn-blocked explosive shots cannot grant free terrain-area damage");
+                    !g.effects.Exists(e=>e.kind=="magicImpact")&&
+                    g.effects.FindAll(e=>e.kind=="projectileFade").Count==1,
+                    "A projectile born inside solid cover must fade, never show a false magic explosion");
                 g.projectiles.Clear();g.effects.Clear();
                 g.projectiles.Add(new Projectile{
                     position=new Point(7.5f,8.5f),
@@ -648,6 +650,16 @@ namespace Starfall.Tests
                 Check(exposed.hp==400&&
                     !g.effects.Exists(e=>e.kind=="magicImpact"),
                     "A blocked ordinary arrow must not gain the mage's area attack");
+                g.projectiles.Clear();g.effects.Clear();
+                g.projectiles.Add(new Projectile{
+                    position=new Point(6.5f,8.5f),
+                    velocity=new Point(10,0),life=0,
+                    friendly=true,visual="starfire",explosive=true});
+                g.Tick(.01f,new Point());
+                Check(g.projectiles.Count==0&&
+                    g.effects.FindAll(e=>e.kind=="projectileFade").Count==1&&
+                    !g.effects.Exists(e=>e.kind=="magicImpact"),
+                    "A range-expired starfire must retain one quiet fade without a phantom explosion");
             }
             finally{data.maps[0]=original;}
         }

@@ -946,6 +946,20 @@ namespace Starfall
             return along-(float)Math.Sqrt(Math.Max(0f,
                 radius*radius-sideways2));
         }
+        private void AddProjectileFade(Projectile p)
+        {
+            // Flight expiration or invalid spawn has no genuine contact
+            // radius. Keep existing source/mission-owned fade metadata.
+            effects.Add(new Effect("projectileFade", p.position, .25f) {
+                        direction = p.velocity.Normalized,
+                        variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
+                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
+                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
+                        civicConduitOwned = p.civicConduitOwned });
+        }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -958,17 +972,12 @@ namespace Starfall
                 if(p.launchHeight>=0&&p.flightHeight>=0)
                 { float t=Clamp(p.age/.25f,0,1);t=t*t*(3-2*t);p.height=p.launchHeight+(p.flightHeight-p.launchHeight)*t; }
                 if (p.life <= 0 && flightDt <= 0)
-                { projectiles.Remove(p); effects.Add(new Effect("projectileFade", p.position, .25f) {
-                        direction = p.velocity.Normalized,
-                        variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
-                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
-                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
-                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
-                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
-                        civicConduitOwned = p.civicConduitOwned }); continue; }
+                { projectiles.Remove(p); AddProjectileFade(p); continue; }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
-                bool dead = p.blockedAtSpawn || ShotBlocked(p,p.position); float impactRadius = 0;
+                bool startedBlocked = p.blockedAtSpawn ||
+                    ShotBlocked(p,p.position);
+                bool dead = startedBlocked, civilianImpactProduced = false;
+                float impactRadius = 0;
                 // Capture collision candidates once per flying projectile,
                 // not on every 0.1-tile sweep subdivision. Refresh only
                 // after a real hit changes the possible target roster.
@@ -1088,6 +1097,7 @@ namespace Starfall
                         if(civilianFirst)
                         {
                             DamageReliefCivilianArrow(p);
+                            civilianImpactProduced = true;
                             dead=true;
                         }
                         else if(heroContact)
@@ -1103,7 +1113,13 @@ namespace Starfall
                 }
                 if (p.friendly) projectileTargets.Clear();
                 if (dead && projectiles.Remove(p))
-                    effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
+                {
+                    // A failed spawn isn't a 67-pixel magic explosion;
+                    // a civilian hit already emitted its OWN grounded
+                    // impact and should not draw a duplicate at the arrow.
+                    if (startedBlocked) AddProjectileFade(p);
+                    else if (!civilianImpactProduced || reliefMissionRoom==0)
+                        effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
                         variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
                         reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
@@ -1112,16 +1128,9 @@ namespace Starfall
                         commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned });
+                }
                 else if (p.life <= 0 && projectiles.Remove(p))
-                    effects.Add(new Effect("projectileFade", p.position, .25f) {
-                        direction = p.velocity.Normalized,
-                        variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
-                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
-                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
-                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
-                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
-                        civicConduitOwned = p.civicConduitOwned });
+                    AddProjectileFade(p);
             }
             tickingProjectiles.Clear();
         }
