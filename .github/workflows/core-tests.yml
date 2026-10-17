@@ -85,6 +85,8 @@ jobs:
         run: python3 tools/check_water_ripples.py
       - name: Hard-gate original campfire full-flame keyposes and real field prop renderer
         run: python3 tools/check_campfire_flames.py
+      - name: Validate 8 original warm and arcane vapors in real world props
+        run: python3 tools/check_prop_vapors.py
       - name: Verify eight original projectile trail poses and live flight wiring
         run: python3 tools/check_projectile_trails.py
       - name: Verify painted Boss and elite runic target sprites and production attack warnings

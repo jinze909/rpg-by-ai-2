@@ -163,8 +163,10 @@ namespace Starfall
                 (Game.Night?.80f:1f)*
                 (Game.save.effectsQuality==1?.58f:1f);
             Rect area=new Rect(p.x+6f,p.y+10f,24f,16f);
+            // Atlas applies the current world fade once, like the water
+            // terrain below this original ripple cell.
             Atlas(waterRipplesSheet,4,2,row*4+frame,area,
-                new Color(1f,1f,1f,alpha*worldActorOpacity));
+                new Color(1f,1f,1f,alpha));
         }
 
 
@@ -216,8 +218,10 @@ namespace Starfall
                 if(sway!=0f)
                     GUI.matrix=GuiGeometry.RotateAroundPivot(
                         originalMatrix,new Vector2(foot.x,foot.y),sway);
+                // The original whole canopy and its glints share ONE
+                // depth-pass opacity. Atlas already applies it.
                 Atlas(canopyWhispersSheet,8,3,row*8+frame,crown,
-                    new Color(1f,1f,1f,alpha*worldActorOpacity));
+                    new Color(1f,1f,1f,alpha));
             }
             finally {GUI.matrix=originalMatrix;}
         }
@@ -251,7 +255,7 @@ namespace Starfall
                 (seed%19)*.27f)%4+4)%4;
             int row=Game.save.room==3||Game.save.room==6?1:0;
             float alpha=CurrentWorldVisualLook.ruinSigilAlpha*
-                masonryTint.a*worldActorOpacity*
+                masonryTint.a*
                 (Game.Night?1f:.78f)*
                 (Game.save.effectsQuality==1?.56f:1f);
             // The source mural is attached to ORIGINAL ruin screen-foot,
@@ -635,8 +639,7 @@ namespace Starfall
             WorldVisualLook look=CurrentWorldVisualLook;
             float phase=foot.x*.037f+foot.y*.019f+variant*.93f;
             float beat=(float)Math.Sin(clock*4.6f+phase);
-            float amplitude=look.emberFlickerAlpha*(.72f+.28f*beat)*
-                worldActorOpacity;
+            float amplitude=look.emberFlickerAlpha*(.72f+.28f*beat);
             float spread=size*.125f;
             float centerY=foot.y-size*.55f;
             float lift=look.emberLiftPixels*
@@ -689,7 +692,7 @@ namespace Starfall
             float alpha=look.campfireFlameAlpha*
                 (Game.Night?1f:.83f)*
                 (Game.save.effectsQuality==1?.63f:1f)*
-                worldActorOpacity*originalTint.a;
+                originalTint.a;
             Atlas(campfireFlamesSheet,4,1,cell,
                 new Rect(foot.x-12f,foot.y-size*.73f,24f,32f),
                 new Color(1f,1f,1f,alpha));
@@ -725,7 +728,7 @@ namespace Starfall
             float alpha=look.relicShimmerAlpha*
                 (Game.Night?1f:.75f)*
                 (Game.save.effectsQuality==1?.65f:1f)*
-                worldActorOpacity*originalTint.a;
+                originalTint.a;
             if(alpha<=0f)return;
             int cell=((int)Math.Floor(clock*look.relicShimmerRate+
                 id*.43f+variant*.83f)%4+4)%4;
@@ -749,6 +752,48 @@ namespace Starfall
                     side,side),glow);
         }
 
+        // 8 ORIGINAL 32x48 whole transparent atmospheric poses:
+        // warm campfire ash and cold altar/engine vapor. They ornament the
+        // unchanged approved FieldProps body; GameCore owns interaction,
+        // world-space location, quest state and collisions. A static,
+        // rooted flipbook is better than a separate Animator for each prop.
+        private Texture2D propVaporsSheet;
+        private float propVaporsLastCheck=float.NegativeInfinity;
+        private float propVaporsNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredPropVapors(int id,Point foot,float size,
+            int variant,Color bodyTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality<2||bodyTint.a<=0f)return;
+            if(clock<propVaporsLastCheck||clock>=propVaporsNextCheck)
+            {
+                propVaporsLastCheck=clock;
+                propVaporsNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/PropVapors");
+                // Partial PNG/import must retain the previous eight-pose
+                // family instead of presenting a cropped source cell.
+                if(candidate!=null&&candidate.width==128&&
+                   candidate.height==96)
+                    propVaporsSheet=candidate;
+            }
+            if(propVaporsSheet==null||propVaporsSheet.width!=128||
+                propVaporsSheet.height!=96)return;
+            float rate=CurrentWorldVisualLook.propVaporFrameRate;
+            int frame=((int)Math.Floor(clock*rate+variant*.27f+
+                id*.13f)%4+4)%4;
+            int row=id==13?0:1;
+            float alpha=CurrentWorldVisualLook.propVaporAlpha*
+                bodyTint.a*(Game.Night?1f:.82f);
+            // Both painted source families start at the same FOOT-registered
+            // fire/altar vent. The flicker moves within fixed 32x48 cells,
+            // never moving the base prop or changing its collision root.
+            Rect plume=new Rect(foot.x-16f,
+                foot.y-size*.73f-40f,32f,48f);
+            Atlas(propVaporsSheet,4,2,row*4+frame,plume,
+                new Color(1f,1f,1f,alpha));
+        }
+
         private bool DrawFieldProp(string kind, int variant, float x, float y, float w, float h, Color? tint)
         {
             if (fieldProps == null) return false;
@@ -763,10 +808,17 @@ namespace Starfall
                     DrawAuthoredCampfireFlames(foot,Math.Max(w,h),
                         variant,tint??Color.white);
                     DrawAuthoredCampfireEmbers(foot,Math.Max(w,h),variant);
+                    DrawAuthoredPropVapors(id,foot,Math.Max(w,h),
+                        variant,tint??Color.white);
                 }
                 else if(id==3||id==4||id==12||id==14)
+                {
                     DrawAuthoredRelicShimmer(id,variant,foot,
                         Math.Max(w,h),tint??Color.white);
+                    if(id==12)
+                        DrawAuthoredPropVapors(id,foot,Math.Max(w,h),
+                            variant,tint??Color.white);
+                }
                 return true;
             }
             id = kind == "crate" ? 6 : kind == "barrel" ? 7 : kind == "fence" ? 11 : kind == "bridge" ? 12 : kind == "bed" ? 13 : kind == "bookshelf" ? 14 : kind == "table" || kind == "counter" ? 15 : -1;

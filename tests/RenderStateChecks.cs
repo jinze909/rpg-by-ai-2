@@ -3188,8 +3188,8 @@ public static class RenderStateChecks
             Set(app,"clock",1.4f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(GUI.textureCalls.Count==4,
-                "Fire must keep the accepted body, original flame paintings and two embers");
+            Check(GUI.textureCalls.Count==5,
+                "Fire must retain the accepted body, flame, two embers and authored smoke");
             var before=GUI.textureCalls.ToArray();
             Check(object.ReferenceEquals(before[0].texture,fire)&&
                 Math.Abs(before[0].uv.x-.25f)<.00001f&&
@@ -3211,7 +3211,7 @@ public static class RenderStateChecks
             // shelter props must reach the same source-preserving producer.
             Clear();Call(app,"PropImage","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(GUI.textureCalls.Count==4&&
+            Check(GUI.textureCalls.Count==5&&
                 object.ReferenceEquals(GUI.textureCalls[0].texture,fire)&&
                 GUI.textureCalls[1].texture.name=="resource:Frontier/Art/CampfireFlames"&&
                 object.ReferenceEquals(GUI.textureCalls[2].texture,flashes)&&
@@ -3220,7 +3220,7 @@ public static class RenderStateChecks
             Set(app,"clock",2.7f);
             Clear();Call(app,"DrawFieldProp","fire",0,
                 320f,280f,76f,78f,Color.white);
-            Check(GUI.textureCalls.Count==4&&
+            Check(GUI.textureCalls.Count==5&&
                 Math.Abs(GUI.textureCalls[0].rect.x-before[0].rect.x)<.0001f&&
                 Math.Abs(GUI.textureCalls[0].rect.y-before[0].rect.y)<.0001f&&
                 Math.Abs(GUI.textureCalls[0].uv.x-before[0].uv.x)<.00001f&&
@@ -4288,6 +4288,124 @@ public static class RenderStateChecks
     {
         try { EditableWorldVisualResourceDrivesLiveRender(app); }
         finally { app.EndVisualReview(); Clear(); }
+    }
+
+    // Executed from real offline C# runtime and the production PropImage
+    // world branch. Two newly painted vapor families share the unchanged
+    // FieldProps root; unlike preview-only PNGs they appear in actual scene.
+    public static void VerifyPropVaporsInProduction(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        int quality=game.save.effectsQuality;
+        bool reduced=game.save.reducedMotion;
+        float opacity=Get<float>(app,"worldActorOpacity");
+        float currentClock=Get<float>(app,"clock");
+        const string path="Frontier/Art/PropVapors";
+        Texture2D previousOverride=null;
+        bool overridden=Resources.TextureOverrides.TryGetValue(
+            path,out previousOverride);
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            Set(app,"worldActorOpacity",1f);
+            Set(app,"clock",4f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            var fire=GUI.textureCalls.ToArray();
+            var vapors=Get<Texture2D>(app,"propVaporsSheet");
+            Check(fire.Length==5&&vapors!=null&&
+                fire[4].texture==vapors&&
+                vapors.width==128&&vapors.height==96&&
+                Math.Abs(fire[4].uv.y-.5f)<.00001f&&
+                Math.Abs(fire[4].uv.width-.25f)<.00001f&&
+                Math.Abs(fire[4].uv.height-.5f)<.00001f,
+                "Production campfire did not paint the warm smoke row after its original embers");
+            Check(fire[4].rect.width==32f&&
+                fire[4].rect.height==48f&&
+                Math.Abs(fire[4].rect.x+16f-
+                    (fire[0].rect.x+fire[0].rect.width*.5f))<.01f,
+                "Campfire smoke shifted away from the same planted source root");
+            Clear();Call(app,"DrawFieldProp","altar",0,
+                320f,280f,76f,78f,Color.white);
+            var altar=GUI.textureCalls.ToArray();
+            Check(altar.Length==3&&
+                altar[0].texture==fire[0].texture&&
+                altar[2].texture==vapors&&
+                Math.Abs(altar[2].uv.y)<.00001f&&
+                altar[2].rect.x==fire[4].rect.x&&
+                altar[2].rect.y==fire[4].rect.y,
+                "Real altar lost the distinct cold vapor row or moved its world root");
+            Set(app,"clock",4.34f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==5&&
+                Math.Abs(GUI.textureCalls[4].uv.x-fire[4].uv.x)>.00001f&&
+                GUI.textureCalls[4].rect.x==fire[4].rect.x&&
+                GUI.textureCalls[4].rect.y==fire[4].rect.y,
+                "Original vapor frames failed to animate within their anchored canvas");
+            // Atlas alone multiplies worldActorOpacity. All painted layers
+            // must fade precisely once, matching the existing solid body.
+            Set(app,"worldActorOpacity",.5f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            var occluded=GUI.textureCalls.ToArray();
+            Set(app,"worldActorOpacity",1f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            var unoccluded=GUI.textureCalls.ToArray();
+            Check(unoccluded.Length==5&&occluded.Length==5,
+                "World opacity changed number of campfire sprites");
+            for(int i=0;i<5;i++)
+                Check(Math.Abs(occluded[i].color.a-
+                    unoccluded[i].color.a*.5f)<.00015f,
+                    "Campfire body, flame or vapor double-applied world cover alpha: "+i);
+            // An incomplete Editor reimport cannot replace any valid frame.
+            var incomplete=new Texture2D(127,96,TextureFormat.RGBA32,false);
+            Resources.TextureOverrides[path]=incomplete;
+            Set(app,"clock",7f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls.Count==5&&
+                GUI.textureCalls[4].texture==vapors,
+                "Half-imported vapor PNG overrode the last approved source");
+            var complete=new Texture2D(128,96,TextureFormat.RGBA32,false);
+            Resources.TextureOverrides[path]=complete;
+            Set(app,"clock",10f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls[4].texture==complete,
+                "Corrected eight-frame source failed live hot import");
+            Resources.TextureOverrides[path]=vapors;
+            Set(app,"clock",0f);
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(GUI.textureCalls[4].texture==vapors,
+                "Rewound world clock failed to restore complete vapor atlas");
+            game.save.effectsQuality=1;
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(!GUI.textureCalls.Any(c=>c.texture==vapors),
+                "Reduced-effects setting unexpectedly painted optional smoke");
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawFieldProp","fire",0,
+                320f,280f,76f,78f,Color.white);
+            Check(!GUI.textureCalls.Any(c=>c.texture==vapors),
+                "Reduced motion did not hide only supplemental animated vapor");
+            Console.WriteLine("PASS two original 4-frame fire/altar vapor families in live world, rooted motion, alpha cover once, source-import recovery, accessibility");
+        }
+        finally
+        {
+            if(overridden)Resources.TextureOverrides[path]=previousOverride;
+            else Resources.TextureOverrides.Remove(path);
+            Set(app,"worldActorOpacity",opacity);
+            Set(app,"clock",currentClock);
+            game.save.effectsQuality=quality;
+            game.save.reducedMotion=reduced;
+            app.EndVisualReview();Clear();
+        }
     }
 
     public static void Run(FrontierRuntime app,string folder)

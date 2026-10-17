@@ -1488,6 +1488,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyPaintedShorelineFoamInLiveWorld,
             RenderStateChecks.VerifyOriginalWaterRippleArtAndLiveTide,
             RenderStateChecks.VerifyPaintedCampfireFlamesInProduction,
+            RenderStateChecks.VerifyPropVaporsInProduction,
             RenderStateChecks.VerifyAuthoredProjectileTrailsAndHotImport,
             RenderStateChecks.VerifyCastSigilSourceAndCombatWarning,
             RenderStateChecks.VerifyRelicArtAndWorldIllumination,

@@ -31,6 +31,8 @@ namespace Starfall
             public float emberLiftPixels=7f;
             public float campfireFlameAlpha=.70f;
             public float campfireFlameFrameRate=5f;
+            public float propVaporAlpha=.38f;
+            public float propVaporFrameRate=3.8f;
             public float relicShimmerAlpha=.24f;
             public float relicShimmerRate=3.8f;
             public float relicHaloRadius=83f;
@@ -173,6 +175,12 @@ namespace Starfall
                             case "campfireFlameFrameRate":
                                 if(value>=2f&&value<=8f)
                                     settings.campfireFlameFrameRate=value;break;
+                            case "propVaporAlpha":
+                                if(value>=.10f&&value<=.50f)
+                                    settings.propVaporAlpha=value;break;
+                            case "propVaporFrameRate":
+                                if(value>=1.5f&&value<=7f)
+                                    settings.propVaporFrameRate=value;break;
                             case "relicShimmerAlpha":
                                 if(value>=.08f&&value<=.32f)
                                     settings.relicShimmerAlpha=value;break;

@@ -94,6 +94,11 @@ emberLiftPixels=7.0
 # detailed FieldProps fire. No extra campfire object, AI, physics or save data.
 campfireFlameAlpha=0.70
 campfireFlameFrameRate=5.0
+# Eight separate 32x48 source-painted smoke and arcane vapor poses:
+# row zero floats from real FieldProps fire; row one from altar/engine.
+# They never replace accepted pixel art or change a real world object.
+propVaporAlpha=0.38
+propVaporFrameRate=3.8
 
 # Four hand-directed 24px source-painted crystalline light poses. These
 # decorate original mature FieldProps crystal/obelisk/mirror/altar bodies
