@@ -38,6 +38,42 @@ namespace Starfall
         // current swing. The intent is never serialized and spends nothing until
         // the next swing is actually accepted.
         public const float AttackBufferWindow = .16f;
+        // A dodge press in the final cooldown frames should still be a dodge.
+        // No stamina, invulnerability or movement begins before Dash() accepts it.
+        public const float DodgeBufferWindow = .14f;
+        private sealed class DodgeIntent
+        {
+            public float remaining;
+            public Point direction;
+        }
+        private DodgeIntent bufferedDodge;
+        private void ClearBufferedDodge() { bufferedDodge = null; }
+        private void QueueLateDodge(Point direction)
+        {
+            if(dashCooldown > DodgeBufferWindow + .00001f)return;
+            bufferedDodge = new DodgeIntent {
+                remaining=DodgeBufferWindow,
+                direction=direction.Length>.1f?direction.Normalized:aim
+            };
+        }
+        private void TickBufferedDodge(float dt,float readyDelay)
+        {
+            DodgeIntent intent=bufferedDodge;
+            if(intent==null)return;
+            float remaining=intent.remaining;
+            intent.remaining-=dt;
+            if(dashCooldown<=.00001f&&
+                readyDelay<=remaining+.00001f&&
+                !Dying&&mode=="world")
+            {
+                // Clear BEFORE dispatch: the accepted dodge cancels the active
+                // attack/skill and all other pending intents exactly once.
+                ClearBufferedDodge();
+                Dash(intent.direction);
+            }
+            else if(intent.remaining<=.00001f||Dying||mode!="world")
+                ClearBufferedDodge();
+        }
         private sealed class AttackIntent
         {
             public float remaining;
@@ -144,13 +180,13 @@ namespace Starfall
 
         private void ResetCombatPresentation()
         {
-            ClearBufferedSkill(); ClearBufferedAttack();
+            ClearBufferedSkill(); ClearBufferedAttack(); ClearBufferedDodge();
             playerAction = null; fallen.Clear(); playerHitTime = playerFlash = deathTime = hitStop = impactShake = finaleDelay = 0;
             playerRecoil = movementDirection = new Point();
             fallenPlayerWeapon=-1;fallenPlayerFacing=new Point();
             playerHitFacing=new Point(); playerHitWeapon = -1;
         }
-        private void CancelAction() { playerAction = null; ClearBufferedSkill(); ClearBufferedAttack(); }
+        private void CancelAction() { playerAction = null; ClearBufferedSkill(); ClearBufferedAttack(); ClearBufferedDodge(); }
         private void ValidateActionProfile()
         {
             ActorAction a = playerAction;

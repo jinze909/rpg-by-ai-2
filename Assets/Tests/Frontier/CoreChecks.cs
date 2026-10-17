@@ -79,6 +79,59 @@ namespace Starfall.Tests
             finally { data.maps[0] = original; }
         }
 
+        public static void BufferedDodgeKeepsDirectionAndCommitsOnce(Campaign data)
+        {
+            GameCore g=Fresh(data);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;g.save.energy=100;
+            g.dashCooldown=.10f;
+            g.Dash(new Point(0,-1));
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Early valid dodge cannot spend stamina or start invulnerability");
+            g.SetAim(new Point(1,0));
+            g.Tick(.04f,new Point());
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Queued dodge started before actual cooldown completion");
+            g.Tick(.061f,new Point());
+            Check(g.dashTime>.17f&&g.invulnerable>.30f&&
+                Math.Abs(g.save.energy-80f)<.001f,
+                "Exactly one buffered dodge must start on cooldown readiness");
+            Point savedDirection=(Point)typeof(GameCore).GetField(
+                "dashDirection",System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic).GetValue(g);
+            Check(savedDirection.y<-.99f&&Math.Abs(savedDirection.x)<.01f,
+                "Deferred dodge must use original input, not later aim direction");
+            g.Tick(.02f,new Point());
+            Check(g.save.energy>80f&&g.save.energy<82f,
+                "Buffered dodge may not double charge energy on later ticks");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null,"Dodge interrupt requires actual attack");
+            g.dashCooldown=.07f;
+            g.Dash(new Point(0,1));
+            Check(g.playerAction!=null,
+                "Queued cooldown dodge cancelled original windup too early");
+            g.Tick(.071f,new Point());
+            Check(g.dashTime>.17f&&g.playerAction==null,
+                "Ready buffered dodge must cancel attack and begin real mobility");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.09f;g.Dash(new Point(-1,0));
+            g.mode="inventory";g.mode="world";
+            g.Tick(.10f,new Point());
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Closing menu must retire previously buffered dodge");
+            g.dashCooldown=.45f;g.Dash(new Point(-1,0));
+            g.Tick(.46f,new Point());
+            Check(g.dashTime<=0f,
+                "Dodge input well outside last 140ms cannot execute later");
+            g.save.energy=0;g.dashCooldown=.09f;
+            g.Dash(new Point(-1,0));
+            g.save.energy=100;g.Tick(.10f,new Point());
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Dodge input without enough energy cannot create a future free action");
+        }
+
         public static void ClassesAndPause(Campaign data)
         {
             for (int i = 0; i < 3; i++)

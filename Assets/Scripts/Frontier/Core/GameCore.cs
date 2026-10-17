@@ -20,7 +20,7 @@ namespace Starfall
         public string mode
         {
             get { return currentMode; }
-            set { currentMode = value; if (value != "world") { ClearBufferedSkill(); ClearBufferedAttack(); } }
+            set { currentMode = value; if (value != "world") { ClearBufferedSkill(); ClearBufferedAttack(); ClearBufferedDodge(); } }
         }
         public string toast = "";
         public Conversation conversation;
@@ -446,6 +446,7 @@ namespace Starfall
                 if (dt <= .00001f) return;
             }
             float skillReadyDelay = SkillReadyDelay();
+            float dodgeReadyDelay = Math.Max(0, dashCooldown);
             float attackReadyDelay = Math.Max(0, attackCooldown);
             if (playerAction != null)
                 attackReadyDelay = Math.Max(attackReadyDelay,
@@ -471,6 +472,9 @@ namespace Starfall
             TickMovement(dt, movement, explicitAim);
             TickAction(dt);
             if (mode != "world" || beganInPractice && !practicing) return;
+            // A buffered dodge wins the newly available movement frame.
+            // Fresh avoidance never fires a queued Q or swing in that tick.
+            TickBufferedDodge(dt, dodgeReadyDelay);
             TickBufferedSkill(dt, skillReadyDelay);
             TickBufferedAttack(dt, attackReadyDelay);
             UpdateEnemies(dt); if (Dying) return;
@@ -493,7 +497,18 @@ namespace Starfall
                 direction=new Point();
             float cost = Relic(2) ? 25 : 20;
             if (mode != "world" || Dying) return;
-            if (dashCooldown > 0 || save.energy < cost) { ActionUnavailable(dashCooldown, cost); return; }
+            if (dashCooldown > 0 || save.energy < cost)
+            {
+                if(dashCooldown>0&&dashCooldown<=DodgeBufferWindow+.00001f&&
+                   save.energy>=cost)
+                    QueueLateDodge(direction);
+                else
+                {
+                    ClearBufferedDodge();
+                    ActionUnavailable(dashCooldown,cost);
+                }
+                return;
+            }
             CancelAction();
             // A dodge is airborne/low-contact locomotion, not the next step of
             // the previous walk cycle. Restart its legs on the first real run
