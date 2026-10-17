@@ -207,9 +207,9 @@ namespace Starfall.Tests
             g = Fresh(data); g.Enter(1);
             g.save.coins = 999999; g.save.inventory[1] = 9999;
             g.Talk(Object(g, "lore"));
-            Check(g.Has("treasure_1") && g.Has("lore_1") &&
+            Check(!g.Has("treasure_1") && g.Has("lore_1") &&
                 g.save.coins == 999999 && g.save.inventory[1] == 9999,
-                "First lore discovery preserves its permanent flags without invalid crystal rewards");
+                "First lore discovery persists narrative history without consuming a blocked physical relic reward");
             g.Close(); g.save.kills[1] = 4; g.save.coins = 999999;
             Action(g, "scout", "scout");
             Check(g.Has("scout_saved") && g.save.coins == 999999,
