@@ -907,6 +907,53 @@ namespace Starfall.Tests
                 "Starting a new class also clears the previous hero's targeting state");
         }
 
+        public static void NonpiercingProjectileContactsFrontEnemyBeforeBackRoster(Campaign data)
+        {
+            // The two real enemy footprints deliberately overlap within
+            // ONE flight subdivision. List order must not alter the single
+            // projectile's physically first contact.
+            foreach(bool reverseRoster in new[]{false,true})
+            {
+                GameCore g=Fresh(data,1);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;g.save.reducedMotion=true;
+                var front=new Enemy(77911,0,13.8f,14f,300){
+                    stun=99,timer=999};
+                var back=new Enemy(77912,0,14.0f,14f,300){
+                    stun=99,timer=999};
+                Check(g.CanStand(front.Position)&&g.CanStand(back.Position),
+                    "Overlapping hit-circle regression has two actual legal enemy foot positions");
+                if(reverseRoster)
+                {g.enemies.Add(front);g.enemies.Add(back);}
+                else
+                {g.enemies.Add(back);g.enemies.Add(front);}
+                var shot=new Projectile{position=new Point(13.45f,14f),
+                    velocity=new Point(10f,0),life=1f,damage=22f,
+                    friendly=true,visual="arrow"};
+                g.projectiles.Add(shot);
+                g.Tick(.01f,new Point());
+                Check(!g.projectiles.Contains(shot)&&front.hp<300&&back.hp==300,
+                    "One nonpiercing arrow must hit the first collision surface, not the first roster entry");
+                Check(shot.hits.Count==1&&shot.hits[0]==front.id,
+                    "First-contact resolver cannot count a back-row phantom hit");
+                Check(g.effects.Exists(e=>e.kind=="projectileImpact"),
+                    "Physical first-contact correction retains the real arrow impact effect");
+            }
+            // The established piercing volley intentionally contacts both;
+            // front-only ordering is specific to nonpiercing projectiles.
+            GameCore piercing=Fresh(data,1);piercing.Enter(1);
+            piercing.enemies.Clear();piercing.save.reducedMotion=true;
+            piercing.enemies.Add(new Enemy(77920,0,13.8f,14f,300){
+                stun=99,timer=999});
+            piercing.enemies.Add(new Enemy(77921,0,14f,14f,300){
+                stun=99,timer=999});
+            var bolt=new Projectile{position=new Point(13.45f,14f),
+                velocity=new Point(10f,0),life=1f,damage=22f,
+                friendly=true,piercing=true,visual="arrow"};
+            piercing.projectiles.Add(bolt);piercing.Tick(.01f,new Point());
+            Check(bolt.hits.Count==2&&piercing.enemies.TrueForAll(e=>e.hp<300),
+                "Piercing arrows still contact every overlapping real enemy once");
+        }
+
         public static void PiercingVolleysKeepEveryContactWithReusableTargetSnapshot(Campaign data)
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();

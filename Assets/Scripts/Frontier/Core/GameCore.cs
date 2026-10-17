@@ -983,6 +983,43 @@ namespace Starfall
                     p.position = next;
                     if (p.friendly)
                     {
+                        // When enemy hit-circles overlap within one 0.1-tile
+                        // flight slice, the old roster-order loop let a
+                        // back-row actor swallow a non-piercing arrow before
+                        // the front actor. Select the earliest ray/circle
+                        // entry on the actual flight heading, independently
+                        // of enemy spawn/serialization order.
+                        if (!p.piercing)
+                        {
+                            Enemy firstContact = null;
+                            float firstEntry = float.MaxValue;
+                            Point direction = p.velocity.Normalized;
+                            foreach (Enemy candidate in projectileTargets)
+                            {
+                                if (candidate.hp <= 0 || p.hits.Contains(candidate.id))
+                                    continue;
+                                Point offset = candidate.Position - p.position;
+                                float radius = (candidate.boss ? .9f : .5f) + p.Radius;
+                                float dist2 = offset.x*offset.x + offset.y*offset.y;
+                                if (dist2 >= radius*radius ||
+                                    !ClearAttackPath(p.position,candidate.Position))
+                                    continue;
+                                float along = offset.x*direction.x+offset.y*direction.y;
+                                float perp2 = Math.Max(0f,dist2-along*along);
+                                float entry = along -
+                                    (float)Math.Sqrt(Math.Max(0f,radius*radius-perp2));
+                                if (entry < firstEntry)
+                                {
+                                    firstEntry=entry;
+                                    firstContact=candidate;
+                                }
+                            }
+                            if (firstContact != null)
+                            {
+                                projectileTargets.Clear();
+                                projectileTargets.Add(firstContact);
+                            }
+                        }
                         bool hitAny = false;
                         foreach (Enemy e in projectileTargets)
                         {
