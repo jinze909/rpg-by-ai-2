@@ -929,7 +929,11 @@ namespace Starfall
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
-                            effects.Add(new Effect("danger", e.target, .45f) {
+                            // The red ring warned during windup. At the
+                            // actual contact it becomes a short impact flash,
+                            // not another 450ms "incoming" danger telegraph.
+                            // This feedback shares the real damage target.
+                            effects.Add(new Effect("burst", e.target, .24f) {
                                 variant = e.boss ? save.room : 0, radius = radius,
                                 mineConvoyOwned = IsMineConvoyEnemy(e),
                                 frostSignalOwned = IsFrostSignalEnemy(e) });

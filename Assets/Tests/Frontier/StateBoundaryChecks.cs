@@ -229,5 +229,31 @@ namespace Starfall.Tests
                 "Real regional Boss advertises its attack footprint throughout windup instead of drawing the red ring after contact");
         }
 
+        public static void HeavySlamContactClearsWarningAndShowsActualImpact(Campaign data)
+        {
+            var g = Fresh(data);
+            g.enemies.Clear(); g.effects.Clear();
+            g.save.x = 18.5f; g.save.y = 14.5f;
+            g.invulnerable = 0;
+            var heavy = new Enemy(92507, 2, 20f, 14.5f, 200);
+            heavy.timer = 0;
+            g.enemies.Add(heavy);
+            g.Tick(.05f, new Point());
+            Effect warning = g.effects.Find(e => e.kind == "danger" &&
+                (e.position - heavy.target).Length < .01f);
+            Check(warning != null && warning.life > .5f,
+                "A genuine heavy slam first paints a readable circle before impact");
+            for (int tick = 0; tick < 18 && heavy.state == 1; tick++)
+                g.Tick(.05f, new Point());
+            Check(heavy.state == 0, "The unaltered heavy action delivers its real contact");
+            Check(!g.effects.Exists(e => e.kind == "danger" &&
+                (e.position - heavy.target).Length < .01f),
+                "The completed strike never creates a phantom red warning AFTER its contact");
+            Check(g.effects.Exists(e => e.kind == "burst" &&
+                (e.position - heavy.target).Length < .01f &&
+                e.radius > 0),
+                "Completed heavy impact shows a separate short real contact flash");
+        }
+
     }
 }
