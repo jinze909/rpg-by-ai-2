@@ -481,11 +481,16 @@ namespace Starfall
                         // into a dead/occluded target and spend a full cooldown;
                         // retain the authored recovery pose and retry promptly.
                         Enemy locked=companionAutoTarget;
+                        // Non-bow companions keep the EXACT original
+                        // attack-release contract, including a transient
+                        // missing target pointer. Only the new Ivo bow
+                        // steering path requires a still-bound Enemy.
                         bool rejected=action.kind=="attack"&&
-                            (locked==null||!enemies.Contains(locked)||
-                             locked.hp<=0||
-                             (locked.Position-companionPosition).Length>=7f||
-                             !ClearAttackPath(companionPosition,locked.Position));
+                            ((locked==null&&action.weapon==1)||
+                             (locked!=null&&
+                              (!enemies.Contains(locked)||locked.hp<=0||
+                               (locked.Position-companionPosition).Length>=7f||
+                               !ClearAttackPath(companionPosition,locked.Position))));
                         Point releaseDirection=action.direction;
                         Point? releaseTarget=action.target;
                         // Only Ivo's BOW uses flight-heading tracking.
