@@ -271,9 +271,9 @@ namespace Starfall
             BountyEvent(0, 1); if (e.boss) BountyEvent(3, 1); if (e.kind == 2) BountyEvent(4, 1);
             if (InAbyss)
             {
-                save.runCoins += e.boss ? 70 : 8 + save.abyssRisk * 3;
-                save.runShards += (e.boss ? 5 : 1) + save.abyssRisk;
-                save.runXp += e.boss ? 100 : 14;
+                save.runCoins = CappedReward(save.runCoins, e.boss ? 70 : 8 + save.abyssRisk * 3, 9999);
+                save.runShards = CappedReward(save.runShards, (e.boss ? 5 : 1) + save.abyssRisk, 9999);
+                save.runXp = CappedReward(save.runXp, e.boss ? 100 : 14, 9999);
                 if (enemies.Count == 0) { Flag("abyss_clear_" + save.abyssFloor); Notify("本层已清理。到东侧地脉门选择祝福并结算。", "Floor cleared. Choose a blessing and bank rewards at the east gate."); }
                 PrepareSave();
             }
@@ -1550,8 +1550,12 @@ namespace Starfall
             if (first)
             {
                 Flag(flag);
-                if (cache) { save.runCoins += 18; save.runShards += 2; }
-                else save.runXp += 15;
+                if (cache)
+                {
+                    save.runCoins = CappedReward(save.runCoins, 18, 9999);
+                    save.runShards = CappedReward(save.runShards, 2, 9999);
+                }
+                else save.runXp = CappedReward(save.runXp, 15, 9999);
                 revision++; sound = "reward";
             }
             Dialog(o.name, o.en,

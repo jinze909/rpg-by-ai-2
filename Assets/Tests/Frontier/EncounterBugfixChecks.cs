@@ -291,5 +291,49 @@ namespace Starfall.Tests
                 "A renewed genuine root-gate decision still banks and extracts the entire reward");
         }
 
+        public static void AbyssPendingRewardsStayWithinSaveCapsUntilCollected(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.frontierEnding = 1;
+            g.StartAbyss(0);
+            Check(g.InAbyss && g.enemies.Count > 0,
+                "Procedural Abyss creates live opponents for the pending-reward regression");
+            g.save.runCoins = g.save.runShards = g.save.runXp = 9998;
+            Enemy foe = g.enemies[0];
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            hit.Invoke(g, new object[] { foe, 9999f, false, null, null });
+            Check(!g.enemies.Contains(foe) &&
+                g.save.runCoins == 9999 && g.save.runShards == 9999 &&
+                g.save.runXp == 9999,
+                "Actual Abyss enemy death never overflows any unbanked v2 resource");
+
+            g.save.x = 47.5f; g.save.y = 28.5f;
+            g.Talk(Object(g, "abyssCache"));
+            Check(g.Has("abyss_annex_cache_1") &&
+                g.save.runCoins == 9999 && g.save.runShards == 9999,
+                "Actual side-chamber loot stays at cap while its discovery is still recorded");
+            g.Close();
+            g.save.x = 12.5f; g.save.y = 28.5f;
+            g.Talk(Object(g, "abyssSurvey"));
+            Check(g.Has("abyss_annex_survey_1") && g.save.runXp == 9999,
+                "Floor's survey journal cannot overflow pending experience");
+            g.Close();
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss && restored.save.runCoins == 9999 &&
+                restored.save.runShards == 9999 && restored.save.runXp == 9999 &&
+                restored.Has("abyss_annex_cache_1"),
+                "Legitimate capped unbanked resources and explored cache persist across actual v2 reload");
+            restored.enemies.Clear();
+            restored.save.coins = 999999; restored.save.shards = 99999;
+            Action(restored, "abyssGate", "abyssBank");
+            Check(!restored.InAbyss && restored.save.room == 0 &&
+                restored.save.coins == 999999 && restored.save.shards == 99999 &&
+                restored.save.runCoins == 0 && restored.save.runShards == 0 &&
+                restored.save.runXp == 0,
+                "Reloaded capped rewards settle once without bank overflow or a stranded Abyss run");
+        }
+
     }
 }
