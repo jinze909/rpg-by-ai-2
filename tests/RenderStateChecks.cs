@@ -4373,7 +4373,8 @@ public static class RenderStateChecks
                     "Campfire body, flame or vapor double-applied world cover alpha: "+i);
             // An incomplete Editor reimport cannot replace any valid frame.
             vaporStage="partial-import";
-            var incomplete=new Texture2D(127,96,TextureFormat.RGBA32,false);
+            var incomplete=new Texture2D(127,96,TextureFormat.RGBA32,false)
+            {name="partially-imported-prop-vapor-sprites"};
             Resources.TextureOverrides[path]=incomplete;
             Set(app,"clock",7f);
             Clear();Call(app,"DrawFieldProp","fire",0,
@@ -4382,7 +4383,8 @@ public static class RenderStateChecks
                 GUI.textureCalls[4].texture==vapors,
                 "Half-imported vapor PNG overrode the last approved source");
             vaporStage="complete-import";
-            var complete=new Texture2D(128,96,TextureFormat.RGBA32,false);
+            var complete=new Texture2D(128,96,TextureFormat.RGBA32,false)
+            {name="reimported-complete-prop-vapor-sprites"};
             Resources.TextureOverrides[path]=complete;
             Set(app,"clock",10f);
             Clear();Call(app,"DrawFieldProp","fire",0,
