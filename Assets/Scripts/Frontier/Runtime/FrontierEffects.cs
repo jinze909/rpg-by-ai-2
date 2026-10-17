@@ -428,6 +428,10 @@ namespace Starfall
         // letterboxing/ultrawide GameView and never mutates collision.
         private void DrawWarningStroke(Point a, Point b, Color color)
         {
+            // Source/target remain GameCore-owned. Clip only the VISUAL
+            // segment to the logical canvas (before GUI letterbox matrix).
+            // Entirely invisible lines submit zero draw calls.
+            if(!ClipWarningScreenSegment(ref a,ref b))return;
             Point delta=b-a;
             float length=delta.Length;
             if(length<.001f)return;

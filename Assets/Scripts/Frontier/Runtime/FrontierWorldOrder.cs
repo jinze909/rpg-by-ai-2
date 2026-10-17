@@ -173,17 +173,28 @@ namespace Starfall
             }
             return true;
         }
-        private bool WarningLaneCrossesScreen(Point source,Point target)
+        // Reuse ONE exact viewport clip for both visibility and painting.
+        // Huge distant 2000px+ attack strokes no longer submit unbounded
+        // rectangles across an otherwise tiny visible region.
+        private bool ClipWarningScreenSegment(ref Point a,ref Point b)
         {
-            Point a=ScreenPoint(source),b=ScreenPoint(target);
             float dx=b.x-a.x,dy=b.y-a.y;
             const float margin=36f;
             float low=0f,high=1f;
-            return ClipWarningLane(-dx,a.x+margin,ref low,ref high)&&
-                ClipWarningLane(dx,Width+margin-a.x,ref low,ref high)&&
-                ClipWarningLane(-dy,a.y+margin,ref low,ref high)&&
-                ClipWarningLane(dy,Height+margin-a.y,ref low,ref high)&&
-                low<=high;
+            if(!ClipWarningLane(-dx,a.x+margin,ref low,ref high)||
+               !ClipWarningLane(dx,Width+margin-a.x,ref low,ref high)||
+               !ClipWarningLane(-dy,a.y+margin,ref low,ref high)||
+               !ClipWarningLane(dy,Height+margin-a.y,ref low,ref high)||
+               low>high)return false;
+            Point start=a;
+            a=new Point(start.x+dx*low,start.y+dy*low);
+            b=new Point(start.x+dx*high,start.y+dy*high);
+            return true;
+        }
+        private bool WarningLaneCrossesScreen(Point source,Point target)
+        {
+            Point a=ScreenPoint(source),b=ScreenPoint(target);
+            return ClipWarningScreenSegment(ref a,ref b);
         }
         private bool WarningFootprintVisible(Enemy enemy)
         {
