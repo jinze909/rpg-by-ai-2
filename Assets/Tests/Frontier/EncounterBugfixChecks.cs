@@ -447,6 +447,8 @@ namespace Starfall.Tests
         {
             var g = Fresh(data);
             g.save.stage = 3;
+            g.save.ending = 3; // Public post-finale workshops are unavailable before the real ending.
+            g.save.flags.Add("boss_4");
             g.save.flags.Add("afterlight_started");
             g.save.flags.Add("afterlight_plan_3_care");
             g.save.flags.Add("afterlight_done_3");
