@@ -927,6 +927,21 @@ namespace Starfall
         { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.courierOwned=IsFarCourierRaider(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
                 e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+        // Signed ray-circle entry measured from a shared flight sample.
+        // A negative value means the projectile has already crossed that
+        // actor's front edge. Comparing entries is still well-defined when
+        // two hurt circles overlap on the same <=0.1-tile sweep step.
+        private static float ProjectileCircleEntry(Point point, Point velocity,
+            Point center, float radius)
+        {
+            Point heading=velocity.Normalized;
+            Point offset=center-point;
+            float along=offset.x*heading.x+offset.y*heading.y;
+            float dist2=offset.x*offset.x+offset.y*offset.y;
+            float sideways2=Math.Max(0f,dist2-along*along);
+            return along-(float)Math.Sqrt(Math.Max(0f,
+                radius*radius-sideways2));
+        }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -1048,23 +1063,38 @@ namespace Starfall
                             projectileTargets.Clear(); projectileTargets.AddRange(enemies);
                         }
                     }
-                    else if ((Position - p.position).Length < .38f)
+                    else
                     {
-                        // Reflection keeps the very same swept projectile.
-                        // Stop this frame: on the next Tick its fresh friendly
-                        // target snapshot can hit the real source actor.
-                        if(TryDeflectHostileProjectile(p))break;
-                        Hurt(p.damage,p.source ?? "shot",p.velocity.Normalized);
-                        dead=true;
-                    }
-                    else if (p.reliefMissionOwned && reliefMissionRoom == save.room &&
-                        (reliefMissionWave >= 1 && reliefMissionWave <= 3) &&
-                        (p.position - reliefFollowerPosition).Length < .45f)
-                    {
-                        // A genuine hostile arrow, after sweeping through any
-                        // walls or an intervening hero, reaches the civilians.
-                        DamageReliefCivilianArrow(p);
-                        dead = true;
+                        bool heroContact=(Position-p.position).Length<.38f;
+                        bool civilianContact=p.reliefMissionOwned &&
+                            reliefMissionRoom==save.room &&
+                            reliefMissionWave>=1 && reliefMissionWave<=3 &&
+                            (p.position-reliefFollowerPosition).Length<.45f;
+                        // When the hero and escort occupy overlapping
+                        // hit circles, the old "hero first" if/else let the
+                        // hero absorb a shot that physically met the escort
+                        // first. Sort by front-circle intersection, while
+                        // preserving the player's real interception and
+                        // existing reflection when the hero is closer.
+                        bool civilianFirst=civilianContact&&(!heroContact||
+                            ProjectileCircleEntry(p.position,p.velocity,
+                                reliefFollowerPosition,.45f)+.00001f <
+                            ProjectileCircleEntry(p.position,p.velocity,
+                                Position,.38f));
+                        if(civilianFirst)
+                        {
+                            DamageReliefCivilianArrow(p);
+                            dead=true;
+                        }
+                        else if(heroContact)
+                        {
+                            // Reflection keeps the same swept projectile;
+                            // a real frontal interception still wins.
+                            if(TryDeflectHostileProjectile(p))break;
+                            Hurt(p.damage,p.source??"shot",
+                                p.velocity.Normalized);
+                            dead=true;
+                        }
                     }
                 }
                 if (p.friendly) projectileTargets.Clear();

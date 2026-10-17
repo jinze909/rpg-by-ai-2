@@ -481,6 +481,53 @@ namespace Starfall.Tests
             g.PrepareSave(); var loaded = new GameCore(data, CloneSave(g.save)); Check(loaded.enemies.Count == 0, "A visual corpse cannot respawn as a living loot source");
             Advance(g, 1); Check(g.fallen.Count == 0 && g.save.kills[1] == kills + 1, "The corpse fades without awarding twice");
         }
+        public static void EscortArrowsStrikeFirstPhysicalActor(Campaign data)
+        {
+            // An incoming raider arrow overlaps both hit circles on ONE
+            // authored 100ms/movement sweep slice. A civilian's 0.45f
+            // hurt radius may enter the flight before the hero's 0.38f
+            // radius even though the civilian root is farther away.
+            // Hero-first list ordering used to erase this real escort hit.
+            foreach(bool mirrored in new[]{false,true})
+            foreach(bool civilianFirst in new[]{false,true})
+            {
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;
+                g.save.reducedMotion=true;
+                g.invulnerable=0;
+                g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                g.reliefMissionTime=90;
+                g.reliefFollowerSafety=100;
+                g.reliefFollowerPosition=new Point(
+                    mirrored?(civilianFirst?11.98f:11.75f):
+                        (civilianFirst?12.02f:12.25f),14);
+                float oldHealth=g.save.health;
+                var projectile=new Projectile{
+                    position=new Point(mirrored?
+                        (civilianFirst?12.45f:12.25f):
+                        (civilianFirst?11.55f:11.75f),14),
+                    velocity=new Point(mirrored?-10:10,0),
+                    life=1,damage=14,source="shot",
+                    visual="enemyArrow",reliefMissionOwned=true
+                };
+                g.projectiles.Add(projectile);
+                g.Tick(.01f,new Point());
+                Check(!g.projectiles.Contains(projectile),
+                    "The first actual body contact must consume the hostile arrow");
+                if(civilianFirst)
+                    Check(g.reliefFollowerSafety<99f&&
+                        Math.Abs(g.save.health-oldHealth)<.001f,
+                        "Civilian nearer along swept arrow must lose safety, not distant hero HP");
+                else
+                    Check(g.save.health<oldHealth&&
+                        Math.Abs(g.reliefFollowerSafety-100f)<.1f,
+                        "Hero physically ahead of civilian must really intercept the enemy arrow");
+                Check(g.effects.Exists(e=>e.kind=="projectileImpact"&&
+                    e.position.x>11f&&e.position.x<13f),
+                    "Actual actor-first contact must still show a real impact at the collision point");
+            }
+        }
+
         public static void StarfireDetonatesOnNearSideOfRealCover(Campaign data)
         {
             MapData original=data.maps[0];
