@@ -625,6 +625,9 @@ namespace Starfall
             float phaseCue = e.boss ? BossPhaseCueOpacity(e) : 0f;
             float paintedBossCanvas=size;
             float paintedActorCanvas=size;
+            // Keep secondary impact pixels on the SAME rendered facing as
+            // the approved whole-body Sprite (upright archer art is unflipped).
+            bool paintedActorFlip=e.VisualFlip;
             if (e.boss)
             {
                 // Capture the most recently drawn living HP stage. Lethal
@@ -785,6 +788,7 @@ namespace Starfall
                 }
                 float canvas=ActorCanvas(sheet,columns,size/128);
                 bool renderFlip=!vertical && e.VisualFlip;
+                paintedActorFlip=renderFlip;
                 RememberEnemyPaint(e,sheet,columns,rows,frame,canvas,tint,renderFlip);
                 float paintedEnemySize=DrawEnemyAtlasHandoff(
                     e,sheet,columns,rows,frame,
@@ -796,7 +800,8 @@ namespace Starfall
             // GameCore hit reaction. Their pivot follows the actual eased
             // whole-body Boss size and never paints a second head or torso.
             DrawAuthoredEnemyHitSparks(e,p,e.boss?
-                paintedBossCanvas:paintedActorCanvas);
+                paintedBossCanvas:paintedActorCanvas,
+                paintedActorFlip,tint.a);
             // A real HP threshold crossing, not an arbitrary idle clock,
             // briefly exposes the Boss's new stage with two SMALL painted
             // Effects.png motes. Bind their shoulder positions to the

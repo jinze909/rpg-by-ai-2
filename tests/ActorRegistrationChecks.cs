@@ -2314,6 +2314,43 @@ public static class ActorRegistrationChecks
                     "resource:Frontier/Art/Bosses"||
                     c.texture.name=="resource:Frontier/Art/BriarBeast"),
                 "Boss flash dropped its accepted full-body Sprite or spark anchors");
+            // The published material fragments are asymmetric: the effect
+            // must mirror with the actual living whole-body Sprite, never
+            // from a separate cosmetic clock or a stale facing direction.
+            var left=new Enemy(99679,0,12,14,125){
+                hitTime=.135f,facing=new Point(-1,0)};
+            Clear();var leftPaint=Draw(app,"DrawEnemyActor",left);
+            var leftSparks=leftPaint.Where(c=>c.texture==accepted).ToArray();
+            Check(leftSparks.Length==2&&leftSparks.All(c=>
+                    Math.Abs(c.uv.width+.25f)<.00001f)&&
+                Math.Abs(leftSparks[0].rect.x-sparks[0].rect.x)<.00001f,
+                "Left-facing monster hit particles ignored complete-body Sprite flip");
+            // The vertical bow atlas paints distinct upright silhouettes;
+            // an old leftward orientation cannot flip North/South sprites.
+            var upright=new Enemy(99680,1,12,14,125){hitTime=.135f};
+            upright.Face(new Point(-1,0));upright.Face(new Point(0,-1));
+            Check(upright.VisualFlip,"Vertical archer fixture lost previous leftward facing");
+            Clear();var uprightPaint=Draw(app,"DrawEnemyActor",upright);
+            var uprightSparks=uprightPaint.Where(c=>c.texture==accepted).ToArray();
+            Check(uprightSparks.Length==2&&uprightSparks.All(c=>
+                    Math.Abs(c.uv.width-.25f)<.00001f),
+                "Upright archer hit particles used stale horizontal facing");
+            // When the hero passes behind a translucent Boss, particles
+            // must fade WITH the whole-body Sprite, not float at full alpha.
+            float oldHeroX=g.save.x,oldHeroY=g.save.y;
+            g.save.x=boss.x+5f;g.save.y=boss.y+5f;
+            Clear();var visibleBossSparks=Draw(app,"DrawEnemyActor",boss)
+                .Where(c=>c.texture==accepted).ToArray();
+            g.save.x=boss.x;g.save.y=boss.y-1f;
+            Clear();var occludedBossSparks=Draw(app,"DrawEnemyActor",boss)
+                .Where(c=>c.texture==accepted).ToArray();
+            g.save.x=oldHeroX;g.save.y=oldHeroY;
+            Check(visibleBossSparks.Length==2&&occludedBossSparks.Length==2&&
+                Math.Abs(occludedBossSparks[0].color.a-
+                    visibleBossSparks[0].color.a*.55f)<.00001f&&
+                Math.Abs(occludedBossSparks[1].color.a-
+                    visibleBossSparks[1].color.a*.55f)<.00001f,
+                "Boss hit sparks stayed opaque while its full-body Sprite faded");
             enemy.hitTime=.09f;
             Clear();var changing=Draw(app,"DrawEnemyActor",enemy);
             var moved=changing.Where(c=>c.texture==accepted).ToArray();

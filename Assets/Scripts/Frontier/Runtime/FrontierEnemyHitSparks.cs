@@ -13,7 +13,7 @@ namespace Starfall
         private float enemyHitSparksNextCheck=float.NegativeInfinity;
 
         private void DrawAuthoredEnemyHitSparks(Enemy enemy,Point foot,
-            float paintedBodySize)
+            float paintedBodySize,bool mirror,float bodyAlpha)
         {
             if(enemy==null||enemy.hp<=0f||enemy.hitTime<=.001f||
                 enemy.state==1||enemy.releaseTime>.001f||
@@ -50,7 +50,7 @@ namespace Starfall
             Rect area=new Rect(foot.x-size*.5f,
                 foot.y-paintedBodySize*.51f-size*.5f,size,size);
             float alpha=CurrentWorldVisualLook.enemyHitSparkAlpha*
-                (1f-progress*.54f);
+                Mathf.Clamp01(bodyAlpha)*(1f-progress*.54f);
             float sample=progress*4f;
             int frame=Math.Min(3,Math.Max(0,(int)Math.Floor(sample)));
             int seam=(int)Math.Floor(sample+.5f);
@@ -64,13 +64,13 @@ namespace Starfall
                 float blend=Mathf.Clamp01(
                     (sample-seam+half)/(2f*half));
                 Atlas(enemyHitSparksSheet,4,3,first+seam-1,area,
-                    new Color(1,1,1,alpha*(1f-blend)));
+                    new Color(1,1,1,alpha*(1f-blend)),mirror);
                 Atlas(enemyHitSparksSheet,4,3,first+seam,area,
-                    new Color(1,1,1,alpha*blend));
+                    new Color(1,1,1,alpha*blend),mirror);
             }
             else
                 Atlas(enemyHitSparksSheet,4,3,first+frame,area,
-                    new Color(1,1,1,alpha));
+                    new Color(1,1,1,alpha),mirror);
         }
     }
 }
