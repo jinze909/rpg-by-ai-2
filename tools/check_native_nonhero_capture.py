@@ -65,7 +65,11 @@ def main():
             assert required in builder, ("NONHERO_STALE_SCALE_GUARD_MISSING",
                                          builder_name, required)
     assert "if (drawingOutline && sheet != null)" in actor
-    assert "DrawSpriteRendererActor(sheet, columns, rows,\n                frame," in actor
+    # Flash/outline masks and environmental art use direct lossless Atlas,
+    # never expensive SpriteRenderer GPU capture as a faux actor.
+    assert "if (NativeActorEligible(sheet, columns, rows))" in actor
+    assert "DrawSpriteRendererActor(" in actor
+    assert "sheet, columns, rows, frame, foot, size," in actor
     assert "if (nativeActorDrawn) return;" in actor
     # The cue must be pinned to the actual Talk() target, not a moving
     # Nearest() query that can switch to a different same-kind resident.

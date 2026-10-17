@@ -168,3 +168,9 @@ enemyReleaseDustSeam=0.18
 # to the same scene foot. Harvest, timers and SaveData remain GameCore-owned.
 gardenLivingAlpha=0.62
 gardenLivingFrameRate=3.2
+
+# Original leaf/ember/crystal 3x4 hit-reaction sparks are synchronized to
+# actual Enemy.hitTime only. Rendered over the SAME fully-authored body,
+# never as a new attack, projectile, stun or altered gameplay hurtbox.
+enemyHitSparkAlpha=0.66
+enemyHitSparkSeam=0.16

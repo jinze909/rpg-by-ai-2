@@ -19,7 +19,8 @@ public static class ActorRegistrationChecks
         !c.texture.name.EndsWith("/HeroMotionAccents")&&
         !c.texture.name.EndsWith("/CoastlineRemaster")&&
         !c.texture.name.EndsWith("/ActorContactShadows")&&
-        !c.texture.name.EndsWith("/EnemyReleaseDust");}
+        !c.texture.name.EndsWith("/EnemyReleaseDust")&&
+        !c.texture.name.EndsWith("/EnemyHitSparks");}
     static void Density(GUI.TextureCall[] calls,float density)
     {
         foreach(var c in calls.Where(ActorTexture))
@@ -2249,6 +2250,130 @@ public static class ActorRegistrationChecks
     // Main CI now runs actual common-foe and regional-Boss Idle/Walk,
     // interruption and 2-direction identity checks as an executable test,
     // not just an unused optional visual contact sheet.
+    // Exercise the REAL enemy/Boss DrawEnemyActor body and genuine
+    // Enemy.hitTime, never just an isolated VFX gallery.
+    public static void VerifyAuthoredEnemyHitSparks(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        int quality=g.save.effectsQuality;
+        bool reduced=g.save.reducedMotion;
+        float now=(float)typeof(FrontierRuntime).GetField(
+            "clock",Private).GetValue(app);
+        float opacity=(float)typeof(FrontierRuntime).GetField(
+            "worldActorOpacity",Private).GetValue(app);
+        const string key="Frontier/Art/EnemyHitSparks";
+        Texture2D prior;
+        bool had=Resources.TextureOverrides.TryGetValue(key,out prior);
+        try
+        {
+            g.save.effectsQuality=2;
+            g.save.reducedMotion=false;
+            Set(app,"worldActorOpacity",1f);
+            Set(app,"clock",5f);
+            var enemy=new Enemy(99671,0,12,14,125){
+                state=0,hitTime=.135f,facing=new Point(1,0)};
+            Clear();var live=Draw(app,"DrawEnemyActor",enemy);
+            var sparks=live.Where(c=>c.texture.name==
+                "resource:Frontier/Art/EnemyHitSparks").ToArray();
+            Check(sparks.Length==2&&sparks[0].texture.width==96&&
+                sparks[0].texture.height==72&&
+                Math.Abs(sparks[0].uv.y-2f/3f)<.00001f&&
+                Math.Abs(sparks[1].uv.y-2f/3f)<.00001f&&
+                Math.Abs(sparks[0].uv.x)<.00001f&&
+                Math.Abs(sparks[1].uv.x-.25f)<.00001f&&
+                Math.Abs(sparks[0].rect.x-sparks[1].rect.x)<.00001f&&
+                Math.Abs(sparks[0].rect.y-sparks[1].rect.y)<.00001f,
+                "Real mossbound reaction did not crossfade original full 24px hit particles");
+            var accepted=sparks[0].texture;
+            Check(live.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/Monsters"||
+                    c.texture.name=="resource:Frontier/Art/MossboundRaider")&&
+                Math.Abs(enemy.hitTime-.135f)<.00001f,
+                "Impact overlay replaced original character or changed authoritative hit timer");
+            float firstY=sparks[0].rect.y;
+            foreach(int kind in new[]{1,2})
+            {
+                var foe=new Enemy(99672+kind,kind,12,14,125){
+                    hitTime=.135f,state=0,facing=new Point(1,0)};
+                Clear();var paint=Draw(app,"DrawEnemyActor",foe);
+                var cells=paint.Where(c=>c.texture==accepted).ToArray();
+                int row=kind==1?2:1;
+                Check(cells.Length==2&&
+                    Math.Abs(cells[0].uv.y-(2-row)/3f)<.00001f&&
+                    cells[0].rect.width<=34f,
+                    "Archer or cinder guard changed hit material source or full body");
+            }
+            var boss=new Enemy(99677,0,12,14,400,true){
+                hitTime=.135f,state=0,facing=new Point(1,0)};
+            Clear();var bossPaint=Draw(app,"DrawEnemyActor",boss);
+            var bossCells=bossPaint.Where(c=>c.texture==accepted).ToArray();
+            Check(bossCells.Length==2&&
+                bossCells[0].rect.width>sparks[0].rect.width&&
+                bossPaint.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/Bosses"||
+                    c.texture.name=="resource:Frontier/Art/BriarBeast"),
+                "Boss flash dropped its accepted full-body Sprite or spark anchors");
+            enemy.hitTime=.09f;
+            Clear();var changing=Draw(app,"DrawEnemyActor",enemy);
+            var moved=changing.Where(c=>c.texture==accepted).ToArray();
+            Check(moved.Length==2&&
+                Math.Abs(moved[0].rect.y-firstY)<.00001f&&
+                Math.Abs(moved[0].uv.x-.25f)<.00001f&&
+                Math.Abs(moved[1].uv.x-.5f)<.00001f,
+                "Hit motion drifted off character body or skipped source contact seam");
+            Set(app,"worldActorOpacity",.5f);Clear();
+            var faded=Draw(app,"DrawEnemyActor",enemy)
+                .Where(c=>c.texture==accepted).ToArray();
+            Check(faded.Length==2&&
+                Math.Abs(faded[0].color.a-moved[0].color.a*.5f)<.00001f,
+                "Hit sparks multiplied occlusion opacity twice or missed body fade");
+            Set(app,"worldActorOpacity",1f);
+            enemy.state=1;Clear();
+            Check(!Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==accepted),
+                "Interruptible windup manufactured a new reaction spark");
+            enemy.state=0;enemy.releaseTime=.15f;Clear();
+            Check(!Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==accepted),
+                "Combat release incorrectly drew separate hit-feedback sparks");
+            enemy.releaseTime=0f;enemy.hitTime=0f;Clear();
+            Check(!Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==accepted),
+                "Hit sparks continued after real hitTime reached zero");
+            enemy.hitTime=.135f;g.save.reducedMotion=true;Clear();
+            Check(!Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==accepted),
+                "Reduced motion failed to remove optional secondary sparks");
+            g.save.reducedMotion=false;g.save.effectsQuality=1;Clear();
+            Check(!Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==accepted),
+                "Medium FX setting must retain actor but omit hit particles");
+            g.save.effectsQuality=2;
+            Resources.TextureOverrides[key]=new Texture2D(
+                95,72,TextureFormat.RGBA32,false){name="partial-hit-art"};
+            Set(app,"clock",8f);Clear();
+            Check(Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==accepted),
+                "An incomplete Editor source import replaced validated hit sparks");
+            var revised=new Texture2D(
+                96,72,TextureFormat.RGBA32,false){name="reimported-hit-art"};
+            Resources.TextureOverrides[key]=revised;
+            Set(app,"clock",11f);Clear();
+            Check(Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==revised),
+                "Completed original hit atlas failed to hot reload in combat");
+            Resources.TextureOverrides[key]=accepted;
+            Set(app,"clock",0f);Clear();
+            Check(Draw(app,"DrawEnemyActor",enemy).Any(c=>c.texture==accepted),
+                "Rewound combat capture kept stale hit sparks");
+            Console.WriteLine("PASS 12 independently painted enemy/Boss hit sparks: GameCore hit-only, 3 rows, anchored four-frame seams, native body, FX, alpha and importer");
+        }
+        finally
+        {
+            if(had)Resources.TextureOverrides[key]=prior;
+            else Resources.TextureOverrides.Remove(key);
+            Set(app,"clock",now);
+            Set(app,"worldActorOpacity",opacity);
+            g.save.effectsQuality=quality;
+            g.save.reducedMotion=reduced;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyEnemySingleBodyHandoffs(FrontierRuntime app)
     {
         try { EnemyAtlasHandoffsKeepOneGroundedIdentity(

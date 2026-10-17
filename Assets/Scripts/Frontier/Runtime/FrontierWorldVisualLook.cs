@@ -76,6 +76,8 @@ namespace Starfall
             public float bossPhaseMoteAlpha=.26f;
             public float enemyReleaseDustAlpha=.48f;
             public float enemyReleaseDustSeam=.18f;
+            public float enemyHitSparkAlpha=.66f;
+            public float enemyHitSparkSeam=.16f;
             public float impactFlourishAlpha=.58f;
             public float deathPoseBlendFraction=.24f;
             // Source-authored companion cadence, not generated anatomy.
@@ -292,6 +294,12 @@ namespace Starfall
                             case "enemyReleaseDustSeam":
                                 if(value>=.08f&&value<=.32f)
                                     settings.enemyReleaseDustSeam=value;break;
+                            case "enemyHitSparkAlpha":
+                                if(value>=.18f&&value<=.78f)
+                                    settings.enemyHitSparkAlpha=value;break;
+                            case "enemyHitSparkSeam":
+                                if(value>=.08f&&value<=.29f)
+                                    settings.enemyHitSparkSeam=value;break;
                             case "impactFlourishAlpha":
                                 if(value>=.2f&&value<=.75f)
                                     settings.impactFlourishAlpha=value;break;

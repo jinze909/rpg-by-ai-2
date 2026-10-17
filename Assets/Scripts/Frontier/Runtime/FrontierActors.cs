@@ -180,9 +180,19 @@ namespace Starfall
         {
             if (drawingOutline && sheet != null) { sheet = art.OutlineMask(sheet); color = new Color(1,.56f,.35f,.9f); }
 #if UNITY_5_3_OR_NEWER
-            bool nativeActorDrawn = DrawSpriteRendererActor(sheet, columns, rows,
-                frame, foot, size, color, flip, angle);
-            if (nativeActorDrawn) return;
+            // Formal SpriteRenderer/Animator capture is ONLY for approved
+            // entire living/corpse character atlases. Flash/outline masks,
+            // glyphs and decorative sources otherwise create large offscreen
+            // render targets (including 320px Boss masks) without ever being
+            // eligible for a native Controller. Those exact source pixels
+            // belong on the ordinary world Atlas presentation path.
+            if (NativeActorEligible(sheet, columns, rows))
+            {
+                bool nativeActorDrawn = DrawSpriteRendererActor(
+                    sheet, columns, rows, frame, foot, size,
+                    color, flip, angle);
+                if (nativeActorDrawn) return;
+            }
 #endif
             Atlas(sheet, columns, rows, frame, new Rect(foot.x - size / 2, foot.y - size * 120 / 128, size, size), color, flip, angle);
         }
@@ -614,6 +624,7 @@ namespace Starfall
             tint=RegionalBossPhaseTint(tint,e,Game.save.room);
             float phaseCue = e.boss ? BossPhaseCueOpacity(e) : 0f;
             float paintedBossCanvas=size;
+            float paintedActorCanvas=size;
             if (e.boss)
             {
                 // Capture the most recently drawn living HP stage. Lethal
@@ -778,8 +789,14 @@ namespace Starfall
                 float paintedEnemySize=DrawEnemyAtlasHandoff(
                     e,sheet,columns,rows,frame,
                     p + offset,canvas,tint,renderFlip,pose);
+                paintedActorCanvas=paintedEnemySize;
                 if (!drawingOutline && e.flash > 0 && sheet != null) Actor(art.FlashMask(sheet), columns, rows, frame, p + offset, paintedEnemySize, new Color(1, 1, 1, e.flash / .09f * .86f), renderFlip);
             }
+            // SOURCE-painted impact fragments respond ONLY to a real
+            // GameCore hit reaction. Their pivot follows the actual eased
+            // whole-body Boss size and never paints a second head or torso.
+            DrawAuthoredEnemyHitSparks(e,p,e.boss?
+                paintedBossCanvas:paintedActorCanvas);
             // A real HP threshold crossing, not an arbitrary idle clock,
             // briefly exposes the Boss's new stage with two SMALL painted
             // Effects.png motes. Bind their shoulder positions to the

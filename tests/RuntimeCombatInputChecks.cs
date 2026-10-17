@@ -1486,6 +1486,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyNpcActionSignalProduction,
             ActorRegistrationChecks.VerifyCompanionGaitContinuity,
             ActorRegistrationChecks.VerifyOriginalEnemyReleaseDust,
+            ActorRegistrationChecks.VerifyAuthoredEnemyHitSparks,
             RenderStateChecks.VerifyLiveVisualLookResource,
             RenderStateChecks.VerifyPaintedShorelineFoamInLiveWorld,
             RenderStateChecks.VerifyOriginalWaterRippleArtAndLiveTide,
