@@ -1171,6 +1171,58 @@ namespace Starfall.Tests
                 "Real unobstructed Mira command lost its heal, energy, guard or cooldown");
         }
 
+        public static void CompanionProjectileTracksRealTargetAtContactWithoutSpriteFlip(Campaign data)
+        {
+            var g=Fresh(data,1);g.Enter(1);g.enemies.Clear();
+            g.save.x=13.5f;g.save.y=14f;
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            g.companionPosition=new Point(12,14);
+            var foe=new Enemy(97811,0,15,14,10000)
+                {stun=99f,timer=9999f};
+            g.enemies.Add(foe);
+            var cadence=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            cadence.SetValue(g,0f);
+            g.Tick(.02f,new Point());
+            ActorAction windup=g.companionAction;
+            Check(windup!=null&&windup.kind=="attack"&&
+                windup.target.HasValue,
+                "Real companion bow must begin with a locked enemy shot");
+            foe.x=15.55f;foe.y=14.2f;
+            Advance(g,.18f);
+            Check(windup.released&&g.projectiles.Count==1&&
+                g.companionAction==windup,
+                "Moving target shot did not preserve whole-body windup and release");
+            Projectile arrow=g.projectiles[0];
+            Point aim=(foe.Position-arrow.position).Normalized;
+            float dot=aim.x*arrow.velocity.Normalized.x+
+                aim.y*arrow.velocity.Normalized.y;
+            Check(dot>.9999f&&
+                GameCore.DirectionRow(g.companionAim)==
+                    GameCore.DirectionRow(windup.direction),
+                "Companion shot retained stale target coordinates or changed full-body pose");
+            var blocked=Fresh(data,1);blocked.Enter(1);
+            blocked.enemies.Clear();blocked.save.x=13.5f;
+            blocked.save.y=14f;blocked.save.flags.Add("companion_1");
+            blocked.SelectCompanion(1);
+            blocked.companionPosition=new Point(12,14);
+            var crossing=new Enemy(97812,0,15,14,10000)
+                {stun=99f,timer=9999f};
+            blocked.enemies.Add(crossing);
+            cadence.SetValue(blocked,0f);
+            blocked.Tick(.02f,new Point());
+            ActorAction cast=blocked.companionAction;
+            Check(cast!=null&&cast.kind=="attack",
+                "Companion second scenario must actually start its bow windup");
+            crossing.x=10f;crossing.y=14f;
+            Advance(blocked,.18f);
+            Check(cast.released&&blocked.projectiles.Count==0&&
+                blocked.companionAction==cast&&
+                (float)cadence.GetValue(blocked)<=.22f,
+                "Companion instantly flipped its authored body to fire behind or wasted cooldown");
+        }
+
         public static void CompanionAutoFireCannotSpendCadenceOnExpiredEnemy(Campaign data)
         {
             // The real hero can kill an enemy during a companion's .16s

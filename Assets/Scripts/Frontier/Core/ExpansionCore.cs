@@ -480,17 +480,52 @@ namespace Starfall
                         // killed the marked foe or a gate closed. Never fire
                         // into a dead/occluded target and spend a full cooldown;
                         // retain the authored recovery pose and retry promptly.
-                        Enemy locked = companionAutoTarget;
-                        if (action.kind == "attack" && locked != null &&
-                            (!enemies.Contains(locked) || locked.hp <= 0 ||
-                             (locked.Position-companionPosition).Length >= 7f ||
-                             !ClearAttackPath(companionPosition,locked.Position)))
-                            companionAttack = Math.Min(companionAttack,.22f);
+                        Enemy locked=companionAutoTarget;
+                        bool rejected=action.kind=="attack"&&
+                            (locked==null||!enemies.Contains(locked)||
+                             locked.hp<=0||
+                             (locked.Position-companionPosition).Length>=7f||
+                             !ClearAttackPath(companionPosition,locked.Position));
+                        Point releaseDirection=action.direction;
+                        Point? releaseTarget=action.target;
+                        if(action.kind=="attack"&&!rejected)
+                        {
+                            // Target moved after windup: verify its current
+                            // contact lane, then aim the actual projectile
+                            // at the live position, not its old 160ms pose.
+                            // Do not flip a whole-body north/east/south
+                            // windup across an abrupt facing change: those
+                            // cases cancel the shot and retry after recovery.
+                            Point changed=locked.Position-companionPosition;
+                            Point heading=changed.Normalized;
+                            float facing=heading.x*action.direction.x+
+                                heading.y*action.direction.y;
+                            if(changed.Length<.05f||facing<.55f||
+                                DirectionRow(heading)!=DirectionRow(action.direction))
+                                rejected=true;
+                            else
+                            {
+                                releaseDirection=heading;
+                                releaseTarget=locked.Position;
+                            }
+                        }
+                        if(rejected)
+                            companionAttack=Math.Min(companionAttack,.22f);
                         else
                         {
-                            projectiles.Add(FriendlyShot(companionPosition, action.weapon == 1 ? 1 : 2, action.direction, 9, action.damage, action.weapon == 2, action.target, action.impact));
-                            effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) });
-                            sound = action.weapon == 1 ? "arrow" : "spell";
+                            int weapon=action.weapon==1?1:2;
+                            if(action.kind=="attack")companionAim=releaseDirection;
+                            projectiles.Add(FriendlyShot(companionPosition,
+                                weapon,releaseDirection,9,action.damage,
+                                weapon==2,releaseTarget,action.impact));
+                            effects.Add(new Effect("release",
+                                WeaponOrigin(companionPosition,
+                                    weapon,releaseDirection),.18f)
+                            {
+                                direction=releaseDirection,
+                                height=WeaponHeight(weapon,releaseDirection)
+                            });
+                            sound=weapon==1?"arrow":"spell";
                         }
                     }
                 }
