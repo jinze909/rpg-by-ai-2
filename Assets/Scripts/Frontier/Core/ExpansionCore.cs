@@ -488,7 +488,12 @@ namespace Starfall
                              !ClearAttackPath(companionPosition,locked.Position));
                         Point releaseDirection=action.direction;
                         Point? releaseTarget=action.target;
-                        if(action.kind=="attack"&&!rejected)
+                        // Only Ivo's BOW uses flight-heading tracking.
+                        // Mira/Sen's rooted arcane auto-casts use their own
+                        // authored mage attack arcs; steering those missiles
+                        // changes their AoE balance and procedural campaign
+                        // encounter cadence without corresponding source art.
+                        if(action.kind=="attack"&&action.weapon==1&&!rejected)
                         {
                             // Target moved after windup: verify its current
                             // contact lane, then aim the actual projectile
