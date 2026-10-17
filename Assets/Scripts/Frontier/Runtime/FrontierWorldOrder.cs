@@ -151,13 +151,68 @@ namespace Starfall
         // canopies/ruins cannot erase a real locked hit radius or rescue
         // interception lane. The existing slim strokes and subdued fill
         // preserve the character silhouette; damage/timing are unchanged.
+        // An archer or distant Boss can lock a shot whose ENDPOINTS are
+        // both off-screen even though the actual shot lane crosses the hero's
+        // whole viewport. Endpoint-only culling silently erased its warning.
+        // Liang-Barsky tests the whole world-rooted line against the visible
+        // logical game canvas without iterating 36px samples per projectile.
+        private static bool ClipWarningLane(float p,float q,
+            ref float low,ref float high)
+        {
+            if(Math.Abs(p)<.00001f)return q>=0f;
+            float intersection=q/p;
+            if(p<0f)
+            {
+                if(intersection>high)return false;
+                if(intersection>low)low=intersection;
+            }
+            else
+            {
+                if(intersection<low)return false;
+                if(intersection<high)high=intersection;
+            }
+            return true;
+        }
+        private bool WarningLaneCrossesScreen(Point source,Point target)
+        {
+            Point a=ScreenPoint(source),b=ScreenPoint(target);
+            float dx=b.x-a.x,dy=b.y-a.y;
+            const float margin=36f;
+            float low=0f,high=1f;
+            return ClipWarningLane(-dx,a.x+margin,ref low,ref high)&&
+                ClipWarningLane(dx,Width+margin-a.x,ref low,ref high)&&
+                ClipWarningLane(-dy,a.y+margin,ref low,ref high)&&
+                ClipWarningLane(dy,Height+margin-a.y,ref low,ref high)&&
+                low<=high;
+        }
+        private bool WarningFootprintVisible(Enemy enemy)
+        {
+            // AoE circles are centered on the locked GameCore target. The
+            // visual can intrude into the screen even if its CENTER is out.
+            float reach=GameCore.EnemyAreaRadius(enemy)*Tile+28f;
+            return WorldDrawable(enemy.target.x,enemy.target.y,reach,reach);
+        }
         private void DrawVisibleEnemyWarnings()
         {
             foreach(Enemy e in Game.enemies)
-                if(e.state==1 &&
-                   (WorldDrawable(e.x,e.y,450,450) ||
-                    WorldDrawable(e.target.x,e.target.y,120,120)))
+            {
+                if(e.state!=1)continue;
+                bool anchored=WorldDrawable(e.x,e.y,450,450) ||
+                    WorldDrawable(e.target.x,e.target.y,120,120);
+                bool area=(e.boss||e.kind==2)&&WarningFootprintVisible(e);
+                // For melee there is no offscreen line to recover. Archers
+                // use the SAME GameCore weapon origin as their emitted bolt;
+                // Bosses only draw a long lane if their lock exceeds 3 tiles.
+                bool longLane=e.kind==1 ||
+                    e.boss&&(e.target-e.Position).Length>3f ||
+                    e.targetingWayfarer||e.targetingReliefCivilian;
+                Point origin=e.kind==1?
+                    GameCore.WeaponOrigin(e.Position,1,e.facing):
+                    e.Position;
+                if(anchored||area||
+                    longLane&&WarningLaneCrossesScreen(origin,e.target))
                     DrawEnemyWarning(e);
+            }
         }
         // Canopy/ruin occlusion is a presentation-only mask. Test every
         // actor that actually enters the depth-sorted world pass; a companion
