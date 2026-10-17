@@ -160,6 +160,42 @@ namespace Starfall.Tests
                 "Application pause/focus must retire all queued combat inputs");
         }
 
+        public static void BufferedSkillRepeatCannotExtendOrRetargetIntent(Campaign data)
+        {
+            var g=Fresh(data,1);g.enemies.Clear();
+            g.save.energy=100;g.playerHitTime=.55f;
+            g.Skill(new Point(0,-1));
+            Check(g.SkillQueued&&g.playerAction==null&&g.save.energy==100,
+                "A Q pressed during real hit recovery must queue without paying early");
+            Advance(g,.12f);
+            g.SetAim(new Point(1,0));
+            g.Skill(new Point(1,0));
+            Check(g.SkillQueued&&g.playerAction==null,
+                "Repeated Q cannot force a premature skill through hit recoil");
+            Advance(g,.09f);
+            Check(!g.SkillQueued&&g.playerAction==null&&g.save.energy==100,
+                "Repeated Q cannot extend the original 200ms input window");
+            Advance(g,.4f);
+            Check(g.playerAction==null&&g.skillCooldown<=0&&g.save.energy==100,
+                "Expired buffered Q cannot become a free delayed spell");
+
+            g=Fresh(data,1);g.enemies.Clear();g.save.energy=100;
+            g.Dash(new Point(-1,0));
+            g.Skill(new Point(0,-1));
+            Check(g.SkillQueued&&g.save.energy==80,
+                "Dodge then Q must preserve energy until Q is actually accepted");
+            Advance(g,.06f);
+            g.Skill(new Point(1,0));
+            Advance(g,.15f);
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                g.playerAction.direction.y<-.99f&&
+                Math.Abs(g.playerAction.direction.x)<.01f&&
+                !g.SkillQueued&&g.skillCooldown>0,
+                "Only first buffered Q direction can fire after the real dodge");
+            Check(g.save.energy>=40&&g.save.energy<45,
+                "Queued Q commits its cost once, not on every repeated press");
+        }
+
         public static void ClassesAndPause(Campaign data)
         {
             for (int i = 0; i < 3; i++)

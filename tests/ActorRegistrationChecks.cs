@@ -2287,6 +2287,56 @@ public static class ActorRegistrationChecks
     // not just an unused optional visual contact sheet.
     // Exercise the REAL enemy/Boss DrawEnemyActor body and genuine
     // Enemy.hitTime, never just an isolated VFX gallery.
+    public static void VerifyQueuedSkillHudSingleDispatch(FrontierRuntime app)
+    {
+        foreach(bool compact in new[]{false,true})
+        {
+            app.BeginVisualReview(0,1);
+            var g=app.Game;g.enemies.Clear();
+            int clicks=0;
+            try
+            {
+                Set(app,"combatHudTime",compact?2f:0f);
+                g.save.energy=100;g.Skill(new Point(0,-1));
+                // BeginVisualReview starts a neutral world; fresh Q is an
+                // action. Reset the live action and start an actual attack
+                // so the next Q enters its original 200ms buffered path.
+                g.ClearBufferedCombatInputs();
+                g.playerAction=null;g.skillCooldown=0f;
+                g.Attack(new Point(1,0));
+                g.Skill(new Point(0,-1));
+                Check(g.SkillQueued&&g.playerAction!=null&&
+                    g.playerAction.kind=="attack",
+                    "Q HUD fixture requires an actual pending combat skill");
+                Action action=()=>{clicks++;g.Skill(new Point(1,0));};
+                float y=compact?732f:699f,w=compact?78f:109f,
+                    h=compact?50f:75f;
+                Clear();GUI.queuedClick=new Rect(354f,y,w,h);
+                Call(app,"ActionSlot",354f,"Q","Skill","sword",0f,
+                    true,action,3.5f,"Low energy",false);
+                Check(clicks==0&&g.SkillQueued&&
+                    GUI.buttonCalls.Count>0&&
+                    !GUI.buttonCalls[GUI.buttonCalls.Count-1].enabled,
+                    "Already queued Q must disable a second HUD charge/click");
+                Check(string.Join(",",GUI.commands.ToArray()).Contains(g.L("已排队","QUEUED")),
+                    "Q HUD must display pending direction-locked skill status");
+                GUI.queuedClick=null;
+                g.ClearBufferedCombatInputs();
+                Clear();GUI.queuedClick=new Rect(354f,y,w,h);
+                Call(app,"ActionSlot",354f,"Q","Skill","sword",0f,
+                    true,action,3.5f,"Low energy",false);
+                Check(clicks==1&&g.SkillQueued,
+                    "After cancellation the same real HUD Q button must requeue");
+            }
+            finally
+            {
+                GUI.queuedClick=null;
+                app.EndVisualReview();Clear();
+            }
+        }
+        Console.WriteLine("PASS both production HUD layouts display buffered Q and prevent repeat queued skill click");
+    }
+
     public static void VerifyDodgeHudEarlyClick(FrontierRuntime app)
     {
         // Invoke the actual shared production HUD ActionSlot and its
@@ -2314,13 +2364,13 @@ public static class ActorRegistrationChecks
                 Check(count==1&&g.DodgeQueued&&
                     g.dashTime==0f&&g.save.energy==100f,
                     "Actual HUD click must queue once without paying energy early");
-                Check(string.Join(",",GUI.commands.ToArray()).Contains("BUFFER"),
+                Check(string.Join(",",GUI.commands.ToArray()).Contains(g.L("可预输入","BUFFER")),
                     "Ready-to-buffer HUD must explain its blue active state");
                 Clear();GUI.queuedClick=new Rect(818f,y,w,h);
                 Call(app,"ActionSlot",818f,"SPACE","Dodge","shield",
                     g.dashCooldown,true,click,.75f,"Low energy",false);
                 Check(count==1&&g.DodgeQueued&&
-                    string.Join(",",GUI.commands.ToArray()).Contains("QUEUED"),
+                    string.Join(",",GUI.commands.ToArray()).Contains(g.L("已排队","QUEUED")),
                     "Queued HUD button must show confirmation, not spend twice");
                 Check(GUI.buttonCalls.Count>0&&
                     !GUI.buttonCalls[GUI.buttonCalls.Count-1].enabled,

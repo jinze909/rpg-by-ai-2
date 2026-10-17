@@ -34,6 +34,10 @@ namespace Starfall
             public int weapon, profession, style, technique;
         }
         private SkillIntent bufferedSkill;
+        // Keep a committed Q press readable to the combat HUD. The first
+        // queued direction/target and its original 200ms deadline are owned
+        // by GameCore, never by repeated GUI draws or button clicks.
+        public bool SkillQueued { get { return bufferedSkill != null; } }
         // A single late basic-attack press may carry through the tail of its
         // current swing. The intent is never serialized and spends nothing until
         // the next swing is actually accepted.

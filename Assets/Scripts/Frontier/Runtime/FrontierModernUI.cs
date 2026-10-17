@@ -142,13 +142,16 @@ namespace Starfall
             // Match the keyboard/gamepad window; do not extend the window
             // for Q, consumables, companions, or any other action slot.
             bool dodgeSlot=icon=="shield";
-            bool queued=dodgeSlot&&Game.DodgeQueued;
+            bool skillSlot=icon=="sword"||icon=="bow"||icon=="staff";
+            bool queued=(dodgeSlot&&Game.DodgeQueued)||
+                (skillSlot&&Game.SkillQueued);
             bool bufferable=dodgeSlot&&Game.CanBufferDodge;
             bool ready=resourceAvailable&&(cooldown<=0||bufferable)&&
                 !queued&&!busy&&!Game.Dying;
             bool compact = CombatHud; float y = compact ? 732 : 699, w = compact ? 78 : 109, h = compact ? 50 : 75;
             bool hit = Button(x, y, w, h, "", false, ready);
             if (ready) { Frame(x,y,w,h,bufferable?new Color(.48f,.78f,1f):mint); Box(x+4,y+h-3,w-8,2,bufferable?new Color(.48f,.78f,1f):mint); }
+            else if (queued) Frame(x,y,w,h,new Color(.48f,.78f,1f,.8f));
             float iconX = x + (compact ? key == "SPACE" ? 52 : 41 : key == "SPACE" ? 60 : 39);
             Icon(icon,iconX,y+(compact?4:5),compact?23:31,ready?Color.white:new Color(.62f,.68f,.74f));
             string state = queued ? Game.L("已排队","QUEUED") :

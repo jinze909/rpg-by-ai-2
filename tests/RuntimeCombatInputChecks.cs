@@ -1490,6 +1490,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyMaterialGroundContactFrames,
             ActorRegistrationChecks.VerifyBufferedDodgeWorldCue,
             ActorRegistrationChecks.VerifyDodgeHudEarlyClick,
+            ActorRegistrationChecks.VerifyQueuedSkillHudSingleDispatch,
             RenderStateChecks.VerifyLiveVisualLookResource,
             RenderStateChecks.VerifyPaintedShorelineFoamInLiveWorld,
             RenderStateChecks.VerifyOriginalWaterRippleArtAndLiveTide,
