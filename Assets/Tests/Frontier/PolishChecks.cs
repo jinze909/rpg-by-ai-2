@@ -166,9 +166,12 @@ namespace Starfall.Tests
             arrow.life=2;arrow.damage=0;
             Check(g.SafeTravel,"Harmless preview projectiles do not create false travel danger");
             arrow.damage=12;arrow.position=new Point(16,12);
-            Check(g.SafeTravel,"Active arrow at the exact four-tile boundary remains outside danger radius");
+            arrow.velocity=new Point(6,0);
+            Check(g.SafeTravel,"Outgoing arrow at exact four-tile boundary is outside danger radius and cannot turn back");
+            arrow.velocity=new Point(-6,0);
+            Check(!g.SafeTravel,"Incoming arrow at exact boundary can cross the real safe zone before the next travel");
             arrow.position=new Point(15.99f,12);
-            Check(!g.SafeTravel,"Approaching arrow is blocked with the same radius as local enemies");
+            Check(!g.SafeTravel,"Approaching arrow already inside boundary is blocked with the same radius as local enemies");
             g.projectiles.Clear();
             var watch=Fresh(data);watch.save.stage=4;
             watch.save.flags.Add("exp_intro");
