@@ -117,20 +117,27 @@ def check():
     def audit_hidden_gait(core_code, locomotion_code):
         assert "walkDistance = 0f;" in core_code, (
             "HERO_ACTION_STARTS_WITH_OLD_STRIDE")
-        section = locomotion_code.split("bool translating = actual.Length")[1]
-        section = section.split("private void MoveAttackStep")[0]
-        assert "if (playerAction == null)" in section, (
-            "INVISIBLE_WALK_FRAMES_ADVANCE_DURING_ATTACK_RECOVERY")
-        assert "walkDistance += actual.Length;" in section
-        assert "footContacts +=" in section
-        assert "if (playerAction == null || PlayerPhase == ActionPhase.Recovery)" not in section
+        section = locomotion_code.split("private void TickMovement(", 1)[1]
+        section = section.split("private void MoveAttackStep(", 1)[0]
+        compact = re.sub(r"\\s+", "", section)
+        # Real recoil and input displacement are separate now. The actual
+        # walking phase MUST sample input-only 'walking', never the recoil
+        # delta, and may only advance inside the null-action guard.
+        assert "movementDirection=walking;" in compact, (
+            "HERO_RECOIL_MUST_NOT_BECOME_RUNNING_GAIT")
+        assert re.search(
+            r"if\\s*\\(\\s*playerAction\\s*==\\s*null\\s*\\)\\s*"
+            r"\\{\\s*int before.*?walkDistance\\s*\\+=\\s*walking\\.Length;",
+            section, re.S), "INVISIBLE_WALK_FRAMES_ADVANCE_DURING_ATTACK_RECOVERY"
+        assert "footContacts+=" in compact
+        assert "if(playerAction==null||PlayerPhase==ActionPhase.Recovery)" not in compact
     audit_hidden_gait(core, continuity)
     for code, locomotion_code in (
         (core.replace("walkDistance = 0f;", "walkDistance = walkDistance;", 1),
          continuity),
         (core, continuity.replace(
-            "if (playerAction == null)\n                {",
-            "if (playerAction == null || PlayerPhase == ActionPhase.Recovery)\n                {", 1)),
+            "if(playerAction==null)\n                {",
+            "if(playerAction==null||PlayerPhase==ActionPhase.Recovery)\n                {", 1)),
     ):
         try:
             audit_hidden_gait(code, locomotion_code)
