@@ -1771,25 +1771,28 @@ public static class ActorRegistrationChecks
             Set(app,"clock",10.02f);
             Clear();
             var entering=Draw(app,"DrawEnemyActor",enemy);
-            var run=entering.FirstOrDefault(c=>c.texture.name==movingName);
-            var depart=entering.FirstOrDefault(c=>c.texture.name==idleName);
-            Check(run!=null&&depart!=null&&
-                depart.color.a>.10f&&depart.color.a<.40f,
-                "State transition must retain brief low-alpha source-complete Idle body");
-            Check(Math.Abs(run.rect.x-depart.rect.x)<.001f&&
+            var run=entering.Single(c=>c.texture.name==movingName);
+            var oldBody=still.Single(c=>c.texture.name==idleName);
+            Check(!entering.Any(c=>c.texture.name==idleName)&&
+                Math.Abs(run.color.a-oldBody.color.a)<.00001f,
+                "Idle->Run must paint exactly ONE authoritative whole-body actor at its true scene opacity, never a second ghost head or weapon");
+            Check(Math.Abs(run.rect.x+run.rect.width*.5f-
+                    oldBody.rect.x-oldBody.rect.width*.5f)<.001f&&
                 Math.Abs(run.rect.y+run.rect.height*.9375f-
-                    depart.rect.y-depart.rect.height*.9375f)<.001f,
-                "Old and new whole-body sprites must plant the SAME boot root");
+                    oldBody.rect.y-oldBody.rect.height*.9375f)<.001f,
+                "Single source Sprite and old whole body must plant the SAME world foot");
             Check(!entering.Any(c=>c.texture.name.Contains("PlayerVanguard")||
                 c.texture.name.Contains("PlayerRanger")),
                 "Nonhero crossfade must not borrow player anatomy");
             GUI.Export(folder,boss?"review-boss-walk-cross-atlas":"review-monster-walk-cross-atlas");
             Set(app,"clock",10.08f);
             Clear();var fading=Draw(app,"DrawEnemyActor",enemy);
-            var softer=fading.FirstOrDefault(c=>c.texture.name==idleName);
-            Check(softer!=null&&softer.color.a<depart.color.a&&
-                softer.color.a>0f,
-                "Atlas handoff must decay continuously on real animation time");
+            var progressBody=fading.Single(c=>c.texture.name==movingName);
+            Check(!fading.Any(c=>c.texture.name==idleName)&&
+                Math.Abs(progressBody.color.a-oldBody.color.a)<.00001f&&
+                Math.Abs(progressBody.rect.y+progressBody.rect.height*.9375f-
+                    run.rect.y-run.rect.height*.9375f)<.001f,
+                "Transition cannot paint a second fading torso, helmet or weapon");
             // A walking Boss retains its WalkBoss atlas during Hit,
             // even when the hit flash has expired. The old IDLE silhouette
             // must not bleed through the same-source hit keyframe while an
@@ -1848,9 +1851,9 @@ public static class ActorRegistrationChecks
             Set(app,"clock",11.22f);
             Clear();
             var restart=Draw(app,"DrawEnemyActor",enemy);
-            Check(restart.Any(c=>c.texture.name==idleName)&&
-                restart.Any(c=>c.texture.name==movingName),
-                "Expected a new planted atlas handoff before facing change");
+            Check(restart.Count(c=>c.texture.name==movingName)==1&&
+                !restart.Any(c=>c.texture.name==idleName),
+                "Restarted planted atlas handoff drew more than one complete actor");
             enemy.Face(new Point(-1,0));
             Set(app,"clock",11.23f);Clear();
             var turned=Draw(app,"DrawEnemyActor",enemy);
@@ -1869,8 +1872,9 @@ public static class ActorRegistrationChecks
             enemy.moving=true;
             Set(app,"clock",11.62f);Clear();
             var newBlend=Draw(app,"DrawEnemyActor",enemy);
-            Check(newBlend.Any(c=>c.texture.name==idleName),
-                "Expected actual source-pose handoff before white hit flash");
+            Check(newBlend.Any(c=>c.texture.name==movingName)&&
+                !newBlend.Any(c=>c.texture.name==idleName),
+                "Actual source-pose handoff must use the CURRENT actor before white hit flash");
             enemy.flash=.075f;
             Set(app,"clock",11.63f);Clear();
             var interrupted=Draw(app,"DrawEnemyActor",enemy);
@@ -1920,7 +1924,7 @@ public static class ActorRegistrationChecks
                     "Old Boss moving Hit body ghosted under post-recoil Idle for one or more frames");
             }
         }
-        Console.WriteLine("PASS complete-body NPC-compatible native Sprite actor lane: common/Boss Idle->Walk planted cross-atlas timing, attack interrupt, face-safe old-art fade and accessibility");
+        Console.WriteLine("PASS common/Boss single-body Idle->Walk production lane: rooted source size easing without duplicate head/weapon, attack interrupt, facing safety and accessibility");
     }
 
     // This is called by the executable core C# suite, not only by
@@ -2085,26 +2089,24 @@ public static class ActorRegistrationChecks
             Clear();
             var entering=Draw(app,"DrawEnemyActor",boss);
             var initial=entering.Single(c=>c.texture.name==walkName);
-            var leaving=entering.Single(c=>c.texture.name==idleName);
-            Check(Math.Abs(initial.rect.width-sourceSize)<.001f&&
-                Math.Abs(leaving.rect.width-sourceSize)<.001f,
-                "Regional Boss instantly grew 20 percent at Idle->Walk entry");
+            Check(!entering.Any(c=>c.texture.name==idleName)&&
+                Math.Abs(initial.rect.width-sourceSize)<.001f,
+                "Regional Boss instantly grew 20 percent or drew a second obsolete Idle torso");
             Check(Math.Abs(initial.rect.y+initial.rect.height*120f/128f-
-                leaving.rect.y-leaving.rect.height*120f/128f)<.001f,
-                "Original Boss body and moving overlay lost their shared foot");
+                (idle.rect.y+idle.rect.height*120f/128f))<.001f,
+                "Original Boss whole-body and moving source lost their common planted foot");
             Set(app,"clock",30.0725f);
             Clear();
             var middle=Draw(app,"DrawEnemyActor",boss);
             var running=middle.Single(c=>c.texture.name==walkName);
-            var old=middle.Single(c=>c.texture.name==idleName);
-            Check(running.rect.width>sourceSize*1.04f&&
-                running.rect.width<sourceSize*1.17f&&
-                Math.Abs(running.rect.width-old.rect.width)<.001f,
-                "The complete Boss body size must smoothly interpolate 320-to-384");
+            Check(!middle.Any(c=>c.texture.name==idleName)&&
+                running.rect.width>sourceSize*1.04f&&
+                running.rect.width<sourceSize*1.17f,
+                "The SINGLE complete Boss body must smoothly interpolate 320-to-384");
             float worldFoot=running.rect.y+running.rect.height*120f/128f;
-            float oldFoot=old.rect.y+old.rect.height*120f/128f;
-            Check(Math.Abs(worldFoot-oldFoot)<.001f,
-                "Intermediate transition distorted the original foot pivot");
+            float idleFoot=idle.rect.y+idle.rect.height*120f/128f;
+            Check(Math.Abs(worldFoot-idleFoot)<.001f,
+                "Intermediate single-body transition distorted the original foot pivot");
             GUI.Export(".starfall-checks/sprite-qa",
                 "review-boss-full-body-canvas-continuity");
             // Stage change during live idle/run SOURCE handoff: Bosses
@@ -2195,10 +2197,9 @@ public static class ActorRegistrationChecks
             Clear();
             var reverse=Draw(app,"DrawEnemyActor",boss);
             var resumed=reverse.Single(c=>c.texture.name==idleName);
-            var prior=reverse.Single(c=>c.texture.name==walkName);
-            Check(Math.Abs(resumed.rect.width-phaseBody.rect.width)<.001f&&
-                Math.Abs(prior.rect.width-resumed.rect.width)<.001f,
-                "Rapid Run->Idle reversal returned to old nominal canvas size");
+            Check(!reverse.Any(c=>c.texture.name==walkName)&&
+                Math.Abs(resumed.rect.width-phaseBody.rect.width)<.001f,
+                "Rapid Run->Idle reversal jumped in size or painted two complete bodies");
             Set(app,"clock",30.14f);
             Clear();
             var shrinking=Draw(app,"DrawEnemyActor",boss);
@@ -2236,13 +2237,23 @@ public static class ActorRegistrationChecks
                     "resource:Frontier/Art/Effects")&&
                 stable.Any(c=>c.texture.name==walkName),
                 "Reduced motion must keep original Boss body/phase without staged VFX");
-            Console.WriteLine("PASS actual 320/384 Boss Sprite scales, exact phase flash, source-painted HP-stage motes, reverse handoff and no-FX/reduced-motion");
+            Console.WriteLine("PASS 320/384 Boss one-body Sprite easing, flash/mote alignment, reversal without stale full torso, low FX and reduced motion");
         }
         finally
         {
             Call(app,"OnDestroy");
             Clear();
         }
+    }
+
+    // Main CI now runs actual common-foe and regional-Boss Idle/Walk,
+    // interruption and 2-direction identity checks as an executable test,
+    // not just an unused optional visual contact sheet.
+    public static void VerifyEnemySingleBodyHandoffs(FrontierRuntime app)
+    {
+        try { EnemyAtlasHandoffsKeepOneGroundedIdentity(
+            app,".starfall-checks/sprite-qa"); }
+        finally {app.EndVisualReview();Clear();}
     }
 
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)

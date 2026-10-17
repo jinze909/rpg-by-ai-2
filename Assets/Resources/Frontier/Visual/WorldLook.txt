@@ -114,8 +114,9 @@ relicHaloAlpha=0.18
 
 # Whole-actor presentation transition ONLY: approved Bosses 320px/WalkBoss
 # 384px canvases interpolate around the same ground foot; GameCore combat
-# and action clocks are never prolonged. Acceptable range 0.07-0.15 s.
-nonheroAtlasHandoffSeconds=0.105
+# and action clocks are never prolonged. A SINGLE current source body
+# eases the canvas over 0.07-0.15s, with no previous helmet/weapon ghost.
+nonheroAtlasHandoffSeconds=0.120
 # Two quiet ORIGINAL Effects.png sources on HP stage change. This affects
 # visual alpha only, not hit timing, Boss identity or saved HP thresholds.
 bossPhaseMoteAlpha=0.26

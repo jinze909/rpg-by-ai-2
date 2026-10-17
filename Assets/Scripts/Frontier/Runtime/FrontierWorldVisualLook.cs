@@ -70,7 +70,7 @@ namespace Starfall
             public float slashBridgeFraction=.18f;
             // Artist-facing, bounded transitions for whole painted enemy
             // bodies and phase-cue particles, never GameCore attack timing.
-            public float nonheroAtlasHandoffSeconds=.105f;
+            public float nonheroAtlasHandoffSeconds=.12f;
             public float bossPhaseMoteAlpha=.26f;
             public float enemyReleaseDustAlpha=.48f;
             public float enemyReleaseDustSeam=.18f;

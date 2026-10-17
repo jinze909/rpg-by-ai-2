@@ -20,11 +20,11 @@ namespace Starfall
             internal float size,displaySize;
             internal Color tint;
             internal bool flip;
-            internal Texture2D departing;
-            internal int departingColumns,departingRows,departingFrame;
+            // One transition-size anchor, not an outgoing full-body Sprite:
+            // crossfading two fully illustrated actors renders two heads,
+            // belts and weapons even when their planted feet match.
             internal float departingSize,startedAt;
-            internal Color departingTint;
-            internal bool departingFlip,active;
+            internal bool active;
         }
         private readonly ConditionalWeakTable<Enemy,EnemyAtlasTransition>
             enemyAtlasTransitions =
@@ -35,8 +35,8 @@ namespace Starfall
             bool flip,int pose)
         {
             // Keep the existing exact-cell Animator/SpriteRenderer path for
-            // both the departing and current pose. Outline previews must
-            // never alter the cached living snapshot.
+            // the CURRENT authoritative complete pose only. Outline previews
+            // never change the living transition's cached dimensions.
             if(enemy==null||sheet==null||drawingOutline)
             {
                 Actor(sheet,columns,rows,frame,foot,size,tint,flip);
@@ -49,14 +49,10 @@ namespace Starfall
                 (enemy.Position-state.position).Length<.68f;
             bool crossAtlas=state.sheet!=null&&
                 state.sheet!=sheet;
-            // Only crossfade a nonviolent posture handoff. An actual
-            // windup/contact remains instantaneous and fully readable at
-            // its GameCore-selected source key. No old attack sprite can
-            // conceal a projectile, parry cue or Boss phase transition.
-            // Only Idle <-> Walk are nonviolent handoffs. Letting an
-            // outgoing Hit pose (4) ghost underneath a new Idle body draws
-            // a stale striking silhouette after stun/recoil has already
-            // finished. Combat exits must show their NEW complete Sprite.
+            // Only resize a quiet Idle<->Walk handoff. The destination
+            // GameCore source Sprite immediately replaces the old one; an
+            // outdated head/weapon is never rendered under an actor even at
+            // 1% opacity. Combat windup/contact/hit bypass interpolation.
             bool quiet=(pose==0||pose==1)&&
                 (state.pose==0||state.pose==1);
             bool allow=!Game.save.reducedMotion&&
@@ -70,18 +66,11 @@ namespace Starfall
                 state.active=allow;
                 if(allow)
                 {
-                    state.departing=state.sheet;
-                    state.departingColumns=state.columns;
-                    state.departingRows=state.rows;
-                    state.departingFrame=state.frame;
-                    // A second, rapid atlas switch can interrupt an
-                    // unfinished size transition. The next one must begin
-                    // from the size actually PAINTED on the previous frame,
-                    // not an unseen source atlas's nominal dimensions.
+                    // Rapid Idle<->Walk switches restart from the ONE
+                    // canvas size actually painted last repaint; never from
+                    // a second ghost image or unseen 384px atlas width.
                     state.departingSize=state.displaySize>0f?
                         state.displaySize:state.size;
-                    state.departingTint=state.tint;
-                    state.departingFlip=state.flip;
                     state.startedAt=clock;
                 }
             }
@@ -107,7 +96,7 @@ namespace Starfall
             state.columns=columns;state.rows=rows;state.frame=frame;
             state.size=size;state.tint=tint;state.flip=flip;
             float drawSize=size;
-            if(state.active&&state.departing!=null)
+            if(state.active)
             {
                 float progress=Mathf.Clamp01(
                     (clock-state.startedAt)/
@@ -124,21 +113,19 @@ namespace Starfall
                     float eased=progress*progress*(3f-2f*progress);
                     drawSize=state.departingSize+
                         (size-state.departingSize)*eased;
-                    float alpha=(1f-progress)*.38f;
-                    Actor(state.departing,state.departingColumns,
-                        state.departingRows,state.departingFrame,foot,
-                        drawSize,
-                        new Color(state.departingTint.r,
-                            state.departingTint.g,state.departingTint.b,
-                            state.departingTint.a*alpha),
-                        state.departingFlip);
+                    // Deliberately NO Actor(departing...). The previous
+                    // implementation painted two complete anatomy sets
+                    // (heads, torsos, weapons) for up to 105ms. Subtle size
+                    // easing of ONE current native Sprite is continuous and
+                    // does not invent/clone any artist-approved body pixels.
                 }
             }
             // Persist the ACTUAL drawn canvas for interrupted transitions.
             // Every complete Sprite shares the original world-foot pivot.
             state.displaySize=drawSize;
-            // The authoritative current frame is always visible at full
-            // opacity. Only its PRESENTATION size is gently interpolated.
+            // Exactly ONE complete current Sprite, even at a transition
+            // boundary. Its source/action, alpha and facing remain entirely
+            // GameCore-owned; only screen-space whole-body size eases.
             Actor(sheet,columns,rows,frame,foot,drawSize,tint,flip);
             // The caller must use this SAME visible canvas for phase/hit
             // flash: otherwise mask and body diverge by up to 20% during
