@@ -191,5 +191,43 @@ namespace Starfall.Tests
                 "Hostile shots resume actual swept flight on the next world step");
         }
 
+        public static void RealHeavyAndBossGroundWarningsPrecedeImpactAndRetractOnStun(Campaign data)
+        {
+            var g = Fresh(data);
+            g.enemies.Clear(); g.effects.Clear();
+            g.save.x = 18.5f; g.save.y = 14.5f;
+            g.invulnerable = 0;
+            var armored = new Enemy(92501, 2, 20.5f, 14.5f, 200);
+            armored.timer = 0; g.enemies.Add(armored);
+            float health = g.save.health;
+            g.Tick(.05f, new Point());
+            Check(armored.state == 1 && g.save.health == health,
+                "An actual heavy enemy begins its locked AoE windup before making contact");
+            Effect preview = g.effects.Find(e => e.kind == "danger" &&
+                (e.position - armored.target).Length < .01f && e.radius > 0 &&
+                e.life > .5f);
+            Check(preview != null,
+                "Heavy's true targeted ground circle is visible for its 650ms windup, never first appearing after damage");
+            var stop = typeof(GameCore).GetMethod("ApplyEnemyControl",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Check(stop != null, "Real combat interruption method must remain available");
+            stop.Invoke(g, new object[] { armored, 1.4f });
+            Check(!g.effects.Contains(preview) && armored.state == 0,
+                "Interrupting a heavy during preparation retracts exactly its unspent danger warning");
+
+            var boss = Fresh(data);
+            boss.save.stage = 1; boss.Enter(1);
+            boss.enemies.Clear(); boss.effects.Clear();
+            boss.save.x = 18.5f; boss.save.y = 14.5f;
+            var guardian = new Enemy(92502, 3, 21f, 14.5f, 500, true);
+            guardian.timer = 0; boss.enemies.Add(guardian);
+            boss.Tick(.05f, new Point());
+            Check(guardian.state == 1 &&
+                boss.effects.Exists(e => e.kind == "danger" &&
+                    (e.position - guardian.target).Length < .01f &&
+                    e.life > .7f && e.radius > 0),
+                "Real regional Boss advertises its attack footprint throughout windup instead of drawing the red ring after contact");
+        }
+
     }
 }

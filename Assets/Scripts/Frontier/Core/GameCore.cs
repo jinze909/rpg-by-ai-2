@@ -1024,21 +1024,29 @@ namespace Starfall
                     e.targetingReliefCivilian = strikeCivilian;
                     e.target = strikeTraveler || strikeCivilian ? pursuit : Position;
                     e.Face(e.target - e.Position);
-                    if (strikeCivilian)
-                        // Archers use their real swept arrow. Showing a melee
-                        // blast ring for a bow would falsely imply instant AOE.
-                        if (e.kind != 1)
-                            {
-                                var telegraph=new Effect("danger", pursuit, e.timer)
-                                {
-                                    radius=e.kind==2?
-                                        EnemyAreaRadius(e):EnemyMeleeRadius,
-                                    reliefMissionOwned=true
-                                };
-                                effects.Add(telegraph);
-                                rescueWindupEffects.Remove(e);
-                                rescueWindupEffects.Add(e,telegraph);
-                            }
+                    // A ground warning must precede the REAL damage, not
+                    // appear for the first time on its contact frame.
+                    // Heavy slams and Boss AoE target a locked circle; rescue
+                    // melee has the same contract around its civilian.
+                    // Archers still use actual traveling arrows, not fake
+                    // melee rings. Keep this effect tied to its attacker so
+                    // stun, stagger or death can retract an unspent warning.
+                    bool areaAttack = e.boss || e.kind == 2;
+                    if (areaAttack || (strikeCivilian && e.kind != 1))
+                    {
+                        var telegraph = new Effect("danger", e.target, e.timer)
+                        {
+                            radius = areaAttack ? EnemyAreaRadius(e) : EnemyMeleeRadius,
+                            variant = e.boss ? save.room : 0,
+                            reliefMissionOwned = strikeCivilian,
+                            rootHarmonyOwned = IsRootHarmonyEnemy(e),
+                            mineConvoyOwned = IsMineConvoyEnemy(e),
+                            frostSignalOwned = IsFrostSignalEnemy(e)
+                        };
+                        effects.Add(telegraph);
+                        rescueWindupEffects.Remove(e);
+                        rescueWindupEffects.Add(e, telegraph);
+                    }
                     if (e.boss || distance < 6 || strikeCivilian) sound = "windup";
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)
