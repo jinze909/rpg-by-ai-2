@@ -555,12 +555,15 @@ namespace Starfall.Tests
             g.Tick(.02f,new Point());
             Check(g.companionAction==null&&g.save.health==30,
                 "An ally across solid forest stone cannot start a remote automatic heal");
+            Check((float)cooldown.GetValue(g)>0&&
+                (float)cooldown.GetValue(g)<=.22f,
+                "Invalid healing path cannot silently consume six seconds of ally action readiness");
 
             // Move the ally into the actual reachable side of the wall.
             g.companionPosition=new Point(10.5f,8.8f);
             Check(g.CanStand(g.companionPosition),
                 "Nearby healing partner must occupy a legal foot collider");
-            cooldown.SetValue(g,0f);g.Tick(.02f,new Point());
+            Advance(g,.24f);
             ActorAction heal=g.companionAction;
             Check(heal!=null&&heal.kind=="heal"&&!heal.released,
                 "After regaining real line of sight the ally can start its normal heal");
@@ -572,9 +575,12 @@ namespace Starfall.Tests
             Check(heal.released&&g.save.health==30&&
                 !g.effects.Exists(e=>e.kind=="number"&&e.text=="+HP"),
                 "Healing contact is canceled if the hero crosses a wall before release");
+            Check((float)cooldown.GetValue(g)<=.22f,
+                "Interrupted healing release cannot pay a full six-second cooldown");
             Advance(g,.35f);
             g.save.y=8.8f;g.save.x=9.5f;
-            cooldown.SetValue(g,0f);g.Tick(.02f,new Point());
+            g.companionPosition=new Point(10.5f,8.8f);
+            Advance(g,.25f);
             heal=g.companionAction;
             Check(heal!=null&&heal.kind=="heal",
                 "Same ally reattempts healing when the real player returns to range");
@@ -582,6 +588,36 @@ namespace Starfall.Tests
             Check(g.save.health>30&&g.effects.Exists(e=>
                 e.kind=="number"&&e.text=="+HP"),
                 "Genuine unobstructed ally healing still restores HP on its contact frame");
+        }
+
+        public static void CompanionIdleReadinessReactsToRealTargets(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.x=13.5f;g.save.y=14f;
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            g.companionPosition=new Point(12,14);
+            var timer=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            timer.SetValue(g,0f);
+            g.Tick(.02f,new Point());
+            Check(g.companionAction==null&&
+                (float)timer.GetValue(g)>0&&
+                (float)timer.GetValue(g)<=.22f,
+                "Ivo cannot burn an entire 2.8-second volley cooldown without an enemy");
+            var incoming=new Enemy(74114,0,15,14,800){stun=99,timer=99};
+            g.enemies.Add(incoming);
+            Advance(g,.24f);
+            ActorAction attack=g.companionAction;
+            Check(attack!=null&&attack.kind=="attack"&&
+                attack.target.HasValue&&
+                (attack.target.Value-incoming.Position).Length<.001f,
+                "Entering a real firing lane awakens companion AI in the next 220ms");
+            Check((float)timer.GetValue(g)>2.3f,
+                "An accepted, real companion attack still consumes normal volley cooldown");
+            Advance(g,.18f);
+            Check(attack.released,
+                "Newly acquired target fires from a genuine timed bow contact");
         }
 
         public static void CompanionNarrowBridgesKeepSeparateSafeFeet(Campaign data)

@@ -396,6 +396,11 @@ namespace Starfall
                             effects.Add(new Effect("number", Position, .7f, "+HP"));
                             sound = "skill";
                         }
+                        else
+                            // A ward or fast move can invalidate a prepared
+                            // heal. Don't consume the six-second cadence for
+                            // a contact that never actually restored HP.
+                            companionAttack=Math.Min(companionAttack,.22f);
                     }
                     else
                     {
@@ -423,7 +428,6 @@ namespace Starfall
                 if (travelled.Length > .001f) { companionPosition = next; companionMoving = true; companionMoveTime += travelled.Length; companionAim = travelled.Normalized; }
             }
             if (companionAttack > 0) return;
-            companionAttack = save.companion == 1 ? 2.8f : 6;
             string kind = null; Point direction = aim;Point? attackTarget=null;
             if (save.companion == 0 && save.health < save.maxHealth * .8f &&
                 CanCompanionHeal())
@@ -440,10 +444,16 @@ namespace Starfall
             }
             if (kind != null)
             {
+                companionAttack=save.companion==1?2.8f:6f;
                 companionAim = direction; companionMoving = false;
                 companionAction = new ActorAction { kind = kind, weapon = save.companion, combo = save.relationships[save.companion], direction = direction,target=attackTarget,
                     damage = 9 + save.relationships[save.companion] * 2, duration = .42f, contact = .16f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
             }
+            else
+                // Empty field / blocked healing route is NOT a spent
+                // companion attack. Short polling makes an approaching
+                // enemy or newly-opened gate actionable within 220ms.
+                companionAttack=.22f;
         }
         public void LearnTechnique()
         {
