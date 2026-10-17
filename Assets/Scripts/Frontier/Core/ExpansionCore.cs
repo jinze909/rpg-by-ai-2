@@ -702,8 +702,16 @@ namespace Starfall
                 NearActiveFieldStation(save.room,
                     save.room == 5 ? 4.2f : FieldStationRefugeRadius(save.room)))
                 save.health = Math.Min(save.maxHealth, save.health + dt * 1.25f);
+            // Preserve the overshoot on every 1-second climate boundary.
+            // Resetting to exactly 1 here discarded up to a full rendered
+            // frame per tick and made desert/frost survival depend on FPS.
             climateTimer -= dt;
-            if (climateTimer <= 0) { climateTimer = 1; if (save.heat >= 85 || save.cold >= 90) Hurt(4); }
+            while (climateTimer <= .000001f)
+            {
+                climateTimer += 1f;
+                if (save.heat >= 85 || save.cold >= 90) Hurt(4);
+                if (Dying) return;
+            }
             if (Dying) return;
             TickFieldStationSurvey(dt);
             if (racing)
@@ -718,8 +726,16 @@ namespace Starfall
             }
             if (InAbyss && !Has("abyss_clear_" + save.abyssFloor) && save.abyssFloor >= 3)
             {
+                // Six real world-clock seconds per abyss rift. Keep the
+                // fractional overshoot across arbitrary fixed/variable
+                // simulation frame sizes, as for climate survival pulses.
                 stormTimer -= dt;
-                if (stormTimer <= 0) { stormTimer = 6; AddHazard(Position, 1.4f, 1.4f, 10 + save.abyssRisk * 4, "rift"); }
+                while (stormTimer <= .000001f)
+                {
+                    stormTimer += 6f;
+                    AddHazard(Position, 1.4f, 1.4f,
+                        10 + save.abyssRisk * 4, "rift");
+                }
             }
             tickingHazards.Clear();tickingHazards.AddRange(hazards);
             foreach (Hazard h in tickingHazards)

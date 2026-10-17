@@ -305,6 +305,64 @@ namespace Starfall.Tests
             int gift = -1; for (int i = 0; i < rpg.conversation.choices.Length; i++) if (rpg.conversation.choices[i].action == "gift0") gift = i;
             rpg.Choose(gift); rpg.CompanionStory(0); rpg.Choose(gift); Check(rpg.save.inventory[6] == 1 && rpg.save.relationships[0] == 1, "A shared meal builds a bond only once per day");
         }
+        public static void ClimatePulsesKeepTheirRealWorldSecondAtVariableFPS(Campaign data)
+        {
+            // A stable unshaded desert exposure already exists at this
+            // playable coordinate. Drive the entire real world Tick path;
+            // no fake timer call or manual damage application.
+            foreach(float dt in new[]{.05f,.027f})
+            {
+                var g=Unlocked(data);g.Enter(6);g.enemies.Clear();
+                g.save.x=14;g.save.y=10;
+                g.save.teaUntil=0;
+                g.save.health=g.save.maxHealth=1000;
+                g.save.heat=100;
+                g.save.reducedMotion=true;
+                int frames=dt>.04f?427:791;
+                for(int frame=0;frame<frames;frame++)
+                    g.Tick(dt,new Point());
+                float elapsed=frames*dt;
+                float expected=1f-(elapsed%1f);
+                var timer=typeof(GameCore).GetField("climateTimer",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                float remaining=(float)timer.GetValue(g);
+                Check(Math.Abs(remaining-expected)<.015f,
+                    "Heat pulse remaining time must conserve every frame's fractional overshoot at "+dt);
+                Check(Math.Abs(g.save.health-916f)<.001f,
+                    "Unprotected desert must apply exactly 21 physical heat contacts in 21.35s at "+dt);
+            }
+        }
+        public static void AbyssRiftsKeepTheirSixSecondWorldClock(Campaign data)
+        {
+            foreach(float dt in new[]{.05f,.027f})
+            {
+                var g=Unlocked(data);g.StartAbyss(0);
+                Check(g.InAbyss,"Test needs the actual running abyss dungeon");
+                g.enemies.Clear();g.hazards.Clear();g.effects.Clear();
+                // Test the real floor-three storm rather than creating
+                // fake hazards. Floor/seed changes are test-local only.
+                g.save.abyssFloor=3;g.save.health=g.save.maxHealth=1000;
+                g.save.reducedMotion=true;
+                var seen=new HashSet<Hazard>();
+                int frames=dt>.04f?817:1513;
+                for(int frame=0;frame<frames;frame++)
+                {
+                    g.Tick(dt,new Point());
+                    foreach(Hazard h in g.hazards)
+                        if(h.kind=="rift")seen.Add(h);
+                }
+                float elapsed=frames*dt;
+                float expected=6f-(elapsed%6f);
+                var timer=typeof(GameCore).GetField("stormTimer",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                float remaining=(float)timer.GetValue(g);
+                Check(seen.Count==6,
+                    "Deep abyss must schedule six actual rift warnings over forty seconds at "+dt);
+                Check(Math.Abs(remaining-expected)<.02f,
+                    "Deep abyss must conserve fractional six-second storm boundaries at "+dt);
+            }
+        }
+
         public static void ClimateAndContracts(Campaign data)
         {
             var g = Unlocked(data); g.Enter(6); g.enemies.Clear(); g.save.x = 14; g.save.y = 10;
