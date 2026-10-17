@@ -682,6 +682,10 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
             enemies.Remove(e);
+            // A lethal strike may bypass the stagger threshold entirely.
+            // Its unspent civilian windup must disappear with the attacker,
+            // not keep warning players about an attack that can no longer land.
+            RemoveEnemyPendingWarning(e);
             // Patrol progress records a combat death, never list disappearance.
             OnOuterPatrolEnemyDefeated(e);
             OnCivicResponseEnemyDefeated(e);
@@ -766,11 +770,17 @@ namespace Starfall
             enemy.timer=Math.Max(enemy.timer,enemy.boss?.65f:.45f);
             enemy.targetingWayfarer=false;
             enemy.targetingReliefCivilian=false;
+            RemoveEnemyPendingWarning(enemy);
+        }
+        private void RemoveEnemyPendingWarning(Enemy enemy)
+        {
             Effect pending;
-            if(rescueWindupEffects.TryGetValue(enemy,out pending))
+            if(enemy!=null&&
+                rescueWindupEffects.TryGetValue(enemy,out pending))
             {
                 // Remove by object identity, not target coordinate or
                 // mission tag: two overlapping NPC lanes can both be live.
+                // This is shared by stun, Break and lethal attacks.
                 effects.Remove(pending);
                 rescueWindupEffects.Remove(enemy);
             }

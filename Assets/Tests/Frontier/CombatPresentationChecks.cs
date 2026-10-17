@@ -248,6 +248,43 @@ namespace Starfall.Tests
                 "Real projectile poise Break failed to retract its canceled civilian danger ring");
         }
 
+        public static void LethalHitRetiresOwnedRescueWarningWithoutFakeBreak(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            var dying=new Enemy(96930,0,13,14,7f)
+            {
+                state=1,timer=.4f,windupDuration=.65f,
+                target=new Point(12,14),targetingReliefCivilian=true,
+                // A previously spent stagger gate prevents a second Break.
+                // The cue must be cleared by actual DEATH, not the Break path.
+                staggerRecovery=100f
+            };
+            g.enemies.Add(dying);
+            var warning=new Effect("danger",dying.target,.4f)
+                {radius=1.5f,reliefMissionOwned=true};
+            var other=new Effect("danger",dying.target,.4f)
+                {radius=1.5f,reliefMissionOwned=true};
+            g.effects.Add(warning);g.effects.Add(other);
+            var field=typeof(GameCore).GetField("rescueWindupEffects",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(field!=null,"Missing enemy-identity warning owner");
+            var owners=(System.Runtime.CompilerServices.ConditionalWeakTable<
+                Enemy,Effect>)field.GetValue(g);
+            owners.Add(dying,warning);
+            g.projectiles.Add(new Projectile
+            {
+                position=dying.Position,velocity=new Point(1,0),
+                life=1f,damage=30f,friendly=true,visual="arrow"
+            });
+            g.Tick(.01f,new Point());
+            Check(!g.enemies.Contains(dying)&&
+                !g.effects.Contains(warning)&&g.effects.Contains(other)&&
+                g.fallen.Exists(body=>body.actor==dying)&&
+                !g.effects.Exists(effect=>effect.kind=="break"),
+                "A lethal unbroken raider left a phantom rescue warning or lost its normal corpse");
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
