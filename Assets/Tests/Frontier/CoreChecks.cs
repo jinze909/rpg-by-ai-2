@@ -185,13 +185,17 @@ namespace Starfall.Tests
             Check(g.SkillQueued&&g.save.energy==80,
                 "Dodge then Q must preserve energy until Q is actually accepted");
             Advance(g,.06f);
+            Point latestTarget=new Point(21,17);
+            g.SetAimTarget(latestTarget);
             g.Skill(new Point(1,0));
             Advance(g,.15f);
             Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
-                g.playerAction.direction.y<-.99f&&
-                Math.Abs(g.playerAction.direction.x)<.01f&&
+                g.playerAction.direction.x>.99f&&
+                Math.Abs(g.playerAction.direction.y)<.01f&&
+                g.playerAction.target.HasValue&&
+                (g.playerAction.target.Value-latestTarget).Length<.001f&&
                 !g.SkillQueued&&g.skillCooldown>0,
-                "Only first buffered Q direction can fire after the real dodge");
+                "Repeated Q must retarget the existing queue, without moving its deadline");
             Check(g.save.energy>=40&&g.save.energy<45,
                 "Queued Q commits its cost once, not on every repeated press");
         }

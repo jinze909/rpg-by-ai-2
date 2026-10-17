@@ -2314,18 +2314,25 @@ public static class ActorRegistrationChecks
                 Clear();GUI.queuedClick=new Rect(354f,y,w,h);
                 Call(app,"ActionSlot",354f,"Q","Skill","sword",0f,
                     true,action,3.5f,"Low energy",false);
-                Check(clicks==0&&g.SkillQueued&&
+                Check(clicks==1&&g.SkillQueued&&
                     GUI.buttonCalls.Count>0&&
-                    !GUI.buttonCalls[GUI.buttonCalls.Count-1].enabled,
-                    "Already queued Q must disable a second HUD charge/click");
+                    GUI.buttonCalls[GUI.buttonCalls.Count-1].enabled,
+                    "Queued Q HUD must allow deliberate retargeting without a second cast");
+                object intent=typeof(GameCore).GetField("bufferedSkill",Private)
+                    .GetValue(g);
+                var flags=BindingFlags.Instance|BindingFlags.Public;
+                Point updated=(Point)intent.GetType().GetField("direction",flags)
+                    .GetValue(intent);
+                Check(updated.x>.99f&&Math.Abs(updated.y)<.01f,
+                    "Repeated HUD Q press did not update its original queued aim");
                 Check(string.Join(",",GUI.commands.ToArray()).Contains(g.L("已排队","QUEUED")),
-                    "Q HUD must display pending direction-locked skill status");
+                    "Q HUD must display its actively retargetable queued skill");
                 GUI.queuedClick=null;
                 g.ClearBufferedCombatInputs();
                 Clear();GUI.queuedClick=new Rect(354f,y,w,h);
                 Call(app,"ActionSlot",354f,"Q","Skill","sword",0f,
                     true,action,3.5f,"Low energy",false);
-                Check(clicks==1&&g.SkillQueued,
+                Check(clicks==2&&g.SkillQueued,
                     "After cancellation the same real HUD Q button must requeue");
             }
             finally
@@ -2334,7 +2341,7 @@ public static class ActorRegistrationChecks
                 app.EndVisualReview();Clear();
             }
         }
-        Console.WriteLine("PASS both production HUD layouts display buffered Q and prevent repeat queued skill click");
+        Console.WriteLine("PASS both production HUD layouts display queued Q, permit last-aim retarget and requeue after cancellation");
     }
 
     public static void VerifyDodgeHudEarlyClick(FrontierRuntime app)

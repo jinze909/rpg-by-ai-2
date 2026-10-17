@@ -146,8 +146,11 @@ namespace Starfall
             bool queued=(dodgeSlot&&Game.DodgeQueued)||
                 (skillSlot&&Game.SkillQueued);
             bool bufferable=dodgeSlot&&Game.CanBufferDodge;
+            // The pending Q remains clickable for legitimate aim retarget;
+            // only a queued dodge blocks another press. Neither can spend
+            // twice before the authoritative GameCore release boundary.
             bool ready=resourceAvailable&&(cooldown<=0||bufferable)&&
-                !queued&&!busy&&!Game.Dying;
+                !(dodgeSlot&&Game.DodgeQueued)&&!busy&&!Game.Dying;
             bool compact = CombatHud; float y = compact ? 732 : 699, w = compact ? 78 : 109, h = compact ? 50 : 75;
             bool hit = Button(x, y, w, h, "", false, ready);
             if (ready) { Frame(x,y,w,h,bufferable?new Color(.48f,.78f,1f):mint); Box(x+4,y+h-3,w-8,2,bufferable?new Color(.48f,.78f,1f):mint); }

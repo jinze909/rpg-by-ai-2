@@ -549,11 +549,19 @@ namespace Starfall
             float cost = Relic(4) ? 50 : 40;
             if (mode != "world" || Dying) return;
             if (skillCooldown > 0 || save.energy < cost) { ClearBufferedSkill(); ActionUnavailable(skillCooldown, cost); return; }
-            // Once Q has been accepted into its short combat buffer, later
-            // held/repeated input cannot retarget it or restart the deadline.
-            // Otherwise hammering Q can keep a stale skill queued indefinitely
-            // through a long stagger or interruption.
-            if (bufferedSkill != null) return;
+            // Repeated Q intentionally updates the currently queued aim and
+            // world target (the existing tactical retarget contract). NEVER
+            // create a fresh intent or reset its original 200ms expiry: rapid
+            // presses cannot prolong a hit-stun queue indefinitely.
+            if (bufferedSkill != null)
+            {
+                bufferedSkill.direction = direction.HasValue &&
+                    Finite(direction.Value.x) && Finite(direction.Value.y) &&
+                    direction.Value.Length>.05f ?
+                    direction.Value.Normalized : aim;
+                bufferedSkill.target = aimTarget;
+                return;
+            }
             // A later explicit Q cancels a still-pending dodge; do not
             // charge both actions or discard the newer deliberate input.
             ClearBufferedDodge();
