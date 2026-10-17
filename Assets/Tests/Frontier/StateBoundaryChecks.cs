@@ -4,6 +4,48 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void RejectedAbyssSlotsRetireOnlyUnbankedProgress(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.room = 8; g.save.abyssFloor = 4;
+            g.save.abyssRisk = 2; g.save.runCoins = 51;
+            g.save.runShards = 8; g.save.runXp = 33;
+            g.save.boons[0] = 3; g.save.bestFloor = 3;
+            g.save.coins = 147; g.save.shards = 19;
+            g.save.x = 12; g.save.y = 14;
+            g.save.snapshotRoom = 8;
+            g.save.worldEnemies = new[] { new EnemyRecord { id=410, hp=10, maxHp=10 } };
+            // No covenant: the recorded Abyss is not a legal destination.
+            var rejected = new GameCore(data, CloneSave(g.save));
+            Check(rejected.save.room == 0 &&
+                Math.Abs(rejected.save.x-data.maps[0].spawnX) < .001f &&
+                Math.Abs(rejected.save.y-data.maps[0].spawnY) < .001f,
+                "Unauthorized Abyss resumes at the actual home spawn");
+            Check(rejected.save.abyssFloor == 0 && rejected.save.runCoins == 0 &&
+                rejected.save.runShards == 0 && rejected.save.runXp == 0 &&
+                rejected.save.boons[0] == 0 && rejected.save.abyssEnemies == null,
+                "Rejected expedition cannot retain transient loot or blessings");
+            Check(rejected.save.coins == 147 && rejected.save.shards == 19 &&
+                rejected.save.bestFloor == 3 && rejected.save.snapshotRoom == -1 &&
+                rejected.save.worldEnemies == null,
+                "Rejected expedition preserves banked wealth and permanent records");
+            // Earlier expansion sanitization also relocates an empty Abyss.
+            var empty = CloneSave(g.save); empty.abyssFloor = 0;
+            var restored = new GameCore(data, empty);
+            Check(restored.save.room == 0 &&
+                Math.Abs(restored.save.x-data.maps[0].spawnX) < .001f &&
+                Math.Abs(restored.save.y-data.maps[0].spawnY) < .001f,
+                "Zero-floor Abyss slot does not strand hero at old coordinates");
+            // A genuine v2 active expedition remains precisely resumable.
+            var allowed = CloneSave(g.save); allowed.frontierEnding = 1;
+            allowed.x = 5; allowed.y = 14; allowed.abyssFloor = 1;
+            allowed.abyssRisk = 0; allowed.abyssSeed = 137;
+            var active = new GameCore(data, allowed);
+            Check(active.save.room == 8 && active.save.abyssFloor == 1 &&
+                active.save.frontierEnding == 1 && active.CanStand(active.Position),
+                "Authorized v2 Abyss expedition is not discarded during load");
+        }
+
         public static void ReusedLoadsMatchFreshWorldState(Campaign data)
         {
             foreach(int room in new[]{1,2,3,5,6,7})

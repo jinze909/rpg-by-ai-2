@@ -81,6 +81,7 @@ namespace Starfall
             // An out-of-range region is not an authorized town location.
             // Preserve the fact that this slot needs safe respawning even
             // when its old coordinates happen to be walkable in Emberfall.
+            int requestedRoom = save.room;
             bool invalidSavedRoom = save.room < 0 || save.room >= data.maps.Length;
             if (invalidSavedRoom) save.room = 0;
             // Expansion sanitization checks "technique_<profession>" before
@@ -96,16 +97,18 @@ namespace Starfall
                 save.flags.Remove("recovery_pending"); save.room = 0; save.x = data.maps[0].spawnX; save.y = data.maps[0].spawnY;
                 save.health = 9999; save.energy = 100; save.snapshotRoom = -1; save.worldEnemies = null;
             }
-            if (invalidSavedRoom || !CanEnter(save.room))
+            if (invalidSavedRoom || save.room != requestedRoom || !CanEnter(save.room))
             {
-                // Never inherit another region's player coordinates or
-                // enemy snapshot after a locked/invalid save is returned home.
-                // Keep story flags, rewards and inventory from the original
-                // slot: only its invalid world placement is discarded.
+                // A zero-floor or no-longer-authorized Abyss save cannot
+                // secretly keep a live expedition after its region is rejected.
+                // Preserve permanent/banked achievements, not run loot/boons.
+                if (save.abyssFloor > 0) EndAbyss(false);
                 save.room = 0;
                 save.x = data.maps[0].spawnX; save.y = data.maps[0].spawnY;
                 save.snapshotRoom = -1; save.worldEnemies = null;
             }
+            // Only construct the procedural Abyss for an actually authorized
+            // active expedition. Never generate a rejected run first.
             if (save.room == 8) GenerateAbyss();
             save.difficulty = (int)Clamp(save.difficulty, 0, 2);
             save.upgrades = (int)Clamp(save.upgrades, 0, 5); save.level = (int)Clamp(save.level, 1, 30);
