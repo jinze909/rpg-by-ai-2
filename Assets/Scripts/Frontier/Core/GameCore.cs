@@ -1630,6 +1630,7 @@ namespace Starfall
         private void CreditCoins(int amount) { save.coins = CappedReward(save.coins, amount, 999999); }
         private void CreditShards(int amount) { save.shards = CappedReward(save.shards, amount, 99999); }
         private void CreditSkillPoints(int amount) { save.skillPoints = CappedReward(save.skillPoints, amount, 99); }
+        private void CreditTea(int amount) { save.tea = CappedReward(save.tea, amount, 999); }
         private void CreditInventory(int index, int amount)
         { save.inventory[index] = CappedReward(save.inventory[index], amount, 9999); }
         private bool Spend(int wood, int crystal, int herb, int fish, int gear, int coins = 0)
