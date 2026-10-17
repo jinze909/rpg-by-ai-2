@@ -791,9 +791,28 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!enemies.Contains(e) || mode != "world") continue;
-                e.moving = e.backpedaling = false; e.flash -= dt; e.hitTime -= dt; e.releaseTime -= dt; e.stun -= dt; e.staggerRecovery -= dt;
-                if (e.hitTime > 0) { Point pushed = SweepActor(e.Position, e.recoil * dt * (e.boss ? .15f : .8f)); e.x = pushed.x; e.y = pushed.y; continue; }
-                if (e.stun > 0 || e.releaseTime > 0) continue;
+                // Reactions overlap on one shared simulation clock. When a
+                // 40ms stun ends inside a 50ms tick, only the UNLOCKED 10ms
+                // may advance pursuit or a telegraphed attack. Previously all
+                // 50ms advanced at once, giving freed enemies an early hit.
+                float hitBudget=Math.Max(0f,e.hitTime);
+                float lockBudget=Math.Max(hitBudget,
+                    Math.Max(Math.Max(0f,e.stun),Math.Max(0f,e.releaseTime)));
+                float freeDt=Math.Max(0f,dt-Math.Min(dt,lockBudget));
+                float recoilDt=Math.Min(dt,hitBudget);
+                e.moving = e.backpedaling = false;
+                e.flash -= dt; e.hitTime -= dt; e.releaseTime -= dt;
+                e.stun -= dt; e.staggerRecovery -= dt;
+                // Honor the LAST partial recoil slice even if the hit pose
+                // expires this frame. Keep wall-safe movement and original
+                // move-speed / weapon clocks.
+                if(recoilDt>0f)
+                {
+                    Point pushed=SweepActor(e.Position,
+                        e.recoil*recoilDt*(e.boss?.15f:.8f));
+                    e.x=pushed.x;e.y=pushed.y;
+                }
+                if(freeDt<=.000001f)continue;
                 // Beacon attackers advance on the ward instead of blindly following
                 // the hero. Their normal attacks still target the hero if in range.
                 bool wardAttacker = roadTrialRoom == save.room && IsRoadwardenTrialEnemy(e);
@@ -809,7 +828,7 @@ namespace Starfall
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
-                    e.timer -= dt;
+                    e.timer -= freeDt;
                     if (e.boss && save.room == 1 && e.windupDuration > 0 && e.timer < .2f)
                     {
                         Point next = e.attackOrigin + (e.attackDestination - e.attackOrigin) * Clamp(1 - e.timer / .2f, 0, 1);
@@ -871,7 +890,7 @@ namespace Starfall
                 // or while navigating around a distant obstruction.
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker && !escortPatrol &&
                     distance > (e.boss ? 18 : 8)) continue;
-                e.timer -= dt;
+                e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
                 float desired = (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
@@ -887,15 +906,15 @@ namespace Starfall
                     // Backstep even with blocked LOS. Never counteract an
                     // actual retreat by walking toward the target this tick.
                     Point away = delta.Length > .001f ?
-                        delta.Normalized * -dt * (reliefAttacker || escortPatrol ? 2.2f : 1.6f) :
-                        new Point(-dt * 1.6f, 0);
+                        delta.Normalized * -freeDt * (reliefAttacker || escortPatrol ? 2.2f : 1.6f) :
+                        new Point(-freeDt * 1.6f, 0);
                     Point back = SweepActor(e.Position, away);
                     e.backpedaling = (back - e.Position).Length > .001f;
                     e.x = back.x; e.y = back.y;
                 }
                 if (!e.backpedaling && (distance > desired || !visible))
                 {
-                    Point p = e.Position + DirectionTo(e.Position, pursuit) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
+                    Point p = e.Position + DirectionTo(e.Position, pursuit) * freeDt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
                     Point swept = SweepActor(e.Position, p - e.Position); e.x = swept.x; e.y = swept.y;
                 }
                 Point travelled = e.Position - before; e.moving = travelled.Length > .001f;

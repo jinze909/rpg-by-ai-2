@@ -140,6 +140,45 @@ namespace Starfall.Tests
             }
         }
 
+        public static void EnemyReactionsConsumeOnlyTheirRemainingFrameBudget(Campaign data)
+        {
+            // A hit-recoil, stun and post-release wait overlap. Their union
+            // blocks AI for max(10,40,20)ms, not for the whole 50ms or the
+            // sum of all timers. The remaining 10ms moves the real raider.
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;
+            var foe=new Enemy(96901,0,18,14,10000)
+            {
+                stun=.04f,hitTime=.01f,releaseTime=.02f,
+                recoil=new Point(0,1),timer=1f
+            };
+            g.enemies.Add(foe);
+            float beforeMove=foe.moveTime;
+            g.Tick(.05f,new Point());
+            Check(foe.x<18f&&foe.x>17.96f,
+                "Enemy moved a full 50ms instead of 10ms after stun expired");
+            Check(foe.y>14.005f&&foe.y<14.02f,
+                "Last 10ms of real hit knockback vanished at frame boundary");
+            Check(foe.timer>.98f&&foe.timer<.995f,
+                "Enemy cooldown spent blocked stun time as if it were active");
+            Check(foe.moveTime>beforeMove&&foe.moveTime<beforeMove+.05f,
+                "Enemy native gait advanced farther than actual resumed body root");
+            // A 35ms-ready archer cannot begin a new attack when its
+            // 40ms recovery leaves only 10ms active in the same 50ms tick.
+            g.enemies.Clear();
+            var archer=new Enemy(96902,1,17,14,10000)
+            {
+                stun=.04f,timer=.035f
+            };
+            g.enemies.Add(archer);
+            g.Tick(.05f,new Point());
+            Check(archer.state==0&&archer.timer>.02f,
+                "Archer started an untelegraphed shot using time spent stunned");
+            g.Tick(.05f,new Point());
+            Check(archer.state==1&&archer.windupDuration>.5f,
+                "Enemy failed to begin a genuine warning once its free recovery elapsed");
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
