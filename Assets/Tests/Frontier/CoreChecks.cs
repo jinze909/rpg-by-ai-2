@@ -823,7 +823,16 @@ namespace Starfall.Tests
                 for(int frame=0;frame<10;frame++)g.Tick(.02f,new Point());
                 Check(g.OuterPatrolDone(room)&&g.save.coins==coins+14,
                     "Both true lethal Hit transactions award the single defense reward");
-                GameCore reload=new GameCore(data,g.save);
+                // Recreate the persisted v2 state as a separate slot object.
+                // The loader sanitizes its OWN save in place. Passing the
+                // active g.save aliases the running hero and a locked-region
+                // recovery can move that hero away from this watchpost.
+                var persisted = new SaveData {
+                    version=g.save.version, room=g.save.room, stage=g.save.stage,
+                    x=g.save.x, y=g.save.y, coins=g.save.coins,
+                    flags=new List<string>(g.save.flags)
+                };
+                GameCore reload=new GameCore(data,persisted);
                 Check(reload.save.version==2&&reload.OuterPatrolDone(room),
                     "Defended watchposts persist with original v2 flags");
                 g.Talk(o);
