@@ -40,6 +40,7 @@ namespace Starfall.Tests
         [Test] public void NonpiercingArrowsHitPhysicalFrontTarget() { CoreChecks.NonpiercingProjectileContactsFrontEnemyBeforeBackRoster(Data()); }
         [Test] public void AllyAutoVolleyRejectsDeadOrOccludedTarget() { CoreChecks.CompanionAutoFireCannotSpendCadenceOnExpiredEnemy(Data()); }
         [Test] public void EscortArrowContactsUsePhysicalInterceptionOrder() { CoreChecks.EscortArrowsStrikeFirstPhysicalActor(Data()); }
+        [Test] public void AlliesDoNotGrantUnearnedHeroWeaponMastery() { CoreChecks.AllyKillsRewardPartyButNotUnwieldedHeroMastery(Data()); }
         [Test] public void CompanionPicksNearestVisibleEnemy() { CoreChecks.CompanionAutoTargetsNearestReachableThreat(Data()); }
         [Test] public void AutoHealingRequiresRealLineOfSight() { CoreChecks.CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Data()); }
         [Test] public void AllyFeetNeverOverlapHeroOnNarrowBridges() { CoreChecks.CompanionNarrowBridgesKeepSeparateSafeFeet(Data()); }

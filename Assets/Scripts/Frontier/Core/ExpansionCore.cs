@@ -215,10 +215,21 @@ namespace Starfall
             if (save.abyssFloor == 6 && !Has("boss_8") && !enemies.Exists(e => e.boss)) enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), CurrentBoss.hp, true));
             return true;
         }
-        private void OnExpansionKill(Enemy e, int releasedWeapon = -1)
+        private void OnExpansionKill(Enemy e, int releasedWeapon = -1,
+            bool playerOwned = true)
         {
-            int weapon = releasedWeapon >= 0 && releasedWeapon <= 2 ? releasedWeapon : save.weapon;
-            save.mastery[weapon] = Math.Min(100, save.mastery[weapon] + (e.boss ? 10 : 2));
+            // World kills still pay their normal bounty, XP and loot,
+            // including genuine ally kills. Weapon mastery, however,
+            // measures a *player-operated* weapon's combat experience.
+            // A companion-owned projectile must not silently train the
+            // hero's equipped sword/staff while the ally fights alone.
+            if (playerOwned)
+            {
+                int weapon = releasedWeapon >= 0 && releasedWeapon <= 2 ?
+                    releasedWeapon : save.weapon;
+                save.mastery[weapon] = Math.Min(100,
+                    save.mastery[weapon] + (e.boss ? 10 : 2));
+            }
             BountyEvent(0, 1); if (e.boss) BountyEvent(3, 1); if (e.kind == 2) BountyEvent(4, 1);
             if (InAbyss)
             {

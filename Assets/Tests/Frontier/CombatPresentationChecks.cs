@@ -481,6 +481,58 @@ namespace Starfall.Tests
             g.PrepareSave(); var loaded = new GameCore(data, CloneSave(g.save)); Check(loaded.enemies.Count == 0, "A visual corpse cannot respawn as a living loot source");
             Advance(g, 1); Check(g.fallen.Count == 0 && g.save.kills[1] == kills + 1, "The corpse fades without awarding twice");
         }
+        public static void AllyKillsRewardPartyButNotUnwieldedHeroMastery(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.reducedMotion=true;
+            g.save.x=12;g.save.y=14;
+            g.save.weapon=0;
+            g.save.mastery[0]=13;g.save.mastery[1]=17;
+            g.save.mastery[2]=19;
+            int kills=g.save.kills[g.save.room];
+            int money=g.save.coins;
+            int xp=g.save.xp;
+            var allyTarget=new Enemy(79711,0,14,14,1){stun=99,timer=999};
+            g.enemies.Add(allyTarget);
+            var allyShot=new Projectile {
+                position=allyTarget.Position,velocity=new Point(1,0),
+                friendly=true,visual="arrow",damage=30,life=1,
+                impact=new ImpactProfile(1,0,1,0,0,false)
+            };
+            g.projectiles.Add(allyShot);
+            g.Tick(.01f,new Point());
+            Check(!g.enemies.Contains(allyTarget) &&
+                g.save.mastery[0]==13&&g.save.mastery[1]==17&&
+                g.save.mastery[2]==19,
+                "Companion-owned real arrow cannot train any unoperated hero weapon");
+            Check(g.save.kills[g.save.room]==kills+1 &&
+                g.save.coins==money+6&&g.save.xp==xp+12 &&
+                g.effects.Exists(e=>e.kind=="loot"),
+                "Ally killing blow must still grant existing party kill, coins, XP and loot");
+
+            // A player-owned bow/staff flight credits the weapon whose
+            // authored release spawned the projectile, not whatever
+            // weapon the player switched to before impact.
+            var playerTarget=new Enemy(79712,0,14.3f,14,1){
+                stun=99,timer=999};
+            g.enemies.Add(playerTarget);
+            g.save.weapon=0;
+            var playerShot=new Projectile {
+                position=playerTarget.Position,
+                velocity=new Point(1,0),friendly=true,
+                visual="starfire",damage=30,life=1,
+                impact=new ImpactProfile(2,0,2,0,0,true)
+            };
+            g.projectiles.Add(playerShot);g.Tick(.01f,new Point());
+            Check(!g.enemies.Contains(playerTarget)&&
+                g.save.mastery[2]==21&&g.save.mastery[0]==13&&
+                g.save.mastery[1]==17,
+                "A real player-authored projectile kill still trains its released weapon");
+            Check(g.save.kills[g.save.room]==kills+2&&
+                g.save.coins==money+12&&g.save.xp==xp+24,
+                "Two authentic kills retain exactly two party rewards");
+        }
+
         public static void EscortArrowsStrikeFirstPhysicalActor(Campaign data)
         {
             // An incoming raider arrow overlaps both hit circles on ONE
