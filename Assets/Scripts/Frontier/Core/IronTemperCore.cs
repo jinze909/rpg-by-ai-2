@@ -204,7 +204,7 @@ namespace Starfall
                     (Position-TemperPoint("ironfoundry")).Length>2.2f)return true;
                 ResetTemper();
                 Flag("iron_temper_complete");
-                save.coins+=75;save.shards+=3;save.skillPoints++;
+                CreditCoins(75);CreditShards(3);CreditSkillPoints(1);
                 AddXp(85);revision++;sound="reward";
                 RecordMoment("赤铁工房被矿工接管。诺尔获得公开回火配方，装备强化用料永久减少。",
                     "Ironreach foundry restored to miners. Noll's public temper recipe permanently reduces upgrade materials.");

@@ -237,7 +237,7 @@ namespace Starfall
             if(conduitStage==3)
             {
                 ResetCivicConduit();Flag("civic_conduit_complete");
-                save.coins+=65;save.shards+=2;AddXp(95);
+                CreditCoins(65);CreditShards(2);AddXp(95);
                 revision++;sound="reward";
                 RecordMoment(LastDirectiveChoice==1?
                     "第十一章：居民亲自调谐了三处真实阀门，公开电网把耐力供给送到八地已修好的避险棚。":

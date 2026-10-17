@@ -625,5 +625,31 @@ namespace Starfall.Tests
                 "Authentic cleared-floor extraction banks preserved gallery loot exactly once");
         }
 
+        public static void PublishedGlasswindRoutesRemainValidAtMaximumSavedRewards(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.flags.Add("glasswind_all_sealed");
+            g.save.coins = 999999; g.save.shards = 99999;
+            g.save.skillPoints = 99;
+            var author = Object(g, "glasswindkeeper");
+            g.save.x = author.x; g.save.y = author.y;
+            int xp = g.save.xp;
+            Action(g, author.kind, "glasswind_publish");
+            Check(g.Has("glasswind_complete") &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.skillPoints == 99 && g.save.xp > xp,
+                "Physically publishing the completed public wind chart records its real achievement and XP without exceeding old saved currency caps");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.Has("glasswind_complete") &&
+                restored.save.coins == 999999 && restored.save.shards == 99999 &&
+                restored.save.skillPoints == 99,
+                "Public wind charter and bounded one-time payout survive a genuine old-format save reload");
+            Action(restored, author.kind, "glasswind_publish");
+            Check(restored.save.coins == 999999 && restored.save.shards == 99999 &&
+                restored.save.skillPoints == 99,
+                "An already published charter cannot issue another payout");
+        }
+
     }
 }

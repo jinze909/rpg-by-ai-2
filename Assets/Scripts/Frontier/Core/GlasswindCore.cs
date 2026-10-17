@@ -219,7 +219,7 @@ namespace Starfall
                     (Position-GlasswindPoint(site)).Length>2.2f ||
                     Has("glasswind_"+site))return true;
                 ResetGlasswind();Flag("glasswind_"+site);
-                save.coins+=15;save.shards++;AddXp(20);revision++;sound="reward";
+                CreditCoins(15);CreditShards(1);AddXp(20);revision++;sound="reward";
                 effects.Add(new Effect("discover",Position,.7f));
                 RecordMoment("沙海风脉 "+site+"/3 已对所有旅人开放。",
                     "Glasswind relay "+site+"/3 opened to all travelers.");
@@ -240,8 +240,8 @@ namespace Starfall
                     Has("glasswind_complete") ||
                     (Position-ObjectPoint(0,"glasswindkeeper",new Point(-100,-100))).Length>2.2f)
                     return true;
-                Flag("glasswind_complete");save.coins+=65;save.shards+=2;
-                save.skillPoints++;AddXp(70);revision++;sound="reward";
+                Flag("glasswind_complete");CreditCoins(65);CreditShards(2);
+                CreditSkillPoints(1);AddXp(70);revision++;sound="reward";
                 RecordMoment("米娅公开风脉地图。三座公共风阀为行路者遮阴。",
                     "Mia published the wind chart. Three public valves now shelter travelers.");
                 Notify("玻璃风脉归档！65硬币、2碎片、1天赋点、70经验。",

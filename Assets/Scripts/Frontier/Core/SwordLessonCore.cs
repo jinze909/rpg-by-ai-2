@@ -96,7 +96,7 @@ namespace Starfall
             }
             ResetSwordLesson();
             Flag("swordlesson_complete");
-            save.coins+=30;save.shards+=1;AddXp(50);
+            CreditCoins(30);CreditShards(1);AddXp(50);
             RecordMoment("诺尔的三箭剑盾试炼完成。金发冒险者把三支真实飞来的箭矢安全弹回，铁匠把新技法写进城镇训练手册。",
                 "The hero reflected three real arrows at Noll's forge. The sword-guard technique enters the town's training handbook.");
             revision++;sound="reward";

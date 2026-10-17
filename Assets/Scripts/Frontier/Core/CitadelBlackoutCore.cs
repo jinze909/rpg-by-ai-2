@@ -187,7 +187,7 @@ namespace Starfall
                     Has("blackout_complete") ||
                     (Position-BlackoutPoint("blackoutshelter")).Length>2.2f)return true;
                 ResetBlackout();
-                Flag("blackout_complete");save.coins+=80;save.shards+=3;
+                Flag("blackout_complete");CreditCoins(80);CreditShards(3);
                 AddXp(90);revision++;sound="reward";
                 RecordMoment("堡垒停电的长夜里，莱娜、伊恩与奥姆回到了灯下。公开的避难名单证明有人愿意为改变承担责任。",
                     "During the shield blackout, Lena, Ian and Orme reached shelter. The public rescue roster proves ordinary people can shoulder change.");
@@ -202,7 +202,7 @@ namespace Starfall
                 // but earned by real evacuation plus signed testimonies and all allies.
                 enemies.Clear();projectiles.Clear();hazards.Clear();
                 Flag("boss_4");Flag("warden_stood_down");
-                Flag("blackout_peace");save.coins+=70;AddXp(80);revision++;
+                Flag("blackout_peace");CreditCoins(70);AddXp(80);revision++;
                 FinalConversation();return true;
             }
             return false;
