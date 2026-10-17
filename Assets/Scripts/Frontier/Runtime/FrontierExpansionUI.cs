@@ -234,7 +234,7 @@ namespace Starfall
             DrawRootedCivilianBody(p,lean,tint,Game.reliefFollowerFacingLeft);
             if(!drawingOutline &&
                 (Game.ReliefEscortUnderAttack||justHit))
-                DrawNpcActionSignal(p,1,14);
+                DrawNpcActionSignal(p,1,14,1f);
         }
 
         // Shared by the production survivor draw and direct render QA.

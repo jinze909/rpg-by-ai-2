@@ -1474,6 +1474,31 @@ public static class ActorRegistrationChecks
             // disconnected 8-cell resource gallery.
             GUI.Export(".starfall-checks/sprite-qa",
                 "review-actual-NPC-guild-pinned-dialogue");
+            // The same pinned NPC body fades beneath foreground scenery.
+            // The original four-frame speech cue must fade with that SAME
+            // whole body instead of floating brightly over the covering wall.
+            float priorX=game.save.x,priorY=game.save.y;
+            float priorWorldOpacity=Get<float>(app,"worldActorOpacity");
+            try
+            {
+                game.save.x=npc.x;
+                game.save.y=npc.y-.5f;
+                Set(app,"worldActorOpacity",.6f);
+                Clear();
+                var covered=Draw(app,"DrawNpc","guild",
+                    new Point(npc.x,npc.y),-1);
+                var coveredBody=covered.Single(c=>c.texture.name==original);
+                var coveredCue=covered.Single(c=>c.texture.name==signals);
+                Check(Math.Abs(coveredCue.color.a-cue.color.a*.45f*.6f)<
+                    .0001f&&coveredBody.color.a<body.color.a&&
+                    coveredCue.color.a>0f,
+                    "Occluded dialogue icon stayed bright over a faded NPC body");
+            }
+            finally
+            {
+                game.save.x=priorX;game.save.y=priorY;
+                Set(app,"worldActorOpacity",priorWorldOpacity);
+            }
             var newClock=2.35f;
             Set(app,"clock",newClock);
             Clear();
@@ -1509,12 +1534,26 @@ public static class ActorRegistrationChecks
             // Row-one amber danger belongs to a genuine escort distress
             // branch; exercise the same renderer with both asset rows.
             Clear();Call(app,"DrawNpcActionSignal",
-                new Point(320,360),1,14);
+                new Point(320,360),1,14,1f);
             var alert=GUI.textureCalls.Single(c=>c.texture.name==signals);
             Check(Math.Abs(alert.uv.y)<.00001f&&
                 Math.Abs(alert.uv.width-.25f)<.00001f&&
                 alert.color.a>.6f&&alert.color.r>=.99f,
                 "Rescue danger symbol must use its own approved bottom pixel row");
+            // Escort distress icons also share the current depth-pass fade
+            // without shifting their original art, row or collision root.
+            float originalWorldAlpha=Get<float>(app,"worldActorOpacity");
+            try
+            {
+                Set(app,"worldActorOpacity",.35f);
+                Clear();Call(app,"DrawNpcActionSignal",
+                    new Point(320,360),1,14,1f);
+                var faded=GUI.textureCalls.Single(c=>c.texture.name==signals);
+                Check(Math.Abs(faded.color.a-alert.color.a*.35f)<.0001f&&
+                    Math.Abs(faded.uv.y-alert.uv.y)<.00001f,
+                    "Escorted civilian distress icon ignored original scene fade");
+            }
+            finally {Set(app,"worldActorOpacity",originalWorldAlpha);}
             // Simulate Unity's two-stage SpriteImporter replacement.
             // A half-published atlas MUST NOT replace the valid whole
             // 8-cell signal source in already running conversations.
@@ -1529,7 +1568,7 @@ public static class ActorRegistrationChecks
                     95,40,TextureFormat.RGBA32,false){
                     name="partially-imported-npc-cues"};
                 Set(app,"clock",12f);Clear();
-                Call(app,"DrawNpcActionSignal",new Point(320,360),1,14);
+                Call(app,"DrawNpcActionSignal",new Point(320,360),1,14,1f);
                 Check(object.ReferenceEquals(
                     GUI.textureCalls.Single().texture,originalSheet),
                     "Partial imported NPC art replaced a validated signal mid-scene");
@@ -1538,14 +1577,14 @@ public static class ActorRegistrationChecks
                     name="validated-republished-npc-cues"};
                 Resources.TextureOverrides[overrideKey]=completed;
                 Set(app,"clock",15f);Clear();
-                Call(app,"DrawNpcActionSignal",new Point(320,360),1,14);
+                Call(app,"DrawNpcActionSignal",new Point(320,360),1,14,1f);
                 Check(object.ReferenceEquals(
                     GUI.textureCalls.Single().texture,completed),
                     "Complete late NPC art import failed to appear without scene reload");
                 // A new game or visual review can start at clock zero.
                 Resources.TextureOverrides[overrideKey]=originalSheet;
                 Set(app,"clock",0f);Clear();
-                Call(app,"DrawNpcActionSignal",new Point(320,360),0,0);
+                Call(app,"DrawNpcActionSignal",new Point(320,360),0,0,1f);
                 Check(object.ReferenceEquals(
                     GUI.textureCalls.Single().texture,originalSheet),
                     "Clock rewind kept NPC icon generation from previous save");

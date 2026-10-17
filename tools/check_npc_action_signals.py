@@ -56,15 +56,16 @@ def main():
     rescue_src=rescue.read_text()
     render=runtime.read_text()
     for item in ('if(isTalking&&!drawingOutline)',
-        "DrawNpcActionSignal(p,0,npcKey);"):
+        "DrawNpcActionSignal(p,0,npcKey,tint.a);"):
         assert item in npc,("PINNED_SPEAKER_WIRING",item)
     for item in ("Game.ReliefEscortUnderAttack||justHit",
-        "DrawNpcActionSignal(p,1,14);"):
+        "DrawNpcActionSignal(p,1,14,1f);"):
         assert item in rescue_src,("RESCUE_SIGNAL_NOT_IN_PRODUCTION",item)
     for item in ('"Frontier/Art/NpcActionSignals"',
         "imported.width==96&&","imported.height==40",
         "Atlas(npcActionSignalSheet,4,2,row*4+frame,",
-        "Game.save.reducedMotion"):
+        "Game.save.reducedMotion",
+        "Mathf.Clamp01(actorOpacity)*worldActorOpacity"):
         assert item in render,("ANIMATED_SIGNAL_NOT_IN_RENDERER",item)
     assert "ActorRegistrationChecks.VerifyNpcActionSignalProduction," in runner.read_text(), (
         "PRODUCTION_NPC_QA_NOT_EXECUTED_BY_ACTUAL_CI")

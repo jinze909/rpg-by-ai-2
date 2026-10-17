@@ -1170,7 +1170,7 @@ namespace Starfall
             // Keep the original detailed NPC body untouched and paint a
             // separately authored, complete 24x20 transparent cue ABOVE it.
             if(isTalking&&!drawingOutline)
-                DrawNpcActionSignal(p,0,npcKey);
+                DrawNpcActionSignal(p,0,npcKey,tint.a);
         }
     }
 }

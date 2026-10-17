@@ -12,7 +12,8 @@ namespace Starfall
         private float npcSignalRetryAt=float.NegativeInfinity;
         private float npcSignalLastCheck=float.NegativeInfinity;
 
-        private void DrawNpcActionSignal(Point plantedFoot,int row,int seed)
+        private void DrawNpcActionSignal(Point plantedFoot,int row,int seed,
+            float actorOpacity)
         {
             if(drawingOutline||Game.save.effectsQuality==0)return;
             if(clock<npcSignalLastCheck||clock>=npcSignalRetryAt)
@@ -30,6 +31,11 @@ namespace Starfall
             float alpha=row==0?style.npcSignalSpeechAlpha:
                 style.npcSignalDangerAlpha;
             alpha*=Game.save.effectsQuality==1?.70f:1f;
+            // A speaker or escorted civilian can be partially obscured by
+            // a foreground tree/wall or entering the viewport. Fade this
+            // original painted signal WITH the rooted body, never leave a
+            // bright detached label where the full-body source has faded.
+            alpha*=Mathf.Clamp01(actorOpacity)*worldActorOpacity;
             // Low-motion users retain exactly one static communicative cue.
             // All four micro-pixel frames share one stationary world root.
             int frame=Game.save.reducedMotion?0:
