@@ -80,11 +80,11 @@ namespace Starfall
                 return true;
             }
             Flag("dispatch_" + letter);
-            save.coins += 20; save.shards++; AddXp(25); revision++; sound = "reward";
+            CreditCoins(20); CreditShards(1); AddXp(25); revision++; sound = "reward";
             RecordMoment("解读巡路暗号 " + (letter - 5) + "/3。", "Decoded roadwarden cipher " + (letter - 5) + "/3.");
             if (Has("dispatch_6") && Has("dispatch_7") && Has("dispatch_8") && !Has("dispatch_complete"))
             {
-                Flag("dispatch_complete"); save.coins += 40; save.skillPoints++; revision++;
+                Flag("dispatch_complete"); CreditCoins(40); CreditSkillPoints(1); revision++;
                 RecordMoment("三封旧信拼成巡路队的誓言：让每个人都能找到归途。",
                     "Three letters reveal the wardens' promise: a way home for everyone.");
                 Notify("巡路誓言完成！额外获得40硬币、技能点1。三座信标的守路试炼现已开放。",
@@ -411,13 +411,13 @@ namespace Starfall
             }
             if (Has("road_trial_" + region)) return;
             Flag("road_trial_" + region);
-            save.coins += 35; save.shards += 2; AddXp(40); revision++;
+            CreditCoins(35); CreditShards(2); AddXp(40); revision++;
             effects.Add(new Effect("discover", Position, .8f)); sound = "reward";
             RecordMoment("守住第 " + region + " 座巡路信标：获得35硬币、2碎片、40经验。",
                 "Defended road beacon " + region + ": 35 coins, 2 shards, 40 XP.");
             if (Has("road_trial_1") && Has("road_trial_2") && Has("road_trial_3") && !Has("road_trial_complete"))
             {
-                Flag("road_trial_complete"); save.skillPoints++; save.shards += 3; revision++;
+                Flag("road_trial_complete"); CreditSkillPoints(1); CreditShards(3); revision++;
                 RecordMoment("三座信标的守路誓约完成：额外获得技能点1、碎片3。",
                     "All three beacon defenses complete: bonus 1 talent point and 3 shards.");
                 Notify("巡路守望完成！额外获得技能点1、碎片3。", "Roadwarden vigilance complete! Bonus: 1 talent point, 3 shards.");

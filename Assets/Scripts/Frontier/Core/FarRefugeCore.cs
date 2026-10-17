@@ -119,7 +119,7 @@ namespace Starfall
             RecordMoment("第 "+(room+1)+" 处平民补给桥重新开放，救援物资可以通过真正的山脊近路运往避险棚。",
                 "The civilian bridge in region "+(room+1)+" now physically connects the outer weather trail to the public refuge.");
             if(FarBridgeCount==8&&!Has("far_bridges_all"))
-            {Flag("far_bridges_all");save.skillPoints++;revision++;}
+            {Flag("far_bridges_all");CreditSkillPoints(1);revision++;}
             Notify("桥面重新开放！现在可以直接步行通过，经验 +24。",
                 "Crossing reopened! The new physical shortcut is walkable. +24 XP.");
             return true;
@@ -265,10 +265,10 @@ namespace Starfall
             int room=save.room;
             ResetCivicResponse();
             Flag("civic_response_done_"+room);
-            save.coins+=24;save.shards++;
+            CreditCoins(24);CreditShards(1);
             AddXp(42);revision++;sound="reward";
             if(CivicResponseDoneCount==3&&!Has("civic_response_all"))
-            {Flag("civic_response_all");save.skillPoints++;revision++;}
+            {Flag("civic_response_all");CreditSkillPoints(1);revision++;}
             RecordMoment("第 "+(room+1)+" 地居民的"+(CivicSupplyClinic(room)?
                 "医疗护送":"守路实战")+"已由真正行走与战斗完成，并入公开社区服务清册。",
                 "Region "+(room+1)+" completed a real "+(CivicSupplyClinic(room)?
@@ -353,7 +353,7 @@ namespace Starfall
                 if(registry==null||
                     (Position-new Point(registry.x,registry.y)).Length>2.2f)return true;
                 Flag("civic_response_ledger");
-                save.coins+=40;save.shards+=2;
+                CreditCoins(40);CreditShards(2);
                 AddXp(55);revision++;sound="reward";
                 RecordMoment("三处居民服务真正完成后，炉火旅店公开了有签名的医疗与守路应急日志。八地所有已建好的公共避险棚开始分享基础疗养配方。",
                     "The original guest registry publishes three signed, physically proven clinic and lookout reports. Every rebuilt regional refuge now shares a small safe recuperation service.");
@@ -541,7 +541,7 @@ namespace Starfall
                     if(!CivicSupplyStarted||CivicSupplyComplete||
                         CivicSupplyResolvedCount!=3)return true;
                     Flag("civic_supply_complete");
-                    save.coins+=48;save.shards+=2;save.skillPoints++;
+                    CreditCoins(48);CreditShards(2);CreditSkillPoints(1);
                     AddXp(70);sound="reward";revision++;
                     RecordMoment("三地签署各自的医疗与守路选择。炉火旅店公开了每一笔木材、药草和零件去向，公共避险棚开始真正发挥作用。",
                         "Three communities sign their own clinic or lookout allocations. Hearth Inn makes every timber, herb and part public, and the refuges serve travelers.");
@@ -723,7 +723,7 @@ namespace Starfall
                 foreach(WorldObject o in Map.objects)
                     if(o.kind=="faratlasdesk"){atlas=o;break;}
                 if(atlas==null||(Position-new Point(atlas.x,atlas.y)).Length>2.2f)return true;
-                Flag("far_courier_charter");save.coins+=65;
+                Flag("far_courier_charter");CreditCoins(65);
                 AddXp(75);revision++;sound="reward";
                 RecordMoment("八地居民终于把实物交接、桥梁维护与药材分配写入公开补给公约，避险棚能提供更好的救治。",
                     "The eight communities publish an open charter matching physical deliveries with bridge stewardship and better refuge care.");
@@ -745,7 +745,7 @@ namespace Starfall
                     Notify("仍有避险棚没有被实地修复。","Some remote shelters have yet to be rebuilt.");
                     return true;
                 }
-                Flag("far_refuge_atlas");save.coins+=80;save.shards+=3;
+                Flag("far_refuge_atlas");CreditCoins(80);CreditShards(3);
                 AddXp(50);revision++;sound="reward";
                 RecordMoment("八处公共避险棚的路线已经在炉火旅店发布，连没有登记的住客也能使用。",
                     "The shared weather atlas now charts eight physical civilian refuges, including for unregistered travelers.");
@@ -786,12 +786,12 @@ namespace Starfall
             if(action=="far_build")
             {
                 if(FarShelterBuilt(room)||!Spend(1,0,0,0,1))return true;
-                Flag("far_shelter_"+room);save.coins+=22;save.shards++;
+                Flag("far_shelter_"+room);CreditCoins(22);CreditShards(1);
                 AddXp(35);revision++;sound="reward";
                 RecordMoment("居民共同修复第 "+(room+1)+" 处远端避险棚，留下正确的气象符号与不遗漏普通人的道路。",
                     "The region's remote public refuge is rebuilt with a verified weather sign and an open civilian path.");
                 if(FarShelterCount==8&&!Has("far_all_restored"))
-                {Flag("far_all_restored");save.skillPoints++;}
+                {Flag("far_all_restored");CreditSkillPoints(1);}
                 Notify("避险棚开放：硬币 +22、碎片 +1、经验 +35。",
                     "Refuge restored: +22 coins, +1 shard, +35 XP.");
                 return true;

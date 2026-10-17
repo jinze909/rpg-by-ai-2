@@ -31,13 +31,13 @@ namespace Starfall
             }
             if(!linkedBefore&&RidgeLinked(room))
             {
-                save.coins+=20;save.shards++;
+                CreditCoins(20);CreditShards(1);
                 AddXp(24);revision++;sound="reward";
                 RecordMoment("第五圈的南北两座旧标记终于被共同标记，居民可以安全地在两条偏远巡路间往返。",
                     "Both remote ridge markers were surveyed by foot, enabling a civilian route across the outer wilderness.");
                 if(RidgeLinkedCount==8&&!Has("ridge_all_linked"))
                 {
-                    Flag("ridge_all_linked");save.skillPoints++;revision++;
+                    Flag("ridge_all_linked");CreditSkillPoints(1);revision++;
                 }
             }
             string[] zh={

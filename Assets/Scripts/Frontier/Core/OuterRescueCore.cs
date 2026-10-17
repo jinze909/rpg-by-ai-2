@@ -107,7 +107,7 @@ namespace Starfall
                 CreditInventory(material, 2);
                 AddXp(22);sound="reward";revision++;
                 if(OuterRescueCount==8&&!Has("outer_rescues_complete"))
-                { Flag("outer_rescues_complete");save.skillPoints++;revision++; }
+                { Flag("outer_rescues_complete");CreditSkillPoints(1);revision++; }
                 RecordMoment("第 "+(room+1)+" 片边境的求援灯已恢复，救援箱里留下的人名与物资都被找回。",
                     "The remote rescue signal and relief chest were recovered in region "+(room+1)+".");
             }

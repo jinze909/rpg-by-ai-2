@@ -120,10 +120,10 @@ namespace Starfall
             ResetOuterPatrol();
             if(OuterPatrolDone(completedRoom))return;
             Flag("outer_patrol_done_"+completedRoom);
-            save.coins+=14;save.shards++;
+            CreditCoins(14);CreditShards(1);
             AddXp(28);
             if(OuterPatrolWins==8&&!Has("outer_patrol_all"))
-            { Flag("outer_patrol_all");save.skillPoints++; }
+            { Flag("outer_patrol_all");CreditSkillPoints(1); }
             revision++;sound="reward";
             RecordMoment("八地救援岗中的第 "+(completedRoom+1)+" 处已经守住：真正的危险被击退，居民不再只能等待。",
                 "A relief outpost in region "+(completedRoom+1)+

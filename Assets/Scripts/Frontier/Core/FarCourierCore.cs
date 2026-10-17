@@ -287,10 +287,10 @@ namespace Starfall
             if(!SafeTravel)
             {Notify("避险棚附近仍有敌人。","Hostiles threaten the shelter.");return true;}
             ResetFarCourier();
-            Flag("far_courier_"+room);save.coins+=25;save.shards++;
+            Flag("far_courier_"+room);CreditCoins(25);CreditShards(1);
             AddXp(38);revision++;sound="reward";
             if(FarCourierDeliveredCount==8&&!Has("far_courier_all"))
-            {Flag("far_courier_all");save.skillPoints++;revision++;}
+            {Flag("far_courier_all");CreditSkillPoints(1);revision++;}
             RecordMoment("第 "+(room+1)+" 份居民救援包通过真正的山脊步行路线到达公共避险棚。",
                 "A civilian parcel reached a distant public refuge by the actual rebuilt footbridge.");
             Notify("救援包已交接：硬币25、碎片1、经验38！",

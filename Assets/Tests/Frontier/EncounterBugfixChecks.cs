@@ -553,5 +553,34 @@ namespace Starfall.Tests
                 "Max-cap public charter rewards roundtrip through the original v2 save model");
         }
 
+        public static void DistantRidgeWayfindingRemainsSaveBounded(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.coins = 999999; g.save.shards = 99999;
+            g.save.skillPoints = 99;
+            var north = Array.Find(data.maps[0].objects,
+                o => o.id == "ridge_route_0_0");
+            var south = Array.Find(data.maps[0].objects,
+                o => o.id == "ridge_route_0_1");
+            Check(north != null && south != null,
+                "Both actual sixth-ring navigation markers must remain authored");
+            g.save.x = north.x; g.save.y = north.y; g.Talk(north);
+            Check(g.RidgeSeen(0, 0) && !g.RidgeLinked(0),
+                "First marker records the real route without minting its two-point completion");
+            g.Close(); g.save.x = south.x; g.save.y = south.y; g.Talk(south);
+            Check(g.RidgeLinked(0) &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.skillPoints == 99,
+                "Completing the real ridge connection preserves a full persistent wallet and shard ledger");
+            g.Close(); g.Talk(south);
+            Check(g.save.coins == 999999 && g.save.shards == 99999,
+                "Returning to an already surveyed route cannot duplicate its grant");
+            g.PrepareSave();
+            var reload = new GameCore(data, CloneSave(g.save));
+            Check(reload.RidgeLinked(0) && reload.save.coins == 999999 &&
+                reload.save.shards == 99999,
+                "World-route completion and legal coin/shard totals persist through the original v2 save");
+        }
+
     }
 }
