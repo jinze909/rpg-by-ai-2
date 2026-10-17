@@ -216,9 +216,10 @@ public static class ActorRegistrationChecks
                 g.companionAction=null;
 
                 // Genuine walking -> action MUST immediately show the
-                // full-body authored anticipation, never hold the old gait
-                // instead. An optional 24%-opacity rooted planted step
-                // is allowed behind the action for only a few action ticks.
+                // full-body anticipation. A 24%-alpha entire previous
+                // WALK body once made a second head/torso/weapon ghost;
+                // only a tiny, grounded original Effects.png SOIL cell is
+                // permitted underneath the single action-body Sprite.
                 g.companionMoving=true;
                 g.companionMoveTime=GameCore.WalkStride*stride*
                     (phase+.5f)/4f;
@@ -233,32 +234,34 @@ public static class ActorRegistrationChecks
                 Clear();
                 var planted=Draw(app,"DrawCompanionActor");
                 var bodies=planted.Where(ActorTexture).ToArray();
-                Check(bodies.Length==2,
-                    "Walking companion hid its authoritative first cast/attack frame");
-                var foot=bodies[0];
-                var windup=bodies[1];
-                int footFrame=(int)Math.Round(Math.Min(foot.uv.x,
-                    foot.uv.x+foot.uv.width)*4f);
-                int contact=phase==1?2:phase==3?0:phase;
-                Check(foot.texture.name==approved&&
-                    footFrame==contact&&foot.color.a>0f&&
-                    foot.color.a<=.241f&&
-                    windup.texture.name==actions&&
-                    windup.color.a>foot.color.a&&
-                    Math.Abs(foot.rect.y-strideDraw.rect.y)<.001f&&
+                var marks=planted.Where(c=>c.texture.name==
+                    "resource:Frontier/Art/Effects").ToArray();
+                Check(bodies.Length==1&&marks.Length==1,
+                    "Walk->skill rendered duplicate FULL bodies or lost real foot dust");
+                var windup=bodies[0];
+                var boot=marks[0];
+                float realFoot=windup.rect.y+
+                    windup.rect.height*120f/128f;
+                Check(windup.texture.name==actions&&
+                    boot.rect.width<=26f&&boot.rect.height<=18f&&
+                    Math.Abs(boot.rect.y+boot.rect.height*.58f-realFoot)<.001f&&
+                    boot.color.a>0f&&boot.color.a<=.221f&&
                     Math.Abs(windup.rect.y-strideDraw.rect.y)<.001f&&
-                    Math.Abs(windup.rect.width-192)<.001f,
-                    "Walk->command must keep one exact boot root and full current cast body");
+                    Math.Abs(windup.rect.width-192f)<.001f,
+                    "Walk->command must show ONLY current 192px body with grounded source-painted foot contact");
                 g.companionAction.elapsed=.035f;
                 Clear();
-                var middle=Draw(app,"DrawCompanionActor")
-                    .Where(ActorTexture).ToArray();
-                Check(middle.Length==2&&
-                    middle[0].texture.name==approved&&
-                    middle[0].color.a<foot.color.a&&
-                    middle[1].texture.name==actions&&
-                    Math.Abs(middle[1].rect.y-windup.rect.y)<.001f,
-                    "Gait afterimage failed to fade while true skill windup continued");
+                var middle=Draw(app,"DrawCompanionActor");
+                var middleActors=middle.Where(ActorTexture).ToArray();
+                var fadedBoot=middle.Where(c=>c.texture.name==
+                    "resource:Frontier/Art/Effects").ToArray();
+                Check(middleActors.Length==1&&
+                    middleActors[0].texture.name==actions&&
+                    fadedBoot.Length==1&&
+                    fadedBoot[0].color.a<boot.color.a&&
+                    Math.Abs(fadedBoot[0].rect.y-boot.rect.y)<.001f&&
+                    Math.Abs(middleActors[0].rect.y-windup.rect.y)<.001f,
+                    "Boot contact faded while the single authored cast body and pivot stayed fixed");
                 g.companionAction.elapsed=.10f;
                 Clear();
                 var firing=Draw(app,"DrawCompanionActor");
@@ -303,7 +306,7 @@ public static class ActorRegistrationChecks
             Check(fresh.texture.name==approved&&freshCell==0,
                 "Re-selected same companion must not retain hidden old airborne pose");
         }
-        Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: forward footfall recovery, immediate full action frames and faded planted contacts, selection-generation reset and idle");
+        Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: forward footfall recovery, exactly one whole-body action, source-painted soil contacts (no second head/weapon), reset and idle");
     }
     static void Enemies(FrontierRuntime app,string folder)
     {

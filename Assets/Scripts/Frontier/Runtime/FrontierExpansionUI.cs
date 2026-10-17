@@ -21,15 +21,6 @@ namespace Starfall
         private float companionStopTime;
         private ActorAction companionTrackedAction;
         private bool companionAttackStartedFromWalk;
-        // Map four complete authored poses to contacts/flight phases. A
-        // shuffle must resolve FORWARD to the next real ground contact:
-        // lift(1)->opposite plant(2), lift(3)->original plant(0).
-        // Never repaint or translate isolated limbs.
-        private static int NextCompanionGroundContact(int phase)
-        {
-            phase=(phase%4+4)%4;
-            return phase==1?2:phase==3?0:phase;
-        }
         private int CompanionStopPose(float seconds)
         {
             int from=(companionLastWalkFrame%4+4)%4;
@@ -146,28 +137,34 @@ namespace Starfall
                         CurrentWorldVisualLook.companionAttackPlantSeconds,
                         action.contact*.42f)&&publishedWalk)
             {
-                // Do not BLOCK the real windup with one or two old walking
-                // frames. GameCore's attack begins immediately, and its
-                // WHOLE authored bow/cast body must be visible from the
-                // very first action repaint. Only an optional lightweight
-                // planted-boot afterimage holds the gait continuity.
-                int plant=companionLastWalkFacing==row?
-                    NextCompanionGroundContact(companionLastWalkFrame):0;
+                // PREVIOUS DEFECT: the 24%-opaque "boot afterimage" was
+                // actually an ENTIRE prior whole-body Walk Sprite, including
+                // a second head, torso, hands and sometimes visible bow.
+                // The first cast/attack then had TWO overlapping actors,
+                // creating a ghost waist/weapon flash at transition.
+                // Preserve gait readability only with genuine source-painted
+                // contact DIRT at the original planted foot. Exactly ONE
+                // authored full-body action Sprite remains on the stage.
                 companionWasWalking=false;
                 float duration=Math.Min(
                     CurrentWorldVisualLook.companionAttackPlantSeconds,
                     action.contact*.42f);
                 if(!Game.save.reducedMotion&&Game.save.effectsQuality>0&&
-                    !drawingOutline&&duration>.001f)
+                   !drawingOutline&&effectSheet!=null&&duration>.001f)
                 {
                     float fade=Mathf.Clamp01(1f-action.elapsed/duration);
-                    Actor(companionWalkSheets[id],4,3,row*4+plant,
-                        p,192f,new Color(tint.r,tint.g,tint.b,
-                            tint.a*.24f*fade),flip);
+                    string surface=FrontierAudio.FootSurface(
+                        Game,Game.companionPosition);
+                    float width=surface=="snow"?24f:26f;
+                    float height=surface=="snow"?18f:13f;
+                    int sourceCell=surface=="snow"?6:2;
+                    Atlas(effectSheet,4,4,sourceCell,
+                        new Rect(p.x-width*.5f,p.y-height*.58f,
+                            width,height),
+                        FootfallTint(surface,tint.a*.22f*fade),flip);
                 }
-                // The action cell is rendered LAST and at full visibility.
-                // No combat timeline, input, weapon mount or feet are
-                // synthesized or delayed.
+                // The original action pose immediately replaces all older
+                // body pixels. Combat clocks, aim and foot pivot are unchanged.
                 Actor(companionSheets[id],3,4,frame,p,192f,tint,
                     !north&&!(south&&action!=null)&&direction.x<-.1f);
             }
