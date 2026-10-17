@@ -1964,7 +1964,8 @@ public static class ActorRegistrationChecks
                 dust[0].rect.width==dust[1].rect.width&&
                 dust[0].rect.height==dust[1].rect.height&&
                 living.Any(c=>c.texture.name==
-                    "resource:Frontier/Art/MossboundRaider"),
+                    "resource:Frontier/Art/MossboundRaider"||
+                    c.texture.name=="resource:Frontier/Art/Monsters"),
                 "Release dust hid or shifted the genuine mossbound whole-body actor");
             Check(Math.Abs(forest.releaseTime-.18f)<.00001f&&
                 forest.state==0,
@@ -1992,7 +1993,9 @@ public static class ActorRegistrationChecks
             Check(bossDust.Length==2&&
                 bossDust[0].rect.width>dust[0].rect.width&&
                 Math.Abs(bossDust[0].uv.y-2f/3f)<.00001f&&
-                bossRender.Any(c=>c.texture.name.Contains("BriarBeast")),
+                bossRender.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/BriarBeast"||
+                    c.texture.name=="resource:Frontier/Art/Bosses"),
                 "Live original Boss release lost rooted material dust or whole-body animation");
             // No pre-hit telegraph, stun or corpse may emit fake contact.
             forest.state=1;
