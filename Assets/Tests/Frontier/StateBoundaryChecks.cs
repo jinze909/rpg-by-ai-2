@@ -395,5 +395,36 @@ namespace Starfall.Tests
             }
         }
 
+        public static void AbortedTravelerAmbushCannotKeepRaiderArrowsAlive(Campaign data)
+        {
+            var g = Fresh(data);
+            g.enemies.Clear(); g.projectiles.Clear(); g.effects.Clear();
+            g.save.x = 18.5f; g.save.y = 14.5f; g.invulnerable = 100;
+            var archer = new Enemy(82011, 1, 21.5f, 14.5f, 100);
+            archer.state = 1; archer.timer = .005f;
+            archer.target = g.Position; archer.Face(new Point(-1, 0));
+            g.enemies.Add(archer);
+            var playerShot = new Projectile { position = new Point(12, 14),
+                velocity = new Point(1, 0), friendly = true, damage = 0, life = 3 };
+            var ambient = new Effect("discover", new Point(12, 14), 3);
+            g.projectiles.Add(playerShot); g.effects.Add(ambient);
+            g.Tick(.05f, new Point());
+            Projectile arrow = g.projectiles.Find(p => !p.friendly);
+            Check(arrow != null && arrow.wayfarerOwned && arrow.age == 0,
+                "Actual traveler raider projectile preserves its rescue mission ownership from launch");
+            var cleanup = typeof(GameCore).GetMethod("ResetWayfarerEncounter",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Check(cleanup != null, "Original escort cleanup function exists");
+            cleanup.Invoke(g, new object[0]);
+            Check(!g.enemies.Contains(archer) &&
+                !g.projectiles.Contains(arrow) &&
+                g.projectiles.Contains(playerShot) && g.effects.Contains(ambient),
+                "A failed ambush retires only its attackers and outgoing arrows, not unrelated player combat");
+            g.Tick(.05f, new Point());
+            Check(!g.projectiles.Contains(arrow) && g.projectiles.Contains(playerShot),
+                "The canceled ambush cannot resurrect its hostile shot on the next gameplay frame");
+        }
+
     }
 }

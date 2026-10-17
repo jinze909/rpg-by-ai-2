@@ -14,7 +14,15 @@ namespace Starfall
         public float WayfarerIntegrity { get { return wayfarerIntegrity; } }
         private static bool IsWayfarerEnemy(Enemy e) { return e != null && e.id >= 82000 && e.id < 82100; }
         private void ResetWayfarerEncounter()
-        { wayfarerEncounterRoom = 0; wayfarerIntegrity = 0; wayfarerWarned = wayfarerAidUsed = false; }
+        {
+            // Retire a rescue's own raiders, inbound arrows and warnings
+            // on cancellation, failure, restart and save reload.
+            enemies.RemoveAll(IsWayfarerEnemy);
+            projectiles.RemoveAll(p => p.wayfarerOwned);
+            effects.RemoveAll(e => e.wayfarerOwned);
+            wayfarerEncounterRoom = 0; wayfarerIntegrity = 0;
+            wayfarerWarned = wayfarerAidUsed = false;
+        }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
         private bool TalkWayfarer(WorldObject o)
         {
