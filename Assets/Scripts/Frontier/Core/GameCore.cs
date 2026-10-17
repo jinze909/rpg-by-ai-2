@@ -865,6 +865,27 @@ namespace Starfall
                 save.health = 0; save.coins = Math.Max(0, save.coins - 10); BeginDeath();
             }
         }
+        // Every effect created by an authored enemy attack belongs to the
+        // SAME live encounter as its projectile. When that encounter ends,
+        // retiring its threats must also retire pending circles, release
+        // poses and contact flashes. Untagged ambient/world effects survive.
+        private void TagEnemyCombatEffect(Effect effect, Enemy attacker,
+            bool targetsCivilian = false)
+        {
+            effect.reliefMissionOwned = IsReliefMissionEnemy(attacker) || targetsCivilian;
+            effect.rootHarmonyOwned = IsRootHarmonyEnemy(attacker);
+            effect.commonsRelayOwned = IsCommonsRelayEnemy(attacker);
+            effect.glasswindOwned = IsGlasswindEnemy(attacker);
+            effect.tideSalvageOwned = IsTideSalvageEnemy(attacker);
+            effect.temperOwned = IsTemperEnemy(attacker);
+            effect.mineConvoyOwned = IsMineConvoyEnemy(attacker);
+            effect.frostSignalOwned = IsFrostSignalEnemy(attacker);
+            effect.triadOwned = IsTriadEnemy(attacker);
+            effect.witnessOwned = IsWitnessEnemy(attacker);
+            effect.courierOwned = IsFarCourierRaider(attacker);
+            effect.civicResponseOwned = IsCivicResponseEnemy(attacker);
+            effect.lastDirectiveOwned = IsLastDirectiveEnemy(attacker);
+        }
         private void UpdateEnemies(float dt)
         {
             tickingEnemies.Clear();tickingEnemies.AddRange(enemies);
@@ -919,13 +940,11 @@ namespace Starfall
                     {
                         e.releaseTime = e.boss ? .38f : .24f;
                         sound = e.boss || e.kind == 2 ? "slam" : e.kind == 1 ? "arrow" : "attack";
-                        effects.Add(new Effect("enemyRelease", e.Position, .24f) {
-                            direction = e.facing, variant = e.boss ? 10 + save.room : e.kind,
-                            reliefMissionOwned = IsReliefMissionEnemy(e) ||
-                                escortPatrol && e.targetingReliefCivilian,
-                            rootHarmonyOwned = IsRootHarmonyEnemy(e),
-                            mineConvoyOwned = IsMineConvoyEnemy(e),
-                            frostSignalOwned = IsFrostSignalEnemy(e) });
+                        var releaseEffect = new Effect("enemyRelease", e.Position, .24f) {
+                            direction = e.facing, variant = e.boss ? 10 + save.room : e.kind };
+                        TagEnemyCombatEffect(releaseEffect, e,
+                            escortPatrol && e.targetingReliefCivilian);
+                        effects.Add(releaseEffect);
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
@@ -933,10 +952,11 @@ namespace Starfall
                             // actual contact it becomes a short impact flash,
                             // not another 450ms "incoming" danger telegraph.
                             // This feedback shares the real damage target.
-                            effects.Add(new Effect("burst", e.target, .24f) {
-                                variant = e.boss ? save.room : 0, radius = radius,
-                                mineConvoyOwned = IsMineConvoyEnemy(e),
-                                frostSignalOwned = IsFrostSignalEnemy(e) });
+                            var strikeEffect = new Effect("burst", e.target, .24f) {
+                                variant = e.boss ? save.room : 0, radius = radius };
+                            TagEnemyCombatEffect(strikeEffect, e,
+                                escortPatrol && e.targetingReliefCivilian);
+                            effects.Add(strikeEffect);
                             if ((Position - e.target).Length < radius && ClearAttackPath(e.Position, Position)) Hurt(e.boss ? 22 + e.BossPhase * 3 : 14, "slam", (Position - e.Position).Normalized);
                             else TryRewardEscapedWarning(e.target, radius);
                             if (Dying) break;
@@ -1041,12 +1061,9 @@ namespace Starfall
                         var telegraph = new Effect("danger", e.target, e.timer)
                         {
                             radius = areaAttack ? EnemyAreaRadius(e) : EnemyMeleeRadius,
-                            variant = e.boss ? save.room : 0,
-                            reliefMissionOwned = strikeCivilian,
-                            rootHarmonyOwned = IsRootHarmonyEnemy(e),
-                            mineConvoyOwned = IsMineConvoyEnemy(e),
-                            frostSignalOwned = IsFrostSignalEnemy(e)
+                            variant = e.boss ? save.room : 0
                         };
+                        TagEnemyCombatEffect(telegraph, e, strikeCivilian);
                         effects.Add(telegraph);
                         rescueWindupEffects.Remove(e);
                         rescueWindupEffects.Add(e, telegraph);

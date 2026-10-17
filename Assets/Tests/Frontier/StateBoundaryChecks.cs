@@ -255,5 +255,48 @@ namespace Starfall.Tests
                 "Completed heavy impact shows a separate short real contact flash");
         }
 
+        public static void OptionalDefenseCleanupRetiresItsOwnFullAttackTimeline(Campaign data)
+        {
+            foreach (bool glasswind in new[] { true, false })
+            {
+                var g = Fresh(data);
+                g.enemies.Clear(); g.effects.Clear();
+                g.save.x = 18.5f; g.save.y = 14.5f;
+                g.invulnerable = 100;
+                var unrelated = new Effect("discover", new Point(12, 14), 5);
+                g.effects.Add(unrelated);
+                // Both ids are actual authored optional-defense raider ranges.
+                var attacker = new Enemy(glasswind ? 89822 : 89511,
+                    2, 20.5f, 14.5f, 200);
+                attacker.timer = 0;
+                g.enemies.Add(attacker);
+                g.Tick(.05f, new Point());
+                Effect circle = g.effects.Find(e => e.kind == "danger" &&
+                    (glasswind ? e.glasswindOwned : e.commonsRelayOwned));
+                Check(circle != null && circle.life > .5f,
+                    "An actual authored defense attacker has an owned target circle before releasing damage");
+                bool delivered = false;
+                for (int n = 0; n < 18; n++)
+                {
+                    g.Tick(.05f, new Point());
+                    if (g.effects.Exists(e => e.kind == "burst" &&
+                        (glasswind ? e.glasswindOwned : e.commonsRelayOwned)))
+                    { delivered = true; break; }
+                }
+                Check(delivered && g.effects.Exists(e => e.kind == "enemyRelease" &&
+                    (glasswind ? e.glasswindOwned : e.commonsRelayOwned)),
+                    "The same enemy's contact burst and attack-release visual inherit the original mission's owner");
+                string reset = glasswind ? "ResetGlasswind" : "ResetCommonsRelayTrial";
+                var retire = typeof(GameCore).GetMethod(reset,
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(retire != null, "Original mission cleanup must remain callable");
+                retire.Invoke(g, new object[0]);
+                Check(!g.effects.Exists(e => glasswind ? e.glasswindOwned : e.commonsRelayOwned) &&
+                    !g.enemies.Contains(attacker) && g.effects.Contains(unrelated),
+                    "Real mission cancellation removes only its windup, release and contact effects while preserving unrelated world visuals");
+            }
+        }
+
     }
 }
