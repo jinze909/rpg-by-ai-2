@@ -35,6 +35,8 @@ namespace Starfall
         private void ResetGlasswind()
         {
             enemies.RemoveAll(IsGlasswindEnemy);
+            // Abort also retires hostile arrows already in midair.
+            projectiles.RemoveAll(p => p.glasswindOwned);
             hazards.RemoveAll(h => h.glasswindOwned);
             effects.RemoveAll(e => e.glasswindOwned);
             glasswindSurgeTimer=0;glasswindSurgeCycle=0;

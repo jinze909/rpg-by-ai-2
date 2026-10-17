@@ -1084,7 +1084,9 @@ namespace Starfall
         private void Fire(Enemy e, Point dir, float speed)
         { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.courierOwned=IsFarCourierRaider(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
-                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);
+            shot.commonsRelayOwned=IsCommonsRelayEnemy(e);
+            shot.glasswindOwned=IsGlasswindEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
         // Signed ray-circle entry measured from a shared flight sample.
         // A negative value means the projectile has already crossed that
         // actor's front edge. Comparing entries is still well-defined when
@@ -1110,7 +1112,7 @@ namespace Starfall
                         height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
                         mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
-                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned });
         }
@@ -1299,7 +1301,7 @@ namespace Starfall
                         reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
                         mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
-                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned });
                 }

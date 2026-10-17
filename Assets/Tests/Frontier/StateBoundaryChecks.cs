@@ -298,5 +298,42 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RetiredDefenseNeverLeavesLiveArcherShotsBehind(Campaign data)
+        {
+            foreach (bool glasswind in new[] { true, false })
+            {
+                var g = Fresh(data);
+                g.enemies.Clear(); g.projectiles.Clear();
+                g.save.x = 18.5f; g.save.y = 14.5f;
+                g.invulnerable = 100;
+                var raider = new Enemy(glasswind ? 89822 : 89512, 1, 21.5f, 14.5f, 90);
+                raider.state = 1; raider.timer = .005f;
+                raider.target = g.Position; raider.Face(new Point(-1, 0));
+                g.enemies.Add(raider);
+                var unrelated = new Projectile { position = new Point(12, 14),
+                    velocity = new Point(1, 0), damage = 0, life = 3, friendly = true };
+                g.projectiles.Add(unrelated);
+                g.Tick(.05f, new Point());
+                Projectile shot = g.projectiles.Find(p => !p.friendly);
+                Check(shot != null && shot.age == 0 &&
+                    (glasswind ? shot.glasswindOwned : shot.commonsRelayOwned),
+                    "Actual defense archer fires a frozen-at-contact arrow with its mission's true ownership");
+                var reset = typeof(GameCore).GetMethod(glasswind ?
+                    "ResetGlasswind" : "ResetCommonsRelayTrial",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(reset != null, "The original mission cleanup exists");
+                reset.Invoke(g, new object[0]);
+                Check(!g.projectiles.Contains(shot) &&
+                    !g.enemies.Contains(raider) &&
+                    g.projectiles.Contains(unrelated),
+                    "Stopping the mission retires its hostile projectile but preserves unrelated player shots");
+                g.Tick(.05f, new Point());
+                Check(!g.projectiles.Contains(shot) &&
+                    g.projectiles.Contains(unrelated),
+                    "A retired defense cannot resurrect its mid-flight arrow on the next gameplay frame");
+            }
+        }
+
     }
 }
