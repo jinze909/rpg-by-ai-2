@@ -443,5 +443,72 @@ namespace Starfall.Tests
                 "Collected cache flags and fully accounted inventories roundtrip through v2");
         }
 
+        public static void PublicWorkshopCannotConsumeIngredientsForOverfullParts(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_plan_3_care");
+            g.save.flags.Add("afterlight_done_3");
+            g.Enter(3); g.enemies.Clear();
+            WorldObject foundry = Object(g, "afterlightoutlet3");
+            g.save.x = foundry.x; g.save.y = foundry.y;
+            g.save.inventory[0] = 3; g.save.inventory[1] = 5;
+            g.save.inventory[4] = 9999;
+            Action(g, foundry.kind, "afterlight_craft");
+            Check(g.save.inventory[0] == 3 && g.save.inventory[1] == 5 &&
+                g.save.inventory[4] == 9999,
+                "Real public recycling cannot spend timber and starcrystal for parts discarded beyond the save cap");
+            g.save.inventory[4] = 9998;
+            Action(g, foundry.kind, "afterlight_craft");
+            Check(g.save.inventory[0] == 3 && g.save.inventory[1] == 5,
+                "Recycling also rejects partial room for an indivisible two-part batch");
+            g.save.inventory[4] = 9997;
+            Action(g, foundry.kind, "afterlight_craft");
+            Check(g.save.inventory[0] == 2 && g.save.inventory[1] == 3 &&
+                g.save.inventory[4] == 9999,
+                "The same real workshop charges one full recipe only after both produced parts fit");
+        }
+
+        public static void OrrinPublicReliefResponsibilityWaitsForActualGoods(Campaign data)
+        {
+            foreach(bool aid in new[] { true, false })
+            {
+                var g = Fresh(data);
+                g.save.stage = 3; g.save.ending = 2;
+                foreach(string flag in new[] { "afterlight_complete", "storm_started",
+                    "storm_complete", "storm_orrin_open", "hearing_started",
+                    "hearing_complete", "hearing_public", "boss_4",
+                    "hearing_voice_1_care", "hearing_voice_2_watch",
+                    "hearing_voice_3_care" }) g.save.flags.Add(flag);
+                g.Enter(4); g.enemies.Clear();
+                WorldObject shrine = Object(g, "shrine");
+                g.save.x = shrine.x; g.save.y = shrine.y;
+                int slot = aid ? 6 : 4;
+                string choice = aid ? "hearing_orrin_aid" : "hearing_orrin_patrol";
+                g.save.inventory[slot] = 9999;
+                Action(g, shrine.kind, choice);
+                Check(g.HearingOrrinResponsibility == 0 && !g.Has(choice) &&
+                    g.save.inventory[slot] == 9999 && g.save.ending == 2,
+                    "Full relief stack may not consume Orrin's irreversible civilian responsibility choice");
+                g.save.inventory[slot] = 9998;
+                Action(g, shrine.kind, choice);
+                Check(g.HearingOrrinResponsibility == 0 &&
+                    g.save.inventory[slot] == 9998,
+                    "Public accountability transfer remains pending if only one slot is available");
+                g.save.inventory[slot] = 9997;
+                Action(g, shrine.kind, choice);
+                Check(g.HearingOrrinResponsibility == (aid ? 1 : 2) &&
+                    g.Has(choice) && g.save.inventory[slot] == 9999 &&
+                    g.save.ending == 2,
+                    "Both public supplies are transferred only when their full inventory capacity exists");
+                g.PrepareSave();
+                var restored = new GameCore(data, CloneSave(g.save));
+                Check(restored.HearingOrrinResponsibility == (aid ? 1 : 2) &&
+                    restored.save.inventory[slot] == 9999,
+                    "Completed civic responsibility and tangible supplies persist in a v2 save");
+            }
+        }
+
     }
 }

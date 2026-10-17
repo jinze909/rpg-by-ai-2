@@ -344,8 +344,12 @@ namespace Starfall
                 if(save.room!=3 || !Has("afterlight_done_3") || AfterlightMode(3)!=1 ||
                     Dying || practicing ||
                     (Position-AfterlightPoint(3,"outlet")).Length>2.2f)return true;
-                if(Spend(1,StormPolicy(3)==2?1:2,0,0,0))
-                {save.inventory[4]+=2+(HearingComplete && HearingVoice(3)==1?1:0);revision++;sound="reward";
+                int output = 2 + (HearingComplete && HearingVoice(3) == 1 ? 1 : 0);
+                // Repeatable public workshop recipes must reject a full parts
+                // stack BEFORE charging genuine timber and starcrystal.
+                if(HasInventoryRoom(4, output) &&
+                    Spend(1,StormPolicy(3)==2?1:2,0,0,0))
+                {CreditInventory(4, output);revision++;sound="reward";
                     Notify("工房回收成功：木材 -1、星晶 -"+(StormPolicy(3)==2?1:2)+"，零件 +"+(HearingComplete && HearingVoice(3)==1?"3":"2")+"。",
                         "Public recycling: -1 timber, -"+(StormPolicy(3)==2?1:2)+" starcrystal, +"+(HearingComplete && HearingVoice(3)==1?"3":"2")+" actual machine parts.");}
                 return true;

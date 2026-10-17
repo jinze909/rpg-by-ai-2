@@ -174,9 +174,11 @@ namespace Starfall
                     (Position-ObjectPoint(4,"shrine",new Point(-100,-100))).Length>2.2f)
                     return true;
                 bool aid=action=="hearing_orrin_aid";
+                // Each responsibility is a one-time transfer. Do not mark
+                // it fulfilled until BOTH physical supplies actually fit.
+                if(!HasInventoryRoom(aid ? 6 : 4, 2)) return true;
+                CreditInventory(aid ? 6 : 4, 2);
                 Flag(action);
-                if(aid)save.inventory[6]+=2;
-                else save.inventory[4]+=2;
                 revision++;sound="quest";
                 RecordMoment(aid?
                     "厄洛兑现战后责任：两份真实热汤交给公共医护，堡垒平民避难所获得长期治疗支持。":
