@@ -48,9 +48,17 @@ namespace Starfall
         }
         private DodgeIntent bufferedDodge;
         private void ClearBufferedDodge() { bufferedDodge = null; }
+        public void ClearBufferedCombatInputs()
+        {
+            ClearBufferedDodge();ClearBufferedSkill();ClearBufferedAttack();
+        }
         private void QueueLateDodge(Point direction)
         {
             if(dashCooldown > DodgeBufferWindow + .00001f)return;
+            // Latest valid dodge press supersedes earlier buffered attacks
+            // or Q. Otherwise a paid skill could fire during dodge cooldown
+            // and be cancelled before its actual contact frame.
+            ClearBufferedSkill();ClearBufferedAttack();
             bufferedDodge = new DodgeIntent {
                 remaining=DodgeBufferWindow,
                 direction=direction.Length>.1f?direction.Normalized:aim

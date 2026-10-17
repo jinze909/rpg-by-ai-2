@@ -209,7 +209,7 @@ namespace Starfall
             if (SaveStore.Write(Game.save)) { lastRevision = Game.revision; saveTimer = 0; hasSave = true; return true; }
             else { saveTimer = 0; Game.Notify("存档失败，请检查磁盘空间或目录权限。", "Save failed. Check disk space and folder permissions."); return false; }
         }
-        private void OnApplicationPause(bool paused) { applicationPaused = paused; if (paused) { if (Game != null) Game.ClearBufferedSkill(); Save(); } }
+        private void OnApplicationPause(bool paused) { applicationPaused = paused; if (paused) { if (Game != null) Game.ClearBufferedCombatInputs(); Save(); } }
         private void OnApplicationFocus(bool focused)
         {
             applicationFocused = focused;
@@ -218,7 +218,7 @@ namespace Starfall
                 // Focus loss freezes interactive non-world modes (such as
                 // fishing) instead of letting their cursor run unseen.
                 // World combat additionally displays the existing pause menu.
-                Game.ClearBufferedSkill();
+                Game.ClearBufferedCombatInputs();
                 // Off-window updates already freeze. Do not convert an
                 // active death pose to a persistent pause menu: on returning,
                 // mandatory respawn must continue without another keypress.

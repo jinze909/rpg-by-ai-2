@@ -91,7 +91,7 @@ namespace Starfall.Tests
             g.Tick(.04f,new Point());
             Check(g.dashTime<=0f&&g.save.energy==100f,
                 "Queued dodge started before actual cooldown completion");
-            g.Tick(.061f,new Point());
+            Advance(g,.061f);
             Check(g.dashTime>.17f&&g.invulnerable>.30f&&
                 Math.Abs(g.save.energy-80f)<.001f,
                 "Exactly one buffered dodge must start on cooldown readiness");
@@ -111,25 +111,52 @@ namespace Starfall.Tests
             g.Dash(new Point(0,1));
             Check(g.playerAction!=null,
                 "Queued cooldown dodge cancelled original windup too early");
-            g.Tick(.071f,new Point());
+            Advance(g,.071f);
             Check(g.dashTime>.17f&&g.playerAction==null,
                 "Ready buffered dodge must cancel attack and begin real mobility");
 
             g=Fresh(data);g.enemies.Clear();g.save.energy=100;
             g.dashCooldown=.09f;g.Dash(new Point(-1,0));
             g.mode="inventory";g.mode="world";
-            g.Tick(.10f,new Point());
+            Advance(g,.10f);
             Check(g.dashTime<=0f&&g.save.energy==100f,
                 "Closing menu must retire previously buffered dodge");
             g.dashCooldown=.45f;g.Dash(new Point(-1,0));
-            g.Tick(.46f,new Point());
+            Advance(g,.46f);
             Check(g.dashTime<=0f,
                 "Dodge input well outside last 140ms cannot execute later");
             g.save.energy=0;g.dashCooldown=.09f;
             g.Dash(new Point(-1,0));
-            g.save.energy=100;g.Tick(.10f,new Point());
+            g.save.energy=100;Advance(g,.10f);
             Check(g.dashTime<=0f&&g.save.energy==100f,
                 "Dodge input without enough energy cannot create a future free action");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.08f;g.Dash(new Point(0,-1));
+            g.Attack(new Point(1,0));
+            Check(g.playerAction==null&&g.save.energy==100,
+                "Held basic attack cannot spend resources before a queued dodge");
+            Advance(g,.081f);
+            Check(g.dashTime>.17f&&g.save.energy==80,
+                "Waiting dodge must outrank a simultaneous ordinary attack");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.09f;g.Dash(new Point(0,-1));
+            g.Skill(new Point(1,0));
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                g.save.energy==60,
+                "Newer deliberate Q must override queued dodge without double payment");
+            Advance(g,.10f);
+            Check(g.dashTime<=0&&g.playerAction!=null&&
+                g.playerAction.kind=="skill",
+                "A superseded dodge cannot cancel a newer skill windup");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.09f;g.Dash(new Point(0,-1));
+            g.ClearBufferedCombatInputs();
+            Advance(g,.10f);
+            Check(g.dashTime<=0f&&g.save.energy==100,
+                "Application pause/focus must retire all queued combat inputs");
         }
 
         public static void ClassesAndPause(Campaign data)

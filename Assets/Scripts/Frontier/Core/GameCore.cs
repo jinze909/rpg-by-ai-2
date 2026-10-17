@@ -524,7 +524,8 @@ namespace Starfall
         {
             if(!Finite(direction.x)||!Finite(direction.y))
                 direction=new Point();
-            if (mode != "world" || Dying || bufferedSkill != null) return;
+            if (mode != "world" || Dying || bufferedSkill != null ||
+                bufferedDodge != null) return;
             if (ActionTransitionBlocked || attackCooldown > 0)
             { QueueLateAttack(direction); return; }
             ClearBufferedAttack();
@@ -548,6 +549,9 @@ namespace Starfall
             float cost = Relic(4) ? 50 : 40;
             if (mode != "world" || Dying) return;
             if (skillCooldown > 0 || save.energy < cost) { ClearBufferedSkill(); ActionUnavailable(skillCooldown, cost); return; }
+            // A later explicit Q cancels a still-pending dodge; do not
+            // charge both actions or discard the newer deliberate input.
+            ClearBufferedDodge();
             ClearBufferedAttack(); // A requested Q outranks a queued ordinary swing.
             Point facing = direction.HasValue && Finite(direction.Value.x) && Finite(direction.Value.y) && direction.Value.Length > .05f ? direction.Value.Normalized : aim;
             if (ActionTransitionBlocked)
