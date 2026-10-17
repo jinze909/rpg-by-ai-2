@@ -635,6 +635,14 @@ namespace Starfall.Tests
             var author = Object(g, "glasswindkeeper");
             g.save.x = author.x; g.save.y = author.y;
             int xp = g.save.xp;
+            g.Talk(author);
+            Check(g.mode == "dialog" && g.conversation != null &&
+                Array.Exists(g.conversation.choices, c => c.action == "glasswind_publish"),
+                "Physical wind surveyor must offer publication after the authentic desert report and three seals; flags=" +
+                g.Has("desert_report") + "/" + g.Has("glasswind_all_sealed") +
+                " choices=" + (g.conversation == null ? "<none>" :
+                    string.Join(",", Array.ConvertAll(g.conversation.choices, c => c.action))));
+            g.Close();
             Action(g, author.kind, "glasswind_publish");
             Check(g.Has("glasswind_complete") &&
                 g.save.coins == 999999 && g.save.shards == 99999 &&
