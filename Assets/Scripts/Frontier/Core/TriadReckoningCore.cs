@@ -287,7 +287,7 @@ namespace Starfall
                     Has("triad_complete") || Has("boss_4") ||
                     (Position-ObjectPoint(0,"guild",new Point(-100,-100))).Length>2.2f)return true;
                 Flag("triad_complete");
-                save.coins+=55;save.shards+=2;AddXp(65);
+                CreditCoins(55);CreditShards(2);AddXp(65);
                 revision++;sound="reward";
                 RecordMoment("莉雅公开了屏障的真实支出。厄洛将不得不面对森林、河水、矿工三章的证词。",
                     "Lyra published the shield's true ledger. Orrin must confront the forest, river and miner testimony.");

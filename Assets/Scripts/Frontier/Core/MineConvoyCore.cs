@@ -269,7 +269,7 @@ namespace Starfall
                 ResetMineConvoy();
                 if(braceEarned)Flag("mineconvoy_braced");
                 Flag("mineconvoy_complete");
-                save.coins+=60;save.shards+=2;AddXp(80);
+                CreditCoins(60);CreditShards(2);AddXp(80);
                 revision++;sound="reward";
                 RecordMoment("赤铁矿场的最后一班工人搭乘真正穿过旧矿道的矿车抵达南侧安全矿棚。工人决定以后优先撤离人，而不是运送矿石。",
                     "Ironreach workers escaped in a physical railcart to southern shelter. Workers now evacuate people before ore.");

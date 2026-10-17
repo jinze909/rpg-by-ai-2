@@ -253,7 +253,7 @@ namespace Starfall
                     return true;
                 ResetTideSalvage();
                 Flag("tide_salvage_complete");
-                save.coins+=60;save.shards+=3;save.skillPoints++;
+                CreditCoins(60);CreditShards(3);CreditSkillPoints(1);
                 AddXp(75);revision++;sound="reward";
                 RecordMoment("潮缚货单公开：医药、粮食、航道不再被算作报废货损。",
                     "Tidebound Manifest published: medicine, food and safe passage no longer count as lost freight.");

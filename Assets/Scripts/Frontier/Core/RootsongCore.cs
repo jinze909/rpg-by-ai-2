@@ -192,7 +192,7 @@ namespace Starfall
             if(step==3)
             {
                 Flag("rootsong_complete");
-                save.coins+=45;save.shards+=2;AddXp(75);
+                CreditCoins(45);CreditShards(2);AddXp(75);
                 RecordMoment("密林的庇护、摆渡与归乡三声重新合唱，古根旁终于有了安全的休憩地。",
                     "The three forest voices of shelter, ferry and homecoming now make safe resting roots.");
                 Notify("三声归一！硬币 +45、碎片 +2、经验 +75；古树附近安全时额外恢复耐力。",

@@ -652,5 +652,27 @@ namespace Starfall.Tests
                 "An already published charter cannot issue another payout");
         }
 
+        public static void TriadAuditPublicationCreditsRealStoryWithoutSaveOverflow(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            foreach (string flag in new[] { "core_1", "core_2", "core_3",
+                "triad_started", "triad_sealed" }) g.save.flags.Add(flag);
+            g.save.coins = 999999; g.save.shards = 99999;
+            var guild = Object(g, "guild");
+            g.save.x = guild.x; g.save.y = guild.y;
+            int xp = g.save.xp;
+            Action(g, guild.kind, "triad_publish");
+            Check(g.Has("triad_complete") &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.xp > xp,
+                "Real fourth-chapter three-core audit can be published at the wallet limits without corrupting persistent totals");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.Has("triad_complete") && loaded.save.coins == 999999 &&
+                loaded.save.shards == 99999 && !loaded.Has("boss_4"),
+                "Actual evidence publication and original ending gate survive the v2 save roundtrip");
+        }
+
     }
 }

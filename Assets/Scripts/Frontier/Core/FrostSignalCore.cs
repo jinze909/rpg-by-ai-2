@@ -199,7 +199,7 @@ namespace Starfall
                 float quality=FrostSignalFlame;
                 ResetFrostSignal();
                 Flag(action);Flag("frostsignal_complete");
-                save.coins+=quality>=50?65:55;save.shards+=2;AddXp(85);
+                CreditCoins(quality>=50?65:55);CreditShards(2);AddXp(85);
                 revision++;sound="reward";
                 RecordMoment(action=="frostsignal_clinic"?
                     "霜钟高原居民重新点燃了公共火种，让寒夜里受伤的人找到疗养处。":
