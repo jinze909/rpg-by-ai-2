@@ -331,6 +331,39 @@ namespace Starfall.Tests
                 "Deferred hero contact never released on the next real free tick");
         }
 
+        public static void LockedFarEnemyAttacksPreventUnsafeFastTravel(Campaign data)
+        {
+            // Main campaign paved road, not an invented empty collision
+            // fixture. The Boss stands eight tiles away, beyond normal
+            // SafeTravel proximity, but its real target is the hero.
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.projectiles.Clear();g.hazards.Clear();
+            g.save.x=12f;g.save.y=14f;
+            var enemy=new Enemy(97601,2,20f,14f,10000,true)
+            {
+                state=1,timer=.31f,windupDuration=1.1f,
+                target=new Point(12f,14f),facing=new Point(-1,0)
+            };
+            Check(g.CanStand(g.Position)&&g.CanStand(enemy.Position),
+                "Long-range warning test requires legal road footprints");
+            g.enemies.Add(enemy);
+            Check(!g.SafeTravel,
+                "Remote Boss locked damage at hero but fast travel erased its windup");
+            enemy.target=new Point(24f,14f);
+            Check(g.SafeTravel,
+                "A remote Boss attacking far away should not block safe travel");
+            enemy.target=g.Position;
+            enemy.state=0;
+            Check(g.SafeTravel,
+                "A distant idle enemy with no committed strike cannot block travel");
+            enemy.state=1;enemy.boss=false;enemy.kind=1;
+            Check(!g.SafeTravel,
+                "Remote archer has already locked an incoming shot but travel remained enabled");
+            enemy.state=0;
+            Check(g.SafeTravel,
+                "Completed archer attack must restore travel eligibility");
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)

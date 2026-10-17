@@ -61,6 +61,21 @@ namespace Starfall
                 {
                     float dx = foe.x - x, dy = foe.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
+                    // A Boss/elite can lock an actual ground strike from
+                    // beyond the ordinary 4-6 tile safety radius. An archer
+                    // can likewise finish an already aimed long shot.
+                    // Travel must not erase an attack about to reach the
+                    // hero merely because the attacker is offscreen/far.
+                    if (foe.state != 1 ||
+                        !(foe.boss || foe.kind == 2 || foe.kind == 1))
+                        continue;
+                    float blast = foe.boss || foe.kind == 2 ?
+                        EnemyAreaRadius(foe) : .45f;
+                    float reach = dangerRadius + blast;
+                    float tx=foe.target.x-x,ty=foe.target.y-y;
+                    if (tx*tx+ty*ty<reach*reach &&
+                        ClearAttackPath(foe.Position,Position))
+                        return false;
                 }
                 // A nearby hostile shot can arrive after its archer has moved
                 // beyond the safety radius. A travel shortcut must not make
