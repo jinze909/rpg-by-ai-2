@@ -1102,6 +1102,21 @@ namespace Starfall
                         }
                         else if(heroContact)
                         {
+                            // The melee intercept already shows a readable
+                            // protective cue. Give a real body-blocked OR
+                            // shield-reflected escort arrow the same feedback,
+                            // but only if it was physically en route to the
+                            // civilian. Never award an intercept for a stray
+                            // arrow, or when the survivor was hit first.
+                            if(civilianContact)
+                            {
+                                effects.Add(new Effect("number",Position,.7f,
+                                    L("护卫拦截","INTERCEPT")){
+                                        reliefMissionOwned=true});
+                                effects.Add(new Effect("discover",
+                                    reliefFollowerPosition,.35f){
+                                        reliefMissionOwned=true});
+                            }
                             // Reflection keeps the same swept projectile;
                             // a real frontal interception still wins.
                             if(TryDeflectHostileProjectile(p))break;
@@ -1114,12 +1129,13 @@ namespace Starfall
                 if (p.friendly) projectileTargets.Clear();
                 if (dead && projectiles.Remove(p))
                 {
-                    // A failed spawn isn't a 67-pixel magic explosion;
-                    // a civilian hit already emitted its OWN grounded
-                    // impact and should not draw a duplicate at the arrow.
-                    if (startedBlocked) AddProjectileFade(p);
-                    else if (!civilianImpactProduced || reliefMissionRoom==0)
-                        effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
+                    // The original muzzle/wall contract requires a small
+                    // near-side CONTACT spark even if a projectile is born
+                    // obstructed. That is not a full mage-area explosion.
+                    // A civilian hit already emitted its rooted contact.
+                    if (!civilianImpactProduced || reliefMissionRoom==0)
+                        effects.Add(new Effect(!startedBlocked && p.explosive ?
+                            "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
                         variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
                         reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,

@@ -578,7 +578,51 @@ namespace Starfall.Tests
                     g.effects.Exists(e=>e.kind=="projectileImpact"&&
                         e.position.x>11f&&e.position.x<13f),
                     "One authoritative body hit must draw exactly ONE projectile impact, not duplicate civilian and generic sprites");
+                Check(g.effects.Exists(e=>e.kind=="number"&&
+                        e.text==g.L("护卫拦截","INTERCEPT"))==!civilianFirst,
+                    "Real arrow interception feedback appears only when the hero physically protected civilians");
             }
+        }
+
+        public static void EscortGuardReflectionPreservesRealCivilianSafety(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;
+            g.save.profession=0;g.save.weapon=0;
+            g.save.reducedMotion=true;g.save.energy=100;
+            g.SetAim(new Point(-1,0));g.guardTime=2;
+            g.invulnerable=0;
+            g.reliefMissionRoom=1;g.reliefMissionWave=3;
+            g.reliefMissionTime=90;
+            g.reliefFollowerSafety=100;
+            g.reliefFollowerPosition=new Point(12.25f,14);
+            float health=g.save.health;
+            var arrow=new Projectile{
+                position=new Point(11.75f,14),
+                velocity=new Point(10,0),
+                friendly=false,life=1,damage=14,
+                visual="enemyArrow",source="shot",
+                reliefMissionOwned=true
+            };
+            g.projectiles.Add(arrow);
+            g.Tick(.01f,new Point());
+            Check(g.projectiles.Contains(arrow)&&
+                arrow.friendly&&arrow.velocity.x<-.1f,
+                "Frontal sword guard must reflect the authentic inbound escort arrow");
+            Check(Math.Abs(g.save.health-health)<.001f&&
+                Math.Abs(g.reliefFollowerSafety-100f)<.1f&&
+                g.save.energy>=93&&g.save.energy<94,
+                "One real guard intercept pays seven energy but protects hero HP and civilian safety");
+            Check(g.effects.Exists(e=>e.kind=="number"&&
+                    e.text==g.L("护卫拦截","INTERCEPT"))&&
+                g.effects.Exists(e=>e.kind=="number"&&
+                    e.text==g.L("剑盾弹反","GUARD REFLECT")),
+                "The same physical arrow must show both rescue-interception and sword-guard feedback");
+            Check(g.effects.FindAll(e=>e.kind=="projectileImpact").Count==0,
+                "A reflected shot stays in flight and must never show a fake contact impact");
+            for(int i=0;i<4;i++)g.Tick(.02f,new Point());
+            Check(g.reliefFollowerSafety>=99f,
+                "Outbound friendly reflection cannot injure the escorted survivor");
         }
 
         public static void StarfireDetonatesOnNearSideOfRealCover(Campaign data)
@@ -639,8 +683,9 @@ namespace Starfall.Tests
                 g.Tick(.05f,new Point());
                 Check(exposed.hp==400&&
                     !g.effects.Exists(e=>e.kind=="magicImpact")&&
-                    g.effects.FindAll(e=>e.kind=="projectileFade").Count==1,
-                    "A projectile born inside solid cover must fade, never show a false magic explosion");
+                    g.effects.FindAll(e=>e.kind=="projectileImpact"&&
+                        e.radius==0).Count==1,
+                    "A wall-obstructed muzzle keeps one small contact spark, never a fake mage explosion");
                 g.projectiles.Clear();g.effects.Clear();
                 g.projectiles.Add(new Projectile{
                     position=new Point(7.5f,8.5f),
