@@ -65,8 +65,31 @@ public static class RuntimePolishChecks
             File.WriteAllText(SaveStore.PathFor(1) + ".tmp", File.ReadAllText(SaveStore.PathFor(0) + ".bak")); loaded = SaveStore.Read(1, out warning); Check(loaded.coins == 123 && warning != null, "Interrupted save recovers a verified temporary file");
             g.save.coins = 700; Check(SaveStore.Write(g.save, 1), "Independent manual slot"); g.save.coins = 800; Check(SaveStore.Write(g.save), "Separate automatic slot"); Check(SaveStore.Read(1, out warning).coins == 700 && SaveStore.Read(out warning).coins == 800, "Manual and automatic files stay independent");
             File.WriteAllText(SaveStore.PathFor(2), JsonUtility.ToJson(g.save)); Check(SaveStore.Read(2, out warning).profession == 1, "Legacy raw JSON remains readable");
+            // The full original v1 schema is still readable without adding
+            // v2 expansion fields, timestamps or an integrity envelope.
+            g.save.version = 1;
+            File.WriteAllText(SaveStore.PathFor(2), JsonUtility.ToJson(g.save));
+            loaded = SaveStore.Read(2, out warning);
+            Check(loaded != null && loaded.version == 1 && loaded.flags.Contains("测试\\\"存档"),
+                "Full historical v1 raw save retains old quest flags");
+            g.save.version = 2;
+            // A syntactically valid truncated raw JSON was formerly accepted
+            // as a new hero and could erase flags when autosaved.
+            File.WriteAllText(SaveStore.PathFor(2),
+                "{\\\"version\\\":2,\\\"room\\\":0,\\\"x\\\":18,\\\"y\\\":15,\\\"health\\\":100,\\\"coins\\\":25,\\\"inventory\\\":[4,2,4,0,2,0,1,3]}");
+            Check(SaveStore.Read(2, out warning) == null && warning != null,
+                "Partial raw save cannot silently erase quest flags or story progression");
             File.WriteAllText(SaveStore.PathFor(2), "{}"); Check(SaveStore.Read(2, out warning) == null && warning != null, "Incomplete metadata cannot become a fabricated save");
-            string before = File.ReadAllText(SaveStore.PathFor(1)); g.save.inventory = null; Check(!SaveStore.Write(g.save, 1) && File.ReadAllText(SaveStore.PathFor(1)) == before, "Invalid serialization leaves the prior save untouched");
+            // Invalid in-memory saves must never replace a valid manual slot.
+            string before = File.ReadAllText(SaveStore.PathFor(1)); g.save.inventory = null;
+            Check(!SaveStore.Write(g.save, 1) && File.ReadAllText(SaveStore.PathFor(1)) == before,
+                "Invalid inventory serialization leaves the prior save untouched");
+            g.save.inventory = new[] { 4, 2, 4, 0, 2, 0, 1, 3 };
+            var priorFlags = g.save.flags;
+            g.save.flags = null;
+            Check(!SaveStore.Write(g.save, 1) && File.ReadAllText(SaveStore.PathFor(1)) == before,
+                "Missing quest flags cannot replace the last good manual save");
+            g.save.flags = priorFlags;
             Console.WriteLine("PASS Save store checksum, Unicode, backups, interrupted writes, independent slots and legacy JSON (offline serializer)");
             app.Game.Enter(0); app.Game.Close(); app.Game.save.flags.Add("weapon_1"); app.Game.save.flags.Add("core_1"); app.Game.save.weapon = 0;
             app.Game.mode = "inventory"; Set(app, "inspectedWeapon", 1); Set(app, "inspectedStyle", 1); Invoke(app, "OnGUI"); GUI.commands.Clear();
