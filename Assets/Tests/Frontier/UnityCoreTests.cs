@@ -252,6 +252,7 @@ namespace Starfall.Tests
         [Test] public void AlternateSkillsRelicCostsAndDailyGifts() { CoreChecks.TechniquesAndTradeoffs(Data()); }
         [Test] public void ClimatePulsesKeepRealSecondsAtVariableFPS() { CoreChecks.ClimatePulsesKeepTheirRealWorldSecondAtVariableFPS(Data()); }
         [Test] public void AbyssRiftsKeepRealSixSecondCadence() { CoreChecks.AbyssRiftsKeepTheirSixSecondWorldClock(Data()); }
+        [Test] public void RiftWarningsRetainFullDodgeWindow() { CoreChecks.RiftWarningRetainsItsFullVisibleDodgeWindow(Data()); }
         [Test] public void ClimateContractsAndRaceRules() { CoreChecks.ClimateAndContracts(Data()); }
         [Test] public void AllShorePrioritiesAndCovenants() { CoreChecks.DistantCampaign(Data()); }
         [Test] public void SixFloorExpeditionAndBanking() { CoreChecks.AbyssExpeditions(Data()); }

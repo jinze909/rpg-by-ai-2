@@ -733,7 +733,12 @@ namespace Starfall
                 while (stormTimer <= .000001f)
                 {
                     stormTimer += 6f;
-                    AddHazard(Position, 1.4f, 1.4f,
+                    // This rift is born during TickExpansion, before
+                    // TickExpansion's hazard loop consumes this whole dt.
+                    // Compensate for that immediate same-frame decrement
+                    // so the player sees the full 1.4-second warning before
+                    // the real contact becomes active.
+                    AddHazard(Position, 1.4f, 1.4f + dt,
                         10 + save.abyssRisk * 4, "rift");
                 }
             }

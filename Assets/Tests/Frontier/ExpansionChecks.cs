@@ -363,6 +363,37 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RiftWarningRetainsItsFullVisibleDodgeWindow(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            Check(g.InAbyss,"Rift warning test must run in the real abyss");
+            g.enemies.Clear();g.hazards.Clear();g.effects.Clear();
+            g.save.abyssFloor=3;
+            g.save.health=g.save.maxHealth=9999;
+            g.save.reducedMotion=true;
+            Hazard warning=null;
+            for(int frame=0;frame<130 && warning==null;frame++)
+            {
+                g.Tick(.05f,new Point());
+                warning=g.hazards.Find(h=>h.kind=="rift");
+            }
+            Check(warning!=null&&
+                Math.Abs(warning.timer-1.4f)<.001f,
+                "New abyss rift must give its full 1.4s visible warning after spawning, not immediately lose a frame");
+            float health=g.save.health;
+            for(int frame=0;frame<27;frame++)
+                g.Tick(.05f,new Point());
+            Check(g.hazards.Contains(warning)&&
+                Math.Abs(g.save.health-health)<.001f,
+                "A stationary hero must not take rift damage during the announced reaction window");
+            g.Tick(.05f,new Point());g.Tick(.02f,new Point());
+            Check(!g.hazards.Contains(warning)&&
+                g.effects.Exists(e=>e.kind=="danger"&&
+                    Math.Abs(e.radius-1.4f)<.001f)&&
+                g.save.health<health,
+                "The exact same real rift must finally release one dangerous contact after its warning expires");
+        }
+
         public static void ClimateAndContracts(Campaign data)
         {
             var g = Unlocked(data); g.Enter(6); g.enemies.Clear(); g.save.x = 14; g.save.y = 10;
