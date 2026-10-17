@@ -2220,6 +2220,54 @@ public static class RenderStateChecks
             Check(atlas!=null&&atlas.width==128&&atlas.height==96&&
                 GUI.textureCalls.Count==3,
                 "Three complete action-specific painted impact families not loaded");
+            // Hot-import during actual combat. Retain the last complete
+            // 4x3 sprite family while a partial Editor asset is importing.
+            const string importPath="Frontier/Art/ImpactFlourish";
+            float initialImpactClock=Get<float>(app,"clock");
+            try
+            {
+                var updated=new Texture2D(128,96,
+                    TextureFormat.RGBA32,false){name="painted-reimport"};
+                var partial=new Texture2D(127,96,
+                    TextureFormat.RGBA32,false){name="partial-impact-import"};
+                Set(app,"clock",10f);
+                Clear();Call(app,"DrawAuthoredImpactFlourishes");
+                Check(Get<Texture2D>(app,"impactFlourishSheet")==atlas,
+                    "Original approved impact family did not survive reload");
+                Resources.TextureOverrides[importPath]=partial;
+                Set(app,"clock",12.1f);
+                Clear();Call(app,"DrawAuthoredImpactFlourishes");
+                Check(GUI.textureCalls.Count==3&&
+                    GUI.textureCalls.TrueForAll(c=>
+                        object.ReferenceEquals(c.texture,atlas)),
+                    "Partial attack effect import erased last valid original source");
+                Resources.TextureOverrides[importPath]=updated;
+                Set(app,"clock",14.2f);
+                Clear();Call(app,"DrawAuthoredImpactFlourishes");
+                Check(GUI.textureCalls.Count==3&&
+                    GUI.textureCalls.TrueForAll(c=>
+                        object.ReferenceEquals(c.texture,updated)),
+                    "Updated complete painted impact family never reached world");
+                Resources.TextureOverrides[importPath]=partial;
+                Set(app,"clock",16.3f);
+                Clear();Call(app,"DrawAuthoredImpactFlourishes");
+                Check(GUI.textureCalls.Count==3&&
+                    GUI.textureCalls.TrueForAll(c=>
+                        object.ReferenceEquals(c.texture,updated)),
+                    "New valid hit art disappeared when partial followup arrived");
+                Resources.TextureOverrides[importPath]=atlas;
+                Set(app,"clock",0f);
+                Clear();Call(app,"DrawAuthoredImpactFlourishes");
+                Check(GUI.textureCalls.Count==3&&
+                    GUI.textureCalls.TrueForAll(c=>
+                        object.ReferenceEquals(c.texture,atlas)),
+                    "Rewound world clock kept a stale contact-atlas revision");
+            }
+            finally
+            {
+                Resources.TextureOverrides.Remove(importPath);
+                Set(app,"clock",initialImpactClock);
+            }
             for(int row=0;row<3;row++)
             {
                 var call=GUI.textureCalls[row];
@@ -2233,6 +2281,30 @@ public static class RenderStateChecks
                 if(row>0)
                     Near(Center(call),Center(GUI.textureCalls[0]),
                         "Contact sprites shifted from GameCore hit anchor");
+            }
+            // At a quarter-life seam, blend two ENTIRE authored frames
+            // without shifting the collision-accurate GameCore hit origin.
+            foreach(Effect hit in game.effects)
+                hit.life=hit.maxLife*.75f; // progress .25
+            Clear();Call(app,"DrawAuthoredImpactFlourishes");
+            Check(GUI.textureCalls.Count==6,
+                "Original 4-pose impact art snapped at the frame seam");
+            for(int row=0;row<3;row++)
+            {
+                var before=GUI.textureCalls[2*row];
+                var after=GUI.textureCalls[2*row+1];
+                Check(object.ReferenceEquals(before.texture,atlas)&&
+                    object.ReferenceEquals(after.texture,atlas)&&
+                    Math.Abs(before.uv.x)<.00001f&&
+                    Math.Abs(after.uv.x-.25f)<.00001f&&
+                    Math.Abs(before.uv.y-after.uv.y)<.00001f&&
+                    Math.Abs(before.color.a-after.color.a)<.00001f&&
+                    before.color.a>0f,
+                    "Impact source seam failed to blend neighboring original keyframes");
+                Near(Center(before),Center(after),
+                    "Impact keyframe transition shifted original gameplay pivot");
+                Check(Math.Abs(before.rect.width-after.rect.width)<.00001f,
+                    "Impact seam stretched its original full-frame footprint");
             }
             // All three types obey the same source event clock but use
             // independent hand-authored frames, not procedural resizing.

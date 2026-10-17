@@ -17,18 +17,21 @@ namespace Starfall
         {
             if(Game==null||Game.save.effectsQuality<2||
                 Game.save.reducedMotion)return false;
-            if(impactFlourishSheet==null||
-               impactFlourishSheet.width!=128||
-               impactFlourishSheet.height!=96)
+            // Recheck even an ALREADY VALID source: Unity can republish
+            // original painted contact frames during an active Play session.
+            // Previously a successful first load was cached forever and
+            // slash/arrow/Boss contacts kept showing the obsolete PNG.
+            // Never swap a complete 4x3 family for a half-written import.
+            if(clock<impactFlourishLastChecked||
+               clock>=impactFlourishRetryAt)
             {
-                if(clock<impactFlourishLastChecked||
-                   clock>=impactFlourishRetryAt)
-                {
-                    impactFlourishLastChecked=clock;
-                    impactFlourishRetryAt=clock+2f;
-                    impactFlourishSheet=Resources.Load<Texture2D>(
-                        "Frontier/Art/ImpactFlourish");
-                }
+                impactFlourishLastChecked=clock;
+                impactFlourishRetryAt=clock+2f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/ImpactFlourish");
+                if(candidate!=null&&candidate.width==128&&
+                   candidate.height==96)
+                    impactFlourishSheet=candidate;
             }
             return impactFlourishSheet!=null &&
                 impactFlourishSheet.width==128 &&
@@ -65,10 +68,33 @@ namespace Starfall
             float angle=category==0?
                 (float)(Math.Atan2(effect.direction.y,
                     effect.direction.x)*180f/Math.PI):0f;
-            Atlas(impactFlourishSheet,4,3,category*4+frame,
-                new Rect(point.x-size*.5f,point.y-lift-size*.5f,
-                    size,size),
-                new Color(1f,1f,1f,opacity),false,angle);
+            Rect footprint=new Rect(point.x-size*.5f,
+                point.y-lift-size*.5f,size,size);
+            // The original four painted poses used to snap instantly at
+            // 25/50/75% of their live contact effect's clock. Crossfade the
+            // TWO complete authored Sprite cells only within a narrow seam
+            // window. This leaves action/gameplay timing and true contact
+            // pivot unchanged, with no frame interpolation or limb grafting.
+            float scaled=phase*4f;
+            int boundary=Mathf.RoundToInt(scaled);
+            const float seamHalfWidth=.20f;
+            if(boundary>0&&boundary<4&&
+               scaled>boundary-seamHalfWidth&&
+               scaled<boundary+seamHalfWidth)
+            {
+                float blend=Mathf.Clamp01(
+                    (scaled-boundary+seamHalfWidth)/
+                    (2f*seamHalfWidth));
+                Atlas(impactFlourishSheet,4,3,category*4+boundary-1,
+                    footprint,new Color(1f,1f,1f,opacity*(1f-blend)),
+                    false,angle);
+                Atlas(impactFlourishSheet,4,3,category*4+boundary,
+                    footprint,new Color(1f,1f,1f,opacity*blend),
+                    false,angle);
+            }
+            else
+                Atlas(impactFlourishSheet,4,3,category*4+frame,
+                    footprint,new Color(1f,1f,1f,opacity),false,angle);
         }
         // Independent QA entrypoint: tests sample the real source cells
         // directly, while DrawOrderedWorld owns actual in-scene occlusion.

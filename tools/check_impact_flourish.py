@@ -44,7 +44,12 @@ def main():
         'effect.kind=="enemyRelease"&&effect.variant>=10',
         'Atlas(impactFlourishSheet,4,3,category*4+frame',
         'effect.life/effect.maxLife', 'Game.save.reducedMotion',
-        'Game.save.effectsQuality<2'):
+        'Game.save.effectsQuality<2',
+        'Texture2D candidate=Resources.Load<Texture2D>',
+        'candidate.width==128&&', 'candidate.height==96',
+        'clock<impactFlourishLastChecked',
+        'boundary>0&&boundary<4',
+        'opacity*(1f-blend)', 'opacity*blend'):
         assert token in effect,("IMPACT_NOT_IN_REAL_RENDERER",token)
     assert "WorldDrawKind.ImpactFlourish" in scene and "DrawAuthoredImpactFlourish(entry.effect)" in scene, (
         "IMPACT_NOT_DEPTH_SORTED_IN_PRODUCTION")
@@ -52,5 +57,5 @@ def main():
         "IMPACT_ONLY_ORPHAN_PREVIEW")
     assert "impactFlourishAlpha=0.58" in LOOK.read_text(), (
         "IMPACT_NOT_IN_UNITY_LOOK_ASSET")
-    print("PASS 12 independent approved 32px impact-source frames, source PixelImporter, GameCore clock, real DrawWorld and artist-controlled FX")
+    print("PASS 12 unique painted impact frames, live hot-reimport guard, whole-Sprite seam blend, source GUID and sorted production scene")
 if __name__=="__main__":main()
