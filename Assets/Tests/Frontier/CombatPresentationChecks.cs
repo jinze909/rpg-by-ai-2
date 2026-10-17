@@ -505,6 +505,85 @@ namespace Starfall.Tests
             g.Attack(new Point(0, 1)); Advance(g, .25f);
             Check(open.hp < 999, "The obstruction fix preserves normal open-lane melee contacts");
         }
+        public static void CompanionAutoTargetsNearestReachableThreat(Campaign data)
+        {
+            // Combat uses the actual, ordered roster: the original Find()
+            // always chose the oldest spawned enemy, even when a closer
+            // attacker was about to strike from the opposite direction.
+            var g=Fresh(data);
+            g.Enter(1);g.enemies.Clear();
+            g.save.x=13.5f;g.save.y=14f;
+            g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            g.companionPosition=new Point(12,14);
+            var far=new Enemy(74111,0,17,14,500){stun=99,timer=99};
+            var close=new Enemy(74112,0,14,14,500){stun=99,timer=99};
+            Check(g.CanStand(far.Position)&&g.CanStand(close.Position),
+                "Companion nearest-target scenario has genuine traversable enemy feet");
+            g.enemies.Add(far);g.enemies.Add(close);
+            typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance).SetValue(g,0f);
+            g.Tick(.02f,new Point());
+            ActorAction action=g.companionAction;
+            Check(action!=null&&action.kind=="attack"&&
+                action.target.HasValue&&
+                (action.target.Value-close.Position).Length<.001f,
+                "Ivo must select the nearest visible enemy, not roster spawn order");
+            Check((action.direction-(close.Position-g.companionPosition).Normalized).Length<.001f,
+                "Companion projectile wind-up and authored facing must aim at the actual closest target");
+            Advance(g,.17f);
+            Check(action.released,
+                "Closest-target aim drives a genuine companion bow release, not a HUD-only selection");
+        }
+
+        public static void CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);
+            g.save.x=9.5f;g.save.y=8.8f;
+            g.companionPosition=new Point(9.5f,10.2f);
+            g.save.health=30;g.save.reducedMotion=true;
+            Check(g.CanStand(g.Position)&&g.CanStand(g.companionPosition)&&
+                g.Blocked(9.5f,9.5f),
+                "Healing line-of-sight fixture retains the genuine forest wall");
+            var cooldown=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            cooldown.SetValue(g,0f);
+            g.Tick(.02f,new Point());
+            Check(g.companionAction==null&&g.save.health==30,
+                "An ally across solid forest stone cannot start a remote automatic heal");
+
+            // Move the ally into the actual reachable side of the wall.
+            g.companionPosition=new Point(10.5f,8.8f);
+            Check(g.CanStand(g.companionPosition),
+                "Nearby healing partner must occupy a legal foot collider");
+            cooldown.SetValue(g,0f);g.Tick(.02f,new Point());
+            ActorAction heal=g.companionAction;
+            Check(heal!=null&&heal.kind=="heal"&&!heal.released,
+                "After regaining real line of sight the ally can start its normal heal");
+
+            // A fast transition after cast preparation cannot pay health
+            // through the old wall at the release frame.
+            g.save.y=10.2f;g.save.x=9.5f;
+            Advance(g,.18f);
+            Check(heal.released&&g.save.health==30&&
+                !g.effects.Exists(e=>e.kind=="number"&&e.text=="+HP"),
+                "Healing contact is canceled if the hero crosses a wall before release");
+            Advance(g,.35f);
+            g.save.y=8.8f;g.save.x=9.5f;
+            cooldown.SetValue(g,0f);g.Tick(.02f,new Point());
+            heal=g.companionAction;
+            Check(heal!=null&&heal.kind=="heal",
+                "Same ally reattempts healing when the real player returns to range");
+            Advance(g,.18f);
+            Check(g.save.health>30&&g.effects.Exists(e=>
+                e.kind=="number"&&e.text=="+HP"),
+                "Genuine unobstructed ally healing still restores HP on its contact frame");
+        }
+
         public static void CompanionPreparationAndSafeFollowing(Campaign data)
         {
             for (int id = 0; id < 3; id++)

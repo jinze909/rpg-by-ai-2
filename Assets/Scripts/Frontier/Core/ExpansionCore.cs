@@ -324,6 +324,30 @@ namespace Starfall
             foreach (Point offset in companionOffsets) if (Fits(Position + offset)) return Position + offset;
             return Fits(companionPosition) && (companionPosition - Position).Length < 6 ? companionPosition : Position;
         }
+        private bool CanCompanionHeal()
+        {
+            // Auto-healing follows the same physical accessibility as
+            // companion attacks; no heals through a closed gate, house or
+            // rising tide, and none from an ally left far behind.
+            return (Position-companionPosition).Length<=6f &&
+                Fits(companionPosition) &&
+                ClearAttackPath(companionPosition,Position);
+        }
+        private Enemy NearestCompanionThreat()
+        {
+            Enemy nearest=null;
+            float best=7f*7f;
+            foreach(Enemy foe in enemies)
+            {
+                if(foe==null || foe.hp<=0)continue;
+                Point delta=foe.Position-companionPosition;
+                float squared=delta.x*delta.x+delta.y*delta.y;
+                if(squared>=best || !ClearAttackPath(companionPosition,foe.Position))
+                    continue;
+                best=squared;nearest=foe;
+            }
+            return nearest;
+        }
         private void TickCompanion(float dt)
         {
             companionMoving = false;
@@ -339,7 +363,18 @@ namespace Starfall
                     action.released = true;
                     if (action.kind == "command") ReleaseCompanionCommand(action);
                     else if (action.kind == "heal")
-                    { save.health = Math.Min(save.maxHealth, save.health + 6 + action.combo); effects.Add(new Effect("number", Position, .7f, "+HP")); sound = "skill"; }
+                    {
+                        // A prepared heal is not a remote teleport. If the
+                        // player crossed a wall/portal before the release
+                        // frame, cancel the contact rather than paying out
+                        // health and a false "+HP" effect through terrain.
+                        if (CanCompanionHeal() && save.health < save.maxHealth)
+                        {
+                            save.health = Math.Min(save.maxHealth, save.health + 6 + action.combo);
+                            effects.Add(new Effect("number", Position, .7f, "+HP"));
+                            sound = "skill";
+                        }
+                    }
                     else
                     {
                         projectiles.Add(FriendlyShot(companionPosition, action.weapon == 1 ? 1 : 2, action.direction, 9, action.damage, action.weapon == 2, action.target, action.impact));
@@ -368,12 +403,18 @@ namespace Starfall
             if (companionAttack > 0) return;
             companionAttack = save.companion == 1 ? 2.8f : 6;
             string kind = null; Point direction = aim;Point? attackTarget=null;
-            if (save.companion == 0 && save.health < save.maxHealth * .8f)
+            if (save.companion == 0 && save.health < save.maxHealth * .8f &&
+                CanCompanionHeal())
             { kind = "heal"; direction = (Position - companionPosition).Normalized; }
             else
             {
-                Enemy target = enemies.Find(e => (e.Position - companionPosition).Length < 7 && ClearAttackPath(companionPosition, e.Position));
-                if (target != null) { kind = "attack"; direction = (target.Position - companionPosition).Normalized;attackTarget=target.Position; }
+                Enemy target = NearestCompanionThreat();
+                if (target != null)
+                {
+                    kind = "attack";
+                    direction = (target.Position-companionPosition).Normalized;
+                    attackTarget = target.Position;
+                }
             }
             if (kind != null)
             {
