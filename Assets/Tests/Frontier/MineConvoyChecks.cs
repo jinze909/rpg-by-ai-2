@@ -159,8 +159,9 @@ namespace Starfall.Tests
                 g.effects.Exists(e=>e.kind=="projectileFade"&&e.frostSignalOwned),
                 "Real projectile expiration tags the correct authored combat source");
             Check(g.effects.Exists(e=>e.kind=="enemyRelease"&&e.mineConvoyOwned)&&
-                g.effects.Exists(e=>e.kind=="danger"&&e.mineConvoyOwned),
-                "An actual minecart raider's windup/release warnings inherit mission ownership");
+                g.effects.Exists(e=>e.kind=="burst"&&e.mineConvoyOwned)&&
+                !g.effects.Exists(e=>e.kind=="danger"&&e.mineConvoyOwned),
+                "Minecart raider release and post-contact burst inherit mission ownership without a phantom danger warning");
             g.Talk(west);
             Check(MineCartTestChoice(g,"mineconvoy_abort"),
                 "The western civilian post can actually cancel its active fight");
