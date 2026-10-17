@@ -155,3 +155,9 @@ canopyWhisperFrameRate=5.5
 # The accepted full illustrated WorldProps ruin remains unchanged.
 ruinSigilAlpha=0.42
 ruinSigilFrameRate=3.5
+
+# Three original material-specific enemy/Boss contact dust families:
+# moss leaves, ember grit and cold arcane shards, beneath whole actor bodies.
+# Driven ONLY by GameCore Enemy.releaseTime. No new gameplay hit radius.
+enemyReleaseDustAlpha=0.48
+enemyReleaseDustSeam=0.18

@@ -577,6 +577,9 @@ namespace Starfall
         private void DrawEnemyActor(Enemy e)
         {
             Point p = ScreenPoint(e.Position); float size = e.boss ? BossCanvasSize(Game.save.room) : e.kind == 2 ? 106 : 96;
+            // GameCore-release ground contact paints BEFORE the native
+            // whole-body Sprite; original boots, weapons and hit frames win.
+            DrawAuthoredEnemyReleaseDust(e,p,size);
             DrawActorContactShadow(p,size*.57f,e.boss?24:16,
                 e.boss?8+GameCore.GaitFrame(e.moveTime,2.8f):
                     e.kind==0?4:e.kind==1?5:6,.84f);

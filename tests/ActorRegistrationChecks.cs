@@ -18,7 +18,8 @@ public static class ActorRegistrationChecks
         !c.texture.name.Contains("Effects")&&
         !c.texture.name.EndsWith("/HeroMotionAccents")&&
         !c.texture.name.EndsWith("/CoastlineRemaster")&&
-        !c.texture.name.EndsWith("/ActorContactShadows");}
+        !c.texture.name.EndsWith("/ActorContactShadows")&&
+        !c.texture.name.EndsWith("/EnemyReleaseDust");}
     static void Density(GUI.TextureCall[] calls,float density)
     {
         foreach(var c in calls.Where(ActorTexture))
@@ -1923,6 +1924,134 @@ public static class ActorRegistrationChecks
     // ActorRegistrationChecks.Run's optional review-gallery entrypoint.
     // The accepted regional Boss Idle (320px) and Walk (384px) canvases
     // previously popped 20% in one repaint despite a fade of two bodies.
+    // This tests the ACTUAL DrawEnemyActor production method and all three
+    // region-material pixel families, not a disconnected atlas gallery.
+    public static void VerifyOriginalEnemyReleaseDust(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        int originalQuality=game.save.effectsQuality;
+        bool originalReduced=game.save.reducedMotion;
+        float originalClock=(float)typeof(FrontierRuntime).GetField(
+            "clock",Private).GetValue(app);
+        string key="Frontier/Art/EnemyReleaseDust";
+        Texture2D priorImport;
+        bool hadImport=Resources.TextureOverrides.TryGetValue(
+            key,out priorImport);
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            // First event is a normal forest attacker: middle of a true
+            // GameCore quarter-source seam, hence TWO complete source cells.
+            var forest=new Enemy(99460,0,12,14,125){
+                releaseTime=.18f,facing=new Point(1,0),state=0};
+            Set(app,"clock",3f);
+            Clear();var living=Draw(app,"DrawEnemyActor",forest);
+            var dust=living.Where(c=>c.texture.name==
+                "resource:Frontier/Art/EnemyReleaseDust").ToArray();
+            Check(dust.Length==2&&
+                dust[0].texture.width==192&&dust[0].texture.height==72&&
+                Math.Abs(dust[0].uv.y-2f/3f)<.00001f&&
+                Math.Abs(dust[1].uv.y-2f/3f)<.00001f&&
+                Math.Abs(dust[0].uv.x)<.00001f&&
+                Math.Abs(dust[1].uv.x-.25f)<.00001f&&
+                Math.Abs(dust[0].color.a-dust[1].color.a)<.00001f,
+                "Moss enemy release did not crossfade two complete original 48px soil cells");
+            var originalSheet=dust[0].texture;
+            Check(dust[0].rect.x==dust[1].rect.x&&
+                dust[0].rect.y==dust[1].rect.y&&
+                dust[0].rect.width==dust[1].rect.width&&
+                dust[0].rect.height==dust[1].rect.height&&
+                living.Any(c=>c.texture.name==
+                    "resource:Frontier/Art/MossboundRaider"),
+                "Release dust hid or shifted the genuine mossbound whole-body actor");
+            Check(Math.Abs(forest.releaseTime-.18f)<.00001f&&
+                forest.state==0,
+                "Decorative dust advanced authoritative attack timing or gameplay");
+            // Force the same literal source sheet to be selected through
+            // archer cold ash and cinder guard, without inventing damage.
+            foreach(int kind in new[]{1,2})
+            {
+                var foe=new Enemy(99461+kind,kind,12,14,125){
+                    releaseTime=.12f,state=0,facing=new Point(1,0)};
+                Clear();var painted=Draw(app,"DrawEnemyActor",foe);
+                var pair=painted.Where(c=>c.texture==originalSheet).ToArray();
+                int row=kind==1?2:1;
+                Check(pair.Length==2&&
+                    Math.Abs(pair[0].uv.y-(2-row)/3f)<.00001f&&
+                    Math.Abs(pair[1].uv.y-(2-row)/3f)<.00001f,
+                    "Archer/guard painted dust sampled wrong independent regional source row");
+            }
+            // Boss idle->windup blends must not determine ground shock pose:
+            // only the actual Boss releaseTime controls visual contact.
+            var boss=new Enemy(99469,0,12,14,400,true){
+                releaseTime=.285f,state=0,facing=new Point(1,0)};
+            Clear();var bossRender=Draw(app,"DrawEnemyActor",boss);
+            var bossDust=bossRender.Where(c=>c.texture==originalSheet).ToArray();
+            Check(bossDust.Length==2&&
+                bossDust[0].rect.width>dust[0].rect.width&&
+                Math.Abs(bossDust[0].uv.y-2f/3f)<.00001f&&
+                bossRender.Any(c=>c.texture.name.Contains("BriarBeast")),
+                "Live original Boss release lost rooted material dust or whole-body animation");
+            // No pre-hit telegraph, stun or corpse may emit fake contact.
+            forest.state=1;
+            Clear();Check(!Draw(app,"DrawEnemyActor",forest).Any(c=>
+                c.texture==originalSheet),
+                "Windup falsely acquired post-hit contact dust");
+            forest.state=0;forest.stun=.1f;
+            Clear();Check(!Draw(app,"DrawEnemyActor",forest).Any(c=>
+                c.texture==originalSheet),
+                "Interrupted enemy kept a striking dust silhouette");
+            forest.stun=0;forest.releaseTime=0;
+            Clear();Check(!Draw(app,"DrawEnemyActor",forest).Any(c=>
+                c.texture==originalSheet),
+                "Ground dust looped after the real gameplay release ended");
+            forest.releaseTime=.18f;
+            game.save.reducedMotion=true;
+            Clear();Check(!Draw(app,"DrawEnemyActor",forest).Any(c=>
+                c.texture==originalSheet),
+                "Reduced motion failed to suppress only optional ground wave");
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=1;
+            Clear();Check(!Draw(app,"DrawEnemyActor",forest).Any(c=>
+                c.texture==originalSheet),
+                "Medium settings must preserve body but omit optional ground overdraw");
+            game.save.effectsQuality=2;
+            // Incomplete editor imports must not overwrite the last full
+            // three-material source, then a corrected atlas must hot-reload.
+            Resources.TextureOverrides[key]=new Texture2D(
+                191,72,TextureFormat.RGBA32,false){
+                name="partial-enemy-release-paint"};
+            Set(app,"clock",7f);Clear();
+            var partial=Draw(app,"DrawEnemyActor",forest);
+            Check(partial.Any(c=>c.texture==originalSheet),
+                "Partial imported Boss/enemy dust replaced approved full atlas");
+            var revised=new Texture2D(192,72,TextureFormat.RGBA32,false){
+                name="corrected-original-release-paint"};
+            Resources.TextureOverrides[key]=revised;
+            Set(app,"clock",10f);Clear();
+            var corrected=Draw(app,"DrawEnemyActor",forest);
+            Check(corrected.Any(c=>c.texture==revised),
+                "Corrected original sprite source did not hot reload in live world");
+            Resources.TextureOverrides[key]=originalSheet;
+            Set(app,"clock",0f);Clear();
+            var rewound=Draw(app,"DrawEnemyActor",forest);
+            Check(rewound.Any(c=>c.texture==originalSheet),
+                "Restarted gameplay clock kept stale release contact art");
+            Console.WriteLine("PASS 12 original enemy/Boss ground contact cells: actual release clock, 3 palettes, whole body, seam blend, frozen root, interruptions, accessibility, atomic reimport");
+        }
+        finally
+        {
+            if(hadImport)Resources.TextureOverrides[key]=priorImport;
+            else Resources.TextureOverrides.Remove(key);
+            Set(app,"clock",originalClock);
+            game.save.effectsQuality=originalQuality;
+            game.save.reducedMotion=originalReduced;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyBossWholeBodySizeAcrossIdleRun(FrontierRuntime ignored)
     {
         var app=new FrontierRuntime();

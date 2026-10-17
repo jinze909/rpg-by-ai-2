@@ -72,6 +72,8 @@ namespace Starfall
             // bodies and phase-cue particles, never GameCore attack timing.
             public float nonheroAtlasHandoffSeconds=.105f;
             public float bossPhaseMoteAlpha=.26f;
+            public float enemyReleaseDustAlpha=.48f;
+            public float enemyReleaseDustSeam=.18f;
             public float impactFlourishAlpha=.58f;
             public float deathPoseBlendFraction=.24f;
             // Source-authored companion cadence, not generated anatomy.
@@ -276,6 +278,12 @@ namespace Starfall
                             case "bossPhaseMoteAlpha":
                                 if(value>=.12f&&value<=.32f)
                                     settings.bossPhaseMoteAlpha=value;break;
+                            case "enemyReleaseDustAlpha":
+                                if(value>=.15f&&value<=.65f)
+                                    settings.enemyReleaseDustAlpha=value;break;
+                            case "enemyReleaseDustSeam":
+                                if(value>=.08f&&value<=.32f)
+                                    settings.enemyReleaseDustSeam=value;break;
                             case "impactFlourishAlpha":
                                 if(value>=.2f&&value<=.75f)
                                     settings.impactFlourishAlpha=value;break;
