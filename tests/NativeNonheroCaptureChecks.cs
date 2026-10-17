@@ -726,6 +726,83 @@ public static class NativeNonheroCaptureChecks
         }
         finally {release.Invoke(pixelUploadRuntime,null);}
         Console.WriteLine("PASS same-object Texture.updateCount recaptures current and flipped full bodies without tearing in-flight GUI targets");
+        // Production asset reimports may RESIZE a Texture2D without changing
+        // its Unity instance ID. Prior source-cell rectangles, imported sets,
+        // native GPU capture dimensions and planted-foot pixels must be
+        // invalidated together, not only the upload revision. Never destroy
+        // the preceding GUI command's target during that same repaint.
+        var resizedRuntime=new FrontierRuntime();
+        var resizedSheet=new Texture2D(512,512,TextureFormat.RGBA32,false);
+        var resizedFrames=(System.Collections.IDictionary)
+            typeof(FrontierRuntime).GetField("actorFrameSprites",
+                BindingFlags.Instance|BindingFlags.NonPublic).
+                GetValue(resizedRuntime);
+        var resizedCaptures=(System.Collections.IDictionary)
+            typeof(FrontierRuntime).GetField("actorCapturedFrames",
+                BindingFlags.Instance|BindingFlags.NonPublic).
+                GetValue(resizedRuntime);
+        string resizedKey=resizedSheet.GetInstanceID()+":4:4:0";
+        try
+        {
+            Time.frameCount=21000;
+            Require((bool)method.Invoke(resizedRuntime,new object[]{
+                resizedSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                (bool)method.Invoke(resizedRuntime,new object[]{
+                resizedSheet,4,4,0,new Point(200,220),96f,
+                Color.white,true,0f}),
+                "Initial normal/mirrored nonhero shape probes failed");
+            var beforeResize=(RenderTexture)GUI.DrawnTextures[
+                GUI.DrawnTextures.Count-2];
+            var oldRectSprite=(Sprite)resizedFrames[resizedKey];
+            int renderedBeforeResize=Camera.RenderedTargets.Count;
+            Require(beforeResize.width==128 && oldRectSprite.rect.width==128,
+                "Original 128px source was not captured at native size");
+
+            resizedSheet.width=768;resizedSheet.height=768;
+            bool deferred=(bool)method.Invoke(resizedRuntime,new object[]{
+                resizedSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f});
+            Require(!deferred && !beforeResize.destroyed &&
+                Camera.RenderedTargets.Count==renderedBeforeResize &&
+                ReferenceEquals(resizedFrames[resizedKey],oldRectSprite),
+                "Resized atlas destroyed a pending GUI texture instead of using exact source fallback");
+
+            Time.frameCount=21001;
+            Require((bool)method.Invoke(resizedRuntime,new object[]{
+                resizedSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                (bool)method.Invoke(resizedRuntime,new object[]{
+                resizedSheet,4,4,0,new Point(200,220),96f,
+                Color.white,true,0f}),
+                "Resized full-body source did not recover on next repaint");
+            var newRectSprite=(Sprite)resizedFrames[resizedKey];
+            var newCapture=(RenderTexture)GUI.DrawnTextures[
+                GUI.DrawnTextures.Count-2];
+            Require(beforeResize.destroyed && oldRectSprite.destroyed &&
+                !ReferenceEquals(oldRectSprite,newRectSprite) &&
+                newRectSprite.rect.width==192 &&
+                newRectSprite.rect.height==192 &&
+                newCapture.width==192 && newCapture.height==192 &&
+                Camera.RenderedTargets.Count==renderedBeforeResize+2 &&
+                resizedCaptures.Count==2,
+                "Old geometry/Sprite or GPU frame leaked into new monster-size atlas");
+
+            Time.frameCount=21002;
+            resizedSheet.width=512;resizedSheet.height=512;
+            Require((bool)method.Invoke(resizedRuntime,new object[]{
+                resizedSheet,4,4,0,new Point(200,220),96f,
+                Color.white,false,0f})&&
+                newCapture.destroyed && newRectSprite.destroyed &&
+                ((RenderTexture)GUI.DrawnTextures[
+                    GUI.DrawnTextures.Count-1]).width==128 &&
+                ((Sprite)resizedFrames[resizedKey]).rect.width==128 &&
+                resizedCaptures.Count==1,
+                "Second canvas revision retained the previously approved 192px body");
+        }
+        finally {release.Invoke(resizedRuntime,null);}
+        Console.WriteLine("PASS same-object native atlas resize: pending-GUI safety, imported geometry eviction, full-body capture at source dimensions");
+
         // Controller-only live art reimport: the 18 published Monsters
         // source cells stay IDENTICAL, but a new Animator Controller must
         // invalidate all previously rendered GPU pose caches (both faces).

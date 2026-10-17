@@ -50,6 +50,11 @@ namespace Starfall
             new Dictionary<string, CapturedActorFrame>();
         private readonly Dictionary<string, Sprite> actorFrameSprites =
             new Dictionary<string, Sprite>();
+        // The same Texture2D instance may be reimported with a NEW atlas
+        // canvas. Frame/flip keys intentionally use its stable instance ID,
+        // so a shape change must retire all older rects and GPU targets.
+        private readonly Dictionary<int,long> actorSourceGeometry =
+            new Dictionary<int,long>();
         // Imported Unity Sprite sub-assets are shared, not owned. Cache
         // complete, frame-rect verified sets for the 17 native families.
         private readonly Dictionary<int,Sprite[]> actorImportedFrameSets =
@@ -140,6 +145,70 @@ namespace Starfall
             actorCaptureObservedFrame = current;
         }
 
+        // A Unity Editor reimport can resize the existing Texture2D IN PLACE.
+        // Pixel updateCount alone cannot fix stale Sprite.Create rectangles,
+        // previously imported subassets, or a 128px capture of a new 192px
+        // painted body. Retire precisely this atlas, not unrelated actors.
+        // Never destroy any target queued by an earlier GUI draw in this
+        // frame: use the exact-cell fallback until the next safe repaint.
+        private bool RefreshActorCaptureGeometry(Texture2D sheet)
+        {
+            int id = sheet.GetInstanceID();
+            long geometry = ((long)(uint)sheet.width << 32) |
+                (uint)sheet.height;
+            long previous;
+            if (!actorSourceGeometry.TryGetValue(id,out previous))
+            {
+                actorSourceGeometry.Add(id,geometry);
+                return true;
+            }
+            if (previous == geometry) return true;
+            string prefix = id + ":";
+            foreach (var pair in actorCapturedFrames)
+                if (pair.Key.StartsWith(prefix,StringComparison.Ordinal) &&
+                    pair.Value.lastUsedFrame == Time.frameCount)
+                    return false;
+
+            // All old captures are from earlier frames; queued IMGUI draws
+            // cannot reference them now. Imported subassets are Unity-owned,
+            // but temporary whole-cell Sprite.Create wrappers are ours.
+            var retired = new List<string>();
+            foreach (var pair in actorCapturedFrames)
+                if (pair.Key.StartsWith(prefix,StringComparison.Ordinal))
+                    retired.Add(pair.Key);
+            foreach (string key in retired)
+            {
+                RenderTexture target = actorCapturedFrames[key].texture;
+                actorCapturedFrames.Remove(key);
+                if (actorCaptureCamera != null &&
+                    actorCaptureCamera.targetTexture == target)
+                    actorCaptureCamera.targetTexture = null;
+                actorCachedBytes = Math.Max(0L, actorCachedBytes -
+                    ActorCaptureCost(target.width,target.height));
+                target.Release();
+                Destroy(target);
+            }
+            retired.Clear();
+            foreach (string key in actorFrameSprites.Keys)
+                if (key.StartsWith(prefix,StringComparison.Ordinal))
+                    retired.Add(key);
+            foreach (string key in retired)
+            {
+                Sprite stale = actorFrameSprites[key];
+                actorFrameSprites.Remove(key);
+                if (actorCaptureRenderer != null &&
+                    actorCaptureRenderer.sprite == stale)
+                    actorCaptureRenderer.sprite = null;
+                if (stale != null && actorOwnedFrameSprites.Remove(stale))
+                    Destroy(stale);
+            }
+            actorImportedFrameSets.Remove(id);
+            actorImportedRecheckAt.Remove(id);
+            actorImportedRetryAt.Remove(id);
+            actorSourceGeometry[id] = geometry;
+            return true;
+        }
+
         // Returns false on a recoverable/native failure, so the EXACT same
         // whole source cell can still be drawn by the existing GUI fallback.
         private bool DrawSpriteRendererActor(Texture2D sheet, int columns,
@@ -175,6 +244,7 @@ namespace Starfall
             {
                 RefreshActorCaptureEpoch();
                 EnsureActorCapture();
+                if (!RefreshActorCaptureGeometry(sheet)) return false;
                 RefreshNativeActorController(sheet,columns,rows);
                 frame = Math.Max(0, Math.Min(columns * rows - 1, frame));
                 string key = sheet.GetInstanceID() + ":" +
@@ -755,6 +825,7 @@ namespace Starfall
                 if(sprite!=null)Destroy(sprite);
             actorOwnedFrameSprites.Clear();
             actorFrameSprites.Clear();
+            actorSourceGeometry.Clear();
             actorImportedFrameSets.Clear();
             actorImportedRecheckAt.Clear();
             actorImportedRetryAt.Clear();
