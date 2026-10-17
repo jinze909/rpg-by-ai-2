@@ -266,7 +266,7 @@ namespace Starfall
                     Has("afterlight_complete") ||
                     (Position-ObjectPoint(0,"afterlightcouncil",new Point(-100,-100))).Length>2.2f)return true;
                 Flag("afterlight_complete");
-                save.coins+=120;save.shards+=4;save.skillPoints++;
+                CreditCoins(120);CreditShards(4);CreditSkillPoints(1);
                 AddXp(100);revision++;sound="reward";
                 RecordMoment("第五章：三地余光重建公约公开，居民获得可使用的疗养、渡路与安全工房。城墙不再是唯一的地图。",
                     "Chapter Five: the three-region afterlight charter is public. Root care, crossings and safe work now belong to people instead of the wall alone.");
@@ -391,7 +391,7 @@ namespace Starfall
                 if(!Spend(care?2:0,care?0:2,care?2:0,0,care?0:1))return true;
                 ResetAfterlightCharge();
                 Flag("afterlight_done_"+room);
-                save.coins+=20+room*10;AddXp(20+room*10);revision++;
+                CreditCoins(20+room*10);AddXp(20+room*10);revision++;
                 RecordMoment(AfterlightLocation(room,false)+"的公共供能已接通："+AfterlightOutcomeZh(room),
                     "Public power restored at "+AfterlightLocation(room,true)+": "+AfterlightOutcomeEn(room));
                 Notify("真实接收端已通电！本地永久设施开放。返回公会或继续下一地区。",

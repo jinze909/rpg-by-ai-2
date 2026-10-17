@@ -512,5 +512,46 @@ namespace Starfall.Tests
             }
         }
 
+        public static void LateCampaignPublicationsKeepRewardsSaveCompatible(Campaign data)
+        {
+            var atlas = Fresh(data);
+            atlas.save.coins = 999999; atlas.save.skillPoints = 99;
+            atlas.save.flags.Add("archive_started");
+            foreach(int region in new[] { 1, 2, 3 })
+                atlas.save.flags.Add("archive_fragment_" + region);
+            int originalXp = atlas.save.xp;
+            Action(atlas, "archivekeeper", "archive_complete");
+            Check(atlas.Has("archive_complete") &&
+                atlas.save.coins == 999999 && atlas.save.skillPoints == 99 &&
+                atlas.save.xp > originalXp,
+                "Authentic chapter-spanning atlas publication grants XP and story progress without overfilling rewards");
+
+            var civic = Fresh(data);
+            civic.save.stage = 3; civic.save.ending = 3;
+            civic.save.flags.Add("boss_4");
+            civic.save.flags.Add("afterlight_started");
+            for(int region=1; region<=3; region++)
+            {
+                civic.save.flags.Add("afterlight_done_" + region);
+                civic.save.flags.Add("afterlight_steward_" + region);
+            }
+            civic.save.coins = 999990;
+            civic.save.shards = 99998;
+            civic.save.skillPoints = 99;
+            WorldObject council = Object(civic, "afterlightcouncil");
+            civic.save.x = council.x; civic.save.y = council.y;
+            Action(civic, "afterlightcouncil", "afterlight_publish");
+            Check(civic.Has("afterlight_complete") &&
+                civic.save.coins == 999999 && civic.save.shards == 99999 &&
+                civic.save.skillPoints == 99 && civic.save.ending == 3,
+                "Actually publishing the public reconstruction charter caps all persistent rewards without changing the original ending");
+            civic.PrepareSave();
+            var restored = new GameCore(data, CloneSave(civic.save));
+            Check(restored.Has("afterlight_complete") &&
+                restored.save.coins == 999999 && restored.save.shards == 99999 &&
+                restored.save.skillPoints == 99,
+                "Max-cap public charter rewards roundtrip through the original v2 save model");
+        }
+
     }
 }

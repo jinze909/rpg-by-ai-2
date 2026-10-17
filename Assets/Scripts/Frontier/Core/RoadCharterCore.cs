@@ -117,7 +117,7 @@ namespace Starfall
             bool publicRoute = action == "roadcharter_public";
             Flag(publicRoute ? "roadcharter_public" : "roadcharter_reserve");
             Flag("roadcharter_complete");
-            save.coins += 45; save.shards += 3; AddXp(60);
+            CreditCoins(45); CreditShards(3); AddXp(60);
             revision++; sound = "reward";
             RecordMoment(
                 publicRoute ?

@@ -104,7 +104,7 @@ namespace Starfall
                 if (save.room != 0 || !Has("archive_started") || Has("archive_complete") ||
                     !Has("archive_fragment_1") || !Has("archive_fragment_2") ||
                     !Has("archive_fragment_3") || Dying) return true;
-                Flag("archive_complete"); save.coins += 60; save.skillPoints++;
+                Flag("archive_complete"); CreditCoins(60); CreditSkillPoints(1);
                 AddXp(60); revision++; sound = "reward";
                 RecordMoment("失落测绘师的星图已修复：获得60硬币、1技能点。归途的秘密不是宝藏，而是活下来的路。",
                     "The lost atlas is restored: +60 coins, +1 talent point. Its treasure was the road home.");
@@ -123,7 +123,7 @@ namespace Starfall
                 if (o.kind == "archivefragment" + region) { artifact = o; break; }
             if (artifact == null || (Position - new Point(artifact.x, artifact.y)).Length > 2.2f)
                 return true;
-            Flag("archive_fragment_" + region); save.coins += 20; save.shards += 2;
+            Flag("archive_fragment_" + region); CreditCoins(20); CreditShards(2);
             AddXp(20); revision++; sound = "reward";
             effects.Add(new Effect("discover", new Point(artifact.x, artifact.y), .7f));
             RecordMoment(region == 1 ? "林地残图指出遗迹里的潮刻石板。" :
@@ -346,7 +346,7 @@ namespace Starfall
                     !Has("root_harmony_complete") && RootHarmonyNext() == 0 &&
                     (Position - ObjectPoint(0, "rootlistener", new Point(-100, -100))).Length <= 2.2f)
                 {
-                    Flag("root_harmony_complete"); save.coins += 75; save.skillPoints++;
+                    Flag("root_harmony_complete"); CreditCoins(75); CreditSkillPoints(1);
                     AddXp(70); revision++; sound = "reward";
                     RecordMoment("星根失谐调查已归档：根、潮、铁不再被迫为堡垒独奏。",
                         "Starroot Counterpoint archived: root, tide and iron no longer play for the citadel alone.");
@@ -418,7 +418,7 @@ namespace Starfall
                     (Position - site).Length > 2.2f || enemies.Exists(IsRootHarmonyEnemy) ||
                     Has("root_harmony_" + room)) return true;
                 ResetRootHarmonyTrial(); Flag("root_harmony_" + room);
-                save.coins += 25; save.shards += 2; AddXp(35);
+                CreditCoins(25); CreditShards(2); AddXp(35);
                 sound = "reward"; revision++;
                 effects.Add(new Effect("discover", site, .8f));
                 RecordMoment("已封存第" + room + "段失谐音纹，失控的星根正在恢复节拍。",

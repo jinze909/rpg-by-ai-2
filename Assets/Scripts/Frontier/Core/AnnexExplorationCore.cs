@@ -81,10 +81,10 @@ namespace Starfall
                 }
                 else
                 {
-                    save.coins+=5;
+                    CreditCoins(5);
                     bool all=true;
                     for(int i=0;i<8;i++)if(!Has("annex_camp_annex_camp_"+i))all=false;
-                    if(all&&!Has("annex_camps_complete")){Flag("annex_camps_complete");save.skillPoints++;}
+                    if(all&&!Has("annex_camps_complete")){Flag("annex_camps_complete");CreditSkillPoints(1);}
                 }
                 revision++;
             }
@@ -143,7 +143,7 @@ namespace Starfall
                         return true;
                     }
                 Flag("annex_archive_complete");
-                save.coins+=60;save.shards+=3;save.skillPoints++;
+                CreditCoins(60);CreditShards(3);CreditSkillPoints(1);
                 RecordMoment("八地营地、观景点与补给旧路均已核实。炉火旅店的公开星图不再遗漏任何普通旅人。",
                     "Eight regions of camps, lookouts and recovered supplies are now public on the Hearth Inn's atlas.");
                 revision++;sound="reward";
