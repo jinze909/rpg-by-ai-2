@@ -3,6 +3,37 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
+        {
+            // Drive the REAL Arcanist alternate-Q and world update loop:
+            // all five field pulses must deal damage without shortening an
+            // existing 2.4s stagger/Break timer to just 0.45s.
+            var game=Fresh(data,2);
+            game.Enter(1);game.enemies.Clear();
+            game.save.x=12;game.save.y=14;
+            game.save.technique=1;game.save.energy=100;
+            var foe=new Enemy(96110,0,13,14,10000)
+                {stun=2.4f,timer=9999f};
+            game.enemies.Add(foe);
+            game.Skill(new Point(1,0));
+            Check(game.playerAction!=null&&
+                game.playerAction.kind=="skill",
+                "Arcanist alternate-Q was not accepted");
+            Advance(game,.35f);
+            Check(game.effects.Exists(e=>e.kind=="frost")&&
+                foe.stun>1.95f&&foe.stun<2.4f,
+                "First real frost contact incorrectly shortened previous Break stun");
+            float afterFirst=foe.hp;
+            Advance(game,.82f);
+            Check(foe.hp<afterFirst&&foe.stun>1.1f,
+                "Second damaging frost pulse overrode longer stun");
+            // At late field age the original stun can naturally expire,
+            // and only then should the standard 450ms chill extend it.
+            Advance(game,1.38f);
+            Check(foe.stun>.25f&&foe.stun<.5f,
+                "Later frost contact failed to provide its normal chill after old control expired");
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
