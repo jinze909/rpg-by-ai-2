@@ -76,7 +76,7 @@ public static class RuntimePolishChecks
             // A syntactically valid truncated raw JSON was formerly accepted
             // as a new hero and could erase flags when autosaved.
             File.WriteAllText(SaveStore.PathFor(2),
-                "{\\\"version\\\":2,\\\"room\\\":0,\\\"x\\\":18,\\\"y\\\":15,\\\"health\\\":100,\\\"coins\\\":25,\\\"inventory\\\":[4,2,4,0,2,0,1,3]}");
+                "{\"version\":2,\"room\":0,\"x\":18,\"y\":15,\"health\":100,\"coins\":25,\"inventory\":[4,2,4,0,2,0,1,3]}");
             Check(SaveStore.Read(2, out warning) == null && warning != null,
                 "Partial raw save cannot silently erase quest flags or story progression");
             File.WriteAllText(SaveStore.PathFor(2), "{}"); Check(SaveStore.Read(2, out warning) == null && warning != null, "Incomplete metadata cannot become a fabricated save");
