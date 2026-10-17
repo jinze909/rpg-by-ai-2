@@ -394,6 +394,63 @@ namespace Starfall.Tests
                 "The exact same real rift must finally release one dangerous contact after its warning expires");
         }
 
+        public static void ThermalDangerFeedbackRequiresRealExposureAndDamage(Campaign data)
+        {
+            var g=Unlocked(data);g.Enter(6);g.enemies.Clear();
+            g.save.x=14;g.save.y=10;g.save.teaUntil=0;
+            g.save.heat=84.99f;g.save.cold=0;
+            g.save.english=true;
+            g.save.reducedMotion=true;
+            g.save.health=g.save.maxHealth=1000;
+            g.Tick(.05f,new Point());
+            Check(g.effects.Exists(e=>e.kind=="number"&&
+                e.text=="HEAT DANGER")&&
+                g.toast.Contains("Heat danger"),
+                "A first genuine desert overheat crossing needs visible and actionable English feedback");
+            g.Tick(.05f,new Point());
+            Check(g.effects.FindAll(e=>e.kind=="number"&&
+                e.text=="HEAT DANGER").Count==1,
+                "Sustained desert exposure cannot spam warnings every frame");
+            g.save.heat=79.5f;g.Tick(.05f,new Point());
+            g.save.heat=84.99f;g.Tick(.05f,new Point());
+            Check(g.effects.FindAll(e=>e.kind=="number"&&
+                e.text=="HEAT DANGER").Count==2,
+                "Cooling below 80 and heating back to 85 must genuinely re-arm the single crossing alert");
+            var timer=typeof(GameCore).GetField("climateTimer",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            timer.SetValue(g,.02f);g.invulnerable=0;
+            float hp=g.save.health;
+            g.Tick(.05f,new Point());
+            Check(g.save.health<hp &&
+                g.effects.FindAll(e=>e.kind=="number"&&
+                    e.text=="BURN").Count==1,
+                "Only actual desert HP damage makes the authored BURN contact label");
+            hp=g.save.health;
+            timer.SetValue(g,.02f);
+            g.Tick(.05f,new Point());
+            Check(Math.Abs(g.save.health-hp)<.001f &&
+                g.effects.FindAll(e=>e.kind=="number"&&
+                    e.text=="BURN").Count==1,
+                "I-frame protected climate pulses cannot show phantom second damage numbers");
+
+            g.Enter(7);g.enemies.Clear();
+            g.save.x=17;g.save.y=14;
+            g.save.teaUntil=0;g.save.cold=89.99f;
+            g.save.heat=0;g.invulnerable=0;
+            g.Tick(.05f,new Point());
+            Check(g.effects.Exists(e=>e.kind=="number"&&
+                e.text=="FROST DANGER") &&
+                g.toast.Contains("Freezing danger"),
+                "A real Frostchime cold threshold needs biome-specific shelter guidance");
+            timer.SetValue(g,.02f);g.invulnerable=0;
+            hp=g.save.health;
+            g.Tick(.05f,new Point());
+            Check(g.save.health<hp &&
+                g.effects.Exists(e=>e.kind=="number"&&
+                    e.text=="FROST"),
+                "Actual frozen-region HP loss displays frost injury, not the desert burn");
+        }
+
         public static void ClimateAndContracts(Campaign data)
         {
             var g = Unlocked(data); g.Enter(6); g.enemies.Clear(); g.save.x = 14; g.save.y = 10;

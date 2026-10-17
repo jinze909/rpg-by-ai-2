@@ -21,6 +21,9 @@ namespace Starfall
         private Point dashOrigin;
         private float dodgeEscapeTime;
         private float companionAttack, climateTimer, stormTimer;
+        // Local, nonserialized climate danger notifications. Re-arm only
+        // after actually recovering below the lower safe threshold.
+        private bool heatDangerWarned, coldDangerWarned;
         // Identity of a genuine AUTO attack's selected opponent. A player
         // command owns its explicit aim instead, and must never be retargeted
         // or cancelled by this transient AI safety check.
@@ -157,7 +160,9 @@ namespace Starfall
             companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPresentationGeneration++;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
-            climateTimer = 1; stormTimer = 6; ClearFrost(); ResetFieldStationSurvey();
+            climateTimer = 1; stormTimer = 6;
+            heatDangerWarned = coldDangerWarned = false;
+            ClearFrost(); ResetFieldStationSurvey();
             combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; dashOrigin = new Point(); dodgeEscapeTime = 0; previousLowTide = LowTide;
         }
         private bool SpawnExpansionRoom()
@@ -571,6 +576,28 @@ namespace Starfall
             if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // The first genuine heat/cold danger crossing needs an
+            // actionable readable warning, not just a shrinking HP bar.
+            // Hysteresis avoids flooding toast/UI every frame near 85/90;
+            // no permanent flag or SaveData version is introduced.
+            if (save.heat < 80) heatDangerWarned = false;
+            if (save.cold < 85) coldDangerWarned = false;
+            if (save.room == 6 && save.heat >= 85 && !heatDangerWarned)
+            {
+                heatDangerWarned = true;
+                effects.Add(new Effect("number", Position, .85f,
+                    L("高温危险", "HEAT DANGER")));
+                Notify("高温危险！前往阴影、已启用的气象站或饮用凉茶。",
+                    "Heat danger! Find shade, an active weather station, or drink tea.");
+            }
+            if (save.room == 7 && save.cold >= 90 && !coldDangerWarned)
+            {
+                coldDangerWarned = true;
+                effects.Add(new Effect("number", Position, .85f,
+                    L("严寒危险", "FROST DANGER")));
+                Notify("严寒危险！寻找已点燃的火盆、气象站或饮用凉茶。",
+                    "Freezing danger! Find a lit brazier, weather station, or drink tea.");
+            }
             // Civilian supply decisions are *physical* services at the
             // existing southern refuge, not unconditional global stat buffs.
             // A distant shelter cannot heal the player in an active fight.
@@ -709,7 +736,17 @@ namespace Starfall
             while (climateTimer <= .000001f)
             {
                 climateTimer += 1f;
-                if (save.heat >= 85 || save.cold >= 90) Hurt(4);
+                if (save.heat >= 85 || save.cold >= 90)
+                {
+                    float beforeHealth = save.health;
+                    Hurt(4);
+                    // Never fake a BURN/FROST impact during invulnerability,
+                    // a pause, or a protected/zero-damage tick.
+                    if (save.health < beforeHealth && !Dying)
+                        effects.Add(new Effect("number", Position, .72f,
+                            save.room == 7 && save.cold >= 90 ?
+                                L("冻伤", "FROST") : L("灼伤", "BURN")));
+                }
                 if (Dying) return;
             }
             if (Dying) return;
