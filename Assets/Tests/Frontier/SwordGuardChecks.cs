@@ -149,5 +149,41 @@ namespace Starfall.Tests
             Check(old.save.version==2&&old.deflectCooldown==0,
                 "Old saves never persist temporary guard/deflection timing");
         }
+        public static void ReflectedProjectileRetainsWarriorProfileAfterEquipmentSwap(Campaign data)
+        {
+            var g = Fresh(data);
+            g.enemies.Clear(); g.projectiles.Clear();
+            g.save.x = 19.5f; g.save.y = 14.5f;
+            Advance(g, 1.1f);
+            g.guardTime = 2; g.aim = new Point(-1, 0);
+            g.save.energy = 100;
+            var target = new Enemy(92019, 0, 16.5f, 14.5f, 1);
+            target.stun = 99; target.timer = 99;
+            g.enemies.Add(target);
+            Projectile arrow = ThreateningShot(g, new Point(6, 0));
+            g.projectiles.Add(arrow);
+            for (int i = 0; i < 10 && !arrow.friendly; i++)
+                g.Tick(.05f, new Point());
+            Check(arrow.friendly && arrow.impact != null &&
+                arrow.impact.playerOwned && arrow.impact.weapon == 0 &&
+                arrow.impact.masteryWeapon == 0,
+                "A true contact-time sword guard binds warrior impact and mastery to its reflected projectile");
+
+            // The incoming arrow is already in flight. A later equipment
+            // change cannot rewrite the outbound shot's owner or stagger.
+            int swordMastery = g.save.mastery[0];
+            int bowMastery = g.save.mastery[1];
+            g.save.flags.Add("weapon_1");
+            g.Equip(1);
+            Check(g.save.weapon == 1 && arrow.impact.masteryWeapon == 0,
+                "Changing to an unlocked bow cannot retarget old sword reflection");
+            for (int i = 0; i < 50 && g.enemies.Contains(target); i++)
+                g.Tick(.05f, new Point());
+            Check(!g.enemies.Contains(target) &&
+                g.save.mastery[0] == swordMastery + 2 &&
+                g.save.mastery[1] == bowMastery,
+                "Reflected arrow kill credits the warrior's original sword mastery, never the weapon equipped during flight");
+        }
+
     }
 }

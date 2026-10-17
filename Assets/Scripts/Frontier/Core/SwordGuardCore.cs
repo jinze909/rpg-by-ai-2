@@ -67,6 +67,12 @@ namespace Starfall
             p.damage=Math.Max(14f,Math.Min(68f,Damage*.85f));
             p.life=Math.Min(1.6f,p.life);
             p.piercing=false;p.explosive=false;p.slowing=false;
+            // Reflection is the warrior's real impact, not a delayed attack
+            // using whichever equipment the hero happens to wear on arrival.
+            // Snapshot the sword profile at CONTACT, preserving mastery,
+            // stagger and critical semantics even if the player switches
+            // loadouts while the returned arrow travels.
+            p.impact=CaptureImpact(0,0);
             p.technique=true;p.source="deflected";
             // Do not turn an arcane orb into an arrow in the renderer.
             // The existing friendly starfire frame depicts reflected magic.
