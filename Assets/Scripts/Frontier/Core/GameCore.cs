@@ -18,6 +18,13 @@ namespace Starfall
         // overlapping alerts from other raiders or persistent world hazards.
         private readonly ConditionalWeakTable<Enemy,Effect>
             rescueWindupEffects=new ConditionalWeakTable<Enemy,Effect>();
+        // Shots are born at a contact/release pose, sometimes late inside
+        // Tick(). Only shots already flying at this tick's start receive a
+        // FULL tick of travel. Newly emitted missiles become visible at the
+        // muzzle immediately, then advance next tick rather than traveling
+        // through time before their attack was released.
+        private readonly HashSet<Projectile> flightReadyAtFrameStart =
+            new HashSet<Projectile>();
         public Point aim = new Point(1, 0);
         public int revision, runeProgress;
         public float attackCooldown, dashTime, dashCooldown, invulnerable, skillCooldown, guardTime;
@@ -135,6 +142,7 @@ namespace Starfall
         private void ResetTransient()
         {
             projectiles.Clear(); effects.Clear();
+            flightReadyAtFrameStart.Clear();
             // A new journey/slot must never inherit pointer targeting, facing,
             // fishing results or HUD notifications from the previous hero.
             // None of these transient inputs belong to persisted SaveData.
@@ -469,6 +477,9 @@ namespace Starfall
                 dt -= frozen;
                 if (dt <= .00001f) return;
             }
+            flightReadyAtFrameStart.Clear();
+            foreach (Projectile existingShot in projectiles)
+                flightReadyAtFrameStart.Add(existingShot);
             float skillReadyDelay = SkillReadyDelay();
             float dodgeReadyDelay = Math.Max(0, dashCooldown);
             float attackReadyDelay = Math.Max(0, attackCooldown);
@@ -1081,6 +1092,10 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!projectiles.Contains(p)) continue;
+                // TickAction and UpdateEnemies can release mid-frame. They
+                // must not borrow the entire earlier world-time interval for
+                // projectile velocity, expiry, contact or reflection.
+                if (!flightReadyAtFrameStart.Contains(p)) continue;
                 float flightDt = Math.Min(dt, Math.Max(0, p.life));
                 p.life -= dt; p.age += flightDt;
                 if(p.launchHeight>=0&&p.flightHeight>=0)

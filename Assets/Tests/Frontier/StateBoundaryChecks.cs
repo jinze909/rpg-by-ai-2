@@ -152,5 +152,44 @@ namespace Starfall.Tests
                 }
             }
         }
+        public static void FreshProjectilesCannotTravelBeforeTheirContactFrame(Campaign data)
+        {
+            var ranger = Fresh(data, 1);
+            ranger.enemies.Clear();
+            ranger.save.x = 12; ranger.save.y = 14;
+            ranger.Attack(new Point(1, 0));
+            for (int frame = 0; frame < 24 && ranger.projectiles.Count == 0; frame++)
+                ranger.Tick(.05f, new Point());
+            Check(ranger.projectiles.Count == 1,
+                "The actual ranger action releases a single arrow at its animation contact");
+            Projectile arrow = ranger.projectiles[0];
+            Point muzzle = arrow.position;
+            float lifetime = arrow.life;
+            Check(arrow.age == 0 && lifetime > 1,
+                "A shot emitted inside the current 50ms action frame must still be at its muzzle with its full flight life");
+            ranger.Tick(.05f, new Point());
+            Check(ranger.projectiles.Contains(arrow) && arrow.age > 0 &&
+                (arrow.position - muzzle).Length > .1f && arrow.life < lifetime,
+                "That same arrow must advance, collide and age normally on the next simulation frame");
+
+            var foe = Fresh(data);
+            foe.enemies.Clear(); foe.projectiles.Clear();
+            foe.save.x = 18; foe.save.y = 14;
+            var sniper = new Enemy(99801, 1, 21, 14, 100);
+            sniper.state = 1; sniper.timer = .005f;
+            sniper.facing = new Point(-1, 0);
+            sniper.target = foe.Position;
+            foe.enemies.Add(sniper);
+            foe.Tick(.05f, new Point());
+            Projectile hostile = foe.projectiles.Find(p => !p.friendly);
+            Check(hostile != null && hostile.age == 0 &&
+                hostile.life > 1,
+                "An enemy archer releasing during this frame cannot age or fly its hostile projectile before that release");
+            Point spawn = hostile.position;
+            foe.Tick(.05f, new Point());
+            Check(hostile.age > 0 && (hostile.position - spawn).Length > .1f,
+                "Hostile shots resume actual swept flight on the next world step");
+        }
+
     }
 }
