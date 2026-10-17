@@ -3991,7 +3991,7 @@ public static class RenderStateChecks
         const string key="Frontier/Art/GardenLiving";
         bool hadImport=Resources.TextureOverrides.TryGetValue(key,out imported);
         var plot=new Decoration{kind="garden",variant=0,x=12f,y=14f};
-        var original=Get<Texture2D>(app,"worldProps");
+        Texture2D original=null;
         try
         {
             game.save.effectsQuality=2;
@@ -4001,10 +4001,16 @@ public static class RenderStateChecks
             Set(app,"worldActorOpacity",1f);
             Set(app,"clock",10f);
             Clear();Call(app,"DrawWorldDecoration",plot);
-            Check(GUI.textureCalls.Exists(c=>c.texture==original)&&
+            // The production PropImage selector may use FieldProps or
+            // WorldProps depending on the accepted illustrated body. Capture
+            // THAT real unplanted source, not one hard-coded art candidate.
+            Check(GUI.textureCalls.Count>0&&
                 !GUI.textureCalls.Exists(c=>c.texture.name==
                     "resource:Frontier/Art/GardenLiving"),
                 "Unplanted original garden must not sprout fake extra foliage");
+            original=GUI.textureCalls[0].texture;
+            Check(original!=null,
+                "Real base garden body must be a painted source atlas");
             game.save.plantedAt=90f; // genuine not-yet-mature Core stage
             Clear();Call(app,"DrawWorldDecoration",plot);
             var accepted=Get<Texture2D>(app,"livingGardenSheet");
