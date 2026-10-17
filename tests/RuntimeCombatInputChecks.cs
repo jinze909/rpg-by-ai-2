@@ -1516,7 +1516,13 @@ public static class RuntimeCombatInputChecks
             try { test(app); }
             catch (Exception error)
             {
-                failures++; Console.WriteLine("FAIL " + test.Method.Name + ": " + (error.InnerException ?? error).Message);
+                // Reflection-based production render tests may nest multiple
+                // TargetInvocationExceptions. Always retain the ORIGINAL
+                // failing source/stack rather than one unhelpful wrapper.
+                Exception root=error;
+                while(root.InnerException!=null)root=root.InnerException;
+                failures++;
+                Console.WriteLine("FAIL "+test.Method.Name+": "+root.ToString());
             }
         }
         Call(app, "OnDestroy");
