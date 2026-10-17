@@ -584,6 +584,53 @@ namespace Starfall.Tests
                 "Genuine unobstructed ally healing still restores HP on its contact frame");
         }
 
+        public static void CompanionNarrowBridgesKeepSeparateSafeFeet(Campaign data)
+        {
+            // Real collision geometry in a single-tile stone causeway:
+            // original diagonal follow sockets are all blocked, but a
+            // narrow horizontal standing slot is physically open.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[16];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',16).ToCharArray();
+                    if(y==8)for(int x=2;x<14;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=8.5f,spawnY=8.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                Check(g.save.companion==1&&
+                    g.CanStand(g.companionPosition)&&
+                    (g.companionPosition-g.Position).Length>1.05f&&
+                    Math.Abs(g.companionPosition.y-g.Position.y)<.01f,
+                    "Actual ally spawned beside the hero within a narrow bridge, never inside hero feet or solid walls");
+
+                Point root=g.companionPosition;
+                var follow=typeof(GameCore).GetMethod("CompanionFollowTarget",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                for(int k=0;k<8;k++)
+                {
+                    Point desired=(Point)follow.Invoke(g,null);
+                    Check((desired-root).Length<.001f,
+                        "Existing safe foot root must not snap between fallback slots when nothing moves");
+                }
+                g.save.x+=.22f;
+                for(int i=0;i<6;i++)g.Tick(.05f,new Point());
+                Check(g.CanStand(g.companionPosition)&&
+                    (g.companionPosition-g.Position).Length>.85f,
+                    "Real companion follow simulation remains a separate physical actor on a tight route");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void CompanionPreparationAndSafeFollowing(Campaign data)
         {
             for (int id = 0; id < 3; id++)

@@ -319,10 +319,32 @@ namespace Starfall
             if (action.weapon == 0) effects.Add(new Effect("heal", Position, .6f));
             else if (action.weapon == 1) effects.Add(new Effect("release", WeaponOrigin(companionPosition, 1, action.direction), .18f) { direction = action.direction, variant = 1, height = WeaponHeight(1, action.direction) });
         }
+        // The six preferred escort slots all need diagonal space. In a
+        // one-tile bridge/corridor none may fit, despite plenty of legal
+        // standing room directly beside the hero. Keep fallback slots close
+        // without ever choosing the hero's exact foot if another legal lane
+        // exists; this is also the party-switch spawn path.
+        private static readonly Point[] companionNarrowOffsets={
+            new Point(-1.35f,0),new Point(1.35f,0),
+            new Point(0,-1.35f),new Point(0,1.35f),
+            new Point(-1.1f,-1.1f),new Point(1.1f,-1.1f),
+            new Point(-1.1f,1.1f),new Point(1.1f,1.1f)
+        };
         private Point CompanionFollowTarget()
         {
-            foreach (Point offset in companionOffsets) if (Fits(Position + offset)) return Position + offset;
-            return Fits(companionPosition) && (companionPosition - Position).Length < 6 ? companionPosition : Position;
+            foreach(Point offset in companionOffsets)
+                if(Fits(Position+offset))return Position+offset;
+            // A previously planted ally remains valid if the nearby route
+            // narrows. Do not teleport the sprite to another slot when the
+            // same legal foot already has room to stand.
+            Point previous=companionPosition-Position;
+            if(Fits(companionPosition)&&previous.Length>=.9f&&
+                previous.Length<6f)return companionPosition;
+            foreach(Point offset in companionNarrowOffsets)
+                if(Fits(Position+offset))return Position+offset;
+            // Fully sealed single-cell geometry is handled by the existing
+            // SafeActorFoot/recovery; avoid introducing a new saved location.
+            return Position;
         }
         private bool CanCompanionHeal()
         {
