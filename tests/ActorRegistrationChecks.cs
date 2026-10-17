@@ -1478,7 +1478,8 @@ public static class ActorRegistrationChecks
             // The original four-frame speech cue must fade with that SAME
             // whole body instead of floating brightly over the covering wall.
             float priorX=game.save.x,priorY=game.save.y;
-            float priorWorldOpacity=Get<float>(app,"worldActorOpacity");
+            float priorWorldOpacity=(float)typeof(FrontierRuntime).GetField(
+                "worldActorOpacity",Private).GetValue(app);
             try
             {
                 game.save.x=npc.x;
@@ -1542,7 +1543,8 @@ public static class ActorRegistrationChecks
                 "Rescue danger symbol must use its own approved bottom pixel row");
             // Escort distress icons also share the current depth-pass fade
             // without shifting their original art, row or collision root.
-            float originalWorldAlpha=Get<float>(app,"worldActorOpacity");
+            float originalWorldAlpha=(float)typeof(FrontierRuntime).GetField(
+                "worldActorOpacity",Private).GetValue(app);
             try
             {
                 Set(app,"worldActorOpacity",.35f);
