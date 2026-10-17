@@ -1350,7 +1350,19 @@ namespace Starfall
             if (action.StartsWith("abyssStart")) { StartAbyss(int.Parse(action.Substring(10))); return true; }
             if (action == "abyssLeave") { EndAbyss(false); Enter(0); return true; }
             if (action.StartsWith("boon")) { TakeBoon(int.Parse(action.Substring(4))); return true; }
-            if (action == "abyssBank") { BankFloor(); EndAbyss(true); Enter(0); return true; }
+            if (action == "abyssBank")
+            {
+                // A gate dialogue can outlive the floor-clear state it observed.
+                // Never discard unbanked rewards and end the run when the
+                // actual BankFloor transaction cannot legally commit.
+                if (!CanBankFloor())
+                {
+                    Notify("本层结算条件已改变。请清理敌人后重新调查地脉门。",
+                        "Floor settlement is no longer ready. Clear hostiles and inspect the root gate again.");
+                    return true;
+                }
+                BankFloor(); EndAbyss(true); Enter(0); return true;
+            }
             return false;
         }
         private void CompletePersonal(int id)
@@ -1566,9 +1578,14 @@ namespace Starfall
             choices.Add(C(save.abyssFloor == 6 ? "完成远征，结算返回" : "结算本层，安全返回", save.abyssFloor == 6 ? "Complete the expedition and bank" : "Bank this floor and extract", "abyssBank"));
             Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。", "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards.", choices.ToArray());
         }
+        private bool CanBankFloor()
+        {
+            return !Dying && InAbyss && enemies.Count == 0 &&
+                Has("abyss_clear_" + save.abyssFloor);
+        }
         private void BankFloor()
         {
-            if (Dying || !InAbyss || enemies.Count > 0 || !Has("abyss_clear_" + save.abyssFloor)) return;
+            if (!CanBankFloor()) return;
             CreditCoins(save.runCoins); CreditShards(CappedReward(save.runShards, save.frontierEnding == 3 ? 2 : 0, int.MaxValue)); AddXp(save.runXp);
             save.runCoins = save.runShards = save.runXp = 0; save.bestFloor = Math.Max(save.bestFloor, save.abyssFloor);
             BountyEvent(5, 1);
@@ -1578,7 +1595,7 @@ namespace Starfall
         }
         public void TakeBoon(int id)
         {
-            if (Dying || id < 0 || id > 2 || !InAbyss || save.abyssFloor >= 6 || enemies.Count > 0 || !Has("abyss_clear_" + save.abyssFloor)) return;
+            if (id < 0 || id > 2 || save.abyssFloor >= 6 || !CanBankFloor()) return;
             BankFloor(); save.boons[id] = Math.Min(4, save.boons[id] + 1); save.abyssFloor++;
             GenerateAbyss(); save.x = 5; save.y = 14; save.health = Math.Min(save.maxHealth, save.health + save.maxHealth * .5f); save.energy = 100;
             ResetTransient(); SpawnRoom(); mode = "world"; revision++; sound = "travel";

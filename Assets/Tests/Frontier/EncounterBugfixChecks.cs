@@ -244,5 +244,52 @@ namespace Starfall.Tests
                 "Real Abyss floor banking saturates oversized unbanked wealth and still grants the next floor boon");
         }
 
+        public static void StaleAbyssBankChoiceNeverDropsPendingFloorLoot(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.frontierEnding = 1;
+            g.StartAbyss(0);
+            Check(g.InAbyss, "Authorized covenant must start a real floor before settlement testing");
+            g.enemies.Clear();
+            g.save.runCoins = 43; g.save.runShards = 2; g.save.runXp = 0;
+            int originalCoins = g.save.coins, originalShards = g.save.shards;
+            g.Talk(Object(g, "abyssGate"));
+            Check(g.mode == "dialog" && g.Has("abyss_clear_1"),
+                "The actual gate offers banking only after a cleared floor");
+            int bank = -1;
+            for (int i = 0; i < g.conversation.choices.Length; i++)
+                if (g.conversation.choices[i].action == "abyssBank") bank = i;
+            Check(bank >= 0, "Live Abyss gate offers the expected bank choice");
+            // Simulate a hostile spawned between opening the dialogue and
+            // selecting its stale bank command. BankFloor previously returned,
+            // but Choose still ended the expedition and erased its resources.
+            var lateHostile = new Enemy(49001, 0, 17, 14, 44);
+            g.enemies.Add(lateHostile);
+            g.Choose(bank);
+            Check(g.InAbyss && g.save.abyssFloor == 1 &&
+                g.save.runCoins == 43 && g.save.runShards == 2 &&
+                g.save.coins == originalCoins && g.save.shards == originalShards,
+                "Stale bank menu must not close a live floor or erase pending coins and shards");
+
+            g.enemies.Clear();
+            g.Talk(Object(g, "abyssGate"));
+            bank = -1;
+            for (int i = 0; i < g.conversation.choices.Length; i++)
+                if (g.conversation.choices[i].action == "abyssBank") bank = i;
+            Check(bank >= 0, "A safe cleared gate can be reopened normally");
+            g.save.flags.Remove("abyss_clear_1");
+            g.Choose(bank);
+            Check(g.InAbyss && g.save.runCoins == 43 && g.save.runShards == 2,
+                "A stale floor-clear flag cannot end an unbanked expedition either");
+
+            // Completing the floor again legitimately banks exactly once.
+            Action(g, "abyssGate", "abyssBank");
+            Check(!g.InAbyss && g.save.room == 0 &&
+                g.save.coins == originalCoins + 43 &&
+                g.save.shards == originalShards + 2 &&
+                g.save.runCoins == 0 && g.save.runShards == 0,
+                "A renewed genuine root-gate decision still banks and extracts the entire reward");
+        }
+
     }
 }
