@@ -628,6 +628,7 @@ namespace Starfall.Tests
         public static void PublishedGlasswindRoutesRemainValidAtMaximumSavedRewards(Campaign data)
         {
             var g = Fresh(data);
+            g.save.flags.Add("desert_report");
             g.save.flags.Add("glasswind_all_sealed");
             g.save.coins = 999999; g.save.shards = 99999;
             g.save.skillPoints = 99;
