@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Starfall
 {
@@ -11,6 +12,12 @@ namespace Starfall
         public readonly List<Enemy> enemies = new List<Enemy>();
         public readonly List<Projectile> projectiles = new List<Projectile>();
         public readonly List<Effect> effects = new List<Effect>();
+        // A rescue warning is an individual enemy's pending attack, not
+        // shared scenery. Identity-based weak ownership lets a real stun
+        // retract ONLY that enemy's unspent hazard without removing
+        // overlapping alerts from other raiders or persistent world hazards.
+        private readonly ConditionalWeakTable<Enemy,Effect>
+            rescueWindupEffects=new ConditionalWeakTable<Enemy,Effect>();
         public Point aim = new Point(1, 0);
         public int revision, runeProgress;
         public float attackCooldown, dashTime, dashCooldown, invulnerable, skillCooldown, guardTime;
@@ -738,7 +745,7 @@ namespace Starfall
         // after the freeze, with no readable new warning. Give the opponent
         // a real, bounded recovery before it can select another attack.
         // Retain long stuns and existing contact/release animation clocks.
-        private static void ApplyEnemyControl(Enemy enemy,float seconds)
+        private void ApplyEnemyControl(Enemy enemy,float seconds)
         {
             if(enemy==null||enemy.hp<=0f||seconds<=0f)return;
             enemy.stun=Math.Max(enemy.stun,seconds);
@@ -747,6 +754,14 @@ namespace Starfall
             enemy.timer=Math.Max(enemy.timer,enemy.boss?.65f:.45f);
             enemy.targetingWayfarer=false;
             enemy.targetingReliefCivilian=false;
+            Effect pending;
+            if(rescueWindupEffects.TryGetValue(enemy,out pending))
+            {
+                // Remove by object identity, not target coordinate or
+                // mission tag: two overlapping NPC lanes can both be live.
+                effects.Remove(pending);
+                rescueWindupEffects.Remove(enemy);
+            }
         }
 
         private void Hurt(float damage, string source = "environment", Point? incoming = null)
@@ -882,6 +897,7 @@ namespace Starfall
                         // Rescue archers only injure civilians where their real
                         // arrow actually flies. No hitscan at the windup release.
                         e.targetingWayfarer = e.targetingReliefCivilian = false;
+                        rescueWindupEffects.Remove(e);
                         e.state = 0; e.timer = e.boss ? 2.2f - e.BossPhase * .3f : 1.4f;
                     }
                     continue;
@@ -946,10 +962,17 @@ namespace Starfall
                         // Archers use their real swept arrow. Showing a melee
                         // blast ring for a bow would falsely imply instant AOE.
                         if (e.kind != 1)
-                            effects.Add(new Effect("danger", pursuit, e.timer) {
-                                radius = e.kind == 2 ?
-                                    EnemyAreaRadius(e) : EnemyMeleeRadius,
-                                reliefMissionOwned = true });
+                            {
+                                var telegraph=new Effect("danger", pursuit, e.timer)
+                                {
+                                    radius=e.kind==2?
+                                        EnemyAreaRadius(e):EnemyMeleeRadius,
+                                    reliefMissionOwned=true
+                                };
+                                effects.Add(telegraph);
+                                rescueWindupEffects.Remove(e);
+                                rescueWindupEffects.Add(e,telegraph);
+                            }
                     if (e.boss || distance < 6 || strikeCivilian) sound = "windup";
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)

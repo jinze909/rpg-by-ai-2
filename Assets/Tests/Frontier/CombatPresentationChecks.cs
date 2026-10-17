@@ -179,6 +179,48 @@ namespace Starfall.Tests
                 "Enemy failed to begin a genuine warning once its free recovery elapsed");
         }
 
+        public static void EnemyInterruptRetractsOnlyItsOwnRescueDanger(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+            var first=new Enemy(96915,2,15,14,10000)
+                {state=1,timer=.32f,stun=0f,targetingReliefCivilian=true};
+            var second=new Enemy(96916,2,15.5f,14,10000)
+                {state=1,timer=.32f,stun=0f,targetingReliefCivilian=true};
+            g.enemies.Add(first);g.enemies.Add(second);
+            // Same target and mission category: location/tag removal would
+            // destroy both real warnings, unfairly hiding the second strike.
+            Point target=new Point(12,14);
+            var owned=new Effect("danger",target,.32f)
+                {radius=1.5f,reliefMissionOwned=true};
+            var unrelated=new Effect("danger",target,.32f)
+                {radius=1.5f,reliefMissionOwned=true};
+            var environmental=new Effect("danger",target,.32f)
+                {radius=1.5f};
+            g.effects.Add(owned);g.effects.Add(unrelated);
+            g.effects.Add(environmental);
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var field=typeof(GameCore).GetField("rescueWindupEffects",flags);
+            Check(field!=null,
+                "Production rescue windup warning must have identity-safe ownership");
+            var table=(System.Runtime.CompilerServices.ConditionalWeakTable<
+                Enemy,Effect>)field.GetValue(g);
+            table.Add(first,owned);table.Add(second,unrelated);
+            var interrupt=typeof(GameCore).GetMethod("ApplyEnemyControl",flags);
+            Check(interrupt!=null,"Production enemy control path missing");
+            interrupt.Invoke(g,new object[]{first,1.4f});
+            Check(first.state==0&&!first.targetingReliefCivilian&&
+                !g.effects.Contains(owned)&&g.effects.Contains(unrelated)&&
+                g.effects.Contains(environmental)&&second.state==1,
+                "Interrupted rescue attack left a ghost ring or erased unrelated warnings");
+            // The other real attacking enemy still has its own danger cue.
+            interrupt.Invoke(g,new object[]{second,.45f});
+            Check(!g.effects.Contains(unrelated)&&
+                g.effects.Contains(environmental)&&
+                !second.targetingReliefCivilian&&second.state==0,
+                "Second stunned enemy failed to retire only its own live telegraph");
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
