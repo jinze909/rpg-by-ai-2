@@ -45,6 +45,13 @@ namespace Starfall
             bool vista=o.kind=="farlookout";
             string flag=(vista?"far_vista_":"far_secret_")+room;
             bool first=!Has(flag);
+            if(first && !vista &&
+                (save.coins > 999990 || save.inventory[room%3] > 9997))
+            {
+                Notify("隐藏补给箱仍在原处。留出9硬币和2份材料的容量后回来。",
+                    "Hidden supplies remain here. Free room for 9 coins and 2 materials, then return.");
+                return true;
+            }
             if(first)
             {
                 Flag(flag);sound="reward";
@@ -60,8 +67,8 @@ namespace Starfall
                 }
                 else
                 {
-                    save.coins+=9;
-                    save.inventory[room%3]+=2;
+                    CreditCoins(9);
+                    CreditInventory(room % 3, 2);
                 }
                 revision++;
             }

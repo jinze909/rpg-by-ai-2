@@ -52,14 +52,22 @@ namespace Starfall
             if(save.room<0||save.room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
             string key=(kind=="annexcache"?"annex_cache_":kind=="annexvista"?"annex_vista_":"annex_camp_")+o.id;
             bool first=!Has(key);
+            int cacheMaterial = save.room==1 || save.room==7 ? 2 :
+                save.room==3 || save.room==6 ? 1 : 0;
+            if(first && kind=="annexcache" &&
+                (save.coins > 999992 || save.inventory[cacheMaterial] > 9997))
+            {
+                Notify("探索补给仍可领取。请先留出7硬币和2份材料的容量。",
+                    "Exploration supplies remain here. Free room for 7 coins and 2 materials.");
+                return true;
+            }
             if(first)
             {
                 Flag(key);sound="reward";
                 if(kind=="annexcache")
                 {
-                    save.coins+=7;
-                    int item=save.room==1||save.room==7?2:save.room==3||save.room==6?1:0;
-                    save.inventory[item]+=2;
+                    CreditCoins(7);
+                    CreditInventory(cacheMaterial, 2);
                 }
                 else if(kind=="annexvista")
                 {

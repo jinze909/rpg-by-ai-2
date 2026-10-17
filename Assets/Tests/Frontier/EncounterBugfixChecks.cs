@@ -387,5 +387,61 @@ namespace Starfall.Tests
                 "Both lore discovery and the legitimately collected treasure survive reload");
         }
 
+        public static void PhysicalFrontierCachesStayClaimableWithFullStacks(Campaign data)
+        {
+            var g = Fresh(data);
+            // The physical rescue box remains locked behind its relay.
+            g.save.flags.Add("outer_relay_0");
+            var cache = Object(g, "outercache");
+            g.save.x = cache.x; g.save.y = cache.y;
+            g.save.coins = 999999; g.save.inventory[0] = 9999;
+            g.Talk(cache);
+            Check(!g.OuterCacheRecovered(0) && g.save.coins == 999999 &&
+                g.save.inventory[0] == 9999,
+                "Full rescue materials and wallet must not consume a one-time fourth-ring relief chest");
+            g.save.coins = 999981; g.save.inventory[0] = 9998;
+            g.Talk(cache);
+            Check(!g.OuterCacheRecovered(0) && g.save.coins == 999981,
+                "One missing material slot keeps both resources waiting in the real rescue chest");
+            g.save.inventory[0] = 9997; g.Talk(cache);
+            Check(g.OuterCacheRecovered(0) && g.save.coins == 999999 &&
+                g.save.inventory[0] == 9999,
+                "Freeing all required capacity awards the actual rescue chest atomically");
+            g.Close(); g.Talk(cache);
+            Check(g.save.coins == 999999 && g.save.inventory[0] == 9999,
+                "Claimed fourth-ring relief box cannot duplicate its reward");
+
+            g = Fresh(data);
+            var hidden = Object(g, "farhidden");
+            g.save.x = hidden.x; g.save.y = hidden.y;
+            g.save.coins = 999999; g.save.inventory[0] = 9999;
+            g.Talk(hidden);
+            Check(!g.Has("far_secret_0") && g.save.inventory[0] == 9999,
+                "Remote sixth-ring cache survives its first full-stack interaction");
+            g.save.coins = 999990; g.save.inventory[0] = 9997;
+            g.Talk(hidden);
+            Check(g.Has("far_secret_0") && g.save.coins == 999999 &&
+                g.save.inventory[0] == 9999,
+                "Sixth-ring cache pays all nine coins and both materials once space is available");
+
+            g = Fresh(data);
+            var annex = Object(g, "annexcache");
+            g.save.x = annex.x; g.save.y = annex.y;
+            g.save.coins = 999999; g.save.inventory[0] = 9999;
+            g.Talk(annex);
+            Check(!g.Has("annex_cache_" + annex.id),
+                "Full fourth-ring annex cache remains uncollected instead of erasing resources");
+            g.save.coins = 999992; g.save.inventory[0] = 9997;
+            g.Talk(annex);
+            Check(g.Has("annex_cache_" + annex.id) &&
+                g.save.coins == 999999 && g.save.inventory[0] == 9999,
+                "Actual annex exploration pickup awards both saved resources after capacity is freed");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.Has("annex_cache_" + annex.id) &&
+                loaded.save.coins == 999999 && loaded.save.inventory[0] == 9999,
+                "Collected cache flags and fully accounted inventories roundtrip through v2");
+        }
+
     }
 }
