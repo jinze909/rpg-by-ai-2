@@ -50,6 +50,18 @@ namespace Starfall
         // Renderers can display the accepted input without owning its clock
         // or creating a new serialized gameplay state.
         public bool DodgeQueued { get { return bufferedDodge != null; } }
+        // The HUD may offer a real input only in the same late cooldown
+        // window as keyboard and gamepad. Never claim that the queue is
+        // payable/valid when its GameCore action would reject the click.
+        public bool CanBufferDodge
+        {
+            get {
+                return mode=="world" && !Dying && bufferedDodge==null &&
+                    dashCooldown>.00001f &&
+                    dashCooldown<=DodgeBufferWindow+.00001f &&
+                    save.energy >= (Relic(2)?25:20);
+            }
+        }
         private void ClearBufferedDodge() { bufferedDodge = null; }
         public void ClearBufferedCombatInputs()
         {

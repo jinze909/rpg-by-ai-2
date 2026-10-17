@@ -138,13 +138,24 @@ namespace Starfall
         }
         private void ActionSlot(float x, string key, string label, string icon, float cooldown, bool resourceAvailable, Action act, float duration = 1, string unavailable = null, bool busy = false)
         {
-            bool ready = resourceAvailable && cooldown <= 0 && !busy && !Game.Dying;
+            // A real dodge can be queued during its last 140ms cooldown.
+            // Match the keyboard/gamepad window; do not extend the window
+            // for Q, consumables, companions, or any other action slot.
+            bool dodgeSlot=icon=="shield";
+            bool queued=dodgeSlot&&Game.DodgeQueued;
+            bool bufferable=dodgeSlot&&Game.CanBufferDodge;
+            bool ready=resourceAvailable&&(cooldown<=0||bufferable)&&
+                !queued&&!busy&&!Game.Dying;
             bool compact = CombatHud; float y = compact ? 732 : 699, w = compact ? 78 : 109, h = compact ? 50 : 75;
             bool hit = Button(x, y, w, h, "", false, ready);
-            if (ready) { Frame(x,y,w,h,mint); Box(x+4,y+h-3,w-8,2,mint); }
+            if (ready) { Frame(x,y,w,h,bufferable?new Color(.48f,.78f,1f):mint); Box(x+4,y+h-3,w-8,2,bufferable?new Color(.48f,.78f,1f):mint); }
             float iconX = x + (compact ? key == "SPACE" ? 52 : 41 : key == "SPACE" ? 60 : 39);
             Icon(icon,iconX,y+(compact?4:5),compact?23:31,ready?Color.white:new Color(.62f,.68f,.74f));
-            string state = cooldown > 0 ? Math.Ceiling(cooldown)+"s" : busy ? Game.L("动作中","In action") : !resourceAvailable&&unavailable!=null ? unavailable : label;
+            string state = queued ? Game.L("已排队","QUEUED") :
+                bufferable ? Game.L("可预输入","BUFFER") :
+                cooldown > 0 ? Math.Ceiling(cooldown)+"s" :
+                busy ? Game.L("动作中","In action") :
+                !resourceAvailable&&unavailable!=null ? unavailable : label;
             Text(x+3,y+(compact?26:41),w-6,compact?19:27,state,compact?10:11,ready?paper:muted,TextAnchor.MiddleCenter);
             Text(x+5,y+6,key=="SPACE"?45:32,19,key,compact?9:10,ready?gold:muted);
             if(cooldown>0) Bar(x+4,y+h-3,w-8,1-cooldown/Math.Max(.01f,duration),gold,2);

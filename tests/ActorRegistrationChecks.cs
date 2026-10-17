@@ -2287,6 +2287,74 @@ public static class ActorRegistrationChecks
     // not just an unused optional visual contact sheet.
     // Exercise the REAL enemy/Boss DrawEnemyActor body and genuine
     // Enemy.hitTime, never just an isolated VFX gallery.
+    public static void VerifyDodgeHudEarlyClick(FrontierRuntime app)
+    {
+        // Invoke the actual shared production HUD ActionSlot and its
+        // GUI.Button event, not an invented test-only acceptance helper.
+        foreach(bool compact in new[]{false,true})
+        {
+            app.BeginVisualReview(0,1);
+            var g=app.Game;
+            bool reduced=g.save.reducedMotion;
+            try
+            {
+                g.enemies.Clear();g.save.companion=-1;
+                g.save.energy=100;g.dashCooldown=.10f;
+                g.save.reducedMotion=true;g.SetAim(new Point(0,-1));
+                Set(app,"combatHudTime",compact?2f:0f);
+                int count=0;
+                Action click=()=>{count++;g.Dash(g.aim);};
+                float y=compact?732f:699f,w=compact?78f:109f,
+                    h=compact?50f:75f;
+                Check(g.CanBufferDodge&&!g.DodgeQueued,
+                    "HUD starting fixture must be inside real late dodge window");
+                Clear();GUI.queuedClick=new Rect(818f,y,w,h);
+                Call(app,"ActionSlot",818f,"SPACE","Dodge","shield",
+                    g.dashCooldown,true,click,.75f,"Low energy",false);
+                Check(count==1&&g.DodgeQueued&&
+                    g.dashTime==0f&&g.save.energy==100f,
+                    "Actual HUD click must queue once without paying energy early");
+                Check(string.Join(",",GUI.commands.ToArray()).Contains("BUFFER"),
+                    "Ready-to-buffer HUD must explain its blue active state");
+                Clear();GUI.queuedClick=new Rect(818f,y,w,h);
+                Call(app,"ActionSlot",818f,"SPACE","Dodge","shield",
+                    g.dashCooldown,true,click,.75f,"Low energy",false);
+                Check(count==1&&g.DodgeQueued&&
+                    string.Join(",",GUI.commands.ToArray()).Contains("QUEUED"),
+                    "Queued HUD button must show confirmation, not spend twice");
+                Check(GUI.buttonCalls.Count>0&&
+                    !GUI.buttonCalls[GUI.buttonCalls.Count-1].enabled,
+                    "Queued HUD should disable repeated click until resolved");
+                GUI.queuedClick=null;
+                g.Tick(.05f,new Point());g.Tick(.05f,new Point());
+                Check(!g.DodgeQueued&&g.dashTime>0f&&
+                    g.save.energy>=80f&&g.save.energy<81.5f,
+                    "HUD queuing must execute exactly one real dodge at cooldown end");
+                // Outside the final window the mouse click remains disabled.
+                g.dashTime=0f;g.dashCooldown=.42f;
+                Clear();GUI.queuedClick=new Rect(818f,y,w,h);
+                Call(app,"ActionSlot",818f,"SPACE","Dodge","shield",
+                    g.dashCooldown,true,click,.75f,"Low energy",false);
+                Check(count==1&&!g.DodgeQueued,
+                    "Cooldown outside buffer window incorrectly accepted HUD click");
+                // The same UI must not grant a dodge before the energy cost.
+                g.dashCooldown=.09f;g.save.energy=0;
+                Clear();GUI.queuedClick=new Rect(818f,y,w,h);
+                Call(app,"ActionSlot",818f,"SPACE","Dodge","shield",
+                    g.dashCooldown,false,click,.75f,"Low energy",false);
+                Check(count==1&&!g.DodgeQueued,
+                    "HUD accepted free early dodge at zero energy");
+            }
+            finally
+            {
+                GUI.queuedClick=null;
+                g.save.reducedMotion=reduced;
+                app.EndVisualReview();Clear();
+            }
+        }
+        Console.WriteLine("PASS normal/compact HUD clicks queue one real dodge, visibly confirm, retire, and respect cooldown/stamina limits");
+    }
+
     public static void VerifyBufferedDodgeWorldCue(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
