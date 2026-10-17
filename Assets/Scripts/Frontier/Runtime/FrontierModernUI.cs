@@ -129,12 +129,24 @@ namespace Starfall
                 ActionSlot(470, ControlKey("F", "LB"), Game.L("炖汤", "Stew") + " " + Game.save.inventory[6], "stew", 0, Game.save.inventory[6] > 0 && !Game.practicing, () => Game.Eat());
                 ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", 0, Game.save.tea > 0 && !Game.practicing, () => Game.DrinkTea());
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
-                ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(Game.aim), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
+                ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(HudDodgeDirection()), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
                 Text(25, 725, 302, 24, Game.save.coins + Game.L(" 硬币  ·  ", " coins  ·  ") + WeaponName(Game.save.weapon), 13, paper); Text(25, 752, 302, 23, controllerUsed ? Game.L("X 攻击 · B 互动 · 凉茶在背包使用", "X attack · B interact · tea from inventory") : Game.L("J / 左键攻击 · E 互动", "J / click attack · E interact"), 12, muted);
                 if (Button(972, 718, 130, 52, Game.L("手帐  ", "Journal  ") + ControlKey("TAB", "VIEW"))) OpenMenu("journal"); if (Button(1114, 718, 142, 52, Game.L("菜单  ", "Menu  ") + ControlKey("ESC", "START"))) { OpenMenu("pause"); Save(); }
             }
             Enemy boss = Game.enemies.Find(e => e.boss); if (boss != null && world) { Panel(383, 612, 514, 64, new Color(.04f, .065f, .11f, .93f), PixelArt.C("#7b666d")); Text(403, 622, 474, 28, Game.L(Game.CurrentBoss.name, Game.CurrentBoss.en) + "  /  " + boss.BossPhase, 16, gold, TextAnchor.MiddleCenter); Bar(403, 656, 474, boss.hp / boss.maxHp, PixelArt.C("#d28b86"), 5); Bar(403, 666, 474, boss.stagger / 95, mint, 3); }
             else if (world && Game.fallen.Exists(f => f.actor.boss)) { Panel(383, 612, 514, 64, new Color(.04f, .065f, .11f, .93f), gold); Text(403, 622, 474, 28, Game.L("守护者已倒下", "Guardian defeated"), 20, gold, TextAnchor.MiddleCenter); Text(403, 653, 474, 23, Game.L("战利品已收取 · 前往祭坛继续旅程", "Loot secured · continue at the altar"), 13, paper, TextAnchor.MiddleCenter); }
+        }
+        private Point HudDodgeDirection()
+        {
+            // Match movement-first Space/A dodging, not the independently
+            // aimed mouse cursor. Knockback, casts and rooted attack lunges
+            // cannot secretly steer a HUD dodge.
+            Point actual=Game.movementDirection;
+            bool voluntary=Game.dashTime<=0&&Game.playerHitTime<=0&&
+                (Game.playerAction==null||
+                 Game.PlayerPhase==ActionPhase.Recovery);
+            return voluntary&&actual.Length>.001f?
+                actual.Normalized:Game.aim;
         }
         private void ActionSlot(float x, string key, string label, string icon, float cooldown, bool resourceAvailable, Action act, float duration = 1, string unavailable = null, bool busy = false)
         {

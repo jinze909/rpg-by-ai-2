@@ -2359,8 +2359,20 @@ public static class ActorRegistrationChecks
                 g.save.energy=100;g.dashCooldown=.10f;
                 g.save.reducedMotion=true;g.SetAim(new Point(0,-1));
                 Set(app,"combatHudTime",compact?2f:0f);
+                g.movementDirection=new Point();
+                Point stationary=(Point)Call(app,"HudDodgeDirection");
+                Check(stationary.y<-.99f,
+                    "Stationary HUD dodge must retain actual aim direction");
+                g.movementDirection=new Point(-1,0);
+                g.playerAction=new ActorAction{kind="attack",
+                    duration=.5f,contact=.3f};
+                Point duringAttack=(Point)Call(app,"HudDodgeDirection");
+                Check(duringAttack.y<-.99f,
+                    "Attack-root animation cannot falsely steer the HUD dodge");
+                g.playerAction=null;
                 int count=0;
-                Action click=()=>{count++;g.Dash(g.aim);};
+                Action click=()=>{count++;
+                    g.Dash((Point)Call(app,"HudDodgeDirection"));};
                 float y=compact?732f:699f,w=compact?78f:109f,
                     h=compact?50f:75f;
                 Check(g.CanBufferDodge&&!g.DodgeQueued,
@@ -2384,9 +2396,12 @@ public static class ActorRegistrationChecks
                     "Queued HUD should disable repeated click until resolved");
                 GUI.queuedClick=null;
                 g.Tick(.05f,new Point());g.Tick(.05f,new Point());
+                Point actualDash=(Point)typeof(GameCore).GetField(
+                    "dashDirection",Private).GetValue(g);
                 Check(!g.DodgeQueued&&g.dashTime>0f&&
-                    g.save.energy>=80f&&g.save.energy<81.5f,
-                    "HUD queuing must execute exactly one real dodge at cooldown end");
+                    g.save.energy>=80f&&g.save.energy<81.5f&&
+                    actualDash.x<-.99f&&Math.Abs(actualDash.y)<.01f,
+                    "HUD queuing must dodge along real moving feet, not unrelated aim");
                 // Outside the final window the mouse click remains disabled.
                 g.dashTime=0f;g.dashCooldown=.42f;
                 Clear();GUI.queuedClick=new Rect(818f,y,w,h);

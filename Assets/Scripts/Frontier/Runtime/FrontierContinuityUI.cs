@@ -163,7 +163,7 @@ namespace Starfall
             ActionSlot(515,ControlKey("F","LB"),Game.L("汤 ","Stew ")+Game.save.inventory[6],"stew",0,Game.save.inventory[6]>0&&!Game.practicing,()=>Game.Eat());
             ActionSlot(600,ControlKey("T","PACK"),Game.L("茶 ","Tea ")+Game.save.tea,"tea",0,Game.save.tea>0&&!Game.practicing,()=>Game.DrinkTea());
             ActionSlot(685,ControlKey("Z","RB"),Game.L("同伴","Command"),"companion",Game.companionCooldown,Game.save.companion>=0&&!Game.practicing,()=>Game.CommandCompanion(),Game.save.frontierEnding==3?12:18);
-            ActionSlot(770,ControlKey("SPACE","A"),Game.L("闪避","Dodge"),"shield",Game.dashCooldown,Game.save.energy>=(Game.Relic(2)?25:20),()=>Game.Dash(Game.aim),.75f-Game.save.talents[2]*.06f,Game.L("耐力不足","Low energy"));
+            ActionSlot(770,ControlKey("SPACE","A"),Game.L("闪避","Dodge"),"shield",Game.dashCooldown,Game.save.energy>=(Game.Relic(2)?25:20),()=>Game.Dash(HudDodgeDirection()),.75f-Game.save.talents[2]*.06f,Game.L("耐力不足","Low energy"));
             if (Button(1134,746,126,36,Game.L("暂停 ","Pause ")+ControlKey("ESC","START"))) { OpenMenu("pause"); Save(); }
         }
     }
