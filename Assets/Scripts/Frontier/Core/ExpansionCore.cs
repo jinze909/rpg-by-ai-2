@@ -21,6 +21,10 @@ namespace Starfall
         private Point dashOrigin;
         private float dodgeEscapeTime;
         private float companionAttack, climateTimer, stormTimer;
+        // Identity of a genuine AUTO attack's selected opponent. A player
+        // command owns its explicit aim instead, and must never be retargeted
+        // or cancelled by this transient AI safety check.
+        private Enemy companionAutoTarget;
         private MapData abyssMap;
         private bool previousLowTide;
         public static readonly Point[] RaceRoute = { new Point(8, 18), new Point(8, 5), new Point(23, 5), new Point(30, 18), new Point(14, 18) };
@@ -149,7 +153,8 @@ namespace Starfall
         private void ResetExpansionTransient()
         {
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
-            companionAction = null; companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
+            companionAction = null; companionAutoTarget = null;
+            companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPresentationGeneration++;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
             climateTimer = 1; stormTimer = 6; ClearFrost(); ResetFieldStationSurvey();
@@ -261,7 +266,7 @@ namespace Starfall
             if (!SafeTravel) return;
             save.companion = id;
             companionPresentationGeneration++;
-            companionAction = null;
+            companionAction = null; companionAutoTarget = null;
             companionPosition = CompanionFollowTarget();
             companionAttack = 1;
             // A different companion is a new walking identity. The old
@@ -295,6 +300,7 @@ namespace Starfall
                 else target = null;
             }
             companionCooldown = save.frontierEnding == 3 ? 12 : 18;
+            companionAutoTarget = null; // explicit command is owned by user
             companionAction = new ActorAction { kind = "command", weapon = save.companion, combo = save.relationships[save.companion], damage = Damage,
                 direction = direction, target=target, duration = .52f, contact = .2f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
             companionAim = companionAction.direction;
@@ -373,12 +379,14 @@ namespace Starfall
         private void TickCompanion(float dt)
         {
             companionMoving = false;
-            if (save.companion < 0 || practicing) { companionAction = null; return; }
+            if (save.companion < 0 || practicing)
+            { companionAction = null; companionAutoTarget = null; return; }
             companionCooldown = Math.Max(0, companionCooldown - dt); companionAttack -= dt;
             if (companionAction != null)
             {
                 ActorAction action = companionAction;
-                if (action.weapon != save.companion) { companionAction = null; return; }
+                if (action.weapon != save.companion)
+                { companionAction = null; companionAutoTarget = null; return; }
                 action.elapsed += dt;
                 if (!action.released && action.elapsed + .00001f >= action.contact)
                 {
@@ -404,11 +412,26 @@ namespace Starfall
                     }
                     else
                     {
-                        projectiles.Add(FriendlyShot(companionPosition, action.weapon == 1 ? 1 : 2, action.direction, 9, action.damage, action.weapon == 2, action.target, action.impact));
-                        effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) }); sound = action.weapon == 1 ? "arrow" : "spell";
+                        // An ally may finish drawing its bow after the hero
+                        // killed the marked foe or a gate closed. Never fire
+                        // into a dead/occluded target and spend a full cooldown;
+                        // retain the authored recovery pose and retry promptly.
+                        Enemy locked = companionAutoTarget;
+                        if (action.kind == "attack" && locked != null &&
+                            (!enemies.Contains(locked) || locked.hp <= 0 ||
+                             (locked.Position-companionPosition).Length >= 7f ||
+                             !ClearAttackPath(companionPosition,locked.Position)))
+                            companionAttack = Math.Min(companionAttack,.22f);
+                        else
+                        {
+                            projectiles.Add(FriendlyShot(companionPosition, action.weapon == 1 ? 1 : 2, action.direction, 9, action.damage, action.weapon == 2, action.target, action.impact));
+                            effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) });
+                            sound = action.weapon == 1 ? "arrow" : "spell";
+                        }
                     }
                 }
-                if (action.elapsed >= action.duration) companionAction = null;
+                if (action.elapsed >= action.duration)
+                { companionAction = null; companionAutoTarget = null; }
                 return; // Plant the feet while drawing a bow or casting.
             }
             Point follow = CompanionFollowTarget();
@@ -429,6 +452,7 @@ namespace Starfall
             }
             if (companionAttack > 0) return;
             string kind = null; Point direction = aim;Point? attackTarget=null;
+            Enemy selectedTarget=null;
             if (save.companion == 0 && save.health < save.maxHealth * .8f &&
                 CanCompanionHeal())
             { kind = "heal"; direction = (Position - companionPosition).Normalized; }
@@ -437,23 +461,27 @@ namespace Starfall
                 Enemy target = NearestCompanionThreat();
                 if (target != null)
                 {
-                    kind = "attack";
+                    kind = "attack"; selectedTarget=target;
                     direction = (target.Position-companionPosition).Normalized;
                     attackTarget = target.Position;
                 }
             }
             if (kind != null)
             {
+                companionAutoTarget=selectedTarget;
                 companionAttack=save.companion==1?2.8f:6f;
                 companionAim = direction; companionMoving = false;
                 companionAction = new ActorAction { kind = kind, weapon = save.companion, combo = save.relationships[save.companion], direction = direction,target=attackTarget,
                     damage = 9 + save.relationships[save.companion] * 2, duration = .42f, contact = .16f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
             }
             else
+            {
+                companionAutoTarget=null;
                 // Empty field / blocked healing route is NOT a spent
                 // companion attack. Short polling makes an approaching
                 // enemy or newly-opened gate actionable within 220ms.
                 companionAttack=.22f;
+            }
         }
         public void LearnTechnique()
         {

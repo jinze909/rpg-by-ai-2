@@ -577,6 +577,68 @@ namespace Starfall.Tests
             g.Attack(new Point(0, 1)); Advance(g, .25f);
             Check(open.hp < 999, "The obstruction fix preserves normal open-lane melee contacts");
         }
+        public static void CompanionAutoFireCannotSpendCadenceOnExpiredEnemy(Campaign data)
+        {
+            // The real hero can kill an enemy during a companion's .16s
+            // windup. The ally must keep the full-body recovery pose, not
+            // release a phantom arrow and burn another 2.8-second cycle.
+            var g=Fresh(data,1);g.Enter(1);g.enemies.Clear();
+            g.save.x=13.5f;g.save.y=14;
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            g.companionPosition=new Point(12,14);
+            var enemy=new Enemy(77881,0,15,14,25){stun=99,timer=999};
+            g.enemies.Add(enemy);
+            var ready=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            ready.SetValue(g,0f);g.Tick(.02f,new Point());
+            var attack=g.companionAction;
+            Check(attack!=null&&attack.kind=="attack"&&
+                attack.target.HasValue,
+                "Automatic archer begins an authentic locked-target bow windup");
+
+            // Deliver one actual player-owned projectile contact BEFORE
+            // the ally's authored contact frame.
+            g.projectiles.Add(new Projectile{position=enemy.Position,
+                friendly=true,visual="arrow",damage=999,life=1f});
+            g.Tick(.01f,new Point());
+            Check(!g.enemies.Contains(enemy)&&!attack.released,
+                "Real projectile kills the locked foe before companion release");
+            g.effects.Clear();g.projectiles.Clear();
+            Advance(g,.18f);
+            Check(attack.released&&g.projectiles.Count==0&&
+                !g.effects.Exists(e=>e.kind=="release")&&
+                (float)ready.GetValue(g)<=.22f,
+                "A dead target cannot create phantom companion arrows or consume 2.8s cooldown");
+            Check(g.companionAction==attack,
+                "Canceled auto-shot retains the complete authored bow recovery pose");
+
+            // A live foe moving behind actual stone during the same
+            // windup must not receive a newly created shot through cover.
+            var occluded=Fresh(data,1);occluded.Enter(1);
+            occluded.enemies.Clear();occluded.save.x=9.5f;
+            occluded.save.y=8.8f;occluded.save.flags.Add("companion_1");
+            occluded.SelectCompanion(1);
+            occluded.companionPosition=new Point(9.5f,8.8f);
+            var mover=new Enemy(77882,0,10.5f,8.8f,500){
+                stun=99,timer=999};
+            occluded.enemies.Add(mover);
+            ready.SetValue(occluded,0f);occluded.Tick(.02f,new Point());
+            attack=occluded.companionAction;
+            Check(attack!=null&&attack.kind=="attack",
+                "Ally prepares a real visible auto-attack in the near forest lane");
+            mover.x=9.5f;mover.y=10.2f;
+            Check(occluded.Blocked(9.5f,9.5f)&&
+                occluded.CanStand(mover.Position),
+                "The target moved into an accessible tile behind genuine forest stone");
+            Advance(occluded,.16f);
+            Check(attack.released&&occluded.projectiles.Count==0&&
+                (float)ready.GetValue(occluded)<=.22f,
+                "A target behind a newly obstructed lane cannot waste the actual companion volley");
+            Check(occluded.companionAction==attack,
+                "Blocked late release still respects the original full-body action recovery");
+        }
+
         public static void CompanionAutoTargetsNearestReachableThreat(Campaign data)
         {
             // Combat uses the actual, ordered roster: the original Find()
