@@ -1865,7 +1865,7 @@ namespace Starfall.Tests
             var g = Fresh(data);
             g.save.stage = 3;
             g.save.frontierEnding = 1;
-            foreach (string flag in new[] { "exp_intro", "desert_report",
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report",
                 "fieldstation_6", "fieldstation_survey_6",
                 "farshore_relief_5", "farshore_relief_7" })
                 g.save.flags.Add(flag);
