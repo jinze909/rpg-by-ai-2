@@ -54,7 +54,7 @@ namespace Starfall
                         // A fresh chill pulse can EXTEND control but must not
                         // CANCEL a longer earned Break / companion stun.
                         // Keep the original five damage pulses and timing.
-                        e.stun=Math.Max(e.stun,.45f);
+                        ApplyEnemyControl(e,.45f);
                         Hit(e,field.damage,true,
                             (e.Position-field.center).Normalized,field.impact);
                     }

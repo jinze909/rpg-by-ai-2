@@ -99,6 +99,47 @@ namespace Starfall.Tests
             }
         }
 
+        public static void ControlEffectsInterruptEnemyWindupWithoutBlindRelease(Campaign data)
+        {
+            // An Arcanist attack interrupts the real damage-timed warning;
+            // no stale one-frame windup can release as soon as stun expires.
+            foreach(int profession in new[]{0,2})
+            {
+                var g=Fresh(data,profession);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;g.save.energy=100;
+                var foe=new Enemy(96300+profession,0,13,14,10000)
+                {
+                    state=1,timer=.31f,windupDuration=.65f,
+                    stun=0f,target=new Point(12,14),
+                    facing=new Point(-1,0),targetingWayfarer=true
+                };
+                g.enemies.Add(foe);
+                g.Skill(new Point(1,0));Advance(g,.34f);
+                Check(foe.state==0&&foe.timer>.35f&&foe.stun>.34f&&
+                    !foe.targetingWayfarer,
+                    "Real Q control failed to cancel frozen enemy attack warning and civilian lock");
+                Advance(g,.65f);
+                Check(foe.state==0,
+                    "Enemy immediately fired a stale near-contact telegraph after stun wore off");
+            }
+            // A non-control hit is not a magical interrupt: keep its
+            // already-locked windup (original combat/hit-flash contract).
+            {
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;
+                var foe=new Enemy(96305,0,13,14,10000)
+                    {state=1,timer=.5f,windupDuration=.65f,
+                     facing=new Point(-1,0),target=new Point(12,14)};
+                g.enemies.Add(foe);
+                g.projectiles.Add(new Projectile{position=foe.Position,
+                    velocity=new Point(1,0),life=1,damage=1f,
+                    friendly=true,visual="arrow"});
+                g.Tick(.01f,new Point());
+                Check(foe.state==1&&foe.stun<=0,
+                    "Ordinary cosmetic hit flash should not cancel actual attack windup");
+            }
+        }
+
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)

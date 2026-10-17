@@ -616,7 +616,7 @@ namespace Starfall
             float range = save.profession == 2 ? 4.5f : 3.1f;
             effects.Add(new Effect("burst", Position, .6f) { variant = save.profession, radius = range });
             foreach (Enemy e in enemies.ToArray())
-                if ((e.Position - Position).Length < range && ClearAttackPath(Position, e.Position)) { e.stun = Math.Max(e.stun,e.boss ? .5f : 1.4f); Hit(e, action.damage * (save.profession == 2 ? 2.3f : 1.9f), true,null,action.impact); }
+                if ((e.Position - Position).Length < range && ClearAttackPath(Position, e.Position)) { ApplyEnemyControl(e,e.boss ? .5f : 1.4f); Hit(e, action.damage * (save.profession == 2 ? 2.3f : 1.9f), true,null,action.impact); }
         }
         private float Random()
         {
@@ -732,6 +732,23 @@ namespace Starfall
                 (Position - dashOrigin).Length < .35f) return false;
             AwardPerfectDodge(); return true;
         }
+        // Genuine crowd-control effects INTERRUPT a still-telegraphed
+        // attack; cosmetic hit flashes do not. A 450ms frozen windup whose
+        // timer resumes at 1ms would otherwise damage the hero immediately
+        // after the freeze, with no readable new warning. Give the opponent
+        // a real, bounded recovery before it can select another attack.
+        // Retain long stuns and existing contact/release animation clocks.
+        private static void ApplyEnemyControl(Enemy enemy,float seconds)
+        {
+            if(enemy==null||enemy.hp<=0f||seconds<=0f)return;
+            enemy.stun=Math.Max(enemy.stun,seconds);
+            if(enemy.state!=1)return;
+            enemy.state=0;
+            enemy.timer=Math.Max(enemy.timer,enemy.boss?.65f:.45f);
+            enemy.targetingWayfarer=false;
+            enemy.targetingReliefCivilian=false;
+        }
+
         private void Hurt(float damage, string source = "environment", Point? incoming = null)
         {
             // A zero-damage warning or malformed negative/non-finite combat
@@ -1058,7 +1075,7 @@ namespace Starfall
                             // Practice completion or another transaction can
                             // retire the shot. It must not leave an old-room impact.
                             if (!projectiles.Contains(p)) { dead = true; break; }
-                            if (p.slowing) e.stun = Math.Max(e.stun, .45f); dead = !p.piercing;
+                            if (p.slowing) ApplyEnemyControl(e,.45f); dead = !p.piercing;
                             if (p.explosive)
                             {
                                 impactRadius = 1.8f; dead = true;
