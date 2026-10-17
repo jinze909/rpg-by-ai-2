@@ -27,11 +27,76 @@ namespace Starfall.Tests
             Advance(game,.82f);
             Check(foe.hp<afterFirst&&foe.stun>1.1f,
                 "Second damaging frost pulse overrode longer stun");
-            // At late field age the original stun can naturally expire,
-            // and only then should the standard 450ms chill extend it.
-            Advance(game,1.38f);
-            Check(foe.stun>.25f&&foe.stun<.5f,
-                "Later frost contact failed to provide its normal chill after old control expired");
+            // Exercise the ACTUAL internal pulse scheduler after setting up
+            // the field through Q. No guessed wall-clock timing: hit-stop
+            // legitimately steals slices from Tick and delays late pulses.
+            foe.stun=0f;
+            foe.stagger=0f;
+            foe.staggerRecovery=100f;
+            var pulse=typeof(GameCore).GetMethod("TickFrost",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(pulse!=null,"Actual frost field pulse scheduler missing");
+            pulse.Invoke(game,new object[]{1.7f});
+            Check(foe.stun>.44f&&foe.stun<.46f,
+                "Later frost pulse failed to reapply exact 450ms chill after previous stun expired");
+        }
+
+        public static void SkillCompanionAndBreakControlNeverShortensExistingStun(Campaign data)
+        {
+            // Real normal Q across sword and mage. An already earned longer
+            // interrupt must never become a shorter one on the next contact.
+            foreach(int profession in new[]{0,2})
+            {
+                var g=Fresh(data,profession);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;g.save.energy=100;
+                var foe=new Enemy(96200+profession,0,13,14,10000)
+                    {stun=3.2f,timer=9999f,staggerRecovery=100f};
+                g.enemies.Add(foe);
+                g.Skill(new Point(1,0));Advance(g,.35f);
+                Check(foe.stun>2.75f&&foe.stun<=3.2f,
+                    "Original profession "+profession+
+                    " skill replaced a stronger existing stagger with a shorter stun");
+            }
+            // Vanguard alternate technique is a different real release path.
+            {
+                var g=Fresh(data,0);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;g.save.energy=100;
+                g.save.technique=1;
+                var foe=new Enemy(96211,0,13,14,10000)
+                    {stun=3.3f,timer=9999f,staggerRecovery=100f};
+                g.enemies.Add(foe);g.Skill(new Point(1,0));Advance(g,.35f);
+                Check(foe.stun>2.85f,
+                    "Vanguard alternate guard shockwave prematurely ended longer enemy control");
+            }
+            // Sen's genuine commanded field has its own instant 1.4s stop,
+            // in addition to the later Q-like frost pulse damage.
+            {
+                var g=Fresh(data,2);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;
+                g.save.flags.Add("companion_2");
+                g.SelectCompanion(2);
+                var foe=new Enemy(96212,0,13,14,10000)
+                    {stun=3.5f,timer=9999f,staggerRecovery=100f};
+                g.enemies.Add(foe);g.CommandCompanion();Advance(g,.23f);
+                Check(foe.stun>3.1f,
+                    "Sen companion command cut the already established stun to 1.4 seconds");
+            }
+            // A Break is earned by accumulated real damage, but should
+            // never erase an even longer stun from a different source.
+            {
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.x=12;g.save.y=14;
+                var foe=new Enemy(96213,0,13,14,10000)
+                    {stun=4f,timer=9999f,stagger=29f};
+                g.enemies.Add(foe);
+                g.projectiles.Add(new Projectile{position=foe.Position,
+                    velocity=new Point(1,0),life=1f,damage=40f,
+                    friendly=true,visual="arrow"});
+                g.Tick(.01f,new Point());
+                Check(foe.staggerRecovery>0f&&foe.stun>3.8f,
+                    "Real damage Break overwrote longer existing control with only 1.7 seconds");
+            }
         }
 
         public static void CanonicalHeroAnimatorTracksRealCoreActionsAcrossProfessions(Campaign data)

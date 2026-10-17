@@ -616,7 +616,7 @@ namespace Starfall
             float range = save.profession == 2 ? 4.5f : 3.1f;
             effects.Add(new Effect("burst", Position, .6f) { variant = save.profession, radius = range });
             foreach (Enemy e in enemies.ToArray())
-                if ((e.Position - Position).Length < range && ClearAttackPath(Position, e.Position)) { e.stun = e.boss ? .5f : 1.4f; Hit(e, action.damage * (save.profession == 2 ? 2.3f : 1.9f), true,null,action.impact); }
+                if ((e.Position - Position).Length < range && ClearAttackPath(Position, e.Position)) { e.stun = Math.Max(e.stun,e.boss ? .5f : 1.4f); Hit(e, action.damage * (save.profession == 2 ? 2.3f : 1.9f), true,null,action.impact); }
         }
         private float Random()
         {
@@ -655,7 +655,7 @@ namespace Starfall
             bool crit = Random() < profile.criticalChance;
             if (crit) damage *= 1.7f;
             if (e.staggerRecovery <= 0) e.stagger += damage * (profile.weapon == 0 ? .7f : .45f) * (profile.weapon == 0 && profile.style == 2 ? 1.4f : 1);
-            if (e.stagger >= (e.boss ? 95 : 30)) { e.stagger = 0; e.staggerRecovery = e.boss ? 4 : 2; e.stun = e.boss ? 1.1f : 1.7f; e.state = 0; e.timer = 1; effects.Add(new Effect("break", e.Position, .7f, L("破势", "BREAK"))); }
+            if (e.stagger >= (e.boss ? 95 : 30)) { e.stagger = 0; e.staggerRecovery = e.boss ? 4 : 2; e.stun = Math.Max(e.stun,e.boss ? 1.1f : 1.7f); e.state = 0; e.timer = 1; effects.Add(new Effect("break", e.Position, .7f, L("破势", "BREAK"))); }
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact", e.Position, .22f) { direction = e.recoil });
             if (!save.reducedMotion) { hitStop = Math.Max(hitStop, technique ? .05f : .025f); impactShake = Math.Max(impactShake, technique ? .12f : profile.weapon == 0 && profile.combo == 2 ? .07f : 0); }
