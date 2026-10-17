@@ -695,8 +695,8 @@ namespace Starfall.Tests
                 finally
                 {
                     Object.Destroy(probeHost);
-                    yield return null;
                 }
+                yield return null;
             }
 #endif
         }
