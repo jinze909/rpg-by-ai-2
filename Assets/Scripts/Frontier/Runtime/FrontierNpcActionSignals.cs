@@ -35,7 +35,11 @@ namespace Starfall
             // a foreground tree/wall or entering the viewport. Fade this
             // original painted signal WITH the rooted body, never leave a
             // bright detached label where the full-body source has faded.
-            alpha*=Mathf.Clamp01(actorOpacity)*worldActorOpacity;
+            // Atlas() already applies worldActorOpacity once for EVERY
+            // Sprite. This signal inherits its actor's distinct occlusion
+            // tint only; multiplying the world fade again made the speech
+            // icon disproportionately dark near cover and viewport edges.
+            alpha*=Mathf.Clamp01(actorOpacity);
             // Low-motion users retain exactly one static communicative cue.
             // All four micro-pixel frames share one stationary world root.
             int frame=Game.save.reducedMotion?0:

@@ -65,7 +65,7 @@ def main():
         "imported.width==96&&","imported.height==40",
         "Atlas(npcActionSignalSheet,4,2,row*4+frame,",
         "Game.save.reducedMotion",
-        "Mathf.Clamp01(actorOpacity)*worldActorOpacity"):
+        "alpha*=Mathf.Clamp01(actorOpacity);"):
         assert item in render,("ANIMATED_SIGNAL_NOT_IN_RENDERER",item)
     assert "ActorRegistrationChecks.VerifyNpcActionSignalProduction," in runner.read_text(), (
         "PRODUCTION_NPC_QA_NOT_EXECUTED_BY_ACTUAL_CI")
