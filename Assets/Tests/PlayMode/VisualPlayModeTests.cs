@@ -698,6 +698,9 @@ namespace Starfall.Tests
                 }
                 yield return null;
             }
+#else
+            Assert.Fail("Native production scene GPU verification requires Unity Editor");
+            yield break;
 #endif
         }
 
