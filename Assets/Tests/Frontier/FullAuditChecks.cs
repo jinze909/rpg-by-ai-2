@@ -107,6 +107,53 @@ namespace Starfall.Tests
             finally { data.maps[0]=original; }
         }
 
+        public static void BossSummonsRejectVisibleButUnreachableDiagonalPocket(Campaign data)
+        {
+            // An unobstructed thin ray can pass exactly between two corner
+            // walls while NO full-footprint actor can traverse a 4-way route.
+            // Old summon code checked only a ray and accepted this pocket.
+            var reach=typeof(GameCore).GetMethod("BossSummonHasLocalRoute",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var sight=typeof(GameCore).GetMethod("ClearAttackPath",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(reach!=null&&sight!=null,
+                "Boss summon route and original visible attack ray are distinct production checks");
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[17];
+                for(int y=0;y<rows.Length;y++)
+                    rows[y]=new string('#',17);
+                char[] fromRow=rows[7].ToCharArray();
+                fromRow[7]='.';rows[7]=new string(fromRow);
+                char[] toRow=rows[8].ToCharArray();
+                toRow[8]='.';rows[8]=new string(toRow);
+                data.maps[0]=new MapData{
+                    id=0,spawnX=7.5f,spawnY=7.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var sealedPocket=Fresh(data);sealedPocket.enemies.Clear();
+                Point left=new Point(7.5f,7.5f);
+                Point diagonal=new Point(8.5f,8.5f);
+                Check(sealedPocket.CanStand(left)&&
+                    sealedPocket.CanStand(diagonal)&&
+                    (bool)sight.Invoke(sealedPocket,new object[]{left,diagonal}),
+                    "Both cells are physically standable and the diagonal projectile ray genuinely passes between corner walls");
+                Check(!(bool)reach.Invoke(sealedPocket,new object[]{left,diagonal}),
+                    "A visually open diagonal corner is NOT a navigable enemy corridor and cannot spawn isolated reinforcements");
+                var row=rows[8].ToCharArray();row[7]='.';
+                rows[8]=new string(row);
+                var linked=Fresh(data);linked.enemies.Clear();
+                Check((bool)reach.Invoke(linked,new object[]{left,diagonal}),
+                    "Opening an actual cardinal foot corridor immediately enables reachable reinforcement sites");
+                Check(!(bool)reach.Invoke(linked,new object[]{
+                    left,new Point(14.5f,14.5f)}),
+                    "A distant map cell cannot be legitimized by searching outside the bounded Boss arena");
+            }
+            finally {data.maps[0]=original;}
+        }
+
         public static void LateBossCyclesSpawnVisibleMeleeAndRangedSupportWithoutActorOverlap(Campaign data)
         {
             var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
