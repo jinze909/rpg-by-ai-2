@@ -735,14 +735,24 @@ namespace Starfall
                         (Has("storm_orrin_open")?StormBudgetLeft*.55f:0f)));
             // A finished reconstruction actually changes what the region
             // can do, without impacting boss combat or distant locations.
-            if(AfterlightRefuge(save.room) && !practicing && !racing &&
-                SafeTravel && !Dying && save.health>0 &&
-                save.health<save.maxHealth &&
-                NearKind("afterlightoutlet"+save.room,3.1f))
-                save.health=Math.Min(save.maxHealth,save.health+dt*1.7f);
+            // Emergency stocks are post-charter, physically provisioned at
+            // the corresponding receiver. No global regeneration and no
+            // healing in combat. A stocked public ferry also offers care at
+            // BOTH of its original terminals instead of fake instant travel.
+            bool civicHealing=(AfterlightRefuge(save.room) &&
+                NearKind("afterlightoutlet"+save.room,3.1f)) ||
+                (save.room==2 && AfterlightReserve(2) && AfterlightMode(2)==1 &&
+                Has("afterlight_done_2") &&
+                (NearKind("afterlightoutlet2",3.1f) ||
+                 NearKind("afterlightanchor2",3.1f)));
+            if(civicHealing && !practicing && !racing && SafeTravel &&
+                !Dying && save.health>0 && save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,
+                    save.health+dt*(1.7f+(AfterlightReserve(save.room)?1.3f:0f)));
             if(AfterlightEnergyPost && SafeTravel && !practicing &&
                 NearKind("afterlightoutlet1",3.1f))
-                save.energy=Math.Min(100,save.energy+dt*3.0f);
+                save.energy=Math.Min(100,save.energy+
+                    dt*(3.0f+(AfterlightReserve(1)?2.0f:0f)));
             // The defeated former Warden now maintains actual civilian
             // backup lighting, only if the player entrusted unused reserve to
             // citadel shelters after the published first-storm charter.
