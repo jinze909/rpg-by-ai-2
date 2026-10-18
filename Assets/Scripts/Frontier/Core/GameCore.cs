@@ -854,7 +854,9 @@ namespace Starfall
             if(enemy==null)return;
             // A canceled Boss support call must retract only its own warning,
             // not a second guardian's cue or unrelated player combat effects.
-            effects.RemoveAll(fx=>fx.bossSummonCueOwnerId==enemy.id);
+            if(enemy.id!=0)
+                effects.RemoveAll(fx=>fx.bossSummonCueOwnerId!=0&&
+                    fx.bossSummonCueOwnerId==enemy.id);
             Effect pending;
             if(enemy!=null&&
                 rescueWindupEffects.TryGetValue(enemy,out pending))
@@ -1014,7 +1016,8 @@ namespace Starfall
                             {
                                 // A released call's warning ends precisely on
                                 // the real contact frame, before support appears.
-                                effects.RemoveAll(fx=>fx.bossSummonCueOwnerId==e.id);
+                                if(e.id!=0)
+                                    effects.RemoveAll(fx=>fx.bossSummonCueOwnerId==e.id);
                                 e.cycle++;
                                 if (save.room == 3)
                                 {
@@ -1135,7 +1138,7 @@ namespace Starfall
                         rescueWindupEffects.Add(e, telegraph);
                     }
                     if (e.boss || distance < 6 || strikeCivilian || strikeStock) sound = "windup";
-                    if(e.boss && enemies.Count<9 &&
+                    if(e.boss && e.id!=0 && enemies.Count<9 &&
                         (e.BossPhase==3||(save.room==4&&e.BossPhase>=2)) &&
                         (e.cycle+1)%3==0)
                     {
