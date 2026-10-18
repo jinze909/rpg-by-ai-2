@@ -776,10 +776,18 @@ namespace Starfall.Tests
             Check(g.AfterlightReserve(1)&&g.AfterlightReserves==1&&
                 g.save.inventory[0]==0&&g.save.inventory[2]==0,
                 "Actually investing 2 timber and 1 Moonherb installs the forest reserve once");
-            Action(g,forest.kind,"afterlight_reserve_1");
+            g.Talk(forest);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_reserve_1"),
+                "Completed reserve cannot be purchased a second time from the actual receiver menu");
+            g.Close();
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(choose!=null,"Physical civic reserve action dispatcher remains available");
+            choose.Invoke(g,new object[]{"afterlight_reserve_1"});
             Check(g.AfterlightReserves==1&&g.save.inventory[0]==0&&
                 g.save.inventory[2]==0,
-                "Replayed reserve actions cannot buy the same improvement twice");
+                "Forged repeated reserve action cannot buy the same improvement twice");
             var oldForest=CloneSave(g.save);
             oldForest.flags.Remove("afterlight_reserve_1");
             var basic=new GameCore(data,oldForest);basic.Start();
@@ -799,10 +807,6 @@ namespace Starfall.Tests
             g.Enter(2);g.enemies.Clear();g.invulnerable=500;
             var ruins=Object(g,"afterlightoutlet2");
             var quay=Object(g,"afterlightanchor2");
-            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
-                System.Reflection.BindingFlags.NonPublic|
-                System.Reflection.BindingFlags.Instance);
-            Check(choose!=null,"Physical civic reserve action dispatcher remains available");
             g.save.x=quay.x;g.save.y=quay.y;
             g.save.inventory[0]=1;g.save.inventory[2]=2;
             choose.Invoke(g,new object[]{"afterlight_reserve_2"});
