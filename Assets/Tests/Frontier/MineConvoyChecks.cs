@@ -259,5 +259,74 @@ namespace Starfall.Tests
                 reloaded.GetQuest("mine_convoy").complete,
                 "All completed rescue and depot service flags survive original version-two saves");
         }
+        public static void MinecartRequiresBothRealLethalKillsBeforeSwitchAndRewards(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(3);g.enemies.Clear();
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            g.invulnerable=180;
+            WorldObject west=MineCartTestPost(g,1),relay=MineCartTestPost(g,2),
+                end=MineCartTestPost(g,3);
+            int coins=g.save.coins,shards=g.save.shards;
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start"),
+                "Authentic western worker dispatch begins the escort");
+            WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+            Check(g.MineConvoyStage==2&&
+                g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                "Actual cart reaches two live switchyard guards");
+            // Removing either genuine foe without a lethal player callback
+            // must not unlock repair, dispatch, or permanent compensation.
+            var guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+            g.enemies.Remove(guards[0]);
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            Check(!MineCartTestChoice(g,"mineconvoy_go")&&
+                !MineCartTestChoice(g,"mineconvoy_brace"),
+                "Missing guard without a verified defeat cannot offer a switch action");
+            g.Close();
+            g.Tick(.05f,new Point());
+            Check(!g.MineConvoyActive&&!g.MineConvoyComplete &&
+                g.save.coins==coins&&g.save.shards==shards &&
+                !g.enemies.Exists(g.IsMineConvoyEnemy),
+                "First missing hostile resets the cart and only its temporary actors");
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start"),
+                "Interrupted work escort can restart without charging resources");
+            WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+            Check(g.MineConvoyStage==2,
+                "The retry physically reaches the same switchyard");
+            // The canonical Hit() lethal path, not list manipulation,
+            // authorizes both individual enemy identities for dispatch.
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Combat death callback must be available");
+            guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+            hit.Invoke(g,new object[]{guards[0],99999f,false,null,null});
+            Check(g.MineConvoyStage==2&&
+                g.enemies.FindAll(g.IsMineConvoyEnemy).Count==1,
+                "First real kill alone does not clear the mine switch");
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            Check(!MineCartTestChoice(g,"mineconvoy_go"),
+                "Surviving second raider continues to guard the switch");
+            g.Close();
+            hit.Invoke(g,new object[]{guards[1],99999f,false,null,null});
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                g.MineConvoyStage==3,
+                "Two confirmed lethal combat kills enable supply-conserving transit");
+            WalkBesideMinecart(g,new Point(end.x,end.y),3);
+            Check(g.MineConvoyStage==4&&g.MineConvoyIntegrity>0,
+                "The authentic second leg reaches its original depot");
+            g.save.x=end.x;g.save.y=end.y;g.Talk(end);
+            Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                g.MineConvoyComplete&&g.save.coins==coins+60&&
+                g.save.shards==shards+2,
+                "The genuine two-kill route retains its original one-time rescue reward");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.MineConvoyComplete &&
+                !loaded.MineConvoyActive,
+                "SaveData v2 persists earned evacuation but no transient kill counters");
+        }
+
     }
 }

@@ -11,6 +11,16 @@ namespace Starfall
         public Point MineCartPosition { get; private set; }
         private float mineConvoySteam;
         private bool mineConvoyBraced;
+        // A missing enemy is not a player victory; only Hit's lethal callback
+        // can record the two actually defeated switchyard attackers.
+        private int mineConvoyConfirmedKills;
+        private bool MineConvoyGuardsDefeated { get { return mineConvoyConfirmedKills==3; } }
+        private void OnMineConvoyEnemyDefeated(Enemy enemy)
+        {
+            if(MineConvoyStage!=2||save.room!=3||!IsMineConvoyEnemy(enemy))return;
+            int index=enemy.id-91300;
+            if(index>=0&&index<2)mineConvoyConfirmedKills|=1<<index;
+        }
         public bool MineConvoyActive { get { return MineConvoyStage>0; } }
         public bool MineConvoyComplete { get { return Has("mineconvoy_complete"); } }
         public bool IsMineConvoyEnemy(Enemy e)
@@ -30,13 +40,14 @@ namespace Starfall
             effects.RemoveAll(e=>e.mineConvoyOwned);
             MineConvoyStage=0;MineConvoyTime=MineConvoyIntegrity=0;
             MineCartPosition=new Point();mineConvoySteam=0;
-            mineConvoyBraced=false;
+            mineConvoyBraced=false;mineConvoyConfirmedKills=0;
         }
         private bool SpawnMineConvoyAmbush()
         {
             Point[] points={new Point(62.5f,40.5f),new Point(65.5f,42.5f)};
             foreach(Point p in points)
                 if(!CanStand(p)||!ClearAttackPath(MineCartPosition,p))return false;
+            mineConvoyConfirmedKills=0;
             for(int i=0;i<points.Length;i++)
             {
                 Enemy guard=new Enemy(91300+i,i==0?0:2,points[i].x,points[i].y,
@@ -60,6 +71,15 @@ namespace Starfall
             }
             if(MineConvoyStage==2)
             {
+                for(int i=0;i<2;i++)
+                    if((mineConvoyConfirmedKills&(1<<i))==0 &&
+                        !enemies.Exists(e=>e.id==91300+i))
+                    {
+                        ResetMineConvoy();revision++;
+                        Notify("袭击者异常离场，战斗未完成。矿车已返回发车岗，可免费重试。",
+                            "An unconfirmed raider vanished; the cart returned to dispatch. Retry for free.");
+                        return;
+                    }
                 foreach(Enemy guard in enemies)
                     if(IsMineConvoyEnemy(guard)&&guard.hp>0&&
                         (guard.Position-MineCartPosition).Length<5.3f)
@@ -182,7 +202,7 @@ namespace Starfall
                         "Wait until the cart reaches the switchyard.");
                     return true;
                 }
-                if(enemies.Exists(IsMineConvoyEnemy))
+                if(enemies.Exists(IsMineConvoyEnemy)||!MineConvoyGuardsDefeated)
                 {
                     Dialog(o.name,o.en,
                         "袭击者还在矿道上。先靠真实战斗击败他们；矿车受威胁时完整度会持续下降。",
@@ -242,7 +262,7 @@ namespace Starfall
                 WorldObject relay=MineCartPost(2);
                 if(MineConvoyStage!=2||relay==null||
                     (Position-new Point(relay.x,relay.y)).Length>1.8f||
-                    enemies.Exists(IsMineConvoyEnemy))return true;
+                    enemies.Exists(IsMineConvoyEnemy)||!MineConvoyGuardsDefeated)return true;
                 if(action=="mineconvoy_brace")
                 {
                     if(save.inventory[4]<1)
