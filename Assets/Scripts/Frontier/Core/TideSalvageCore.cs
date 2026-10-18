@@ -9,6 +9,20 @@ namespace Starfall
         public int TideSalvagePhase { get; private set; }
         public float TideSalvageTime { get; private set; }
         private bool tideSalvageHoldUsed;
+        // IDs 89924/89925 escort the inner shoal; 89926 guards the island.
+        // Their verified death records are mission-local, never persisted.
+        private int tideSalvageConfirmedKills;
+        private bool TideSalvageRaidersDefeated
+        { get { return tideSalvageConfirmedKills==7; } }
+        private void OnTideSalvageEnemyDefeated(Enemy enemy)
+        {
+            if(!TideSalvageActive||save.room!=5||
+                !IsTideSalvageEnemy(enemy))return;
+            int index=enemy.id-89924;
+            if(index>=0&&index<3&&
+                (index<2?TideSalvagePhase>=3:TideSalvagePhase>=4))
+                tideSalvageConfirmedKills|=1<<index;
+        }
         public string TideSalvageTideHint
         {
             get
@@ -35,12 +49,23 @@ namespace Starfall
             projectiles.RemoveAll(p => p.tideSalvageOwned);
             effects.RemoveAll(e => e.tideSalvageOwned);
             TideSalvagePhase=0;TideSalvageTime=0;tideSalvageHoldUsed=false;
+            tideSalvageConfirmedKills=0;
         }
         private void TickTideSalvage(float dt)
         {
             if(!TideSalvageActive)return;
             if(save.room!=5 || Dying || practicing)
             {ResetTideSalvage();revision++;return;}
+            int expected=TideSalvagePhase==3?2:TideSalvagePhase==4?3:0;
+            for(int i=0;i<expected;i++)
+                if((tideSalvageConfirmedKills&(1<<i))==0 &&
+                    !enemies.Exists(e=>e.id==89924+i&&e.hp>0))
+                {
+                    ResetTideSalvage();revision++;
+                    Notify("掠夺者异常离场，未确认击败。货物仍未送达，可重新出航。",
+                        "A raider vanished without a confirmed defeat. Cargo not delivered; retry the voyage.");
+                    return;
+                }
             TideSalvageTime-=dt;
             if(TideSalvageTime<=0)
             {
@@ -100,7 +125,7 @@ namespace Starfall
                         C("追踪潮滩货单","Track the manifest","tide_salvage_track"),
                         C("暂不行动","Not now","close"));return true;
                 }
-                bool delivered=TideSalvagePhase==4 &&
+                bool delivered=TideSalvagePhase==4 && TideSalvageRaidersDefeated &&
                     !enemies.Exists(IsTideSalvageEnemy);
                 Dialog(o.name,o.en,
                     "打捞进度 "+(TideSalvagePhase-1)+"/3；还剩 "+
@@ -180,6 +205,7 @@ namespace Starfall
                     (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)
                     return true;
                 TideSalvagePhase=1;TideSalvageTime=100;tideSalvageHoldUsed=false;
+                tideSalvageConfirmedKills=0;
                 Flag("tide_salvage_started");
                 TrackQuest("tide_salvage");revision++;sound="quest";
                 Notify("已出航！在100秒内找到西侧、内湾、南岛三份货单，避开潮水与掠夺者。",
@@ -248,6 +274,7 @@ namespace Starfall
             if(action=="tide_salvage_finish")
             {
                 if(save.room!=5 || TideSalvagePhase!=4 || Dying ||
+                    !TideSalvageRaidersDefeated ||
                     enemies.Exists(IsTideSalvageEnemy) || Has("tide_salvage_complete") ||
                     (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)
                     return true;

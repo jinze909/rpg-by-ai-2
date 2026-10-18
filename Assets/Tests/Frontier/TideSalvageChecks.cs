@@ -323,5 +323,59 @@ namespace Starfall.Tests
                 "The real natural tide cycle reopens salvage routes without changing map tiles or resetting the mission");
         }
 
+        public static void TideboundCargoCannotPublishUnconfirmedRaiderDisappearances(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;
+            foreach(string flag in new[]{"exp_intro","harbor_report","gate_5"})
+                g.save.flags.Add(flag);
+            g.Enter(5);g.enemies.Clear();g.invulnerable=250;
+            WorldObject dock=Object(g,"tidedock"),first=Object(g,"tidecargo1"),
+                second=Object(g,"tidecargo2"),third=Object(g,"tidecargo3");
+            int coins=g.save.coins,shards=g.save.shards,
+                talents=g.save.skillPoints;
+            g.save.x=dock.x;g.save.y=dock.y;g.save.totalTime=0;
+            Action(g,"tidedock","tide_salvage_start");
+            g.save.x=first.x;g.save.y=first.y;
+            Action(g,"tidecargo1","tide_salvage_take_1");
+            g.save.x=second.x;g.save.y=second.y;
+            Action(g,"tidecargo2","tide_salvage_take_2");
+            Check(g.TideSalvagePhase==3&&
+                g.enemies.FindAll(g.IsTideSalvageEnemy).Count==2,
+                "Inner shoal begins with two actual raiders");
+            g.enemies.Remove(g.enemies.Find(g.IsTideSalvageEnemy));
+            g.Tick(.05f,new Point());
+            Check(!g.TideSalvageActive&&!g.Has("tide_salvage_complete")&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Missing inner-shoal raider resets the expedition without reward");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_start");
+            Check(g.TideSalvagePhase==1,
+                "Unconfirmed missing encounter can still be retried for free");
+            g.save.x=first.x;g.save.y=first.y;
+            Action(g,"tidecargo1","tide_salvage_take_1");
+            g.save.x=second.x;g.save.y=second.y;
+            Action(g,"tidecargo2","tide_salvage_take_2");
+            g.save.totalTime=36;g.save.x=third.x;g.save.y=third.y;
+            Action(g,"tidecargo3","tide_salvage_take_3");
+            Check(g.TideSalvagePhase==4&&
+                g.enemies.FindAll(g.IsTideSalvageEnemy).Count==3,
+                "Later island cargo spawns the original third raider");
+            g.enemies.RemoveAll(g.IsTideSalvageEnemy);
+            g.save.x=dock.x;g.save.y=dock.y;g.Talk(dock);
+            Check(g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="tide_salvage_finish")<0,
+                "Dock with full cargo and emptied unverified roster cannot offer delivery");
+            g.Close();g.Tick(.05f,new Point());
+            Check(!g.TideSalvageActive&&!g.Has("tide_salvage_complete")&&
+                g.save.coins==coins&&g.save.shards==shards&&
+                g.save.skillPoints==talents&&g.TidewatchHoldSeconds==45,
+                "Unconfirmed island raiders cannot grant coins, skill points or permanent tidal upgrades");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.Has("tide_salvage_complete")&&
+                !loaded.TideSalvageActive,
+                "Legacy SaveData v2 never persists a false expedition victory");
+        }
+
     }
 }
