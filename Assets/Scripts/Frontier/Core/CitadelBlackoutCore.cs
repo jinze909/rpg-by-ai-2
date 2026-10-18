@@ -37,6 +37,16 @@ namespace Starfall
         }
         private bool BlackoutCitizenSaved(int id)
         { return (blackoutRescued & (1<<(id-1)))!=0; }
+        private bool BlackoutFollowerAtShelter
+        {
+            get
+            {
+                if(blackoutFollowing==0||blackoutFollowerHealth<=0)return false;
+                Point shelter=BlackoutPoint("blackoutshelter");
+                return (blackoutFollowerPosition-shelter).Length<=2.8f &&
+                    (blackoutFollowerPosition-Position).Length<=2.3f;
+            }
+        }
         public bool BlackoutCivilianVisible(int id)
         { return save.room==4 && !Has("blackout_complete") && !BlackoutCitizenSaved(id) && blackoutFollowing!=id; }
         private bool TalkBlackout(WorldObject o)
@@ -71,7 +81,7 @@ namespace Starfall
                 if(blackoutFollowing!=0)
                 {
                     int id=blackoutFollowing;
-                    if((blackoutFollowerPosition-Position).Length>2.3f)
+                    if(!BlackoutFollowerAtShelter)
                     {
                         Dialog(o.name,o.en,
                             "居民落在了屏障闪电里，必须回头接应才能交接；也可以从这里取消本轮撤离并重试。",
@@ -173,7 +183,7 @@ namespace Starfall
                 int id;
                 if(!int.TryParse(action.Substring(17),out id) || id!=blackoutFollowing ||
                     !blackoutActive || (Position-BlackoutPoint("blackoutshelter")).Length>2.2f ||
-                    (blackoutFollowerPosition-Position).Length>2.3f)return true;
+                    !BlackoutFollowerAtShelter)return true;
                 blackoutRescued|=1<<(id-1);
                 blackoutFollowing=0;blackoutFollowerHealth=0;
                 revision++;sound="quest";

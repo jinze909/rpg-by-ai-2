@@ -247,5 +247,58 @@ namespace Starfall.Tests
                 "Earned civilian ceasefire also changes the original ending's actual historical account");
         }
 
+        public static void BlackoutHandoverRequiresCivilianAtPhysicalShelter(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=300;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                citizen=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=citizen.x;g.save.y=citizen.y;
+            Action(g,citizen.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1&&g.BlackoutFollowerHealth>0,
+                "Authentic Citadel pickup creates one living civilian");
+            // The player can stand beside the shelter edge while the
+            // civilian is still outside. Previously proximity to only
+            // the HERO counted as a successful physical handover.
+            var posField=typeof(GameCore).GetField("blackoutFollowerPosition",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(posField!=null,"Live escort maintains a genuine follower position");
+            g.save.x=shelter.x+1.7f;g.save.y=shelter.y;
+            posField.SetValue(g,new Point(shelter.x+3.8f,shelter.y));
+            Check((g.BlackoutFollowerPosition-g.Position).Length<2.3f&&
+                (g.BlackoutFollowerPosition-new Point(shelter.x,shelter.y)).Length>2.8f,
+                "Player and civilian can be close despite civilian being outside the shelter");
+            g.Talk(shelter);
+            Check(g.conversation!=null&&!Array.Exists(g.conversation.choices,
+                c=>c.action=="blackout_deliver_1"),
+                "Shelter dialogue refuses a ghost handover outside the civic safety radius");
+            g.Close();
+            var choose=typeof(GameCore).GetMethod("ChooseBlackout",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Authoritative choice handler exists");
+            choose.Invoke(g,new object[]{"blackout_deliver_1"});
+            Check(g.BlackoutFollowing==1&&g.BlackoutRescued==0,
+                "Direct choice dispatch cannot forge the civilian roster either");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            posField.SetValue(g,new Point(shelter.x+.9f,shelter.y));
+            g.Talk(shelter);
+            Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
+                c=>c.action=="blackout_deliver_1"),
+                "A living civilian genuinely inside the public lamps may be handed over");
+            g.Close();
+            choose.Invoke(g,new object[]{"blackout_deliver_1"});
+            Check(g.BlackoutFollowing==0&&g.BlackoutRescued==1&&
+                !g.Has("blackout_complete"),
+                "Only actual first civilian shelter arrival updates the transient rescue roster");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.Has("blackout_started")&&
+                !restored.Has("blackout_complete")&&!restored.BlackoutActive,
+                "Existing v2 saves still never persist a partially escorted civilian");
+        }
+
     }
 }
