@@ -8,8 +8,10 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int afterlightChargeRegion;
-        private float afterlightChargeLeft;
+        private float afterlightChargeLeft,afterlightChargeIntegrity;
         private bool afterlightStableCharge;
+        public float AfterlightChargeIntegrity
+        { get {return afterlightChargeRegion!=0?afterlightChargeIntegrity:0;} }
         public bool AfterlightStableCharge { get {return afterlightChargeRegion!=0&&afterlightStableCharge;} }
         public int AfterlightChargeRegion { get { return afterlightChargeRegion; } }
         public float AfterlightChargeLeft { get { return afterlightChargeLeft; } }
@@ -27,7 +29,23 @@ namespace Starfall
         private Point AfterlightPoint(int region,string type)
         { return ObjectPoint(region,"afterlight"+type+region,new Point(-100,-100)); }
         private void ResetAfterlightCharge()
-        { afterlightChargeRegion=0;afterlightChargeLeft=0;afterlightStableCharge=false; }
+        { afterlightChargeRegion=0;afterlightChargeLeft=afterlightChargeIntegrity=0;
+          afterlightStableCharge=false; }
+        private void DamageAfterlightCharge(float damage,string source)
+        {
+            if(afterlightChargeRegion==0||source=="environment"||damage<=0)return;
+            float shock=Math.Max(10,Math.Min(30,damage*.9f));
+            if(afterlightStableCharge)shock*=.5f;
+            afterlightChargeIntegrity=Math.Max(0,afterlightChargeIntegrity-shock);
+            if(afterlightChargeIntegrity<=0)
+            {
+                ResetAfterlightCharge();revision++;
+                Notify("传送的余光在真实袭击中完全散失！返回原锚点重新启动。",
+                    "Real combat destroyed the carried civic charge! Restart at the source anchor.");
+            }
+            else Notify("负载在袭击中受损：保持生命和载荷安全，再到接收台安装。",
+                "The carried power was damaged by combat; protect it and reach the receiver.");
+        }
         private string AfterlightLocation(int region,bool english)
         {
             string[] zh={"","荆棘密林 · 根苗圃","沉没遗迹 · 开放渡口","赤铁矿场 · 安全工房"};
@@ -219,8 +237,10 @@ namespace Starfall
                 if(afterlightChargeRegion==room)
                 {
                     Dialog(o.name,o.en,
-                        "稳定余光还在传输中，剩余 "+Math.Ceiling(afterlightChargeLeft)+" 秒。真正的接收端不在这里；沿地图去另一座公共节点。",
-                        "Afterlight charge remains active for "+Math.Ceiling(afterlightChargeLeft)+" seconds. Travel physically to the distant public receiver, not this source.",
+                        "余光仍在传输，剩余 "+Math.Ceiling(afterlightChargeLeft)+" 秒；负载完整度 "+
+                        Math.Ceiling(afterlightChargeIntegrity)+"%。遭真实攻击会受损；请沿地图抵达另一端。",
+                        "Afterlight load: "+Math.Ceiling(afterlightChargeLeft)+"s remaining, integrity "+
+                        Math.Ceiling(afterlightChargeIntegrity)+"%. Real combat hits damage the charge. Travel to the distant receiver.",
                         C("继续送往接收端","Continue to receiver","close"),
                         C("取消本次传输 · 保留方案","Cancel transfer · Keep plan","afterlight_abort"));return true;
                 }
@@ -234,10 +254,12 @@ namespace Starfall
             if(afterlightChargeRegion==room)
             {
                 Dialog(o.name,o.en,
-                    "余光已经抵达公共接收端，时间还剩 "+Math.Ceiling(afterlightChargeLeft)+" 秒。\n\n"+
+                    "余光已抵达接收端，剩余 "+Math.Ceiling(afterlightChargeLeft)+" 秒；完整度 "+
+                        Math.Ceiling(afterlightChargeIntegrity)+"%。\n\n"+
                     "接通所需真实材料："+(AfterlightMode(room)==1?"木材 ×2、月光草 ×2":"星晶 ×2、零件 ×1")+
                     "。安装完成后将永久改变这片地区的设施功能。",
-                    "Afterlight reached its real receiver with "+Math.Ceiling(afterlightChargeLeft)+" seconds remaining.\n\n"+
+                    "Afterlight reached the real receiver with "+Math.Ceiling(afterlightChargeLeft)+
+                        "s remaining and "+Math.Ceiling(afterlightChargeIntegrity)+"% integrity.\n\n"+
                     "Material cost: "+(AfterlightMode(room)==1?"2 timber and 2 Moonherb":"2 starcrystal and 1 machine part")+
                     ". The service becomes a permanent local facility once built.",
                     C("安装并接通公共设施","Install and reconnect public service","afterlight_install_"+room),
@@ -410,7 +432,7 @@ namespace Starfall
                 if(stable)save.inventory[1]--;
                 afterlightChargeRegion=room;
                 afterlightStableCharge=stable;
-                afterlightChargeLeft=stable?120:90;
+                afterlightChargeLeft=stable?120:90;afterlightChargeIntegrity=100;
                 revision++;sound="quest";
                 Notify(stable?
                     "已投入星晶，120秒稳态传输开始！亲自前往另一端的公共接收台。":
@@ -423,6 +445,7 @@ namespace Starfall
             if(pieces[1]=="install")
             {
                 if(afterlightChargeRegion!=room || afterlightChargeLeft<=0 ||
+                    afterlightChargeIntegrity<=0 ||
                     (Position-AfterlightPoint(room,"outlet")).Length>2.2f ||
                     !SafeTravel)return true;
                 bool care=AfterlightMode(room)==1;
