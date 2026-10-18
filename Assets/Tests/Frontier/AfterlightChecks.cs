@@ -474,5 +474,61 @@ namespace Starfall.Tests
                 "Original v2 save persists repaired civic work without transient stable charge state");
         }
 
+        public static void AfterlightPublicTravelAndPaidChargeCannotMaskExistingLiveFieldWork(Campaign data)
+        {
+            var g=Fresh(data,0);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_done_1");
+            g.save.flags.Add("afterlight_plan_1_care");
+            g.save.flags.Add("afterlight_steward_1");
+            g.Enter(0);g.enemies.Clear();g.save.energy=100;
+            WorldObject forge=Object(g,"forge"),
+                starroad=Object(g,"afterlightwaypoint1");
+            g.save.x=forge.x;g.save.y=forge.y;
+            Action(g,forge.kind,"swordlesson_start");
+            Check(g.SwordLessonActive,
+                "The original blacksmith starts a real fieldwork projectile challenge");
+            g.save.x=starroad.x;g.save.y=starroad.y;
+            Action(g,starroad.kind,"afterlight_route_1");
+            Check(g.save.room==0&&g.SwordLessonActive,
+                "A working town starroad cannot erase an authentic live tutorial battle");
+            g.save.x=forge.x;g.save.y=forge.y;
+            Action(g,forge.kind,"swordlesson_abort");
+            Check(!g.SwordLessonActive,"The original forge retires its own timed fieldwork");
+            g.save.x=starroad.x;g.save.y=starroad.y;
+            Action(g,starroad.kind,"afterlight_route_1");
+            Check(g.save.room==1,
+                "The original authenticated starroad resumes once the physical field task ends");
+
+            var f=Fresh(data);f.save.stage=3;f.save.ending=3;
+            f.save.flags.Add("afterlight_started");
+            f.save.flags.Add("afterlight_plan_2_watch");
+            f.save.flags.Add("floodarchive_public");
+            f.save.flags.Add("scout_saved");
+            f.Enter(2);f.enemies.Clear();f.save.energy=100;
+            f.save.totalTime=36;
+            WorldObject west=null,anchor=Object(f,"afterlightanchor2");
+            foreach(WorldObject o in f.Map.objects)
+                if(o.id=="floodarchive_1")west=o;
+            Check(west!=null,"Original west-bank low-tide civic gauge is authored");
+            f.save.x=west.x;f.save.y=west.y;
+            f.Talk(west);
+            int choice=Array.FindIndex(f.conversation.choices,
+                c=>c.action=="floodarchive_relief_start");
+            Check(choice>=0,"The actual medicine transport is available at low tide");
+            f.Choose(choice);
+            Check(f.FloodReliefActive,"The medical field mission is physically underway");
+            f.save.x=anchor.x;f.save.y=anchor.y;
+            int crystals=f.save.inventory[1];
+            Action(f,anchor.kind,"afterlight_charge_2");
+            Check(f.AfterlightChargeRegion==0&&f.FloodReliefActive,
+                "Free afterlight transfer cannot mask an existing live timed ferry delivery");
+            f.save.inventory[1]=2;
+            Action(f,anchor.kind,"afterlight_stable_2");
+            Check(f.AfterlightChargeRegion==0&&f.FloodReliefActive&&
+                f.save.inventory[1]==2,
+                "Paid stable power is also refused without spending material during other fieldwork");
+        }
+
     }
 }
