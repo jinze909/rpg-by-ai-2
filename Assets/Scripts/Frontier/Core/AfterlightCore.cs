@@ -245,6 +245,14 @@ namespace Starfall
                 "This civic receiver is disconnected. Choose a public design and activate the original starroot anchor across this region first.",
                 C("记住位置","Remember location","close"));return true;
         }
+        // Preflight destination geometry without resetting the current world.
+        private bool AfterlightDestinationWalkable(int region,Point landing)
+        {
+            if(region<0||region>=data.maps.Length)return false;
+            int current=save.room;
+            try { save.room=region; return CanStand(landing); }
+            finally { save.room=current; }
+        }
         private bool ChooseAfterlight(string action)
         {
             if(action=="afterlight_track"){TrackQuest("afterlight");return true;}
@@ -285,10 +293,10 @@ namespace Starfall
             if(action=="afterlight_ferry_out" || action=="afterlight_ferry_back")
             {
                 if(save.room!=2 || !Has("afterlight_done_2") || AfterlightMode(2)!=1 ||
-                    !SafeTravel || Dying || practicing)return true;
+                    FieldWorkPreventsRest || !SafeTravel || Dying || practicing)return true;
                 Point from=AfterlightPoint(2,action.EndsWith("out")?"outlet":"anchor");
                 Point to=AfterlightPoint(2,action.EndsWith("out")?"anchor":"outlet");
-                if((Position-from).Length>2.2f || !CanStand(to))return true;
+                if((Position-from).Length>2.2f || !SafeRegionalLanding(to))return true;
                 save.x=to.x;save.y=to.y;revision++;sound="travel";
                 Notify("公共渡船已抵达对岸。不是公会独占的水路了。",
                     "Public ferry reached the other bank. Passage no longer belongs only to the guild.");
@@ -303,7 +311,8 @@ namespace Starfall
                     "afterlight_route_".Length:"afterlight_return_".Length),out region) ||
                     region<1||region>3 || !Has("afterlight_started") ||
                     !Has("afterlight_done_"+region) || !Has("afterlight_steward_"+region) ||
-                    !SafeTravel || Dying || practicing || afterlightChargeRegion!=0)
+                    FieldWorkPreventsRest || !SafeTravel || Dying || practicing ||
+                    afterlightChargeRegion!=0)
                     return true;
                 Point from=outbound?
                     ObjectPoint(0,"afterlightwaypoint"+region,new Point(-100,-100)):
@@ -313,15 +322,25 @@ namespace Starfall
                 if(save.room!=(outbound?0:region) ||
                     (Position-from).Length>2.2f)
                     return true;
-                // Collision MUST be checked on the destination map after Enter:
-                // CanStand uses the current Map, not the target region's map.
-                Enter(outbound?region:0);
-                if(save.room==(outbound?region:0) && CanStand(destination))
+                // A failed arrival should never reset the source room.
+                int targetRoom=outbound?region:0;
+                if(!CanEnter(targetRoom)||
+                    !AfterlightDestinationWalkable(targetRoom,destination))
+                {
+                    Notify("星灯出口被阻断；当前地图保持不变。",
+                        "Starroad destination blocked; current region preserved.");
+                    return true;
+                }
+                Enter(targetRoom);
+                if(save.room==targetRoom && SafeRegionalLanding(destination))
                 {
                     save.x=destination.x;save.y=destination.y;revision++;sound="travel";
                     Notify("公共星灯线路已接通。居民和冒险者都能使用这条新道路。",
                         "Public starroad now links town and civic services for every traveler.");
                 }
+                else if(save.room==targetRoom)
+                    Notify("出口附近有敌人或真实危险，已停靠在普通安全入口。",
+                        "Arrival is threatened; you remain at the ordinary regional entrance.");
                 return true;
             }
             if(action.StartsWith("afterlight_steward_"))
