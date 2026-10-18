@@ -863,6 +863,107 @@ namespace Starfall.Tests
                 "All optional civic upgrades survive the original v2 save format and leave original charter intact");
         }
 
+        public static void DefendedReceiversImproveOnlyTheirRealLocalPublicServices(Campaign data)
+        {
+            // Guarded forest lamps consume exactly the same existing local
+            // service and never grant a whole-map combat or stamina boon.
+            var forest=Fresh(data);forest.save.stage=3;forest.save.ending=3;
+            foreach(string flag in new[]{"afterlight_started","afterlight_complete",
+                "afterlight_done_1","afterlight_plan_1_watch","afterlight_reserve_1"})
+                forest.save.flags.Add(flag);
+            forest.Enter(1);forest.enemies.Clear();
+            var lamp=Object(forest,"afterlightoutlet1");
+            forest.save.x=lamp.x;forest.save.y=lamp.y;forest.invulnerable=100;
+            forest.save.energy=10;Advance(forest,1f);
+            float ordinaryLamp=forest.save.energy;
+            forest.save.flags.Add("afterlight_watch_done_1");
+            forest.save.energy=10;Advance(forest,1f);
+            Check(Math.Abs(forest.save.energy-ordinaryLamp-1.5f)<.07f,
+                "First physically defended forest adds exactly 1.5 renewable local energy per second");
+            forest.save.x=lamp.x+5;forest.save.y=lamp.y;
+            forest.save.energy=10;Advance(forest,1f);
+            float farEnergy=forest.save.energy;
+            forest.save.flags.Remove("afterlight_watch_done_1");
+            forest.save.energy=10;Advance(forest,1f);
+            Check(Math.Abs(forest.save.energy-farEnergy)<.07f,
+                "Forest guard patrol does not leak a permanent stamina buff outside the actual lantern");
+            // The same forest's caring nursery improves actual safe healing,
+            // but never manufactures health in a hostile combat zone.
+            var garden=Fresh(data);garden.save.stage=3;garden.save.ending=3;
+            foreach(string flag in new[]{"afterlight_started","afterlight_complete",
+                "afterlight_done_1","afterlight_plan_1_care","afterlight_reserve_1"})
+                garden.save.flags.Add(flag);
+            garden.Enter(1);garden.enemies.Clear();
+            var nursery=Object(garden,"afterlightoutlet1");
+            garden.save.x=nursery.x;garden.save.y=nursery.y;garden.invulnerable=100;
+            garden.save.health=40;Advance(garden,1f);
+            float unguarded= garden.save.health;
+            garden.save.flags.Add("afterlight_watch_done_1");
+            garden.save.health=40;Advance(garden,1f);
+            Check(Math.Abs((garden.save.health-unguarded)-1f)<.07f,
+                "Care-focused guarded forest refuge gains a genuinely earned +1 HP/s");
+            garden.enemies.Add(new Enemy(99761,0,nursery.x+.8f,nursery.y,70));
+            garden.save.health=40;Advance(garden,1f);
+            Check(Math.Abs(garden.save.health-40)<.07f,
+                "Guarded public nursery cannot heal player during real nearby enemy combat");
+
+            // Care-mode Drowned Ruins ferry has TWO real terminals; defense
+            // achievement upgrades both and is never applied out of range.
+            var ferry=Fresh(data);ferry.save.stage=3;ferry.save.ending=3;
+            foreach(string flag in new[]{"afterlight_started","afterlight_complete",
+                "afterlight_done_2","afterlight_plan_2_care","afterlight_reserve_2"})
+                ferry.save.flags.Add(flag);
+            ferry.Enter(2);ferry.enemies.Clear();ferry.invulnerable=100;
+            var dock=Object(ferry,"afterlightoutlet2");
+            var farDock=Object(ferry,"afterlightanchor2");
+            foreach(WorldObject endpoint in new[]{dock,farDock})
+            {
+                ferry.save.x=endpoint.x;ferry.save.y=endpoint.y;
+                ferry.save.health=40;Advance(ferry,1f);float before=ferry.save.health;
+                ferry.save.flags.Add("afterlight_watch_done_2");
+                ferry.save.health=40;Advance(ferry,1f);
+                Check(Math.Abs((ferry.save.health-before)-1f)<.07f,
+                    "Signed and defended ferry's local healing increases at both genuine terminals");
+                ferry.save.flags.Remove("afterlight_watch_done_2");
+            }
+
+            // A staffed mine's parts bonus runs through the ORIGINAL paid
+            // recipe. Stack cap is checked before consuming timber/crystal.
+            var mine=Fresh(data);mine.save.stage=3;mine.save.ending=3;
+            foreach(string flag in new[]{"afterlight_started","afterlight_complete",
+                "afterlight_done_3","afterlight_plan_3_care","afterlight_reserve_3"})
+                mine.save.flags.Add(flag);
+            mine.Enter(3);mine.enemies.Clear();
+            var foundry=Object(mine,"afterlightoutlet3");
+            mine.save.x=foundry.x;mine.save.y=foundry.y;
+            mine.save.inventory[0]=5;mine.save.inventory[1]=10;mine.save.inventory[4]=0;
+            Action(mine,foundry.kind,"afterlight_craft");
+            Check(mine.save.inventory[0]==4&&mine.save.inventory[1]==8&&
+                mine.save.inventory[4]==3,
+                "Before actual civic defense the legitimate paid workshop keeps original reserve output");
+            mine.save.flags.Add("afterlight_watch_done_3");
+            mine.Talk(foundry);
+            Check(Array.Exists(mine.conversation.choices,c=>c.action=="afterlight_craft" &&
+                c.en.Contains("4")),
+                "Live workshop choice advertises its earned actual four-part batch, not the old yield");
+            mine.Close();
+            Action(mine,foundry.kind,"afterlight_craft");
+            Check(mine.save.inventory[0]==3&&mine.save.inventory[1]==6&&
+                mine.save.inventory[4]==7,
+                "First real mine defense adds one physical machine part to a paid materials batch");
+            mine.save.inventory[4]=9996;
+            int wood=mine.save.inventory[0],crystals=mine.save.inventory[1];
+            Action(mine,foundry.kind,"afterlight_craft");
+            Check(mine.save.inventory[0]==wood&&mine.save.inventory[1]==crystals&&
+                mine.save.inventory[4]==9996,
+                "Four-part guarded output correctly refuses a near-full inventory before any ingredient spending");
+            mine.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(mine.save));reloaded.Start();
+            Check(reloaded.save.version==2&&reloaded.AfterlightWatchDone(3)&&
+                reloaded.AfterlightReserve(3),
+                "Guarded production upgrades persist in original v2 save flags, with no changed schema");
+        }
+
         public static void AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;
