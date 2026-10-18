@@ -3411,6 +3411,44 @@ namespace Starfall.Tests
                 "Authentic positive strike still deals damage and shows the existing hit reaction");
         }
 
+        public static void ForcedShorelineRescueResetsHeroWalkCycleWithoutPhantomFootsteps(Campaign data)
+        {
+            MapData previous=data.maps[5];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='%';
+                    rows[y]=new string(cells);
+                }
+                data.maps[5]=new MapData{
+                    id=5,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.room=5;
+                g.save.x=11.5f;g.save.y=10.5f;
+                g.save.totalTime=21.98f;g.save.reducedMotion=true;
+                g.walkDistance=8.7f;g.footContacts=17;
+                Check(g.LowTide&&g.CanStand(g.Position)&&
+                    g.WalkPosePhase>.01f,
+                    "Real exposed-tide hero begins with a nonzero accumulated physical walk-sprite phase");
+                Point flooded=g.Position;
+                g.Tick(.04f,new Point());
+                Check(!g.LowTide&&g.CanStand(g.Position)&&
+                    (g.Position-flooded).Length>.3f,
+                    "An actual high-tide collision forces shoreline recovery of the previously grounded hero");
+                Check(g.walkDistance==0f&&g.WalkFrame==0&&
+                    g.WalkPosePhase==0f&&g.footContacts==17,
+                    "Safety teleport creates neither a phantom footstep nor a reused leg frame; next walk starts from planted canonical pose");
+                Check(g.save.version==2&&g.mode=="world",
+                    "Temporary walk-reset stays independent of legacy saves, level state and active world play");
+            }
+            finally{data.maps[5]=previous;}
+        }
+
         public static void ForcedPlayerTideEvacuationCancelsOnlyPhantomDodgeReward(Campaign data)
         {
             MapData previous=data.maps[5];

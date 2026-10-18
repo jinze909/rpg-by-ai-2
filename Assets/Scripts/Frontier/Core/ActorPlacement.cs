@@ -125,6 +125,11 @@ namespace Starfall
             {
                 Point p = SafeActorFoot(Position); save.x = p.x; save.y = p.y;
                 CancelAction(); dashTime = 0; playerRecoil = new Point();
+                // The escape to shore is a safety teleport, not traveled
+                // footsteps. Restart the next physical walk from its first
+                // coherent planted sprite pose, without adding/replaying
+                // footstep events already counted earlier in the journey.
+                walkDistance = 0f;
                 // An involuntary shoreline relocation is not a player
                 // dodge. A dash started on the outgoing shoal must not
                 // claim a counter from a later warning after its actual

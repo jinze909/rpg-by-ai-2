@@ -38,6 +38,7 @@ namespace Starfall.Tests
         [Test] public void RisingTideCannotWasteUnfiredAutoBowCooldown() { CoreChecks.RisingTideCancelsUnfiredCompanionAutoShotWithoutFullCadence(Data()); }
         [Test] public void FloodedRescueCivilianAndRaiderResetAllInvalidMotionAndTargets() { CoreChecks.ActualRisingTideClearsStrandedCivilianGaitAndEnemyStockIntent(Data()); }
         [Test] public void RisingTideCannotMintEvacuatedDashCounter() { CoreChecks.ForcedPlayerTideEvacuationCancelsOnlyPhantomDodgeReward(Data()); }
+        [Test] public void ForcedTideHeroShoreRecoveryRestartsStableWalkFrames() { CoreChecks.ForcedShorelineRescueResetsHeroWalkCycleWithoutPhantomFootsteps(Data()); }
         [Test] public void InvalidWeaponDamageCannotHealEnemies() { CoreChecks.InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Data()); }
         [Test] public void SwappedWeaponsCannotCarrySwordComboProgress() { CoreChecks.RealWeaponChangesRestartWeaponComboButReselectDoesNot(Data()); }
         [Test] public void PracticeExitNeverLeaksRedCirclesOrCounterBuffs() { CoreChecks.PracticeExitRetiresDummyHazardsAndEarnedCounter(Data()); }
