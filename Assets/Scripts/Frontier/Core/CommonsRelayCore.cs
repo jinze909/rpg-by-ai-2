@@ -189,8 +189,8 @@ namespace Starfall
                     !Has("commons_relay_complete") &&
                     (Position - ObjectPoint(0, "commonswitness", new Point(-100, -100))).Length <= 2.2f)
                 {
-                    Flag("commons_relay_complete"); save.coins += 80;
-                    save.skillPoints++; AddXp(90); sound = "reward"; revision++;
+                    Flag("commons_relay_complete"); CreditCoins(80);
+                    CreditSkillPoints(1); AddXp(90); sound = "reward"; revision++;
                     RecordMoment("艾拉公开了堡垒民用密钥。通往粮食、医护与撤离灯线的路不再属于少数人。",
                         "Ayla published the citadel's civilian access key. Food, care and evacuation routes no longer belong to a few.");
                     Notify("公共授权已发布！+80硬币、1技能点、90经验，永久耐力恢复+2/秒。",
@@ -240,7 +240,7 @@ namespace Starfall
                 return true;
             }
             ResetCommonsRelayTrial(); Flag("commons_relay_sealed");
-            save.coins += 60; save.shards += 3; AddXp(75);
+            CreditCoins(60); CreditShards(3); AddXp(75);
             sound = "reward"; revision++;
             effects.Add(new Effect("discover", CommonsRelayPoint(3), .8f));
             RecordMoment("堡垒三道公共线路重连成功。城市内外可以共享灯光与供给。等待公开授权。",

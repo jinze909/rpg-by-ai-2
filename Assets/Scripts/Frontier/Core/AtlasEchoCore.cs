@@ -106,7 +106,7 @@ namespace Starfall
                 ResetAtlasEcho();
                 if (!Has("archive_echo_complete"))
                 {
-                    Flag("archive_echo_complete"); save.coins += 85; save.shards += 5;
+                    Flag("archive_echo_complete"); CreditCoins(85); CreditShards(5);
                     AddXp(90); revision++; sound = "reward";
                     RecordMoment("平息测绘师的回声，旧路罗盘终于复原。",
                         "Silenced the surveyor's echo and restored the old route compass.");

@@ -785,5 +785,78 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CompleteAtlasEchoAndCitadelRelayRetainHighValueRewardsInV2(Campaign data)
+        {
+            var atlas = Fresh(data);
+            atlas.save.stage = 3;
+            atlas.save.flags.Add("archive_complete");
+            atlas.Enter(3); atlas.enemies.Clear();
+            WorldObject compass = Object(atlas, "archiveecho");
+            atlas.save.x = compass.x; atlas.save.y = compass.y;
+            atlas.save.coins = 999998; atlas.save.shards = 99998;
+            int beforeXp = atlas.save.xp;
+            atlas.invulnerable = 100;
+            Action(atlas, compass.kind, "archive_echo_start");
+            Enemy guardian = atlas.enemies.Find(atlas.IsAtlasEchoEnemy);
+            Check(guardian != null,
+                "A real physical atlas-calibration encounter must spawn its genuine elite");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "The original combat damage path is available");
+            hit.Invoke(atlas, new object[] { guardian, 99999f, false, null, null });
+            for (int tick = 0; tick < 12 && !atlas.Has("archive_echo_complete"); tick++)
+                atlas.Tick(.05f, new Point());
+            Check(atlas.Has("archive_echo_complete") &&
+                atlas.save.coins == 999999 && atlas.save.shards == 99999 &&
+                atlas.save.xp > beforeXp,
+                "A genuinely defeated elite still finishes its quest with bounded permanent money and XP");
+            atlas.PrepareSave();
+            var atlasResume = new GameCore(data, CloneSave(atlas.save));
+            Check(atlasResume.Has("archive_echo_complete") &&
+                atlasResume.save.coins == 999999 && atlasResume.save.shards == 99999,
+                "Completed original Atlas Echo defense survives legacy v2 save reload without reward loss");
+
+            var g = CommonsReady(data);
+            g.save.coins = 999998; g.save.shards = 99998;
+            g.save.skillPoints = 99;
+            int xp = g.save.xp;
+            CommonsActivate(g, 1);
+            Check(g.CommonsRelayRoom == 4 && g.enemies.Exists(g.IsCommonsRelayEnemy),
+                "Physical food circuit spawns its first real security wave");
+            foreach (Enemy e in g.enemies.FindAll(g.IsCommonsRelayEnemy))
+                hit.Invoke(g, new object[] { e, 99999f, false, null, null });
+            CommonsActivate(g, 2);
+            Check(g.CommonsRelayStep == 3 && g.enemies.Exists(g.IsCommonsRelayEnemy),
+                "Winning first real combat opens the second original security wave");
+            foreach (Enemy e in g.enemies.FindAll(g.IsCommonsRelayEnemy))
+                hit.Invoke(g, new object[] { e, 99999f, false, null, null });
+            CommonsActivate(g, 3);
+            Check(g.Has("commons_relay_sealed") && g.CommonsRelayRoom == 0 &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.xp > xp,
+                "Winning three live console interactions grants bounded sealed-circuit rewards");
+            g.Enter(0);
+            WorldObject witness = Object(g, "commonswitness");
+            g.save.x = witness.x; g.save.y = witness.y;
+            Action(g, witness.kind, "commons_publish");
+            Check(g.Has("commons_relay_complete") &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.skillPoints == 99,
+                "Ayla's physical public authorization earns the original permanent energy upgrade without exceeding the talent cap");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.Has("commons_relay_sealed") &&
+                restored.Has("commons_relay_complete") &&
+                restored.save.coins == 999999 && restored.save.shards == 99999 &&
+                restored.save.skillPoints == 99,
+                "Entire three-stage civic defense and permanent final outcome survive unchanged v2 persistence");
+            restored.Talk(witness);
+            Check(restored.conversation != null &&
+                !Array.Exists(restored.conversation.choices,
+                    c => c.action == "commons_publish"),
+                "Published city access key cannot pay another reward after resuming");
+        }
+
     }
 }
