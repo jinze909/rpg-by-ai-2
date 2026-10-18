@@ -184,5 +184,41 @@ namespace Starfall.Tests
                 "Rest and tidal collision state remain legal when saved immediately and reopened");
         }
 
+        public static void RisingTideWithdrawsUnspentEnemyWarningBeforeNextAttack(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.save.totalTime = 21.92f;
+            g.Enter(5); g.enemies.Clear(); g.effects.Clear();
+            g.invulnerable = 100;
+            Point shoal = new Point(); bool found = false;
+            for (int y = 2; y < g.Map.rows.Length - 2 && !found; y++)
+            for (int x = 2; x < g.Map.rows[y].Length - 2 && !found; x++)
+            {
+                Point p = new Point(x + .5f, y + .5f);
+                if (g.Map.rows[y][x] == '%' && g.CanStand(p))
+                { shoal = p; found = true; }
+            }
+            Check(found && g.LowTide,
+                "A real accessible tidal shoal exists before the attack windup");
+            g.save.x = shoal.x; g.save.y = shoal.y;
+            var raider = new Enemy(18490, 2, shoal.x, shoal.y, 120);
+            raider.timer = 0;
+            g.enemies.Add(raider);
+            g.Tick(.005f, new Point());
+            Effect warning = g.effects.Find(e => e.kind == "danger" &&
+                (e.position - raider.target).Length < .01f);
+            Check(raider.state == 1 && warning != null,
+                "Actual heavy enemy arms its contact-linked warning while low-tide ground is still legal");
+            g.save.totalTime = 21.995f;
+            g.Tick(.01f, new Point());
+            Check(!g.LowTide && g.CanStand(raider.Position) &&
+                g.CanStand(g.Position) && raider.state == 0 &&
+                !g.effects.Contains(warning),
+                "Tide relocation retracts the interrupted warning at the same simulation boundary as the enemy movement");
+            Check(!raider.targetingWayfarer && !raider.targetingReliefCivilian &&
+                raider.timer >= .3f,
+                "Environmentally aborted attackers have no stale civilian target and receive readable recovery");
+        }
+
     }
 }

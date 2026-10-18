@@ -43,8 +43,14 @@ namespace Starfall
         {
             foreach (Enemy enemy in enemies) if (!Fits(enemy.Position))
             {
+                // The water canceled the attack itself. Retract its
+                // attacker-identity warning at the same instant: otherwise
+                // the old danger circle remains visible after the forced
+                // retreat despite no strike ever being released.
+                RemoveEnemyPendingWarning(enemy);
                 Point p = SafeActorFoot(enemy.Position); enemy.x = p.x; enemy.y = p.y;
                 enemy.moving = enemy.backpedaling = false; enemy.state = 0; enemy.releaseTime = 0;
+                enemy.targetingWayfarer = enemy.targetingReliefCivilian = false;
                 enemy.timer = Math.Max(.35f, enemy.timer);
             }
             if (save.companion >= 0 && !Fits(companionPosition))
