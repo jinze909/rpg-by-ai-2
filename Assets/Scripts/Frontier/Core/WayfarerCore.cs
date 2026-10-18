@@ -151,7 +151,8 @@ namespace Starfall
                 save.inventory[item]--;
                 wayfarerIntegrity = Math.Min(100, wayfarerIntegrity + 35);
                 wayfarerAidUsed = true; sound = "reward"; revision++;
-                effects.Add(new Effect("discover", aidTarget, .5f));
+                effects.Add(new Effect("discover", aidTarget, .5f) {
+                    wayfarerOwned = true });
                 Notify("紧急援助成功！旅人最多恢复35点安全度（每次伏击限一次）。",
                     "Field aid applied! Restored up to 35 safety (once per ambush).");
                 return true;
@@ -219,7 +220,8 @@ namespace Starfall
                     positions[slot].x, positions[slot].y, 50 + room * 16);
                 // Reserved high IDs must never become multi-hour opening cooldowns.
                 e.timer = .9f + slot * .3f; enemies.Add(e);
-                effects.Add(new Effect("discover", positions[slot], .6f));
+                effects.Add(new Effect("discover", positions[slot], .6f) {
+                    wayfarerOwned = true });
             }
             TrackQuest("wayfarers"); sound = "quest"; revision++;
             Notify("守住旅人安全度！敌人会冲向旅人，拦截并击退他们。",
@@ -245,8 +247,10 @@ namespace Starfall
             if (attacker.kind == 2
                 ? (Position - attacker.target).Length >= radius
                 : !InEnemyMeleeArc(attacker, Position)) return false;
-            effects.Add(new Effect("number", Position, .7f, L("护卫拦截", "INTERCEPT")));
-            effects.Add(new Effect("discover", traveler, .35f));
+            effects.Add(new Effect("number", Position, .7f, L("护卫拦截", "INTERCEPT")) {
+                wayfarerOwned = true });
+            effects.Add(new Effect("discover", traveler, .35f) {
+                wayfarerOwned = true });
             return true;
         }
         // A traveler is a real defendable objective, not a passive kill counter.
@@ -259,7 +263,11 @@ namespace Starfall
             if ((attacker.Position - npc).Length > 2.2f || !ClearAttackPath(attacker.Position, npc)) return;
             if (InterceptWayfarerStrike(attacker, npc)) return;
             wayfarerIntegrity = Math.Max(0, wayfarerIntegrity - (attacker.kind == 2 ? 24 : 18));
-            effects.Add(new Effect("danger", npc, .35f) { radius = .55f });
+            // The area warning belongs to enemy windup, before contact.
+            // On an ACTUAL civilian hit show a brief impact, not a new
+            // red prediction that lingers after damage has landed.
+            effects.Add(new Effect("burst", npc, .24f) {
+                radius = .55f, wayfarerOwned = true });
             if (wayfarerIntegrity <= 0)
             {
                 enemies.RemoveAll(IsWayfarerEnemy);

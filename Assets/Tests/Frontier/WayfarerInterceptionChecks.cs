@@ -158,5 +158,60 @@ namespace Starfall.Tests
                 "Full rescue and exact bounded physical reward persist without v3 migration");
         }
 
+        public static void TravelerAmbushContactVisualsDoNotFakeFutureDangerOrSurviveAbort(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
+            g.save.flags.Add("scout_saved");
+            g.Enter(1); g.enemies.Clear(); g.effects.Clear();
+            var npc = Object(g, "wayfarer1");
+            Point traveler = new Point(npc.x, npc.y);
+            g.save.x = traveler.x; g.save.y = traveler.y;
+            Action(g, npc.kind, "wayfarer_defend_1");
+            Enemy raider = g.enemies.Find(e => e.id >= 82000 &&
+                e.id < 82100 && e.kind == 0);
+            Check(raider != null && g.effects.Exists(e =>
+                e.wayfarerOwned && e.kind == "discover"),
+                "Actual physical ambush spawn effects belong to their encounter");
+            var unowned = new Effect("discover", new Point(12, 14), 3f);
+            g.effects.Add(unowned);
+            Point[] offsets = { new Point(2, 0), new Point(-2, 0),
+                new Point(0, 2), new Point(0, -2) };
+            bool laneFound = false;
+            foreach (Point offset in offsets)
+            {
+                Point at = traveler + offset;
+                if (!g.CanStand(at)) continue;
+                raider.x = at.x; raider.y = at.y; laneFound = true; break;
+            }
+            Check(laneFound, "Original traveler map provides a safe enemy contact lane");
+            Point distant = new Point();
+            bool found = false;
+            for (int y = 3; y < g.Map.rows.Length - 3 && !found; y++)
+            for (int x = 3; x < g.Map.rows[y].Length - 3 && !found; x++)
+            {
+                var at = new Point(x + .5f, y + .5f);
+                if (!g.CanStand(at) || (at - traveler).Length < 8) continue;
+                distant = at; found = true;
+            }
+            Check(found, "The ambush offers a legal faraway hero position");
+            g.save.x = distant.x; g.save.y = distant.y;
+            raider.state = 1; raider.timer = .005f;
+            raider.target = traveler; raider.targetingWayfarer = true;
+            raider.Face(traveler - raider.Position);
+            g.invulnerable = 100;
+            g.Tick(.05f, new Point());
+            Check(g.WayfarerIntegrity < 100 &&
+                g.effects.Exists(e => e.kind == "burst" && e.wayfarerOwned) &&
+                !g.effects.Exists(e => e.kind == "danger" &&
+                    e.wayfarerOwned && e.life <= .35f),
+                "Real raider damages the unguarded civilian with owned contact flash rather than a new fake post-hit danger warning");
+            g.save.x = traveler.x; g.save.y = traveler.y;
+            Action(g, npc.kind, "wayfarer_abandon");
+            Check(g.WayfarerEncounterRoom == 0 &&
+                !g.effects.Exists(e => e.wayfarerOwned) &&
+                g.effects.Contains(unowned),
+                "Abandoning an actual wounded traveler cleans only encounter flashes and preserves unrelated world visuals");
+        }
+
     }
 }
