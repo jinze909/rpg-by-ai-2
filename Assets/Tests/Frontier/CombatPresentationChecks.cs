@@ -1640,7 +1640,9 @@ namespace Starfall.Tests
                 Check(g.CanStand(foe.Position) &&
                     (actualAim - oldAim).Length > .35f,
                     "The living target sidestepped into a distinctly new valid line");
-                g.Tick(.14f, new Point());
+                // GameCore caps each individual Tick at 50ms; use real
+                // stepped world time to reach the physical 160ms contact.
+                Advance(g, .17f);
                 Check(prepared.released && g.companionAction == prepared &&
                     g.projectiles.Count == 1,
                     "The original release frame emits exactly one real Ivo arrow");
