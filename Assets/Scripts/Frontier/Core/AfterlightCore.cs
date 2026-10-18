@@ -36,7 +36,9 @@ namespace Starfall
         // but trial foes, clock and wave IDs must NEVER enter v2 saved state.
         private int afterlightWatchRoom,afterlightWatchWave,afterlightWatchA,afterlightWatchB;
         private bool afterlightWatchADead,afterlightWatchBDead;
-        private float afterlightWatchTime;
+        private float afterlightWatchTime,afterlightWatchStock;
+        public float AfterlightWatchStock
+        {get{return AfterlightWatchActive?afterlightWatchStock:0f;}}
         public bool AfterlightWatchActive {get{return afterlightWatchRoom>=1&&afterlightWatchRoom==save.room;}}
         public int AfterlightWatchWave {get{return AfterlightWatchActive?afterlightWatchWave:0;}}
         public float AfterlightWatchTime {get{return AfterlightWatchActive?afterlightWatchTime:0;}}
@@ -69,7 +71,33 @@ namespace Starfall
                 effects.RemoveAll(e=>e.afterlightWatchOwned);
             }
             afterlightWatchRoom=afterlightWatchWave=afterlightWatchA=afterlightWatchB=0;
-            afterlightWatchADead=afterlightWatchBDead=false;afterlightWatchTime=0;
+            afterlightWatchADead=afterlightWatchBDead=false;
+            afterlightWatchTime=afterlightWatchStock=0;
+        }
+        // Siege raiders damage an actual local facility at the end of their
+        // existing windup, not on spawn, cosmetic warning or forged actions.
+        // Nearby bodyguarding redirects their aggression toward the hero.
+        private void DamageAfterlightWatchStock(Enemy attacker)
+        {
+            if(!AfterlightWatchActive||attacker==null||!IsAfterlightWatchEnemy(attacker)||
+                !attacker.targetingAfterlightStock||attacker.hp<=0)return;
+            Point station=AfterlightPoint(afterlightWatchRoom,"outlet");
+            if((attacker.Position-station).Length>2.35f||
+                !ClearAttackPath(attacker.Position,station))return;
+            float damage=attacker.kind==2?24f:14f;
+            afterlightWatchStock=Math.Max(0,afterlightWatchStock-damage);
+            revision++;sound="hit";
+            effects.Add(new Effect("number",station,.75f,
+                L("储备受损 -"+(int)damage,"STOCK -"+(int)damage))
+                {afterlightWatchOwned=true});
+            if(afterlightWatchStock<=0)
+            {
+                ResetAfterlightWatch();revision++;
+                Notify("接收站应急储备被袭击者击溃！居民设施与既有成果未丢失；可以重新组织防卫。",
+                    "Raiders broke the local reserve defense! Permanent public infrastructure remains. You may retry.");
+            }
+            else Notify("袭击者破坏了储备！接收站剩余耐久 "+Math.Ceiling(afterlightWatchStock)+"%。",
+                "Raiders damaged the reserve! Receiver integrity "+Math.Ceiling(afterlightWatchStock)+"%.");
         }
         private bool AfterlightWatchSpawnPoint(int ordinal,int wave,Point avoid,out Point spot)
         {
@@ -150,6 +178,7 @@ namespace Starfall
                 return true;
             }
             afterlightWatchRoom=room;afterlightWatchTime=100f;
+            afterlightWatchStock=100f;
             if(!SpawnAfterlightWatchWave(1))
             {
                 ResetAfterlightWatch();
@@ -435,8 +464,11 @@ namespace Starfall
                 {
                     if(AfterlightWatchActive)
                     {
-                        descriptionZh+="\n\n公共防卫进行中：第"+AfterlightWatchWave+"/2波，剩余"+Math.Ceiling(AfterlightWatchTime)+"秒。两波敌人必须真正被击败。";
-                        descriptionEn+="\n\nCivic defense wave "+AfterlightWatchWave+"/2. "+Math.Ceiling(AfterlightWatchTime)+"s left; defeat both real attacker waves.";
+                        descriptionZh+="\n\n公共防卫：第"+AfterlightWatchWave+"/2波，剩余"+Math.Ceiling(AfterlightWatchTime)+
+                            "秒；储备耐久 "+Math.Ceiling(AfterlightWatchStock)+"%。近战袭击者会优先靠近并破坏接收站，贴身阻截可吸引攻击。";
+                        descriptionEn+="\n\nCivic defense wave "+AfterlightWatchWave+"/2; "+
+                            Math.Ceiling(AfterlightWatchTime)+"s left, stock integrity "+
+                            Math.Ceiling(AfterlightWatchStock)+"%. Melee raiders attack the receiver unless you intercept them in close combat.";
                         options.Add(C("安全终止本次公共防卫","Withdraw from current civic defense",
                             "afterlight_watch_abort_"+room));
                     }
