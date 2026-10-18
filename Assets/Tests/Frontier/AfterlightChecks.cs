@@ -746,5 +746,52 @@ namespace Starfall.Tests
                 "SaveData v2 preserves earned districts and local design but never a canceled cargo run");
         }
 
+        public static void AfterlightReceiverChoicesRespondToInsufficientPowerAndRemainingTime(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");g.save.flags.Add("afterlight_plan_3_watch");
+            g.Enter(3);g.enemies.Clear();
+            WorldObject anchor=Object(g,"afterlightanchor3"),
+                outlet=Object(g,"afterlightoutlet3");
+            g.save.x=anchor.x;g.save.y=anchor.y;
+            g.save.inventory[2]=1;
+            Action(g,anchor.kind,"afterlight_charge_3");
+            g.save.x=outlet.x;g.save.y=outlet.y;
+            g.Talk(outlet);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterlight_repair_3")<0,
+                "Healthy power no longer suggests a nonfunctional emergency repair");
+            g.Close();
+            var field=typeof(GameCore).GetField("afterlightChargeIntegrity",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var time=typeof(GameCore).GetField("afterlightChargeLeft",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(field!=null&&time!=null,"True runtime cargo and timer exist");
+            field.SetValue(g,20f);
+            g.Talk(outlet);
+            Check(Array.Exists(g.conversation.choices,c=>c.action=="afterlight_repair_3")&&
+                Array.Exists(g.conversation.choices,c=>c.action=="afterlight_discard_3"),
+                "Damaged actual receiver offers repair and physical withdrawal choices");
+            g.Close();
+            Action(g,outlet.kind,"afterlight_install_3");
+            Check(g.toast.Contains("35%")&&!g.Has("afterlight_done_3")&&
+                g.AfterlightChargeIntegrity==20&&g.save.inventory[2]==1,
+                "Insufficient-power install explains the 35% requirement without charging material");
+            time.SetValue(g,7f);
+            Action(g,outlet.kind,"afterlight_repair_3");
+            Check(g.toast.Contains("8")&&g.AfterlightChargeIntegrity==20&&
+                g.save.inventory[2]==1&&g.AfterlightChargeLeft==7,
+                "A recovery with under eight seconds left clearly refuses to steal a real herb");
+            g.Talk(outlet);int withdraw=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterlight_discard_3");
+            Check(withdraw>=0,"Time-expired receiver still provides a physical exit");
+            g.Choose(withdraw);
+            Check(g.AfterlightChargeRegion==0&&g.AfterlightChargeIntegrity==0&&
+                !g.Has("afterlight_done_3"),
+                "Physical withdrawal resolves an impossible load without inventing regional completion");
+        }
+
     }
 }
