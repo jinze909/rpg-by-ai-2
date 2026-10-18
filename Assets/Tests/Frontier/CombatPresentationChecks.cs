@@ -634,11 +634,14 @@ namespace Starfall.Tests
                     rows[y]=new string(row);
                 }
                 data.maps[0]=new MapData{
-                    id=0,spawnX=10.5f,spawnY=12.5f,rows=rows,
+                    id=0,spawnX=10.5f,spawnY=11.5f,rows=rows,
                     objects=new WorldObject[0],decor=new Decoration[0]};
                 var g=Fresh(data,0);
                 g.enemies.Clear();
-                g.save.x=10.5f;g.save.y=12.5f;
+                // The heavy slam's actual ground-radius is 1.5 tiles.
+                // Stand inside the second live attack's true contact ring,
+                // not merely within the 2.5-tile AI acquisition distance.
+                g.save.x=10.5f;g.save.y=11.5f;
                 g.save.health=100f;g.save.reducedMotion=true;
                 var buried=new Enemy(99201,2,9.5f,10.5f,10000f){timer=0};
                 var live=new Enemy(99202,2,11.5f,10.5f,10000f){timer=0};
