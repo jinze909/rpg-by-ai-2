@@ -3241,6 +3241,77 @@ namespace Starfall.Tests
                 "Authentic positive strike still deals damage and shows the existing hit reaction");
         }
 
+        public static void RisingTideCancelsUnfiredCompanionAutoShotWithoutFullCadence(Campaign data)
+        {
+            MapData previous=data.maps[5];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='%';
+                    rows[y]=new string(cells);
+                }
+                data.maps[5]=new MapData{
+                    id=5,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var attackClock=typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var targetField=typeof(GameCore).GetField("companionAutoTarget",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                foreach(bool firedBeforeTide in new[]{false,true})
+                {
+                    var g=Fresh(data,0);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;g.save.totalTime=21f;
+                    g.save.flags.Add("companion_1");
+                    g.SelectCompanion(1);
+                    g.save.room=5;
+                    g.companionPosition=new Point(11.5f,10.5f);
+                    var enemy=new Enemy(99601,0,14.5f,10.5f,10000f)
+                        {stun=99f,timer=999f,staggerRecovery=100f};
+                    g.enemies.Add(enemy);
+                    attackClock.SetValue(g,0f);
+                    g.Tick(.02f,new Point());
+                    ActorAction action=g.companionAction;
+                    Check(action!=null&&action.kind=="attack"&&
+                        !action.released&&
+                        (float)attackClock.GetValue(g)>2.6f&&
+                        targetField.GetValue(g)==enemy&&
+                        g.CanStand(g.companionPosition),
+                        "Real ranged companion automatically begins its own 2.8s paid draw from the exposed tidal bank");
+                    if(firedBeforeTide)
+                    {
+                        Advance(g,.17f);
+                        Check(action.released&&g.projectiles.Exists(p=>p.friendly&&
+                            p.visual=="arrow"),
+                            "The ordinary automatic shot must actually leave the bow before testing a spent attack cadence");
+                    }
+                    g.save.totalTime=21.98f;
+                    g.Tick(.04f,new Point());
+                    Check(!g.LowTide&&g.CanStand(g.companionPosition)&&
+                        g.companionAction==null&&
+                        targetField.GetValue(g)==null&&
+                        g.companionMoveTime==0f,
+                        "True rising tide evacuates the companion, drops stale targeting and resets the old airborne leg phase");
+                    float cadence=(float)attackClock.GetValue(g);
+                    if(firedBeforeTide)
+                        Check(cadence>2f,
+                            "A volley already physically released before rising tide retains its normal spent automatic cooldown");
+                    else
+                        Check(cadence>=0f&&cadence<=.23f&&
+                            !action.released&&g.projectiles.Count==0,
+                            "An interrupted un-fired automatic shot retries promptly instead of charging 2.8s for nothing");
+                }
+            }
+            finally{data.maps[5]=previous;}
+        }
+
         public static void RisingTideRefundsOnlyUnreleasedCompanionOrders(Campaign data)
         {
             // Room-five collision really changes at totalTime%36 == 22.

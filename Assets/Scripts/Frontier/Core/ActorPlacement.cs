@@ -153,9 +153,15 @@ namespace Starfall
                 bool unspentCommand = companionAction != null &&
                     companionAction.kind == "command" &&
                     !companionAction.released;
+                bool unspentAuto = companionAction != null &&
+                    companionAction.kind != "command" &&
+                    !companionAction.released;
                 companionPosition = SafeActorFoot(companionPosition);
-                companionAction = null; companionMoving = false;
+                companionAction = null; companionAutoTarget = null;
+                companionMoving = false; companionMoveTime = 0f;
                 if (unspentCommand) companionCooldown = 0f;
+                if (unspentAuto)
+                    companionAttack = Math.Min(companionAttack, .22f);
             }
             // The real evacuee is a world actor too. Without this, the
             // outgoing tide can trap her in newly flooded shoals while the
