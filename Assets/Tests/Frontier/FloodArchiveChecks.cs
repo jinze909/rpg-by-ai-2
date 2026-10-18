@@ -470,12 +470,14 @@ namespace Starfall.Tests
             float health=g.save.health;
             hit.Invoke(g,new object[]{30f,"shot",null});
             float firstDamage=100-g.FloodReliefIntegrity;
-            Check(g.save.health<health&&firstDamage>0&&firstDamage<14&&
+            float fullShock=Math.Max(14,Math.Min(38,(health-g.save.health)*1.15f));
+            Check(g.save.health<health&&
+                Math.Abs(firstDamage-fullShock*.45f)<.05f&&
                 g.FloodReliefRaiders==2,
                 "Ward contact: hero="+health+"->"+g.save.health+
-                " cargoLost="+firstDamage+" ward="+g.FloodReliefWardTime+
-                " raiders="+g.FloodReliefRaiders+
-                " mode="+g.mode+" invulnerable="+g.invulnerable);
+                " cargoLost="+firstDamage+" expected="+(fullShock*.45f)+
+                " ward="+g.FloodReliefWardTime+
+                " raiders="+g.FloodReliefRaiders);
             g.invulnerable=0;
             var ward=typeof(GameCore).GetField("floodReliefWardTime",
                 System.Reflection.BindingFlags.NonPublic|
@@ -483,8 +485,8 @@ namespace Starfall.Tests
             Check(ward!=null,"The live shield has an honest countdown, not a permanent buff");
             ward.SetValue(g,0f);
             hit.Invoke(g,new object[]{30f,"shot",null});
-            Check(g.FloodReliefIntegrity<100-firstDamage-13.9f,
-                "Without the ward a second equal authentic strike damages medicine at full strength");
+            Check(Math.Abs(g.FloodReliefIntegrity-(100-firstDamage-fullShock))<.05f,
+                "After the ward expires, an equal true hit damages the parcel at the full original impact");
             choose.Invoke(g,new object[]{"floodarchive_relief_ward"});
             Check(g.FloodReliefWardTime==0&&g.save.energy==beforeEnergy-20,
                 "An exhausted ward can never be reactivated for free or with another charge");
