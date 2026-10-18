@@ -337,6 +337,14 @@ namespace Starfall
                 skywatchGroundingUsed = true;
                 SkywatchGroundingTime = 8f;
                 skywatchPulseTime = Math.Max(skywatchPulseTime, 8f);
+                // Grounding means the current frost attack was CANCELLED,
+                // not only that upcoming scripted pulses are suspended.
+                // Retire the actual boss's pending contact circle and any
+                // already airborne boss-owned orbs at this one-use action.
+                // Unrelated main-world arrows/effects remain intact.
+                RemoveEnemyPendingWarning(guardian);
+                projectiles.RemoveAll(p => p.skywatchOwned);
+                effects.RemoveAll(e => e.skywatchOwned);
                 hazards.RemoveAll(h => h.skywatchOwned);
                 guardian.stun = Math.Max(guardian.stun, 1.8f);
                 guardian.state = 0; guardian.releaseTime = 0;
