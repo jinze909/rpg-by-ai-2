@@ -160,7 +160,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
         {
@@ -344,6 +344,12 @@ namespace Starfall
                     "Afterlight transfer is active. Reach the real receiver or return to the source to cancel before traveling.");
                 return;
             }
+            if(AfterlightWatchActive)
+            {
+                Notify("公共储备防卫进行中！击退袭击者，或返回原接收台主动终止。",
+                    "Civic reserve defense active. Defeat the attackers or withdraw at the receiver.");
+                return;
+            }
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
@@ -424,6 +430,12 @@ namespace Starfall
             {
                 Notify("第五章余光传输中，不能直接快速回城。请到原锚点取消或完成通电。",
                     "A public afterlight charge is in transit. Finish at the receiver or cancel at the original anchor.");
+                return;
+            }
+            if(AfterlightWatchActive)
+            {
+                Notify("守护公共储备的战斗尚未结束，请返回接收台撤销或实际完成防卫。",
+                    "Finish civic reserve defense or withdraw at its receiver before returning to town.");
                 return;
             }
             if (blackoutActive)
@@ -524,6 +536,7 @@ namespace Starfall
             UpdateEnemies(dt); if (Dying) return;
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
             TickOuterPatrol();
+            TickAfterlightWatch(dt);
             TickFarCourier(dt);
             TickCivicResponse(dt);
             TickMineConvoy(dt);
@@ -740,6 +753,7 @@ namespace Starfall
             RemoveEnemyPendingWarning(e);
             // Patrol progress records a combat death, never list disappearance.
             OnOuterPatrolEnemyDefeated(e);
+            OnAfterlightWatchEnemyDefeated(e);
             OnCivicResponseEnemyDefeated(e);
             OnLastDirectiveEnemyDefeated(e);
             if (IsRootHarmonyEnemy(e) && !enemies.Exists(IsRootHarmonyEnemy))
@@ -758,7 +772,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -1747,7 +1761,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || stormTuning ||
+            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 TideSalvageActive || FloodReliefActive || LastDirectiveWave > 0 || CivicConduitActive ||
                 // A lull between scripted enemy waves is not a break in the
