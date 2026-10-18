@@ -225,5 +225,70 @@ namespace Starfall.Tests
                 "Authentic highland clinic remains valid in original v2 save format");
         }
 
+        public static void HighlandEmberWindbreakPaysOnlyAfterCombatAndExpires(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+            g.save.flags.Add("boss_7");g.invulnerable=200;
+            WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start")&&g.FrostSignalStage==1,
+                "Windbreak route begins with an authentic western ember");
+            g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+            Check(g.FrostSignalStage==2&&
+                g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                "Windbreak still requires the real two-guard encounter");
+            Check(!FrostChoice(g,"frostsignal_windbreak")&&
+                g.FrostSignalWindbreakTime==0,
+                "Live guards cannot expose the protected option");
+            g.Close();
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Authoritative real-combat lethal callback must exist");
+            foreach(Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.save.energy=19;g.Talk(mid);
+            Check(FrostChoice(g,"frostsignal_windbreak")&&
+                g.FrostSignalStage==2&&g.FrostSignalWindbreakTime==0&&
+                g.save.energy==19,
+                "Insufficient energy cannot award windbreak or advance the mission");
+            g.save.energy=100;g.Talk(mid);
+            Check(FrostChoice(g,"frostsignal_windbreak")&&
+                g.FrostSignalStage==3&&g.FrostSignalWindbreakTime==25f&&
+                g.save.energy==80,
+                "Earned escort shelter starts for 25s and deducts exactly 20 energy");
+            g.Talk(mid);
+            Check(g.conversation==null&&g.FrostSignalWindbreakTime==25f,
+                "Completed switchyard cannot recharge or repeat resource payments");
+            g.save.cold=90;float warmth=g.FrostSignalFlame;
+            g.Tick(.05f,new Point());
+            Check(g.FrostSignalWindbreakTime>24.9f&&
+                g.FrostSignalFlame>warmth-.05f&&g.FrostSignalFlame<warmth,
+                "Actual severe-cold Tick burns flame more slowly while shielded");
+            Check(g.GetQuest("frost_signal").next.Contains("防风"),
+                "Real objective HUD shows timed shelter in Chinese");
+            g.save.english=true;
+            Check(g.GetQuest("frost_signal").next.Contains("Windbreak"),
+                "Real objective HUD shows timed shelter in English");
+            g.save.english=false;
+            for(int i=0;i<500&&g.FrostSignalActive;i++)
+                g.Tick(.05f,new Point());
+            Check(g.FrostSignalStage==3&&g.FrostSignalWindbreakTime==0f,
+                "The actual escort timer expires the windbreak without cancelling the ember");
+            g.save.cold=90;warmth=g.FrostSignalFlame;
+            g.Tick(.05f,new Point());
+            Check(warmth-g.FrostSignalFlame>.06f,
+                "After expiry the original harsh-cold loss returns");
+            g.save.x=south.x;g.save.y=south.y;g.Talk(south);
+            Check(FrostChoice(g,"frostsignal_guides")&&g.FrostSignalComplete&&
+                !g.FrostSignalActive&&g.FrostSignalWindbreakTime==0,
+                "Timed shelter does not block the physical public-hearth finale");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FrostSignalOutcome==2&&
+                restored.FrostSignalWindbreakTime==0,
+                "Old v2 save keeps the permanent roadwarden choice, never transient windbreak");
+        }
+
     }
 }

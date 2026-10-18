@@ -8,6 +8,8 @@ namespace Starfall
         public int FrostSignalStage { get; private set; }
         public float FrostSignalTime { get; private set; }
         public float FrostSignalFlame { get; private set; }
+        // Short-lived protection, intentionally absent from v1/v2 SaveData.
+        public float FrostSignalWindbreakTime { get; private set; }
         private int frostSignalConfirmedKills;
         private void OnFrostSignalEnemyDefeated(Enemy enemy)
         {
@@ -39,7 +41,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.frostSignalOwned);
             effects.RemoveAll(e=>e.frostSignalOwned);
             FrostSignalStage=0;frostSignalConfirmedKills=0;
-            FrostSignalTime=FrostSignalFlame=0;
+            FrostSignalTime=FrostSignalFlame=FrostSignalWindbreakTime=0;
         }
         private bool SpawnFrostSignalGuards()
         {
@@ -72,12 +74,17 @@ namespace Starfall
                 }
             }
             FrostSignalTime-=dt;
-            float drain=.65f+(save.cold>=60?.65f:0f);
+            float severeCold=save.cold>=60?.65f:0f;
+            float drain=.65f+severeCold;
             if(FrostSignalStage==2)
                 foreach(Enemy enemy in enemies)
                     if(IsFrostSignalEnemy(enemy)&&enemy.hp>0&&
                         (enemy.Position-Position).Length<5f)drain+=.58f;
-            FrostSignalFlame=Math.Max(0,FrostSignalFlame-dt*drain);
+            // Shield only the remaining fraction of this simulation frame.
+            float protectedDt=Math.Min(dt,FrostSignalWindbreakTime);
+            FrostSignalWindbreakTime=Math.Max(0,FrostSignalWindbreakTime-dt);
+            FrostSignalFlame=Math.Max(0,FrostSignalFlame-dt*drain+
+                protectedDt*severeCold*.8f);
             if(FrostSignalTime<=0||FrostSignalFlame<=0)
             {
                 ResetFrostSignal();revision++;
@@ -155,10 +162,11 @@ namespace Starfall
                         C("继续战斗","Fight the guards","close"));return true;
                 }
                 Dialog(o.name,o.en,
-                    "余温 "+FrostSignalFlame.ToString("0")+"。消耗月光草一株可回升35；耗费20耐力能回升22；也可不消耗物资直接护送。",
-                    "Ember "+FrostSignalFlame.ToString("0")+". Burn one Moonherb for +35, spend 20 energy for +22, or conserve both and carry onward.",
+                    "余温 "+FrostSignalFlame.ToString("0")+"。月光草可回升35，20耐力可回升22；或消耗20耐力加固火种，接下来25秒抵御80%的严寒额外损耗。也可保留补给。",
+                    "Ember "+FrostSignalFlame.ToString("0")+". Moonherb adds 35 flame, 20 energy adds 22, or spend 20 energy to shield 80% of severe-cold loss for the next 25s. You may conserve supplies.",
                     C("月光草1 · 余温+35","Moonherb · +35 flame","frostsignal_herb"),
                     C("耐力20 · 余温+22","20 energy · +22 flame","frostsignal_energy"),
+                    C("耐力20 · 防风护火25秒","20 energy · 25s windbreak","frostsignal_windbreak"),
                     C("不补充，继续","Conserve supplies","frostsignal_free"));return true;
             }
             if(at==3&&FrostSignalStage==3)
@@ -199,7 +207,8 @@ namespace Starfall
                     "The ember is returned. Another attempt is available.");
                 return true;
             }
-            if(action=="frostsignal_herb"||action=="frostsignal_energy"||action=="frostsignal_free")
+            if(action=="frostsignal_herb"||action=="frostsignal_energy"||
+                action=="frostsignal_windbreak"||action=="frostsignal_free")
             {
                 if(FrostSignalStage!=2||enemies.Exists(IsFrostSignalEnemy)||
                     (Position-new Point(mid.x,mid.y)).Length>1.8f)return true;
@@ -220,9 +229,17 @@ namespace Starfall
                     if(save.energy<20){Notify("需要20耐力。","You need 20 energy.");return true;}
                     save.energy-=20;FrostSignalFlame=Math.Min(100,FrostSignalFlame+22);
                 }
+                if(action=="frostsignal_windbreak")
+                {
+                    if(save.energy<20){Notify("需要20耐力来加固火种。","Need 20 energy to bank the flame.");return true;}
+                    save.energy-=20;
+                    FrostSignalWindbreakTime=25f;
+                }
                 FrostSignalStage=3;revision++;sound="reward";
-                Notify("转折台开放，携带余火去南侧暖站。",
-                    "Junction cleared. Carry the ember south to the civilian hearth.");
+                Notify(action=="frostsignal_windbreak"?
+                    "火种已防风加固25秒！沿山道前往南侧暖站。":"转折台开放，携带余火去南侧暖站。",
+                    action=="frostsignal_windbreak"?
+                    "The ember is sheltered for 25s! Carry it south.":"Junction cleared. Carry the ember south to the civilian hearth.");
                 return true;
             }
             if(action=="frostsignal_clinic"||action=="frostsignal_guides")
