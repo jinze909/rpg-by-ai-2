@@ -9,6 +9,8 @@ namespace Starfall
     {
         private int afterlightChargeRegion;
         private float afterlightChargeLeft;
+        private bool afterlightStableCharge;
+        public bool AfterlightStableCharge { get {return afterlightChargeRegion!=0&&afterlightStableCharge;} }
         public int AfterlightChargeRegion { get { return afterlightChargeRegion; } }
         public float AfterlightChargeLeft { get { return afterlightChargeLeft; } }
         public int AfterlightRestored
@@ -25,7 +27,7 @@ namespace Starfall
         private Point AfterlightPoint(int region,string type)
         { return ObjectPoint(region,"afterlight"+type+region,new Point(-100,-100)); }
         private void ResetAfterlightCharge()
-        { afterlightChargeRegion=0;afterlightChargeLeft=0; }
+        { afterlightChargeRegion=0;afterlightChargeLeft=0;afterlightStableCharge=false; }
         private string AfterlightLocation(int region,bool english)
         {
             string[] zh={"","荆棘密林 · 根苗圃","沉没遗迹 · 开放渡口","赤铁矿场 · 安全工房"};
@@ -223,9 +225,10 @@ namespace Starfall
                         C("取消本次传输 · 保留方案","Cancel transfer · Keep plan","afterlight_abort"));return true;
                 }
                 Dialog(o.name,o.en,
-                    "原始供能已经校准成居民选择的用途。启动后只有90秒把余光带到另一端；超时只需重试，不收取材料。成功接通时才会消耗资源。",
-                    "The original core feed has been calibrated to your civic design. Once started, carry it to the distant receiver in 90 seconds. A failed run costs no materials; actual crafting inputs are spent only on successful installation.",
-                    C("激活90秒负载传输","Activate 90-second transfer","afterlight_charge_"+room),
+                    "原始供能已经校准成居民选择的用途。普通运输免费、限时90秒；也可先花1枚真实星晶稳态供能120秒。稳定所用星晶在启动时扣除，失败或取消不返还；接收端的安装材料仅在成功接通时消耗。",
+                    "The civic power is calibrated. Standard transport is free and lasts 90 seconds; invest one real starcrystal for a 120-second stable load. The optional crystal is spent on activation and is not refunded on failure or abort. Installation materials are charged only on a successful connection.",
+                    C("激活90秒负载传输 · 免费","Activate 90-second transfer · free","afterlight_charge_"+room),
+                    C("稳态120秒传输 · 星晶1","Stabilize 120-second transfer · 1 crystal","afterlight_stable_"+room),
                     C("先准备","Prepare","close"));return true;
             }
             if(afterlightChargeRegion==room)
@@ -388,16 +391,29 @@ namespace Starfall
                     "Civic plan signed. Next: start the 90-second afterlight transfer.");
                 return true;
             }
-            if(pieces[1]=="charge")
+            if(pieces[1]=="charge"||pieces[1]=="stable")
             {
-                if(AfterlightMode(room)==0 || afterlightChargeRegion!=0 || !SafeTravel ||
+                bool stable=pieces[1]=="stable";
+                if(AfterlightMode(room)==0 || afterlightChargeRegion!=0 ||
+                    FieldWorkPreventsRest || !SafeTravel ||
                     (Position-AfterlightPoint(room,"anchor")).Length>2.2f ||
-                    blackoutActive || TriadDefenseActive || witnessDefenseRoom!=0 ||
-                    TemperActive || TideSalvageActive || commonsRelayRoom!=0 ||
-                    reliefMissionRoom!=0 || GlasswindSite!=0 || racing)return true;
-                afterlightChargeRegion=room;afterlightChargeLeft=90;
+                    racing)return true;
+                if(stable&&save.inventory[1]<1)
+                {
+                    Notify("稳态传输需要1枚真实星晶，也可以选择免费90秒传输。",
+                        "Stable transport needs one real starcrystal. The 90-second route remains free.");
+                    return true;
+                }
+                if(stable)save.inventory[1]--;
+                afterlightChargeRegion=room;
+                afterlightStableCharge=stable;
+                afterlightChargeLeft=stable?120:90;
                 revision++;sound="quest";
-                Notify("90秒传输开始！赶往地图另一端的公共接收台。战斗不会自动替你完成重建。",
+                Notify(stable?
+                    "已投入星晶，120秒稳态传输开始！亲自前往另一端的公共接收台。":
+                    "90秒传输开始！赶往地图另一端的公共接收台。战斗不会自动替你完成重建。",
+                    stable?
+                    "One crystal invested: 120-second stable load started. Walk physically to the distant public receiver.":
                     "90-second load transfer started! Reach the real receiver across the map. Combat cannot substitute for reconstruction.");
                 return true;
             }
