@@ -518,6 +518,19 @@ namespace Starfall
                             companionAttack = Math.Min(companionAttack,.22f);
                         else
                         {
+                            // Auto-fire follows the same living, visible locked foe
+                            // through its short windup. The original snapshot
+                            // otherwise launches at where a moving enemy WAS,
+                            // even after validating its CURRENT line of sight.
+                            // Manual commands deliberately retain player aim.
+                            if (action.kind == "attack" && locked != null)
+                            {
+                                Point liveAim = locked.Position - companionPosition;
+                                if (liveAim.Length > .05f)
+                                    action.direction = liveAim.Normalized;
+                                action.target = locked.Position;
+                                companionAim = action.direction;
+                            }
                             projectiles.Add(FriendlyShot(companionPosition, action.weapon == 1 ? 1 : 2, action.direction, 9, action.damage, action.weapon == 2, action.target, action.impact));
                             effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) });
                             sound = action.weapon == 1 ? "arrow" : "spell";

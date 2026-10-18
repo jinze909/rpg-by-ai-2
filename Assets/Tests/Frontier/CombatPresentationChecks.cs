@@ -1598,6 +1598,68 @@ namespace Starfall.Tests
                 "Blocked late release still respects the original full-body action recovery");
         }
 
+        public static void CompanionAutoReleaseTracksMovingVisibleEnemy(Campaign data)
+        {
+            // A real enemy can sidestep during the ally's 160ms bow windup.
+            // LOS/range validation already uses its current feet; release
+            // direction and target must use the SAME current contact point.
+            MapData previous = data.maps[0];
+            try
+            {
+                var rows = new string[25];
+                for (int y = 0; y < 25; y++)
+                {
+                    char[] row = new string('#', 25).ToCharArray();
+                    if (y >= 2 && y <= 22)
+                        for (int x = 2; x <= 22; x++) row[x] = '.';
+                    rows[y] = new string(row);
+                }
+                data.maps[0] = new MapData { id = 0, spawnX = 10.5f,
+                    spawnY = 10.5f, rows = rows,
+                    objects = new WorldObject[0], decor = new Decoration[0] };
+                var g = Fresh(data, 1); g.enemies.Clear();
+                g.save.x = 10.5f; g.save.y = 10.5f;
+                g.save.flags.Add("companion_1"); g.SelectCompanion(1);
+                g.companionPosition = new Point(12.5f, 10.5f);
+                var foe = new Enemy(98831, 0, 16.5f, 10.5f, 10000f)
+                    { stun = 100f, timer = 1000f, staggerRecovery = 100f };
+                g.enemies.Add(foe);
+                var cadence = typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                cadence.SetValue(g, 0f);
+                g.Tick(.02f, new Point());
+                ActorAction prepared = g.companionAction;
+                Check(prepared != null && prepared.kind == "attack" &&
+                    !prepared.released && prepared.target.HasValue,
+                    "Ivo physically begins the original locked-target bow windup");
+                Point oldAim = prepared.direction;
+                // Move on a real open route, but well off the original ray.
+                foe.x = 14.5f; foe.y = 13.5f;
+                Point actualAim = (foe.Position - g.companionPosition).Normalized;
+                Check(g.CanStand(foe.Position) &&
+                    (actualAim - oldAim).Length > .35f,
+                    "The living target sidestepped into a distinctly new valid line");
+                g.Tick(.14f, new Point());
+                Check(prepared.released && g.companionAction == prepared &&
+                    g.projectiles.Count == 1,
+                    "The original release frame emits exactly one real Ivo arrow");
+                Projectile shot = g.projectiles[0];
+                Point expected = (foe.Position - g.companionPosition).Normalized;
+                Check((prepared.direction - expected).Length < .002f &&
+                    prepared.target.HasValue &&
+                    (prepared.target.Value - foe.Position).Length < .002f &&
+                    (shot.velocity.Normalized - expected).Length < .002f,
+                    "Live projectile velocity and target snapshot follow the moving foe at contact, not the old windup ray");
+                Check((g.companionAim - expected).Length < .002f &&
+                    g.effects.Exists(e => e.kind == "release" &&
+                        (e.position - GameCore.WeaponOrigin(g.companionPosition,
+                            1, expected)).Length < .002f),
+                    "Ivo's physical bow release visual, weapon origin and authoritative aim stay aligned");
+            }
+            finally { data.maps[0] = previous; }
+        }
+
         public static void CompanionAutoTargetsNearestReachableThreat(Campaign data)
         {
             // Combat uses the actual, ordered roster: the original Find()
