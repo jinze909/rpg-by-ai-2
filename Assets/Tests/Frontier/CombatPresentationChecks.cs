@@ -304,6 +304,70 @@ namespace Starfall.Tests
             finally{data.maps[0]=old;}
         }
 
+        public static void RangerCompanionCannotShootFromBlockedFloorAndRetriesRealContact(Campaign data)
+        {
+            MapData old=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)row[x]='.';
+                    rows[y]=new string(row);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=12.5f,spawnY=12.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.enemies.Clear();
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                Point legitimate=g.companionPosition;
+                Check(g.CanStand(legitimate),"Production ranger companion initially stands on real playable ground");
+                g.companionPosition=new Point(.5f,.5f);
+                Check(!g.CanStand(g.companionPosition),"Ranger's prior physical foot was blocked by real terrain");
+                g.CommandCompanion();Advance(g,.23f);
+                Check(g.companionCooldown==0f&&g.projectiles.Count==0&&
+                    !g.effects.Exists(e=>e.kind=="release"&&e.variant==1),
+                    "A manual three-arrow volley cannot spawn out of a solid wall, falsely animate or charge an 18-second cooldown");
+                g.companionPosition=legitimate;
+                g.CommandCompanion();Advance(g,.23f);
+                Check(g.projectiles.Count==3&&
+                    g.projectiles.TrueForAll(p=>p.friendly&&p.piercing)&&
+                    g.effects.Exists(e=>e.kind=="release"&&e.variant==1),
+                    "A refunded command can immediately issue the genuine three-projectile volley from a legal companion footing");
+
+                var auto=Fresh(data,1);auto.enemies.Clear();
+                auto.save.flags.Add("companion_1");auto.SelectCompanion(1);
+                auto.save.reducedMotion=true;
+                Point valid=auto.companionPosition;
+                var foe=new Enemy(98703,0,valid.x+2.3f,valid.y,10000f)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                auto.enemies.Add(foe);
+                Check(auto.CanStand(foe.Position),
+                    "Automatic companion projectile test has a reachable, valid enemy foot");
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(cadence!=null,"Real ally cooldown scheduling is present");
+                cadence.SetValue(auto,0f);
+                auto.Tick(.02f,new Point());
+                Check(auto.companionAction!=null&&
+                    auto.companionAction.kind=="attack"&&
+                    !auto.companionAction.released,
+                    "Live Ivo AI began a real auto-attack preparation against its selected foe");
+                auto.companionPosition=new Point(.5f,.5f);
+                Advance(auto,.20f);
+                Check(auto.projectiles.Count==0&&
+                    (float)cadence.GetValue(auto)<=.23f,
+                    "A ranged auto attack interrupted by solid ground neither fires through walls nor wastes its full attack cooldown");
+                auto.companionPosition=valid;
+                Advance(auto,.65f);
+                Check(foe.hp<10000f||auto.projectiles.Exists(p=>p.friendly),
+                    "The real companion AI can resume and shoot after returning to valid accessible footing");
+            }
+            finally{data.maps[0]=old;}
+        }
+
         public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
         {
             // Drive the REAL Arcanist alternate-Q and world update loop:
