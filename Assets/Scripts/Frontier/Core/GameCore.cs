@@ -719,6 +719,7 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
             enemies.Remove(e);
+            OnAtlasEchoEnemyDefeated(e);
             // A lethal strike may bypass the stagger threshold entirely.
             // Its unspent civilian windup must disappear with the attacker,
             // not keep warning players about an attack that can no longer land.

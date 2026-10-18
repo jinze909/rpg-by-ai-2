@@ -112,5 +112,55 @@ namespace Starfall.Tests
             Action(retry, marker.kind, "archive_echo_start");
             Check(retry.AtlasEchoRoom == 3, "Free retry remains possible after abandonment");
         }
+        public static void VanishedAtlasEliteCannotMintAnUnearnedFirstClear(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3; g.save.flags.Add("archive_complete");
+            g.Enter(3); g.enemies.Clear();
+            var compass = Object(g, "archiveecho");
+            g.save.x = compass.x; g.save.y = compass.y;
+            int coins = g.save.coins, shards = g.save.shards, xp = g.save.xp;
+            Action(g, compass.kind, "archive_echo_start");
+            Enemy e = g.enemies.Find(x => x.id == 83001);
+            Check(e != null && g.AtlasEchoRoom == 3,
+                "Only a started authentic surveyor defense can request its victory");
+            // A scripted disappearance is NOT a combat kill. The defender
+            // must not be rewarded for a canceled or corrupted enemy roster.
+            g.enemies.Remove(e);
+            g.Tick(.05f, new Point());
+            Check(g.AtlasEchoRoom == 0 && !g.Has("archive_echo_complete") &&
+                g.save.coins == coins && g.save.shards == shards &&
+                g.save.xp == xp,
+                "An enemy removed without a lethal Hit resets the optional defense without granting victory or changing original resources");
+            g.Talk(compass);
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices,
+                    c => c.action == "archive_echo_start"),
+                "The actual marker still allows a legitimate free retry");
+            g.Close();
+            g.enemies.Clear();
+            Action(g, compass.kind, "archive_echo_start");
+            e = g.enemies.Find(x => x.id == 83001);
+            Check(e != null && g.AtlasEchoRoom == 3,
+                "A retried guardian spawns in real world combat");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "Only the original lethal combat pipeline confirms elite victory");
+            hit.Invoke(g, new object[] { e, 99999f, false, null, null });
+            g.Tick(.05f, new Point());
+            Check(g.Has("archive_echo_complete") &&
+                g.save.coins == coins + 85 &&
+                g.save.shards == shards + 5 &&
+                g.save.xp > xp && g.AtlasEchoRoom == 0,
+                "A real lethal elite contact after retry still grants exactly the original one-time reward and compass progression");
+            g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save));
+            Check(resumed.Has("archive_echo_complete") &&
+                resumed.save.coins == g.save.coins &&
+                resumed.save.shards == g.save.shards,
+                "Confirmed Atlas Echo defeat stays committed through unchanged v2 save/reload");
+        }
+
     }
 }
