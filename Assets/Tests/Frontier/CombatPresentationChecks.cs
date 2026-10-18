@@ -3,6 +3,49 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void ReliefCivilianInteractionsNeedPhysicalOpenLane(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                data.maps[1]=new MapData{
+                    id=1,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(int wave in new[]{1,3})
+                {
+                    var g=Fresh(data,0);g.enemies.Clear();
+                    g.save.room=1;g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;
+                    g.reliefMissionRoom=1;g.reliefMissionWave=wave;
+                    g.reliefFollowerPosition=new Point(12.23f,10.5f);
+                    g.reliefFollowerSafety=65f;g.reliefMissionTime=90f;
+                    Check(g.CanStand(g.Position)&&
+                        g.CanStand(g.reliefFollowerPosition)&&
+                        g.Blocked(11.5f,10.5f),
+                        "Real relief guard and rescued escort both stand on legal ground, but an intervening solid gate prevents conversation");
+                    g.Interact();
+                    Check(g.mode=="world"&&g.conversation==null,
+                        "E cannot open wave-one/two defense or wave-three escort dialogue through a real wall");
+                    wall[11]='.';rows[10]=new string(wall);
+                    g.Interact();
+                    Check(g.mode=="dialog"&&g.conversation!=null,
+                        "Opening the same gate immediately restores genuine nearby field-guard or survivor dialogue");
+                    g.Close();
+                    wall[11]='#';rows[10]=new string(wall);
+                }
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void RealInteractionSelectionRejectsObjectsBehindSolidWalls(Campaign data)
         {
             MapData previous=data.maps[0];

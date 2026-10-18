@@ -334,7 +334,8 @@ namespace Starfall
         {
             if (reliefMissionRoom != save.room ||
                 (reliefMissionWave != 1 && reliefMissionWave != 2) ||
-                (Position - reliefFollowerPosition).Length > 1.7f) return;
+                ((Position - reliefFollowerPosition).Length > 1.7f ||
+                 !ClearAttackPath(Position,reliefFollowerPosition))) return;
             var options = new List<Choice>();
             if (ReliefFieldGuardAvailable)
                 options.Add(C("组织紧急护卫 · 耐力20", "Rally defenders · 20 energy",
@@ -351,7 +352,8 @@ namespace Starfall
         {
             if (action != "relief_field_guard") return false;
             if (!ReliefFieldGuardAvailable ||
-                (Position - reliefFollowerPosition).Length > 1.7f)
+                ((Position - reliefFollowerPosition).Length > 1.7f ||
+                 !ClearAttackPath(Position,reliefFollowerPosition)))
                 return true;
             save.energy -= 20; reliefWardTime = 8f; reliefWardUsed = true;
             effects.Add(new Effect("discover", reliefFollowerPosition, .7f));
@@ -653,7 +655,8 @@ namespace Starfall
         // world-space position, without creating a fake persistent WorldObject.
         private void TalkRescuedCivilian()
         {
-            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f) return;
+            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f ||
+                !ClearAttackPath(Position,reliefFollowerPosition)) return;
             var options = new List<Choice>();
             options.Add(C(reliefFollowerWaiting ? "跟上我" : "在这里等候",
                 reliefFollowerWaiting ? "Follow me" : "Wait here",
@@ -686,7 +689,8 @@ namespace Starfall
             if (action != "relief_wait" && action != "relief_follow" &&
                 action != "relief_treat" && action != "relief_escort_guard" &&
                 action != "relief_hurry" && action != "relief_climate_kit") return false;
-            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f)
+            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f ||
+                !ClearAttackPath(Position,reliefFollowerPosition))
                 return true;
             if (action == "relief_wait")
             {

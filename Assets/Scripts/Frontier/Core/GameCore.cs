@@ -1548,10 +1548,12 @@ namespace Starfall
             WorldObject o = Nearest();
             if (reliefMissionRoom == save.room &&
                 (reliefMissionWave == 1 || reliefMissionWave == 2) &&
-                (Position - reliefFollowerPosition).Length < 1.7f)
+                (Position - reliefFollowerPosition).Length < 1.7f &&
+                ClearAttackPath(Position,reliefFollowerPosition))
             { TalkReliefFieldGuard(); return; }
             if (ReliefEscortActive &&
                 (Position - reliefFollowerPosition).Length < 1.7f &&
+                ClearAttackPath(Position,reliefFollowerPosition) &&
                 (o == null ||
                  (Position - reliefFollowerPosition).Length <=
                     (Position - new Point(o.x, o.y)).Length + .05f))
