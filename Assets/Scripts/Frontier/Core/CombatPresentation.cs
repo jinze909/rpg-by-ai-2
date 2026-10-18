@@ -257,48 +257,87 @@ namespace Starfall
             }
             if (playerAction == a && a.elapsed >= a.duration) playerAction = null;
         }
+        private void CommitRiposte(ActorAction a)
+        {
+            if (!a.riposteArmed) return;
+            // A counter is payable on a REAL physical attack, not on
+            // merely reaching a contact pose with the bow inside stone.
+            a.damage *= 1.5f;
+            riposteTime = 0;
+            a.riposteArmed = false;
+            effects.Add(new Effect("number", Position + new Point(0, -.8f),
+                .65f, L("反击释放！", "RIPOSTE RELEASE")));
+        }
         private void ReleaseAttack(ActorAction a)
         {
-            if(a.riposteArmed)
-            {
-                // This contact frame is the transaction boundary. A canceled
-                // windup never spends the earned opening. Snapshot damage
-                // before any projectile is built, just like combo damage.
-                a.damage *= 1.5f;
-                riposteTime = 0;
-                a.riposteArmed = false;
-                effects.Add(new Effect("number", Position+new Point(0,-.8f),
-                    .65f,L("反击释放！","RIPOSTE RELEASE")));
-            }
-            sound = a.weapon == 0 ? "attack" : a.weapon == 1 ? "arrow" : "spell";
             if (a.weapon > 0)
             {
                 int spread = a.weapon == 1 && a.style == 2 ? 1 : 0;
-                for (int i = -spread; i <= spread; i++)
+                var ready = new List<Projectile>();
+                Projectile blocked = null;
+                for (int n = -spread; n <= spread; n++)
                 {
-                    Projectile shot = FriendlyShot(Position, a.weapon, a.direction, a.weapon == 1 ? 12 : 8, a.damage * (spread > 0 ? .65f : 1), a.weapon == 2, a.target, a.impact);
-                    double angle = Math.Atan2(shot.velocity.y, shot.velocity.x) + i * .18;
+                    Projectile shot = FriendlyShot(Position, a.weapon,
+                        a.direction, a.weapon == 1 ? 12 : 8,
+                        a.damage * (spread > 0 ? .65f : 1),
+                        a.weapon == 2, a.target, a.impact);
+                    if (shot.blockedAtSpawn)
+                    {
+                        blocked = shot;
+                        continue;
+                    }
+                    double angle = Math.Atan2(shot.velocity.y, shot.velocity.x) + n * .18;
                     Point direction = new Point((float)Math.Cos(angle), (float)Math.Sin(angle));
                     shot.velocity = direction * (a.weapon == 1 ? 12 : 8);
-                    // Balanced bow rewards a completed chain with one real
-                    // penetrating shot; Focused already pierces every release.
-                    // Flow retains its authored spread without triple piercing.
-                    shot.piercing = a.weapon == 1 && (a.style == 1 || a.style == 0 && a.combo == 2);
-                    // The starstaff's third connected cast briefly arrests a
-                    // target using the existing .45s slow/contact mechanic.
-                    shot.slowing = a.weapon == 2 && (a.style == 2 || a.combo == 2);
+                    // Preserve the original bow style, finisher, staff slow
+                    // and immutable projectile source on every valid arrow.
+                    shot.piercing = a.weapon == 1 &&
+                        (a.style == 1 || a.style == 0 && a.combo == 2);
+                    shot.slowing = a.weapon == 2 &&
+                        (a.style == 2 || a.combo == 2);
+                    ready.Add(shot);
+                }
+                if (ready.Count == 0)
+                {
+                    // A blocked body-side muzzle was never a launched
+                    // projectile. Give one local collision spark and keep
+                    // the earned riposte window for an actual later release.
+                    a.riposteArmed = false;
+                    if (blocked != null)
+                        effects.Add(new Effect("projectileImpact", blocked.position, .22f)
+                            { direction = a.direction, height = blocked.height });
+                    sound = "guard";
+                    return;
+                }
+                bool earnedCounter = a.riposteArmed;
+                CommitRiposte(a);
+                foreach (Projectile shot in ready)
+                {
+                    if (earnedCounter) shot.damage *= 1.5f;
                     projectiles.Add(shot);
                 }
-                effects.Add(new Effect("release", WeaponOrigin(Position, a.weapon, a.direction), .18f) { direction = a.direction, variant = a.weapon, height = WeaponHeight(a.weapon, a.direction) });
+                sound = a.weapon == 1 ? "arrow" : "spell";
+                effects.Add(new Effect("release",
+                    WeaponOrigin(Position, a.weapon, a.direction), .18f)
+                    { direction = a.direction, variant = a.weapon,
+                      height = WeaponHeight(a.weapon, a.direction) });
                 if (a.combo == 2)
-                    effects.Add(new Effect("number", Position + new Point(0, -.75f), .6f, L("连携终结", "CHAIN FINISH")));
+                    effects.Add(new Effect("number", Position + new Point(0, -.75f),
+                        .6f, L("连携终结", "CHAIN FINISH")));
                 return;
             }
-            effects.Add(new Effect("slash", Position + a.direction * .7f, .22f) { direction = a.direction, variant = a.combo });
+            CommitRiposte(a);
+            sound = "attack";
+            effects.Add(new Effect("slash", Position + a.direction * .7f, .22f)
+                { direction = a.direction, variant = a.combo });
             foreach (Enemy e in enemies.ToArray())
             {
                 Point d = e.Position - Position;
-                if (d.Length < (a.combo == 2 ? 2.2f : 1.85f) && d.Normalized.x * a.direction.x + d.Normalized.y * a.direction.y > -.15f && ClearAttackPath(Position, e.Position)) Hit(e, a.damage,false,null,a.impact);
+                if (d.Length < (a.combo == 2 ? 2.2f : 1.85f) &&
+                    d.Normalized.x * a.direction.x +
+                    d.Normalized.y * a.direction.y > -.15f &&
+                    ClearAttackPath(Position, e.Position))
+                    Hit(e, a.damage, false, null, a.impact);
             }
         }
         private void ReleaseSkill(ActorAction a)

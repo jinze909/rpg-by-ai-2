@@ -3,6 +3,77 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void HeroPhysicalMuzzleObstructionRetainsEarnedRiposte(Campaign data)
+        {
+            // Test both production LMB projectile weapons and their
+            // physical attachment clearance at actual animation contact.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)tiles[x]='.';
+                    if(y==10)tiles[9]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(int weapon in new[]{1,2})
+                {
+                    var g=Fresh(data,weapon);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;g.save.energy=100;
+                    g.save.weapon=weapon;g.riposteTime=3f;
+                    var foe=new Enemy(98911+weapon,0,10.5f,7.5f,10000f)
+                        {stun=100,timer=1000,staggerRecovery=100};
+                    g.enemies.Add(foe);
+                    g.SetAimTarget(foe.Position);
+                    Check(g.CanStand(g.Position)&&g.CanStand(foe.Position)&&
+                        g.Blocked(9.5f,10.5f),
+                        "Real cover blocks a side muzzle beside legal player feet and an unobstructed enemy");
+                    g.Attack(new Point(0,-1));
+                    ActorAction invalid=g.playerAction;
+                    Check(invalid!=null&&!invalid.released&&invalid.riposteArmed,
+                        "Physical ranged attack reserves the earned counter, without paying before contact");
+                    Advance(g,.45f);
+                    Check(invalid.released&&g.projectiles.Count==0&&
+                        !g.effects.Exists(f=>f.kind=="release")&&
+                        !g.effects.Exists(f=>f.text=="RIPOSTE RELEASE"||
+                            f.text=="反击释放！")&&
+                        g.effects.Exists(f=>f.kind=="projectileImpact")&&
+                        g.riposteTime>2.3f&&
+                        !invalid.riposteArmed,
+                        "A wall-born bow/staff projectile never launches, fakes VFX or spends the genuine earned counter");
+                    char[] tile=rows[10].ToCharArray();
+                    tile[9]='.';rows[10]=new string(tile);
+                    Advance(g,.42f);
+                    g.SetAimTarget(foe.Position);
+                    g.Attack(new Point(0,-1));
+                    ActorAction valid=g.playerAction;
+                    Check(valid!=null&&valid!=invalid&&valid.riposteArmed&&
+                        !valid.released,
+                        "Counter remains genuinely available for the next physical ranged attack after the wall opens");
+                    float power=valid.damage;
+                    Advance(g,.45f);
+                    Check(valid.released&&!valid.riposteArmed&&
+                        Math.Abs(valid.damage-power*1.5f)<.001f&&
+                        g.riposteTime<=0&&
+                        g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn&&
+                            Math.Abs(p.damage-valid.damage*
+                                (weapon==1&&valid.style==2?.65f:1f))<.001f),
+                        "An unobstructed contact pays the original exactly-once +50 percent riposte into a real flying projectile");
+                    Advance(g,.6f);
+                    Check(foe.hp<foe.maxHp,
+                        "An actual recovered counter travels to and damages the living enemy");
+                    tile[9]='#';rows[10]=new string(tile);
+                }
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void EarnedRiposteCommitsOnTrueMeleeArrowOrStaffContact(Campaign data)
         {
             for(int weapon=0;weapon<3;weapon++)

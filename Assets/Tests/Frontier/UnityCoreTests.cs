@@ -14,6 +14,7 @@ namespace Starfall.Tests
         [Test] public void LaterBossSummonsMixActualArcherAndMeleeCombat() { CoreChecks.LateBossCyclesSpawnVisibleMeleeAndRangedSupportWithoutActorOverlap(Data()); }
         [Test] public void BossSummonsCannotMaterializeOnActorsOrAcrossSealedWalls() { CoreChecks.BossReinforcementsOccupyFreeReachableLocalFootingOrSkipSafely(Data()); }
         [Test] public void EarnedCounterCommitsOnlyOnActualWeaponRelease() { CoreChecks.EarnedRiposteCommitsOnTrueMeleeArrowOrStaffContact(Data()); }
+        [Test] public void ObstructedHeroBowOrStaffDoesNotSpendCounter() { CoreChecks.HeroPhysicalMuzzleObstructionRetainsEarnedRiposte(Data()); }
         [Test] public void InterruptedCounterCannotChargeForUnreleasedAttacks() { CoreChecks.InterruptedCounterWindupsCannotWasteEarnedReward(Data()); }
         [Test] public void HitStopConsumesExactImpactTime() { CoreChecks.ShortHitStopReleasesUnusedFrameTime(Data()); }
         [Test] public void DeadPlayersCannotEnterDelayedFinale() { CoreChecks.BossFinaleCannotInterruptDeathRecovery(Data()); }
