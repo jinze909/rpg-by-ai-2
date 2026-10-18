@@ -1532,11 +1532,17 @@ namespace Starfall
                 if (!IsObjectPresent(o)) continue;
                 Point objective = new Point(o.x, o.y);
                 float d = (Position - objective).Length;
-                // Proximity alone must not allow E to interact through a
-                // sealed gate, rising tide or a solid wall. The player's
-                // actual selection/highlight uses Nearest; scripted story
-                // Talk(o) calls intentionally retain their authored path.
-                if (d < distance && ClearAttackPath(Position, objective))
+                // Check the path to the actor's INTERACTION REACH, not
+                // through the object's own tile. Authored dry wood, mural
+                // plaques and some harbor interactables are embedded in
+                // solid decorative cells; players must still reach these
+                // from the neighboring legal floor. The .55f endpoint
+                // margin leaves an intervening full wall solid while
+                // preserving intended in-world E-key reach.
+                Point contact = d > .55f ?
+                    objective - (objective - Position).Normalized * .55f :
+                    Position;
+                if (d < distance && ClearAttackPath(Position, contact))
                 { distance = d; best = o; }
             }
             return best;

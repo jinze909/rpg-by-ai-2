@@ -22,6 +22,7 @@ namespace Starfall.Tests
         [Test] public void DynamicSealedPlayerRootCancelsAllRealWeaponContacts() { CoreChecks.DynamicTerrainCannotReleaseHeroAttacksFromBuriedRoot(Data()); }
         [Test] public void SealedPlayerGroundRejectsPhantomDashImmunity() { CoreChecks.SealedHeroFootCannotSpendPhantomDodgeOrEarnCounter(Data()); }
         [Test] public void NearInteractionMustNotTargetObjectsThroughWalls() { CoreChecks.RealInteractionSelectionRejectsObjectsBehindSolidWalls(Data()); }
+        [Test] public void EmbeddedScenePropsStayUsableFromValidNearSide() { CoreChecks.AuthoredWallEmbeddedPropsRemainInteractableFromTheirNearSide(Data()); }
         [Test] public void LiveCivilianRescueConversationsCannotBypassWall() { CoreChecks.ReliefCivilianInteractionsNeedPhysicalOpenLane(Data()); }
         [Test] public void DynamicSealedPlayerRootCancelsAllProfessionSkills() { CoreChecks.DynamicTerrainCannotReleaseHeroSkillsFromBuriedRoot(Data()); }
         [Test] public void InterruptedCounterCannotChargeForUnreleasedAttacks() { CoreChecks.InterruptedCounterWindupsCannotWasteEarnedReward(Data()); }

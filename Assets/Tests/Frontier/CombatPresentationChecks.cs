@@ -46,6 +46,57 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void AuthoredWallEmbeddedPropsRemainInteractableFromTheirNearSide(Campaign data)
+        {
+            // Frostwood and the port's chart are authored within blocking
+            // scenic tiles, and cannot be deleted or made into ghost props
+            // merely to prevent an E-key interaction through distant cover.
+            Check(data.maps[7].objects!=null&&
+                Array.Exists(data.maps[7].objects,o=>o.id=="frostwood")&&
+                data.maps[7].rows[18][6]=='#'&&
+                data.maps[5].objects!=null&&
+                Array.Exists(data.maps[5].objects,o=>o.id=="portlog")&&
+                data.maps[5].rows[18][6]=='#',
+                "Real story content deliberately owns interactables mounted within blocked environment cells");
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                var tile=rows[10].ToCharArray();
+                tile[12]='#';rows[10]=new string(tile);
+                var mounted=new WorldObject{
+                    id="mounted",kind="sign",name="Wall-mounted map",
+                    en="Wall-mounted map",x=12.5f,y=10.5f};
+                data.maps[0]=new MapData {
+                    id=0,spawnX=11.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{mounted},
+                    decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=11.5f;g.save.y=10.5f;
+                Check(g.CanStand(g.Position)&&
+                    g.Blocked(mounted.x,mounted.y)&&
+                    g.Nearest()==mounted,
+                    "An actual wall-mounted prop remains selectable from a valid immediately adjacent interaction foot");
+                // A wall BETWEEN the hero and the same object must still
+                // block the action; only the object's own endpoint can be
+                // ignored within the authored short contact margin.
+                g.save.x=10.5f;
+                tile=rows[10].ToCharArray();
+                tile[11]='#';rows[10]=new string(tile);
+                Check(g.CanStand(g.Position)&&
+                    g.Nearest()==null,
+                    "Two consecutive wall cells are not bypassed by the legitimate contact-radius exception");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void RealInteractionSelectionRejectsObjectsBehindSolidWalls(Campaign data)
         {
             MapData previous=data.maps[0];
