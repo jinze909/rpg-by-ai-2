@@ -26,6 +26,7 @@ namespace Starfall
         private float floodReliefTime,floodReliefIntegrity;
         private int floodReliefConfirmedKills;
         public bool FloodReliefComplete { get { return Has("floodarchive_relief"); } }
+        public int PublicFerryEnergyCost { get { return FloodReliefComplete?10:14; } }
         public bool FloodReliefActive { get { return floodReliefActive&&save.room==2&&!Dying; } }
         public bool FloodReliefCrossed { get { return FloodReliefActive&&floodReliefCrossed; } }
         public float FloodReliefTime { get { return FloodReliefActive?floodReliefTime:0; } }
@@ -173,16 +174,17 @@ namespace Starfall
                     floodReliefConfirmedKills==3&&floodReliefIntegrity>0)
                     choices.Add(C("交付完整医疗包","Deliver guarded medicine","floodarchive_relief_deliver"));
                 if(ferryDock&&LowTide)
-                    choices.Add(C("乘渡船 · 耐力14","Cross by ferry · 14 energy","floodarchive_ferry"));
+                    choices.Add(C("乘渡船 · 耐力"+PublicFerryEnergyCost,
+                        "Cross by ferry · "+PublicFerryEnergyCost+" energy","floodarchive_ferry"));
                 string extraZh=FloodReliefComplete?
-                    "\n\n西岸医疗物资已真正送达并登记，公民航线受到保护。":
+                    "\n\n西岸医疗物资已真正送达并登记，公民航线受到保护；渡船耐力永久降至10。":
                     floodReliefActive?
                     "\n\n医疗护送进行中："+(int)Math.Ceiling(floodReliefTime)+
                     "秒，封条 "+(int)Math.Ceiling(floodReliefIntegrity)+"%。"+
                     (floodReliefCrossed?"请击败两名拦截者后在东岸交付。":"请先搭乘低潮渡船前往东岸。"):
                     "\n\n西岸还可在低潮时领取急救包，渡河并击退两名拦截者后向东岸居民交付。";
                 string extraEn=FloodReliefComplete?
-                    "\n\nThe emergency medicine was genuinely delivered and recorded.":
+                    "\n\nEmergency medicine was delivered. The safer ferry now costs 10 energy.":
                     floodReliefActive?
                     "\n\nMedical crossing: "+(int)Math.Ceiling(floodReliefTime)+
                     "s remaining, cargo "+(int)Math.Ceiling(floodReliefIntegrity)+"%. "+
@@ -292,12 +294,13 @@ namespace Starfall
                     "The crossing is unsafe or fieldwork remains active. Secure both banks.");
                 return true;
             }
-            if(save.energy<14)
+            if(save.energy<PublicFerryEnergyCost)
             {
-                Notify("安全渡河需要14耐力。","Crossing requires 14 energy.");
+                Notify("安全渡河需要"+PublicFerryEnergyCost+"耐力。",
+                    "Crossing requires "+PublicFerryEnergyCost+" energy.");
                 return true;
             }
-            save.energy-=14;save.x=to.x;save.y=to.y;
+            save.energy-=PublicFerryEnergyCost;save.x=to.x;save.y=to.y;
             revision++;sound="travel";
             if(floodReliefActive&&from==western)
             {
@@ -378,8 +381,8 @@ namespace Starfall
                 revision++;sound="reward";
                 RecordMoment("沉桥渡口的药品在真实的低潮航程和两名拦截者的战斗后送抵东岸居民手中。",
                     "Emergency medicine reached the east shore after a real low-tide crossing and two confirmed combat victories.");
-                Notify("医疗护送成功：硬币+45、碎片+1、经验+65；两岸居民恢复了紧急补给线。",
-                    "Medical relief delivered! +45 coins, +1 shard, +65 XP; the public crossing is secure.");
+                Notify("医疗护送成功：硬币+45、碎片+1、经验+65！安全渡船永久降至10耐力。",
+                    "Medical relief delivered! +45 coins, +1 shard, +65 XP; the secured ferry now costs 10 energy.");
                 return true;
             }
             if(action!="floodarchive_1"&&action!="floodarchive_2"&&

@@ -217,8 +217,8 @@ namespace Starfall
                         "Reach the western gauge and wait for low tide"):
                     L("在西岸水尺领取急救包，开始真实护送",
                         "Collect medicine at the west gauge to begin escort");
-                q.reward=L("首次真正送达：硬币45、碎片1、经验65；不可通过反复击杀拦截者领取普通战利品",
-                    "First real delivery: 45 coins, 1 shard, 65 XP; mission raiders have no farmable ordinary loot");
+                q.reward=L("首次送达硬币45、碎片1、经验65；公共渡船消耗永久由14降至10耐力；拦截者不提供可刷的战利品",
+                    "First delivery: 45 coins, 1 shard, 65 XP. Public ferry permanently costs 10 instead of 14 energy, with no farmable raider loot.");
                 return q;
             }
 

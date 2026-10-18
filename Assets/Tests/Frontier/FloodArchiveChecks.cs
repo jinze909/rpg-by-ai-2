@@ -345,5 +345,39 @@ namespace Starfall.Tests
                 "The actual material spent remains in legacy v2 inventory, while temporary repairs are not saved");
         }
 
+        public static void SecuredPublicFerryDiscountPreservesBothLandingsAndSafety(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.x=west.x;g.save.y=west.y;g.save.totalTime=36;g.save.energy=11;
+            Check(g.PublicFerryEnergyCost==14,
+                "Restored original ferry retains its 14-energy price before confirmed relief");
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(west.x,west.y)).Length<.01f&&g.save.energy==11,
+                "Unsecured public crossing remains blocked below its original cost");
+            g.save.flags.Add("floodarchive_relief");
+            Check(g.PublicFerryEnergyCost==10,
+                "The actual completed relief permanently reduces ferry energy cost");
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(east.x,east.y)).Length<.01f&&g.save.energy==1,
+                "New cost unlocks a genuinely cheaper crossing through the original dock");
+            g.save.energy=10;
+            var hazard=new Hazard{position=new Point(west.x,west.y),
+                radius=2f,timer=5f,damage=12,kind="rift"};
+            g.hazards.Add(hazard);
+            g.Talk(east);Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(east.x,east.y)).Length<.01f&&g.save.energy==10,
+                "Discount cannot bypass a true delayed impact on the far shore");
+            g.hazards.Remove(hazard);
+            g.Talk(east);Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(west.x,west.y)).Length<.01f&&g.save.energy==0,
+                "With a safe landing the same permanent fare applies in both directions");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.FloodReliefComplete&&
+                loaded.PublicFerryEnergyCost==10,
+                "Older SaveData v2 slots inherit the earned fare without any new saved fields");
+        }
+
     }
 }
