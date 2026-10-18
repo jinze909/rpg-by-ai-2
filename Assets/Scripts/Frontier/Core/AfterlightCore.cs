@@ -35,10 +35,14 @@ namespace Starfall
         // Two-wave public-defense drills have one earned clearance per region,
         // but trial foes, clock and wave IDs must NEVER enter v2 saved state.
         private int afterlightWatchRoom,afterlightWatchWave,afterlightWatchA,afterlightWatchB;
-        private bool afterlightWatchADead,afterlightWatchBDead;
+        private bool afterlightWatchADead,afterlightWatchBDead,afterlightWatchPatched;
         private float afterlightWatchTime,afterlightWatchStock;
         public float AfterlightWatchStock
         {get{return AfterlightWatchActive?afterlightWatchStock:0f;}}
+        public bool AfterlightWatchPatchAvailable
+        {get{return AfterlightWatchActive&&!afterlightWatchPatched&&
+            afterlightWatchStock>0&&afterlightWatchStock<100f&&
+            save.inventory[0]>=1&&save.inventory[2]>=1;}}
         public bool AfterlightWatchActive {get{return afterlightWatchRoom>=1&&afterlightWatchRoom==save.room;}}
         public int AfterlightWatchWave {get{return AfterlightWatchActive?afterlightWatchWave:0;}}
         public float AfterlightWatchTime {get{return AfterlightWatchActive?afterlightWatchTime:0;}}
@@ -71,7 +75,7 @@ namespace Starfall
                 effects.RemoveAll(e=>e.afterlightWatchOwned);
             }
             afterlightWatchRoom=afterlightWatchWave=afterlightWatchA=afterlightWatchB=0;
-            afterlightWatchADead=afterlightWatchBDead=false;
+            afterlightWatchADead=afterlightWatchBDead=afterlightWatchPatched=false;
             afterlightWatchTime=afterlightWatchStock=0;
         }
         // Siege raiders damage an actual local facility at the end of their
@@ -152,10 +156,12 @@ namespace Starfall
         {
             bool begin=action.StartsWith("afterlight_watch_start_");
             bool abort=action.StartsWith("afterlight_watch_abort_");
-            if(!begin&&!abort)return false;
+            bool patch=action.StartsWith("afterlight_watch_patch_");
+            if(!begin&&!abort&&!patch)return false;
             int room;
-            if(!int.TryParse(action.Substring(begin?
-                "afterlight_watch_start_".Length:"afterlight_watch_abort_".Length),out room)||
+            string prefix=begin?"afterlight_watch_start_":
+                abort?"afterlight_watch_abort_":"afterlight_watch_patch_";
+            if(!int.TryParse(action.Substring(prefix.Length),out room)||
                 room<1||room>3||save.room!=room||
                 (Position-AfterlightPoint(room,"outlet")).Length>2.2f)return true;
             if(abort)
@@ -166,6 +172,18 @@ namespace Starfall
                     Notify("本次公共防卫已安全终止，已建立的储备不受影响。",
                         "Civic defense withdrawn. All permanent emergency stocks remain.");
                 }
+                return true;
+            }
+            if(patch)
+            {
+                if(!AfterlightWatchActive||afterlightWatchPatched||
+                    afterlightWatchStock<=0||afterlightWatchStock>=100||
+                    Dying||practicing||racing)return true;
+                if(!Spend(1,0,1,0,0))return true;
+                afterlightWatchStock=Math.Min(100f,afterlightWatchStock+30f);
+                afterlightWatchPatched=true;revision++;sound="reward";
+                Notify("临时抢修完成：木材 -1、月光草 -1；储备恢复30点（每次防卫仅限一次）。",
+                    "Emergency patch: -1 timber, -1 Moonherb; restore 30 stock integrity (once per defense).");
                 return true;
             }
             if(AfterlightWatchActive||!AfterlightComplete||
@@ -469,6 +487,10 @@ namespace Starfall
                         descriptionEn+="\n\nCivic defense wave "+AfterlightWatchWave+"/2; "+
                             Math.Ceiling(AfterlightWatchTime)+"s left, stock integrity "+
                             Math.Ceiling(AfterlightWatchStock)+"%. Melee raiders attack the receiver unless you intercept them in close combat.";
+                        if(!afterlightWatchPatched&&afterlightWatchStock<100f)
+                            options.Add(C("抢修储备 · 木材1、月光草1、恢复30耐久（每趟一次）",
+                                "Patch stock · 1 timber + 1 Moonherb, +30 (once)",
+                                "afterlight_watch_patch_"+room));
                         options.Add(C("安全终止本次公共防卫","Withdraw from current civic defense",
                             "afterlight_watch_abort_"+room));
                     }
