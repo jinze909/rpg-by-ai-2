@@ -198,6 +198,64 @@ namespace Starfall.Tests
                 "Room travel retires any pending ally magic without editing SaveData v2");
         }
 
+        public static void RecastFrostCannotLeaveFalseOldWorldRing(Campaign data)
+        {
+            // At Q cooldown 3.5s the old four-second field can still own a
+            // visible final pulse. Recasting at another valid foot replaces
+            // gameplay, and must atomically replace only its old visual.
+            MapData previous=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,2);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=11.5f;
+                g.save.energy=100;g.save.technique=1;
+                g.save.reducedMotion=true;
+                var frost=typeof(GameCore).GetField("frost",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                g.Skill(new Point(1,0));
+                Advance(g,.36f);
+                object first=frost.GetValue(g);
+                Check(first!=null&&
+                    g.effects.Exists(e=>e.kind=="frost"&&
+                        (e.position-new Point(10.5f,11.5f)).Length<.01f),
+                    "First real player Q publishes a grounded frost field and its matching live ring");
+                Advance(g,3.2f);
+                Check(ReferenceEquals(first,frost.GetValue(g))&&
+                    g.skillCooldown<=.001f&&
+                    g.effects.Exists(e=>e.kind=="frost"&&
+                        (e.position-new Point(10.5f,11.5f)).Length<.01f),
+                    "Old spell still owns its late pulse when the genuine Q cooldown completes");
+                g.save.x=19.5f;g.save.y=11.5f;g.save.energy=100;
+                g.Skill(new Point(1,0));
+                Check(g.playerAction!=null&&
+                    g.playerAction.kind=="skill"&&!g.playerAction.released,
+                    "A legal second Q begins a different physical release at the new hero foot");
+                Advance(g,.34f);
+                Check(frost.GetValue(g)!=null&&
+                    !ReferenceEquals(first,frost.GetValue(g))&&
+                    !g.effects.Exists(e=>e.kind=="frost"&&
+                        (e.position-new Point(10.5f,11.5f)).Length<.01f)&&
+                    g.effects.Exists(e=>e.kind=="frost"&&
+                        (e.position-new Point(19.5f,11.5f)).Length<.01f),
+                    "A legitimate recast retires the obsolete former-world ring while preserving its new damage field and visible source");
+                Check(g.save.version==2,
+                    "Recast visual ownership remains transient and does not alter save schema");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void DynamicTerrainSealsOnlyTheBuriedFrostField(Campaign data)
         {
             // A ground spell may outlast the player moving away, but it
@@ -249,6 +307,15 @@ namespace Starfall.Tests
                     g.CanStand(g.Position),
                     "A real dynamic solid tile has buried only the player's spell root, not the other field or living player");
                 float firstHp=heroFoe.hp, secondHp=senFoe.hp;
+                // Ring and damage must retire in the SAME physical frame.
+                // Sen's separate, identical-looking frost art is not owned
+                // by the buried player's field.
+                Advance(g,.02f);
+                Check(!g.effects.Exists(e=>e.kind=="frost"&&
+                    (e.position-new Point(10.5f,11.5f)).Length<.01f)&&
+                    g.effects.Exists(e=>e.kind=="frost"&&
+                    (e.position-new Point(19.5f,11.5f)).Length<.01f),
+                    "Invalidated ground frost must retract only its own live ring immediately; Sen's still-legal ring remains visible");
                 // A free Sen auto attack would confound damage attribution.
                 var auto=typeof(GameCore).GetField("companionAttack",
                     System.Reflection.BindingFlags.NonPublic |

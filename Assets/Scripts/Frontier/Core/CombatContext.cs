@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Starfall
 {
@@ -21,6 +22,9 @@ namespace Starfall
         public readonly ImpactProfile impact;
         public float age;
         public int pulses;
+        // Exact transient visual ownership, not a save field. Two casters
+        // can create indistinguishable "frost" effects simultaneously.
+        public readonly List<Effect> visuals = new List<Effect>(PulseCount);
         public FrostField(Point center,float damage,ImpactProfile impact)
         {this.center=center;this.damage=damage;this.impact=impact;}
     }
@@ -33,11 +37,30 @@ namespace Starfall
             return new ImpactProfile(weapon,save.weaponStyles[weapon],save.weapon,attackCombo,
                 Clamp(.06f+save.talents[0]*.025f+(Relic(5)?.12f:0),0,1),playerOwned);
         }
+        private void RetireFrostVisuals(FrostField field)
+        {
+            if(field==null)return;
+            // Remove by the actual effect instances, never by kind, position
+            // or radius: an independent caster's identical ring stays alive.
+            foreach(Effect visual in field.visuals)effects.Remove(visual);
+            field.visuals.Clear();
+        }
         private void BeginFrost(Point center,float baseDamage,ImpactProfile impact)
-        {frost=new FrostField(center,baseDamage*.4f,impact);}
+        {
+            RetireFrostVisuals(frost);
+            frost=new FrostField(center,baseDamage*.4f,impact);
+        }
         private void BeginCompanionFrost(Point center,float baseDamage,ImpactProfile impact)
-        {companionFrost=new FrostField(center,baseDamage*.4f,impact);}
-        private void ClearFrost(){frost=companionFrost=null;}
+        {
+            RetireFrostVisuals(companionFrost);
+            companionFrost=new FrostField(center,baseDamage*.4f,impact);
+        }
+        private void ClearFrost()
+        {
+            RetireFrostVisuals(frost);
+            RetireFrostVisuals(companionFrost);
+            frost=companionFrost=null;
+        }
         private bool IsCurrentFrost(FrostField field)
         {return frost==field||companionFrost==field;}
         private void TickFrost(float dt)
@@ -57,6 +80,7 @@ namespace Starfall
             // field must continue its own pulse clock and combat ownership.
             if(!CanStand(field.center))
             {
+                RetireFrostVisuals(field);
                 if(frost==field)frost=null;
                 if(companionFrost==field)companionFrost=null;
                 return;
@@ -67,7 +91,9 @@ namespace Starfall
             while(field.pulses<FrostField.PulseCount&&field.pulses*FrostField.Interval<=field.age+.00001f)
             {
                 field.pulses++;
-                effects.Add(new Effect("frost",field.center,Math.Min(FrostField.Interval,Math.Max(.001f,FrostField.Duration-field.age))){radius=FrostField.Radius});
+                Effect pulseVisual=new Effect("frost",field.center,Math.Min(FrostField.Interval,Math.Max(.001f,FrostField.Duration-field.age))){radius=FrostField.Radius};
+                effects.Add(pulseVisual);
+                field.visuals.Add(pulseVisual);
                 foreach(Enemy e in enemies.ToArray())
                 {
                     if(!IsCurrentFrost(field)||Dying||mode!="world")return;
