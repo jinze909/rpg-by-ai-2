@@ -66,8 +66,10 @@ namespace Starfall
             {
                 if(enemy.hp<=0||(enemy.Position-origin).Length>=4.1f||
                     !ClearAttackPath(origin,enemy.Position))continue;
-                enemy.state=0;
-                enemy.stun=Math.Max(enemy.stun,enemy.boss?.3f:1.2f);
+                // Share the exact authoritative interruption transaction
+                // used by frost/Break. Otherwise a raider's committed civilian
+                // target and its still-red warning survive a Rootguard pulse.
+                ApplyEnemyControl(enemy,enemy.boss?.3f:1.2f);
                 enemy.timer=Math.Max(enemy.timer,enemy.boss?.4f:.75f);
                 interrupted++;
             }

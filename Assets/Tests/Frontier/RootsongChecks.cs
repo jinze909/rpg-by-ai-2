@@ -138,5 +138,48 @@ namespace Starfall.Tests
                 reloaded.GetQuest("rootsong").complete,
                 "Completion, rewards and forest service survive old-compatible save reload");
         }
+        public static void RootguardClearsCommittedCivilianWindupWithoutRemovingOtherWarnings(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(1);g.enemies.Clear();g.effects.Clear();
+            g.save.flags.Add("scout_saved");
+            for(int i=1;i<=3;i++)g.save.flags.Add("rootsong_"+i);
+            g.save.flags.Add("rootsong_complete");
+            WorldObject root=RootObject(g,1);
+            g.save.x=root.x;g.save.y=root.y;g.save.energy=100;
+            Enemy raider=new Enemy(90785,2,root.x+1.5f,root.y,200)
+            {state=1,timer=.01f,targetingWayfarer=true,targetingReliefCivilian=true};
+            g.enemies.Add(raider);
+            // The same pending warning owner used by the live raider AI.
+            // A second overlapping world warning must remain untouched.
+            var pending=new Effect("danger",new Point(root.x,root.y),2f);
+            var other=new Effect("danger",new Point(root.x,root.y),2f);
+            g.effects.Add(pending);g.effects.Add(other);
+            var field=typeof(GameCore).GetField("rescueWindupEffects",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(field!=null,"Real combat warning owner map exists");
+            var owners=(System.Runtime.CompilerServices.ConditionalWeakTable<Enemy,Effect>)
+                field.GetValue(g);
+            owners.Add(raider,pending);
+            g.Talk(root);
+            Check(g.conversation!=null&&
+                Array.Exists(g.conversation.choices,
+                    c=>c.action=="rootsongpulse_1"),
+                "The real restored root offers its defense while an attack is committed");
+            int choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="rootsongpulse_1");
+            g.Choose(choice);
+            Effect unused;
+            Check(g.save.energy==70&&raider.state==0&&
+                raider.stun>=1.19f&&
+                !raider.targetingWayfarer&&!raider.targetingReliefCivilian&&
+                !owners.TryGetValue(raider,out unused)&&
+                !g.effects.Contains(pending)&&g.effects.Contains(other),
+                "Actual Rootguard interrupt clears its own unspent civilian attack warning and target only");
+            for(int i=0;i<30;i++)g.Tick(.05f,new Point());
+            Check(raider.state!=1&&g.effects.Exists(e=>e==other),
+                "Canceled windup cannot immediately re-release, and an unrelated warning survives");
+        }
+
     }
 }
