@@ -73,9 +73,12 @@ namespace Starfall.Tests
                     Check(g.save.energy<=92&&g.save.energy>=90,
                         "A real sword counter pays nine energy exactly once");
                     g.Attack(new Point(-1,0));
-                    Check(g.riposteTime==0,
-                        "A genuine post-parry attack spends the existing empowered riposte window");
+                    Check(g.riposteTime>0&&g.playerAction!=null&&
+                        g.playerAction.riposteArmed,
+                        "A genuine post-parry attack reserves the counter until real contact");
                     Advance(g,.45f);
+                    Check(g.riposteTime<=0&&!g.playerAction.riposteArmed,
+                        "Only the released physical riposte spends the existing empowered opening");
                     Check(attacker.hp<180,
                         "The parry opening boosts a real sword contact, not a cosmetic reward");
                 }
