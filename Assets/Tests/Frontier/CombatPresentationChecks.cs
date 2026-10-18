@@ -475,6 +475,58 @@ namespace Starfall.Tests
                 "Later frost pulse failed to reapply exact 450ms chill after previous stun expired");
         }
 
+        public static void SenCommandPreservesLongEnemyRecoveryAndCancelsRealWindup(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData { id=0,
+                    spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0] };
+                var g=Fresh(data,2);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=11.5f;
+                g.save.reducedMotion=true;g.save.energy=100;
+                g.save.flags.Add("companion_2");g.SelectCompanion(2);
+                g.companionPosition=new Point(12.5f,11.5f);
+                var recovering=new Enemy(98871,0,14.5f,11.5f,10000f)
+                    {timer=6.5f,staggerRecovery=100f};
+                var winding=new Enemy(98872,0,12.5f,13.5f,10000f)
+                    {state=1,timer=.8f,windupDuration=.8f,
+                     staggerRecovery=100f};
+                g.enemies.Add(recovering);g.enemies.Add(winding);
+                Check(g.CanStand(g.companionPosition)&&
+                    g.CanStand(recovering.Position)&&
+                    g.CanStand(winding.Position),
+                    "Both a recovering enemy and an active attacker stand within Sen's genuine unobstructed caster radius");
+                g.CommandCompanion();
+                ActorAction cast=g.companionAction;
+                Check(cast!=null&&cast.kind=="command"&&
+                    cast.weapon==2&&!cast.released,
+                    "Sen starts a real physical spell command with its original windup");
+                Advance(g,.23f);
+                Check(cast.released&&recovering.stun>1.15f&&
+                    recovering.timer>6f&&recovering.state==0,
+                    "Sen's real frost contact extends stun without shortening an enemy's longer preexisting recovery");
+                Check(winding.state==0&&winding.timer>=1.15f&&
+                    winding.stun>1.15f&&winding.releaseTime<=0f,
+                    "The same command still interrupts a real attack windup and grants its intended 1.2s recovery");
+                float hpRecovering=recovering.hp, hpWinding=winding.hp;
+                Advance(g,.9f);
+                Check(recovering.hp<hpRecovering&&winding.hp<hpWinding&&
+                    recovering.timer>4.9f,
+                    "Later true frost damage pulses still affect both targets without waking the originally resting enemy early");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void SkillCompanionAndBreakControlNeverShortensExistingStun(Campaign data)
         {
             // Real normal Q across sword and mage. An already earned longer

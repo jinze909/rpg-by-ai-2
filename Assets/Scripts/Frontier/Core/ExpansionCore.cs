@@ -425,7 +425,11 @@ namespace Starfall
                         ClearAttackPath(caster,e.Position))
                     {
                         ApplyEnemyControl(e,1.4f);
-                        e.state=0;e.timer=1.2f;
+                        // A true windup was canceled by ApplyEnemyControl.
+                        // Preserve any *longer* idle/recovery delay already
+                        // earned by this opponent rather than waking it up
+                        // early merely because Sen chilled the area.
+                        e.state=0;e.timer=Math.Max(e.timer,1.2f);
                     }
             }
             sound = "skill";
