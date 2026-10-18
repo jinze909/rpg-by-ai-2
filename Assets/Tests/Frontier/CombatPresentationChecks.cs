@@ -3241,6 +3241,50 @@ namespace Starfall.Tests
                 "Authentic positive strike still deals damage and shows the existing hit reaction");
         }
 
+        public static void ForcedPlayerTideEvacuationCancelsOnlyPhantomDodgeReward(Campaign data)
+        {
+            MapData previous=data.maps[5];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='%';
+                    rows[y]=new string(cells);
+                }
+                data.maps[5]=new MapData{
+                    id=5,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.room=5;g.save.totalTime=21.98f;
+                g.save.x=11.5f;g.save.y=10.5f;
+                g.save.energy=100f;g.save.reducedMotion=true;
+                Check(g.LowTide&&g.CanStand(g.Position),
+                    "Hero starts in the playable real shoal while outgoing tide is still low");
+                Point endangered=g.Position;
+                g.Dash(new Point(1,0));
+                Check(g.perfectDodgeArmed&&g.dodgeEscapeTime>.29f&&
+                    g.dashTime>.17f&&g.dashCooldown>.7f&&
+                    g.save.energy==80f,
+                    "A physical charged player dash is legitimately committed before the tidal transition");
+                g.Tick(.04f,new Point());
+                Check(!g.LowTide&&g.CanStand(g.Position)&&
+                    (g.Position-endangered).Length>.3f&&
+                    g.dashTime<=0f&&g.dodgeEscapeTime<=0f&&
+                    !g.perfectDodgeArmed&&
+                    (g.dashOrigin-g.Position).Length<.001f,
+                    "Actual tide-forced player teleport cancels invalid active dodge and its unearned counter eligibility");
+                Check(g.dashCooldown>.6f&&
+                    g.save.energy<81f&&g.save.energy>=80f&&
+                    g.invulnerable>0f&&g.save.version==2,
+                    "Tidal safety recovery does not refund a paid dash, erase legitimate remaining impact protection or mutate old saves");
+            }
+            finally{data.maps[5]=previous;}
+        }
+
         public static void RisingTideCancelsUnfiredCompanionAutoShotWithoutFullCadence(Campaign data)
         {
             MapData previous=data.maps[5];

@@ -125,6 +125,13 @@ namespace Starfall
             {
                 Point p = SafeActorFoot(Position); save.x = p.x; save.y = p.y;
                 CancelAction(); dashTime = 0; playerRecoil = new Point();
+                // An involuntary shoreline relocation is not a player
+                // dodge. A dash started on the outgoing shoal must not
+                // claim a counter from a later warning after its actual
+                // traveled movement was canceled by the tide.
+                perfectDodgeArmed = false;
+                dodgeEscapeTime = 0f;
+                dashOrigin = Position;
                 Notify("潮水涨起，你退回了最近的岸边。闸门可固定低潮。", "The tide rises; you retreat to the nearest bank. The sluice can hold low tide.");
             }
             RecoverTideActors();
