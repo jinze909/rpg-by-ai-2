@@ -926,6 +926,10 @@ namespace Starfall.Tests
                 {
                     Check(g.AfterlightWatchWave==wave&&g.enemies.Count==2,
                         "Each of the two authored waves fields two real enemies");
+                    int expectedA=wave==1?(room==1?0:room==2?1:2):2;
+                    int expectedB=wave==1?(room==1?1:0):(room==1?0:1);
+                    Check(g.enemies[0].kind==expectedA&&g.enemies[1].kind==expectedB,
+                        "Forest, ruined crossing and mine each use their own real enemy tactics across both waves");
                     Enemy a=g.enemies[0], b=g.enemies[1];
                     hit.Invoke(g,new object[]{a,2000f,false,null,null});
                     Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==wave &&
