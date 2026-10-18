@@ -721,6 +721,7 @@ namespace Starfall
             enemies.Remove(e);
             OnAtlasEchoEnemyDefeated(e);
             OnCommonsRelayEnemyDefeated(e);
+            OnWitnessEnemyDefeated(e);
             // A lethal strike may bypass the stagger threshold entirely.
             // Its unspent civilian windup must disappear with the attacker,
             // not keep warning players about an attack that can no longer land.

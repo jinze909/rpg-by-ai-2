@@ -8,7 +8,18 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int witnessDefenseRoom;
+        // Each live witness defense has exactly two authored sentinels.
+        // Missing actors never count as beaten without genuine lethal Hit.
+        private int witnessConfirmedKills;
         private float witnessDefenseTime, witnessPulse;
+        private void OnWitnessEnemyDefeated(Enemy enemy)
+        {
+            if (enemy == null || witnessDefenseRoom != save.room ||
+                !IsWitnessEnemy(enemy)) return;
+            int index = enemy.id - (89970 + witnessDefenseRoom * 2);
+            if (index >= 0 && index < 2)
+                witnessConfirmedKills |= 1 << index;
+        }
         public int WitnessDefenseRoom { get { return witnessDefenseRoom; } }
         public float WitnessDefenseTime { get { return witnessDefenseTime; } }
         public bool IsWitnessEnemy(Enemy e)
@@ -31,7 +42,8 @@ namespace Starfall
             projectiles.RemoveAll(p=>p.witnessOwned);
             hazards.RemoveAll(h=>h.witnessOwned);
             effects.RemoveAll(e=>e.witnessOwned);
-            witnessDefenseRoom=0;witnessDefenseTime=0;witnessPulse=0;
+            witnessDefenseRoom=0;witnessConfirmedKills=0;
+            witnessDefenseTime=0;witnessPulse=0;
         }
         private bool SpawnWitnessDefense(int region)
         {
@@ -60,7 +72,8 @@ namespace Starfall
                 e.timer=.8f+i*.3f;
                 enemies.Add(e);
             }
-            witnessDefenseRoom=region;witnessDefenseTime=65;
+            witnessDefenseRoom=region;witnessConfirmedKills=0;
+            witnessDefenseTime=65;
             witnessPulse=3.1f;
             return true;
         }
@@ -309,9 +322,24 @@ namespace Starfall
             int region=witnessDefenseRoom;
             if(save.room!=region || Dying || practicing)
             {ResetWitnessDefense();revision++;return;}
-            if(!enemies.Exists(IsWitnessEnemy))
+            // Missing from the collection is not proof of combat success.
+            // Validate both reserved IDs independently, even if the final
+            // guard vanished in the same frame as another real kill.
+            int first = 89970 + region * 2;
+            for (int i = 0; i < 2; i++)
             {
+                if ((witnessConfirmedKills & (1 << i)) != 0 ||
+                    enemies.Exists(e => e.id == first + i)) continue;
+                ResetWitnessDefense(); revision++;
+                Notify("封锁守卫异常离场，未确认击败。现场记录保留，请重新发起保全。",
+                    "A guard vanished without a confirmed defeat. Your evidence remains; restart the defense.");
+                return;
+            }
+            if (!enemies.Exists(IsWitnessEnemy))
+            {
+                bool verified = witnessConfirmedKills == 3;
                 ResetWitnessDefense();
+                if (!verified) return;
                 Flag("witness_defeated_"+region);
                 Notify("真正的封锁卫兵已被击退。回第二处标记保全原始证据。",
                     "Actual security guards defeated. Return to the second marker to preserve the original.");
