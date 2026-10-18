@@ -111,6 +111,100 @@ namespace Starfall.Tests
             finally{data.maps[0]=previous;}
         }
 
+        public static void DelayedGroundBlastRespectsDynamicCoverAndSafety(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.health=100;g.save.reducedMotion=true;
+                g.invulnerable=0;
+                Point root=new Point(10.5f,12.5f);
+                Check(g.CanStand(g.Position)&&g.CanStand(root)&&g.SafeTravel,
+                    "Legal open hero and ground-blast roots begin without phantom fieldwork danger");
+                g.hazards.Add(new Hazard{
+                    position=root,timer=.30f,radius=3f,damage=20f,kind="tide"});
+                Check(!g.SafeTravel,
+                    "Pending unblocked delayed area blast prevents erasing real danger via quick travel");
+                // Dynamic wall closes AFTER the warning was scheduled but
+                // BEFORE physical contact, while neither foot is buried.
+                char[] sealedRow=rows[11].ToCharArray();
+                sealedRow[10]='#';rows[11]=new string(sealedRow);
+                Check(g.CanStand(g.Position)&&g.CanStand(root)&&g.SafeTravel,
+                    "Solid cover shields pending blast and restores safe travel without removing its world timer");
+                Advance(g,.34f);
+                Check(g.save.health==100f&&g.hazards.Count==0&&
+                    g.effects.Exists(e=>e.kind=="danger"&&
+                        (e.position-root).Length<.01f),
+                    "Blocked ground explosion still emits its local actual blast cue but cannot hurt the sheltered player");
+                sealedRow[10]='.';rows[11]=new string(sealedRow);
+                g.hazards.Add(new Hazard{
+                    position=root,timer=.18f,radius=3f,damage=20f,kind="tide"});
+                Check(!g.SafeTravel,
+                    "Reopened physical lane again counts the pending damage as a genuine threat");
+                g.invulnerable=0;
+                Advance(g,.22f);
+                Check(g.save.health<100f&&g.save.health>85f&&
+                    g.hazards.Count==0,
+                    "An unobstructed explosion actually reaches and damages the same living hero on its true delayed contact");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
+        public static void SimultaneousGroundHazardsOnlyDamageThroughClearLane(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                char[] wall=rows[11].ToCharArray();
+                wall[10]='#';rows[11]=new string(wall);
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.health=100f;g.save.reducedMotion=true;
+                g.invulnerable=0;
+                Point sheltered=new Point(10.5f,12.5f);
+                Point exposed=new Point(12.5f,10.5f);
+                g.hazards.Add(new Hazard{
+                    position=sheltered,timer=.12f,radius=3f,damage=20f,kind="tide"});
+                g.hazards.Add(new Hazard{
+                    position=exposed,timer=.12f,radius=3f,damage=20f,kind="glass"});
+                Check(g.SafeTravel==false&&g.CanStand(sheltered)&&
+                    g.CanStand(exposed),
+                    "The second genuinely visible blast must still block travel even though the first is protected by cover");
+                Advance(g,.16f);
+                Check(Math.Abs(g.save.health-91f)<.001f&&
+                    g.effects.Exists(e=>e.kind=="danger"&&
+                        (e.position-sheltered).Length<.01f)&&
+                    g.effects.Exists(e=>e.kind=="danger"&&
+                        (e.position-exposed).Length<.01f)&&
+                    g.hazards.Count==0,
+                    "Simultaneous hazards preserve both distinct visual contacts but only the unobstructed world area hit deals its original difficulty-adjusted damage");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void HeroPhysicalMuzzleObstructionRetainsEarnedRiposte(Campaign data)
         {
             // Test both production LMB projectile weapons and their

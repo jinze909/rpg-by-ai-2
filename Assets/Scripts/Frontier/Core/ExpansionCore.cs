@@ -118,7 +118,12 @@ namespace Starfall
                     if (warning.damage <= 0) continue;
                     float dx = warning.position.x - x, dy = warning.position.y - y;
                     float reach = dangerRadius + Math.Max(0, warning.radius);
-                    if (dx * dx + dy * dy < reach * reach) return false;
+                    // A wall can close after a delayed blast warning.
+                    // Radius alone must not forbid resting/travel behind
+                    // solid terrain that the same blast cannot penetrate.
+                    if (dx * dx + dy * dy < reach * reach &&
+                        ClearAttackPath(warning.position,Position))
+                        return false;
                 }
                 return true;
             }
@@ -947,8 +952,14 @@ namespace Starfall
                     triadOwned = h.triadOwned, stormOwned = h.stormOwned,
                     lastDirectiveOwned = h.lastDirectiveOwned,
                     civicConduitOwned = h.civicConduitOwned });
-                if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
-                else TryRewardEscapedWarning(h.position, h.radius);
+                // Ground hazards share the same physical line-of-sight
+                // contract as hostile slam/area and mage explosions. A
+                // closing gate must shelter the player rather than letting
+                // a delayed ring deal damage through solid world geometry.
+                if ((Position-h.position).Length < h.radius &&
+                    ClearAttackPath(h.position,Position))
+                    Hurt(h.damage,"area",(Position-h.position).Normalized);
+                else TryRewardEscapedWarning(h.position,h.radius);
             }
             tickingHazards.Clear();
         }
