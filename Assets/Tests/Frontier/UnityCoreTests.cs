@@ -90,6 +90,7 @@ namespace Starfall.Tests
         [Test] public void DynamicGroundSealingCancelsOnlyOwnEnemyWarning() { CoreChecks.SealedEnemyGroundCancelsOnlyItsOwnCombatWarning(Data()); }
         [Test] public void ClosingLineOfSightCancelsOnlyOccludedArcher() { CoreChecks.OccludedArcherLaneCancelsOnlyItsOwnRealArrow(Data()); }
         [Test] public void BlockedArcherWindupMustRetireUntilLaneReopens() { CoreChecks.OccludedEnemyArcherRetiresUnspentAttackAndRecovers(Data()); }
+        [Test] public void OrdinaryEnemyBowRejectsBlockedPhysicalMuzzle() { CoreChecks.EnemyArcherCannotCommitAttackFromBuriedBowHand(Data()); }
         [Test] public void BuriedEnemyArcherCannotReleaseProjectiles() { CoreChecks.SealedEnemyArcherCannotFireUntilGroundReopens(Data()); }
         [Test] public void CompanionFrostCannotCrossLiveSolidWalls() { CoreChecks.CompanionFrostCannotHitThroughWallsEvenWithinAreaRadius(Data()); }
         [Test] public void CompanionAndPlayerFrostCoexistWithPhysicalCasterOrigins() { CoreChecks.CompanionFrostUsesPhysicalCasterAndNeverReplacesArcanistField(Data()); }

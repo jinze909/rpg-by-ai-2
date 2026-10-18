@@ -977,6 +977,54 @@ namespace Starfall.Tests
             finally{data.maps[0]=previous;}
         }
 
+        public static void EnemyArcherCannotCommitAttackFromBuriedBowHand(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    if(y==10)tiles[9]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=7.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);
+                g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=7.5f;
+                g.save.reducedMotion=true;
+                var archer=new Enemy(99511,1,10.5f,10.5f,10000f)
+                    {timer=0f};
+                g.enemies.Add(archer);
+                Check(g.CanStand(g.Position)&&g.CanStand(archer.Position)&&
+                    g.Blocked(9.5f,10.5f),
+                    "Real side stone occupies an upward archer's bow hand, not the legal hero or archer feet");
+                g.Tick(.02f,new Point());
+                Check(archer.state==1,
+                    "An ordinary enemy archer can begin a real target-locked windup despite a side-wall muzzle");
+                Advance(g,.70f);
+                Check(archer.state==0&&archer.timer<=.23f&&
+                    g.projectiles.Count==0&&
+                    !g.effects.Exists(f=>f.kind=="enemyRelease"),
+                    "A physical bow embedded in stone cannot spawn phantom hostile arrows, claim a release cue, or consume normal attack recovery");
+                char[] open=rows[10].ToCharArray();
+                open[9]='.';rows[10]=new string(open);
+                Advance(g,.25f);
+                Check(archer.state==1,
+                    "Restoring side-muzzle clearance accepts genuine archer re-aiming on its 220ms retry clock");
+                Advance(g,.67f);
+                Check(g.projectiles.Exists(p=>!p.friendly&&
+                    p.visual=="enemyArrow"&&!p.blockedAtSpawn),
+                    "A recovered ordinary enemy bow launches an actual traveling hostile arrow from the unobstructed weapon hand");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void OccludedEnemyArcherRetiresUnspentAttackAndRecovers(Campaign data)
         {
             MapData previous=data.maps[0];

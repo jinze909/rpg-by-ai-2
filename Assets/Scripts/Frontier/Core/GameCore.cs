@@ -1047,6 +1047,22 @@ namespace Starfall
                         RemoveEnemyPendingWarning(e);
                         continue;
                     }
+                    // Even a clear centerline is not sufficient for an
+                    // ordinary archer. The physical bow hand sits to one
+                    // side of the feet; a nearby corner can bury its muzzle
+                    // without covering either living actor or center ray.
+                    // Check the SAME swept attachment used by real Fire
+                    // before committing attack state, sound or projectile.
+                    if (!e.boss && e.kind == 1 &&
+                        WeaponShot(e.Position,1,e.facing,5f,10f,e.target).blockedAtSpawn)
+                    {
+                        e.state=0;
+                        e.timer=.22f;
+                        e.targetingWayfarer=e.targetingReliefCivilian=
+                            e.targetingAfterlightStock=false;
+                        RemoveEnemyPendingWarning(e);
+                        continue;
+                    }
                     e.timer -= freeDt;
                     if (e.boss && save.room == 1 && e.windupDuration > 0 && e.timer < .2f)
                     {
