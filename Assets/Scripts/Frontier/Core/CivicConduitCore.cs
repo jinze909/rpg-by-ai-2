@@ -200,7 +200,7 @@ namespace Starfall
                     open?"civic_conduit_tune":"close"),
                 (conduitGroundedMask&(1<<conduitStage))==0?
                     C("手动接地 · 耐力20","Ground valve · 20 energy","civic_conduit_ground"):
-                    C("查看接地记录","Review grounding","close")),
+                    C("查看接地记录","Review grounding","close"),
                 C("暂时离开","Leave","close"));
             return true;
         }
