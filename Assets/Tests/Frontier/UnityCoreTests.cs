@@ -77,6 +77,7 @@ namespace Starfall.Tests
         [Test] public void NewlySealedGroundRetiresOnlyItsOwnFrostSource() { CoreChecks.DynamicTerrainSealsOnlyTheBuriedFrostField(Data()); }
         [Test] public void FrostRecastRetractsOldRingAtActualContact() { CoreChecks.RecastFrostCannotLeaveFalseOldWorldRing(Data()); }
         [Test] public void SenFrostRetainsLongRecoveryAndBreaksAttacks() { CoreChecks.SenCommandPreservesLongEnemyRecoveryAndCancelsRealWindup(Data()); }
+        [Test] public void RealDamageBreakNeverShortensExistingEnemyRecovery() { CoreChecks.DamageEarnedBreakDoesNotShortenExistingRecovery(Data()); }
         [Test] public void CompanionFrostCannotCrossLiveSolidWalls() { CoreChecks.CompanionFrostCannotHitThroughWallsEvenWithinAreaRadius(Data()); }
         [Test] public void CompanionAndPlayerFrostCoexistWithPhysicalCasterOrigins() { CoreChecks.CompanionFrostUsesPhysicalCasterAndNeverReplacesArcanistField(Data()); }
         [Test] public void IvoCommandAndAutoVolleyRequireRealCasterGround() { CoreChecks.RangerCompanionCannotShootFromBlockedFloorAndRetriesRealContact(Data()); }

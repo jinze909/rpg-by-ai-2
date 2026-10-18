@@ -542,6 +542,64 @@ namespace Starfall.Tests
                 "Later frost pulse failed to reapply exact 450ms chill after previous stun expired");
         }
 
+        public static void DamageEarnedBreakDoesNotShortenExistingRecovery(Campaign data)
+        {
+            // Exercise an actual flying combat hit, not only timer fields.
+            // A pre-existing long pause and a live warning that needs
+            // canceling must each keep the correct post-Break semantics.
+            MapData previous=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                for(int caseId=0;caseId<2;caseId++)
+                {
+                    var g=Fresh(data,0);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=11.5f;
+                    g.save.reducedMotion=true;
+                    var e=new Enemy(98881+caseId,0,12.5f,11.5f,10000f)
+                    {
+                        stagger=29f,
+                        staggerRecovery=0f,
+                        // Case 0: already under a longer earned stun/recovery.
+                        // Case 1: windup is still committed and must be broken.
+                        state=caseId==0?0:1,
+                        timer=caseId==0?6.5f:.75f,
+                        stun=caseId==0?2f:0f,
+                        windupDuration=caseId==0?0f:.75f
+                    };
+                    g.enemies.Add(e);
+                    var shot=new Projectile{
+                        position=e.Position,velocity=new Point(1,0),
+                        friendly=true,visual="arrow",life=1f,damage=10f};
+                    g.projectiles.Add(shot);
+                    g.Tick(.02f,new Point());
+                    Check(e.hp<e.maxHp&&e.staggerRecovery>1.95f&&
+                        g.effects.Exists(fx=>fx.kind=="break"&&
+                            (fx.position-e.Position).Length<.01f),
+                        "Real arrow damage earns exactly the original combat Break feedback and recovery");
+                    Check(e.state==0&&e.stun>1.65f,
+                        "Both a recovering enemy and a winding attacker receive true stagger interruption");
+                    if(caseId==0)
+                        Check(e.timer>6f,
+                            "An already recovering enemy must not be awakened early by the hard-earned Break reward");
+                    else
+                        Check(e.timer>=1f&&e.releaseTime<=0f,
+                            "A genuine active windup is still canceled and earns its full one-second post-Break window");
+                }
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void SenCommandPreservesLongEnemyRecoveryAndCancelsRealWindup(Campaign data)
         {
             MapData previous=data.maps[0];

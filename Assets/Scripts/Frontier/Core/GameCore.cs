@@ -725,7 +725,11 @@ namespace Starfall
                 // authoritative interruption/cue cleanup before publishing
                 // the stagger reward. Preserve the original 1s recovery.
                 ApplyEnemyControl(e,e.boss ? 1.1f : 1.7f);
-                e.state = 0; e.timer = 1;
+                // The earned Break creates at least a full second of
+                // recovery; it must not REDUCE an already longer idle,
+                // stagger or support-call recovery. Keep the shared
+                // interrupt path responsible for live warning cleanup.
+                e.state = 0; e.timer = Math.Max(e.timer, 1f);
                 effects.Add(new Effect("break",e.Position,.7f,
                     L("破势","BREAK")));
             }
