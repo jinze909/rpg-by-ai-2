@@ -26,7 +26,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        private FrostField frost;
+        private FrostField frost, companionFrost;
         private ImpactProfile CaptureImpact(int weapon,int attackCombo=0,bool playerOwned=true)
         {
             weapon=(int)Clamp(weapon,0,2);
@@ -35,10 +35,21 @@ namespace Starfall
         }
         private void BeginFrost(Point center,float baseDamage,ImpactProfile impact)
         {frost=new FrostField(center,baseDamage*.4f,impact);}
-        private void ClearFrost(){frost=null;}
+        private void BeginCompanionFrost(Point center,float baseDamage,ImpactProfile impact)
+        {companionFrost=new FrostField(center,baseDamage*.4f,impact);}
+        private void ClearFrost(){frost=companionFrost=null;}
+        private bool IsCurrentFrost(FrostField field)
+        {return frost==field||companionFrost==field;}
         private void TickFrost(float dt)
         {
-            FrostField field=frost;if(field==null)return;
+            // Each living caster owns its own physical effect: Sen's command
+            // must never erase a still-active Arcanist Q, or vice versa.
+            TickOneFrost(frost,dt);
+            TickOneFrost(companionFrost,dt);
+        }
+        private void TickOneFrost(FrostField field,float dt)
+        {
+            if(field==null||!IsCurrentFrost(field))return;
             field.age=Math.Min(FrostField.Duration,field.age+dt);
             // Schedule five contacts at 0, .8, 1.6, 2.4 and 3.2. Neither
             // accumulated float residue nor a long final frame creates a sixth.
@@ -48,7 +59,7 @@ namespace Starfall
                 effects.Add(new Effect("frost",field.center,Math.Min(FrostField.Interval,Math.Max(.001f,FrostField.Duration-field.age))){radius=FrostField.Radius});
                 foreach(Enemy e in enemies.ToArray())
                 {
-                    if(frost!=field||Dying||mode!="world")return;
+                    if(!IsCurrentFrost(field)||Dying||mode!="world")return;
                     if((e.Position-field.center).Length<FrostField.Radius&&ClearAttackPath(field.center,e.Position))
                     {
                         // A fresh chill pulse can EXTEND control but must not
@@ -60,7 +71,11 @@ namespace Starfall
                     }
                 }
             }
-            if(frost==field&&field.age>=FrostField.Duration)ClearFrost();
+            if(field.age>=FrostField.Duration)
+            {
+                if(frost==field)frost=null;
+                if(companionFrost==field)companionFrost=null;
+            }
         }
     }
 }
