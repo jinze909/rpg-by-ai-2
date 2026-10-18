@@ -2976,7 +2976,7 @@ namespace Starfall.Tests
             var unrelated=new Hazard{position=new Point(6,6),radius=.4f,
                 timer=55,damage=9,kind="root"};
             g.hazards.Add(unrelated);
-            int energy=g.save.energy;
+            float energy=g.save.energy;
             g.Talk(valve);
             Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
                 c=>c.action=="civic_conduit_ground"),
