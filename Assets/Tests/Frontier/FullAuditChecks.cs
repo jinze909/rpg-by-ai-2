@@ -196,7 +196,7 @@ namespace Starfall.Tests
                 Check(boss.state==1&&g.effects.Exists(e=>
                     e.bossSummonCueOwnerId==boss.id),
                     "Boss can start a second honest call after recovering from interruption");
-                Advance(g,1.35f);
+                Advance(g,.94f);
                 Check(boss.cycle==3&&g.enemies.Count==2&&
                     !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id)&&
                     g.enemies[1].stun>0,
