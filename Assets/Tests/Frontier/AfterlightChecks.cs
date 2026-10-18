@@ -530,5 +530,60 @@ namespace Starfall.Tests
                 "Paid stable power is also refused without spending material during other fieldwork");
         }
 
+        public static void AfterlightRealCombatDamagesCarriedChargeWithStableDefense(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_plan_1_care");
+            g.Enter(1);g.enemies.Clear();
+            WorldObject anchor=Object(g,"afterlightanchor1");
+            g.save.x=anchor.x;g.save.y=anchor.y;
+            g.save.energy=100;g.save.inventory[1]=1;
+            Action(g,anchor.kind,"afterlight_charge_1");
+            Check(g.AfterlightChargeRegion==1&&!g.AfterlightStableCharge&&
+                g.AfterlightChargeIntegrity==100,
+                "Original 90-second load begins whole and vulnerable to actual enemy hits");
+            var hit=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The actual combat damage method still exists");
+            g.invulnerable=0;
+            float health=g.save.health;
+            hit.Invoke(g,new object[]{20f,"shot",null});
+            float normalLoss=100-g.AfterlightChargeIntegrity;
+            Check(g.save.health<health&&normalLoss>=9.9f&&normalLoss<=30,
+                "A genuine post-armor shot hurts both the hero and carried unshielded power");
+            g.invulnerable=0;g.hitStop=0;
+            float intact=g.AfterlightChargeIntegrity;
+            hit.Invoke(g,new object[]{20f,"environment",null});
+            Check(g.AfterlightChargeIntegrity==intact,
+                "Environmental exposure does not fabricate hostile damage to the carried power");
+            g.save.x=anchor.x;g.save.y=anchor.y;
+            Action(g,anchor.kind,"afterlight_abort");
+            Check(g.AfterlightChargeRegion==0&&g.AfterlightChargeIntegrity==0,
+                "Genuine anchor abort retires damaged temporary charge without changing civic plans");
+            g.enemies.Clear();g.save.health=g.save.maxHealth;g.invulnerable=0;
+            Action(g,anchor.kind,"afterlight_stable_1");
+            Check(g.AfterlightStableCharge&&g.AfterlightChargeLeft==120&&
+                g.AfterlightChargeIntegrity==100&&g.save.inventory[1]==0,
+                "A freshly paid real starcrystal grants its intact stabilized 120-second load");
+            health=g.save.health;
+            hit.Invoke(g,new object[]{20f,"shot",null});
+            float stableLoss=100-g.AfterlightChargeIntegrity;
+            Check(g.save.health<health&&
+                Math.Abs(stableLoss-normalLoss*.5f)<.02f,
+                "The paid stable charge halves the real power shock, not the hero's health damage");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.AfterlightChargeRegion==0&&
+                !loaded.AfterlightStableCharge&&loaded.AfterlightChargeIntegrity==0&&
+                loaded.save.inventory[1]==0,
+                "Old v2 saved slots preserve spent crystal but never serialize unfinished load health");
+            g.enemies.Clear();g.invulnerable=500;
+            Advance(g,121f);
+            Check(g.AfterlightChargeRegion==0&&g.AfterlightChargeIntegrity==0&&
+                g.AfterlightMode(1)==1&&!g.Has("afterlight_done_1"),
+                "Even stabilized transport expires honestly rather than inventing completed reconstruction");
+        }
+
     }
 }
