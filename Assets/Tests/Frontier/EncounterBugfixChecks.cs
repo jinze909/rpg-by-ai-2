@@ -797,7 +797,7 @@ namespace Starfall.Tests
             int beforeXp = atlas.save.xp;
             atlas.invulnerable = 100;
             Action(atlas, compass.kind, "archive_echo_start");
-            Enemy guardian = atlas.enemies.Find(atlas.IsAtlasEchoEnemy);
+            Enemy guardian = atlas.enemies.Find(e => e.id == 83001);
             Check(guardian != null,
                 "A real physical atlas-calibration encounter must spawn its genuine elite");
             var hit = typeof(GameCore).GetMethod("Hit",
