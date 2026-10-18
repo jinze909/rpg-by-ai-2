@@ -144,6 +144,9 @@ namespace Starfall.Tests
                     "The companion's genuine cast never replaces an in-flight player's Q field");
                 Check(nearAlly.hp<allyHpBefore&&nearHero.hp<=heroHpBefore,
                     "Sen's original damaging pulse actually affects enemies around the ally");
+                Check(g.effects.Exists(e=>e.kind=="release"&&e.variant==2&&
+                    (e.position-GameCore.WeaponOrigin(g.companionPosition,2,g.companionAim)).Length<.01f),
+                    "An actual companion caster visibly releases from his staff, not from the hero's muzzle");
                 var published=g.effects.FindLast(e=>e.kind=="frost");
                 Check(published!=null&&
                     (published.position-g.companionPosition).Length<.01f,
@@ -193,6 +196,111 @@ namespace Starfall.Tests
             g.Enter(1);
             Check(field.GetValue(g)==null&&g.save.version==2,
                 "Room travel retires any pending ally magic without editing SaveData v2");
+        }
+
+        public static void PlayerAndCompanionFrostExpireOnIndependentRealWorldClocks(Campaign data)
+        {
+            MapData old=data.maps[0];
+            try
+            {
+                string[] tiles=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)row[x]='.';
+                    tiles[y]=new string(row);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=11.5f,rows=tiles,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,2);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=11.5f;
+                g.save.reducedMotion=true;g.save.energy=100;
+                g.save.flags.Add("companion_2");g.SelectCompanion(2);
+                g.save.technique=1;
+                var foe=new Enemy(98521,0,19.5f,13.5f,10000)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                g.enemies.Add(foe);
+                var normal=typeof(GameCore).GetField("frost",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var ally=typeof(GameCore).GetField("companionFrost",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                g.Skill(new Point(1,0));Advance(g,.36f);Advance(g,1.55f);
+                Check(normal.GetValue(g)!=null&&ally.GetValue(g)==null,
+                    "The original Arcanist Q remains independently active before a later Sen cast");
+                g.companionPosition=new Point(19.5f,11.5f);
+                g.CommandCompanion();Advance(g,.23f);
+                Check(normal.GetValue(g)!=null&&ally.GetValue(g)!=null,
+                    "Delayed real companion spell coexists with original player Q");
+                Advance(g,2.18f);
+                Check(normal.GetValue(g)==null&&ally.GetValue(g)!=null,
+                    "Old player's spell expires on its own fourth second without erasing newer companion magic");
+                float hp=foe.hp;
+                Advance(g,1.12f);
+                Check(foe.hp<hp&&normal.GetValue(g)==null,
+                    "The companion-owned aura continues a genuine later damage pulse after the player's field has retired");
+                Advance(g,.82f);
+                Check(ally.GetValue(g)==null&&normal.GetValue(g)==null,
+                    "Each authored spell expires only after its own original four seconds, with no permanent aura");
+            }
+            finally{data.maps[0]=old;}
+        }
+
+        public static void CompanionFrostCannotHitThroughWallsEvenWithinAreaRadius(Campaign data)
+        {
+            MapData old=data.maps[0];
+            try
+            {
+                string[] tiles=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)row[x]='.';
+                    row[12]='#';
+                    tiles[y]=new string(row);
+                }
+                // Entire x=13 column is a solid separator in the playable
+                // actor footprint, despite both enemies being within 4 tiles.
+                for(int y=2;y<=22;y++)
+                {
+                    char[] row=tiles[y].ToCharArray();row[13]='#';
+                    tiles[y]=new string(row);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=12.5f,rows=tiles,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,2);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=12.5f;
+                g.save.reducedMotion=true;
+                g.save.flags.Add("companion_2");g.SelectCompanion(2);
+                g.companionPosition=new Point(11.5f,12.5f);
+                var exposed=new Enemy(98631,0,11.5f,14.5f,10000)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                var blocked=new Enemy(98632,0,14.5f,12.5f,10000)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                Check(g.CanStand(g.companionPosition)&&g.CanStand(blocked.Position),
+                    "Both real actors occupy valid physical feet on opposing sides of the wall");
+                g.enemies.Add(exposed);g.enemies.Add(blocked);
+                g.CommandCompanion();Advance(g,.24f);
+                Check(exposed.hp<10000f&&blocked.hp==10000f,
+                    "Sen's immediate real cast damages his own side but not a foe behind solid cover");
+                Advance(g,.92f);
+                Check(blocked.hp==10000f,
+                    "Repeated damaging pulses cannot leak through sealed walls while still within the numerical radius");
+                for(int y=2;y<=22;y++)
+                {
+                    char[] row=tiles[y].ToCharArray();row[13]='.';
+                    tiles[y]=new string(row);
+                }
+                Advance(g,.85f);
+                Check(blocked.hp<10000f,
+                    "A genuinely opened corridor permits the still-existing physical frost field's next legal pulse");
+            }
+            finally{data.maps[0]=old;}
         }
 
         public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
