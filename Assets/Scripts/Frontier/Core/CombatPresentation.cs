@@ -11,7 +11,7 @@ namespace Starfall
         public int weapon, equippedWeapon, profession, style, combo, technique;
         public Point direction;
         public Point? target;
-        public bool released;
+        public bool released, riposteArmed;
         public ImpactProfile impact;
         public float Progress { get { return GameCore.Clamp(elapsed / duration, 0, 1); } }
     }
@@ -238,6 +238,7 @@ namespace Starfall
                 weapon = kind == "skill" ? save.profession : save.weapon,
                 equippedWeapon = save.weapon, profession = save.profession,
                 style = Style, combo = combo, technique = save.technique,
+                riposteArmed = kind == "attack" && riposteTime > 0,
                 impact = CaptureImpact(kind == "skill" ? save.profession : save.weapon,kind == "attack" ? combo : 0) };
         }
         private void TickAction(float dt)
@@ -258,6 +259,17 @@ namespace Starfall
         }
         private void ReleaseAttack(ActorAction a)
         {
+            if(a.riposteArmed)
+            {
+                // This contact frame is the transaction boundary. A canceled
+                // windup never spends the earned opening. Snapshot damage
+                // before any projectile is built, just like combo damage.
+                a.damage *= 1.5f;
+                riposteTime = 0;
+                a.riposteArmed = false;
+                effects.Add(new Effect("number", Position+new Point(0,-.8f),
+                    .65f,L("反击释放！","RIPOSTE RELEASE")));
+            }
             sound = a.weapon == 0 ? "attack" : a.weapon == 1 ? "arrow" : "spell";
             if (a.weapon > 0)
             {
