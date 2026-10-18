@@ -2901,9 +2901,9 @@ namespace Starfall.Tests
 
         public static void CompanionAutoMuzzleObstructionRefundsCadenceAndRetries(Campaign data)
         {
-            // A thin side-wall can cover Ivo's upper-facing bow HAND even
-            // though the ally's full actor foot stands safely in the aisle
-            // and a center-line ray to the enemy remains clear. Validate
+            // A new side-wall can cover Ivo's upper-facing bow HAND even
+            // after the ally starts an authentic visible attack windup
+            // while the center-line ray to the enemy remains clear. Validate
             // the actual projectile's swept muzzle, not only tile LOS.
             MapData previous = data.maps[0];
             try
@@ -2914,7 +2914,7 @@ namespace Starfall.Tests
                     char[] row = new string('#', 25).ToCharArray();
                     if (y >= 2 && y <= 22)
                         for (int x = 2; x <= 22; x++) row[x] = '.';
-                    if (y == 10) row[9] = '#'; // Left of clear vertical ray
+                    // The side-wall closes only AFTER the ally's real windup.
                     rows[y] = new string(row);
                 }
                 data.maps[0] = new MapData { id = 0,
@@ -2938,6 +2938,11 @@ namespace Starfall.Tests
                     "Ivo acquires a live foe across a real open aisle while both actors have valid physical feet");
                 Point hand = GameCore.WeaponOrigin(g.companionPosition,
                     1, prepared.direction);
+                Check(!g.Blocked(hand.x, hand.y),
+                    "The initial physical bow muzzle must be free before acquiring the target");
+                char[] closed = rows[10].ToCharArray();
+                closed[9] = '#';
+                rows[10] = new string(closed);
                 Check(g.Blocked(hand.x, hand.y),
                     "Side wall genuinely intersects Ivo's upward bow muzzle while the center ray and caster foot remain valid");
                 Advance(g, .17f);
@@ -2987,6 +2992,61 @@ namespace Starfall.Tests
             Advance(g,.17f);
             Check(action.released,
                 "Closest-target aim drives a genuine companion bow release, not a HUD-only selection");
+        }
+
+        public static void CompanionAutoSkipsBlockedMuzzleForClearSecondThreat(Campaign data)
+        {
+            // A blocked bow hand must be considered during AUTO target choice,
+            // not only at the late contact frame: otherwise a close enemy can
+            // monopolize every 220ms retry while an exposed threat attacks.
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[9]='#'; // Covers the upward bow hand only.
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData { id=0,
+                    spawnX=8.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0] };
+                var g=Fresh(data,1);g.enemies.Clear();
+                g.save.x=8.5f;g.save.y=10.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.companionPosition=new Point(10.5f,10.5f);
+                var blockedNear=new Enemy(98842,0,10.5f,7.5f,1000f)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                var openFar=new Enemy(98843,0,14.5f,10.5f,1000f)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                g.enemies.Add(blockedNear);g.enemies.Add(openFar);
+                Check(g.CanStand(g.companionPosition)&&
+                    g.CanStand(blockedNear.Position)&&g.CanStand(openFar.Position)&&
+                    g.Blocked(9.9f,10.02f),
+                    "The nearest enemy has a valid centerline but the planted archer's actual upward bow hand overlaps stone");
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                cadence.SetValue(g,0f);
+                g.Tick(.02f,new Point());
+                ActorAction action=g.companionAction;
+                Check(action!=null&&action.kind=="attack"&&
+                    action.target.HasValue&&
+                    (action.target.Value-openFar.Position).Length<.001f,
+                    "Ivo auto-selects a real clear bow lane instead of repeatedly winding up at the nearer blocked hand");
+                Advance(g,.17f);
+                Check(action.released&&g.projectiles.Exists(p=>
+                    p.friendly&&!p.blockedAtSpawn),
+                    "The chosen farther enemy receives a physically spawned companion arrow");
+                Advance(g,.7f);
+                Check(openFar.hp<openFar.maxHp&&
+                    blockedNear.hp==blockedNear.maxHp,
+                    "The usable auto-target takes genuine projectile damage without shooting through a side wall at the nearer foe");
+            }
+            finally { data.maps[0]=previous; }
         }
 
         public static void CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Campaign data)

@@ -70,6 +70,7 @@ namespace Starfall.Tests
         [Test] public void EscortSwordGuardReflectsRealArrow() { CoreChecks.EscortGuardReflectionPreservesRealCivilianSafety(Data()); }
         [Test] public void AlliesDoNotGrantUnearnedHeroWeaponMastery() { CoreChecks.AllyKillsRewardPartyButNotUnwieldedHeroMastery(Data()); }
         [Test] public void CompanionPicksNearestVisibleEnemy() { CoreChecks.CompanionAutoTargetsNearestReachableThreat(Data()); }
+        [Test] public void AllyAutoChoosesPhysicallyClearBowLane() { CoreChecks.CompanionAutoSkipsBlockedMuzzleForClearSecondThreat(Data()); }
         [Test] public void AutoArcherTracksMovingEnemyAtActualRelease() { CoreChecks.CompanionAutoReleaseTracksMovingVisibleEnemy(Data()); }
         [Test] public void AllyPhysicalMuzzleObstructionAllowsSafeRetry() { CoreChecks.CompanionAutoMuzzleObstructionRefundsCadenceAndRetries(Data()); }
         [Test] public void ManualArcherVolleyMustClearPhysicalMuzzle() { CoreChecks.ManualCompanionVolleyCannotSpendCooldownFromBlockedMuzzle(Data()); }

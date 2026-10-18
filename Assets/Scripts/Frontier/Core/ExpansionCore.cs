@@ -496,6 +496,16 @@ namespace Starfall
                 float squared=delta.x*delta.x+delta.y*delta.y;
                 if(squared>=best || !ClearAttackPath(companionPosition,foe.Position))
                     continue;
+                // A clear feet-to-target lane is not necessarily a usable shot:
+                // Ivo's bow and Mira/Sen's staff extend into neighboring tiles.
+                // Probe the SAME swept muzzle as real projectile creation before
+                // reserving a full auto-attack cadence. A blocked nearby foe
+                // must not starve a more distant enemy with a clear firing lane.
+                Point aimDirection=delta.Normalized;
+                int weapon=save.companion==1?1:2;
+                if(WeaponShot(companionPosition,weapon,aimDirection,9f,0f,
+                    foe.Position).blockedAtSpawn)
+                    continue;
                 best=squared;nearest=foe;
             }
             return nearest;
