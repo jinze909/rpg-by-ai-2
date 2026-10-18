@@ -253,7 +253,24 @@ namespace Starfall
             if (!a.released && a.elapsed + .00001f >= a.contact)
             {
                 a.released = true;
-                if (a.kind == "attack") ReleaseAttack(a); else ReleaseSkill(a);
+                // A tide, bridge, arena seal or moving world prop can close
+                // underneath the HERO between input and this true contact.
+                // Neither melee, ranged nor any profession's Q may emit
+                // real damage from an invalid planted root. Keep action
+                // recovery and paid resources, but never spend an earned
+                // riposte that did not produce a physical attack.
+                if (!CanStand(Position))
+                {
+                    a.riposteArmed = false;
+                    effects.Add(new Effect("projectileImpact", Position, .22f)
+                    {
+                        direction = a.direction,
+                        height = WeaponHeight(a.equippedWeapon, a.direction)
+                    });
+                    sound = "guard";
+                }
+                else if (a.kind == "attack") ReleaseAttack(a);
+                else ReleaseSkill(a);
             }
             if (playerAction == a && a.elapsed >= a.duration) playerAction = null;
         }

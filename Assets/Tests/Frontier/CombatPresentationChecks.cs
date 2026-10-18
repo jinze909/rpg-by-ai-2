@@ -3,6 +3,114 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void DynamicTerrainCannotReleaseHeroAttacksFromBuriedRoot(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(int weapon in new[]{0,1,2})
+                {
+                    var g=Fresh(data,weapon);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;g.save.energy=100;
+                    g.riposteTime=4f;
+                    var foe=new Enemy(99301+weapon,0,12f,10.5f,10000f)
+                        {stun=100f,timer=1000f,staggerRecovery=100f};
+                    g.enemies.Add(foe);
+                    g.SetAimTarget(foe.Position);
+                    Check(g.CanStand(g.Position)&&g.CanStand(foe.Position),
+                        "All three equipped-weapon attack trials begin with valid physics and a real nearby foe");
+                    g.Attack(new Point(1,0));
+                    ActorAction abandoned=g.playerAction;
+                    Check(abandoned!=null&&!abandoned.released&&abandoned.riposteArmed,
+                        "A player LMB action has a genuine pending windup and earned counter");
+                    char[] blocked=rows[10].ToCharArray();
+                    blocked[10]='#';rows[10]=new string(blocked);
+                    Check(!g.CanStand(g.Position),"Dynamic collision buries the player only AFTER a legal attack starts");
+                    Advance(g,abandoned.contact+.02f);
+                    Check(abandoned.released&&!abandoned.riposteArmed&&
+                        foe.hp==foe.maxHp&&g.projectiles.Count==0&&
+                        !g.effects.Exists(f=>f.kind=="release"||f.kind=="slash")&&
+                        g.effects.Exists(f=>f.kind=="projectileImpact")&&
+                        g.riposteTime>0,
+                        "An invalid hero foot cancels sword/bow/staff actual contact and its fake art but preserves the saved earned counter");
+                    blocked[10]='.';rows[10]=new string(blocked);
+                    Advance(g,.75f);
+                    g.SetAimTarget(foe.Position);
+                    g.Attack(new Point(1,0));
+                    ActorAction retry=g.playerAction;
+                    Check(retry!=null&&retry!=abandoned&&!retry.released&&
+                        retry.riposteArmed,"Reopening the floor allows a new real attack with the unspent counter");
+                    Advance(g,.7f);
+                    Check(retry.released&&g.riposteTime<=0&&foe.hp<foe.maxHp,
+                        "The same weapon subsequently lands actual empowered combat damage after the floor opens");
+                }
+            }
+            finally{data.maps[0]=previous;}
+        }
+
+        public static void DynamicTerrainCannotReleaseHeroSkillsFromBuriedRoot(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(int profession in new[]{0,1,2})
+                {
+                    var g=Fresh(data,profession);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;g.save.energy=100;
+                    var foe=new Enemy(99311+profession,0,12f,10.5f,10000f)
+                        {stun=100f,timer=1000f,staggerRecovery=100f};
+                    g.enemies.Add(foe);
+                    g.SetAimTarget(foe.Position);
+                    g.Skill(new Point(1,0));
+                    ActorAction cast=g.playerAction;
+                    Check(cast!=null&&cast.kind=="skill"&&!cast.released,
+                        "Each real profession Q begins its authored delayed release");
+                    char[] tile=rows[10].ToCharArray();
+                    tile[10]='#';rows[10]=new string(tile);
+                    Advance(g,cast.contact+.02f);
+                    Check(cast.released&&foe.hp==foe.maxHp&&
+                        g.projectiles.Count==0&&g.skillCooldown>0&&
+                        g.effects.Exists(f=>f.kind=="projectileImpact")&&
+                        !g.effects.Exists(f=>f.kind=="burst"||f.kind=="release"||f.kind=="frost"),
+                        "All three Q disciplines refuse phantom damage or area effects when dynamic terrain buries the caster at contact");
+                    tile[10]='.';rows[10]=new string(tile);
+                    Advance(g,3.7f);
+                    g.save.energy=100;
+                    g.SetAimTarget(foe.Position);
+                    g.Skill(new Point(1,0));
+                    ActorAction retry=g.playerAction;
+                    Check(retry!=null&&retry!=cast&&!retry.released,
+                        "After legitimate Q cooldown the player can recast from restored legal ground");
+                    Advance(g,.65f);
+                    Check(retry.released&&foe.hp<foe.maxHp,
+                        "A reopened player Q deals genuine damage on its own profession's production release path");
+                }
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void HeroPhysicalMuzzleObstructionRetainsEarnedRiposte(Campaign data)
         {
             // Test both production LMB projectile weapons and their
