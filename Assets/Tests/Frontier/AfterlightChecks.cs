@@ -602,18 +602,23 @@ namespace Starfall.Tests
                 System.Reflection.BindingFlags.Instance|
                 System.Reflection.BindingFlags.NonPublic);
             Check(hurt!=null,"Real post-armor combat contact remains authoritative");
-            for(int i=0;i<7;i++)
+            // Stop immediately after reaching the receiver's minimum.
+            // Seven hits at the real difficulty can destroy cargo outright,
+            // so testing seven unconditional blows cannot exercise salvage.
+            int actualHits=0;
+            for(int i=0;i<10&&g.AfterlightChargeRegion==1&&
+                g.AfterlightChargeIntegrity>=GameCore.AfterlightReceiverThreshold;i++)
             {
                 g.save.health=g.save.maxHealth;
                 g.invulnerable=0;g.hitStop=0;
                 hurt.Invoke(g,new object[]{20f,"shot",null});
+                actualHits++;
             }
-            Check(g.AfterlightChargeRegion==1&&
-                g.AfterlightChargeIntegrity<35&&g.AfterlightChargeIntegrity>0,
-                "Seven hits left charge="+g.AfterlightChargeIntegrity+
-                " active="+g.AfterlightChargeRegion+" heroHP="+g.save.health+
-                " invuln="+g.invulnerable+" mode="+g.mode+
-                " expected below "+GameCore.AfterlightReceiverThreshold);
+            Check(actualHits>=2&&g.AfterlightChargeRegion==1&&
+                g.AfterlightChargeIntegrity<GameCore.AfterlightReceiverThreshold&&
+                g.AfterlightChargeIntegrity>0,
+                "True combat left recoverable charge="+g.AfterlightChargeIntegrity+
+                " hits="+actualHits+" active="+g.AfterlightChargeRegion);
             g.enemies.Clear();g.invulnerable=500;
             WalkWithAfterlightCharge(g,new Point(outlet.x,outlet.y));
             g.save.x=outlet.x;g.save.y=outlet.y;
