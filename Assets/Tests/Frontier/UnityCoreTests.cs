@@ -73,6 +73,7 @@ namespace Starfall.Tests
         [Test] public void OverlappingSpellCastersKeepIndependentFourSecondLifetimes() { CoreChecks.PlayerAndCompanionFrostExpireOnIndependentRealWorldClocks(Data()); }
         [Test] public void CompanionFrostCannotCrossLiveSolidWalls() { CoreChecks.CompanionFrostCannotHitThroughWallsEvenWithinAreaRadius(Data()); }
         [Test] public void CompanionAndPlayerFrostCoexistWithPhysicalCasterOrigins() { CoreChecks.CompanionFrostUsesPhysicalCasterAndNeverReplacesArcanistField(Data()); }
+        [Test] public void IvoCommandAndAutoVolleyRequireRealCasterGround() { CoreChecks.RangerCompanionCannotShootFromBlockedFloorAndRetriesRealContact(Data()); }
         [Test] public void InvalidCompanionFrostOriginRefundsTheCommand() { CoreChecks.BlockedCompanionFrostCannotTeleportToHeroOrChargeCooldown(Data()); }
         [Test] public void PersistentFrostIdentity(){CoreChecks.FrostRetainsCasterProfileAndSource(Data());}
         [Test] public void FrostScheduledContacts(){CoreChecks.FrostPulseClockIsFrameRateIndependent(Data());}
