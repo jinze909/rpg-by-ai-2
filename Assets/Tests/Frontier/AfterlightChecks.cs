@@ -989,6 +989,15 @@ namespace Starfall.Tests
             choose.Invoke(g,new object[]{"afterlight_watch_start_2"});
             Check(!g.AfterlightWatchActive,"Forged start before stocking is rejected");
             g.save.flags.Add("afterlight_reserve_2");
+            var priorTrial=typeof(GameCore).GetField("outerPatrolRoom",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(priorTrial!=null,"Original relief patrol mission state remains accessible");
+            priorTrial.SetValue(g,2);
+            Action(g,outlet.kind,"afterlight_watch_start_2");
+            Check(!g.AfterlightWatchActive&&g.enemies.Count==0,
+                "A live older rescue-outpost defense cannot silently overlap the new civic siege");
+            priorTrial.SetValue(g,-1);
             Action(g,outlet.kind,"afterlight_watch_start_2");
             Check(g.AfterlightWatchActive&&g.enemies.Count==2,
                 "On-site stocked receiver starts live defense after actual upgrade");
