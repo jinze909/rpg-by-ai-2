@@ -37,6 +37,76 @@ namespace Starfall.Tests
             Check(opening.GateBarrierActive&&opening.mode=="world"&&!opening.enemies.Exists(e=>e.boss),"A logically completed objective cannot start a Boss through a still-dissolving collision boundary");
             Advance(opening,.6f);Action(opening,"shrine","boss");Check(opening.enemies.Exists(e=>e.boss&&opening.InProtectedArena(e.Position)&&opening.CanStand(e.Position)),"After the real opening finishes the Boss appears inside its valid arena");
         }
+        public static void BossReinforcementsOccupyFreeReachableLocalFootingOrSkipSafely(Campaign data)
+        {
+            var spawn=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(spawn!=null,"Live Boss AI uses its dedicated real-world local summon transaction");
+            foreach(int room in new[]{0,1,2,3,4})
+            {
+                var g=Unlocked(data);if(room!=0)g.Enter(room);
+                g.enemies.Clear();
+                Point origin=new Point(g.Map.spawnX,g.Map.spawnY);
+                // Keep the player away from the immediate summon socket so
+                // either a legitimate first slot or an alternative is possible.
+                g.save.x=origin.x;g.save.y=origin.y;
+                Point bossFoot=new Point(origin.x+2f,origin.y+2f);
+                if(!g.CanStand(bossFoot))bossFoot=origin;
+                var boss=new Enemy(88510+room,3,bossFoot.x,bossFoot.y,999,true)
+                    {hp=100,cycle=2,state=0,timer=99};
+                g.enemies.Add(boss);
+                bool created=(bool)spawn.Invoke(g,new object[]{boss});
+                if(created)
+                {
+                    Check(g.enemies.Count==2,
+                        "Local Boss wave creates exactly one real recruit without duplicating enemies");
+                    Enemy recruit=g.enemies[1];
+                    Check(g.CanStand(recruit.Position)&&
+                        (recruit.Position-boss.Position).Length<=4.1f&&
+                        (recruit.Position-boss.Position).Length>=1.2f&&
+                        (recruit.Position-g.Position).Length>=1.25f&&
+                        recruit.stun>=.34f,
+                        "Legitimate reinforcement has actual locally reachable footing, stays clear of both actor bodies, and receives an honest entry animation window");
+                    Check(g.effects.Exists(e=>e.kind=="burst"&&
+                        (e.position-recruit.Position).Length<.001f),
+                        "A real summoned fighter has a visible original encounter entrance cue");
+                    bool createdTwice=(bool)spawn.Invoke(g,new object[]{boss});
+                    if(createdTwice)
+                        Check((g.enemies[2].Position-recruit.Position).Length>=1.15f,
+                            "A subsequent reinforcement cannot appear in a living earlier recruit's body");
+                }
+                else Check(g.enemies.Count==1,
+                    "No legal local footing must skip the recruit without teleporting one elsewhere");
+            }
+            // A genuinely sealed one-cell chamber must not seek distant
+            // fallback tiles. Test this without touching any user's save
+            // data or replacing the production authored campaign permanently.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[15];
+                for(int y=0;y<15;y++)
+                {
+                    char[] tiles=new string('#',15).ToCharArray();
+                    if(y==7)tiles[7]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=7.5f,spawnY=7.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var enclosed=Fresh(data);enclosed.enemies.Clear();
+                var boss=new Enemy(99117,3,7.5f,7.5f,1000,true);
+                enclosed.enemies.Add(boss);
+                int effects=enclosed.effects.Count;
+                Check(!(bool)spawn.Invoke(enclosed,new object[]{boss})&&
+                    enclosed.enemies.Count==1&&enclosed.effects.Count==effects,
+                    "A trapped Boss never teleports its reinforcements across sealed terrain or creates a false summon effect");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void TideTransitionPrecedesAllAttackContacts(Campaign data)
         {
             var g=Unlocked(data);g.save.totalTime=21.995f;g.Enter(5);g.enemies.Clear();g.invulnerable=100;
