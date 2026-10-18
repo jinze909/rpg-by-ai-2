@@ -504,5 +504,61 @@ namespace Starfall.Tests
                 "Both recorded story milestones survive old v2 slots without persisting competing live actors");
         }
 
+        public static void BlackoutAlternatingPulsesTargetTheRealFollowerWithDodgeTime(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                lena=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=lena.x;g.save.y=lena.y;
+            Action(g,lena.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1&&g.BlackoutFollowerWard==0,
+                "The free real rescue option retains a vulnerable citizen");
+            Advance(g,5.2f);
+            Check(g.BlackoutFollowerHealth==34,
+                "First authentic shield arc remains aimed at the player and damages a stationary follower");
+            // Establish a distinct but still nearby civilian location before
+            // the second real telegraph, to prove it targets the follower,
+            // not the original hero position.
+            var position=typeof(GameCore).GetField("blackoutFollowerPosition",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var pulse=typeof(GameCore).GetField("blackoutPulse",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var cycle=typeof(GameCore).GetField("blackoutPulseIndex",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(position!=null&&pulse!=null&&cycle!=null,
+                "Real escort location and timed surge scheduler exist");
+            Point offset=new Point();
+            foreach(Point step in new[]{new Point(1.5f,0),new Point(-1.5f,0),
+                new Point(0,1.5f),new Point(0,-1.5f)})
+                if(g.CanStand(g.Position+step)){offset=step;break;}
+            Check(offset.Length>1f,"The actual Citadel street has room for a nearby escort");
+            position.SetValue(g,g.Position+offset);
+            pulse.SetValue(g,.02f);
+            cycle.SetValue(g,1);
+            Point expected=g.BlackoutFollowerPosition;
+            g.Tick(.05f,new Point());
+            var warning=g.hazards.Find(h=>h.blackoutOwned&&h.timer>1.2f);
+            Check(warning!=null&&
+                (warning.position-g.BlackoutFollowerPosition).Length<.01f&&
+                (warning.position-g.Position).Length>1.1f&&
+                g.effects.Exists(e=>e.blackoutOwned&&e.kind=="warn"),
+                "Second real delayed arc locks onto the live citizen position, with a visible warning and 1.35s response");
+            // Lead the follower outside the warning while it is still armed.
+            int health=g.BlackoutFollowerHealth;
+            for(int i=0;i<78&&g.BlackoutActive;i++)
+                g.Tick(.02f,offset.Normalized*-1f);
+            Check(g.BlackoutActive&&g.BlackoutFollowerHealth==health,
+                "Steering the real following civilian out of its marked spot dodges the targeted strike");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&!restored.BlackoutActive,
+                "Alternating live targeting adds no persistent state or save migration");
+        }
+
     }
 }

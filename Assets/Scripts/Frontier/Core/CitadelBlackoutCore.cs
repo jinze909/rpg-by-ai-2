@@ -7,7 +7,7 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private float blackoutTime, blackoutPulse, blackoutSurgeTime, blackoutFollowerHealth;
-        private int blackoutFollowing, blackoutRescued;
+        private int blackoutFollowing, blackoutRescued, blackoutPulseIndex;
         private Point blackoutFollowerPosition, blackoutSurgePosition;
         private bool blackoutActive;
         // One real arc absorption is bought at the named citizen's pickup.
@@ -35,7 +35,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.blackoutOwned);
             effects.RemoveAll(e=>e.blackoutOwned);
             blackoutTime=blackoutPulse=blackoutSurgeTime=0;
-            blackoutFollowing=blackoutRescued=0;
+            blackoutFollowing=blackoutRescued=blackoutPulseIndex=0;
             blackoutFollowerHealth=0;blackoutFollowerPosition=new Point();
             blackoutFollowerWard=0;blackoutActive=false;
         }
@@ -168,6 +168,7 @@ namespace Starfall
                     practicing || Dying || !SafeTravel || FieldWorkPreventsRest ||
                     (Position-BlackoutPoint("blackoutshelter")).Length>2.2f)return true;
                 blackoutActive=true;blackoutTime=180;blackoutPulse=3.5f;
+                blackoutSurgeTime=0;blackoutPulseIndex=0;
                 blackoutFollowing=blackoutRescued=0;
                 blackoutFollowerHealth=0;
                 Flag("blackout_started");TrackQuest("blackout");
@@ -324,7 +325,17 @@ namespace Starfall
             blackoutPulse=5.4f;
             if((Position-BlackoutPoint("blackoutshelter")).Length<2.8f)
                 return;
-            Point target=Position;
+            // Alternating locked-on threats: the first surge teaches the
+            // player to move; each second eligible pulse threatens the actual
+            // follower, so sheltering civilians requires intentional routing.
+            // A shelter's safe radius and the player's own visibility remain
+            // unchanged; all arcs still offer the full 1.35s dodge window.
+            blackoutPulseIndex++;
+            bool targetsCivilian=blackoutFollowing!=0 &&
+                blackoutPulseIndex%2==0 &&
+                (blackoutFollowerPosition-Position).Length<6f &&
+                (blackoutFollowerPosition-BlackoutPoint("blackoutshelter")).Length>=2.8f;
+            Point target=targetsCivilian?blackoutFollowerPosition:Position;
             bool canEscape=false;
             foreach(Point shift in new[]{new Point(1.7f,0),new Point(-1.7f,0),
                 new Point(0,1.7f),new Point(0,-1.7f)})
@@ -337,6 +348,9 @@ namespace Starfall
                 damage=13,kind="rift",blackoutOwned=true});
             effects.Add(new Effect("warn",target,1.25f){radius=1.2f,
                 blackoutOwned=true});
+            if(targetsCivilian)
+                Notify("电弧正锁定居民！引导跟随者离开地面的预警圈。",
+                    "The arc is targeting your civilian! Lead them clear of the marked circle.");
         }
     }
 }
