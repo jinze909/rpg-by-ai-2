@@ -95,20 +95,19 @@ namespace Starfall
                     "Practice with Noll at the original town smithy: a 48s live-arrow drill. Face the eastern launcher and use the warrior's Q guard to physically reflect three arrows. Manage timing and energy; retries are free and the reward is one-time.");
                 q.room=0;q.target=ObjectPoint(0,"forge",new Point(7,8));
                 q.locked=save.profession!=0;
-                q.complete=SwordLessonComplete&&SwordLessonVeteranComplete;
+                // Preserve the original three-arrow quest completion on
+                // every old save. Veteran is a distinct optional milestone.
+                q.complete=SwordLessonComplete;
                 q.steps.Add(new QuestStep(L("在诺尔铁匠铺启动试炼","Start at Noll's blacksmith shop"),
                     q.complete||SwordLessonActive));
                 q.steps.Add(new QuestStep(L("正面弹回三支实际飞来的箭矢",
                     "Face and reflect three actual hostile arrows"),SwordLessonComplete));
-                q.steps.Add(new QuestStep(L("再在42秒内弹回五支箭，完成精英考核",
-                    "Reflect five arrows in 42 seconds for the advanced course"),
-                    SwordLessonVeteranComplete));
                 q.next=q.locked?L("此训练属于战士职业","The drill is for the warrior class"):
                     SwordLessonActive?L("弹反 "+SwordLessonHits+"/"+SwordLessonTarget+" · 剩余 "+
                         SwordLessonTime.ToString("0")+" 秒",
                         "Reflections "+SwordLessonHits+"/"+SwordLessonTarget+" · "+
                         SwordLessonTime.ToString("0")+"s left"):
-                    q.complete?L("已完成双阶段考核；五箭精英训练仍可复练",
+                    SwordLessonVeteranComplete?L("已完成双阶段考核；五箭精英训练仍可复练",
                         "Both trials complete; five-arrow replay is available"):
                     SwordLessonComplete?L("返回诺尔铁匠铺，开始五箭精英考核",
                         "Return to Noll for the advanced five-arrow drill"):

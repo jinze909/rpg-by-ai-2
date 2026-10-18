@@ -100,6 +100,9 @@ namespace Starfall.Tests
             g.save.x=noll.x;g.save.y=noll.y;
             g.save.flags.Add("swordlesson_complete");
             Advance(g,1.1f);g.save.energy=100;
+            // A high-level tester isolates the course reward from the
+            // game's independent level-up threshold.
+            g.save.level=20;g.save.xp=0;
             int skill=g.save.skillPoints,coins=g.save.coins,xp=g.save.xp;
             g.Talk(noll);
             Check(NollChoice(g,"swordlesson_veteran_start")&&
@@ -117,7 +120,10 @@ namespace Starfall.Tests
             Check(g.SwordLessonVeteranComplete&&!g.SwordLessonActive&&
                 reflected>=4&&g.save.skillPoints==skill+1&&
                 g.save.coins==coins&&g.save.xp==xp+75,
-                "Five actual Q-guard arrow contacts award exactly one talent and XP");
+                "Five Q-guard contacts: earned="+g.SwordLessonVeteranComplete+
+                " active="+g.SwordLessonActive+" hits="+reflected+
+                " skill="+g.save.skillPoints+"/"+(skill+1)+
+                " xp="+g.save.xp+"/"+(xp+75));
             g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
             Check(saved.save.version==2&&saved.SwordLessonComplete&&
                 saved.SwordLessonVeteranComplete&&!saved.SwordLessonActive,
