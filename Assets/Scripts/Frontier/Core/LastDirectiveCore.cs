@@ -56,7 +56,12 @@ public sealed partial class GameCore {
             directivePhase==2?"First wave defeated. Spend 25 energy at the terminal to lift the second lock.":"All three final guards defeated. Choose public control at the terminal.");
     }
     private bool SpawnLastDirective(int wave){
-        if(!LastDirectiveReady||save.room!=4||directiveRoom>=0||Dying||practicing||!SafeTravel||LastDirectiveChoice>0)return false;
+        // The earned first-wave clear is a valid intermission state.
+        // Do not destroy it until the full second wave can spawn.
+        bool secondWave=wave==2&&directiveRoom==4&&directivePhase==2;
+        if((wave!=1&&wave!=2)||!LastDirectiveReady||save.room!=4||
+            (directiveRoom>=0&&!secondWave)||Dying||practicing||
+            !SafeTravel||LastDirectiveChoice>0)return false;
         int first=wave==1?0:2,count=wave==1?2:3;
         for(int i=0;i<count;i++)if(!CanStand(directiveSpawns[first+i]))return false;
         directiveRoom=4;directivePhase=wave==1?1:3;directiveKills=0;
@@ -184,7 +189,10 @@ public sealed partial class GameCore {
         if(action=="last_directive_second"){
             if(directiveRoom!=4||directivePhase!=2||!SafeTravel)return true;
             if(save.energy<25){Notify("需要25耐力。","25 energy required.");return true;}
-            ResetLastDirective();if(SpawnLastDirective(2)){save.energy-=25;revision++;}return true;
+            if(SpawnLastDirective(2)){save.energy-=25;revision++;}
+            else Notify("第二波守卫无法安全部署，第一波成果与耐力已保留。请调整战场后重试。",
+                "Second-wave guards cannot safely deploy. First-wave progress and energy were preserved; retry.");
+            return true;
         }
         if(action=="last_directive_open"||action=="last_directive_shelter"){
             if(directiveRoom!=4||directivePhase!=4||LastDirectiveEnemies>0||!SafeTravel)return true;

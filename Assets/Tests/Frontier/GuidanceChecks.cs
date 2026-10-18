@@ -2699,5 +2699,59 @@ namespace Starfall.Tests
                 "Existing v2 slots retain actual roadwarden rewards without transient wave counters");
         }
 
+        public static void LastDirectiveBlockedSecondWavePreservesEarnedFirstWave(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("civic_response_ledger");
+            g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject terminal=Object(g,"lastdirectivecore");
+            g.save.x=terminal.x;g.save.y=terminal.y;
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Main chapter ten console starts both actual first-wave guards");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The production Hit transaction exists");
+            foreach(Enemy guard in g.enemies.FindAll(e=>e.id==90300||e.id==90301))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==2&&g.LastDirectiveEnemies==0,
+                "Confirmed first-wave combat reaches its genuine intermission");
+            g.save.energy=100;
+            var map=data.maps[4];
+            var oldDecor=map.decor;
+            try
+            {
+                // Simulate a newly blocked real security deployment footprint
+                // without changing committed scene tiles, story or save schema.
+                var blocked=new Decoration[oldDecor.Length+1];
+                Array.Copy(oldDecor,blocked,oldDecor.Length);
+                blocked[oldDecor.Length]=new Decoration{
+                    kind="house",x=98.5f,y=75.5f
+                };
+                map.decor=blocked;
+                Check(!g.CanStand(new Point(98.5f,74.5f)),
+                    "An actual collision footprint prevents the second wave spawn");
+                Action(g,"lastdirectivecore","last_directive_second");
+                Check(g.LastDirectiveWave==2&&g.LastDirectiveEnemies==0&&
+                    g.save.energy==100&&g.LastDirectiveChoice==0,
+                    "Failed second wave preserves first-wave clear, 25 energy, and the civic outcome");
+            }
+            finally { map.decor=oldDecor; }
+            Check(g.CanStand(new Point(98.5f,74.5f)),
+                "Restored authored terrain reopens the original security deployment");
+            Action(g,"lastdirectivecore","last_directive_second");
+            Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&
+                g.save.energy==75,
+                "A normal retry spends energy exactly once and deploys three genuine guards");
+            g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&saved.LastDirectiveWave==0&&
+                saved.LastDirectiveChoice==0&&saved.LastDirectiveClues==3,
+                "Intermission remains transient; original v2 testimony persists on reload");
+        }
+
     }
 }
