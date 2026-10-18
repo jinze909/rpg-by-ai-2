@@ -92,6 +92,105 @@ namespace Starfall.Tests
                 "Changing heroes erases transient counter intents and all old contact state");
         }
 
+        public static void CompanionFrostUsesPhysicalCasterAndNeverReplacesArcanistField(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,2);g.enemies.Clear();g.save.energy=100;
+                g.save.x=10.5f;g.save.y=11.5f;
+                g.save.flags.Add("companion_2");
+                g.SelectCompanion(2);
+                g.save.technique=1;
+                var nearHero=new Enemy(98401,0,10.5f,13.5f,10000f)
+                    {stun=10f,timer=100f,staggerRecovery=100f};
+                var nearAlly=new Enemy(98402,0,19.5f,13.5f,10000f)
+                    {stun=10f,timer=100f,staggerRecovery=100f};
+                g.enemies.Add(nearHero);g.enemies.Add(nearAlly);
+                g.Skill(new Point(1,0));
+                Advance(g,.36f);
+                var playerField=typeof(GameCore).GetField("frost",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var companionField=typeof(GameCore).GetField("companionFrost",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(playerField!=null&&companionField!=null&&
+                    playerField.GetValue(g)!=null,
+                    "An actual Arcanist alternate-Q establishes a live player-owned persistent spell");
+                object originalPlayer=playerField.GetValue(g);
+                g.companionPosition=new Point(19.5f,11.5f);
+                float heroHpBefore=nearHero.hp,allyHpBefore=nearAlly.hp;
+                g.CommandCompanion();
+                Check(g.companionAction!=null&&
+                    g.companionAction.weapon==2,
+                    "Real unlocked Sen accepts the physical companion order");
+                Advance(g,.23f);
+                Check(ReferenceEquals(playerField.GetValue(g),originalPlayer)&&
+                    companionField.GetValue(g)!=null&&
+                    !ReferenceEquals(companionField.GetValue(g),originalPlayer),
+                    "The companion's genuine cast never replaces an in-flight player's Q field");
+                Check(nearAlly.hp<allyHpBefore&&nearHero.hp<=heroHpBefore,
+                    "Sen's original damaging pulse actually affects enemies around the ally");
+                var published=g.effects.FindLast(e=>e.kind=="frost");
+                Check(published!=null&&
+                    (published.position-g.companionPosition).Length<.01f,
+                    "Sen's visible frost ring is authored at the ally's CURRENT feet, not invisibly under the hero");
+                float heroCurrent=nearHero.hp,allyCurrent=nearAlly.hp;
+                Advance(g,.83f);
+                Check(nearHero.hp<heroCurrent&&nearAlly.hp<allyCurrent,
+                    "Both independently scheduled player and companion frost fields continue genuine later damage pulses");
+                Check(g.enemies.Count==2&&g.save.version==2,
+                    "Dual frost changes transient combat only and does not falsify kills or the v2 save format");
+                g.PrepareSave();var reopened=new GameCore(data,CloneSave(g.save));
+                reopened.Start();
+                Check(playerField.GetValue(reopened)==null&&
+                    companionField.GetValue(reopened)==null,
+                    "Neither caster's unfinished attack may survive a saved-game reload");
+            }
+            finally{data.maps[0]=original;}
+        }
+
+        public static void BlockedCompanionFrostCannotTeleportToHeroOrChargeCooldown(Campaign data)
+        {
+            var g=Fresh(data,2);g.enemies.Clear();
+            g.save.flags.Add("companion_2");g.SelectCompanion(2);
+            g.save.health=40;g.save.energy=100;
+            var field=typeof(GameCore).GetField("companionFrost",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(field!=null,"Real companion spell has its own transient cast ownership");
+            // The caster's old foot became solid (gate/tide/room repair).
+            // Preserve the actual windup, but reject an impossible release.
+            g.companionPosition=new Point(.5f,.5f);
+            Check(!g.CanStand(g.companionPosition),"Test caster occupies genuinely blocked terrain");
+            int beforeFx=g.effects.Count;
+            g.CommandCompanion();
+            Check(g.companionAction!=null&&g.companionCooldown>0,
+                "Normal player input accepts the original half-second companion action");
+            Advance(g,.23f);
+            Check(g.companionAction!=null&&g.companionAction.released&&
+                field.GetValue(g)==null&&g.companionCooldown==0f&&
+                !g.effects.Exists(e=>e.kind=="frost"),
+                "Invalid real caster footing refunds the full manual cooldown instead of creating a free hero-centered frost");
+            Check(g.effects.Count==beforeFx,
+                "Invalid remote companion contact emits no fake player hit or arena effect");
+            g.Enter(1);
+            Check(field.GetValue(g)==null&&g.save.version==2,
+                "Room travel retires any pending ally magic without editing SaveData v2");
+        }
+
         public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
         {
             // Drive the REAL Arcanist alternate-Q and world update loop:
