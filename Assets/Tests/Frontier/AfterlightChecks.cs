@@ -1054,6 +1054,68 @@ namespace Starfall.Tests
                 "Timeout retires real waves without forging a region victory or deleting saved infrastructure");
         }
 
+        public static void CivicReserveEmergencyPatchUsesRealSuppliesOncePerActiveDefense(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_complete");
+            g.save.flags.Add("afterlight_done_1");
+            g.save.flags.Add("afterlight_steward_1");
+            g.save.flags.Add("afterlight_reserve_1");
+            g.save.flags.Add("afterlight_plan_1_watch");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=1000;
+            WorldObject station=Object(g,"afterlightoutlet1");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"afterlight_watch_start_1");
+            var stock=typeof(GameCore).GetField("afterlightWatchStock",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(stock!=null&&choose!=null&&g.AfterlightWatchActive,
+                "A real active defense exposes its transient receiver integrity and actions");
+            stock.SetValue(g,40f);
+            g.save.inventory[0]=0;g.save.inventory[2]=1;
+            g.Talk(station);
+            Check(Array.Exists(g.conversation.choices,c=>c.action=="afterlight_watch_patch_1"),
+                "Damaged live receiver offers an emergency on-site material repair");
+            g.Close();
+            choose.Invoke(g,new object[]{"afterlight_watch_patch_1"});
+            Check(g.AfterlightWatchStock==40f&&g.save.inventory[2]==1,
+                "A patch missing genuine timber cannot steal an herb or mint stock health");
+            g.save.inventory[0]=1;g.save.x=station.x+5f;
+            choose.Invoke(g,new object[]{"afterlight_watch_patch_1"});
+            Check(g.AfterlightWatchStock==40f&&g.save.inventory[0]==1,
+                "Remote spoofed patch cannot repair distant infrastructure without standing at receiver");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"afterlight_watch_patch_1");
+            Check(g.AfterlightWatchStock==70f&&g.save.inventory[0]==0&&
+                g.save.inventory[2]==0&&!g.AfterlightWatchPatchAvailable,
+                "Emergency patch spends exactly one real timber and herb for 30 stock integrity once");
+            g.save.inventory[0]=3;g.save.inventory[2]=3;
+            stock.SetValue(g,50f);
+            g.Talk(station);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_watch_patch_1"),
+                "The one-use repair disappears from actual receiver dialogue");
+            g.Close();
+            choose.Invoke(g,new object[]{"afterlight_watch_patch_1"});
+            Check(g.AfterlightWatchStock==50f&&g.save.inventory[0]==3&&
+                g.save.inventory[2]==3,
+                "Forged repeat patch cannot heal or consume more paid materials");
+            Action(g,station.kind,"afterlight_watch_abort_1");
+            Check(!g.AfterlightWatchActive&&g.AfterlightReserve(1)&&
+                !g.AfterlightWatchDone(1)&&g.save.inventory[0]==3,
+                "Withdrawal preserves permanent reserve and remaining inventory without free completion");
+            g.enemies.Clear();
+            Action(g,station.kind,"afterlight_watch_start_1");
+            Check(g.AfterlightWatchActive&&g.AfterlightWatchStock==100f,
+                "A separate new defense attempt begins at full temporary stock integrity");
+            stock.SetValue(g,80f);
+            Check(g.AfterlightWatchPatchAvailable,
+                "One-use repair availability resets for the next real defense, never the old attempt");
+        }
+
         public static void CivicReserveSaboteursMustReachReceiverAndCommitRealWindupBeforeDestroyingStock(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;
