@@ -1019,8 +1019,9 @@ namespace Starfall
                                 int spokes = 4 + Math.Min(5, save.room) * 2 + e.BossPhase * 2;
                                 if (save.room >= 2 || e.BossPhase >= 2)
                                     for (int k = 0; k < spokes; k++) Fire(e, new Point((float)Math.Cos(k * Math.PI * 2 / spokes + e.cycle * .2), (float)Math.Sin(k * Math.PI * 2 / spokes + e.cycle * .2)), 3.5f + e.BossPhase * .4f);
-                                if ((e.BossPhase == 3 || (save.room == 4 && e.BossPhase >= 2)) && e.cycle % 3 == 0 && enemies.Count < 9)
-                                    enemies.Add(CreatePlacedEnemy(++enemyId, save.room == 4 ? 1 : 0, new Point(e.x - 2, e.y + 1), 38 + save.room * 3));
+                                if ((e.BossPhase == 3 || (save.room == 4 && e.BossPhase >= 2)) &&
+                                    e.cycle % 3 == 0 && enemies.Count < 9)
+                                    TrySpawnBossReinforcement(e);
                             }
                         }
                         else if (e.kind == 1) Fire(e, e.facing, 5);
