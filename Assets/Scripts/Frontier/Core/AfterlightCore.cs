@@ -9,7 +9,14 @@ namespace Starfall
     {
         private int afterlightChargeRegion;
         private float afterlightChargeLeft,afterlightChargeIntegrity;
-        private bool afterlightStableCharge;
+        private bool afterlightStableCharge,afterlightReceiverRepaired;
+        // A low-power receiver needs a viable pulse, not a 1% remnant.
+        public const float AfterlightReceiverThreshold=35f;
+        public bool AfterlightReceiverRepairAvailable
+        {get{return afterlightChargeRegion!=0&&!afterlightReceiverRepaired&&
+            afterlightChargeIntegrity>0&&
+            afterlightChargeIntegrity<AfterlightReceiverThreshold&&
+            afterlightChargeLeft>8&&save.inventory[2]>=1;}}
         public float AfterlightChargeIntegrity
         { get {return afterlightChargeRegion!=0?afterlightChargeIntegrity:0;} }
         public bool AfterlightStableCharge { get {return afterlightChargeRegion!=0&&afterlightStableCharge;} }
@@ -30,7 +37,7 @@ namespace Starfall
         { return ObjectPoint(region,"afterlight"+type+region,new Point(-100,-100)); }
         private void ResetAfterlightCharge()
         { afterlightChargeRegion=0;afterlightChargeLeft=afterlightChargeIntegrity=0;
-          afterlightStableCharge=false; }
+          afterlightStableCharge=afterlightReceiverRepaired=false; }
         private void DamageAfterlightCharge(float damage,string source)
         {
             if(afterlightChargeRegion==0||source=="environment"||damage<=0)return;
@@ -255,14 +262,21 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,
                     "余光已抵达接收端，剩余 "+Math.Ceiling(afterlightChargeLeft)+" 秒；完整度 "+
-                        Math.Ceiling(afterlightChargeIntegrity)+"%。\n\n"+
-                    "接通所需真实材料："+(AfterlightMode(room)==1?"木材 ×2、月光草 ×2":"星晶 ×2、零件 ×1")+
+                        Math.Ceiling(afterlightChargeIntegrity)+"%，安装至少需要35%。"+
+                    (afterlightChargeIntegrity<AfterlightReceiverThreshold?
+                        "\n负载过弱！可消耗月光草1现场恢复45完整度（每趟一次，花费8秒）。":"")+
+                    "\n\n接通所需真实材料："+(AfterlightMode(room)==1?"木材 ×2、月光草 ×2":"星晶 ×2、零件 ×1")+
                     "。安装完成后将永久改变这片地区的设施功能。",
-                    "Afterlight reached the real receiver with "+Math.Ceiling(afterlightChargeLeft)+
-                        "s remaining and "+Math.Ceiling(afterlightChargeIntegrity)+"% integrity.\n\n"+
-                    "Material cost: "+(AfterlightMode(room)==1?"2 timber and 2 Moonherb":"2 starcrystal and 1 machine part")+
+                    "Afterlight receiver: "+Math.Ceiling(afterlightChargeLeft)+
+                        "s and "+Math.Ceiling(afterlightChargeIntegrity)+"% load integrity. "+
+                    "Installation requires at least 35%."+
+                    (afterlightChargeIntegrity<AfterlightReceiverThreshold?
+                        " The load is too weak. One Moonherb can repair 45 integrity once per run at a cost of 8 seconds.":"")+
+                    "\n\nMaterial cost: "+(AfterlightMode(room)==1?"2 timber and 2 Moonherb":"2 starcrystal and 1 machine part")+
                     ". The service becomes a permanent local facility once built.",
                     C("安装并接通公共设施","Install and reconnect public service","afterlight_install_"+room),
+                    C("现场修复负载 · 月光草1、时间8秒",
+                        "Repair power · 1 Moonherb and 8 seconds","afterlight_repair_"+room),
                     C("保留传输，先备料","Check materials","close"));return true;
             }
             Dialog(o.name,o.en,
@@ -433,6 +447,7 @@ namespace Starfall
                 afterlightChargeRegion=room;
                 afterlightStableCharge=stable;
                 afterlightChargeLeft=stable?120:90;afterlightChargeIntegrity=100;
+                afterlightReceiverRepaired=false;
                 revision++;sound="quest";
                 Notify(stable?
                     "已投入星晶，120秒稳态传输开始！亲自前往另一端的公共接收台。":
@@ -442,10 +457,31 @@ namespace Starfall
                     "90-second load transfer started! Reach the real receiver across the map. Combat cannot substitute for reconstruction.");
                 return true;
             }
+            if(pieces[1]=="repair")
+            {
+                if(afterlightChargeRegion!=room||afterlightChargeLeft<=8||
+                    afterlightReceiverRepaired||afterlightChargeIntegrity<=0||
+                    afterlightChargeIntegrity>=AfterlightReceiverThreshold||
+                    (Position-AfterlightPoint(room,"outlet")).Length>2.2f||
+                    !SafeTravel)return true;
+                if(save.inventory[2]<1)
+                {
+                    Notify("现场修复需要一株真正的月光草，可返回原锚点重新运输。",
+                        "Repair requires one real Moonherb. You can retry from the source anchor.");
+                    return true;
+                }
+                save.inventory[2]--;afterlightReceiverRepaired=true;
+                afterlightChargeLeft-=8;
+                afterlightChargeIntegrity=Math.Min(100,afterlightChargeIntegrity+45);
+                revision++;sound="reward";
+                Notify("接收台修复完成！月光草-1、运输时间-8秒；负载重新达到安装阈值。",
+                    "Receiver restored: -1 Moonherb and -8 seconds; the power load is usable again.");
+                return true;
+            }
             if(pieces[1]=="install")
             {
                 if(afterlightChargeRegion!=room || afterlightChargeLeft<=0 ||
-                    afterlightChargeIntegrity<=0 ||
+                    afterlightChargeIntegrity<AfterlightReceiverThreshold ||
                     (Position-AfterlightPoint(room,"outlet")).Length>2.2f ||
                     !SafeTravel)return true;
                 bool care=AfterlightMode(room)==1;
