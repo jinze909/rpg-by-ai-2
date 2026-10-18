@@ -23,7 +23,7 @@ namespace Starfall.Tests
                 foreach(int wave in new[]{1,3})
                 {
                     var g=Fresh(data,0);g.enemies.Clear();
-                    g.save.room=1;g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.room=1;g.save.x=10.77f;g.save.y=10.5f;
                     g.save.reducedMotion=true;
                     g.reliefMissionRoom=1;g.reliefMissionWave=wave;
                     g.reliefFollowerPosition=new Point(12.23f,10.5f);
