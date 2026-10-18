@@ -150,6 +150,59 @@ namespace Starfall.Tests
             }
         }
 
+        public static void LateBossArcherActuallyPerformsTimedRealArrowCombat(Campaign data)
+        {
+            // Deterministic physical, unobstructed tile arena; no mock arrows,
+            // bypassed enemy AI or fake damage/effect injection.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[17];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',17).ToCharArray();
+                    if(y>=2&&y<=14)for(int x=2;x<=14;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=8.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var g=Fresh(data);g.enemies.Clear();g.invulnerable=100;
+                var boss=new Enemy(99126,3,7.5f,8.5f,999,true)
+                    {hp=100,cycle=6,stun=100};
+                g.enemies.Add(boss);
+                var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check((bool)summon.Invoke(g,new object[]{boss})&&
+                    g.enemies.Count==2&&g.enemies[1].kind==1,
+                    "Real late-phase Boss uses its production six-cycle summon to deploy an actual archer in the current arena");
+                Enemy archer=g.enemies[1];
+                Check(g.CanStand(archer.Position)&&
+                    (archer.Position-g.Position).Length<7f&&
+                    archer.stun>=.34f,
+                    "Summoned archer actually begins on legal visible nearby terrain with a genuine entrance recovery");
+                int beforeShots=g.projectiles.Count;
+                g.Tick(.02f,new Point());
+                Check(archer.stun>0 && g.projectiles.Count==beforeShots,
+                    "Summoned archer cannot immediately fire or create a fake projectile during its entry frames");
+                bool fired=false;
+                for(int frame=0;frame<270&&!fired;frame++)
+                {
+                    g.Tick(.02f,new Point());
+                    fired=g.projectiles.Exists(p=>!p.friendly&&
+                        p.visual=="enemyArrow"&&p.source=="shot"&&
+                        p.velocity.Length>1f);
+                }
+                Check(fired,
+                    "The spawned ranged support must travel through normal patrol AI, real windup and live Fire() before an actual enemy arrow exists");
+                Check(g.enemies.Contains(archer)&&!g.Dying&&g.save.version==2,
+                    "The real firing test never manufactures a Boss defeat, removes old actors or alters save format");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void TideTransitionPrecedesAllAttackContacts(Campaign data)
         {
             var g=Unlocked(data);g.save.totalTime=21.995f;g.Enter(5);g.enemies.Clear();g.invulnerable=100;
