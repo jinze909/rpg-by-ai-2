@@ -198,6 +198,74 @@ namespace Starfall.Tests
                 "Room travel retires any pending ally magic without editing SaveData v2");
         }
 
+        public static void DynamicTerrainSealsOnlyTheBuriedFrostField(Campaign data)
+        {
+            // A ground spell may outlast the player moving away, but it
+            // cannot keep dealing damage through a newly sealed origin.
+            // Independent Sen frost must survive the other caster's loss.
+            MapData previous = data.maps[0];
+            try
+            {
+                var rows = new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles = new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y] = new string(tiles);
+                }
+                data.maps[0] = new MapData {
+                    id=0,spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0] };
+                var g=Fresh(data,2);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=11.5f;
+                g.save.reducedMotion=true;g.save.energy=100;
+                g.save.technique=1;
+                g.save.flags.Add("companion_2");g.SelectCompanion(2);
+                var heroFoe=new Enemy(98861,0,10.5f,13.5f,10000)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                var senFoe=new Enemy(98862,0,19.5f,13.5f,10000)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                g.enemies.Add(heroFoe);g.enemies.Add(senFoe);
+                var playerField=typeof(GameCore).GetField("frost",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                var allyField=typeof(GameCore).GetField("companionFrost",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                g.Skill(new Point(1,0)); Advance(g,.36f);
+                g.companionPosition=new Point(19.5f,11.5f);
+                g.CommandCompanion(); Advance(g,.23f);
+                Check(playerField.GetValue(g)!=null&&allyField.GetValue(g)!=null&&
+                    heroFoe.hp<heroFoe.maxHp&&senFoe.hp<senFoe.maxHp,
+                    "Two independently authored real-world frost fields first deal their legitimate caster-local contact");
+                // Keep the player alive on a separate valid tile before
+                // closing the original spell's physical world root.
+                g.save.x=15.5f;g.save.y=11.5f;
+                char[] sealedRow=rows[11].ToCharArray();
+                sealedRow[10]='#';rows[11]=new string(sealedRow);
+                Check(!g.CanStand(new Point(10.5f,11.5f))&&
+                    g.CanStand(new Point(19.5f,11.5f))&&
+                    g.CanStand(g.Position),
+                    "A real dynamic solid tile has buried only the player's spell root, not the other field or living player");
+                float firstHp=heroFoe.hp, secondHp=senFoe.hp;
+                // A free Sen auto attack would confound damage attribution.
+                var auto=typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                auto.SetValue(g,99f);
+                Advance(g, .96f);
+                Check(playerField.GetValue(g)==null&&allyField.GetValue(g)!=null,
+                    "The buried player frost retires promptly without canceling Sen's separate surviving aura");
+                Check(heroFoe.hp==firstHp&&senFoe.hp<secondHp,
+                    "Solidified spell root deals no remote later damage, while legal Sen pulses still genuinely damage enemies");
+                Advance(g,3.5f);
+                Check(allyField.GetValue(g)==null&&g.save.version==2,
+                    "The surviving independent field expires normally without changing the v2 save schema");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void PlayerAndCompanionFrostExpireOnIndependentRealWorldClocks(Campaign data)
         {
             MapData old=data.maps[0];

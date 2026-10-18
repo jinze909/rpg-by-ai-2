@@ -49,7 +49,18 @@ namespace Starfall
         }
         private void TickOneFrost(FrostField field,float dt)
         {
-            if(field==null||!IsCurrentFrost(field))return;
+            if(field==null||!IsCurrentFrost(field)||Dying||mode!="world")return;
+            // The spell is rooted to actual world ground, NOT a remotely
+            // ticking global timer. Dynamic gates, rising tide or collapsed
+            // terrain can seal its center AFTER an otherwise valid cast.
+            // Stop only that caster's now-buried source; the other living
+            // field must continue its own pulse clock and combat ownership.
+            if(!CanStand(field.center))
+            {
+                if(frost==field)frost=null;
+                if(companionFrost==field)companionFrost=null;
+                return;
+            }
             field.age=Math.Min(FrostField.Duration,field.age+dt);
             // Schedule five contacts at 0, .8, 1.6, 2.4 and 3.2. Neither
             // accumulated float residue nor a long final frame creates a sixth.

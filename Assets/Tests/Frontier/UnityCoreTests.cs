@@ -74,6 +74,7 @@ namespace Starfall.Tests
         [Test] public void BufferedQWorldAndProfileBoundaries(){CoreChecks.BufferedSkillsClearAtWorldAndProfileBoundaries(Data());}
         [Test] public void PreparedQCombatValues(){CoreChecks.SkillsRetainPreparedCombatValues(Data());}
         [Test] public void OverlappingSpellCastersKeepIndependentFourSecondLifetimes() { CoreChecks.PlayerAndCompanionFrostExpireOnIndependentRealWorldClocks(Data()); }
+        [Test] public void NewlySealedGroundRetiresOnlyItsOwnFrostSource() { CoreChecks.DynamicTerrainSealsOnlyTheBuriedFrostField(Data()); }
         [Test] public void CompanionFrostCannotCrossLiveSolidWalls() { CoreChecks.CompanionFrostCannotHitThroughWallsEvenWithinAreaRadius(Data()); }
         [Test] public void CompanionAndPlayerFrostCoexistWithPhysicalCasterOrigins() { CoreChecks.CompanionFrostUsesPhysicalCasterAndNeverReplacesArcanistField(Data()); }
         [Test] public void IvoCommandAndAutoVolleyRequireRealCasterGround() { CoreChecks.RangerCompanionCannotShootFromBlockedFloorAndRetriesRealContact(Data()); }
