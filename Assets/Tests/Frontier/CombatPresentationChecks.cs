@@ -3336,12 +3336,16 @@ namespace Starfall.Tests
                             p.visual=="arrow"),
                             "The ordinary automatic shot must actually leave the bow before testing a spent attack cadence");
                     }
+                    // Recovery may be followed by one VALID walking step
+                    // in the same world frame. Seed an obsolete prior gait
+                    // phase to prove it cannot leak through the teleport.
+                    g.companionMoveTime=25f;
                     g.save.totalTime=21.98f;
                     g.Tick(.04f,new Point());
                     Check(!g.LowTide&&g.CanStand(g.companionPosition)&&
                         g.companionAction==null&&
                         targetField.GetValue(g)==null&&
-                        g.companionMoveTime==0f,
+                        g.companionMoveTime<.35f,
                         "True rising tide evacuates the companion, drops stale targeting and resets the old airborne leg phase");
                     float cadence=(float)attackClock.GetValue(g);
                     if(firedBeforeTide)
