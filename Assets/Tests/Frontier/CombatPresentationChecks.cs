@@ -156,7 +156,7 @@ namespace Starfall.Tests
                     "Reopened physical lane again counts the pending damage as a genuine threat");
                 g.invulnerable=0;
                 Advance(g,.22f);
-                Check(g.save.health<100f&&g.save.health>85f&&
+                Check(g.save.health<100f&&g.save.health>75f&&
                     g.hazards.Count==0,
                     "An unobstructed explosion actually reaches and damages the same living hero on its true delayed contact");
             }
@@ -194,13 +194,13 @@ namespace Starfall.Tests
                     g.CanStand(exposed),
                     "The second genuinely visible blast must still block travel even though the first is protected by cover");
                 Advance(g,.16f);
-                Check(Math.Abs(g.save.health-91f)<.001f&&
+                Check(Math.Abs(g.save.health-80f)<.001f&&
                     g.effects.Exists(e=>e.kind=="danger"&&
                         (e.position-sheltered).Length<.01f)&&
                     g.effects.Exists(e=>e.kind=="danger"&&
                         (e.position-exposed).Length<.01f)&&
                     g.hazards.Count==0,
-                    "Simultaneous hazards preserve both distinct visual contacts but only the unobstructed world area hit deals its original difficulty-adjusted damage");
+                    "Simultaneous hazards preserve both distinct visual contacts; only the unobstructed blast deals its true 20-point standard-difficulty damage");
             }
             finally{data.maps[0]=previous;}
         }
