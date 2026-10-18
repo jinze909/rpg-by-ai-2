@@ -206,11 +206,20 @@ namespace Starfall
             // The muzzle and the later flight MUST share the same full
             // projectile footprint. Thin wall edges must stop the leading
             // edge, not just the center after it has pierced the wall.
-            if (ShotBlocked(shot, feet)) shot.blockedAtSpawn = true;
+            // The origin is the HERO'S center; the actual bow/staff release
+            // is farther forward at the hand. A nearby wall *behind* the
+            // character can overlap a staff-sized orb at its theoretical
+            // feet and wrongly cancel a perfectly clear outward cast.
+            // Sweep the physical radius after half a tile of attachment
+            // travel. Always check the center from the FIRST step so a
+            // wall directly ahead cannot be tunneled through.
             for (int i = 1; i <= steps && !shot.blockedAtSpawn; i++)
             {
                 Point next = feet + delta * (i / (float)steps);
-                if (ShotBlocked(shot, next)) { shot.blockedAtSpawn = true; break; }
+                bool pastBody = (next - feet).Length >= .5f;
+                if (Blocked(next.x, next.y) ||
+                    pastBody && ShotBlocked(shot, next))
+                { shot.blockedAtSpawn = true; break; }
                 shot.position = next;
             }
             if(target.HasValue&&(target.Value-shot.position).Length>.01f)shot.velocity=(target.Value-shot.position).Normalized*speed;

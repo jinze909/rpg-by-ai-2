@@ -435,7 +435,12 @@ namespace Starfall.Tests
                 Check(g.GateOpen, "Chapter gate");
                 AwaitArenaOpening(g); // Hit stop pauses the same opening clock; wait for actual collision.
                 g.save.x = 28; g.save.y = 10; Action(g, "shrine", "boss"); Combat(g, true);
-                Check(g.Has("boss_" + room), "Guardian defeated");
+                Check(g.Has("boss_" + room),
+                    "Guardian defeated: room=" + room + " profession=" + profession +
+                    " actualRoom=" + g.save.room + " dying=" + g.Dying +
+                    " mode=" + g.mode + " health=" + g.save.health +
+                    " enemies=" + g.enemies.Count + " state=" +
+                    (g.enemies.Count > 0 ? g.enemies[0].id.ToString() : "empty"));
                 if (room < 4) { Action(g, "shrine", "goto0"); Action(g, "guild", "deliver"); Check(g.save.stage == room, "Core delivered"); }
             }
             for (int frame=0; frame<200 && g.mode=="world"; frame++) g.Tick(.02f,new Point());

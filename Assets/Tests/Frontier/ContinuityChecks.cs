@@ -264,6 +264,19 @@ namespace Starfall.Tests
                 g.effects.Exists(e => e.kind == "projectileImpact") &&
                 g.CanStand(g.Position),
                 "A real near-side wall spark retires the blocked arrow on the following frame without moving the hero into cover");
+
+            var mage = Quiet(data, 2);
+            Point mageWall = WallStand(mage);
+            // Moving outward from a solid LEFT wall is a valid cast: the
+            // body fits on walkable ground and the hand is to its RIGHT.
+            mage.save.x = mageWall.x; mage.save.y = mageWall.y;
+            mage.Attack(new Point(1, 0));
+            for (int tick = 0; tick < 20 && mage.projectiles.Count == 0; tick++)
+                mage.Tick(.05f, new Point());
+            Check(mage.projectiles.Count == 1 &&
+                !mage.projectiles[0].blockedAtSpawn &&
+                mage.projectiles[0].position.x > mage.Position.x + 1,
+                "A staff cast away from cover remains playable even if its theoretical center-sized orb grazes the wall BEHIND the hero");
         }
 
     }
