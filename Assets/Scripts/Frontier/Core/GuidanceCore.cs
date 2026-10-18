@@ -445,8 +445,8 @@ namespace Starfall
             {
                 q.title=L("归乡送达 · 八地居民救援包","Homeward Deliveries · Eight Civilian Parcels");
                 q.category=L("真实步行运输 · 修桥后的生活","ACTUAL WALKING · LIFE AFTER REPAIR");
-                q.description=L("先修好同一地区的桥和避险棚，在95秒内背包步行过桥。桥南有两名真正出击的劫匪，受击会损坏物资。检查站可消耗零件修补或花30耐力开启护送结界。传送或超时不能代替亲手交付。",
-                    "Repair the bridge and remote shelter, then carry aid on foot across the span within 95 seconds. Two real raiders intercept the southbound route. Enemy hits tear the parcel; the checkpoint can repair it for one spare part or ward it for 30 energy. Teleports cannot substitute for real delivery.");
+                q.description=L("先修好桥与避险棚，95秒内背包步行过桥。桥南有两名真正出击的劫匪：可迂回正常交付，也可亲手击败两人并送达，获得每地一次安全护送奖金。检查站可消耗零件修补或花30耐力开启护送结界。传送不能代替亲手交付。",
+                    "Repair bridge and refuge, then deliver on foot within 95s. Evade the two real raiders for normal delivery, or defeat BOTH in combat and complete the run for a one-time secure-route bonus per region. Repair cargo or buy a temporary ward at the checkpoint; teleporting never qualifies.");
                 q.locked=!Has("intro");q.complete=FarCourierDeliveredCount==8;
                 int region=-1;
                 for(int i=0;i<8;i++)
@@ -481,8 +481,8 @@ namespace Starfall
                     q.room=9;q.target=new Point(22.5f,36.5f);
                     q.next=L("前往旅店制图室公开八份补给回执","Publish the signed manifests at the Hearth Inn");
                 }
-                q.reward=L("八次真实送达各得硬币25、碎片1、经验38；八地技能点1；公布公约后全面提升避险棚治疗和御寒",
-                    "Each real delivery: 25 coins, 1 shard, 38 XP; all eight: +1 talent. Publishing the charter upgrades every refuge.");
+                q.reward=L("每地送达硬币25、碎片1、经验38；真实击败两名劫匪并交付额外硬币10、经验15；八地技能点1；公开公约后强化避险棚",
+                    "Each delivery: 25 coins, 1 shard, 38 XP. Defeat both raiders and deliver for +10 coins, +15 XP once per region. All eight: +1 talent; the charter upgrades refuges.");
                 return q;
             }
 

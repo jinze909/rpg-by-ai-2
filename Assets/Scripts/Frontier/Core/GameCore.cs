@@ -731,6 +731,7 @@ namespace Starfall
             OnTideSalvageEnemyDefeated(e);
             OnWayfarerEnemyDefeated(e);
             OnRoadwardenTrialEnemyDefeated(e);
+            OnFarCourierEnemyDefeated(e);
             // A lethal strike may bypass the stagger threshold entirely.
             // Its unspent civilian windup must disappear with the attacker,
             // not keep warning players about an attack that can no longer land.

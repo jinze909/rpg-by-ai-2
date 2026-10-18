@@ -2861,5 +2861,90 @@ namespace Starfall.Tests
                 "Invalid player warp retires only the relocated encounter-owned actors and warnings");
         }
 
+        public static void CourierSecureDeliveryRewardsOnlyRealDualRaiderKills(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The real lethal combat callback must exist");
+            for(int branch=0;branch<2;branch++)
+            {
+                var g=Fresh(data);g.save.stage=4;g.save.level=20;g.save.xp=0;
+                g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+                g.Enter(0);g.enemies.Clear();g.invulnerable=200;
+                WorldObject bridge=Object(g,"farbridge"),
+                    checkpoint=Object(g,"farcheck"),refuge=Object(g,"farshelter");
+                int coins=g.save.coins,shards=g.save.shards,xp=g.save.xp;
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                Action(g,"farbridge","far_courier_start");
+                for(int i=0;i<65&&!g.FarCourierCrossed;i++)
+                    g.Tick(.05f,new Point(0,1));
+                Check(g.FarCourierCrossed&&g.FarCourierRaidersAlive==2,
+                    "Actual player movement over the existing bridge summons both real raiders");
+                var raiders=g.enemies.FindAll(e=>e.id==90100||e.id==90101);
+                if(branch==1)
+                {
+                    hit.Invoke(g,new object[]{raiders[0],99999f,false,null,null});
+                    Check(!g.FarCourierSecuredInFlight&&g.FarCourierRaidersAlive==1,
+                        "One verified lethal attacker cannot award a secure route");
+                    hit.Invoke(g,new object[]{raiders[1],99999f,false,null,null});
+                    Check(g.FarCourierSecuredInFlight&&g.FarCourierRaidersAlive==0,
+                        "Two distinct real lethal combat callbacks secure the convoy");
+                    g.hitStop=0;
+                }
+                else
+                {
+                    // Evading is a supported authored strategy; keep the
+                    // exact roster rather than faking a combat completion.
+                    Check(!g.FarCourierSecuredInFlight,
+                        "Unbeaten pursuers never qualify for the combat bonus");
+                    foreach(Enemy e in raiders){e.stun=100;e.timer=100;}
+                }
+                Point toCheck=new Point(checkpoint.x,checkpoint.y);
+                for(int i=0;i<1100&&g.FarCourierActive&&
+                    (g.Position-toCheck).Length>1f;i++)
+                    g.Tick(.05f,g.DirectionTo(g.Position,toCheck));
+                Check(g.FarCourierActive&&
+                    (g.Position-toCheck).Length<2.2f,
+                    "Real hero movement reaches the existing community inspection post");
+                Action(g,"farcheck","far_courier_stamp");
+                Check(g.FarCourierStamped,
+                    "A live physical checkpoint stamps only the carried original parcel");
+                Point toRefuge=new Point(refuge.x,refuge.y);
+                for(int i=0;i<1100&&g.FarCourierActive&&
+                    (g.Position-toRefuge).Length>1f;i++)
+                    g.Tick(.05f,g.DirectionTo(g.Position,toRefuge));
+                Check(g.FarCourierActive&&
+                    (g.Position-toRefuge).Length<2.2f,
+                    "Legitimate field route reaches the remote refuge before timeout");
+                if(branch==0)
+                {
+                    // Evaded raiders never travel to the distant refuge:
+                    // normal delivery only needs the original SafeTravel check.
+                    Check(!g.FarCourierSecuredInFlight,
+                        "Stunned or escaped raiders are not counted as killed");
+                }
+                Action(g,"farshelter","far_courier_deliver");
+                Check(g.FarCourierDelivered(0)&&!g.FarCourierActive&&
+                    g.FarCourierSecured(0)==(branch==1)&&
+                    g.save.coins==coins+(branch==1?35:25)&&
+                    g.save.shards==shards+1&&
+                    g.save.xp==xp+(branch==1?53:38),
+                    "Both valid delivery styles earn the correct, mutually exclusive one-time compensation");
+                g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+                Check(loaded.save.version==2&&loaded.FarCourierDelivered(0)&&
+                    loaded.FarCourierSecured(0)==(branch==1)&&
+                    !loaded.FarCourierActive,
+                    "Original v2 saves preserve the actually earned route outcome only");
+                var forged=typeof(GameCore).GetMethod("ChooseFarCourier",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                int rewarded=loaded.save.coins;
+                forged.Invoke(loaded,new object[]{"far_courier_deliver"});
+                Check(loaded.save.coins==rewarded,
+                    "Already-delivered routes cannot repay secure-combat bonuses on repeated actions");
+            }
+        }
+
     }
 }
