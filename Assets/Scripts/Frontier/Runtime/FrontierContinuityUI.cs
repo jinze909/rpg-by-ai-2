@@ -174,7 +174,9 @@ namespace Starfall
                     15,paper,TextAnchor.MiddleCenter);
                 Text(398,49,481,18,
                     Game.L("设施耐久 ","STOCK INTEGRITY ")+
-                    Math.Ceiling(stock)+"%",
+                    Math.Ceiling(stock)+"%"+
+                    (Game.AfterlightWatchPatchAvailable?
+                        Game.L(" · 抢修 E"," · PATCH E"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
             }
