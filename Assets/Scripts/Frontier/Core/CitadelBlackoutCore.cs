@@ -240,6 +240,22 @@ namespace Starfall
                     Point next=blackoutFollowerPosition+step;
                     if(CanStand(next) && ClearAttackPath(blackoutFollowerPosition,next))
                         blackoutFollowerPosition=next;
+                    else
+                    {
+                        // An ordinary city corner should not strand one of
+                        // the three actual civilians. Use the very same
+                        // live grid route as normal enemy pursuit, without
+                        // moving through walls or snapping to the hero.
+                        Point around=DirectionTo(blackoutFollowerPosition,Position);
+                        if(around.Length>.01f)
+                        {
+                            Point detour=blackoutFollowerPosition+
+                                around*Math.Min(gap-1.1f,dt*5.8f);
+                            if(CanStand(detour)&&
+                                ClearAttackPath(blackoutFollowerPosition,detour))
+                                blackoutFollowerPosition=detour;
+                        }
+                    }
                 }
             }
             if(blackoutSurgeTime>0)

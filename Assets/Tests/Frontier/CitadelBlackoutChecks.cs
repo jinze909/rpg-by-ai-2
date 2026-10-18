@@ -300,5 +300,69 @@ namespace Starfall.Tests
                 "Existing v2 saves still never persist a partially escorted civilian");
         }
 
+        public static void BlackoutCivilianNavigatesAroundARealWallCorner(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=400;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                citizen=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=citizen.x;g.save.y=citizen.y;
+            Action(g,citizen.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1,
+                "The actual Citadel citizen enters the normal timed escort");
+            MapData map=data.maps[4];int xFound=-1,yFound=-1;
+            for(int y=8;y<map.rows.Length-9&&xFound<0;y++)
+            for(int x=8;x<map.rows[y].Length-10&&xFound<0;x++)
+            {
+                Point left=new Point(x+.5f,y+.5f),
+                    middle=new Point(x+1.5f,y+.5f),
+                    right=new Point(x+2.5f,y+.5f),
+                    a=new Point(x+.5f,y-1.5f),b=new Point(x+1.5f,y-1.5f),
+                    c=new Point(x+2.5f,y-1.5f);
+                if(map.rows[y][x+1]!='.'||
+                    !g.CanStand(left)||!g.CanStand(middle)||
+                    !g.CanStand(right)||!g.CanStand(a)||
+                    !g.CanStand(b)||!g.CanStand(c))continue;
+                xFound=x;yFound=y;
+            }
+            Check(xFound>=0,"The original Citadel offers a walkable alternate corridor");
+            var field=typeof(GameCore).GetField("blackoutFollowerPosition",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(field!=null,"The genuine civilian location is maintained at runtime");
+            string oldRow=map.rows[yFound];
+            try
+            {
+                char[] blocked=oldRow.ToCharArray();blocked[xFound+1]='#';
+                map.rows[yFound]=new string(blocked);
+                Point start=new Point(xFound+.5f,yFound+.5f),
+                    finish=new Point(xFound+2.5f,yFound+.5f);
+                Check(!g.CanStand(new Point(xFound+1.5f,yFound+.5f))&&
+                    g.CanStand(start)&&g.CanStand(finish),
+                    "An added wall blocks the direct citizen path, not either actor");
+                g.save.x=finish.x;g.save.y=finish.y;
+                field.SetValue(g,start);
+                bool legal=true;
+                for(int i=0;i<135&&g.BlackoutActive&&
+                    (g.BlackoutFollowerPosition-g.Position).Length>1.4f;i++)
+                {
+                    g.Tick(.03f,new Point());
+                    if(!g.CanStand(g.BlackoutFollowerPosition)){legal=false;break;}
+                }
+                Check(legal&&g.BlackoutActive&&
+                    (g.BlackoutFollowerPosition-g.Position).Length<1.5f,
+                    "Civilian follows the path around the wall without snapping, clipping or abandoning the mission");
+                Check(g.BlackoutRescued==0&&!g.Has("blackout_complete"),
+                    "Following through the alternate corridor never gives a free story completion");
+            }
+            finally{map.rows[yFound]=oldRow;}
+            g.PrepareSave();var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(reloaded.save.version==2&&!reloaded.BlackoutActive,
+                "Transient path recovery does not extend old SaveData v2");
+        }
+
     }
 }
