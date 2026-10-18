@@ -293,7 +293,8 @@ namespace Starfall.Tests
                     "Repeated damaging pulses cannot leak through sealed walls while still within the numerical radius");
                 for(int y=2;y<=22;y++)
                 {
-                    char[] row=tiles[y].ToCharArray();row[13]='.';
+                    char[] row=tiles[y].ToCharArray();
+                    row[12]=row[13]='.';
                     tiles[y]=new string(row);
                 }
                 Advance(g,.85f);
