@@ -610,7 +610,10 @@ namespace Starfall.Tests
             }
             Check(g.AfterlightChargeRegion==1&&
                 g.AfterlightChargeIntegrity<35&&g.AfterlightChargeIntegrity>0,
-                "Seven genuine unprotected hostile hits reduce the viable load below receiver threshold");
+                "Seven hits left charge="+g.AfterlightChargeIntegrity+
+                " active="+g.AfterlightChargeRegion+" heroHP="+g.save.health+
+                " invuln="+g.invulnerable+" mode="+g.mode+
+                " expected below "+GameCore.AfterlightReceiverThreshold);
             g.enemies.Clear();g.invulnerable=500;
             WalkWithAfterlightCharge(g,new Point(outlet.x,outlet.y));
             g.save.x=outlet.x;g.save.y=outlet.y;
