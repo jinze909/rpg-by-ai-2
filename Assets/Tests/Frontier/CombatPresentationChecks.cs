@@ -2918,6 +2918,68 @@ namespace Starfall.Tests
                 "Authentic positive strike still deals damage and shows the existing hit reaction");
         }
 
+        public static void SafeCompanionSwapRefundsUnreleasedButNotSpentOrder(Campaign data)
+        {
+            // A safe party swap is genuine player input. Test a bow order
+            // and Sen's independently owned grounded spell, including their
+            // actual 200ms contact frames and the global shared cooldown.
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)row[x]='.';
+                    rows[y]=new string(row);
+                }
+                data.maps[0]=new MapData {
+                    id=0,spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(int id in new[]{1,2})
+                {
+                    var g=Fresh(data,0);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=11.5f;
+                    g.save.reducedMotion=true;
+                    g.save.flags.Add("companion_0");
+                    g.save.flags.Add("companion_"+id);
+                    g.SelectCompanion(id);
+                    Check(g.save.companion==id&&g.SafeTravel,
+                        "Actual unlocked bow/mage ally can be selected safely with no active combat");
+                    g.CommandCompanion();
+                    ActorAction abandoned=g.companionAction;
+                    Check(abandoned!=null&&!abandoned.released&&
+                        abandoned.weapon==id&&g.companionCooldown>11f,
+                        "A genuine manual ally command reserves the long global cooldown before physical release");
+                    g.SelectCompanion(0);
+                    Check(g.save.companion==0&&g.companionAction==null&&
+                        !abandoned.released&&g.companionCooldown<=0f&&
+                        g.projectiles.Count==0,
+                        "A player-canceled unspent ally command changes party but refunds exactly its unreleased cooldown");
+                    g.SelectCompanion(id);
+                    g.CommandCompanion();
+                    ActorAction released=g.companionAction;
+                    Check(released!=null&&released!=abandoned&&
+                        !released.released,
+                        "Returning to the original class accepts a genuinely new order without cooldown bypass");
+                    Advance(g,.23f);
+                    Check(released.released&&g.companionCooldown>11f&&
+                        (id==1 ? g.projectiles.Count==3 :
+                            g.effects.Exists(f=>f.kind=="frost")),
+                        "The legal rescued command really releases three arrows or a grounded frost pulse and charges its ordinary cooldown");
+                    float paid=g.companionCooldown;
+                    g.SelectCompanion(0);
+                    Check(g.save.companion==0&&g.companionAction==null&&
+                        g.companionCooldown==paid,
+                        "Switching AFTER a real companion skill contact cannot erase its already spent shared cooldown");
+                    g.CommandCompanion();
+                    Check(g.companionAction==null,
+                        "The other companion cannot circumvent a legitimately earned long cooldown");
+                }
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void ReselectingSameCompanionPreservesInFlightCommand(Campaign data)
         {
             var g=Fresh(data);g.enemies.Clear();

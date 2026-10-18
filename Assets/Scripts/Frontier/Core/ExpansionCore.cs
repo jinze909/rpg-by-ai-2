@@ -313,9 +313,17 @@ namespace Starfall
             // its next automatic action just because the same icon was tapped.
             if (id == save.companion) return;
             if (!SafeTravel) return;
+            // Switching companions deliberately cancels an in-flight
+            // manual order. A command that NEVER reached its physical
+            // release cannot charge a 12-18s skill cooldown; conversely,
+            // swapping AFTER release must not refresh an already-earned
+            // heal, arrow volley or frost aura for free.
+            bool unreleasedCommand=companionAction!=null &&
+                companionAction.kind=="command" && !companionAction.released;
             save.companion = id;
             companionPresentationGeneration++;
             companionAction = null; companionAutoTarget = null;
+            if(unreleasedCommand)companionCooldown=0f;
             companionPosition = CompanionFollowTarget();
             companionAttack = 1;
             // A different companion is a new walking identity. The old
