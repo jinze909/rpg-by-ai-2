@@ -3,6 +3,53 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void RealInteractionSelectionRejectsObjectsBehindSolidWalls(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                char[] gate=rows[10].ToCharArray();
+                gate[11]='#';rows[10]=new string(gate);
+                var blocked=new WorldObject {
+                    id="blocked",kind="sign",name="Sealed archive sign",
+                    en="Sealed archive sign",x=12.05f,y=10.5f};
+                var accessible=new WorldObject {
+                    id="accessible",kind="sign",name="Open path sign",
+                    en="Open path sign",x=10.5f,y=12.2f};
+                data.maps[0]=new MapData {
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new[]{blocked,accessible},
+                    decor=new Decoration[0]};
+                var g=Fresh(data,0);
+                g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(blocked.x,blocked.y))&&
+                    g.CanStand(new Point(accessible.x,accessible.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "Both physical objects and the hero stand on valid floor, but a real gate separates the closer archive sign");
+                Check(g.Nearest()==accessible,
+                    "The live E-key target chooser rejects the closer object behind a wall and selects the farther truly reachable object");
+                gate[11]='.';rows[10]=new string(gate);
+                Check(g.Nearest()==blocked,
+                    "Opening the same wall immediately restores selection of the closest now-reachable story object");
+                gate[11]='#';rows[10]=new string(gate);
+                data.maps[0].objects=new[]{blocked};
+                Check(g.Nearest()==null,
+                    "A solid wall cannot be bypassed just because the only nearby interactable is behind it");
+                Check(g.save.version==2,
+                    "World-object selection uses no new persistent field or altered SaveData schema");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void SealedHeroFootCannotSpendPhantomDodgeOrEarnCounter(Campaign data)
         {
             MapData previous=data.maps[0];

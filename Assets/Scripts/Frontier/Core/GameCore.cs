@@ -1530,8 +1530,14 @@ namespace Starfall
             foreach (WorldObject o in Map.objects)
             {
                 if (!IsObjectPresent(o)) continue;
-                float d = (Position - new Point(o.x, o.y)).Length;
-                if (d < distance) { distance = d; best = o; }
+                Point objective = new Point(o.x, o.y);
+                float d = (Position - objective).Length;
+                // Proximity alone must not allow E to interact through a
+                // sealed gate, rising tide or a solid wall. The player's
+                // actual selection/highlight uses Nearest; scripted story
+                // Talk(o) calls intentionally retain their authored path.
+                if (d < distance && ClearAttackPath(Position, objective))
+                { distance = d; best = o; }
             }
             return best;
         }
