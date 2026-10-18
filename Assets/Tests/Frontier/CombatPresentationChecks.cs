@@ -985,7 +985,7 @@ namespace Starfall.Tests
                 Check(!g.effects.Exists(e => e.kind == "burst"), "Companion command cannot borrow the mage player's attack explosion");
                 if (companion == 0) Check(g.save.health == 38 && g.effects.Exists(e => e.kind == "heal" && (e.position-g.Position).Length < .01f), "Mira heals with a healing effect at the recipient");
                 if (companion == 1) Check(g.projectiles.Count == 3 && g.effects.Exists(e => e.kind == "release" && (e.position-GameCore.WeaponOrigin(g.companionPosition,1,g.companionAim)).Length < .01f), "Ivo's volley releases from Ivo's bow");
-                if (companion == 2) Check(g.effects.Exists(e => e.kind == "frost" && (e.position-g.Position).Length < .01f), "Sen's field retains its gameplay center");
+                if (companion == 2) Check(g.effects.Exists(e => e.kind == "frost" && (e.position-g.companionPosition).Length < .01f), "Sen's command now renders at the actual caster instead of teleporting its frost to the hero");
             }
             var magic = Fresh(data,2); magic.Enter(1); magic.enemies.Clear(); magic.save.reducedMotion = true; magic.save.x = 12; magic.save.y = 14;
             Point collision = new Point(14,14); magic.enemies.Add(new Enemy(932,0,14,14,999) {stun=20,timer=9999});
