@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void EarnedCounterCommitsOnlyOnActualWeaponRelease() { CoreChecks.EarnedRiposteCommitsOnTrueMeleeArrowOrStaffContact(Data()); }
+        [Test] public void InterruptedCounterCannotChargeForUnreleasedAttacks() { CoreChecks.InterruptedCounterWindupsCannotWasteEarnedReward(Data()); }
         [Test] public void HitStopConsumesExactImpactTime() { CoreChecks.ShortHitStopReleasesUnusedFrameTime(Data()); }
         [Test] public void DeadPlayersCannotEnterDelayedFinale() { CoreChecks.BossFinaleCannotInterruptDeathRecovery(Data()); }
         [Test] public void SaveSwitchesResetTransientInputState() { CoreChecks.SwitchingSaveSlotsDoesNotInheritOldAimOrFishingState(Data()); }
