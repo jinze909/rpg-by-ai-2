@@ -401,5 +401,57 @@ namespace Starfall.Tests
                 "Temporary rescue compass state does not enter v2 saves");
         }
 
+        public static void BlackoutOneUseCivilianWardAbsorbsActualArcAndRespectsResources(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=350;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                lena=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=lena.x;g.save.y=lena.y;
+            g.save.energy=24;
+            g.Talk(lena);
+            Check(g.conversation!=null&&
+                Array.Exists(g.conversation.choices,c=>c.action=="blackout_ward_1"),
+                "The actual unrescued NPC offers an optional defensive pickup");
+            g.Close();
+            Action(g,lena.kind,"blackout_ward_1");
+            Check(g.BlackoutFollowing==0&&g.BlackoutFollowerWard==0&&
+                g.save.energy==24&&g.BlackoutActive,
+                "Insufficient energy neither picks up the civilian nor grants free shielding");
+            g.save.energy=70;
+            Action(g,lena.kind,"blackout_ward_1");
+            Check(g.BlackoutFollowing==1&&g.BlackoutFollowerWard==1&&
+                g.BlackoutFollowerHealth==48&&g.save.energy==45,
+                "The real ward-equipped pickup consumes exactly 25 energy once");
+            Action(g,lena.kind,"blackout_ward_1");
+            Check(g.BlackoutFollowerWard==1&&g.save.energy==45,
+                "Direct action replay cannot stack wards or double charge resources");
+            g.save.english=true;
+            Check(g.GetQuest("blackout").next.Contains("ward ready"),
+                "The real English quest HUD announces active one-use protection");
+            g.save.english=false;
+            Check(g.GetQuest("blackout").next.Contains("防护灯"),
+                "The same protection is visible in Chinese quest guidance");
+            Advance(g,5.2f);
+            Check(g.BlackoutActive&&g.BlackoutFollowerHealth==48&&
+                g.BlackoutFollowerWard==0,
+                "One actual delayed storm arc consumes the ward instead of hurting the escorted mother");
+            Check(!g.GetQuest("blackout").next.Contains("防护灯"),
+                "Spent protection no longer advertises itself as available");
+            Advance(g,5.5f);
+            Check(g.BlackoutActive&&g.BlackoutFollowerHealth==34,
+                "A second genuine shield surge damages an unwarded civilian normally");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.BlackoutActive&&
+                loaded.BlackoutFollowerWard==0&&!loaded.Has("blackout_complete"),
+                "Unfinished warded rescues never enter legacy v2 save slots");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_abort");
+            Check(!g.BlackoutActive&&g.BlackoutFollowerWard==0,
+                "The existing physical abort retires protection without fake rewards");
+        }
+
     }
 }

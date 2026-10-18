@@ -1090,8 +1090,11 @@ namespace Starfall
                         (civilianBehind?
                             L("居民落在后面！沿指引回头接应，再一起前往避难所",
                               "Your civilian is behind! Follow the marker back before returning to shelter"):
-                            L("把正在跟随的居民亲自送到公共避难所",
-                              "Escort your following civilian to public shelter")):
+                            (blackoutFollowerWard>0?
+                                L("护送居民前往避难所 · 防护灯剩余1次",
+                                  "Escort to shelter · civilian arc ward ready"):
+                                L("把正在跟随的居民亲自送到公共避难所",
+                                  "Escort your following civilian to public shelter"))):
                     BlackoutActive && blackoutRescued==7?
                         L("返回避难所公布三名居民名单","Return to publish the roster at the shelter"):
                     BlackoutActive?L("找到下一名居民，按E让其跟随","Find the next citizen and press E to escort"):

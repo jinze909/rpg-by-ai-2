@@ -10,6 +10,10 @@ namespace Starfall
         private int blackoutFollowing, blackoutRescued;
         private Point blackoutFollowerPosition, blackoutSurgePosition;
         private bool blackoutActive;
+        // One real arc absorption is bought at the named citizen's pickup.
+        // Mission-local state only: old v1/v2 save layout is unchanged.
+        private int blackoutFollowerWard;
+        public int BlackoutFollowerWard { get { return blackoutActive?blackoutFollowerWard:0; } }
         public bool BlackoutActive { get { return blackoutActive; } }
         public float BlackoutTime { get { return blackoutTime; } }
         public int BlackoutFollowing { get { return blackoutFollowing; } }
@@ -33,7 +37,7 @@ namespace Starfall
             blackoutTime=blackoutPulse=blackoutSurgeTime=0;
             blackoutFollowing=blackoutRescued=0;
             blackoutFollowerHealth=0;blackoutFollowerPosition=new Point();
-            blackoutActive=false;
+            blackoutFollowerWard=0;blackoutActive=false;
         }
         private bool BlackoutCitizenSaved(int id)
         { return (blackoutRescued & (1<<(id-1)))!=0; }
@@ -131,6 +135,7 @@ namespace Starfall
                 site==2?"Ian: The bridge lamp went dark. I want to go home. I'll follow, but if you run too far I lose the way.":
                 "Orme: The backup lamps still work. Old orders forbid us from switching them on. I have the key, but I cannot leave another person behind.",
                 C("跟我走，去公共避难所","Follow me to the public shelter","blackout_pick_"+site),
+                C("耐力25 · 为居民装上一次性防护灯","25 energy · one-use civilian arc ward","blackout_ward_"+site),
                 C("先看看路线","Check the route","close"));
             return true;
         }
@@ -164,18 +169,34 @@ namespace Starfall
                     "Blackout evacuation: 180 seconds for three people. Press E to deliver; escort one at a time.");
                 return true;
             }
-            if(action.StartsWith("blackout_pick_"))
+            if(action.StartsWith("blackout_pick_")||
+                action.StartsWith("blackout_ward_"))
             {
+                bool ward=action.StartsWith("blackout_ward_");
                 int id;
-                if(!int.TryParse(action.Substring(14),out id) || id<1 || id>3 ||
-                    !blackoutActive || blackoutFollowing!=0 || BlackoutCitizenSaved(id) ||
-                    (Position-BlackoutPoint("blackoutcivilian"+id)).Length>2.2f)return true;
+                if(!int.TryParse(action.Substring(ward?14:14),out id)||
+                    id<1||id>3||!blackoutActive||blackoutFollowing!=0||
+                    BlackoutCitizenSaved(id)||
+                    (Position-BlackoutPoint("blackoutcivilian"+id)).Length>2.2f)
+                    return true;
+                if(ward&&save.energy<25)
+                {
+                    Notify("给居民装备防护灯需要25耐力。仍可选择普通护送。",
+                        "The civilian ward needs 25 energy. You can still escort without it.");
+                    return true;
+                }
+                if(ward)save.energy-=25;
                 blackoutFollowing=id;
                 blackoutFollowerPosition=BlackoutPoint("blackoutcivilian"+id);
                 blackoutFollowerHealth=48;
-                revision++;
-                Notify("居民开始跟随你。别让他落在预警电弧里，带到公共避难所。",
-                    "Civilian following. Keep them clear of warning arcs and walk to the shelter.");
+                blackoutFollowerWard=ward?1:0;
+                revision++;sound=ward?"guard":"quest";
+                Notify(ward?
+                    "防护灯已装备！下一次居民遭遇电弧时可抵消一次冲击。":
+                    "居民开始跟随你。别让他落在预警电弧里，带到公共避难所。",
+                    ward?
+                    "Civilian ward equipped: the next real arc impact will be absorbed once.":
+                    "Civilian following. Keep clear of warned arcs and walk to shelter.");
                 return true;
             }
             if(action.StartsWith("blackout_deliver_"))
@@ -186,6 +207,7 @@ namespace Starfall
                     !BlackoutFollowerAtShelter)return true;
                 blackoutRescued|=1<<(id-1);
                 blackoutFollowing=0;blackoutFollowerHealth=0;
+                blackoutFollowerWard=0;
                 revision++;sound="quest";
                 Notify("居民安全抵达！已登记 "+BlackoutCount+"/3。",
                     "Civilian safely delivered! Registered "+BlackoutCount+"/3.");
@@ -264,6 +286,17 @@ namespace Starfall
                 if(blackoutSurgeTime<=0 && blackoutFollowing!=0 &&
                     (blackoutFollowerPosition-blackoutSurgePosition).Length<1.2f)
                 {
+                    if(blackoutFollowerWard>0)
+                    {
+                        blackoutFollowerWard--;
+                        effects.Add(new Effect("burst",blackoutFollowerPosition,.55f)
+                            {radius=1.15f,variant=4,blackoutOwned=true});
+                        sound="guard";revision++;
+                        Notify("居民的防护灯挡住了电弧！防护已耗尽，继续及时避险。",
+                            "The civilian ward absorbed the real arc! The lamp is now spent; keep dodging.");
+                    }
+                    else
+                    {
                     blackoutFollowerHealth-=14;
                     if(blackoutFollowerHealth<=0)
                     {
@@ -275,6 +308,7 @@ namespace Starfall
                     effects.Add(new Effect("hurt",blackoutFollowerPosition,.5f){blackoutOwned=true});
                     Notify("居民被电弧击中！快改变路线，避免下一次冲击。",
                         "Civilian struck by an arc! Change routes before the next surge.");
+                    }
                 }
             }
             blackoutPulse-=dt;
