@@ -851,6 +851,10 @@ namespace Starfall
         }
         private void RemoveEnemyPendingWarning(Enemy enemy)
         {
+            if(enemy==null)return;
+            // A canceled Boss support call must retract only its own warning,
+            // not a second guardian's cue or unrelated player combat effects.
+            effects.RemoveAll(fx=>fx.bossSummonCueOwnerId==enemy.id);
             Effect pending;
             if(enemy!=null&&
                 rescueWindupEffects.TryGetValue(enemy,out pending))
@@ -1008,6 +1012,9 @@ namespace Starfall
                             if (Dying) break;
                             if (e.boss)
                             {
+                                // A released call's warning ends precisely on
+                                // the real contact frame, before support appears.
+                                effects.RemoveAll(fx=>fx.bossSummonCueOwnerId==e.id);
                                 e.cycle++;
                                 if (save.room == 3)
                                 {
@@ -1128,6 +1135,18 @@ namespace Starfall
                         rescueWindupEffects.Add(e, telegraph);
                     }
                     if (e.boss || distance < 6 || strikeCivilian || strikeStock) sound = "windup";
+                    if(e.boss && enemies.Count<9 &&
+                        (e.BossPhase==3||(save.room==4&&e.BossPhase>=2)) &&
+                        (e.cycle+1)%3==0)
+                    {
+                        // Announce the ACTUAL upcoming support cycle before
+                        // the enemy's existing timed attack. Staggering,
+                        // freezing or defeating its owner retracts this cue.
+                        effects.Add(new Effect("number",
+                            e.Position+new Point(0,-1f),e.timer+.06f,
+                            L("正在呼叫增援！","CALLING REINFORCEMENTS!"))
+                            {bossSummonCueOwnerId=e.id});
+                    }
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)
                         for (int step = 0; step < 12; step++)
