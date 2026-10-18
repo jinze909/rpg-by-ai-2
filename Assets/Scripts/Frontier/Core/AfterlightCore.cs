@@ -335,7 +335,10 @@ namespace Starfall
                     return true;
                 }
                 Enter(targetRoom);
-                if(save.room==targetRoom && SafeRegionalLanding(destination))
+                // Preserve the original afterlight receiver as an arrival
+                // destination. Ordinary region spawns may patrol near it;
+                // Enter() supplies the normal travel grace period.
+                if(save.room==targetRoom && CanStand(destination))
                 {
                     save.x=destination.x;save.y=destination.y;revision++;sound="travel";
                     Notify("公共星灯线路已接通。居民和冒险者都能使用这条新道路。",
