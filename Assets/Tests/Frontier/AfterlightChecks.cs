@@ -863,6 +863,34 @@ namespace Starfall.Tests
                 "All optional civic upgrades survive the original v2 save format and leave original charter intact");
         }
 
+        public static void AfterlightWorkshopCannotCraftPartsDuringHostileCombat(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");g.save.flags.Add("afterlight_plan_3_care");
+            g.save.flags.Add("afterlight_done_3");
+            g.Enter(3);g.enemies.Clear();
+            WorldObject mine=Object(g,"afterlightoutlet3");
+            g.save.x=mine.x;g.save.y=mine.y;
+            g.save.inventory[0]=2;g.save.inventory[1]=4;g.save.inventory[4]=0;
+            g.enemies.Add(new Enemy(88761,0,mine.x+.8f,mine.y,75));
+            int coins=g.save.coins;
+            Action(g,mine.kind,"afterlight_craft");
+            Check(g.save.inventory[0]==2&&g.save.inventory[1]==4&&
+                g.save.inventory[4]==0&&g.save.coins==coins,
+                "Workshop cannot mint parts or spend materials while a real enemy threatens the station");
+            g.enemies.Clear();g.save.x=mine.x+5;
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"afterlight_craft"});
+            Check(g.save.inventory[0]==2&&g.save.inventory[1]==4,
+                "Remote workshop actions never craft off-site");
+            g.save.x=mine.x;g.save.y=mine.y;
+            Action(g,mine.kind,"afterlight_craft");
+            Check(g.save.inventory[0]==1&&g.save.inventory[1]==2&&
+                g.save.inventory[4]==2,
+                "Once genuinely safe on-site, original two-part recipe still works and costs real stock");
+        }
+
         public static void AfterlightReceiverChoicesRespondToInsufficientPowerAndRemainingTime(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;
