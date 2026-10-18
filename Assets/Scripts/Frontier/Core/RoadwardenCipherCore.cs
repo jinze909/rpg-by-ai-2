@@ -100,6 +100,16 @@ namespace Starfall
         // Leaving or loading restarts a drill; trial foes never become world patrols.
         private int roadTrialRoom, roadTrialWave;
         private bool roadTrialVeteran;
+        // Both foes in the current wave must die through the actual Hit
+        // transaction. Disappearing from the active list is never a victory.
+        private int roadTrialConfirmedKills;
+        private void OnRoadwardenTrialEnemyDefeated(Enemy enemy)
+        {
+            if(roadTrialRoom==0||save.room!=roadTrialRoom||
+                !IsRoadwardenTrialEnemy(enemy))return;
+            int index=enemy.id-(81000+roadTrialRoom*10+roadTrialWave*2);
+            if(index>=0&&index<2)roadTrialConfirmedKills|=1<<index;
+        }
         private float roadTrialSurgeTimer;
         private int roadTrialSurgeCount;
         // The ward is a real, vulnerable objective, not a second health bar
@@ -141,6 +151,7 @@ namespace Starfall
             effects.RemoveAll(e => e.roadTrialOwned);
             roadTrialRoom = roadTrialWave = 0;
             roadTrialVeteran = false;
+            roadTrialConfirmedKills = 0;
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
             roadTrialWard = 0; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
             roadTrialRepairedWave = 0;
@@ -243,6 +254,7 @@ namespace Starfall
                 positions.Add(candidate);
             }
             if (positions.Count != 2) return false;
+            roadTrialConfirmedKills=0;
             for (int slot = 0; slot < 2; slot++)
             {
                 int kind = roadTrialWave == 1 ? slot :
@@ -327,6 +339,19 @@ namespace Starfall
         {
             if (roadTrialRoom == 0) return;
             if (save.room != roadTrialRoom || Dying || practicing) { ResetRoadwardenTrial(); return; }
+            // A cleared wave requires both physical deaths. An unconfirmed
+            // despawn aborts this attempt before advancing its reward state.
+            int first=81000+roadTrialRoom*10+roadTrialWave*2;
+            for(int i=0;i<2;i++)
+                if((roadTrialConfirmedKills&(1<<i))==0 &&
+                    !enemies.Exists(e=>e.id==first+i&&e.hp>0))
+                {
+                    enemies.RemoveAll(IsRoadwardenTrialEnemy);
+                    ResetRoadwardenTrial();revision++;sound="deny";
+                    Notify("巡路守卫异常离场，未完成真实战斗。信标试炼可以重新挑战。",
+                        "An unconfirmed raider vanished. The beacon defense can be retried.");
+                    return;
+                }
             // Attackers reaching the beacon siphon its ward until interrupted by
             // a hit, stagger, windup or death. This makes intercepting enemies
             // meaningful instead of merely kiting them around the map.
@@ -360,7 +385,7 @@ namespace Starfall
                         threshold == 2 ? "Warning: beacon ward nearly broken!" : "Beacon under attack! Push back nearby enemies.");
                 }
             }
-            if (enemies.Exists(IsRoadwardenTrialEnemy))
+            if (enemies.Exists(IsRoadwardenTrialEnemy) || roadTrialConfirmedKills!=3)
             {
                 if (roadTrialWave >= 2)
                 {

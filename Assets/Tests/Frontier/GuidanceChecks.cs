@@ -2624,5 +2624,80 @@ namespace Starfall.Tests
                 "Dead watch defender respawns safely, retires owned attackers, and gets no free reward");
         }
 
+        public static void RoadwardenWavesRequireConfirmedEnemyDeathsIncludingVeteran(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=15;
+            foreach(string flag in new[]{"survey_1","survey_complete","dispatch_complete"})
+                g.save.flags.Add(flag);
+            g.Enter(1);g.enemies.Clear();g.invulnerable=250;
+            WorldObject beacon=Object(g,"survey1");
+            g.save.x=beacon.x;g.save.y=beacon.y;
+            int coins=g.save.coins,shards=g.save.shards,points=g.save.skillPoints;
+            Action(g,beacon.kind,"road_trial_start_1");
+            Check(g.RoadwardenTrialRoom==1&&g.RoadwardenTrialWave==1,
+                "Original physical signal starts a real first trial wave");
+            g.enemies.Remove(g.enemies.Find(e=>e.id==81012));
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialRoom==0&&!g.Has("road_trial_1")&&
+                g.save.coins==coins&&g.save.shards==shards&&
+                !g.enemies.Exists(e=>e.id>=81000&&e.id<81100),
+                "Missing first-wave raider cannot grant rewards or skip combat");
+            Action(g,beacon.kind,"road_trial_start_1");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The real combat damage callback must be present");
+            Enemy first=g.enemies.Find(e=>e.id==81012),second=g.enemies.Find(e=>e.id==81013);
+            Check(first!=null&&second!=null,"The two enemies have distinct authored wave IDs");
+            hit.Invoke(g,new object[]{first,99999f,false,null,null});
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialWave==1&&!g.Has("road_trial_1"),
+                "One real kill does not clear an incomplete trial wave");
+            hit.Invoke(g,new object[]{second,99999f,false,null,null});
+            for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialWave==2&&
+                g.enemies.Exists(e=>e.id==81014)&&g.enemies.Exists(e=>e.id==81015),
+                "Two actual first-wave kills spawn the real second wave");
+            g.enemies.Remove(g.enemies.Find(e=>e.id==81014));
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialRoom==0&&!g.Has("road_trial_1")&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "An unconfirmed second-wave despawn cannot award a false victory");
+            Action(g,beacon.kind,"road_trial_start_1");
+            for(int wave=1;wave<=2;wave++)
+            {
+                var fighters=g.enemies.FindAll(e=>e.id>=81000&&e.id<81100);
+                Check(fighters.Count==2,"Every original trial wave still has two combatants");
+                foreach(Enemy foe in fighters)
+                    hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+                for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            }
+            Check(g.Has("road_trial_1")&&g.RoadwardenTrialRoom==0&&
+                g.save.coins==coins+35&&g.save.shards==shards+2,
+                "Legitimate two-wave combat still pays the original one-time oath");
+            int veteranCoins=g.save.coins,veteranShards=g.save.shards;
+            Action(g,beacon.kind,"road_trial_start_1");
+            Check(g.RoadwardenTrialTotalWaves==3,
+                "The earned oath offers its unchanged three-wave veteran drill");
+            for(int wave=1;wave<=2;wave++)
+            {
+                var fighters=g.enemies.FindAll(e=>e.id>=81000&&e.id<81100);
+                foreach(Enemy foe in fighters)
+                    hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+                for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            }
+            Check(g.RoadwardenTrialWave==3,"Veteran replay reaches the actual third wave");
+            g.enemies.Remove(g.enemies.Find(e=>e.id==81016));
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialRoom==0&&
+                g.save.coins==veteranCoins&&g.save.shards==veteranShards&&
+                g.save.skillPoints==points&&g.Has("road_trial_1"),
+                "Incomplete veteran finale does not repeat paid rewards or erase the earned oath");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.Has("road_trial_1")&&
+                loaded.RoadwardenTrialRoom==0,
+                "Existing v2 slots retain actual roadwarden rewards without transient wave counters");
+        }
+
     }
 }
