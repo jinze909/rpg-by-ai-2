@@ -383,8 +383,25 @@ namespace Starfall
                 }
             else
             {
-                BeginFrost(Position,action.damage,action.impact??CaptureImpact(2,0,false));
-                foreach (Enemy e in enemies) if ((e.Position - Position).Length < 5 && ClearAttackPath(Position, e.Position)) { ApplyEnemyControl(e,1.4f); e.state = 0; e.timer = 1.2f; }
+                // Sen is an actual actor. An ally stranded on flooded or
+                // sealed terrain cannot create a global spell from the hero,
+                // nor should this command replace the player's current Q.
+                // Resolve the release at the caster's CURRENT physical foot.
+                Point caster=companionPosition;
+                if(!CanStand(caster))
+                {
+                    companionCooldown=0f;
+                    return;
+                }
+                BeginCompanionFrost(caster,action.damage,
+                    action.impact??CaptureImpact(2,0,false));
+                foreach(Enemy e in enemies)
+                    if((e.Position-caster).Length<5f &&
+                        ClearAttackPath(caster,e.Position))
+                    {
+                        ApplyEnemyControl(e,1.4f);
+                        e.state=0;e.timer=1.2f;
+                    }
             }
             if (action.weapon == 0) effects.Add(new Effect("heal", Position, .6f));
             else if (action.weapon == 1) effects.Add(new Effect("release", WeaponOrigin(companionPosition, 1, action.direction), .18f) { direction = action.direction, variant = 1, height = WeaponHeight(1, action.direction) });
