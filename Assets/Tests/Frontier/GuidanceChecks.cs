@@ -2816,5 +2816,50 @@ namespace Starfall.Tests
                 "Civilian delivery remains usable after the prior run is canceled");
         }
 
+        public static void CourierAmbushFindsReachableAlternativeWhenOriginalSpawnsAreBlocked(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"Live bridge parcel pickup starts normally");
+            MapData map=data.maps[0];
+            string oldM=map.rows[57],oldA=map.rows[59];
+            try
+            {
+                // Temporarily close only the two original enemy cells,
+                // preserving bridge geometry, original assets and GUIDs.
+                char[] middle=oldM.ToCharArray(),south=oldA.ToCharArray();
+                middle[111]='#';south[114]='#';
+                map.rows[57]=new string(middle);map.rows[59]=new string(south);
+                Check(!g.CanStand(new Point(111.5f,57.5f))&&
+                    !g.CanStand(new Point(114.5f,59.5f)),
+                    "The real collision solver rejects both original blocked raider pads");
+                for(int frame=0;frame<60&&!g.FarCourierCrossed;frame++)
+                    g.Tick(.05f,new Point(0,1));
+                Check(g.FarCourierActive&&g.FarCourierCrossed&&
+                    g.FarCourierRaidersAlive==2,
+                    "Actual hero bridge crossing still creates both raiders at fallback pads");
+                Enemy melee=g.enemies.Find(e=>e.id==90100),
+                    archer=g.enemies.Find(e=>e.id==90101);
+                Check(melee!=null&&archer!=null&&
+                    g.CanStand(melee.Position)&&g.CanStand(archer.Position)&&
+                    (melee.Position-archer.Position).Length>=2.6f&&
+                    (melee.Position-new Point(111.5f,57.5f)).Length>.1f&&
+                    (archer.Position-new Point(114.5f,59.5f)).Length>.1f,
+                    "Both authored archetypes are on distinct safe tiles, not inside new walls");
+                Check(g.effects.FindAll(e=>e.courierOwned&&e.kind=="danger").Count==2,
+                    "Two real relocated enemies retain their independently owned launch warnings");
+            }
+            finally {map.rows[57]=oldM;map.rows[59]=oldA;}
+            g.save.y+=4;g.hitStop=0;g.Tick(.05f,new Point());
+            Check(!g.FarCourierActive&&g.FarCourierRaidersAlive==0&&
+                !g.effects.Exists(e=>e.courierOwned)&&
+                !g.projectiles.Exists(p=>p.courierOwned),
+                "Invalid player warp retires only the relocated encounter-owned actors and warnings");
+        }
+
     }
 }

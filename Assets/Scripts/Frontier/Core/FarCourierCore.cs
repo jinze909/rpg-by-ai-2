@@ -25,12 +25,43 @@ namespace Starfall
                 return n;
             }
         }
+        // Prefer the two original authored ambush locations. If a map's
+        // collision has changed, find a reachable nearby tile rather than
+        // silently deleting an otherwise playable bridge encounter.
+        private bool FindCourierRaiderPosition(Point authored,Point other,
+            bool second,out Point chosen)
+        {
+            for(int radius=0;radius<=5;radius++)
+                for(int dy=-radius;dy<=radius;dy++)
+                    for(int dx=-radius;dx<=radius;dx++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                        Point p=authored+new Point(dx,dy);
+                        if(!CanStand(p)||(p-Position).Length<2.2f||
+                            (second&&(p-other).Length<2.6f)||
+                            enemies.Exists(e=>(e.Position-p).Length<1.8f))continue;
+                        if(radius>0&&NavigationPath(p).Count==0)continue;
+                        chosen=p;return true;
+                    }
+            chosen=new Point();return false;
+        }
         private void SpawnFarCourierRaiders()
         {
             if(courierRaided||!FarCourierActive)return;
+            // Never half-deploy a wave: choose BOTH reachable placements
+            // before mutating the enemy roster or its owned telegraphs.
+            Point melee,archer;
+            bool ready=FindCourierRaiderPosition(
+                new Point(111.5f,57.5f),new Point(),false,out melee);
+            if(ready)ready=FindCourierRaiderPosition(
+                new Point(114.5f,59.5f),melee,true,out archer);
             courierRaided=true;
-            Point melee=new Point(111.5f,57.5f),archer=new Point(114.5f,59.5f);
-            if(!CanStand(melee)||!CanStand(archer))return;
+            if(!ready)
+            {
+                Notify("桥南巡逻位置被阻断。救援包仍可沿安全道路绕行送达。",
+                    "Raider approach is blocked. You can still carry the parcel through the safe crossing.");
+                return;
+            }
             int id=90100+save.room*2;
             enemies.Add(CreatePlacedEnemy(id,0,melee,36+save.room*5));
             enemies.Add(CreatePlacedEnemy(id+1,1,archer,31+save.room*5));
