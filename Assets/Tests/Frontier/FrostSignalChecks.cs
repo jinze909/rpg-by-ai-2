@@ -49,7 +49,11 @@ namespace Starfall.Tests
             Check(g.FrostSignalStage==2&&g.enemies.Exists(g.IsFrostSignalEnemy),
                 "The guard checkpoint has real combat participants during retry");
             g.Close();
-            g.enemies.Clear(); // Allow real frost/time failure rather than a lethal attack.
+            // Keep the authentic guard roster alive but safely immobilized
+            // so the separate real ember expiry can be measured without
+            // manufacturing a false defender disappearance.
+            foreach (Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+            { guard.stun = 200; guard.timer = 200; }
             g.save.x=source.x;g.save.y=source.y;
             for(int i=0;i<2200&&g.FrostSignalActive;i++)g.Tick(.05f,new Point());
             Check(!g.FrostSignalActive&&!g.FrostSignalComplete&&
@@ -169,5 +173,53 @@ namespace Starfall.Tests
                     "Old version-two saves retain each independently chosen public outcome");
             }
         }
+        public static void HighlandEmberNeedsActualTwoGuardDefeatBeforeCivilianRestoration(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3;
+            g.save.flags.Add("desert_report"); g.Enter(7); g.enemies.Clear();
+            g.save.flags.Add("boss_7"); g.invulnerable = 200;
+            var west = FrostPost(g, 1); var middle = FrostPost(g, 2);
+            var south = FrostPost(g, 3);
+            int coins = g.save.coins, shards = g.save.shards;
+            g.save.x = west.x; g.save.y = west.y;
+            Action(g, west.kind, "frostsignal_start");
+            g.save.x = middle.x; g.save.y = middle.y;
+            g.Talk(middle); g.Close();
+            Check(g.FrostSignalStage == 2 &&
+                g.enemies.FindAll(g.IsFrostSignalEnemy).Count == 2,
+                "Original highland switchyard deploys both genuine security actors");
+            g.enemies.RemoveAll(g.IsFrostSignalEnemy);
+            g.Tick(.05f, new Point());
+            Check(!g.FrostSignalActive && !g.FrostSignalComplete &&
+                g.save.coins == coins && g.save.shards == shards,
+                "No civilian service or permanent money can be earned by deleting an unconfirmed guard roster");
+            g.save.x = west.x; g.save.y = west.y;
+            Action(g, west.kind, "frostsignal_start");
+            g.save.x = middle.x; g.save.y = middle.y;
+            g.Talk(middle); g.Close();
+            Check(g.FrostSignalStage == 2, "Abandoned encounter restarts normally");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "The original player damage path exists");
+            foreach (Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                hit.Invoke(g, new object[] { guard, 99999f, false, null, null });
+            g.save.x = middle.x; g.save.y = middle.y;
+            Action(g, middle.kind, "frostsignal_free");
+            Check(g.FrostSignalStage == 3 &&
+                !g.FrostSignalComplete && g.FrostSignalFlame > 0,
+                "Actually defeating two enemies opens optional free flame conservation");
+            g.save.x = south.x; g.save.y = south.y;
+            Action(g, south.kind, "frostsignal_clinic");
+            Check(g.FrostSignalComplete && g.FrostSignalOutcome == 1 &&
+                g.save.coins >= coins + 55 && g.save.shards == shards + 2,
+                "The true real-combat ember trip still permanently opens its authored public clinic");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.FrostSignalComplete && loaded.FrostSignalOutcome == 1 &&
+                loaded.save.version == 2 && !loaded.FrostSignalActive,
+                "Authentic highland clinic remains valid in original v2 save format");
+        }
+
     }
 }

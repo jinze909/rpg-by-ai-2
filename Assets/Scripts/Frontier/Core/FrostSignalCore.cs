@@ -8,6 +8,17 @@ namespace Starfall
         public int FrostSignalStage { get; private set; }
         public float FrostSignalTime { get; private set; }
         public float FrostSignalFlame { get; private set; }
+        private int frostSignalConfirmedKills;
+        private void OnFrostSignalEnemyDefeated(Enemy enemy)
+        {
+            if (FrostSignalStage != 2 || save.room != 7 ||
+                !IsFrostSignalEnemy(enemy)) return;
+            int index = enemy.id - 91400;
+            if (index >= 0 && index < 2)
+                frostSignalConfirmedKills |= 1 << index;
+        }
+        private bool FrostSignalGuardsDefeated
+        { get { return frostSignalConfirmedKills == 3; } }
         public bool FrostSignalActive { get { return FrostSignalStage>0; } }
         public bool FrostSignalComplete { get { return Has("frostsignal_complete"); } }
         public int FrostSignalOutcome
@@ -27,7 +38,8 @@ namespace Starfall
             projectiles.RemoveAll(p=>p.frostSignalOwned);
             hazards.RemoveAll(h=>h.frostSignalOwned);
             effects.RemoveAll(e=>e.frostSignalOwned);
-            FrostSignalStage=0;FrostSignalTime=FrostSignalFlame=0;
+            FrostSignalStage=0;frostSignalConfirmedKills=0;
+            FrostSignalTime=FrostSignalFlame=0;
         }
         private bool SpawnFrostSignalGuards()
         {
@@ -39,6 +51,7 @@ namespace Starfall
                     posts[i].x,posts[i].y,i==0?95:112);
                 e.timer=.7f+i*.25f;enemies.Add(e);
             }
+            frostSignalConfirmedKills=0;
             return true;
         }
         private void TickFrostSignal(float dt)
@@ -46,6 +59,18 @@ namespace Starfall
             if(!FrostSignalActive)return;
             if(save.room!=7||Dying||practicing)
             {ResetFrostSignal();revision++;return;}
+            if (FrostSignalStage == 2)
+            {
+                for (int index = 0; index < 2; index++)
+                {
+                    if ((frostSignalConfirmedKills & (1 << index)) != 0 ||
+                        enemies.Exists(e => e.id == 91400 + index)) continue;
+                    ResetFrostSignal(); revision++;
+                    Notify("巡防守卫异常离场，未确认击败。火种返回西部站，可重新尝试。",
+                        "A guard vanished without defeat. The ember was returned to the west post; retry for free.");
+                    return;
+                }
+            }
             FrostSignalTime-=dt;
             float drain=.65f+(save.cold>=60?.65f:0f);
             if(FrostSignalStage==2)
@@ -121,7 +146,8 @@ namespace Starfall
                     Notify("此处已完成交接，沿原路继续。",
                         "This junction is complete. Continue along the road.");return true;
                 }
-                if(enemies.Exists(IsFrostSignalEnemy))
+                if(enemies.Exists(IsFrostSignalEnemy) ||
+                    !FrostSignalGuardsDefeated)
                 {
                     Dialog(o.name,o.en,
                         "转折台仍被两名旧守卫占据。保护身上余火，在真实战斗中解决守卫。",
@@ -177,6 +203,13 @@ namespace Starfall
             {
                 if(FrostSignalStage!=2||enemies.Exists(IsFrostSignalEnemy)||
                     (Position-new Point(mid.x,mid.y)).Length>1.8f)return true;
+                if (!FrostSignalGuardsDefeated)
+                {
+                    ResetFrostSignal(); revision++;
+                    Notify("转折台守卫未被确认击败。回西部岗重新取火。",
+                        "Switchyard guards were not confirmed defeated. Restart from the west station.");
+                    return true;
+                }
                 if(action=="frostsignal_herb")
                 {
                     if(save.inventory[2]<1){Notify("月光草不足。","You need one Moonherb.");return true;}
