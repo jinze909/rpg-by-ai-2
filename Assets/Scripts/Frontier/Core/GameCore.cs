@@ -903,6 +903,7 @@ namespace Starfall
             effect.triadOwned = IsTriadEnemy(attacker);
             effect.witnessOwned = IsWitnessEnemy(attacker);
             effect.courierOwned = IsFarCourierRaider(attacker);
+            effect.floodReliefOwned = IsFloodReliefEnemy(attacker);
             effect.civicResponseOwned = IsCivicResponseEnemy(attacker);
             effect.lastDirectiveOwned = IsLastDirectiveEnemy(attacker);
         }
@@ -1106,7 +1107,7 @@ namespace Starfall
             shot.skywatchOwned = IsSkywatchEnemy(e);
             shot.atlasEchoOwned = IsAtlasEchoEnemy(e);
             shot.wayfarerOwned = IsWayfarerEnemy(e);
-            shot.courierOwned=IsFarCourierRaider(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
+            shot.courierOwned=IsFarCourierRaider(e);shot.floodReliefOwned=IsFloodReliefEnemy(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
                 e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);
             shot.commonsRelayOwned=IsCommonsRelayEnemy(e);

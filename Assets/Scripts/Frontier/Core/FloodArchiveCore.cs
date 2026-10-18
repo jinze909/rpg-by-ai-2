@@ -44,6 +44,10 @@ namespace Starfall
             floodReliefTime=floodReliefIntegrity=0;
             floodReliefConfirmedKills=0;
             enemies.RemoveAll(IsFloodReliefEnemy);
+            // Only this escort's launched arrows and windup/contact effects
+            // may be retired. Untagged wilderness combat remains live.
+            projectiles.RemoveAll(p=>p.floodReliefOwned);
+            effects.RemoveAll(e=>e.floodReliefOwned);
         }
         private void OnFloodReliefEnemyDefeated(Enemy e)
         {

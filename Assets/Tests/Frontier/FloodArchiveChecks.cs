@@ -379,5 +379,55 @@ namespace Starfall.Tests
                 "Older SaveData v2 slots inherit the earned fare without any new saved fields");
         }
 
+        public static void FailedMedicineRunRetiresOnlyItsOwnLiveProjectilesAndWarnings(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.x=west.x;g.save.y=west.y;g.save.energy=100;g.save.totalTime=36;
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_relief_start"),
+                "A real medicine mission begins at the original western dock");
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.FloodReliefRaiders==2,
+                "Two actually spawned raiders own this one escort's combat");
+            Enemy attacker=g.enemies.Find(e=>e.id==92341);
+            Check(attacker!=null,"An authored ranged mission attacker exists");
+            var fire=typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var tag=typeof(GameCore).GetMethod("TagEnemyCombatEffect",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(fire!=null&&tag!=null,
+                "Original projectile and telegraph constructors remain available");
+            fire.Invoke(g,new object[]{attacker,new Point(-1,0),6f});
+            var owned=g.projectiles.Find(p=>p.floodReliefOwned);
+            Check(owned!=null&&!owned.friendly&&owned.life>0,
+                "Genuine archer-created enemy projectile carries the escort's ownership");
+            var warning=new Effect("danger",attacker.Position,1.4f){radius=1.2f};
+            tag.Invoke(g,new object[]{warning,attacker,false});
+            g.effects.Add(warning);
+            Check(warning.floodReliefOwned,
+                "A real enemy telegraph belongs to the same transport encounter");
+            var otherShot=new Projectile{position=new Point(east.x,east.y),
+                velocity=new Point(1,0),damage=9,life=10,source="shot"};
+            var otherWarning=new Effect("danger",new Point(east.x+3,east.y),3f);
+            g.projectiles.Add(otherShot);g.effects.Add(otherWarning);
+            // Force only the mission's first actor to leave without a lethal
+            // Hit callback, exercising the genuine automatic failure path.
+            g.enemies.Remove(g.enemies.Find(e=>e.id==92340));
+            g.Tick(.01f,new Point());
+            Check(!g.FloodReliefActive&&g.FloodReliefRaiders==0&&
+                !g.projectiles.Exists(p=>p.floodReliefOwned)&&
+                !g.effects.Exists(e=>e.floodReliefOwned),
+                "A missing raider aborts the transport and retires all owned arrows and warnings");
+            Check(g.projectiles.Contains(otherShot)&&g.effects.Contains(otherWarning),
+                "Independent world projectiles and effects cannot be erased by the failed rescue");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.FloodReliefActive&&
+                !loaded.FloodReliefComplete,
+                "Encounter ownership and failed escorts remain transient across legacy slot reload");
+        }
+
     }
 }
