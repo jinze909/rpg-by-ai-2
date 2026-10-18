@@ -16,7 +16,7 @@ namespace Starfall
         private bool HasLiveBoss { get {foreach(Enemy e in Game.enemies)if(e.boss)return true;return false;} }
         private bool HasFallenBoss { get {foreach(FallenActor f in Game.fallen)if(f.actor.boss)return true;return false;} }
         private bool CombatHud
-        { get {if(Game.mode!="world")return false;if(combatHudTime>0||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
+        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||combatHudTime>0||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
         private static bool Contains(Rect r, Point p) { return p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height; }
         private static bool Overlap(Rect a, Rect b) { return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y; }
         private Rect ActorBounds(Point feet, bool boss = false)
@@ -52,7 +52,8 @@ namespace Starfall
                 rects.Add(new Rect(426, 730, 428, 54)); rects.Add(new Rect(1134, 746, 126, 36));
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
-                if (HasLiveBoss || HasFallenBoss) rects.Add(new Rect(380, 22, 520, 65));
+                if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive)
+                    rects.Add(new Rect(380, 22, 520, 65));
             }
             else
             {
@@ -156,6 +157,26 @@ namespace Starfall
                 Panel(380,22,520,65,new Color(.04f,.065f,.11f,.6f),new Color(.6f,.4f,.42f,.45f));
                 Text(396,26,488,27,Game.L(Game.CurrentBoss.name,Game.CurrentBoss.en)+"  /  "+boss.BossPhase,16,gold,TextAnchor.MiddleCenter);
                 Bar(399,58,482,boss.hp/boss.maxHp,PixelArt.C("#d28b86"),6); Bar(399,73,482,boss.stagger/95,mint,3);
+            }
+            else if (Game.AfterlightWatchActive)
+            {
+                // This is an active, damageable OBJECTIVE, not a boss:
+                // the receiver must remain readable even when it is far
+                // outside the player's camera or between enemy waves.
+                float stock=Game.AfterlightWatchStock;
+                Color accent=stock<=30f?PixelArt.C("#ec7668"):stock<=60f?gold:mint;
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(393,25,494,27,
+                    Game.L("公共储备防卫 · 第","CIVIC RESERVE DEFENSE · WAVE ")+
+                    Game.AfterlightWatchWave+"/2  ·  "+
+                    Math.Ceiling(Game.AfterlightWatchTime)+"s",
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,481,18,
+                    Game.L("设施耐久 ","STOCK INTEGRITY ")+
+                    Math.Ceiling(stock)+"%",
+                    11,accent,TextAnchor.MiddleCenter);
+                Bar(401,71,478,stock/100f,accent,7);
             }
             else if (HasFallenBoss) Text(380,29,520,31,Game.L("守护者已倒下 · 战利品已收取","Guardian defeated · loot secured"),18,gold,TextAnchor.MiddleCenter);
             Panel(426,730,428,54,new Color(.045f,.08f,.13f,.65f),new Color(.3f,.4f,.46f,.4f));
