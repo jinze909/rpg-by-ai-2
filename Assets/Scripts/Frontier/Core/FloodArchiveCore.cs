@@ -180,8 +180,11 @@ namespace Starfall
                 if(!FloodReliefComplete&&stage==1&&LowTide&&!floodReliefActive)
                     choices.Add(C("低潮医疗护送 · 击退拦截者",
                         "Low-tide medical convoy · defeat raiders","floodarchive_relief_start"));
-                if(floodReliefActive&&stage==1)
+                if(floodReliefActive&&stage==1&&!floodReliefCrossed)
                     choices.Add(C("取消医疗护送","Cancel medical convoy","floodarchive_relief_abort"));
+                if(floodReliefActive&&stage==3&&floodReliefCrossed)
+                    choices.Add(C("将剩余药品留在东岸 · 撤销护送",
+                        "Leave medicine at east dock · cancel run","floodarchive_relief_abort_east"));
                 if(floodReliefActive&&stage==3&&floodReliefCrossed&&!floodReliefWarded)
                     choices.Add(C("民用护盾 · 耐力20","Protect medicine · 20 energy",
                         "floodarchive_relief_ward"));
@@ -362,14 +365,21 @@ namespace Starfall
                     "Urgent medicine aboard! Cross, defeat both raiders and deliver on the east bank within 65 seconds.");
                 return true;
             }
-            if(action=="floodarchive_relief_abort")
+            if(action=="floodarchive_relief_abort"||
+                action=="floodarchive_relief_abort_east")
             {
-                WorldObject west=FloodArchiveObject(1);
-                if(floodReliefActive&&west!=null&&save.room==2&&
-                    (Position-new Point(west.x,west.y)).Length<=1.8f)
+                bool eastern=action=="floodarchive_relief_abort_east";
+                WorldObject dock=FloodArchiveObject(eastern?3:1);
+                if(floodReliefActive&&dock!=null&&save.room==2&&
+                    floodReliefCrossed==eastern&&
+                    (Position-new Point(dock.x,dock.y)).Length<=1.8f)
                 {
                     ResetFloodRelief();revision++;
-                    Notify("医疗护送已取消，可在下一次低潮免费重试。",
+                    Notify(eastern?
+                        "急救包留在东岸居民处，本次护送已撤销。可返回西岸重新组织。":
+                        "医疗护送已取消，可在下一次低潮免费重试。",
+                        eastern?
+                        "Medicine left with eastern residents. Escort canceled; regroup at the west dock.":
                         "Medical crossing canceled. Retry at a later ebb tide.");
                 }
                 return true;

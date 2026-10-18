@@ -496,5 +496,50 @@ namespace Starfall.Tests
                 "Only the actual spent energy is saved; unfinished combat wards do not enter old v2 slots");
         }
 
+        public static void EmergencyFerryEastDockSupportsRealVoluntaryCombatWithdrawal(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;g.save.energy=100;
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_relief_start"),
+                "The genuine western station dispatches the medical rescue");
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.FloodReliefCrossed&&g.FloodReliefRaiders==2,
+                "The actual ferry produces a real threatened east-bank landing");
+            var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"The production rescue choice dispatcher is present");
+            g.save.x=west.x;g.save.y=west.y;
+            choose.Invoke(g,new object[]{"floodarchive_relief_abort_east"});
+            Check(g.FloodReliefActive&&g.FloodReliefRaiders==2,
+                "A forged east-dock withdrawal cannot be used remotely from the west");
+            g.save.x=east.x;g.save.y=east.y;
+            var fire=typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Enemy archer=g.enemies.Find(e=>e.id==92341);
+            Check(archer!=null&&archer.kind==1,"The second live attacker is a genuine ranged bow raider");
+            fire.Invoke(g,new object[]{archer,new Point(-1,0),6f});
+            Check(g.projectiles.Exists(p=>p.floodReliefOwned),
+                "The bow attacker has a live in-flight arrow before the civilian withdraws");
+            int gold=g.save.coins;
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_relief_abort_east")&&
+                !g.FloodReliefActive&&g.FloodReliefRaiders==0&&
+                !g.projectiles.Exists(p=>p.floodReliefOwned)&&
+                !g.FloodReliefComplete&&g.save.coins==gold,
+                "Voluntary withdrawal at the real eastern post retires only escort actors without paying success rewards");
+            g.save.x=west.x;g.save.y=west.y;g.save.totalTime=36;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&g.FloodReliefActive,
+                "After withdrawal the original civilian medical mission is fully retryable");
+            g.PrepareSave();var copy=new GameCore(data,CloneSave(g.save));
+            Check(copy.save.version==2&&copy.FloodArchiveComplete&&
+                !copy.FloodReliefActive&&!copy.FloodReliefComplete,
+                "Legacy v2 stores neither fake delivery nor abandoned mission actor state");
+        }
+
     }
 }
