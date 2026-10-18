@@ -674,16 +674,21 @@ namespace Starfall
                 bool complete=Game.Has("afterlight_done_"+region);
                 bool active=Game.AfterlightChargeRegion==region;
                 bool reserve=Game.AfterlightReserve(region);
-                Color tint=complete?(!anchor&&Game.AfterlightComplete&&!reserve?gold:mint):
+                bool civicFight=!anchor&&Game.AfterlightWatchActive;
+                bool defended=Game.AfterlightWatchDone(region);
+                Color tint=civicFight?gold:
+                    complete?(!anchor&&Game.AfterlightComplete&&!reserve?gold:mint):
                     active?PixelArt.C("#f1d39a"):
                     Game.AfterlightMode(region)!=0?gold:muted;
                 PropImage(anchor?"afterlightanchor":"afterlightoutlet",region,
                     p.x-32,p.y-78,64,83,complete?Color.white:muted);
                 Ring(new Point(o.x,o.y),complete?.9f:active?1.2f:.62f,tint,22);
                 Text(p.x-79,p.y-104,158,22,
+                    civicFight?Game.L("公共储备防卫中","CIVIC DEFENSE ACTIVE"):
                     complete?Game.L(anchor?"公共原始锚点":
-                            reserve?"应急储备已备妥":"公共设施运转中",
+                            defended?"巡路防卫已完成":reserve?"应急储备已备妥":"公共设施运转中",
                         anchor?"CIVIC ROOT ANCHOR":
+                            defended?"CIVIC ROUTE GUARDED":
                             reserve?"RESERVE STOCKED":"PUBLIC SERVICE ONLINE"):
                     active?Game.L(anchor?"余光输送中":"稳定负载待接通",
                         anchor?"TRANSFER ACTIVE":"CHARGE ARRIVING"):
@@ -694,10 +699,18 @@ namespace Starfall
                     Text(p.x-47,p.y-122,94,19,
                         Game.AfterlightChargeLeft.ToString("0")+"s",
                         12,tint,TextAnchor.MiddleCenter);
-                if(complete&&!anchor&&Game.AfterlightComplete&&!reserve)
+                if(civicFight)
+                    Text(p.x-79,p.y-123,158,18,
+                        Game.AfterlightWatchWave+"/2 · "+Math.Ceiling(Game.AfterlightWatchTime)+"s",
+                        11,gold,TextAnchor.MiddleCenter);
+                else if(complete&&!anchor&&Game.AfterlightComplete&&!reserve)
                     Text(p.x-79,p.y-123,158,18,
                         Game.L("应急物资待补充 · E","STOCK SUPPLIES · E"),
                         10,gold,TextAnchor.MiddleCenter);
+                else if(complete&&!anchor&&reserve&&!defended)
+                    Text(p.x-79,p.y-123,158,18,
+                        Game.L("两波防卫待检验 · E","DEFEND THE RESERVE · E"),
+                        10,mint,TextAnchor.MiddleCenter);
                 return true;
             }
             if(kind=="witnessnpc"+Game.save.room)
