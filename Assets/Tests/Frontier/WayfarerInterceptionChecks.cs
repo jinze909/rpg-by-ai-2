@@ -213,5 +213,54 @@ namespace Starfall.Tests
                 "Abandoning an actual wounded traveler cleans only encounter flashes and preserves unrelated world visuals");
         }
 
+        public static void WayfarerMustDefeatBothRaidersBeforeAwardingRescue(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=10;
+            g.save.flags.Add("scout_saved");g.Enter(1);g.enemies.Clear();
+            WorldObject npc=Object(g,"wayfarer1");
+            g.save.x=npc.x;g.save.y=npc.y;g.invulnerable=100;
+            int money=g.save.coins,shards=g.save.shards,mastery=g.save.mastery[g.save.weapon];
+            Action(g,npc.kind,"wayfarer_defend_1");
+            Check(g.WayfarerEncounterRoom==1&&
+                g.enemies.FindAll(e=>e.id>=82010&&e.id<=82011).Count==2,
+                "The original road encounter spawns two distinct live raiders");
+            var first=g.enemies.Find(e=>e.id==82010);
+            g.enemies.Remove(first);
+            g.Tick(.05f,new Point());
+            Check(g.WayfarerEncounterRoom==0&&
+                !g.Has("wayfarer_1")&&!g.Has("wayfarer_defended_1")&&
+                g.save.coins==money&&g.save.shards==shards&&
+                g.save.mastery[g.save.weapon]==mastery&&
+                !g.enemies.Exists(e=>e.id>=82010&&e.id<=82011),
+                "A vanished raider resets without rewarding the NPC or fake weapon mastery");
+            g.save.x=npc.x;g.save.y=npc.y;
+            Action(g,npc.kind,"wayfarer_defend_1");
+            Check(g.WayfarerEncounterRoom==1,
+                "The real traveler offers a legitimate free retry");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Authoritative lethal combat path is available");
+            Enemy a=g.enemies.Find(e=>e.id==82010),b=g.enemies.Find(e=>e.id==82011);
+            hit.Invoke(g,new object[]{a,99999f,false,null,null});
+            Check(g.enemies.Exists(e=>e.id==82011)&&!g.Has("wayfarer_1"),
+                "A single confirmed lethal hit cannot complete the two-guard rescue");
+            hit.Invoke(g,new object[]{b,99999f,false,null,null});
+            g.Tick(.05f,new Point());
+            Check(g.WayfarerEncounterRoom==0&&g.Has("wayfarer_1")&&
+                g.Has("wayfarer_defended_1")&&!g.Has("wayfarer_supplied_1")&&
+                g.save.coins==money+20&&g.save.shards==shards+1&&
+                g.save.mastery[g.save.weapon]==mastery+4,
+                "Two real confirmed kills award the original unique rescue and mastery once");
+            g.Talk(npc);
+            Check(g.conversation!=null&&g.conversation.textEn.Contains("held off the raiders"),
+                "The actual rescued traveler acknowledges the combat, not a supply donation");
+            g.Close();g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.save.version==2&&restored.Has("wayfarer_defended_1")&&
+                restored.WayfarerEncounterRoom==0,
+                "Old SaveData v2 keeps genuine rescue choices without persisting kill counters");
+        }
+
     }
 }

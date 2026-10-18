@@ -10,6 +10,16 @@ namespace Starfall
         private float wayfarerIntegrity;
         private bool wayfarerWarned;
         private bool wayfarerAidUsed;
+        // An empty enemy list is not evidence that both travelers' raiders
+        // died in player combat. Keep confirmations transient, like the ambush.
+        private int wayfarerConfirmedKills;
+        private void OnWayfarerEnemyDefeated(Enemy enemy)
+        {
+            if(wayfarerEncounterRoom==0 || save.room!=wayfarerEncounterRoom ||
+                !IsWayfarerEnemy(enemy))return;
+            int index=enemy.id-(82000+wayfarerEncounterRoom*10);
+            if(index>=0&&index<2)wayfarerConfirmedKills|=1<<index;
+        }
         public int WayfarerEncounterRoom { get { return wayfarerEncounterRoom; } }
         public float WayfarerIntegrity { get { return wayfarerIntegrity; } }
         private static bool IsWayfarerEnemy(Enemy e) { return e != null && e.id >= 82000 && e.id < 82100; }
@@ -22,6 +32,7 @@ namespace Starfall
             effects.RemoveAll(e => e.wayfarerOwned);
             wayfarerEncounterRoom = 0; wayfarerIntegrity = 0;
             wayfarerWarned = wayfarerAidUsed = false;
+            wayfarerConfirmedKills = 0;
         }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
         private bool WayfarerFinalRewardPending
@@ -214,6 +225,7 @@ namespace Starfall
             wayfarerEncounterRoom = room;
             wayfarerIntegrity = 100;
             wayfarerWarned = wayfarerAidUsed = false;
+            wayfarerConfirmedKills = 0;
             for (int slot = 0; slot < 2; slot++)
             {
                 var e = new Enemy(82000 + room * 10 + slot, slot == 0 ? 0 : 2,
@@ -287,8 +299,21 @@ namespace Starfall
             if (wayfarerEncounterRoom == 0) return;
             if (save.room != wayfarerEncounterRoom || Dying || practicing)
             { ResetWayfarerEncounter(); return; }
-            if (enemies.Exists(IsWayfarerEnemy)) return;
-            int room = wayfarerEncounterRoom; ResetWayfarerEncounter(); CompleteWayfarer(room, true);
+            int first=82000+wayfarerEncounterRoom*10;
+            for(int i=0;i<2;i++)
+            {
+                bool present=enemies.Exists(e=>e.id==first+i&&e.hp>0);
+                if(!present&&(wayfarerConfirmedKills&(1<<i))==0)
+                {
+                    ResetWayfarerEncounter();revision++;
+                    Notify("伏击者异常离场，尚未确认真正击败。救援可免费重试。",
+                        "A raider vanished without defeat. Retry the traveler defense for free.");
+                    return;
+                }
+                if(present)return;
+            }
+            int room = wayfarerEncounterRoom;
+            ResetWayfarerEncounter(); CompleteWayfarer(room, true);
         }
         private void CompleteWayfarer(int room, bool defended = false)
         {
