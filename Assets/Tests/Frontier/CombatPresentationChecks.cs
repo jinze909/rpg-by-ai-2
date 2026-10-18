@@ -1671,6 +1671,67 @@ namespace Starfall.Tests
             finally { data.maps[0] = previous; }
         }
 
+        public static void ManualCompanionVolleyCannotSpendCooldownFromBlockedMuzzle(Campaign data)
+        {
+            // Reuse the real ranger bow's full-foot/muzzle geometry, but
+            // exercise the EXPLICIT 18-second three-arrow player command.
+            MapData original = data.maps[0];
+            try
+            {
+                var rows = new string[25];
+                for (int y = 0; y < 25; y++)
+                {
+                    char[] row = new string('#', 25).ToCharArray();
+                    if (y >= 2 && y <= 22)
+                        for (int x = 2; x <= 22; x++) row[x] = '.';
+                    if (y == 10) row[9] = '#';
+                    rows[y] = new string(row);
+                }
+                data.maps[0] = new MapData { id = 0,
+                    spawnX = 8.5f, spawnY = 10.5f, rows = rows,
+                    objects = new WorldObject[0], decor = new Decoration[0] };
+                var g = Fresh(data, 1); g.enemies.Clear();
+                g.save.x = 8.5f; g.save.y = 10.5f;
+                g.save.flags.Add("companion_1"); g.SelectCompanion(1);
+                g.companionPosition = new Point(10.5f, 10.5f);
+                var foe = new Enemy(98851, 0, 10.5f, 7.5f, 10000f)
+                    { stun = 100f, timer = 1000f, staggerRecovery = 100f };
+                g.enemies.Add(foe);
+                g.aim = new Point(0, -1);
+                g.aimTarget = foe.Position;
+                Check(g.CanStand(g.companionPosition) && g.CanStand(foe.Position) &&
+                    g.Blocked(9.9f, 10.02f),
+                    "Real nearby stone blocks Ivo's bow hand, not his legal standing foot or the centerline to the foe");
+                g.CommandCompanion();
+                ActorAction canceled = g.companionAction;
+                Check(canceled != null && canceled.kind == "command" &&
+                    g.companionCooldown > 17f,
+                    "Physical player input reserves the genuine long-cooldown three-arrow command");
+                Advance(g, .23f);
+                Check(canceled.released && g.companionAction == canceled &&
+                    g.projectiles.Count == 0 && g.companionCooldown == 0 &&
+                    !g.effects.Exists(e => e.kind == "release"),
+                    "All three wall-born arrows are canceled with no phantom VFX or wasted long cooldown");
+                char[] open = rows[10].ToCharArray();
+                open[9] = '.';
+                rows[10] = new string(open);
+                g.CommandCompanion();
+                ActorAction successful = g.companionAction;
+                Check(successful != null && successful != canceled && !successful.released,
+                    "The repaired physical muzzle accepts a genuine new manual order immediately");
+                Advance(g, .23f);
+                Check(successful.released && g.projectiles.Count == 3 &&
+                    g.projectiles.TrueForAll(p => p.friendly && p.piercing && !p.blockedAtSpawn) &&
+                    g.companionCooldown > 17f &&
+                    g.effects.Exists(e => e.kind == "release" && e.variant == 1),
+                    "A clear bow releases all three real piercing arrows and spends its normal cooldown");
+                Advance(g, .5f);
+                Check(foe.hp < foe.maxHp,
+                    "The unblocked manual volley physically damages its living target instead of merely passing a projectile count check");
+            }
+            finally { data.maps[0] = original; }
+        }
+
         public static void CompanionAutoMuzzleObstructionRefundsCadenceAndRetries(Campaign data)
         {
             // A thin side-wall can cover Ivo's upper-facing bow HAND even

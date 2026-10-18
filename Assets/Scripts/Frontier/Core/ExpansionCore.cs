@@ -356,7 +356,7 @@ namespace Starfall
         }
         private void ReleaseCompanionCommand(ActorAction action)
         {
-            int bond = action.combo; sound = "skill";
+            int bond = action.combo;
             // A shot/spell committed inside newly closed gates, flooded
             // ground or solid props is not a usable companion action.
             // Retire the invalid contact and refund the manual command so
@@ -384,12 +384,26 @@ namespace Starfall
                 guardTime = Math.Max(guardTime, 3);
             }
             else if (action.weapon == 1)
+            {
+                int arrowsReleased = 0;
                 for (int i = -1; i <= 1; i++)
                 {
                     Projectile shot = FriendlyShot(companionPosition, 1, action.direction, 13, action.damage * (.8f + bond * .05f), false, action.target, action.impact);
+                    // Standing legally and seeing the target does not make a
+                    // bow hand embedded in adjacent stone a valid release.
+                    // A command whose entire physical volley is blocked
+                    // must not charge 18 seconds or publish phantom arrows.
+                    if (shot.blockedAtSpawn) continue;
                     double angle = Math.Atan2(shot.velocity.y, shot.velocity.x) + i * .17;
                     shot.velocity = new Point((float)Math.Cos(angle), (float)Math.Sin(angle)) * 13; shot.piercing = true; projectiles.Add(shot);
+                    arrowsReleased++;
                 }
+                if (arrowsReleased == 0)
+                {
+                    companionCooldown = 0f;
+                    return;
+                }
+            }
             else
             {
                 // Sen is an actual actor. An ally stranded on flooded or
@@ -414,6 +428,7 @@ namespace Starfall
                         e.state=0;e.timer=1.2f;
                     }
             }
+            sound = "skill";
             if (action.weapon == 0) effects.Add(new Effect("heal", Position, .6f));
             else if (action.weapon == 1) effects.Add(new Effect("release", WeaponOrigin(companionPosition, 1, action.direction), .18f) { direction = action.direction, variant = 1, height = WeaponHeight(1, action.direction) });
         }
