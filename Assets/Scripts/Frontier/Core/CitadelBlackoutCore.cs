@@ -76,6 +76,16 @@ namespace Starfall
                 }
                 if(!blackoutActive)
                 {
+                    // Do not offer a new 180-second rescue while another
+                    // authored field mission owns the player and its actors.
+                    if(FieldWorkPreventsRest)
+                    {
+                        Dialog(o.name,o.en,
+                            "另一项实地行动还没有结束。请先在原现场完成或明确取消，再启动长夜撤离。",
+                            "Another field mission is still active. Complete or cancel it at its original station before starting the blackout evacuation.",
+                            C("先完成现场行动","Finish current fieldwork","close"));
+                        return true;
+                    }
                     Dialog(o.name,o.en,
                         "堡垒警报：三座星核被同一屏障占用，备用灯闪烁，平民被困在三条街。厄洛坚持屏障一旦关掉就会有人死。你可以亲自证明不用牺牲他们。\n\n在180秒内逐一找到三人，按E带上一个人，带回这座避难所按E交接。护送对象会沿真实路线跟随，跟不上时需要回头；延迟电弧会伤害你和身边的居民。失败可以免费重试，原有城堡决战不会因此锁死。",
                         "Citadel alarm: three cores have been diverted into one shield. Emergency lamps are failing, and three civilians are trapped on different streets. Orrin insists that shutting down the shield means somebody must die.\n\nWithin 180 seconds, find each citizen, press E to escort, and physically return them one by one to this shelter. They really follow you, can fall behind, and delayed arcs can hurt both of you. Retries are free. The original finale route stays available.",
@@ -155,9 +165,7 @@ namespace Starfall
             if(action=="blackout_start")
             {
                 if(!BlackoutEligible || Has("blackout_complete") || blackoutActive ||
-                    practicing || Dying || !SafeTravel || TriadDefenseActive ||
-                    commonsRelayRoom!=0 || RootHarmonyRoom!=0 || atlasEchoRoom!=0 ||
-                    reliefMissionRoom!=0 || witnessDefenseRoom!=0 ||
+                    practicing || Dying || !SafeTravel || FieldWorkPreventsRest ||
                     (Position-BlackoutPoint("blackoutshelter")).Length>2.2f)return true;
                 blackoutActive=true;blackoutTime=180;blackoutPulse=3.5f;
                 blackoutFollowing=blackoutRescued=0;

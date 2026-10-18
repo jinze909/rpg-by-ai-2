@@ -460,5 +460,49 @@ namespace Starfall.Tests
                 "The existing physical abort retires protection without fake rewards");
         }
 
+        public static void BlackoutCannotOverlapLiveCitadelSecurityButStartsAfterWithdrawal(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            foreach(string f in new[]{"triad_complete","civic_response_ledger",
+                "last_directive_started","last_directive_clue_0",
+                "last_directive_clue_1","last_directive_clue_2"})
+                g.save.flags.Add(f);
+            g.Enter(4);g.enemies.Clear();g.invulnerable=300;
+            WorldObject console=Object(g,"lastdirectivecore"),
+                shelter=Object(g,"blackoutshelter");
+            g.save.x=console.x;g.save.y=console.y;
+            Action(g,console.kind,"last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Actual terminal spawns two live Citadel security defenders");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.Talk(shelter);
+            Check(g.conversation!=null&&
+                !Array.Exists(g.conversation.choices,
+                    c=>c.action=="blackout_start"),
+                "Existing public shelter refuses to offer a competing rescue during security combat");
+            g.Close();
+            var choose=typeof(GameCore).GetMethod("ChooseBlackout",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Blackout uses an authoritative gameplay choice handler");
+            choose.Invoke(g,new object[]{"blackout_start"});
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2&&
+                !g.BlackoutActive&&!g.Has("blackout_started"),
+                "Directly forged rescue action cannot hide or reset the live original enemies");
+            g.save.x=console.x;g.save.y=console.y;
+            Action(g,console.kind,"last_directive_abort");
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveEnemies==0,
+                "Real security console withdraws its own defenders without losing chapter testimony");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            Check(g.BlackoutActive&&g.BlackoutTime==180&&
+                g.Has("blackout_started"),
+                "Authentic shelter resumes full 180-second rescue after prior work explicitly ends");
+            g.PrepareSave();var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(reloaded.save.version==2&&reloaded.Has("last_directive_started")&&
+                reloaded.Has("blackout_started")&&!reloaded.BlackoutActive,
+                "Both recorded story milestones survive old v2 slots without persisting competing live actors");
+        }
+
     }
 }
