@@ -3007,5 +3007,65 @@ namespace Starfall.Tests
                 "Explicit abort removes the temporary grounding without damaging other hazards");
         }
 
+        public static void ChapterElevenDamagedConductorSupportsOneRealMaterialRepair(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.maxHealth=1000;
+            g.save.health=1000;g.save.energy=100;g.save.inventory[4]=5;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject desk=Object(g,"civicconduitmaster"),valve=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(g.CivicConduitValveIndex(o)==0)valve=o;
+            Check(valve!=null,"The original Citadel first valve exists");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_start");
+            Check(g.CivicConduitActive&&g.save.inventory[4]==4,
+                "First fuse is already paid as the existing real chapter cost");
+            for(int frame=0;frame<190&&g.Position.x<valve.x-.15f;frame++)
+                g.Tick(.05f,new Point(1,0));
+            Check(g.CivicConduitActive&&
+                (g.Position-new Point(valve.x,valve.y)).Length<2.2f,
+                "Hero walks the real route to the live first valve");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hurt!=null,"Production combat has an authoritative post-armor hurt path");
+            g.invulnerable=0;g.hitStop=0;
+            hurt.Invoke(g,new object[]{24f,"shot",null});
+            float damaged=g.CivicConduitIntegrity,seconds=g.CivicConduitTimeLeft;
+            Check(damaged<85&&damaged>0&&g.CivicConduitRepairAvailable,
+                "A genuine damaging enemy shot unlocks exactly one field repair");
+            var unrelated=new Hazard{position=new Point(6.5f,6.5f),
+                radius=.6f,timer=50,damage=8,kind="bell"};
+            g.hazards.Add(unrelated);
+            g.Talk(valve);
+            Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
+                c=>c.action=="civic_conduit_repair"),
+                "The physical valve displays a material repair after genuine charge loss");
+            int index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_conduit_repair");
+            g.Choose(index);
+            Check(g.CivicConduitActive&&g.CivicConduitStage==0&&
+                Math.Abs(g.CivicConduitIntegrity-Math.Min(100,damaged+35))<.01f&&
+                g.save.inventory[4]==3&&g.CivicConduitTimeLeft==seconds&&
+                !g.CivicConduitRepairAvailable&&g.hazards.Contains(unrelated),
+                "One paid repair restores only conductor charge, never rewinds time, valves, or foreign hazards");
+            var choose=typeof(GameCore).GetMethod("ChooseCivicConduit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            choose.Invoke(g,new object[]{"civic_conduit_repair"});
+            Check(g.save.inventory[4]==3,
+                "Replaying the choice can neither repeat free repairs nor double-charge parts");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.CivicConduitStarted&&
+                !restored.CivicConduitActive&&restored.save.inventory[4]==3,
+                "Old save format retains donated actual materials but not unfinished repairs");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_abort");
+            Check(!g.CivicConduitActive&&g.hazards.Contains(unrelated),
+                "Original physical abort still retires only owned field work");
+        }
+
     }
 }

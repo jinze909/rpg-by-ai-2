@@ -238,8 +238,8 @@ namespace Starfall
             {
                 q.title=L("第十一章 · 公共电网调谐","Chapter Eleven · The Civic Conduit");
                 q.category=L("战后电路 · 行走、相位与避让","POSTWAR GRID · MOVEMENT, TIMING & DODGING");
-                q.description=L("最后一道军令公开后，在堡垒南部真路捐献一枚零件，带着临时导体，80秒内依次走访三个阀门。每个阀门只在自己的绿色稳定窗口开放；旧网格会定期释放真实的延迟电弧。完成后，八地建好的避险棚获得与你在第十章所选民用政策对应的服务。",
-                    "After publishing the Last Directive, donate one fuse part at the western citadel desk, then physically walk east and time three distinct green valve windows within 80s. Dodge real telegraphed grid arcs. All rebuilt refuges gain a persistent service based on your Chapter Ten policy.");
+                q.description=L("最后军令公开后，在堡垒西端捐献熔断器，80秒内步行调谐三个阀门。各阀门须等待自己的绿色相位；遇电弧可花20耐力在当前阀门接地一次，导体受损超过15点时可花一枚零件现场抢修35点（每趟一次）。完成后，八地避险棚获得对应服务。",
+                    "After the Last Directive, donate a fuse and walk three timed valves within 80s. Wait for each green phase. Ground each active valve once for 20 energy to cancel live arcs, or use one spare part to repair 35 integrity when the conductor is significantly damaged (once per run). All rebuilt refuges gain their civic service.");
                 q.locked=!LastDirectiveComplete;
                 q.complete=CivicConduitComplete;
                 q.steps.Add(new QuestStep(L("在西端控制台捐献熔断器并开始调谐",
@@ -256,10 +256,12 @@ namespace Starfall
                     q.target=CivicConduitTarget(CivicConduitStage);
                     q.next=L("第 "+(CivicConduitStage+1)+"/3 阀门 · "+
                         (CivicConduitWindowOpen?"绿色窗口！":"等待相位变绿")+" · "+
-                        (int)Math.Ceiling(CivicConduitTimeLeft)+"秒",
+                        (int)Math.Ceiling(CivicConduitTimeLeft)+"秒 · 导体"+
+                        (int)Math.Ceiling(CivicConduitIntegrity)+"%",
                         "Valve "+(CivicConduitStage+1)+"/3 · "+
                         (CivicConduitWindowOpen?"GREEN NOW":"Wait for green")+
-                        " · "+(int)Math.Ceiling(CivicConduitTimeLeft)+"s");
+                        " · "+(int)Math.Ceiling(CivicConduitTimeLeft)+"s · "+
+                        (int)Math.Ceiling(CivicConduitIntegrity)+"% charge");
                 }
                 else
                 {

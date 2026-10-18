@@ -12,6 +12,10 @@ namespace Starfall
         // An actual valve can ground its own circuit once per powered stage.
         // These are per-attempt bits, not new SaveData fields.
         private int conduitGroundedMask;
+        private bool conduitRepairUsed;
+        public bool CivicConduitRepairAvailable
+        { get { return CivicConduitActive&&!conduitRepairUsed&&
+            conduitIntegrity<85&&save.inventory[4]>=1; } }
         public bool CivicConduitGroundAvailable
         { get { return CivicConduitActive &&
             (conduitGroundedMask & (1 << conduitStage)) == 0 &&
@@ -58,7 +62,7 @@ namespace Starfall
         private void ResetCivicConduit()
         {
             conduitRoom=-1;conduitStage=0;conduitElapsed=conduitWalked=conduitIntegrity=conduitPulseLeft=0;
-            conduitLast=new Point();conduitGroundedMask=0;
+            conduitLast=new Point();conduitGroundedMask=0;conduitRepairUsed=false;
             hazards.RemoveAll(h=>h.civicConduitOwned);
             effects.RemoveAll(e=>e.civicConduitOwned);
         }
@@ -180,6 +184,23 @@ namespace Starfall
             string controlEn=(conduitGroundedMask&(1<<conduitStage))==0?
                 " Ground this valve once for 20 energy to clear active grid arcs and delay the next pulse.":
                 " This valve's grounding has already been used.";
+            bool repairVisible=conduitIntegrity<85&&!conduitRepairUsed;
+            if(repairVisible)
+            {
+                controlZh+=" 导体明显受损：可花一枚备用零件现场恢复35点完整度，每次接通仅能修补一次。";
+                controlEn+=" Conductor damaged: one spare part restores 35 integrity at this valve, once per run.";
+            }
+            var commands=new System.Collections.Generic.List<Choice>();
+            commands.Add(C(open?"执行实际调谐":"关闭面板并等待绿色周期",
+                open?"Tune now":"Close panel and wait for green",
+                open?"civic_conduit_tune":"close"));
+            if((conduitGroundedMask&(1<<conduitStage))==0)
+                commands.Add(C("手动接地 · 耐力20",
+                    "Ground valve · 20 energy","civic_conduit_ground"));
+            if(repairVisible)
+                commands.Add(C("现场抢修 · 零件1",
+                    "Repair conductor · 1 spare part","civic_conduit_repair"));
+            commands.Add(C("暂时离开","Leave","close"));
             Dialog(o.name,o.en,
                 (open?"当前阀门稳定！":"当前阀门处于高压闭锁期。")+
                 "\n导体完好度："+(int)Math.Ceiling(conduitIntegrity)+
@@ -195,13 +216,7 @@ namespace Starfall
                 (open?"Green phase remaining: ":"Next green phase in ")+
                 CivicConduitWindowRemaining.ToString("0.0")+"s. "+
                 (open?"Confirm while stable.":"Close dialogue to resume the clock; dodge the arcs.")+controlEn,
-                C(open?"执行实际调谐":"关闭面板并等待绿色周期",
-                    open?"Tune now":"Close panel and wait for green",
-                    open?"civic_conduit_tune":"close"),
-                (conduitGroundedMask&(1<<conduitStage))==0?
-                    C("手动接地 · 耐力20","Ground valve · 20 energy","civic_conduit_ground"):
-                    C("查看接地记录","Review grounding","close"),
-                C("暂时离开","Leave","close"));
+                commands.ToArray());
             return true;
         }
         private bool ChooseCivicConduit(string action)
@@ -240,7 +255,7 @@ namespace Starfall
                 }
                 conduitRoom=4;conduitStage=0;conduitElapsed=conduitWalked=0;
                 conduitIntegrity=100;conduitPulseLeft=4.7f;
-                conduitGroundedMask=0;
+                conduitGroundedMask=0;conduitRepairUsed=false;
                 conduitLast=Position;revision++;sound="quest";
                 TrackQuest("civic_conduit");
                 Notify("公共线路已通电！沿道路向东，在三处阀门绿色周期内操作。80秒。",
@@ -267,6 +282,24 @@ namespace Starfall
                 revision++;sound="guard";
                 Notify("阀门接地成功！当前电弧已安全消散，下一次脉冲延后。",
                     "Valve grounded! Current grid arcs canceled; the next surge is delayed.");
+                return true;
+            }
+            if(action=="civic_conduit_repair")
+            {
+                if(!CivicConduitActive||valve==null||conduitRepairUsed||
+                    conduitIntegrity>=85)return true;
+                if(save.inventory[4]<1)
+                {
+                    Notify("现场抢修需要一枚真实的备用零件。也可以继续躲避电弧。",
+                        "Emergency repair needs one real spare part. You can continue dodging.");
+                    return true;
+                }
+                save.inventory[4]--;conduitRepairUsed=true;
+                conduitIntegrity=Math.Min(100,conduitIntegrity+35);
+                effects.Add(new Effect("discover",Position,.6f){civicConduitOwned=true});
+                revision++;sound="reward";
+                Notify("导体已恢复35点完整度！本次线路不再允许重复抢修。",
+                    "Conductor restored by 35 integrity. Only one repair is allowed per run.");
                 return true;
             }
             if(action!="civic_conduit_tune"||!CivicConduitActive||valve==null||
