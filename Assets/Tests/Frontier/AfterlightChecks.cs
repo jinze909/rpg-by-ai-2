@@ -895,8 +895,10 @@ namespace Starfall.Tests
                     g.AfterlightWatchTime>99&&g.enemies.Count==2,
                     "The original receiver really spawns two live physical attackers in wave one");
                 Check(g.CanStand(g.enemies[0].Position)&&g.CanStand(g.enemies[1].Position)&&
-                    (g.enemies[0].Position-g.enemies[1].Position).Length>1f,
-                    "All challenge attackers spawn on distinct walkable ground");
+                    (g.enemies[0].Position-g.enemies[1].Position).Length>1f &&
+                    g.NavigationPath(g.enemies[0].Position).Count>0 &&
+                    g.NavigationPath(g.enemies[1].Position).Count>0,
+                    "Both authored enemies occupy separate genuinely reachable map tiles, not isolated rooms beyond blocked terrain");
                 g.Enter(0);
                 Check(g.save.room==room&&g.AfterlightWatchActive,
                     "Live civic combat cannot be skipped with region travel");
