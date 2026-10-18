@@ -77,7 +77,8 @@ namespace Starfall.Tests
                         g.playerAction.riposteArmed,
                         "A genuine post-parry attack reserves the counter until real contact");
                     Advance(g,.45f);
-                    Check(g.riposteTime<=0&&!g.playerAction.riposteArmed,
+                    Check(g.riposteTime<=0&&
+                        (g.playerAction==null||!g.playerAction.riposteArmed),
                         "Only the released physical riposte spends the existing empowered opening");
                     Check(attacker.hp<180,
                         "The parry opening boosts a real sword contact, not a cosmetic reward");
