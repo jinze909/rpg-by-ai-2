@@ -62,6 +62,11 @@ namespace Starfall
                 for(int i=enemies.Count-1;i>=0;i--)
                     if(enemies[i].id==afterlightWatchA||enemies[i].id==afterlightWatchB)
                     { RemoveEnemyPendingWarning(enemies[i]);enemies.RemoveAt(i); }
+                // Even arrows released before an abort are part of this duel,
+                // and may otherwise hit the hero AFTER the trial disappears.
+                // Keep all unrelated hostile shots and field mission visuals.
+                projectiles.RemoveAll(p=>p.afterlightWatchOwned);
+                effects.RemoveAll(e=>e.afterlightWatchOwned);
             }
             afterlightWatchRoom=afterlightWatchWave=afterlightWatchA=afterlightWatchB=0;
             afterlightWatchADead=afterlightWatchBDead=false;afterlightWatchTime=0;
