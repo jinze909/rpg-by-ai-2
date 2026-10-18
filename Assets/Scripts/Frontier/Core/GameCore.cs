@@ -137,6 +137,13 @@ namespace Starfall
             RescueCheckpoint pendingRescue = save.rescueCheckpoint;
             ResetTransient(); SpawnRoom(); RestoreWorld();
             RestoreReliefCheckpoint(pendingRescue);
+            // A new save slot replaces the active play session. Transient
+            // dialogue/inventory/fishing modes from the previous character
+            // must not strand the new hero in a frozen non-world UI after
+            // their conversations and actions have been cleared. Preserve
+            // the initial TITLE when the constructor first loads a slot:
+            // Start() remains responsible for entering gameplay from it.
+            if (mode != "title") mode = "world";
             revision++;
         }
         private void ResetTransient()

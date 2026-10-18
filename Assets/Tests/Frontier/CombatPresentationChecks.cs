@@ -3252,6 +3252,35 @@ namespace Starfall.Tests
                 "Genuine equipment swap discards previously buffered dodge Q rather than replaying it");
         }
 
+        public static void SwitchingSaveDuringDialogueResumesNewWorldWithoutStaleModal(Campaign data)
+        {
+            // The constructor/title path must remain intact, while a live
+            // slot load from a prior modal must fully restore world input.
+            var g=new GameCore(data,new SaveData());
+            Check(g.mode=="title"&&g.conversation==null,
+                "Constructing a fresh slot still leaves first boot on the genuine title screen");
+            foreach(int version in new[]{1,2})
+            {
+                g.Start();
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "First world entry shows the authentic intro dialogue before changing save slots");
+                SaveData next=new SaveData{version=version};
+                next.flags.Add("intro"); // do not open another intro
+                next.coins=91+version;
+                g.Load(next);
+                Check(g.mode=="world"&&g.conversation==null&&
+                    g.conversationSource==null&&g.save.coins==91+version&&
+                    g.save.version==version&&g.save.room==0,
+                    "Loading v1/v2 during an old dialogue retires its modal and activates the selected live world without altering its save format");
+                float start=g.save.totalTime;
+                g.Tick(.04f,new Point());
+                Check(g.save.totalTime>start,
+                    "Newly selected world slot immediately advances genuine game time instead of remaining frozen behind the previous dialogue");
+                g.Close(); // leave game ready for the next controlled intro
+                g.save.flags.Remove("intro");
+            }
+        }
+
         public static void SwitchingSaveSlotsDoesNotInheritOldAimOrFishingState(Campaign data)
         {
             var g=Fresh(data,1);
