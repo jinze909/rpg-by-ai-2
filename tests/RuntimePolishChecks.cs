@@ -90,7 +90,27 @@ public static class RuntimePolishChecks
             Check(!SaveStore.Write(g.save, 1) && File.ReadAllText(SaveStore.PathFor(1)) == before,
                 "Missing quest flags cannot replace the last good manual save");
             g.save.flags = priorFlags;
-            Console.WriteLine("PASS Save store checksum, Unicode, backups, interrupted writes, independent slots and legacy JSON (offline serializer)");
+            // The recovered .tmp may be the only authentic save after a
+            // power loss; an invalid new in-memory save must not truncate it
+            // before serialization is checked.
+            string lastGoodTemp=File.ReadAllText(SaveStore.PathFor(1));
+            string recoverable=SaveStore.PathFor(2)+".tmp";
+            File.WriteAllText(recoverable,lastGoodTemp);
+            g.save.inventory=null;
+            Check(!SaveStore.Write(g.save,2)&&
+                File.ReadAllText(recoverable)==lastGoodTemp,
+                "Invalid inventory cannot overwrite the only recoverable interrupted save");
+            g.save.inventory=new[]{4,2,4,0,2,0,1,3};
+            g.save.flags=null;
+            Check(!SaveStore.Write(g.save,2)&&
+                File.ReadAllText(recoverable)==lastGoodTemp,
+                "Invalid quest flags cannot overwrite the only recoverable interrupted save");
+            g.save.flags=priorFlags;
+            loaded=SaveStore.Read(2,out warning);
+            Check(loaded!=null&&loaded.coins==700&&
+                warning!=null&&warning.Contains("Recovered"),
+                "A corrupt primary still recovers its untouched valid .tmp after failed writes");
+            Console.WriteLine("PASS Save store checksum, Unicode, backups, interrupted writes, independent slots, preflight recovery and legacy JSON (offline serializer)");
             app.Game.Enter(0); app.Game.Close(); app.Game.save.flags.Add("weapon_1"); app.Game.save.flags.Add("core_1"); app.Game.save.weapon = 0;
             app.Game.mode = "inventory"; Set(app, "inspectedWeapon", 1); Set(app, "inspectedStyle", 1); Invoke(app, "OnGUI"); GUI.commands.Clear();
             var navigation = (MenuNavigation)typeof(FrontierRuntime).GetField("navigation", Private).GetValue(app); navigation.Select("710:580:174:52"); Key(app, KeyCode.Return); Check(app.Game.save.weapon == 1 && app.Game.Style == 1, "Keyboard focus activates the actual equipment button");

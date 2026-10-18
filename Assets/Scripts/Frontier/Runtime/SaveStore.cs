@@ -156,6 +156,10 @@ namespace Starfall
                 Directory.CreateDirectory(Application.persistentDataPath); string path = PathFor(slot), temp = path + ".tmp";
                 value.savedAtUtc = DateTime.UtcNow.ToString("o"); string payload = JsonUtility.ToJson(value);
                 string json = JsonUtility.ToJson(new SaveEnvelope { payload = payload, checksum = Checksum(payload) }, true);
+                // Validate BEFORE FileMode.Create truncates a crash-recovered
+                // .tmp that might be the only remaining good save. The
+                // existing post-flush disk verification still runs below.
+                Decode(json);
                 using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
                 { byte[] bytes = Encoding.UTF8.GetBytes(json); stream.Write(bytes, 0, bytes.Length); stream.Flush(true); }
                 Decode(File.ReadAllText(temp));
