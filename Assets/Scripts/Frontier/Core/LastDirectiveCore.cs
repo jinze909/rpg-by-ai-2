@@ -168,7 +168,7 @@ public sealed partial class GameCore {
         }
         if(action=="last_directive_publish"){
             if(!atBoard||!Has("civic_response_ledger")||LastDirectiveChoice==0||LastDirectiveComplete)return true;
-            Flag("last_directive_complete");save.coins+=95;save.shards+=5;save.skillPoints++;AddXp(140);revision++;sound="reward";
+            Flag("last_directive_complete");CreditCoins(95);CreditShards(5);CreditSkillPoints(1);AddXp(140);revision++;sound="reward";
             RecordMoment("第十章终结：旧堡垒被迫公布最后一道隐秘指令，真正的居民决定自己的安全。",
                 "Chapter Ten: the final hidden citadel order became a public civilian decision.");
             Notify("第十章完成：硬币95、碎片5、技能点1、经验140。","Chapter Ten complete: 95 coins, 5 shards, 1 talent, 140 XP.");return true;

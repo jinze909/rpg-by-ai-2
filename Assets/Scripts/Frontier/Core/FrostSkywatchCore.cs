@@ -318,7 +318,7 @@ namespace Starfall
                     (Position-ObjectPoint(7,"skyobservatory",
                         new Point(-100,-100))).Length>2.2f) return true;
                 Flag("skywatch_afterglow_complete");
-                save.coins+=45;save.shards+=2;AddXp(60);
+                CreditCoins(45); CreditShards(2); AddXp(60);
                 revision++;sound="reward";
                 RecordMoment("三座棱镜成为公开的高原避寒信标。",
                     "All three prisms became public warming beacons.");
@@ -386,8 +386,8 @@ namespace Starfall
                     Dying ||
                     (Position-ObjectPoint(0,"skywatcher",new Point(-100,-100))).Length>2.2f)
                     return true;
-                Flag("skywatch_complete"); save.coins+=95; save.shards+=3;
-                save.skillPoints++; AddXp(100); revision++; sound="reward";
+                Flag("skywatch_complete"); CreditCoins(95); CreditShards(3);
+                CreditSkillPoints(1); AddXp(100); revision++; sound="reward";
                 RecordMoment("霜钟高原的原始天气光谱已公开，古观星台不再向旅人隐藏冻雨。",
                     "Frostchime's original weather spectrum was published for every traveler.");
                 Notify("夜空观测完成！获得95硬币、3碎片、1天赋点、100经验。观星台旁开启避寒区域。",

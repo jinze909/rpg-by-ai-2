@@ -722,5 +722,68 @@ namespace Starfall.Tests
                 "The complete regional walking network remains identical through legacy v2 save reload");
         }
 
+        public static void PublishedSkywatchAndFinalDirectiveRespectV2RewardCaps(Campaign data)
+        {
+            var sky = Fresh(data); sky.save.stage = 3; sky.save.level = 12;
+            foreach (string flag in new[] { "desert_report", "mountain_report",
+                "gate_7", "skywatch_started", "skywatch_defeated",
+                "skywatch_prism_1", "skywatch_prism_2", "skywatch_prism_3" })
+                sky.save.flags.Add(flag);
+            sky.save.coins = 999998; sky.save.shards = 99998;
+            sky.save.skillPoints = 99;
+            var observer = Object(sky, "skywatcher");
+            sky.save.x = observer.x; sky.save.y = observer.y;
+            int xp = sky.save.xp;
+            Action(sky, observer.kind, "skywatch_publish");
+            Check(sky.Has("skywatch_complete") &&
+                sky.save.coins == 999999 && sky.save.shards == 99999 &&
+                sky.save.skillPoints == 99 && sky.save.xp > xp,
+                "The original public sky report completes and grants real XP without exceeding v2 currency and talent caps");
+            sky.Enter(7); sky.enemies.Clear();
+            var altar = Object(sky, "skyobservatory");
+            sky.save.x = altar.x; sky.save.y = altar.y;
+            foreach (int n in new[] {1,2,3}) sky.save.flags.Add("skywatch_afterglow_" + n);
+            int afterglowXp = sky.save.xp;
+            Action(sky, altar.kind, "skywatch_afterglow_publish");
+            Check(sky.Has("skywatch_afterglow_complete") &&
+                sky.save.coins == 999999 && sky.save.shards == 99999 &&
+                sky.save.xp > afterglowXp,
+                "The actual three-prism aftermath publication grants real XP and bounded rewards, not an overwritten save");
+            sky.PrepareSave();
+            var reloadedSky = new GameCore(data, CloneSave(sky.save));
+            Check(reloadedSky.Has("skywatch_complete") &&
+                reloadedSky.Has("skywatch_afterglow_complete") &&
+                reloadedSky.save.coins == 999999 && reloadedSky.save.shards == 99999 &&
+                reloadedSky.save.skillPoints == 99,
+                "Both earned skywatch chapters persist in the original save format at maximum capacity");
+
+            foreach (string policy in new[] {"last_directive_open","last_directive_shelter"})
+            {
+                var g = Fresh(data); g.save.stage = 4;
+                g.save.flags.Add("civic_response_ledger"); g.save.flags.Add(policy);
+                g.save.coins = 999998; g.save.shards = 99998;
+                g.save.skillPoints = 99;
+                var board = Object(g, "lastdirectiveboard");
+                g.save.x = board.x; g.save.y = board.y;
+                int beforeXp = g.save.xp;
+                Action(g, board.kind, "last_directive_publish");
+                Check(g.LastDirectiveComplete && g.LastDirectiveChoice ==
+                    (policy == "last_directive_open" ? 1 : 2) &&
+                    g.save.coins == 999999 && g.save.shards == 99999 &&
+                    g.save.skillPoints == 99 && g.save.xp > beforeXp,
+                    "The real civilian oversight/shelter policy is published once with bounded final rewards and original XP");
+                g.PrepareSave();
+                var resumed = new GameCore(data, CloneSave(g.save));
+                Check(resumed.LastDirectiveComplete && resumed.save.coins == 999999 &&
+                    resumed.save.shards == 99999 && resumed.save.skillPoints == 99,
+                    "A published chapter ten order and capped goods survive old v2 save reload");
+                resumed.Talk(board);
+                Check(resumed.conversation != null &&
+                    !Array.Exists(resumed.conversation.choices,
+                        c => c.action == "last_directive_publish"),
+                    "Both already published policies remove their claim choice and cannot duplicate permanent rewards");
+            }
+        }
+
     }
 }
