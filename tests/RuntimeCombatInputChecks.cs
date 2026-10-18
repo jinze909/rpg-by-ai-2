@@ -210,6 +210,60 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS production combat HUD tracks actual earned and charged riposte across language, climate and contact");
     }
 
+    private static void ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.enemies.Clear();g.save.english=false;
+        g.invulnerable=100;g.save.reducedMotion=true;
+        var sight=typeof(GameCore).GetMethod("ClearAttackPath",Private);
+        Check(sight!=null,"Real Boss summon visual test uses the current production LOS");
+        Point hero=new Point(),bossFoot=new Point();bool found=false;
+        for(int y=4;y<g.Map.rows.Length-4&&!found;y++)
+        for(int x=4;x<g.Map.rows[y].Length-4&&!found;x++)
+        {
+            Point p=new Point(x+.5f,y+.5f),b=p+new Point(-3,0);
+            if(g.CanStand(p)&&g.CanStand(b)&&
+                (bool)sight.Invoke(g,new object[]{b,p}))
+            {hero=p;bossFoot=b;found=true;}
+        }
+        Check(found,"A real playable town scene contains a visible legal Boss/player pair");
+        g.save.x=hero.x;g.save.y=hero.y;
+        Set(app,"camera",hero);
+        var boss=new Enemy(99201,3,bossFoot.x,bossFoot.y,999,true)
+            {hp=190,cycle=2,timer=0,stagger=94};
+        g.enemies.Add(boss);
+        g.Tick(.02f,new Point());
+        Check(boss.state==1&&g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "Production Boss AI commits the next third-cycle support windup");
+        GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();
+        Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("正在呼叫增援")),
+            "Real runtime GameView paints the upcoming summoning cue in Chinese above the active Boss, not merely in Core state");
+        var hit=typeof(GameCore).GetMethod("Hit",Private);
+        hit.Invoke(g,new object[]{boss,5f,false,(Point?)new Point(1,0),null});
+        Check(boss.hp>0&&boss.state==0&&
+            !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "Actual combat Break interrupts the summoning Boss and retracts the pending message");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(s=>s.Contains("正在呼叫增援")),
+            "Real runtime paints no stale announcement for a canceled summon");
+        g.save.english=true;boss.stun=0;boss.hitTime=0;boss.releaseTime=0;boss.timer=0;
+        g.Tick(.05f,new Point());
+        Check(boss.state==1&&g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "Real second Boss attack starts after consuming actual impact hit-stop");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("CALLING REINFORCEMENTS!")),
+            "Production runtime re-renders a genuine English support call after the original attack recovers");
+        for(int k=0;k<65&&boss.cycle<3;k++)g.Tick(.02f,new Point());
+        Check(boss.cycle==3&&g.enemies.Count==2&&
+            !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "The announced support is actually born only after timed Boss release");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(s=>s.Contains("CALLING REINFORCEMENTS!")),
+            "A fulfilled support call also retires its real-world warning");
+        Console.WriteLine("PASS actual bilingual Boss support cue, selective live Break retraction and real combat summon in FrontierRuntime.OnGUI");
+    }
+
     private static void CivicReserveCombatHudTracksGenuineReceiverObjective(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1644,7 +1698,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, RiposteHudFollowsRealParryIntentAndUnreleasedContact, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
