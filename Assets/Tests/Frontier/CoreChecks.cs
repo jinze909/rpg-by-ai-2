@@ -434,7 +434,14 @@ namespace Starfall.Tests
                 if (room == 3) { g.Talk(Object(g, "ore")); Action(g, "engine", "engine"); }
                 Check(g.GateOpen, "Chapter gate");
                 AwaitArenaOpening(g); // Hit stop pauses the same opening clock; wait for actual collision.
-                g.save.x = 28; g.save.y = 10; Action(g, "shrine", "boss"); Combat(g, true);
+                // The original direct test teleport (28,10) places the
+                // hero's full-body footprint partly in room 2's water
+                // even though its CENTER tile is dry. Full campaign QA
+                // must fight from valid ground like actual player input.
+                g.save.x = 28.5f; g.save.y = 10.5f;
+                Check(g.CanStand(g.Position),
+                    "Complete campaign boss setup must place the real hero footprint on legal dry ground");
+                Action(g, "shrine", "boss"); Combat(g, true);
                 Check(g.Has("boss_" + room),
                     "Guardian defeated: room=" + room + " profession=" + profession +
                     " actualRoom=" + g.save.room + " dying=" + g.Dying +
