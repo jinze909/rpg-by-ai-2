@@ -22,6 +22,15 @@ namespace Starfall.Tests
             g.save.x = obj.x; g.save.y = obj.y;
             Action(g, obj.kind, "commons_activate_" + step);
         }
+        private static void DefeatCommonsWave(GameCore g)
+        {
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "Authentic combat damage hook exists");
+            foreach (Enemy e in g.enemies.FindAll(g.IsCommonsRelayEnemy))
+                hit.Invoke(g, new object[] { e, 99999f, false, null, null });
+        }
         public static void CitadelCommonsThreeStageCombatAndPublicKey(Campaign data)
         {
             var g = CommonsReady(data);
@@ -53,7 +62,7 @@ namespace Starfall.Tests
             Check(Array.FindIndex(g.conversation.choices,c=>c.action=="commons_activate_2") < 0,
                 "Second console is locked until actual security is defeated");
             g.Close();
-            g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            DefeatCommonsWave(g);
             CommonsActivate(g, 2);
             Check(g.CommonsRelayStep == 3 &&
                 g.enemies.FindAll(g.IsCommonsRelayEnemy).Count == 3,
@@ -62,7 +71,7 @@ namespace Starfall.Tests
             g.Talk(third);
             Check(Array.FindIndex(g.conversation.choices,c=>c.action=="commons_activate_3") < 0,
                 "The last console cannot bypass the second physical fight");
-            g.Close(); g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            g.Close(); DefeatCommonsWave(g);
             CommonsActivate(g, 3);
             Check(g.Has("commons_relay_sealed") && g.CommonsRelayRoom == 0 &&
                 g.save.coins == coins + 60 && g.save.shards == shards + 3,
@@ -128,7 +137,11 @@ namespace Starfall.Tests
             CommonsActivate(g,1);
             Enemy sentinel=g.enemies.Find(g.IsCommonsRelayEnemy);
             Check(sentinel != null,"The new episode spawns a real attackable world enemy");
-            g.enemies.RemoveAll(e=>e!=sentinel);
+            // Retain every authored defender; the second sentinel is
+            // stunned during the first real sword kill, not silently deleted.
+            g.enemies.RemoveAll(e => !g.IsCommonsRelayEnemy(e));
+            foreach (Enemy e in g.enemies) if (e != sentinel)
+            { e.stun = 20; e.timer = 20; }
             int coins=g.save.coins,xp=g.save.xp,kills=g.save.kills[4];
             int[] inventory=(int[])g.save.inventory.Clone();
             // An actual hero melee hit must damage this challenge enemy,
@@ -150,6 +163,10 @@ namespace Starfall.Tests
             for(int i=0;i<inventory.Length;i++)
                 Check(g.save.inventory[i]==inventory[i],
                     "Scripted sentinels cannot mint ordinary inventory loot");
+            // The first true melee kill alone is not sufficient to clear
+            // the two-sentinel checkpoint. Defeat the remaining defender
+            // through its same original lethal combat path.
+            DefeatCommonsWave(g);
             g.save.x=Object(g,"commonsrelay2").x;g.save.y=Object(g,"commonsrelay2").y;
             CommonsActivate(g,2);
             Check(g.enemies.FindAll(g.IsCommonsRelayEnemy).Count==3,
@@ -159,7 +176,7 @@ namespace Starfall.Tests
         public static void CitadelCommonsFloorSurgesWarnDodgeAndCleanUp(Campaign data)
         {
             var g = CommonsReady(data);
-            CommonsActivate(g,1); g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            CommonsActivate(g,1); DefeatCommonsWave(g);
             CommonsActivate(g,2);
             Check(g.CommonsRelayStep == 3 && g.enemies.Exists(g.IsCommonsRelayEnemy),
                 "Medical-line reconnection enters the unique second-floor security phase");
@@ -195,7 +212,7 @@ namespace Starfall.Tests
             for(int i=0;i<38;i++)g.Tick(.05f,new Point());
             Check(g.save.health >= health-.01f,
                 "Escaping the warned footprint avoids live hazard damage without fake invulnerability");
-            g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            DefeatCommonsWave(g);
             g.Tick(.05f,new Point());
             Check(!g.hazards.Exists(x=>x.commonsRelayOwned),
                 "Defeating the last defender retires pending circuit hazards immediately");
@@ -285,5 +302,49 @@ namespace Starfall.Tests
                 g.enemies.FindAll(g.IsCommonsRelayEnemy).Count == 2,
                 "Restarted new content runs a fresh real fight, with no saved free enemy kills");
         }
+        public static void MissingCommonsSentinelCannotSkipRealSecurityCheckpoint(Campaign data)
+        {
+            var g = CommonsReady(data);
+            CommonsActivate(g, 1);
+            Check(g.CommonsRelayStep == 2 &&
+                g.enemies.FindAll(g.IsCommonsRelayEnemy).Count == 2,
+                "Original food security spawns exactly two real enemies");
+            int coins = g.save.coins, talent = g.save.skillPoints;
+            g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            CommonsActivate(g, 2);
+            Check(g.CommonsRelayRoom == 0 && g.CommonsRelayStep == 0 &&
+                !g.Has("commons_relay_sealed") &&
+                g.save.coins == coins && g.save.skillPoints == talent,
+                "A missing enemy list without registered combat does not authorize the medical circuit or its rewards");
+
+            CommonsActivate(g, 1);
+            Check(g.CommonsRelayRoom == 4 &&
+                g.enemies.FindAll(g.IsCommonsRelayEnemy).Count == 2,
+                "An invalid wave offers a genuine fresh combat retry");
+            DefeatCommonsWave(g);
+            CommonsActivate(g, 2);
+            Check(g.CommonsRelayStep == 3 &&
+                g.enemies.FindAll(g.IsCommonsRelayEnemy).Count == 3,
+                "Real first-wave lethal strikes unlock the three-sentinel second wave");
+            g.enemies.RemoveAll(g.IsCommonsRelayEnemy);
+            CommonsActivate(g, 3);
+            Check(g.CommonsRelayRoom == 0 && !g.Has("commons_relay_sealed") &&
+                g.save.coins == coins,
+                "Second-wave enemy disappearance cannot counterfeit a sealed civic circuit");
+            CommonsActivate(g, 1);
+            DefeatCommonsWave(g);
+            CommonsActivate(g, 2);
+            DefeatCommonsWave(g);
+            CommonsActivate(g, 3);
+            Check(g.Has("commons_relay_sealed") &&
+                g.CommonsRelayRoom == 0 && g.save.coins == coins + 60,
+                "Two fully verified waves still permit original rewarded civic completion");
+            g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save));
+            Check(resumed.Has("commons_relay_sealed") &&
+                resumed.save.coins == g.save.coins,
+                "Verified public security milestone survives legacy v2 save reload");
+        }
+
     }
 }

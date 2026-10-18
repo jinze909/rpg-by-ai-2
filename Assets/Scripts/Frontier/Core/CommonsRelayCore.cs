@@ -8,7 +8,28 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int commonsRelayRoom, commonsRelayStep;
+        private int commonsRelayConfirmedKills;
         private float commonsRelayTime, commonsRelayPulseTime;
+        // The authored first security wave uses 89510-89511; the
+        // medical line uses 89520-89522. Absence from enemies alone cannot
+        // pass a checkpoint: only lethal combat proves the circuit cleared.
+        private int CommonsWaveStart { get { return commonsRelayStep == 2 ? 89510 :
+            commonsRelayStep == 3 ? 89520 : -1; } }
+        private int CommonsWaveCount { get { return commonsRelayStep == 2 ? 2 :
+            commonsRelayStep == 3 ? 3 : 0; } }
+        private bool CommonsWaveDefeated
+        {
+            get { return CommonsWaveCount > 0 &&
+                commonsRelayConfirmedKills == (1 << CommonsWaveCount) - 1; }
+        }
+        private void OnCommonsRelayEnemyDefeated(Enemy enemy)
+        {
+            if (commonsRelayRoom != 4 || save.room != 4 ||
+                !IsCommonsRelayEnemy(enemy)) return;
+            int index = enemy.id - CommonsWaveStart;
+            if (index >= 0 && index < CommonsWaveCount)
+                commonsRelayConfirmedKills |= 1 << index;
+        }
         public int CommonsRelayRoom { get { return commonsRelayRoom; } }
         public int CommonsRelayStep { get { return commonsRelayStep; } }
         public float CommonsRelayTime { get { return commonsRelayTime; } }
@@ -24,6 +45,7 @@ namespace Starfall
             effects.RemoveAll(e => e.commonsRelayOwned);
             hazards.RemoveAll(h => h.commonsRelayOwned);
             commonsRelayRoom = commonsRelayStep = 0;
+            commonsRelayConfirmedKills = 0;
             commonsRelayTime = commonsRelayPulseTime = 0;
         }
         private void TickCommonsRelayTrial(float dt)
@@ -32,6 +54,19 @@ namespace Starfall
             if (save.room != 4 || Dying || practicing)
             { ResetCommonsRelayTrial(); revision++; return; }
             commonsRelayTime -= dt;
+            // Retire an incomplete defense if a reserved wave actor
+            // disappears without a registered, genuine lethal contact.
+            // No free skip to the next relay, and no stuck phantom wave.
+            for (int index = 0; index < CommonsWaveCount; index++)
+            {
+                int id = CommonsWaveStart + index;
+                if ((commonsRelayConfirmedKills & (1 << index)) != 0 ||
+                    enemies.Exists(e => e.id == id)) continue;
+                ResetCommonsRelayTrial(); revision++;
+                Notify("旧守卫异常离场，未确认击败。本轮信标已重置，可从第一座重新挑战。",
+                    "A security sentinel vanished without defeat. Retry from the first relay.");
+                return;
+            }
             // Medical-circuit security fires telegraphed floor-surge pairs.
             // Normal movement and dodge contact can avoid both warnings.
             if (commonsRelayStep == 3 && enemies.Exists(IsCommonsRelayEnemy))
@@ -214,6 +249,13 @@ namespace Starfall
                 commonsRelayTime = 110;
             }
             if (commonsRelayStep != step || enemies.Exists(IsCommonsRelayEnemy)) return true;
+            if (step > 1 && !CommonsWaveDefeated)
+            {
+                ResetCommonsRelayTrial(); revision++;
+                Notify("尚未确认全部守卫被真正击败。本轮重置，请从第一座信标再试。",
+                    "Not every security sentinel was defeated in combat. Retry from the first console.");
+                return true;
+            }
             if (step < 3)
             {
                 Point console = CommonsRelayPoint(step);
@@ -223,6 +265,8 @@ namespace Starfall
                     new[] { new Point(11.5f, 8.5f), new Point(9.5f, 11.5f) } :
                     new[] { new Point(29.5f, 9.5f), new Point(24.5f, 11.5f),
                             new Point(25.5f, 6.5f) };
+                // Every NEW wave requires its own verified combat kills.
+                commonsRelayConfirmedKills = 0;
                 for (int i = 0; i < positions.Length; i++)
                 {
                     enemies.Add(CreatePlacedEnemy(89500 + step * 10 + i,
