@@ -50,6 +50,8 @@ namespace Starfall
                 Point foot=boss.Position+offset;
                 if (!CanStand(foot) || (foot-Position).Length<1.25f ||
                     (foot-boss.Position).Length<1.2f ||
+                    (save.companion>=0 &&
+                        (foot-companionPosition).Length<1.2f) ||
                     !ClearAttackPath(boss.Position,foot))continue;
                 bool occupied=false;
                 foreach(Enemy existing in enemies)
