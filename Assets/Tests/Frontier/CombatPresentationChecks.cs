@@ -3270,8 +3270,8 @@ namespace Starfall.Tests
                 g.Load(next);
                 Check(g.mode=="world"&&g.conversation==null&&
                     g.conversationSource==null&&g.save.coins==91+version&&
-                    g.save.version==version&&g.save.room==0,
-                    "Loading v1/v2 during an old dialogue retires its modal and activates the selected live world without altering its save format");
+                    g.save.version==2&&g.save.room==0,
+                    "Loading either v1 or v2 during old dialogue restores the world; valid legacy v1 migrates to the existing canonical v2 save schema");
                 float start=g.save.totalTime;
                 g.Tick(.04f,new Point());
                 Check(g.save.totalTime>start,
