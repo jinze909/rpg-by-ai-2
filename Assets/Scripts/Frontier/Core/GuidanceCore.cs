@@ -88,27 +88,33 @@ namespace Starfall
 
             if(id=="sword_lesson")
             {
-                q.title=L("余烬镇 · 诺尔的三箭考核","Emberfall · Noll's Three Arrows");
+                q.title=L("余烬镇 · 诺尔的剑盾考核","Emberfall · Noll's Sword Guard Trials");
                 q.category=L("剑盾训练 · 实弹弹反","SWORD-GUARD TRAINING · LIVE ARROWS");
                 q.description=L(
                     "回城向铁匠诺尔学习战士剑盾技术。领取48秒练习，面对东方发箭器，使用Q技能正面接触并反弹三支实际飞来的箭。需要保持耐力与正确的技能时机；失败可重新练习，奖励只能获得一次。",
                     "Practice with Noll at the original town smithy: a 48s live-arrow drill. Face the eastern launcher and use the warrior's Q guard to physically reflect three arrows. Manage timing and energy; retries are free and the reward is one-time.");
                 q.room=0;q.target=ObjectPoint(0,"forge",new Point(7,8));
                 q.locked=save.profession!=0;
-                q.complete=SwordLessonComplete;
+                q.complete=SwordLessonComplete&&SwordLessonVeteranComplete;
                 q.steps.Add(new QuestStep(L("在诺尔铁匠铺启动试炼","Start at Noll's blacksmith shop"),
                     q.complete||SwordLessonActive));
                 q.steps.Add(new QuestStep(L("正面弹回三支实际飞来的箭矢",
-                    "Face and reflect three actual hostile arrows"),q.complete));
+                    "Face and reflect three actual hostile arrows"),SwordLessonComplete));
+                q.steps.Add(new QuestStep(L("再在42秒内弹回五支箭，完成精英考核",
+                    "Reflect five arrows in 42 seconds for the advanced course"),
+                    SwordLessonVeteranComplete));
                 q.next=q.locked?L("此训练属于战士职业","The drill is for the warrior class"):
-                    q.complete?L("诺尔已公布你的剑盾训练记录","Noll has published your sword-guard record"):
-                    SwordLessonActive?L("弹反 "+SwordLessonHits+"/3 · 剩余 "+
+                    SwordLessonActive?L("弹反 "+SwordLessonHits+"/"+SwordLessonTarget+" · 剩余 "+
                         SwordLessonTime.ToString("0")+" 秒",
-                        "Reflections "+SwordLessonHits+"/3 · "+
+                        "Reflections "+SwordLessonHits+"/"+SwordLessonTarget+" · "+
                         SwordLessonTime.ToString("0")+"s left"):
+                    q.complete?L("已完成双阶段考核；五箭精英训练仍可复练",
+                        "Both trials complete; five-arrow replay is available"):
+                    SwordLessonComplete?L("返回诺尔铁匠铺，开始五箭精英考核",
+                        "Return to Noll for the advanced five-arrow drill"):
                     L("回城与诺尔对话，开始三箭实战练习","Talk to Noll to start three real-arrow reflections");
-                q.reward=L("首次30硬币、1碎片、50经验；城镇正式训练记录",
-                    "First clear: 30 coins, 1 shard, 50 XP and permanent training record");
+                q.reward=L("三箭首次30硬币、1碎片、50经验；五箭精英首次技能点1、经验75；精英可无奖励复练",
+                    "Three-arrow first clear: 30 coins, 1 shard, 50 XP. Advanced five-arrow first clear: 1 talent, 75 XP; later replays have no rewards.");
                 return q;
             }
             if(id=="frost_signal")

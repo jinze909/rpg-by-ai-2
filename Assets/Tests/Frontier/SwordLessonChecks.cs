@@ -93,5 +93,48 @@ namespace Starfall.Tests
             Check(!saved.SwordLessonActive&&saved.save.version==2,
                 "Failed old-save reload never revives a spent practice timer");
         }
+        public static void NollAdvancedFiveArrowCourseGrantsOneTimeTalentAndReplaysSafely(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            var noll=Object(g,"forge");
+            g.save.x=noll.x;g.save.y=noll.y;
+            g.save.flags.Add("swordlesson_complete");
+            Advance(g,1.1f);g.save.energy=100;
+            int skill=g.save.skillPoints,coins=g.save.coins,xp=g.save.xp;
+            g.Talk(noll);
+            Check(NollChoice(g,"swordlesson_veteran_start")&&
+                g.SwordLessonActive&&g.SwordLessonVeteran&&
+                g.SwordLessonTarget==5&&g.SwordLessonTime==42,
+                "Noll launches five genuine live arrows in a separate timed course");
+            int reflected=0;
+            for(int frame=0;frame<840&&g.SwordLessonActive;frame++)
+            {
+                if(g.skillCooldown<=0&&g.guardTime<.7f&&g.save.energy>=40)
+                    g.Skill(new Point(1,0));
+                g.Tick(.05f,new Point());
+                reflected=Math.Max(reflected,g.SwordLessonHits);
+            }
+            Check(g.SwordLessonVeteranComplete&&!g.SwordLessonActive&&
+                reflected>=4&&g.save.skillPoints==skill+1&&
+                g.save.coins==coins&&g.save.xp==xp+75,
+                "Five actual Q-guard arrow contacts award exactly one talent and XP");
+            g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&saved.SwordLessonComplete&&
+                saved.SwordLessonVeteranComplete&&!saved.SwordLessonActive,
+                "Advanced completion persists as an ordinary legacy v2 flag");
+            g.Talk(noll);
+            Check(NollChoice(g,"swordlesson_veteran_start")&&g.SwordLessonActive,
+                "Real forge allows repeated no-reward practice after veteran completion");
+            for(int frame=0;frame<840&&g.SwordLessonActive;frame++)
+            {
+                if(g.skillCooldown<=0&&g.guardTime<.7f&&g.save.energy>=40)
+                    g.Skill(new Point(1,0));
+                g.Tick(.05f,new Point());
+            }
+            Check(!g.SwordLessonActive&&g.save.skillPoints==skill+1&&
+                g.save.coins==coins&&g.save.xp==xp+75,
+                "Replaying advanced practice never farms money, talents or experience");
+        }
+
     }
 }

@@ -1556,10 +1556,18 @@ namespace Starfall
                 if(save.profession==0&&save.weapon==0)
                 {
                     if(SwordLessonActive)
-                        list.Add(C("中止三箭练习","Abort three-arrow practice","swordlesson_abort"));
+                        list.Add(C(SwordLessonVeteran?
+                            "中止五箭精英训练":"中止三箭练习",
+                            SwordLessonVeteran?
+                            "Abort five-arrow drill":"Abort three-arrow practice",
+                            "swordlesson_abort"));
                     else if(!SwordLessonComplete)
                         list.Add(C("剑盾弹反试炼 · 三箭","Sword-guard trial · three arrows","swordlesson_start"));
-                    else list.Add(C("三箭试炼 · 已通过","Three-arrow trial · cleared","close"));
+                    else list.Add(C(SwordLessonVeteranComplete?
+                        "五箭精英复练 · 无重复奖励":"五箭精英考核 · 首通技能点+1",
+                        SwordLessonVeteranComplete?
+                        "Replay five-arrow drill · no rewards":"Advanced five-arrow drill · first-clear talent",
+                        "swordlesson_veteran_start"));
                 }
                 list.Add(C("再见", "Goodbye", "close"));
                 Dialog(o.name, o.en, "短剑快，猎弓远，法杖能让星火在敌人间爆开。强化装备提升生命与攻击。\n\n我还需要五个零件修好镇里的水泵。堡垒里有那么多机器，小镇却没有一口能用的井。"+(MineConvoyComplete?"\n\n最后一班矿工安全归来，还带回能再次使用的木材；每次装备强化已额外节省一份木料。":"")+
