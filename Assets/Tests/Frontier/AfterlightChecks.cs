@@ -995,8 +995,9 @@ namespace Starfall.Tests
             Check(priorTrial!=null,"Original relief patrol mission state remains accessible");
             priorTrial.SetValue(g,2);
             Action(g,outlet.kind,"afterlight_watch_start_2");
-            Check(!g.AfterlightWatchActive&&g.enemies.Count==0,
-                "A live older rescue-outpost defense cannot silently overlap the new civic siege");
+            Check(!g.AfterlightWatchActive&&g.enemies.Count==0&&
+                g.toast.Contains("现场任务"),
+                "A live older rescue-outpost defense is rejected with clear player-facing instructions");
             priorTrial.SetValue(g,-1);
             Action(g,outlet.kind,"afterlight_watch_start_2");
             Check(g.AfterlightWatchActive&&g.enemies.Count==2,
@@ -1029,8 +1030,9 @@ namespace Starfall.Tests
             int coins=g.save.coins;
             Action(g,mine.kind,"afterlight_craft");
             Check(g.save.inventory[0]==2&&g.save.inventory[1]==4&&
-                g.save.inventory[4]==0&&g.save.coins==coins,
-                "Workshop cannot mint parts or spend materials while a real enemy threatens the station");
+                g.save.inventory[4]==0&&g.save.coins==coins&&
+                g.toast.Contains("工房"),
+                "Workshop refuses combat crafting without charging ingredients and explains the blocked work");
             g.enemies.Clear();g.save.x=mine.x+5;
             var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
                 System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
