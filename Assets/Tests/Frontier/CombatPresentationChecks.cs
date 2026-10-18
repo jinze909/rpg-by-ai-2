@@ -111,6 +111,61 @@ namespace Starfall.Tests
             finally{data.maps[0]=previous;}
         }
 
+        public static void GroundHazardDodgeRewardRequiresRealExposedStartingFoot(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)row[x]='.';
+                    rows[y]=new string(row);
+                }
+                data.maps[0]=new MapData {
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0] };
+                Point blast=new Point(10.5f,12.5f);
+                foreach(bool wallClosed in new[]{true,false})
+                {
+                    char[] gate=rows[11].ToCharArray();
+                    gate[10]=wallClosed?'#':'.';
+                    rows[11]=new string(gate);
+                    var g=Fresh(data,0);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;
+                    g.hazards.Add(new Hazard{
+                        position=blast,timer=.20f,radius=3f,
+                        damage=20f,kind="tide"});
+                    Check(g.CanStand(g.Position)&&
+                        (g.Position-blast).Length<3f&&
+                        (wallClosed?g.SafeTravel:!g.SafeTravel),
+                        "The two real dodge trials start within a telegraphed radius; only an open line threatens the player");
+                    g.Dash(new Point(1,0));
+                    Check(g.dashTime>0&&g.perfectDodgeArmed,
+                        "Both cases use an actual paid player dash instead of manually setting a reward flag");
+                    Advance(g,.23f);
+                    Check((g.Position-blast).Length>3f&&
+                        g.hazards.Count==0&&
+                        g.effects.Exists(e=>e.kind=="danger"&&
+                            (e.position-blast).Length<.01f),
+                        "Both genuine dashes exit the same radius before the real hazard contact and keep the original impact cue");
+                    if(wallClosed)
+                        Check(g.riposteTime<=0f&&
+                            !g.effects.Exists(e=>e.text=="闪避反击"||
+                                e.text=="COUNTER"),
+                            "Dashing away from a hazard already blocked by stone cannot farm a perfect dodge counter");
+                    else
+                        Check(g.riposteTime>1.2f&&
+                            g.effects.Exists(e=>e.text=="闪避反击"||
+                                e.text=="COUNTER"),
+                            "An identical dash away from a physically exposed hazard still grants its genuine earned counter");
+                }
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void DelayedGroundBlastRespectsDynamicCoverAndSafety(Campaign data)
         {
             MapData previous=data.maps[0];

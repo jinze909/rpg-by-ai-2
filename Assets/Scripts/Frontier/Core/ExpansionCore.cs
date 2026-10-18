@@ -959,7 +959,13 @@ namespace Starfall
                 if ((Position-h.position).Length < h.radius &&
                     ClearAttackPath(h.position,Position))
                     Hurt(h.damage,"area",(Position-h.position).Normalized);
-                else TryRewardEscapedWarning(h.position,h.radius);
+                else if(perfectDodgeArmed &&
+                    ClearAttackPath(h.position,dashOrigin))
+                    // Escaping a circle that could never reach the dodge
+                    // starting foot through a wall is not a successful
+                    // dodge of an actual threat. A legal exposed dodge
+                    // retains the original earned-riposte reward.
+                    TryRewardEscapedWarning(h.position,h.radius);
             }
             tickingHazards.Clear();
         }

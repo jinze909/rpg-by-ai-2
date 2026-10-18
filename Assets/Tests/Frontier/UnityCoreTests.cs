@@ -16,6 +16,7 @@ namespace Starfall.Tests
         [Test] public void EarnedCounterCommitsOnlyOnActualWeaponRelease() { CoreChecks.EarnedRiposteCommitsOnTrueMeleeArrowOrStaffContact(Data()); }
         [Test] public void ObstructedHeroBowOrStaffDoesNotSpendCounter() { CoreChecks.HeroPhysicalMuzzleObstructionRetainsEarnedRiposte(Data()); }
         [Test] public void GroundBlastsRespectSealedAndReopenedCover() { CoreChecks.DelayedGroundBlastRespectsDynamicCoverAndSafety(Data()); }
+        [Test] public void ProtectedDashCannotFarmFalseGroundBlastCounter() { CoreChecks.GroundHazardDodgeRewardRequiresRealExposedStartingFoot(Data()); }
         [Test] public void OverlappingBlastsOnlyDamageThroughClearLineOfSight() { CoreChecks.SimultaneousGroundHazardsOnlyDamageThroughClearLane(Data()); }
         [Test] public void DynamicSealedPlayerRootCancelsAllRealWeaponContacts() { CoreChecks.DynamicTerrainCannotReleaseHeroAttacksFromBuriedRoot(Data()); }
         [Test] public void DynamicSealedPlayerRootCancelsAllProfessionSkills() { CoreChecks.DynamicTerrainCannotReleaseHeroSkillsFromBuriedRoot(Data()); }
