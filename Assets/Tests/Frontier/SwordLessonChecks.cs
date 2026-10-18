@@ -134,6 +134,17 @@ namespace Starfall.Tests
             // A post-clear retry can happen after healing, not necessarily
             // with the residual health lost to the preceding real volley.
             g.save.health=g.save.maxHealth;
+            // The real drill's missed arrows can recoil the player several
+            // steps away from Noll. Dialogue is not a remote training trigger.
+            // Walk the real player body back to the original forge.
+            Point forge=new Point(noll.x,noll.y);
+            for(int step=0;step<200&&(g.Position-forge).Length>1.2f;step++)
+            {
+                Point delta=forge-g.Position;
+                g.Tick(.05f,delta.Normalized);
+            }
+            Check((g.Position-forge).Length<=1.8f,
+                "Replay requires physically returning to Noll after arrow recoil");
             g.Talk(noll);
             bool offered=NollChoice(g,"swordlesson_veteran_start");
             Check(offered&&g.SwordLessonActive,
