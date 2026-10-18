@@ -154,6 +154,62 @@ namespace Starfall.Tests
             finally {data.maps[0]=original;}
         }
 
+        public static void BossReinforcementWindupTelegraphRetractsOnRealControlAndReleasesWithWave(Campaign data)
+        {
+            // Real enemy AI, actual player-contact stun and full Boss
+            // attack/release timeline. No shortcut that inserts fake units.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[17];
+                for(int y=0;y<17;y++)
+                {
+                    char[] cells=new string('#',17).ToCharArray();
+                    if(y>=2&&y<=14)for(int x=2;x<=14;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=8.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();g.invulnerable=100;
+                var boss=new Enemy(99136,3,7.5f,8.5f,999,true)
+                    {hp=190,cycle=2,timer=0,stagger=94};
+                g.enemies.Add(boss);
+                var otherEffect=new Effect("number",g.Position,4f,"unrelated")
+                    {bossSummonCueOwnerId=99139};
+                g.effects.Add(otherEffect);
+                g.Tick(.02f,new Point());
+                Check(boss.state==1&&g.enemies.Count==1&&
+                    g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id&&
+                        e.text.Contains("呼叫增援")),
+                    "Upcoming phase-three summon is explicitly readable during normal live Boss attack windup");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(hit!=null,"Real lethal/contact code available for interrupt test");
+                hit.Invoke(g,new object[]{boss,5f,false,(Point?)new Point(1,0),null});
+                Check(boss.hp>0&&boss.state==0&&boss.stun>0&&
+                    !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id)&&
+                    g.effects.Contains(otherEffect)&&g.enemies.Count==1,
+                    "Genuine combat Break cancels the unspent Boss call, retracts ONLY its own warning and spawns nobody");
+                boss.stun=0;boss.hitTime=0;boss.releaseTime=0;boss.timer=0;
+                g.Tick(.02f,new Point());
+                Check(boss.state==1&&g.effects.Exists(e=>
+                    e.bossSummonCueOwnerId==boss.id),
+                    "Boss can start a second honest call after recovering from interruption");
+                Advance(g,1.35f);
+                Check(boss.cycle==3&&g.enemies.Count==2&&
+                    !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id)&&
+                    g.enemies[1].stun>0,
+                    "The later genuinely completed Boss release retracts its warning and produces a physical recuperating minion");
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+                Check(loaded.save.version==2&&!loaded.effects.Exists(e=>
+                    e.bossSummonCueOwnerId!=0),
+                    "Transient pending summoning warnings never leak into original v2 saves");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void LateBossCyclesSpawnVisibleMeleeAndRangedSupportWithoutActorOverlap(Campaign data)
         {
             var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
