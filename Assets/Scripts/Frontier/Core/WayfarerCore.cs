@@ -24,6 +24,27 @@ namespace Starfall
             wayfarerWarned = wayfarerAidUsed = false;
         }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
+        private bool WayfarerFinalRewardPending
+        {
+            get { return Has("wayfarer_1") && Has("wayfarer_2") &&
+                Has("wayfarer_3") && !Has("wayfarer_complete"); }
+        }
+        private bool ClaimWayfarerFinalReward()
+        {
+            if (!WayfarerFinalRewardPending) return false;
+            // A completed rescue is durable independently of its promised
+            // tangible stew. Never mark the one-time final bonus paid before
+            // there is room in the real v2 inventory.
+            if (!HasInventoryRoom(6, 1)) return false;
+            Flag("wayfarer_complete");
+            CreditSkillPoints(1); CreditInventory(6, 1);
+            RecordMoment("三段归途重归安全：技能点1、炖汤1。",
+                "All three roadside journeys secured: 1 talent point and 1 stew.");
+            Notify("三位旅人平安出发！额外技能点1、炖汤1。",
+                "All three travelers safe! Bonus: 1 talent point and 1 stew.");
+            TrackQuest("wayfarers"); sound = "reward";
+            return true;
+        }
         private bool TalkWayfarer(WorldObject o)
         {
             if (!o.kind.StartsWith("wayfarer")) return false;
@@ -60,15 +81,21 @@ namespace Starfall
                 string responseEn = Has("wayfarer_defended_" + room) ? defendedEn[room] :
                     Has("wayfarer_supplied_" + room) ? suppliedEn[room] :
                     "Thanks to you, I can travel again.";
+                bool rewardPending = WayfarerFinalRewardPending;
                 Dialog(o.name, o.en, responseZh +
+                    (rewardPending ? " 三位旅人已经平安，请在背包留出一份炖汤的空间，再回来领取共同的奖励。" : "") +
                     (room==3&&MineConvoyComplete?
                         " 南侧矿棚最后一班矿工已经平安归来，矿工不再需要军用货运许可。":"")+
                     " 其他旅人也许还在等待救援。" + FloodArchiveWayfarerNote(false),
                     responseEn +
                     (room==3&&MineConvoyComplete?
                         " The last-shift miners returned safely; they no longer need a military cargo permit.":"")+
-                    " Others may still be stranded." + FloodArchiveWayfarerNote(true),
-                    C("旅途平安", "Safe travels", "close"));
+                    " Others may still be stranded." +
+                    (rewardPending ? " All three travelers are safe. Free one stew slot and return to claim their shared reward." : "") +
+                    FloodArchiveWayfarerNote(true),
+                    rewardPending ? C("领取三人共同的补给", "Claim the travelers' shared supplies", "wayfarer_reward") :
+                        C("旅途平安", "Safe travels", "close"),
+                    C("稍后再见", "See you later", "close"));
                 return true;
             }
             if (wayfarerEncounterRoom == room)
@@ -100,6 +127,16 @@ namespace Starfall
         }
         private bool ChooseWayfarer(string action)
         {
+            if (action == "wayfarer_reward")
+            {
+                if (!WayfarerFinalRewardPending || save.room < 1 ||
+                    save.room > 3 || Dying || practicing) return true;
+                Point source = ObjectPoint(save.room, "wayfarer" + save.room,
+                    new Point(-100, -100));
+                if ((Position - source).Length > 2.1f) return true;
+                ClaimWayfarerFinalReward();
+                return true;
+            }
             if (action == "wayfarer_aid")
             {
                 if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
@@ -257,16 +294,14 @@ namespace Starfall
                 save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 4);
             else
                 Reputation(room == 1 ? 2 : room == 2 ? 1 : 0, 1);
-            save.coins += 20; save.shards++; AddXp(25); revision++;
+            CreditCoins(20); CreditShards(1); AddXp(25); revision++;
             RecordMoment("帮助第 " + room + " 位失联旅人：获得20硬币、1碎片、25经验。",
                 "Helped traveler " + room + ": 20 coins, 1 shard, 25 XP.");
-            if (Has("wayfarer_1") && Has("wayfarer_2") && Has("wayfarer_3") && !Has("wayfarer_complete"))
+            if (WayfarerFinalRewardPending)
             {
-                Flag("wayfarer_complete"); save.skillPoints++; save.inventory[6]++;
-                RecordMoment("三段归途重归安全：技能点1、炖汤1。",
-                    "All three roadside journeys secured: 1 talent point and 1 stew.");
-                Notify("三位旅人平安出发！额外技能点1、炖汤1。",
-                    "All three travelers safe! Bonus: 1 talent point and 1 stew.");
+                if (!ClaimWayfarerFinalReward())
+                    Notify("三位旅人都已获救。炖汤背包已满；腾出一格后与任一旅人交谈领取最终奖励。",
+                        "All three travelers are safe. Your stew stack is full; free one slot and speak to any rescued traveler to claim the final reward.");
             }
             else Notify(defended ?
                     "守护成功！20硬币、1碎片、25经验；当前武器熟练度+4。" :

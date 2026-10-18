@@ -106,5 +106,57 @@ namespace Starfall.Tests
             Check(legacy.conversation.textEn.Contains("Thanks to you"),
                 "Older rescued saves remain readable without a migration");
         }
+        public static void WayfarerThreeRescuesReservePhysicalBonusUntilStewFits(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3;
+            g.save.flags.Add("scout_saved");
+            g.save.flags.Add("wayfarer_2");
+            g.save.flags.Add("wayfarer_3");
+            g.save.coins = 999999; g.save.shards = 99999;
+            g.save.skillPoints = 99; g.save.inventory[6] = 9999;
+            g.Enter(1); g.enemies.Clear();
+            var traveler = Object(g, "wayfarer1");
+            g.save.x = traveler.x; g.save.y = traveler.y;
+            g.save.inventory[2] = 5;
+            Action(g, traveler.kind, "wayfarer_supply_1");
+            Check(g.Has("wayfarer_1") && g.Has("wayfarer_supplied_1") &&
+                !g.Has("wayfarer_complete") && g.save.inventory[2] == 3 &&
+                g.save.inventory[6] == 9999 && g.save.skillPoints == 99 &&
+                g.save.coins == 999999 && g.save.shards == 99999,
+                "Real third rescue spends its supply, preserves achievement and bounded money, but never consumes the one-time stew reward at a full stack");
+            g.Talk(traveler);
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices,
+                    c => c.action == "wayfarer_reward"),
+                "Already rescued traveler actually offers collection of the deferred physical award");
+            g.Close();
+            Action(g, traveler.kind, "wayfarer_reward");
+            Check(!g.Has("wayfarer_complete") && g.save.inventory[6] == 9999,
+                "Attempting to claim while full leaves the original one-time reward pending");
+            g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save));
+            Check(resumed.Has("wayfarer_1") && resumed.Has("wayfarer_2") &&
+                resumed.Has("wayfarer_3") && !resumed.Has("wayfarer_complete"),
+                "Pending final reward and all three genuine rescues survive an original v2 save reload");
+            resumed.enemies.Clear();
+            resumed.save.x = traveler.x; resumed.save.y = traveler.y;
+            resumed.save.inventory[6] = 9998;
+            Action(resumed, traveler.kind, "wayfarer_reward");
+            Check(resumed.Has("wayfarer_complete") &&
+                resumed.save.inventory[6] == 9999 &&
+                resumed.save.skillPoints == 99,
+                "One free slot lets the original NPC award exactly one stew and bounded talent point");
+            resumed.Talk(traveler);
+            Check(resumed.conversation != null &&
+                !Array.Exists(resumed.conversation.choices,
+                    c => c.action == "wayfarer_reward"),
+                "Already collected final supplies cannot be farmed by repeated dialogue");
+            resumed.PrepareSave();
+            var after = new GameCore(data, CloneSave(resumed.save));
+            Check(after.Has("wayfarer_complete") && after.save.inventory[6] == 9999 &&
+                after.save.coins == 999999 && after.save.shards == 99999,
+                "Full rescue and exact bounded physical reward persist without v3 migration");
+        }
+
     }
 }
