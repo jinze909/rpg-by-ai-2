@@ -81,6 +81,7 @@ namespace Starfall.Tests
         [Test] public void PursuitWorkspaceAndOwnedHudRoutes(){CoreChecks.SharedPathWorkspaceKeepsOwnedRoutes(Data());}
         [Test] public void JournalRefreshTriggers(){CoreChecks.JournalRecordsRefreshOnlyOnStateChanges(Data());}
         [Test] public void EnemyRecoveryAndArmoredFlanks(){CoreChecks.TimedRecoveryAndArmoredFlanksCreateCombatOpenings(Data());}
+        [Test] public void AfterlightEmergencyPatchHonorsInventoryAndPerDefenseLimit() { CoreChecks.CivicReserveEmergencyPatchUsesRealSuppliesOncePerActiveDefense(Data()); }
         [Test] public void AfterlightReceiverDamageRequiresRealWindupAndPlayerCanBodyguard() { CoreChecks.CivicReserveSaboteursMustReachReceiverAndCommitRealWindupBeforeDestroyingStock(Data()); }
         [Test] public void AfterlightWorkshopRejectsLiveHostileCrafting() { CoreChecks.AfterlightWorkshopCannotCraftPartsDuringHostileCombat(Data()); }
         [Test] public void AfterlightCivilianReservesDefendAgainstRealTwoWaveAttacks() { CoreChecks.AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Data()); }
