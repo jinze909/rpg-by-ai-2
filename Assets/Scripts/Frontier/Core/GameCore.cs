@@ -1019,7 +1019,14 @@ namespace Starfall
                     // Cancel only this attack and its still-pending cues:
                     // no invisible arrows, false contact or Boss summons
                     // from behind a newly raised gate.
-                    if (!ClearAttackPath(e.Position,e.target))
+                    // Ordinary archers require an actual physical
+                    // firing lane. Melee attacks intentionally finish their
+                    // telegraphed swing even against cover (contact itself
+                    // checks LOS); bosses retain their authored area/support
+                    // cycles and must not be canceled by an obsolete target
+                    // point unrelated to their radial missile pattern.
+                    if (!e.boss && e.kind == 1 &&
+                        !ClearAttackPath(e.Position,e.target))
                     {
                         e.state=0;
                         e.timer=Math.Max(e.timer,.22f);
