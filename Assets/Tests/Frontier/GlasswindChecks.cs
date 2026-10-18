@@ -307,5 +307,64 @@ namespace Starfall.Tests
                 "Remote menu inspection cannot silently seal an active relay");
         }
 
+        public static void GlasswindRequiresConfirmedKillsForBothWaves(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"harbor_report","desert_report",
+                "gate_6","glasswind_started"})g.save.flags.Add(flag);
+            g.Enter(6);g.enemies.Clear();g.invulnerable=250;
+            WorldObject valve=Object(g,"glasswindrelay2");
+            g.save.x=valve.x;g.save.y=valve.y;
+            int coins=g.save.coins,shards=g.save.shards;
+            Action(g,valve.kind,"glasswind_start_2");
+            Check(g.GlasswindSite==2&&g.GlasswindWave==1&&
+                g.enemies.FindAll(g.IsGlasswindEnemy).Count==2,
+                "Actual relay starts with two individually identifiable guards");
+            g.enemies.Remove(g.enemies.Find(g.IsGlasswindEnemy));
+            g.Tick(.05f,new Point());
+            Check(g.GlasswindSite==0&&!g.Has("glasswind_2")&&
+                !g.enemies.Exists(g.IsGlasswindEnemy)&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Removing a guard without combat cannot earn the first wave or any loot");
+            Action(g,valve.kind,"glasswind_start_2");
+            Check(g.GlasswindSite==2,
+                "Invalid guard disappearance does not permanently lock the authored relay");
+            foreach(Enemy e in g.enemies.FindAll(g.IsGlasswindEnemy))
+            {e.stun=200;e.timer=200;}
+            Advance(g,4.25f);
+            Check(g.GlasswindWave==2&&
+                g.enemies.FindAll(g.IsGlasswindEnemy).Count==4,
+                "Authentic live capture summons the second wave");
+            foreach(Enemy e in g.enemies.FindAll(g.IsGlasswindEnemy))
+            {e.stun=200;e.timer=200;}
+            Advance(g,4.2f);
+            Check(g.GlasswindCharge>=8,
+                "The existing capture meter still fills in real field simulation");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Live damage callback must be available");
+            var killed=g.enemies.Find(e=>g.IsGlasswindEnemy(e)&&e.id==89810+2*10+2);
+            Check(killed!=null,"Expected first-wave guard has its original authored ID");
+            hit.Invoke(g,new object[]{killed,99999f,false,null,null});
+            // Delete every other guard without a lethal callback. A full
+            // meter plus an empty roster must NEVER count as victory.
+            g.enemies.RemoveAll(g.IsGlasswindEnemy);
+            g.Talk(valve);
+            Check(g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="glasswind_seal")<0,
+                "Physical relay refuses to seal even with full charge and empty unverified roster");
+            g.Close();
+            g.Tick(.05f,new Point());
+            Check(g.GlasswindSite==0&&!g.Has("glasswind_2")&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Wave-two missing combat deaths reset without publishing a civilian service");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&
+                !loaded.Has("glasswind_2")&&loaded.GlasswindSite==0,
+                "Unconfirmed temporary captures never pollute legacy version-two saves");
+        }
+
     }
 }

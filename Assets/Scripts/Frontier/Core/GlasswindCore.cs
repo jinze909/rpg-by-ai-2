@@ -13,6 +13,16 @@ namespace Starfall
         public float GlasswindCharge { get; private set; }
         private float glasswindSurgeTimer;
         private int glasswindSurgeCycle;
+        // Two real kills from EACH wave, never inferred from an empty list.
+        private int glasswindConfirmedKills;
+        private bool GlasswindWavesDefeated { get { return glasswindConfirmedKills==15; } }
+        private void OnGlasswindEnemyDefeated(Enemy enemy)
+        {
+            if(GlasswindSite==0||save.room!=6||!IsGlasswindEnemy(enemy))return;
+            int index=enemy.id-(89810+GlasswindSite*10+2);
+            if(index>=0&&index<GlasswindWave*2&&index<4)
+                glasswindConfirmedKills|=1<<index;
+        }
 
         public bool IsGlasswindEnemy(Enemy e)
         { return e != null && e.id >= 89810 && e.id < 89900; }
@@ -40,6 +50,7 @@ namespace Starfall
             hazards.RemoveAll(h => h.glasswindOwned);
             effects.RemoveAll(e => e.glasswindOwned);
             glasswindSurgeTimer=0;glasswindSurgeCycle=0;
+            glasswindConfirmedKills=0;
             GlasswindSite=GlasswindWave=0;
             GlasswindTime=GlasswindCharge=0;
         }
@@ -139,7 +150,7 @@ namespace Starfall
                     return true;
                 }
                 bool clear=GlasswindWave==2 && GlasswindCharge>=8 &&
-                    !enemies.Exists(IsGlasswindEnemy);
+                    GlasswindWavesDefeated && !enemies.Exists(IsGlasswindEnemy);
                 Dialog(o.name,o.en,
                     "剩余 "+GlasswindTime.ToString("0")+"秒；校准 "+
                         GlasswindCharge.ToString("0.0")+"/8；第 "+
@@ -217,7 +228,8 @@ namespace Starfall
             {
                 int site=GlasswindSite;
                 if(site==0 || save.room!=6 || Dying || GlasswindWave!=2 ||
-                    GlasswindCharge<8 || enemies.Exists(IsGlasswindEnemy) ||
+                    GlasswindCharge<8 || !GlasswindWavesDefeated ||
+                    enemies.Exists(IsGlasswindEnemy) ||
                     (Position-GlasswindPoint(site)).Length>2.2f ||
                     Has("glasswind_"+site))return true;
                 ResetGlasswind();Flag("glasswind_"+site);
@@ -301,6 +313,21 @@ namespace Starfall
             if(GlasswindSite==0)return;
             if(save.room!=6 || Dying || practicing)
             {ResetGlasswind();revision++;return;}
+            // An authored wave stays contested until each actual individual
+            // death is confirmed in GameCore.Hit. External roster removal
+            // cannot complete a capture or pay its one-time permanent reward.
+            for(int i=0;i<GlasswindWave*2;i++)
+            {
+                int expectedId=89810+GlasswindSite*10+2+i;
+                if((glasswindConfirmedKills&(1<<i))==0 &&
+                    !enemies.Exists(e=>e.id==expectedId && e.hp>0))
+                {
+                    ResetGlasswind();revision++;
+                    Notify("风阀守卫异常离场，未确认击败。守点已重置，可免费重试。",
+                        "An unconfirmed relay guard vanished. Capture reset; retry for free.");
+                    return;
+                }
+            }
             GlasswindTime-=dt;
             if(GlasswindTime<=0)
             {
