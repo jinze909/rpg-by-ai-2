@@ -550,7 +550,7 @@ namespace Starfall.Tests
                 g.effects.Exists(e=>e.blackoutOwned&&e.kind=="warn"),
                 "Second real delayed arc locks onto the live citizen position, with a visible warning and 1.35s response");
             // Lead the follower outside the warning while it is still armed.
-            int health=g.BlackoutFollowerHealth;
+            float health=g.BlackoutFollowerHealth;
             for(int i=0;i<78&&g.BlackoutActive;i++)
                 g.Tick(.02f,offset.Normalized*-1f);
             Check(g.BlackoutActive&&g.BlackoutFollowerHealth==health,
