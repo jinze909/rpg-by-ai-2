@@ -357,6 +357,15 @@ namespace Starfall
         private void ReleaseCompanionCommand(ActorAction action)
         {
             int bond = action.combo; sound = "skill";
+            // A shot/spell committed inside newly closed gates, flooded
+            // ground or solid props is not a usable companion action.
+            // Retire the invalid contact and refund the manual command so
+            // the player can issue a genuine order after reaching safe foot.
+            if(action.weapon!=0&&!CanStand(companionPosition))
+            {
+                companionCooldown=0f;
+                return;
+            }
             if (action.weapon == 0)
             {
                 // The player's commanded Mira heal is a PHYSICAL support
@@ -388,11 +397,6 @@ namespace Starfall
                 // nor should this command replace the player's current Q.
                 // Resolve the release at the caster's CURRENT physical foot.
                 Point caster=companionPosition;
-                if(!CanStand(caster))
-                {
-                    companionCooldown=0f;
-                    return;
-                }
                 BeginCompanionFrost(caster,action.damage,
                     action.impact??CaptureImpact(2,0,false));
                 // Match the genuine companion staff's current animation and
@@ -505,10 +509,12 @@ namespace Starfall
                         // into a dead/occluded target and spend a full cooldown;
                         // retain the authored recovery pose and retry promptly.
                         Enemy locked = companionAutoTarget;
-                        if (action.kind == "attack" && locked != null &&
-                            (!enemies.Contains(locked) || locked.hp <= 0 ||
-                             (locked.Position-companionPosition).Length >= 7f ||
-                             !ClearAttackPath(companionPosition,locked.Position)))
+                        if (action.kind == "attack" &&
+                            (!CanStand(companionPosition) ||
+                             locked != null &&
+                             (!enemies.Contains(locked) || locked.hp <= 0 ||
+                              (locked.Position-companionPosition).Length >= 7f ||
+                              !ClearAttackPath(companionPosition,locked.Position))))
                             companionAttack = Math.Min(companionAttack,.22f);
                         else
                         {
