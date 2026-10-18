@@ -219,7 +219,7 @@ namespace Starfall.Tests
                     Advance(g,.26f);
                     Check(heavy.state==0&&
                         (g.Position-origin).Length>2.4f&&
-                        (g.Position-heavy.target).Length>EnemyAreaRadius(heavy)&&
+                        (g.Position-heavy.target).Length>GameCore.EnemyAreaRadius(heavy)&&
                         g.perfectDodgeArmed==sealLane,
                         "The heavy completed its genuine attack and the dodge originated in its visible radius");
                     if(sealLane)
