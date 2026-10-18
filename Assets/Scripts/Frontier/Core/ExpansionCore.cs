@@ -395,6 +395,13 @@ namespace Starfall
                 }
                 BeginCompanionFrost(caster,action.damage,
                     action.impact??CaptureImpact(2,0,false));
+                // Match the genuine companion staff's current animation and
+                // origin. Without this only the distant ground ring appeared,
+                // so the player couldn't tell WHO had actually cast it.
+                effects.Add(new Effect("release",
+                    WeaponOrigin(caster,2,action.direction),.18f)
+                    {direction=action.direction,variant=2,
+                        height=WeaponHeight(2,action.direction)});
                 foreach(Enemy e in enemies)
                     if((e.Position-caster).Length<5f &&
                         ClearAttackPath(caster,e.Position))
