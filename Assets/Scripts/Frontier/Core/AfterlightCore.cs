@@ -27,6 +27,11 @@ namespace Starfall
             get { int n=0;for(int i=1;i<=3;i++)if(Has("afterlight_done_"+i))n++;return n; }
         }
         public bool AfterlightComplete { get { return Has("afterlight_complete"); } }
+        // Optional earned improvements retain the established SaveData v2 flag schema.
+        public bool AfterlightReserve(int region)
+        { return region>=1&&region<=3&&Has("afterlight_reserve_"+region); }
+        public int AfterlightReserves
+        { get { int n=0;for(int r=1;r<=3;r++)if(AfterlightReserve(r))n++;return n; } }
         public int AfterlightStewards
         {
             get { int n=0;for(int i=1;i<=3;i++)if(Has("afterlight_steward_"+i))n++;return n; }
@@ -145,9 +150,13 @@ namespace Starfall
                 {
                     Dialog(o.name,o.en,
                         "重建议事厅的地图不再只有矿脉与军用货路。莫芽、阿菱、维恩与镇民共同维护的三座设施已经开始运行，公会每周公开下一轮修复名单。\n\n"+ 
-                        "你的结局没有让所有损失凭空消失。真正改变世界的是有人继续照看这些路。",
+                        "你的结局没有让所有损失凭空消失。真正改变世界的是有人继续照看这些路。\n\n"+
+                        (AfterlightReserves==3?"三地应急储备均已建立，今后的疗养、巡路灯、渡口和工房有了真正的备用物资。":
+                        "应急储备已建立 "+AfterlightReserves+"/3。亲自前往三座修复后的地区接收台，用真实材料建立永久性的公共应急储备。"),
                         "The new map records living residents instead of mining lines alone. Three repaired public sites now run under Moya, Arin, Venn and their neighbors. The guild publishes each weekly repair roster.\n\n"+
-                        "Your ending did not erase every hardship. Continuing to care for the roads is what changed this world.",
+                        "Your ending did not erase every hardship. Continuing to care for the roads is what changed this world.\n\n"+
+                        (AfterlightReserves==3?"All three emergency reserves are stocked. Rebuilt public services have dependable supplies.":
+                        "Emergency reserves stocked: "+AfterlightReserves+"/3. Visit each rebuilt regional receiver in person and invest real supplies in permanent upgrades."),
                         C("回顾旅程","Review the journey","epilogue"),C("继续旅行","Travel on","close"));return true;
                 }
                 if(!Has("afterlight_started"))
@@ -213,9 +222,29 @@ namespace Starfall
                 }
                 if(outlet && room==3 && AfterlightMode(3)==1)
                 {
-                    descriptionZh+="\n\n真实成本：木材 ×1，星晶 ×"+(StormPolicy(3)==2?1:2)+"；加工零件 ×2。";
-                    descriptionEn+="\n\nReal cost: 1 timber, "+(StormPolicy(3)==2?1:2)+" starcrystal, gaining 2 machine parts.";
-                    options.Add(C("制作可修桥的零件 ×2","Craft 2 repair parts","afterlight_craft"));
+                    int parts=2+(HearingComplete&&HearingVoice(3)==1?1:0)+(AfterlightReserve(3)?1:0);
+                    descriptionZh+="\n\n真实成本：木材 ×1，星晶 ×"+(StormPolicy(3)==2?1:2)+"；加工零件 ×"+parts+"。";
+                    descriptionEn+="\n\nReal cost: 1 timber, "+(StormPolicy(3)==2?1:2)+" starcrystal, gaining "+parts+" machine parts.";
+                    options.Add(C("制作可修桥的零件 ×"+parts,"Craft "+parts+" repair parts","afterlight_craft"));
+                }
+                if(outlet && AfterlightComplete && Has("afterlight_steward_"+room))
+                {
+                    if(!AfterlightReserve(room))
+                    {
+                        string costZh=room==1?"木材 ×2、月光草 ×1":
+                            room==2?"木材 ×1、月光草 ×2":"星晶 ×2、零件 ×1";
+                        string costEn=room==1?"2 timber, 1 Moonherb":
+                            room==2?"1 timber, 2 Moonherb":"2 starcrystal, 1 machine part";
+                        descriptionZh+="\n\n公约签署后，可再为这座设施建立一次永久应急储备。真实成本："+costZh+"。";
+                        descriptionEn+="\n\nAfter the charter, stock a permanent emergency reserve at this receiver. Real cost: "+costEn+".";
+                        options.Add(C("投入物资 · 建立本地应急储备",
+                            "Invest supplies · Stock local emergency reserve","afterlight_reserve_"+room));
+                    }
+                    else
+                    {
+                        descriptionZh+="\n\n本地应急储备已经建立：公共服务效能提升。";
+                        descriptionEn+="\n\nThis service has a stocked emergency reserve and a lasting practical improvement.";
+                    }
                 }
                 if(outlet && Has("afterlight_steward_"+room))
                     options.Add(C("沿公共星灯返回余烬镇","Return to Emberfall via public starroad",
@@ -411,14 +440,39 @@ namespace Starfall
                 if(save.room!=3 || !Has("afterlight_done_3") || AfterlightMode(3)!=1 ||
                     Dying || practicing ||
                     (Position-AfterlightPoint(3,"outlet")).Length>2.2f)return true;
-                int output = 2 + (HearingComplete && HearingVoice(3) == 1 ? 1 : 0);
+                int output = 2 + (HearingComplete && HearingVoice(3) == 1 ? 1 : 0)
+                    + (AfterlightReserve(3) ? 1 : 0);
                 // Repeatable public workshop recipes must reject a full parts
                 // stack BEFORE charging genuine timber and starcrystal.
                 if(HasInventoryRoom(4, output) &&
                     Spend(1,StormPolicy(3)==2?1:2,0,0,0))
                 {CreditInventory(4, output);revision++;sound="reward";
-                    Notify("工房回收成功：木材 -1、星晶 -"+(StormPolicy(3)==2?1:2)+"，零件 +"+(HearingComplete && HearingVoice(3)==1?"3":"2")+"。",
-                        "Public recycling: -1 timber, -"+(StormPolicy(3)==2?1:2)+" starcrystal, +"+(HearingComplete && HearingVoice(3)==1?"3":"2")+" actual machine parts.");}
+                    Notify("工房回收成功：木材 -1、星晶 -"+(StormPolicy(3)==2?1:2)+"，零件 +"+output+"。",
+                        "Public recycling: -1 timber, -"+(StormPolicy(3)==2?1:2)+" starcrystal, +"+output+" actual machine parts.");}
+                return true;
+            }
+            if(action.StartsWith("afterlight_reserve_"))
+            {
+                int region;
+                if(!int.TryParse(action.Substring("afterlight_reserve_".Length),out region) ||
+                    region<1||region>3 || save.room!=region || !AfterlightComplete ||
+                    !Has("afterlight_done_"+region) || !Has("afterlight_steward_"+region) ||
+                    AfterlightReserve(region) || Dying || practicing || racing ||
+                    FieldWorkPreventsRest || !SafeTravel || afterlightChargeRegion!=0 ||
+                    (Position-AfterlightPoint(region,"outlet")).Length>2.2f)
+                    return true;
+                int wood=region==1?2:region==2?1:0;
+                int crystal=region==3?2:0;
+                int herb=region==1?1:region==2?2:0;
+                int gear=region==3?1:0;
+                // Spend validates all ingredients before removing any. Forged,
+                // distant, repeat and unaffordable actions must be harmless.
+                if(!Spend(wood,crystal,herb,0,gear))return true;
+                Flag("afterlight_reserve_"+region);revision++;sound="reward";
+                RecordMoment(AfterlightLocation(region,false)+"建立了居民应急储备，公共设施获得永久服务升级。",
+                    "A permanent emergency reserve strengthened local service at "+AfterlightLocation(region,true)+".");
+                Notify("公共应急储备已投入！本地服务永久升级（"+AfterlightReserves+"/3）。",
+                    "Civic emergency reserve stocked. Local service upgraded permanently ("+AfterlightReserves+"/3).");
                 return true;
             }
             string[] pieces=action.Split('_');
