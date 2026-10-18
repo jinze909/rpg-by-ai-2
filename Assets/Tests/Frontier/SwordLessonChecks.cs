@@ -128,9 +128,12 @@ namespace Starfall.Tests
             Check(saved.save.version==2&&saved.SwordLessonComplete&&
                 saved.SwordLessonVeteranComplete&&!saved.SwordLessonActive,
                 "Advanced completion persists as an ordinary legacy v2 flag");
+            // A surviving physical arrow or Q cooldown is not a new safe
+            // training window. Let the original battlefield settle first.
+            Advance(g,4f);g.save.energy=100;
             g.Talk(noll);
             Check(NollChoice(g,"swordlesson_veteran_start")&&g.SwordLessonActive,
-                "Real forge allows repeated no-reward practice after veteran completion");
+                "Real forge permits a fresh no-reward course after surviving arrows and guard cooldown settle");
             for(int frame=0;frame<840&&g.SwordLessonActive;frame++)
             {
                 if(g.skillCooldown<=0&&g.guardTime<.7f&&g.save.energy>=40)
