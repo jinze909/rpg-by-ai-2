@@ -147,6 +147,9 @@ namespace Starfall
         public float life, maxLife, radius, height = -1;
         public Point direction;
         public int variant;
+        // Short-lived boss-reinforcement warnings follow their actual attack
+        // owner; stun, Break, or death retracts only this pending cue.
+        public int bossSummonCueOwnerId;
         // Only encounter-owned warnings retire when an optional rescue ends.
         // Ordinary combat effects are preserved.
         public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned;
