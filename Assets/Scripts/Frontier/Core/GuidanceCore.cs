@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "mine_convoy", "frost_signal", "sword_lesson" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -176,6 +176,49 @@ namespace Starfall
                     L("前往西北矿车岗启动撤离","Begin evacuation at western dispatch");
                 q.reward=L("首次60硬币、2碎片、80经验、矿棚安全疗养、强化木料成本永久-1",
                     "First clear: 60 coins, 2 shards, 80 XP, safe depot healing and -1 timber per future upgrade");
+                return q;
+            }
+
+            if(id=="ferry_relief")
+            {
+                q.title=L("沉没遗迹 · 低潮医疗护送",
+                    "Drowned Ruins · Emergency Tide Medicine");
+                q.category=L("民用护航 · 真正渡河与战斗",
+                    "CIVILIAN FERRY · REAL CROSSING AND COMBAT");
+                q.room=2;
+                q.locked=!FloodArchiveComplete;
+                q.complete=FloodReliefComplete;
+                q.description=L(
+                    "先找回沉桥两份民用证据并恢复公共渡船。低潮时在西岸领取65秒急救包，亲自支付14耐力乘渡船到东岸，击败两名真正的拦截者后交付。实际命中会损坏药品，敌人异常消失或超时都不算完成。",
+                    "Restore the public ferry first. At low tide, carry urgent medicine from the west dock within 65 seconds, pay 14 energy to cross the actual ferry and defeat two real raiders before delivery on the east shore. Real hits damage medicine; missing enemies and timeouts never count as wins.");
+                q.steps.Add(new QuestStep(L("恢复公共渡船并调查民用档案",
+                    "Restore the public ferry and civic archives"),FloodArchiveComplete));
+                q.steps.Add(new QuestStep(L("西岸装载急救包并亲自渡河",
+                    "Collect the west-dock medicine and physically ferry across"),
+                    FloodReliefCrossed||FloodReliefComplete));
+                q.steps.Add(new QuestStep(L("确实击退两名拦截者并在东岸交付",
+                    "Defeat both real raiders and hand medicine to the east-bank families"),
+                    FloodReliefComplete));
+                q.target=FloodReliefCrossed||q.complete?
+                    new Point(79.5f,35.5f):new Point(59.5f,37.5f);
+                q.next=q.complete?L("东岸急救补给已经完成交接",
+                    "The eastern medicine has been genuinely delivered"):
+                    q.locked?L("先完成沉桥民用档案，恢复低潮渡船",
+                        "Restore the public tide ferry through the archive"):
+                    FloodReliefCrossed?L("击败真实拦截者，保护封条并在东岸码头交付 · 剩余"+
+                        (int)Math.Ceiling(FloodReliefTime)+"秒",
+                        "Defeat the raiders and deliver at east dock · "+
+                        (int)Math.Ceiling(FloodReliefTime)+"s left"):
+                    FloodReliefActive?L("携带药品搭乘西岸低潮渡船 · 剩余"+
+                        (int)Math.Ceiling(FloodReliefTime)+"秒",
+                        "Take the west-side low-tide ferry with medicine · "+
+                        (int)Math.Ceiling(FloodReliefTime)+"s left"):
+                    !LowTide?L("前往西岸旧水尺，等待退潮后领取药品",
+                        "Reach the western gauge and wait for low tide"):
+                    L("在西岸水尺领取急救包，开始真实护送",
+                        "Collect medicine at the west gauge to begin escort");
+                q.reward=L("首次真正送达：硬币45、碎片1、经验65；不可通过反复击杀拦截者领取普通战利品",
+                    "First real delivery: 45 coins, 1 shard, 65 XP; mission raiders have no farmable ordinary loot");
                 return q;
             }
 

@@ -196,12 +196,13 @@ namespace Starfall.Tests
             g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
             WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
             g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;g.save.energy=100;
-            int cash=g.save.coins,shards=g.save.shards;
+            int cash=g.save.coins,shards=g.save.shards,kills=g.save.kills[2];
             g.Talk(west);
             Check(FerryChoice(g,"floodarchive_relief_start")&&
                 g.FloodReliefActive&&g.FloodReliefTime==65&&
-                g.FloodReliefIntegrity==100,
-                "The original western archive dock launches a true low-tide civilian medicine mission");
+                g.FloodReliefIntegrity==100&&g.save.trackedQuest=="ferry_relief"&&
+                g.GetQuest("ferry_relief").steps.Count==3,
+                "The original western archive dock launches a tracked three-stage tide medicine mission");
             g.Talk(east);g.Close();
             var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
                 System.Reflection.BindingFlags.NonPublic|
@@ -230,13 +231,16 @@ namespace Starfall.Tests
                 "Defeating one genuine attacker is not yet completion");
             hit.Invoke(g,new object[]{b,99999f,false,null,null});
             g.hitStop=0;g.Tick(.05f,new Point());
-            Check(g.FloodReliefActive&&g.FloodReliefRaiders==0,
-                "Two genuine lethal hits preserve the parcel until player handover");
+            Check(g.FloodReliefActive&&g.FloodReliefRaiders==0&&
+                g.save.coins==cash&&g.save.shards==shards&&
+                g.save.kills[2]==kills,
+                "Two genuine quest kills preserve the parcel without farmable normal loot or bounty kills");
             g.Talk(east);
             Check(FerryChoice(g,"floodarchive_relief_deliver")&&
                 g.FloodReliefComplete&&!g.FloodReliefActive&&
-                g.save.coins==cash+45&&g.save.shards==shards+1,
-                "The actual eastern dock pays the one-time cargo reward only after both verified defeats");
+                g.save.coins==cash+45&&g.save.shards==shards+1&&
+                g.GetQuest("ferry_relief").complete,
+                "The actual eastern dock pays only the first earned civic reward and completes the tracked objective");
             choose.Invoke(g,new object[]{"floodarchive_relief_deliver"});
             Check(g.save.coins==cash+45,"Forged or repeated action cannot farm relief rewards");
             g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
@@ -270,6 +274,30 @@ namespace Starfall.Tests
             Check(loaded.save.version==2&&loaded.FloodArchiveComplete&&
                 !loaded.FloodReliefActive&&!loaded.FloodReliefComplete,
                 "Failed medicine runs are transient and do not alter old completed archive saves");
+        }
+
+        public static void PublicFerryActiveCrossingResetsOnOriginalSlotReload(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1);
+            g.save.x=west.x;g.save.y=west.y;g.save.totalTime=36;g.save.energy=100;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&
+                g.FloodReliefActive&&g.save.trackedQuest=="ferry_relief",
+                "Unfinished medical crossing has a real tracked objective before saving");
+            g.PrepareSave();
+            var saved=CloneSave(g.save);
+            g.Load(saved);g.Start();
+            Check(!g.FloodReliefActive&&!g.FloodReliefCrossed&&
+                g.FloodReliefRaiders==0&&g.save.version==2&&
+                g.save.trackedQuest=="ferry_relief"&&
+                !g.GetQuest("ferry_relief").complete,
+                "Reloading an existing slot retires temporary cargo, enemies and countdown but keeps the selected mission journal");
+            g.enemies.Clear();g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&g.FloodReliefActive,
+                "After reload the archived public dock offers a legitimate fresh medicine attempt");
         }
 
     }
