@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void BossSummonsCannotMaterializeOnActorsOrAcrossSealedWalls() { CoreChecks.BossReinforcementsOccupyFreeReachableLocalFootingOrSkipSafely(Data()); }
         [Test] public void EarnedCounterCommitsOnlyOnActualWeaponRelease() { CoreChecks.EarnedRiposteCommitsOnTrueMeleeArrowOrStaffContact(Data()); }
         [Test] public void InterruptedCounterCannotChargeForUnreleasedAttacks() { CoreChecks.InterruptedCounterWindupsCannotWasteEarnedReward(Data()); }
         [Test] public void HitStopConsumesExactImpactTime() { CoreChecks.ShortHitStopReleasesUnusedFrameTime(Data()); }
