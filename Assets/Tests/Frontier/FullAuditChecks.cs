@@ -107,6 +107,49 @@ namespace Starfall.Tests
             finally { data.maps[0]=original; }
         }
 
+        public static void LateBossCyclesSpawnVisibleMeleeAndRangedSupportWithoutActorOverlap(Campaign data)
+        {
+            var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(summon!=null,"Production Boss support planner available");
+            foreach(int cycle in new[]{3,6,9})
+            {
+                var g=Quiet(data);g.enemies.Clear();g.invulnerable=999;
+                // Choose genuine open stage flooring with a legal nearby
+                // spawn, avoiding a constructed/fake arena collision.
+                Point open=new Point();bool found=false;
+                for(int y=4;y<g.Map.rows.Length-4&&!found;y++)
+                for(int x=4;x<g.Map.rows[y].Length-4&&!found;x++)
+                {
+                    Point p=new Point(x+.5f,y+.5f);
+                    Point local=p+new Point(-2,1);
+                    if(g.CanStand(p)&&g.CanStand(local)&&
+                        (g.Position-local).Length>1.4f &&
+                        (g.Position-p).Length>1.4f)
+                    {open=p;found=true;}
+                }
+                Check(found,"Real campaign region includes room for a fair physical Boss support wave");
+                var boss=new Enemy(99400+cycle,3,open.x,open.y,999,true)
+                    {hp=100,cycle=cycle};
+                g.enemies.Add(boss);
+                Check((bool)summon.Invoke(g,new object[]{boss})&&g.enemies.Count==2,
+                    "Each genuine later cycle can create one local support actor in a real opened arena");
+                Enemy recruit=g.enemies[1];
+                int expectedKind=cycle==6?1:0;
+                Check(recruit.kind==expectedKind&&recruit.stun>=.34f&&
+                    g.CanStand(recruit.Position),
+                    "First/third phase reinforcement cycles use melee troops; later middle cycle uses real bow AI with an entry windup");
+                Point face=(g.Position-recruit.Position).Normalized;
+                Check(recruit.facing.x*face.x+recruit.facing.y*face.y>.99f,
+                    "Every new support actor faces the real player's latest position on the first physical animation frame");
+                // Normal AI is still authoritative once the summoning pause
+                // expires. Do not short-circuit its real windup / timing.
+                float before=recruit.stun;g.Tick(.02f,new Point());
+                Check(recruit.stun<before&&recruit.stun>0,
+                    "Actual AI consumes the locally spawned soldier's safety/entrance recovery over real frame time");
+            }
+        }
+
         public static void TideTransitionPrecedesAllAttackContacts(Campaign data)
         {
             var g=Unlocked(data);g.save.totalTime=21.995f;g.Enter(5);g.enemies.Clear();g.invulnerable=100;
