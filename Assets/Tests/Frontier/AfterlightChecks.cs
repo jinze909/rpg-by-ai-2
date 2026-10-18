@@ -1087,10 +1087,10 @@ namespace Starfall.Tests
                 raider.targetingAfterlightStock&&g.AfterlightWatchStock==100f&&
                 g.effects.Exists(e=>e.kind=="danger"&&e.afterlightWatchOwned),
                 "An unguarded raider commits a visible real attack windup against the receiver, not instant damage");
-            g.Tick(.20f,new Point());
+            Advance(g,.20f);
             Check(g.AfterlightWatchStock==100f,
                 "Still-winding enemy cannot silently drain civic supplies early");
-            g.Tick(.55f,new Point());
+            Advance(g,.55f);
             Check(g.AfterlightWatchStock==86f&&g.AfterlightWatchActive,
                 "Only the actual completed attack deals the original melee saboteur's 14 integrity damage");
 
@@ -1102,7 +1102,7 @@ namespace Starfall.Tests
             Check(raider.state==1&&!raider.targetingAfterlightStock&&
                 g.AfterlightWatchStock==86f,
                 "Bodyguarding beside the receiver redirects the raider's next physical attack toward the hero");
-            g.Tick(.70f,new Point());
+            Advance(g,.70f);
             Check(g.AfterlightWatchStock==86f,
                 "Hero-intercepted real contact cannot additionally damage protected stock");
 
@@ -1118,7 +1118,7 @@ namespace Starfall.Tests
             g.Tick(.03f,new Point());
             Check(raider.targetingAfterlightStock&&g.AfterlightWatchStock==10f,
                 "A second unguarded attack is still a timed telegraph rather than damage at intent selection");
-            g.Tick(.70f,new Point());
+            Advance(g,.70f);
             Check(!g.AfterlightWatchActive&&g.AfterlightWatchStock==0f&&
                 !g.AfterlightWatchDone(1)&&g.enemies.Count==0&&
                 g.AfterlightReserve(1)&&g.Has("afterlight_done_1")&&
