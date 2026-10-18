@@ -55,6 +55,7 @@ namespace Starfall.Tests
         [Test] public void AutoArcherTracksMovingEnemyAtActualRelease() { CoreChecks.CompanionAutoReleaseTracksMovingVisibleEnemy(Data()); }
         [Test] public void AllyPhysicalMuzzleObstructionAllowsSafeRetry() { CoreChecks.CompanionAutoMuzzleObstructionRefundsCadenceAndRetries(Data()); }
         [Test] public void ManualArcherVolleyMustClearPhysicalMuzzle() { CoreChecks.ManualCompanionVolleyCannotSpendCooldownFromBlockedMuzzle(Data()); }
+        [Test] public void BothRangerSkillsRequireRealPhysicalMuzzle() { CoreChecks.RangerSkillsCannotLaunchProjectilesFromBuriedPhysicalMuzzle(Data()); }
         [Test] public void AutoHealingRequiresRealLineOfSight() { CoreChecks.CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Data()); }
         [Test] public void AllyFeetNeverOverlapHeroOnNarrowBridges() { CoreChecks.CompanionNarrowBridgesKeepSeparateSafeFeet(Data()); }
         [Test] public void IdleAllyWakesWhenTargetAppears() { CoreChecks.CompanionIdleReadinessReactsToRealTargets(Data()); }

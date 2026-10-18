@@ -659,17 +659,31 @@ namespace Starfall
                 // actually holding. A staff fires arcane arrows rather than
                 // abruptly switching the protagonist into an old Ranger.
                 int visualWeapon = action.equippedWeapon;
-                effects.Add(new Effect("release",
-                    WeaponOrigin(Position, visualWeapon, action.direction), .18f)
-                    { direction = action.direction, variant = visualWeapon,
-                      height = WeaponHeight(visualWeapon, action.direction) });
+                int released = 0;
+                Projectile blocked = null;
                 for (int i = -2; i <= 2; i++)
                 {
                     Projectile shot = FriendlyShot(Position, visualWeapon,
                         action.direction, 13, action.damage * 1.25f, false,
                         action.target, action.impact);
+                    // The release at the hand must be physically valid.
+                    // A neighboring wall can enclose the muzzle while the
+                    // actor's feet and the target centerline remain clear.
+                    if (shot.blockedAtSpawn) { blocked = shot; continue; }
                     double a = Math.Atan2(shot.velocity.y, shot.velocity.x) + i * .15;
-                    shot.velocity = new Point((float)Math.Cos(a), (float)Math.Sin(a)) * 13; shot.technique = true; projectiles.Add(shot);
+                    shot.velocity = new Point((float)Math.Cos(a), (float)Math.Sin(a)) * 13;
+                    shot.technique = true; projectiles.Add(shot); released++;
+                }
+                if (released > 0)
+                    effects.Add(new Effect("release",
+                        WeaponOrigin(Position, visualWeapon, action.direction), .18f)
+                        { direction = action.direction, variant = visualWeapon,
+                          height = WeaponHeight(visualWeapon, action.direction) });
+                else if (blocked != null)
+                {
+                    effects.Add(new Effect("projectileImpact", blocked.position, .22f)
+                        { direction = action.direction, height = blocked.height });
+                    sound = "guard";
                 }
                 return;
             }

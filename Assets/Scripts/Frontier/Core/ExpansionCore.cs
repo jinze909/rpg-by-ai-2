@@ -643,16 +643,25 @@ namespace Starfall
                 // Charged Ranger skill with a sword/staff must still use
                 // the CURRENT equipped actor and muzzle, not bow cosplay.
                 int visualWeapon = action.equippedWeapon;
-                effects.Add(new Effect("release",
-                    WeaponOrigin(Position, visualWeapon, action.direction), .18f)
-                    { direction = action.direction, variant = visualWeapon,
-                      height = WeaponHeight(visualWeapon, action.direction) });
                 Projectile shot = FriendlyShot(Position, visualWeapon,
                     action.direction, 17, action.damage * 3.4f, false,
                     action.target, action.impact);
-                shot.life = 2.5f;
-                shot.piercing = shot.technique = true;
-                projectiles.Add(shot);
+                if (shot.blockedAtSpawn)
+                {
+                    effects.Add(new Effect("projectileImpact", shot.position, .22f)
+                        { direction = action.direction, height = shot.height });
+                    sound = "guard";
+                }
+                else
+                {
+                    shot.life = 2.5f;
+                    shot.piercing = shot.technique = true;
+                    projectiles.Add(shot);
+                    effects.Add(new Effect("release",
+                        WeaponOrigin(Position, visualWeapon, action.direction), .18f)
+                        { direction = action.direction, variant = visualWeapon,
+                          height = WeaponHeight(visualWeapon, action.direction) });
+                }
             }
             else { BeginFrost(Position,action.damage,action.impact??CaptureImpact(2)); }
         }

@@ -1916,6 +1916,74 @@ namespace Starfall.Tests
             finally { data.maps[0] = previous; }
         }
 
+        public static void RangerSkillsCannotLaunchProjectilesFromBuriedPhysicalMuzzle(Campaign data)
+        {
+            // The real two Ranger Q release paths share the hand geometry
+            // regardless of 5-shot or charged piercing mechanics.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)tiles[x]='.';
+                    if(y==10)tiles[9]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData {
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                for(int technique=0;technique<=1;technique++)
+                {
+                    var g=Fresh(data,1);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;g.save.energy=100;
+                    g.save.technique=technique;g.save.weapon=1;
+                    var foe=new Enemy(98901+technique,0,10.5f,7.5f,10000f)
+                        {stun=100,timer=1000,staggerRecovery=100};
+                    g.enemies.Add(foe);
+                    g.aim=new Point(0,-1);g.aimTarget=foe.Position;
+                    Check(g.CanStand(g.Position)&&g.CanStand(foe.Position)&&
+                        g.Blocked(9.5f,10.5f),
+                        "An actual wall occupies only the player's left-side bow hand, not the player or target feet");
+                    g.Skill(new Point(0,-1));
+                    ActorAction first=g.playerAction;
+                    Check(first!=null&&first.kind=="skill"&&!first.released,
+                        "Both normal and charged Ranger Q start a genuine delayed skill");
+                    Advance(g,.30f);
+                    Check(first.released&&g.projectiles.Count==0&&
+                        !g.effects.Exists(f=>f.kind=="release")&&
+                        g.effects.Exists(f=>f.kind=="projectileImpact")&&
+                        g.skillCooldown>0&&g.save.energy<100,
+                        "Blocked Ranger Q contact gives a physical wall spark but no false five-arrow/charged volley, while preserving skill cost");
+                    // Open only the obstructing tile, then use the same
+                    // production skill path after ordinary recovery.
+                    char[] opened=rows[10].ToCharArray();
+                    opened[9]='.';rows[10]=new string(opened);
+                    Advance(g,.45f);
+                    g.skillCooldown=0;g.save.energy=100;
+                    g.Skill(new Point(0,-1));
+                    ActorAction retry=g.playerAction;
+                    Check(retry!=null&&retry!=first&&!retry.released,
+                        "After the wall opens a new Ranger Q is accepted");
+                    Advance(g,.30f);
+                    int count=technique==0?5:1;
+                    Check(retry.released&&g.projectiles.Count==count&&
+                        g.projectiles.TrueForAll(p=>p.friendly&&p.technique&&
+                            !p.blockedAtSpawn)&&
+                        g.effects.Exists(f=>f.kind=="release"),
+                        "Unobstructed normal Ranger Q fires five real arrows, charged Q one real piercing arrow, with genuine muzzle VFX");
+                    Advance(g,.65f);
+                    Check(foe.hp<foe.maxHp,
+                        "A reopened physical firing lane delivers real enemy damage, not just non-colliding sprites");
+                    // Repair modified data before the next technique case.
+                    opened[9]='#';rows[10]=new string(opened);
+                }
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void ManualCompanionVolleyCannotSpendCooldownFromBlockedMuzzle(Campaign data)
         {
             // Reuse the real ranger bow's full-foot/muzzle geometry, but
