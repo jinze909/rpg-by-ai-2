@@ -425,7 +425,14 @@ namespace Starfall.Tests
             Check(g.BlackoutFollowing==1&&g.BlackoutFollowerWard==1&&
                 g.BlackoutFollowerHealth==48&&g.save.energy==45,
                 "The real ward-equipped pickup consumes exactly 25 energy once");
-            Action(g,lena.kind,"blackout_ward_1");
+            // The rescued follower is intentionally no longer a world
+            // interaction target. Probe the authoritative action dispatcher
+            // directly rather than pretending the NPC still offers dialogue.
+            var choose=typeof(GameCore).GetMethod("ChooseBlackout",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(choose!=null,"Actual blackout action handler exists");
+            choose.Invoke(g,new object[]{"blackout_ward_1"});
             Check(g.BlackoutFollowerWard==1&&g.save.energy==45,
                 "Direct action replay cannot stack wards or double charge resources");
             g.save.english=true;
