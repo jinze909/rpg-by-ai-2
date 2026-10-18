@@ -96,7 +96,7 @@ namespace Starfall
         private void CountSwordLessonDeflection(Projectile shot)
         {
             if(!SwordLessonActive||shot==null||!shot.swordLessonOwned||
-                SwordLessonComplete)return;
+                (SwordLessonComplete&&!swordLessonVeteran))return;
             SwordLessonHits++;
             if(SwordLessonHits<SwordLessonTarget)
             {
