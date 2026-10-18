@@ -275,7 +275,8 @@ namespace Starfall.Tests
             g.save.x=foundry.x;g.save.y=foundry.y;
             Action(g,"ironfoundry","iron_temper_start");
             // Isolate the actual pressure hazards from unrelated sword combat.
-            g.enemies.RemoveAll(g.IsTemperEnemy);
+            foreach (Enemy defender in g.enemies.FindAll(g.IsTemperEnemy))
+            { defender.stun = 200; defender.timer = 200; }
             g.invulnerable=0;g.save.health=120;g.save.maxHealth=120;
             Advance(g,5.1f);
             Check(g.save.health<120,
@@ -319,7 +320,14 @@ namespace Starfall.Tests
             g.hazards.Add(other);
             var unrelated=new Effect("discover",new Point(19,11),50);
             g.effects.Add(unrelated);
-            g.enemies.RemoveAll(g.IsTemperEnemy); // Isolated test of vent cleanup.
+            // Preserve the same actual combat contract while testing the
+            // valve's selective steam cleanup at the next checkpoint.
+            var actualHit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(actualHit != null, "Authentic damage interface exists");
+            foreach (Enemy defender in g.enemies.FindAll(g.IsTemperEnemy))
+                actualHit.Invoke(g, new object[] { defender, 99999f, false, null, null });
             g.save.x=valve.x;g.save.y=valve.y;
             float oldPressure=g.TemperPressure;
             Action(g,"ironvent1","iron_temper_vent_1");
@@ -365,6 +373,88 @@ namespace Starfall.Tests
             Action(g,"ironfoundry","iron_temper_abort");
             Check(!g.TemperActive && !g.enemies.Exists(g.IsTemperEnemy),
                 "Stopping the foundry restores the right to begin other mine challenges");
+        }
+
+        public static void MissingFoundryGuardsCannotUnlockValvesOrForgePermanentRecipe(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 20;
+            g.save.flags.Add("boss_3"); g.save.flags.Add("gate_3");
+            g.Enter(3); g.enemies.Clear();
+            var foundry = Object(g, "ironfoundry");
+            var northwest = Object(g, "ironvent1");
+            var east = Object(g, "ironvent2");
+            g.save.x = foundry.x; g.save.y = foundry.y; g.invulnerable = 200;
+            int coins = g.save.coins;
+            Action(g, foundry.kind, "iron_temper_start");
+            Check(g.TemperStage == 1 &&
+                g.enemies.FindAll(g.IsTemperEnemy).Count == 2,
+                "A real foundry starts with both authored sentinels");
+            g.enemies.RemoveAll(g.IsTemperEnemy);
+            g.save.x = northwest.x; g.save.y = northwest.y;
+            Action(g, northwest.kind, "iron_temper_vent_1");
+            Check(!g.TemperActive && !g.Has("iron_temper_complete") &&
+                g.save.coins == coins,
+                "An empty unverified guard roster cannot bypass the first valve or grant rewards");
+            var lethal = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(lethal != null, "Foundry kill credit must use the original damage method");
+            g.save.x = foundry.x; g.save.y = foundry.y;
+            Action(g, foundry.kind, "iron_temper_start");
+            foreach (Enemy foe in g.enemies.FindAll(g.IsTemperEnemy))
+                lethal.Invoke(g, new object[] { foe, 99999f, false, null, null });
+            g.save.x = northwest.x; g.save.y = northwest.y;
+            Action(g, northwest.kind, "iron_temper_vent_1");
+            Check(g.TemperStage == 2,
+                "Killing both first-wave guards through real combat unlocks the northern valve");
+            g.enemies.RemoveAll(g.IsTemperEnemy);
+            g.save.x = east.x; g.save.y = east.y;
+            Action(g, east.kind, "iron_temper_vent_2");
+            Check(!g.TemperActive && !g.Has("iron_temper_complete"),
+                "Vanished second-wave defenders cannot skip the eastern valve");
+            g.save.x = foundry.x; g.save.y = foundry.y;
+            Action(g, foundry.kind, "iron_temper_start");
+            foreach (Enemy foe in g.enemies.FindAll(g.IsTemperEnemy))
+                lethal.Invoke(g, new object[] { foe, 99999f, false, null, null });
+            g.save.x = northwest.x; g.save.y = northwest.y;
+            Action(g, northwest.kind, "iron_temper_vent_1");
+            foreach (Enemy foe in g.enemies.FindAll(g.IsTemperEnemy))
+                lethal.Invoke(g, new object[] { foe, 99999f, false, null, null });
+            g.save.x = east.x; g.save.y = east.y;
+            Action(g, east.kind, "iron_temper_vent_2");
+            Check(g.TemperStage == 3 &&
+                g.enemies.FindAll(g.IsTemperEnemy).Count == 1,
+                "Two actual defeated patrol waves still summon the genuine armored overseer");
+            g.enemies.RemoveAll(g.IsTemperEnemy);
+            g.save.x = foundry.x; g.save.y = foundry.y;
+            Action(g, foundry.kind, "iron_temper_finish");
+            Check(!g.TemperActive && !g.Has("iron_temper_complete") &&
+                g.save.coins == coins && g.TemperUpgradeTimber >= 3,
+                "Removing the final overseer without a lethal Hit can never publish a cheaper permanent recipe");
+            g.save.x = foundry.x; g.save.y = foundry.y;
+            Action(g, foundry.kind, "iron_temper_start");
+            for (int stage = 1; stage <= 3; stage++)
+            {
+                foreach (Enemy foe in g.enemies.FindAll(g.IsTemperEnemy))
+                    lethal.Invoke(g, new object[] { foe, 99999f, false, null, null });
+                if (stage < 3)
+                {
+                    var valve = stage == 1 ? northwest : east;
+                    g.save.x = valve.x; g.save.y = valve.y;
+                    Action(g, valve.kind, "iron_temper_vent_" + stage);
+                }
+            }
+            g.save.x = foundry.x; g.save.y = foundry.y;
+            Action(g, foundry.kind, "iron_temper_finish");
+            Check(g.Has("iron_temper_complete") &&
+                g.save.coins == coins + 75 &&
+                g.TemperUpgradeTimber == 2,
+                "Three genuine waves of lethal combat still unlock original forge discount exactly once");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.Has("iron_temper_complete") &&
+                loaded.TemperUpgradeTimber == 2 && !loaded.TemperActive,
+                "Authentic recipe upgrade survives the existing v2 save without transient enemy flags");
         }
 
     }
