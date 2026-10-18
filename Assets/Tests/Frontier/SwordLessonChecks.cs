@@ -131,9 +131,17 @@ namespace Starfall.Tests
             // A surviving physical arrow or Q cooldown is not a new safe
             // training window. Let the original battlefield settle first.
             Advance(g,4f);g.save.energy=100;
+            // A post-clear retry can happen after healing, not necessarily
+            // with the residual health lost to the preceding real volley.
+            g.save.health=g.save.maxHealth;
             g.Talk(noll);
-            Check(NollChoice(g,"swordlesson_veteran_start")&&g.SwordLessonActive,
-                "Real forge permits a fresh no-reward course after surviving arrows and guard cooldown settle");
+            bool offered=NollChoice(g,"swordlesson_veteran_start");
+            Check(offered&&g.SwordLessonActive,
+                "Safe expert replay: offered="+offered+" active="+g.SwordLessonActive+
+                " hp="+g.save.health+" energy="+g.save.energy+
+                " room="+g.save.room+" mode="+g.mode+
+                " safe="+g.SafeTravel+" dying="+g.Dying+
+                " profession="+g.save.profession+" weapon="+g.save.weapon);
             for(int frame=0;frame<840&&g.SwordLessonActive;frame++)
             {
                 if(g.skillCooldown<=0&&g.guardTime<.7f&&g.save.energy>=40)
