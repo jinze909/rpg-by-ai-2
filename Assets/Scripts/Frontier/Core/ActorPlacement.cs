@@ -27,6 +27,42 @@ namespace Starfall
             Point p = SafeActorFoot(proposed);
             return new Enemy(id, kind, p.x, p.y, health, boss);
         }
+        // LOS alone is not a walkable route: a slit in a wall, tidewater
+        // or a sealed gate can let an effect be visible while a summoned
+        // melee enemy can NEVER reach the current fight. Use the SAME
+        // four-neighbor footprint graph as real enemy pursuit, bounded to
+        // the actual local summoning arena. Shared generation-stamped path
+        // workspace avoids allocations on repeated Boss phases.
+        private bool BossSummonHasLocalRoute(Point from, Point target)
+        {
+            if(!CanStand(from)||!CanStand(target))return false;
+            int width=Map.rows[0].Length,height=Map.rows.Length;
+            int sx=(int)Math.Floor(from.x),sy=(int)Math.Floor(from.y);
+            int tx=(int)Math.Floor(target.x),ty=(int)Math.Floor(target.y);
+            if(sx<0||sy<0||tx<0||ty<0||
+                sx>=width||tx>=width||sy>=height||ty>=height||
+                Math.Abs(tx-sx)>5||Math.Abs(ty-sy)>5)return false;
+            int start=sy*width+sx,goal=ty*width+tx;
+            PreparePathSearch(width*height);
+            int head=0,tail=0;
+            pathQueue[tail++]=start;
+            VisitPath(start,start);
+            while(head<tail)
+            {
+                int node=pathQueue[head++],x=node%width,y=node/width;
+                if(node==goal)return true;
+                for(int i=0;i<4;i++)
+                {
+                    int nx=x+pursuitSteps[i,0],ny=y+pursuitSteps[i,1];
+                    if(nx<0||ny<0||nx>=width||ny>=height||
+                        Math.Abs(nx-sx)>5||Math.Abs(ny-sy)>5)continue;
+                    int next=ny*width+nx;
+                    if(PathVisited(next)||!Fits(new Point(nx+.5f,ny+.5f)))continue;
+                    VisitPath(next,node);pathQueue[tail++]=next;
+                }
+            }
+            return false;
+        }
         // A living Boss's reinforcements MUST emerge in the current local
         // arena. CreatePlacedEnemy is deliberately broader (recovery of valid
         // old saves, authored actors) and can relocate an invalid summon to
@@ -52,7 +88,8 @@ namespace Starfall
                     (foot-boss.Position).Length<1.2f ||
                     (save.companion>=0 &&
                         (foot-companionPosition).Length<1.2f) ||
-                    !ClearAttackPath(boss.Position,foot))continue;
+                    !ClearAttackPath(boss.Position,foot) ||
+                    !BossSummonHasLocalRoute(boss.Position,foot))continue;
                 bool occupied=false;
                 foreach(Enemy existing in enemies)
                     if((foot-existing.Position).Length<1.15f)
