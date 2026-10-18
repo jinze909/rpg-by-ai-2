@@ -1072,8 +1072,11 @@ namespace Starfall
                     q.complete || BlackoutActive && (blackoutRescued & (1<<(i-1)))!=0));
                 q.steps.Add(new QuestStep(L("公布避难名单","Publish evacuation roster"),q.complete));
                 q.target=BlackoutPoint("blackoutshelter");
+                bool civilianBehind=BlackoutActive&&blackoutFollowing!=0&&
+                    (blackoutFollowerPosition-Position).Length>3f;
                 if(BlackoutActive && blackoutFollowing!=0)
-                    q.target=BlackoutPoint("blackoutshelter");
+                    q.target=civilianBehind?blackoutFollowerPosition:
+                        BlackoutPoint("blackoutshelter");
                 else if(BlackoutActive)
                 {
                     for(int i=1;i<=3;i++)
@@ -1084,7 +1087,11 @@ namespace Starfall
                 q.next=q.complete?L("救援成功；居民名单可成为民用停战依据","Rescue complete; the roster can support civilian ceasefire"):
                     q.locked?L("先完成并公开莉雅的第四章三核审计","First complete and publish Lyra's Chapter Four audit"):
                     BlackoutActive && blackoutFollowing!=0?
-                        L("把正在跟随的居民亲自送到公共避难所","Escort your following civilian to public shelter"):
+                        (civilianBehind?
+                            L("居民落在后面！沿指引回头接应，再一起前往避难所",
+                              "Your civilian is behind! Follow the marker back before returning to shelter"):
+                            L("把正在跟随的居民亲自送到公共避难所",
+                              "Escort your following civilian to public shelter")):
                     BlackoutActive && blackoutRescued==7?
                         L("返回避难所公布三名居民名单","Return to publish the roster at the shelter"):
                     BlackoutActive?L("找到下一名居民，按E让其跟随","Find the next citizen and press E to escort"):

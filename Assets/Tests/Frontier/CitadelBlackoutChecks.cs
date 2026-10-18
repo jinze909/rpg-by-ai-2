@@ -364,5 +364,42 @@ namespace Starfall.Tests
                 "Transient path recovery does not extend old SaveData v2");
         }
 
+        public static void BlackoutQuestCompassRecoversStrandedCivilianBeforeShelter(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                civilian=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=civilian.x;g.save.y=civilian.y;
+            Action(g,civilian.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1,"The named citizen must be under genuine escort");
+            Point position=g.BlackoutFollowerPosition;
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Check((g.Position-position).Length>3f,
+                "Actual shelter is distant from the picked-up civilian");
+            var q=g.GetQuest("blackout");
+            Check((q.target-position).Length<.01f&&
+                q.next.Contains("回头"),
+                "The real journal directs the player back to the stranded civilian");
+            g.save.english=true;
+            q=g.GetQuest("blackout");
+            Check((q.target-position).Length<.01f&&
+                q.next.Contains("behind"),
+                "English journal and compass use the same physical rescue target");
+            g.save.english=false;
+            g.save.x=position.x;g.save.y=position.y;
+            q=g.GetQuest("blackout");
+            Check((q.target-new Point(shelter.x,shelter.y)).Length<.01f&&
+                q.next.Contains("避难所"),
+                "Once reunited the original authored refuge becomes the live navigation target");
+            Check(g.BlackoutRescued==0&&!g.Has("blackout_complete"),
+                "Navigation guidance never registers citizens or pays the chapter reward");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.BlackoutActive,
+                "Temporary rescue compass state does not enter v2 saves");
+        }
+
     }
 }
