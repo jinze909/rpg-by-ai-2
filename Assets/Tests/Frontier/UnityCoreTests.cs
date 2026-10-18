@@ -70,6 +70,8 @@ namespace Starfall.Tests
         [Test] public void BufferedQVariableFrameDeadlines(){CoreChecks.BufferedSkillsRespectVariableFrameDeadlines(Data());}
         [Test] public void BufferedQWorldAndProfileBoundaries(){CoreChecks.BufferedSkillsClearAtWorldAndProfileBoundaries(Data());}
         [Test] public void PreparedQCombatValues(){CoreChecks.SkillsRetainPreparedCombatValues(Data());}
+        [Test] public void OverlappingSpellCastersKeepIndependentFourSecondLifetimes() { CoreChecks.PlayerAndCompanionFrostExpireOnIndependentRealWorldClocks(Data()); }
+        [Test] public void CompanionFrostCannotCrossLiveSolidWalls() { CoreChecks.CompanionFrostCannotHitThroughWallsEvenWithinAreaRadius(Data()); }
         [Test] public void CompanionAndPlayerFrostCoexistWithPhysicalCasterOrigins() { CoreChecks.CompanionFrostUsesPhysicalCasterAndNeverReplacesArcanistField(Data()); }
         [Test] public void InvalidCompanionFrostOriginRefundsTheCommand() { CoreChecks.BlockedCompanionFrostCannotTeleportToHeroOrChargeCooldown(Data()); }
         [Test] public void PersistentFrostIdentity(){CoreChecks.FrostRetainsCasterProfileAndSource(Data());}
