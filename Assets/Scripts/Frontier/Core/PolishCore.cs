@@ -472,7 +472,7 @@ namespace Starfall
                 // them as ordinary world patrols.
                 if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e) ||
                     IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e)) continue;
+                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();
