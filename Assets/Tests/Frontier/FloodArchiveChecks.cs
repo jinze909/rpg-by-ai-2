@@ -439,5 +439,57 @@ namespace Starfall.Tests
                 "Encounter ownership and failed escorts remain transient across legacy slot reload");
         }
 
+        public static void LiveEastBankMedicineWardProtectsCargoNotHeroOnce(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;
+            g.save.energy=100;
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_relief_start")&&g.FloodReliefActive,
+                "The real west-bank dispatch starts the original 65-second medicine run");
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.FloodReliefCrossed&&g.FloodReliefRaiders==2,
+                "The player physically arrives on the ambushed east bank");
+            float beforeEnergy=g.save.energy;
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_relief_ward")&&
+                g.save.energy==beforeEnergy-20&&g.FloodReliefWardTime==18f,
+                "The genuine eastern civilian chooses and pays for 18 seconds of parcel protection");
+            var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            choose.Invoke(g,new object[]{"floodarchive_relief_ward"});
+            Check(g.save.energy==beforeEnergy-20&&g.FloodReliefWardTime==18f,
+                "A repeated direct request cannot purchase a second protective ward");
+            var hit=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Actual post-armor combat damage handler exists");
+            g.invulnerable=0;
+            float health=g.save.health;
+            hit.Invoke(g,new object[]{30f,"shot",null});
+            float firstDamage=100-g.FloodReliefIntegrity;
+            Check(g.save.health<health&&firstDamage>0&&firstDamage<14&&
+                g.FloodReliefRaiders==2,
+                "A genuine enemy hit still hurts the hero, but the paid ward reduces parcel damage");
+            g.invulnerable=0;
+            var ward=typeof(GameCore).GetField("floodReliefWardTime",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(ward!=null,"The live shield has an honest countdown, not a permanent buff");
+            ward.SetValue(g,0f);
+            hit.Invoke(g,new object[]{30f,"shot",null});
+            Check(g.FloodReliefIntegrity<100-firstDamage-13.9f,
+                "Without the ward a second equal authentic strike damages medicine at full strength");
+            choose.Invoke(g,new object[]{"floodarchive_relief_ward"});
+            Check(g.FloodReliefWardTime==0&&g.save.energy==beforeEnergy-20,
+                "An exhausted ward can never be reactivated for free or with another charge");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.FloodReliefWardTime==0&&
+                !loaded.FloodReliefActive&&!loaded.FloodReliefComplete,
+                "Only the actual spent energy is saved; unfinished combat wards do not enter old v2 slots");
+        }
+
     }
 }

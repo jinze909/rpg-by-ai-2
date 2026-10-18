@@ -22,8 +22,10 @@ namespace Starfall
         // Post-archive civilian medicine crossing: authentic low-tide ferry,
         // two confirmed real raider defeats and an intact sealed parcel.
         // The only permanent result is an ordinary v2 quest flag.
-        private bool floodReliefActive,floodReliefCrossed,floodReliefPatched;
-        private float floodReliefTime,floodReliefIntegrity;
+        private bool floodReliefActive,floodReliefCrossed,floodReliefPatched,floodReliefWarded;
+        private float floodReliefTime,floodReliefIntegrity,floodReliefWardTime;
+        public float FloodReliefWardTime
+        { get {return FloodReliefActive?floodReliefWardTime:0;} }
         private int floodReliefConfirmedKills;
         public bool FloodReliefComplete { get { return Has("floodarchive_relief"); } }
         public int PublicFerryEnergyCost { get { return FloodReliefComplete?10:14; } }
@@ -46,8 +48,8 @@ namespace Starfall
         {return e!=null&&(e.id==92340||e.id==92341);}
         private void ResetFloodRelief()
         {
-            floodReliefActive=floodReliefCrossed=floodReliefPatched=false;
-            floodReliefTime=floodReliefIntegrity=0;
+            floodReliefActive=floodReliefCrossed=floodReliefPatched=floodReliefWarded=false;
+            floodReliefTime=floodReliefIntegrity=floodReliefWardTime=0;
             floodReliefConfirmedKills=0;
             enemies.RemoveAll(IsFloodReliefEnemy);
             // Only this escort's launched arrows and windup/contact effects
@@ -64,8 +66,9 @@ namespace Starfall
         {
             if(!FloodReliefActive||!floodReliefCrossed||
                 source=="environment"||damage<=0)return;
-            floodReliefIntegrity=Math.Max(0,floodReliefIntegrity-
-                Math.Max(14,Math.Min(38,damage*1.15f)));
+            float shock=Math.Max(14,Math.Min(38,damage*1.15f));
+            if(floodReliefWardTime>0)shock*=.45f;
+            floodReliefIntegrity=Math.Max(0,floodReliefIntegrity-shock);
             if(floodReliefIntegrity<=0)
             {
                 ResetFloodRelief();revision++;
@@ -81,6 +84,7 @@ namespace Starfall
             if(save.room!=2||Dying||practicing)
             {ResetFloodRelief();revision++;return;}
             floodReliefTime-=dt;
+            floodReliefWardTime=Math.Max(0,floodReliefWardTime-dt);
             if(floodReliefTime<=0)
             {
                 ResetFloodRelief();revision++;
@@ -178,6 +182,9 @@ namespace Starfall
                         "Low-tide medical convoy · defeat raiders","floodarchive_relief_start"));
                 if(floodReliefActive&&stage==1)
                     choices.Add(C("取消医疗护送","Cancel medical convoy","floodarchive_relief_abort"));
+                if(floodReliefActive&&stage==3&&floodReliefCrossed&&!floodReliefWarded)
+                    choices.Add(C("民用护盾 · 耐力20","Protect medicine · 20 energy",
+                        "floodarchive_relief_ward"));
                 if(floodReliefActive&&stage==3&&floodReliefCrossed&&
                     !floodReliefPatched&&floodReliefIntegrity>0&&floodReliefIntegrity<100)
                     choices.Add(C("现场草药修补 · 草药1","Patch medical seal · 1 herb",
@@ -192,14 +199,20 @@ namespace Starfall
                     floodReliefActive?
                     "\n\n医疗护送进行中："+(int)Math.Ceiling(floodReliefTime)+
                     "秒，封条 "+(int)Math.Ceiling(floodReliefIntegrity)+"%。"+
-                    (floodReliefCrossed?"请击败两名拦截者后在东岸交付。":"请先搭乘低潮渡船前往东岸。"):
+                    (floodReliefCrossed?
+                        "请击败两名拦截者后在东岸交付。"+
+                            (floodReliefWardTime>0?"护盾剩余 "+(int)Math.Ceiling(floodReliefWardTime)+"秒。":""):
+                        "请先搭乘低潮渡船前往东岸。"):
                     "\n\n西岸还可在低潮时领取急救包，渡河并击退两名拦截者后向东岸居民交付。";
                 string extraEn=FloodReliefComplete?
                     "\n\nEmergency medicine was delivered. The safer ferry now costs 10 energy.":
                     floodReliefActive?
                     "\n\nMedical crossing: "+(int)Math.Ceiling(floodReliefTime)+
                     "s remaining, cargo "+(int)Math.Ceiling(floodReliefIntegrity)+"%. "+
-                    (floodReliefCrossed?"Defeat both raiders and deliver at this east dock.":"Take the low-tide ferry to the east shore."):
+                    (floodReliefCrossed?
+                        "Defeat both raiders and deliver at this east dock."+
+                            (floodReliefWardTime>0?" Ward "+(int)Math.Ceiling(floodReliefWardTime)+"s left.":""):
+                        "Take the low-tide ferry to the east shore."):
                     "\n\nAn urgent medical parcel awaits at the west dock at low tide; ferry across and defeat two raiders before delivery.";
                 FloodArchiveDialog(site,endZh+extraZh+
                     (ferryDock&&!LowTide?"\n\n水位过高，渡船等待退潮。":""),
@@ -340,8 +353,9 @@ namespace Starfall
                     floodReliefActive||Dying||practicing||!LowTide||
                     FieldWorkPreventsRest||!SafeTravel||west==null||
                     (Position-new Point(west.x,west.y)).Length>1.8f)return true;
-                floodReliefActive=true;floodReliefCrossed=false;floodReliefPatched=false;
-                floodReliefTime=65;floodReliefIntegrity=100;
+                floodReliefActive=true;floodReliefCrossed=false;
+                floodReliefPatched=floodReliefWarded=false;
+                floodReliefTime=65;floodReliefIntegrity=100;floodReliefWardTime=0;
                 floodReliefConfirmedKills=0;
                 TrackQuest("ferry_relief");revision++;sound="quest";
                 Notify("紧急药品已领取！65秒内渡河、击败两名拦截者并向东岸交付。",
@@ -358,6 +372,25 @@ namespace Starfall
                     Notify("医疗护送已取消，可在下一次低潮免费重试。",
                         "Medical crossing canceled. Retry at a later ebb tide.");
                 }
+                return true;
+            }
+            if(action=="floodarchive_relief_ward")
+            {
+                WorldObject east=FloodArchiveObject(3);
+                if(!FloodReliefCrossed||floodReliefWarded||east==null||
+                    save.room!=2||Dying||practicing||
+                    (Position-new Point(east.x,east.y)).Length>1.8f)return true;
+                if(save.energy<20)
+                {
+                    Notify("居民防护法阵需要20耐力。仍可通过躲避保住药品。",
+                        "The civilian cargo ward needs 20 energy. Dodging remains free.");
+                    return true;
+                }
+                save.energy-=20;floodReliefWarded=true;floodReliefWardTime=18f;
+                revision++;sound="guard";
+                effects.Add(new Effect("discover",Position,.5f));
+                Notify("已启用18秒药品护盾：真正命中仍伤害主角，但药品只承受45%冲击。",
+                    "18-second parcel ward active: real attacks still hurt the hero, but cargo takes only 45% impact.");
                 return true;
             }
             if(action=="floodarchive_relief_patch")
