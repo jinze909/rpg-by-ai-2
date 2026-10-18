@@ -56,8 +56,15 @@ namespace Starfall
                     if((foot-existing.Position).Length<1.15f)
                     {occupied=true;break;}
                 if(occupied)continue;
-                Enemy recruit=new Enemy(++enemyId,save.room==4?1:0,
+                // The first authorized third-cycle summon remains the old
+                // melee troop. In later cycles, alternating *real* bow units
+                // creates flank pressure instead of endlessly duplicating
+                // identical close-range mobs. Citadel keeps its ranged guard.
+                int recruitKind=save.room==4?1:
+                    (boss.cycle>=6&&(boss.cycle/3)%2==0?1:0);
+                Enemy recruit=new Enemy(++enemyId,recruitKind,
                     foot.x,foot.y,38+save.room*3);
+                recruit.Face(Position-foot);
                 // Give a genuine audible and visual entrance: summoning a
                 // standing combatant inside a swing should not hit instantly.
                 recruit.stun=.35f;
