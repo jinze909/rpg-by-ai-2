@@ -643,6 +643,10 @@ namespace Starfall.Tests
                 // not merely within the 2.5-tile AI acquisition distance.
                 g.save.x=10.5f;g.save.y=11.5f;
                 g.save.health=100f;g.save.reducedMotion=true;
+                // NewGame deliberately grants one second of spawn i-frames.
+                // Expire only that protection so the surviving AI strike
+                // proves actual damage, rather than a visual-only release.
+                g.invulnerable=0f;
                 var buried=new Enemy(99201,2,9.5f,10.5f,10000f){timer=0};
                 var live=new Enemy(99202,2,11.5f,10.5f,10000f){timer=0};
                 g.enemies.Add(buried);g.enemies.Add(live);
