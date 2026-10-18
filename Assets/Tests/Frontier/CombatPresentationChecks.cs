@@ -3,6 +3,90 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void EarnedRiposteCommitsOnTrueMeleeArrowOrStaffContact(Campaign data)
+        {
+            for(int weapon=0;weapon<3;weapon++)
+            {
+                var g=Fresh(data,weapon);g.enemies.Clear();g.invulnerable=100;
+                g.save.energy=100;g.riposteTime=1.5f;
+                g.save.x=11;g.save.y=12;
+                var target=new Enemy(93420+weapon,0,g.save.x+1.2f,g.save.y,900);
+                target.stun=10;g.enemies.Add(target);
+                g.Attack(new Point(1,0));
+                ActorAction action=g.playerAction;
+                Check(action!=null&&action.kind=="attack"&&action.riposteArmed,
+                    "Each equipped sword/bow/staff action captures a legitimately available riposte at acceptance");
+                float baseDamage=action.damage;
+                Check(g.riposteTime>=1.49f&&baseDamage>0&&
+                    !action.released,
+                    "Pressing LMB does not charge or prematurely consume a counter before the real contact frame");
+                Advance(g,Math.Min(.08f,action.contact*.40f));
+                Check(g.riposteTime>0&&
+                    Math.Abs(action.damage-baseDamage)<.001f&&!action.released,
+                    "Visible windup preserves the original bonus and untouched power");
+                Advance(g,action.contact+.04f);
+                Check(action.released&&!action.riposteArmed&&g.riposteTime<=0&&
+                    Math.Abs(action.damage-baseDamage*1.5f)<.001f,
+                    "The sole original release frame commits exactly one +50 percent earned riposte");
+                if(weapon==0)
+                    Check(target.hp<target.maxHp,
+                        "The released, empowered sword swing genuinely hits the physical target");
+                else
+                    Check(g.projectiles.Exists(p=>p.friendly&&
+                        Math.Abs(p.damage-action.damage)<.001f&&
+                        p.impact!=null&&p.impact.playerOwned),
+                        "Released bow/staff snapshot carries the correct riposte damage and original player ownership");
+                float committed=action.damage;
+                Advance(g,.025f);
+                Check(Math.Abs(action.damage-committed)<.001f,
+                    "Action recovery cannot reapply an already consumed riposte multiplier");
+            }
+        }
+
+        public static void InterruptedCounterWindupsCannotWasteEarnedReward(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();g.save.energy=100;
+            // Actual active dodge cancellation of a fully accepted swing.
+            g.riposteTime=1.5f;
+            g.Attack(new Point(1,0));
+            ActorAction abandoned=g.playerAction;
+            Check(abandoned!=null&&abandoned.riposteArmed&&g.riposteTime>0,
+                "A legitimate sword windup begins with the earned bonus reserved but unpaid");
+            g.Dash(new Point(1,0));
+            Check(g.playerAction==null&&g.riposteTime>0&&
+                !abandoned.released&&
+                Math.Abs(abandoned.damage-((float)abandoned.damage))<.001f,
+                "Dodge-cancel before actual release preserves the riposte window instead of consuming it");
+            Advance(g,.22f);
+            Check(g.riposteTime>0,
+                "A canceled attempt retains the time-limited bonus for the next legitimate action");
+            // A different equipment profile also retires only the unspent
+            // windup; it cannot inject stale contact or extra projectile.
+            var switching=Fresh(data,0);switching.enemies.Clear();
+            switching.save.flags.Add("weapon_1");
+            switching.riposteTime=1.5f;switching.Attack(new Point(1,0));
+            var old=switching.playerAction;
+            switching.Equip(1);
+            Check(switching.playerAction==null&&switching.riposteTime>0&&
+                !old.released&&switching.projectiles.Count==0,
+                "Weapon swap before contact cannot spend counter or fire the retired old-weapon action");
+            switching.save.energy=100;
+            switching.attackCooldown=0;
+            switching.Attack(new Point(1,0));
+            Check(switching.playerAction!=null&&
+                switching.playerAction.riposteArmed,
+                "The real next equipped bow attack can inherit the still-valid earned counter");
+            // Old cooldown/expired openings must not become free damage.
+            var expired=Fresh(data,2);expired.enemies.Clear();
+            expired.riposteTime=0;expired.Attack(new Point(1,0));
+            Check(expired.playerAction!=null&&!expired.playerAction.riposteArmed,
+                "A zero-time counter cannot be revived by clicking attack");
+            // No buff or old action may leak to a different save slot.
+            switching.NewGame(2);switching.Close();
+            Check(switching.riposteTime<=0&&switching.playerAction==null,
+                "Changing heroes erases transient counter intents and all old contact state");
+        }
+
         public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
         {
             // Drive the REAL Arcanist alternate-Q and world update loop:
