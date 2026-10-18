@@ -145,8 +145,17 @@ namespace Starfall
             }
             if (save.companion >= 0 && !Fits(companionPosition))
             {
+                // Tide-forced evacuation cancels a planted ally's
+                // prepared action. If the player never received its
+                // physical contact, do not charge the complete manual
+                // command cooldown for a spell the world canceled.
+                // A volley/heal/frost that ALREADY released remains paid.
+                bool unspentCommand = companionAction != null &&
+                    companionAction.kind == "command" &&
+                    !companionAction.released;
                 companionPosition = SafeActorFoot(companionPosition);
                 companionAction = null; companionMoving = false;
+                if (unspentCommand) companionCooldown = 0f;
             }
             // The real evacuee is a world actor too. Without this, the
             // outgoing tide can trap her in newly flooded shoals while the

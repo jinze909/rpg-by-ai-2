@@ -3241,6 +3241,72 @@ namespace Starfall.Tests
                 "Authentic positive strike still deals damage and shows the existing hit reaction");
         }
 
+        public static void RisingTideRefundsOnlyUnreleasedCompanionOrders(Campaign data)
+        {
+            // Room-five collision really changes at totalTime%36 == 22.
+            // RecoverTideActors must not bill an order interrupted BEFORE
+            // contact, but a committed arrow volley remains paid even
+            // though its caster is evacuated before recovery animation.
+            MapData original=data.maps[5];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)row[x]='.';
+                    if(y==10)row[11]='%';
+                    rows[y]=new string(row);
+                }
+                data.maps[5]=new MapData{
+                    id=5,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(bool releaseBeforeTide in new[]{false,true})
+                {
+                    var g=Fresh(data,0);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;g.save.totalTime=21f;
+                    g.save.flags.Add("companion_1");
+                    g.SelectCompanion(1);
+                    g.save.room=5;
+                    g.companionPosition=new Point(11.5f,10.5f);
+                    Check(g.save.companion==1&&g.LowTide&&
+                        g.CanStand(g.companionPosition),
+                        "Ivo genuinely stands on the still-exposed tidal tile and the player stands on a permanent legal shore");
+                    g.CommandCompanion();
+                    ActorAction order=g.companionAction;
+                    Check(order!=null&&order.kind=="command"&&
+                        !order.released&&g.companionCooldown>17f,
+                        "The physical manual three-arrow command reserves its normal 18-second cooldown");
+                    if(releaseBeforeTide)
+                    {
+                        Advance(g,.23f);
+                        Check(order.released&&g.projectiles.Count==3&&
+                            g.companionCooldown>17f,
+                            "A real bow volley leaves Ivo's weapon while the tide is still low");
+                    }
+                    else
+                        Check(g.projectiles.Count==0,
+                            "A prepared but uncommitted ally order has not generated any projectile");
+                    g.save.totalTime=21.98f;
+                    g.Tick(.04f,new Point());
+                    Check(!g.LowTide&&g.CanStand(g.Position)&&
+                        g.CanStand(g.companionPosition)&&
+                        g.companionAction==null,
+                        "Actual rising tide evacuates the ally to a physical legal tile and cancels its old cast pose");
+                    if(releaseBeforeTide)
+                        Check(g.companionCooldown>17f,
+                            "Tide evacuation cannot duplicate or refund a previously released three-arrow skill");
+                    else
+                        Check(g.companionCooldown<=0f&&
+                            !order.released&&g.projectiles.Count==0,
+                            "A tidal interruption before contact must refund an unspent manual order with no phantom attack");
+                }
+            }
+            finally{data.maps[5]=original;}
+        }
+
         public static void SafeCompanionSwapRefundsUnreleasedButNotSpentOrder(Campaign data)
         {
             // A safe party swap is genuine player input. Test a bow order
