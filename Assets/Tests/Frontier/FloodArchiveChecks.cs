@@ -300,5 +300,50 @@ namespace Starfall.Tests
                 "After reload the archived public dock offers a legitimate fresh medicine attempt");
         }
 
+        public static void PublicFerryMedicineSupportsOneActualHerbalSealRepair(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;
+            g.save.energy=100;g.save.inventory[2]=0;
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_relief_start")&&g.FloodReliefActive,
+                "Normal public ferry launch is available before optional repair");
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_ferry")&&g.FloodReliefCrossed,
+                "The genuine ferry reaches the physical east-bank medical post");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hurt!=null,"The real post-armor hit handler is available");
+            g.invulnerable=0;
+            hurt.Invoke(g,new object[]{30f,"shot",null});
+            float damaged=g.FloodReliefIntegrity,time=g.FloodReliefTime;
+            Check(damaged<100&&damaged>0&&!g.FloodReliefRepairAvailable,
+                "A real hostile hit harms the actual medical parcel, but no herbs are owned");
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_relief_patch")&&
+                !g.FloodReliefRepairAvailable&&g.FloodReliefIntegrity==damaged,
+                "A missing herb cannot mint free medicine, restore the timer or fabricate a repair");
+            g.save.inventory[2]=2;
+            g.Talk(east);Check(FerryChoice(g,"floodarchive_relief_patch"),
+                "The east-bank medics offer a physically located one-herb repair");
+            Check(g.FloodReliefActive&&
+                Math.Abs(g.FloodReliefIntegrity-Math.Min(100,damaged+40))<.01f&&
+                g.save.inventory[2]==1&&
+                g.FloodReliefTime==time&&!g.FloodReliefRepairAvailable&&
+                g.FloodReliefRaiders==2,
+                "A one-time actual herb patch restores only parcel health, never the clock or real pursuers");
+            var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"floodarchive_relief_patch"});
+            Check(g.save.inventory[2]==1&&g.FloodReliefActive,
+                "Direct repeated action requests cannot drain a second herb or stack repairs");
+            g.PrepareSave();var restore=new GameCore(data,CloneSave(g.save));
+            Check(restore.save.version==2&&!restore.FloodReliefActive&&
+                !restore.FloodReliefRepairAvailable&&restore.save.inventory[2]==1,
+                "The actual material spent remains in legacy v2 inventory, while temporary repairs are not saved");
+        }
+
     }
 }

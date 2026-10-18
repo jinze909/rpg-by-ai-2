@@ -189,8 +189,8 @@ namespace Starfall
                 q.locked=!FloodArchiveComplete;
                 q.complete=FloodReliefComplete;
                 q.description=L(
-                    "先找回沉桥两份民用证据并恢复公共渡船。低潮时在西岸领取65秒急救包，亲自支付14耐力乘渡船到东岸，击败两名真正的拦截者后交付。实际命中会损坏药品，敌人异常消失或超时都不算完成。",
-                    "Restore the public ferry first. At low tide, carry urgent medicine from the west dock within 65 seconds, pay 14 energy to cross the actual ferry and defeat two real raiders before delivery on the east shore. Real hits damage medicine; missing enemies and timeouts never count as wins.");
+                    "先找回沉桥两份民用证据并恢复公共渡船。低潮时在西岸领取65秒急救包，亲自支付14耐力乘渡船到东岸，击败两名真正的拦截者后交付。实际命中会损坏药品，东岸可花一份草药修补最多40点完整度（每趟一次）；敌人异常消失或超时都不算完成。",
+                    "Restore the public ferry first. At low tide, carry urgent medicine from the west dock within 65 seconds, pay 14 energy to cross the actual ferry and defeat two real raiders before delivery on the east shore. Real hits damage medicine; one herb can patch up to 40 cargo integrity once at the east dock. Missing enemies and timeouts never count as wins.");
                 q.steps.Add(new QuestStep(L("恢复公共渡船并调查民用档案",
                     "Restore the public ferry and civic archives"),FloodArchiveComplete));
                 q.steps.Add(new QuestStep(L("西岸装载急救包并亲自渡河",

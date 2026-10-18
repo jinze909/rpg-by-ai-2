@@ -22,7 +22,7 @@ namespace Starfall
         // Post-archive civilian medicine crossing: authentic low-tide ferry,
         // two confirmed real raider defeats and an intact sealed parcel.
         // The only permanent result is an ordinary v2 quest flag.
-        private bool floodReliefActive,floodReliefCrossed;
+        private bool floodReliefActive,floodReliefCrossed,floodReliefPatched;
         private float floodReliefTime,floodReliefIntegrity;
         private int floodReliefConfirmedKills;
         public bool FloodReliefComplete { get { return Has("floodarchive_relief"); } }
@@ -32,11 +32,14 @@ namespace Starfall
         public float FloodReliefIntegrity { get { return FloodReliefActive?floodReliefIntegrity:0; } }
         public int FloodReliefRaiders
         { get {return enemies.FindAll(e=>IsFloodReliefEnemy(e)&&e.hp>0).Count;} }
+        public bool FloodReliefRepairAvailable
+        { get {return FloodReliefCrossed&&!floodReliefPatched&&
+            floodReliefIntegrity>0&&floodReliefIntegrity<100&&save.inventory[2]>=1;} }
         private bool IsFloodReliefEnemy(Enemy e)
         {return e!=null&&(e.id==92340||e.id==92341);}
         private void ResetFloodRelief()
         {
-            floodReliefActive=floodReliefCrossed=false;
+            floodReliefActive=floodReliefCrossed=floodReliefPatched=false;
             floodReliefTime=floodReliefIntegrity=0;
             floodReliefConfirmedKills=0;
             enemies.RemoveAll(IsFloodReliefEnemy);
@@ -162,6 +165,10 @@ namespace Starfall
                         "Low-tide medical convoy · defeat raiders","floodarchive_relief_start"));
                 if(floodReliefActive&&stage==1)
                     choices.Add(C("取消医疗护送","Cancel medical convoy","floodarchive_relief_abort"));
+                if(floodReliefActive&&stage==3&&floodReliefCrossed&&
+                    !floodReliefPatched&&floodReliefIntegrity>0&&floodReliefIntegrity<100)
+                    choices.Add(C("现场草药修补 · 草药1","Patch medical seal · 1 herb",
+                        "floodarchive_relief_patch"));
                 if(floodReliefActive&&stage==3&&floodReliefCrossed&&
                     floodReliefConfirmedKills==3&&floodReliefIntegrity>0)
                     choices.Add(C("交付完整医疗包","Deliver guarded medicine","floodarchive_relief_deliver"));
@@ -319,7 +326,7 @@ namespace Starfall
                     floodReliefActive||Dying||practicing||!LowTide||
                     FieldWorkPreventsRest||!SafeTravel||west==null||
                     (Position-new Point(west.x,west.y)).Length>1.8f)return true;
-                floodReliefActive=true;floodReliefCrossed=false;
+                floodReliefActive=true;floodReliefCrossed=false;floodReliefPatched=false;
                 floodReliefTime=65;floodReliefIntegrity=100;
                 floodReliefConfirmedKills=0;
                 TrackQuest("ferry_relief");revision++;sound="quest";
@@ -337,6 +344,26 @@ namespace Starfall
                     Notify("医疗护送已取消，可在下一次低潮免费重试。",
                         "Medical crossing canceled. Retry at a later ebb tide.");
                 }
+                return true;
+            }
+            if(action=="floodarchive_relief_patch")
+            {
+                WorldObject east=FloodArchiveObject(3);
+                if(!FloodReliefCrossed||east==null||save.room!=2||
+                    Dying||practicing||floodReliefPatched||
+                    floodReliefIntegrity<=0||floodReliefIntegrity>=100||
+                    (Position-new Point(east.x,east.y)).Length>1.8f)return true;
+                if(save.inventory[2]<1)
+                {
+                    Notify("现场修补需要一份实际草药。仍可躲避追兵并完成交付。",
+                        "Field repair requires one real herb. You can still evade raiders and finish delivery.");
+                    return true;
+                }
+                save.inventory[2]--;floodReliefPatched=true;
+                floodReliefIntegrity=Math.Min(100,floodReliefIntegrity+40);
+                revision++;sound="reward";
+                Notify("医疗包封条已恢复最多40点完整度。本次护送不能再次修补，倒计时仍在继续。",
+                    "Medical seal restored by up to 40 integrity. One repair per attempt; the original clock continues.");
                 return true;
             }
             if(action=="floodarchive_relief_deliver")
