@@ -748,11 +748,13 @@ namespace Starfall
             if(civicHealing && !practicing && !racing && SafeTravel &&
                 !Dying && save.health>0 && save.health<save.maxHealth)
                 save.health=Math.Min(save.maxHealth,
-                    save.health+dt*(1.7f+(AfterlightReserve(save.room)?1.3f:0f)));
+                    save.health+dt*(1.7f+(AfterlightReserve(save.room)?1.3f:0f)+
+                        (AfterlightWatchDone(save.room)?1.0f:0f)));
             if(AfterlightEnergyPost && SafeTravel && !practicing &&
                 NearKind("afterlightoutlet1",3.1f))
                 save.energy=Math.Min(100,save.energy+
-                    dt*(3.0f+(AfterlightReserve(1)?2.0f:0f)));
+                    dt*(3.0f+(AfterlightReserve(1)?2.0f:0f)+
+                        (AfterlightWatchDone(1)?1.5f:0f)));
             // The defeated former Warden now maintains actual civilian
             // backup lighting, only if the player entrusted unused reserve to
             // citadel shelters after the published first-storm charter.
