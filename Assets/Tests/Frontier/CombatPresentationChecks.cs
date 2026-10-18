@@ -3508,9 +3508,10 @@ namespace Starfall.Tests
                     "Actual world Tick crosses rising tide and recovers both stranded actors onto legal physical footing");
                 Check(!g.reliefFollowerMoving&&g.reliefFollowerWalkDistance<.01f&&
                     g.reliefFollowerWaiting&&g.ReliefEscortActive&&
-                    g.reliefFollowerSafety==safety&&
+                    g.reliefFollowerSafety<=safety&&
+                    g.reliefFollowerSafety>safety-.1f&&
                     g.reliefMissionTime>time-.1f,
-                    "A rescued civilian teleported onto shore does not inherit old walk animation, loses no safety or remaining mission, and preserves the wait order");
+                    "A rescued civilian teleported onto shore clears old walk animation, keeps its waiting order and mission, and incurs at most the ordinary real-time weather loss");
                 Check(raider.state==0&&raider.releaseTime<=0&&
                     !raider.targetingWayfarer&&!raider.targetingReliefCivilian&&
                     !raider.targetingAfterlightStock,
