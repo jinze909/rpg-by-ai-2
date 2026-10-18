@@ -12,7 +12,9 @@ namespace Starfall
         private readonly List<Rect> worldOverlayRegions = new List<Rect>(8);
         private static readonly Rect CombatJournalButton=new Rect(1185,58,65,24);
         private bool CombatClimate { get { return Game.save.room == 6 || Game.save.room == 7 || Game.save.teaUntil > Game.save.totalTime; } }
-        private bool CounterHud { get { return Game.riposteTime > .001f; } }
+        private bool CounterHud
+        { get { return Game.riposteTime > .001f ||
+            (Game.playerAction!=null&&Game.playerAction.riposteArmed); } }
         private float CounterHudY { get { return CombatClimate ? 136 : 103; } }
         private float CombatToastY
         { get { return CombatClimate ? (CounterHud ? 170 : 135) :
@@ -162,9 +164,9 @@ namespace Starfall
                 Panel(20,y,260,27,new Color(.075f,.09f,.12f,.68f),
                     new Color(gold.r,gold.g,gold.b,.68f));
                 Text(30,y+3,242,21,
-                    Game.L(armed?"反击蓄力 · ":"反击就绪 · ",
-                        armed?"RIPOSTE WINDUP · ":"RIPOSTE READY · ")+
-                    Math.Ceiling(Game.riposteTime*10f)/10f+"s",
+                    armed ? Game.L("反击已蓄力 · 命中释放","RIPOSTE CHARGED · RELEASE TO STRIKE") :
+                        Game.L("反击就绪 · ","RIPOSTE READY · ")+
+                        Math.Ceiling(Game.riposteTime*10f)/10f+"s",
                     12,gold);
             }
             QuestGuide guide = Game.CurrentGuide;
