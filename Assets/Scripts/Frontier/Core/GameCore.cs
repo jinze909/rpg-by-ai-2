@@ -1685,6 +1685,12 @@ namespace Starfall
         private void ResolveRestTimeSkip(float elapsed)
         {
             save.totalTime += elapsed;
+            // Twenty minutes of camp rest (or forty-five at the inn) is a
+            // real jump in world tide time. Do NOT defer collision recovery
+            // to the next rendered Tick: companions/enemies can otherwise
+            // remain inside flooded shoals throughout the post-rest dialogue
+            // and before the next saved snapshot.
+            TickTideTransition();
             CancelAction();
             attackCooldown = dashCooldown = skillCooldown = dashTime = 0;
             companionCooldown = companionAttack = 0;

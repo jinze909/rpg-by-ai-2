@@ -146,5 +146,43 @@ namespace Starfall.Tests
             moments=g.save.moments.Count;g.save.english=true;g.Tick(.01f,new Point());Check(g.save.moments.Count==moments,"Switching language cannot fabricate a new quest update");
             g.TrackQuest("ally1");g.Tick(.01f,new Point());g.save.inventory[2]=6;g.revision++;g.Tick(.01f,new Point());Check(g.CurrentGuide.room==0 && g.save.moments[g.save.moments.Count-1].en.Contains("Deliver"),"A real supply change still refreshes the next step and journal");
         }
+        public static void HarborCampRestRecoversCompanionFromRisingTideImmediately(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.save.totalTime = 5f;
+            g.save.projects[1] = 1;
+            g.Enter(5); g.enemies.Clear();
+            g.save.tideHeldUntil = 0;
+            Point shoal = new Point(); bool found = false;
+            for (int y = 2; y < g.Map.rows.Length - 2 && !found; y++)
+            for (int x = 2; x < g.Map.rows[y].Length - 2 && !found; x++)
+            {
+                Point candidate = new Point(x + .5f, y + .5f);
+                if (g.Map.rows[y][x] != '%' || !g.CanStand(candidate)) continue;
+                shoal = candidate; found = true;
+            }
+            Check(found && g.LowTide,
+                "A legal harbor camp begins at low tide with an actual reachable shoal");
+            var fire = Object(g, "campfire");
+            g.save.x = fire.x; g.save.y = fire.y;
+            g.save.companion = 0;
+            g.companionPosition = shoal;
+            g.companionAction = new ActorAction { kind = "attack",
+                duration = .5f, contact = .2f, elapsed = .05f };
+            Check(g.CanStand(g.companionPosition),
+                "Active partner really stands on land that will be submerged during twenty-minute rest");
+            Action(g, fire.kind, "fieldrest");
+            Check(Math.Abs(g.save.totalTime - 25f) < .001f &&
+                !g.LowTide && g.CanStand(g.Position) &&
+                g.CanStand(g.companionPosition) &&
+                g.companionAction == null,
+                "Real camp rest advances the full twenty minutes and recovers the companion out of newly flooded tiles BEFORE another world Tick");
+            g.PrepareSave();
+            var reloaded = new GameCore(data, CloneSave(g.save));
+            Check(reloaded.save.room == 5 && !reloaded.LowTide &&
+                reloaded.CanStand(reloaded.Position),
+                "Rest and tidal collision state remain legal when saved immediately and reopened");
+        }
+
     }
 }
