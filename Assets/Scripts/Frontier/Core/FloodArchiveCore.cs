@@ -19,6 +19,96 @@ namespace Starfall
                 return 0;
             }
         }
+        // Post-archive civilian medicine crossing: authentic low-tide ferry,
+        // two confirmed real raider defeats and an intact sealed parcel.
+        // The only permanent result is an ordinary v2 quest flag.
+        private bool floodReliefActive,floodReliefCrossed;
+        private float floodReliefTime,floodReliefIntegrity;
+        private int floodReliefConfirmedKills;
+        public bool FloodReliefComplete { get { return Has("floodarchive_relief"); } }
+        public bool FloodReliefActive { get { return floodReliefActive&&save.room==2&&!Dying; } }
+        public bool FloodReliefCrossed { get { return FloodReliefActive&&floodReliefCrossed; } }
+        public float FloodReliefTime { get { return FloodReliefActive?floodReliefTime:0; } }
+        public float FloodReliefIntegrity { get { return FloodReliefActive?floodReliefIntegrity:0; } }
+        public int FloodReliefRaiders
+        { get {return enemies.FindAll(e=>IsFloodReliefEnemy(e)&&e.hp>0).Count;} }
+        private bool IsFloodReliefEnemy(Enemy e)
+        {return e!=null&&(e.id==92340||e.id==92341);}
+        private void ResetFloodRelief()
+        {
+            floodReliefActive=floodReliefCrossed=false;
+            floodReliefTime=floodReliefIntegrity=0;
+            floodReliefConfirmedKills=0;
+            enemies.RemoveAll(IsFloodReliefEnemy);
+        }
+        private void OnFloodReliefEnemyDefeated(Enemy e)
+        {
+            if(!FloodReliefActive||!floodReliefCrossed||!IsFloodReliefEnemy(e))return;
+            floodReliefConfirmedKills|=1<<(e.id-92340);
+        }
+        private void DamageFloodReliefParcel(float damage,string source)
+        {
+            if(!FloodReliefActive||!floodReliefCrossed||
+                source=="environment"||damage<=0)return;
+            floodReliefIntegrity=Math.Max(0,floodReliefIntegrity-
+                Math.Max(14,Math.Min(38,damage*1.15f)));
+            if(floodReliefIntegrity<=0)
+            {
+                ResetFloodRelief();revision++;
+                Notify("医疗包在拦截战中破损。可返回西岸重新领取，不会扣除原有任务奖励。",
+                    "The medical parcel was destroyed by combat. Return to the west dock to try again.");
+            }
+            else Notify("医疗包受到真实攻击！护住剩余药品并击退拦截者。",
+                "The medical parcel took real hit damage! Defend the remaining supplies.");
+        }
+        private void TickFloodRelief(float dt)
+        {
+            if(!floodReliefActive)return;
+            if(save.room!=2||Dying||practicing)
+            {ResetFloodRelief();revision++;return;}
+            floodReliefTime-=dt;
+            if(floodReliefTime<=0)
+            {
+                ResetFloodRelief();revision++;
+                Notify("低潮护送超时。仍可安全重试，任何已收集的历史档案不受影响。",
+                    "Tide relief run timed out. The public archive remains intact; retry at the west dock.");
+                return;
+            }
+            if(floodReliefCrossed)
+                for(int i=0;i<2;i++)
+                    if((floodReliefConfirmedKills&(1<<i))==0&&
+                        !enemies.Exists(e=>e.id==92340+i&&e.hp>0))
+                    {
+                        ResetFloodRelief();revision++;
+                        Notify("一名拦截者异常离场，无法将其算作实际击败。护送可重试。",
+                            "A raider vanished without a real defeat; the relief run can be retried.");
+                        return;
+                    }
+        }
+        private bool SpawnFloodReliefRaiders()
+        {
+            Point anchor=Position;
+            var spots=new System.Collections.Generic.List<Point>();
+            for(int radius=3;radius<=9&&spots.Count<2;radius++)
+                for(int dx=-radius;dx<=radius&&spots.Count<2;dx++)
+                    for(int dy=-radius;dy<=radius&&spots.Count<2;dy++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                        Point p=anchor+new Point(dx,dy);
+                        if(!CanStand(p)||(p-anchor).Length<3f||
+                            spots.Exists(other=>(other-p).Length<3f)||
+                            enemies.Exists(e=>e.hp>0&&(e.Position-p).Length<2.2f)||
+                            NavigationPath(p).Count==0)continue;
+                        spots.Add(p);
+                    }
+            if(spots.Count!=2)return false;
+            for(int i=0;i<2;i++)
+            {
+                var e=CreatePlacedEnemy(92340+i,i==0?0:2,spots[i],78+i*14);
+                e.timer=.8f+i*.25f;enemies.Add(e);
+            }
+            return true;
+        }
         private WorldObject FloodArchiveObject(int stage)
         {
             if(stage<1||stage>3)return null;
@@ -65,15 +155,37 @@ namespace Starfall
                     "The names returned to the ferrymen. Nearby public tideposts now help wounded travelers recover safely.":
                     "The original tide charts were preserved for the ferry pilots. Nearby posts now help travelers regain stamina safely.";
                 bool ferryDock=stage==1||stage==3;
+                var choices=new System.Collections.Generic.List<Choice>();
+                choices.Add(C("重读公开记录","Read the record","close"));
+                if(!FloodReliefComplete&&stage==1&&LowTide&&!floodReliefActive)
+                    choices.Add(C("低潮医疗护送 · 击退拦截者",
+                        "Low-tide medical convoy · defeat raiders","floodarchive_relief_start"));
+                if(floodReliefActive&&stage==1)
+                    choices.Add(C("取消医疗护送","Cancel medical convoy","floodarchive_relief_abort"));
+                if(floodReliefActive&&stage==3&&floodReliefCrossed&&
+                    floodReliefConfirmedKills==3&&floodReliefIntegrity>0)
+                    choices.Add(C("交付完整医疗包","Deliver guarded medicine","floodarchive_relief_deliver"));
                 if(ferryDock&&LowTide)
-                    FloodArchiveDialog(site,endZh+"\n\n历史只奖励一次。低潮时可乘公共渡船，花14耐力前往对岸。",
-                        endEn+"\n\nThe history never pays twice. At low tide, spend 14 energy on a public ferry to the opposite bank.",
-                        C("重读公开记录","Read the record","close"),
-                        C("乘渡船 · 耐力14","Cross by ferry · 14 energy","floodarchive_ferry"));
-                else FloodArchiveDialog(site,
-                    endZh+(ferryDock?"\n\n当前水位过高，公共渡船要等退潮。":"\n\n历史只奖励一次。"),
-                    endEn+(ferryDock?"\n\nThe public ferry waits for low tide.":"\n\nThe history never pays twice."),
-                    C("重读公开记录","Read the record","close"));
+                    choices.Add(C("乘渡船 · 耐力14","Cross by ferry · 14 energy","floodarchive_ferry"));
+                string extraZh=FloodReliefComplete?
+                    "\n\n西岸医疗物资已真正送达并登记，公民航线受到保护。":
+                    floodReliefActive?
+                    "\n\n医疗护送进行中："+(int)Math.Ceiling(floodReliefTime)+
+                    "秒，封条 "+(int)Math.Ceiling(floodReliefIntegrity)+"%。"+
+                    (floodReliefCrossed?"请击败两名拦截者后在东岸交付。":"请先搭乘低潮渡船前往东岸。"):
+                    "\n\n西岸还可在低潮时领取急救包，渡河并击退两名拦截者后向东岸居民交付。";
+                string extraEn=FloodReliefComplete?
+                    "\n\nThe emergency medicine was genuinely delivered and recorded.":
+                    floodReliefActive?
+                    "\n\nMedical crossing: "+(int)Math.Ceiling(floodReliefTime)+
+                    "s remaining, cargo "+(int)Math.Ceiling(floodReliefIntegrity)+"%. "+
+                    (floodReliefCrossed?"Defeat both raiders and deliver at this east dock.":"Take the low-tide ferry to the east shore."):
+                    "\n\nAn urgent medical parcel awaits at the west dock at low tide; ferry across and defeat two raiders before delivery.";
+                FloodArchiveDialog(site,endZh+extraZh+
+                    (ferryDock&&!LowTide?"\n\n水位过高，渡船等待退潮。":""),
+                    endEn+extraEn+
+                    (ferryDock&&!LowTide?"\n\nThe ferry waits for ebb tide.":""),
+                    choices.ToArray());
                 return true;
             }
             int progress=FloodArchiveProgress;
@@ -165,8 +277,9 @@ namespace Starfall
             }
             // Respect all current physical mission locks, actual threats at
             // BOTH banks and real resource costs. This never resets a room.
-            if(FieldWorkPreventsRest||!SafeTravel||
-                !SafeRegionalLanding(new Point(to.x,to.y)))
+            if((FieldWorkPreventsRest&&!floodReliefActive)||!SafeTravel||
+                !SafeRegionalLanding(new Point(to.x,to.y))||
+                (floodReliefActive&&(from!=western||floodReliefCrossed)))
             {
                 Notify("渡口受到威胁，或仍有现场任务。请先确保两岸安全。",
                     "The crossing is unsafe or fieldwork remains active. Secure both banks.");
@@ -179,13 +292,69 @@ namespace Starfall
             }
             save.energy-=14;save.x=to.x;save.y=to.y;
             revision++;sound="travel";
-            Notify("低潮渡船把你安全带到了河对岸。","The low-tide public ferry brought you to the opposite bank.");
+            if(floodReliefActive&&from==western)
+            {
+                floodReliefCrossed=true;
+                if(!SpawnFloodReliefRaiders())
+                {
+                    ResetFloodRelief();revision++;
+                    Notify("东岸战场无法安全部署拦截者，本次医疗护送已取消，可重新领取。",
+                        "The eastern encounter cannot spawn safely. Return west and retry the medical run.");
+                }
+                else
+                    Notify("真实拦截者登岸！护住医疗包并击退两人，再把药品送到东岸。",
+                        "Two real raiders ambush the medicine! Defeat them and deliver at the eastern dock.");
+            }
+            else Notify("低潮渡船把你安全带到了河对岸。","The low-tide public ferry brought you to the opposite bank.");
             return true;
         }
         private bool ChooseFloodArchive(string action)
         {
             if(!action.StartsWith("floodarchive_",StringComparison.Ordinal))return false;
             if(action=="floodarchive_ferry")return ChooseFloodArchiveFerry();
+            if(action=="floodarchive_relief_start")
+            {
+                WorldObject west=FloodArchiveObject(1);
+                if(!FloodArchiveComplete||FloodReliefComplete||save.room!=2||
+                    floodReliefActive||Dying||practicing||!LowTide||
+                    FieldWorkPreventsRest||!SafeTravel||west==null||
+                    (Position-new Point(west.x,west.y)).Length>1.8f)return true;
+                floodReliefActive=true;floodReliefCrossed=false;
+                floodReliefTime=65;floodReliefIntegrity=100;
+                floodReliefConfirmedKills=0;
+                TrackQuest("ferry_relief");revision++;sound="quest";
+                Notify("紧急药品已领取！65秒内渡河、击败两名拦截者并向东岸交付。",
+                    "Urgent medicine aboard! Cross, defeat both raiders and deliver on the east bank within 65 seconds.");
+                return true;
+            }
+            if(action=="floodarchive_relief_abort")
+            {
+                WorldObject west=FloodArchiveObject(1);
+                if(floodReliefActive&&west!=null&&save.room==2&&
+                    (Position-new Point(west.x,west.y)).Length<=1.8f)
+                {
+                    ResetFloodRelief();revision++;
+                    Notify("医疗护送已取消，可在下一次低潮免费重试。",
+                        "Medical crossing canceled. Retry at a later ebb tide.");
+                }
+                return true;
+            }
+            if(action=="floodarchive_relief_deliver")
+            {
+                WorldObject east=FloodArchiveObject(3);
+                if(!FloodReliefActive||!floodReliefCrossed||
+                    floodReliefConfirmedKills!=3||floodReliefIntegrity<=0||
+                    east==null||save.room!=2||Dying||practicing||
+                    (Position-new Point(east.x,east.y)).Length>1.8f)return true;
+                ResetFloodRelief();Flag("floodarchive_relief");
+                CreditCoins(45);CreditShards(1);AddXp(65);
+                revision++;sound="reward";
+                RecordMoment("沉桥渡口的药品在真实的低潮航程和两名拦截者的战斗后送抵东岸居民手中。",
+                    "Emergency medicine reached the east shore after a real low-tide crossing and two confirmed combat victories.");
+                Notify("医疗护送成功：硬币+45、碎片+1、经验+65；两岸居民恢复了紧急补给线。",
+                    "Medical relief delivered! +45 coins, +1 shard, +65 XP; the public crossing is secure.");
+                return true;
+            }
             if(action!="floodarchive_1"&&action!="floodarchive_2"&&
                 action!="floodarchive_public"&&action!="floodarchive_chart")return true;
             if(FloodArchiveComplete||save.room!=2||Dying||practicing||!Has("scout_saved"))return true;

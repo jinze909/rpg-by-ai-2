@@ -189,5 +189,88 @@ namespace Starfall.Tests
                     "Existing version-two saves retain the player's chosen branch and quest completion");
             }
         }
+        public static void PublicFerryEmergencyRunRequiresRealCrossingAndBothRaiderKills(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;
+            g.Enter(2);g.enemies.Clear();g.invulnerable=400;
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;g.save.energy=100;
+            int cash=g.save.coins,shards=g.save.shards;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&
+                g.FloodReliefActive&&g.FloodReliefTime==65&&
+                g.FloodReliefIntegrity==100,
+                "The original western archive dock launches a true low-tide civilian medicine mission");
+            g.Talk(east);g.Close();
+            var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            choose.Invoke(g,new object[]{"floodarchive_relief_deliver"});
+            Check(!g.FloodReliefComplete&&g.FloodReliefActive,
+                "Remote delivery cannot forge the physically carried parcel");
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.FloodReliefCrossed&&g.FloodReliefRaiders==2&&
+                (g.Position-new Point(east.x,east.y)).Length<.01f,
+                "Actual existing low-tide ferry transports medicine and deploys two distinct enemies");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The game has an authoritative lethal-hit callback");
+            var a=g.enemies.Find(e=>e.id==92340);
+            var b=g.enemies.Find(e=>e.id==92341);
+            Check(a!=null&&b!=null&&g.CanStand(a.Position)&&g.CanStand(b.Position),
+                "The real raiders spawn on original accessible east-bank terrain");
+            choose.Invoke(g,new object[]{"floodarchive_relief_deliver"});
+            Check(!g.FloodReliefComplete&&g.save.coins==cash,
+                "Ferry arrival alone does not grant the combat-and-delivery reward");
+            hit.Invoke(g,new object[]{a,99999f,false,null,null});
+            Check(g.FloodReliefActive&&g.FloodReliefRaiders==1,
+                "Defeating one genuine attacker is not yet completion");
+            hit.Invoke(g,new object[]{b,99999f,false,null,null});
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.FloodReliefActive&&g.FloodReliefRaiders==0,
+                "Two genuine lethal hits preserve the parcel until player handover");
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_relief_deliver")&&
+                g.FloodReliefComplete&&!g.FloodReliefActive&&
+                g.save.coins==cash+45&&g.save.shards==shards+1,
+                "The actual eastern dock pays the one-time cargo reward only after both verified defeats");
+            choose.Invoke(g,new object[]{"floodarchive_relief_deliver"});
+            Check(g.save.coins==cash+45,"Forged or repeated action cannot farm relief rewards");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FloodReliefComplete&&
+                !restored.FloodReliefActive,
+                "Existing version-two slot persists delivered medicine without temporary raider state");
+        }
+
+        public static void PublicFerryReliefDoesNotRewardDisappearingRaidersOrExpiredCargo(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1);
+            g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;g.save.energy=100;
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_relief_start"),
+                "A normal medicine run is available after original archive completion");
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_ferry")&&g.FloodReliefRaiders==2,
+                "Two real attackers intercept the delivered parcel");
+            g.enemies.Remove(g.enemies.Find(e=>e.id==92340));
+            g.Tick(.05f,new Point());
+            Check(!g.FloodReliefActive&&!g.FloodReliefComplete&&
+                g.FloodReliefRaiders==0,
+                "An unconfirmed disappearing attacker aborts the attempt and cleans up its own roster");
+            g.save.x=west.x;g.save.y=west.y;
+            g.Talk(west);Check(FerryChoice(g,"floodarchive_relief_start"),
+                "A failed combat crossing may be picked up again without destroying public archive");
+            for(int i=0;i<1500&&g.FloodReliefActive;i++)g.Tick(.05f,new Point());
+            Check(!g.FloodReliefActive&&!g.FloodReliefComplete,
+                "A full 65-second run timeout never mints a fake emergency delivery");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.FloodArchiveComplete&&
+                !loaded.FloodReliefActive&&!loaded.FloodReliefComplete,
+                "Failed medicine runs are transient and do not alter old completed archive saves");
+        }
+
     }
 }

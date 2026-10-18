@@ -528,6 +528,7 @@ namespace Starfall
             TickCivicResponse(dt);
             TickMineConvoy(dt);
             TickFrostSignal(dt);
+            TickFloodRelief(dt);
             TickLastDirective(dt);
             TickCivicConduit(dt);
             TickExpansion(dt);
@@ -732,6 +733,7 @@ namespace Starfall
             OnWayfarerEnemyDefeated(e);
             OnRoadwardenTrialEnemyDefeated(e);
             OnFarCourierEnemyDefeated(e);
+            OnFloodReliefEnemyDefeated(e);
             // A lethal strike may bypass the stagger threshold entirely.
             // Its unspent civilian windup must disappear with the attacker,
             // not keep warning players about an attack that can no longer land.
@@ -866,6 +868,7 @@ namespace Starfall
             DamageFarCourierCargo(actualDamage,source);
             DamageCivicResponseMedicine(actualDamage,source);
             DamageCivicConduit(actualDamage,source);
+            DamageFloodReliefParcel(actualDamage,source);
             invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
             if (!save.reducedMotion) { hitStop = .045f; impactShake = source == "slam" ? .18f : 0; }
             effects.Add(new Effect("hurt", Position, .5f));
@@ -1744,7 +1747,7 @@ namespace Starfall
         {
             get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
-                TideSalvageActive || LastDirectiveWave > 0 || CivicConduitActive ||
+                TideSalvageActive || FloodReliefActive || LastDirectiveWave > 0 || CivicConduitActive ||
                 // A lull between scripted enemy waves is not a break in the
                 // physical trial. Resting there would skip its capture clock,
                 // red warnings and challenge phases for free.
