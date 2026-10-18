@@ -1101,9 +1101,11 @@ namespace Starfall
                     !Has("afterlight_started")?L("去公会重建议事台接受战后任务","Accept the reconstruction mission at the guild council"):
                     AfterlightChargeRegion!=0?L(
                         "送往远端接收台：剩余"+(int)Math.Ceiling(AfterlightChargeLeft)+
-                        "秒 · 载荷"+(int)Math.Ceiling(AfterlightChargeIntegrity)+"%",
+                        "秒 · 载荷"+(int)Math.Ceiling(AfterlightChargeIntegrity)+"%"+
+                        (AfterlightChargeIntegrity<35?" · 先在接收台使用月光草修复至35%":""),
                         "Carry to distant receiver: "+(int)Math.Ceiling(AfterlightChargeLeft)+
-                        "s · load integrity "+(int)Math.Ceiling(AfterlightChargeIntegrity)+"%"):
+                        "s · load integrity "+(int)Math.Ceiling(AfterlightChargeIntegrity)+"%"+
+                        (AfterlightChargeIntegrity<35?" · repair to 35% at receiver with Moonherb":"")):
                     next==0?L("回公会正式发布三地公约","Publish the public charter back at the guild"):
                     Has("afterlight_done_"+next) && !Has("afterlight_steward_"+next)?
                         L("回到当地证人身边，亲自签署设施维护责任","Return to the living witness to sign regional stewardship"):

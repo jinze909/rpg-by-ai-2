@@ -585,5 +585,103 @@ namespace Starfall.Tests
                 "Even stabilized transport expires honestly rather than inventing completed reconstruction");
         }
 
+        public static void AfterlightDamagedReceiverRequiresPaidPhysicalSalvageBeforeInstallation(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_plan_1_care");
+            g.Enter(1);g.enemies.Clear();
+            g.invulnerable=0;g.save.inventory[0]=5;g.save.inventory[2]=5;
+            WorldObject anchor=Object(g,"afterlightanchor1"),
+                outlet=Object(g,"afterlightoutlet1");
+            g.save.x=anchor.x;g.save.y=anchor.y;
+            Action(g,anchor.kind,"afterlight_charge_1");
+            Check(g.AfterlightChargeRegion==1&&g.AfterlightChargeIntegrity==100,
+                "Existing free 90-second transport starts with an intact civic load");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hurt!=null,"Real post-armor combat contact remains authoritative");
+            for(int i=0;i<7;i++)
+            {
+                g.save.health=g.save.maxHealth;
+                g.invulnerable=0;g.hitStop=0;
+                hurt.Invoke(g,new object[]{20f,"shot",null});
+            }
+            Check(g.AfterlightChargeRegion==1&&
+                g.AfterlightChargeIntegrity<35&&g.AfterlightChargeIntegrity>0,
+                "Seven genuine unprotected hostile hits reduce the viable load below receiver threshold");
+            g.enemies.Clear();g.invulnerable=500;
+            WalkWithAfterlightCharge(g,new Point(outlet.x,outlet.y));
+            g.save.x=outlet.x;g.save.y=outlet.y;
+            int herb=g.save.inventory[2],wood=g.save.inventory[0];
+            Action(g,outlet.kind,"afterlight_install_1");
+            Check(!g.Has("afterlight_done_1")&&g.AfterlightChargeRegion==1&&
+                g.save.inventory[0]==wood&&g.save.inventory[2]==herb,
+                "Low-quality charge cannot mint real public services or deduct installation materials");
+            float before=g.AfterlightChargeLeft;
+            Action(g,outlet.kind,"afterlight_repair_1");
+            Check(g.AfterlightChargeRegion==1&&
+                g.AfterlightChargeIntegrity>=35&&
+                g.AfterlightChargeLeft==before-8&&
+                g.save.inventory[2]==herb-1&&!g.AfterlightReceiverRepairAvailable,
+                "One actual herb restores field load integrity at the remote receiver, costing 8 honest seconds");
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"afterlight_repair_1"});
+            Check(g.AfterlightChargeLeft==before-8&&g.save.inventory[2]==herb-1,
+                "Forged repeated receiver repairs cannot stack time or charge material twice");
+            Action(g,outlet.kind,"afterlight_install_1");
+            Check(g.Has("afterlight_done_1")&&g.AfterlightChargeRegion==0&&
+                g.save.inventory[0]==wood-2&&g.save.inventory[2]==herb-3,
+                "Salvaged charge still consumes original two timber and two herbs when it truly powers civic infrastructure");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.Has("afterlight_done_1")&&
+                loaded.AfterlightChargeRegion==0,
+                "The genuinely paid reconstruction and field salvage preserve old SaveData v2 semantics");
+        }
+        public static void AfterlightReceiverRepairRejectsRemoteAndMaterialFreeExploits(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_plan_3_watch");
+            g.Enter(3);g.enemies.Clear();
+            WorldObject anchor=Object(g,"afterlightanchor3"),
+                outlet=Object(g,"afterlightoutlet3");
+            g.save.x=anchor.x;g.save.y=anchor.y;g.save.inventory[2]=0;
+            Action(g,anchor.kind,"afterlight_charge_3");
+            var integrity=typeof(GameCore).GetField("afterlightChargeIntegrity",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(integrity!=null,"Temporary charge integrity exists on real run");
+            integrity.SetValue(g,20f);
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"afterlight_repair_3"});
+            Check(g.AfterlightChargeIntegrity==20&&g.AfterlightChargeRegion==3,
+                "A remote forged action at the source cannot heal depleted power");
+            g.save.x=outlet.x;g.save.y=outlet.y;
+            float seconds=g.AfterlightChargeLeft;
+            choose.Invoke(g,new object[]{"afterlight_repair_3"});
+            Check(g.AfterlightChargeIntegrity==20&&g.AfterlightChargeLeft==seconds,
+                "Receiver repair without a real herb cannot grant free integrity or duration");
+            g.save.inventory[2]=1;
+            integrity.SetValue(g,35f);
+            choose.Invoke(g,new object[]{"afterlight_repair_3"});
+            Check(g.save.inventory[2]==1&&g.AfterlightChargeIntegrity==35,
+                "Above-threshold charge cannot waste emergency herbs or stack recovery before real need");
+            integrity.SetValue(g,20f);
+            choose.Invoke(g,new object[]{"afterlight_repair_3"});
+            Check(g.save.inventory[2]==0&&g.AfterlightChargeIntegrity==65&&
+                g.AfterlightChargeLeft==seconds-8,
+                "Damaged alternate civic mode also supports exactly one paid repair");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.AfterlightChargeRegion==0&&
+                loaded.save.inventory[2]==0&&!loaded.Has("afterlight_done_3"),
+                "A half-repaired run cannot be serialized as a completed public work");
+        }
+
     }
 }
