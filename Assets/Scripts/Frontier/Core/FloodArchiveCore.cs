@@ -132,7 +132,7 @@ namespace Starfall
                 C("保留水图 · 培训摆渡人","Preserve charts · train pilots","floodarchive_chart"));
             return true;
         }
-        private bool FloodArchiveLandingSafe(Point destination)
+        private bool SafeRegionalLanding(Point destination)
         {
             if(!CanStand(destination))return false;
             foreach(Enemy enemy in enemies)
@@ -166,7 +166,7 @@ namespace Starfall
             // Respect all current physical mission locks, actual threats at
             // BOTH banks and real resource costs. This never resets a room.
             if(FieldWorkPreventsRest||!SafeTravel||
-                !FloodArchiveLandingSafe(new Point(to.x,to.y)))
+                !SafeRegionalLanding(new Point(to.x,to.y)))
             {
                 Notify("渡口受到威胁，或仍有现场任务。请先确保两岸安全。",
                     "The crossing is unsafe or fieldwork remains active. Secure both banks.");

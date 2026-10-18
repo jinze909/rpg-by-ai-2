@@ -1498,5 +1498,76 @@ namespace Starfall.Tests
                 "Emergency-road charter adds +3 per second to real frame-by-frame stamina recovery");
         }
 
+        public static void RidgeCrossingRejectsLiveEscortAndRemoteCombatThreats(Campaign data)
+        {
+            var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+            g.save.flags.Add("ridge_seen_0_0");
+            g.save.flags.Add("ridge_seen_0_1");
+            WorldObject north=Object(g,"ridgemarker");
+            WorldObject east=null,west=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.id=="ridge_route_0_0")east=o;
+                if(o.id=="ridge_route_0_1")west=o;
+            }
+            Check(north!=null&&east!=null&&west!=null&&g.RidgeLinked(0),
+                "Original linked ridge uses two distinct real map marker objects");
+            g.save.x=west.x;g.save.y=west.y;g.save.energy=95;
+            float energy=g.save.energy;
+            var choose=typeof(GameCore).GetMethod("ChooseRidge",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Original world crossing has an authoritative action handler");
+            var shot=new Projectile{position=new Point(east.x,east.y),
+                velocity=new Point(1,0),damage=8,life=12,friendly=false,source="shot"};
+            g.projectiles.Add(shot);
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
+                g.save.energy==energy,
+                "Incoming live enemy projectile at the destination forbids unsafe remote travel");
+            g.projectiles.Remove(shot);
+            var warning=new Hazard{position=new Point(east.x,east.y),
+                radius=1.2f,timer=4f,damage=15,kind="rift"};
+            g.hazards.Add(warning);
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
+                g.save.energy==energy,
+                "A still-armed delayed blast at the landing also blocks ridge travel");
+            g.hazards.Remove(warning);
+            var enemy=new Enemy(92921,0,east.x+1,east.y,70){timer=90};
+            g.enemies.Add(enemy);
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
+                g.save.energy==energy,
+                "An actual hostile defender at destination blocks shortcut traversal");
+            g.enemies.Clear();
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(east.x,east.y)).Length<.01f&&
+                g.save.energy==energy-12,
+                "Once the far end is truly safe, the original paid crossing still works");
+
+            // A separate original Noll course is a genuine field mission,
+            // even when ordinary enemies and both ridge endpoints are safe.
+            var training=Fresh(data,0);training.Enter(0);training.enemies.Clear();
+            training.save.flags.Add("ridge_seen_0_0");
+            training.save.flags.Add("ridge_seen_0_1");
+            WorldObject forge=Object(training,"forge");
+            training.save.x=forge.x;training.save.y=forge.y;
+            Advance(training,1.1f);training.save.energy=100;
+            Action(training,"forge","swordlesson_start");
+            Check(training.SwordLessonActive,
+                "The actual blacksmith opens a timed class-only projectile lesson");
+            training.save.x=west.x;training.save.y=west.y;
+            energy=training.save.energy;
+            choose.Invoke(training,new object[]{"ridge_travel"});
+            Check(training.SwordLessonActive&&
+                (training.Position-new Point(west.x,west.y)).Length<.01f&&
+                training.save.energy==energy,
+                "Even a temporarily nearby shortcut cannot bypass or erase a running live training clock");
+            training.PrepareSave();var copy=new GameCore(data,CloneSave(training.save));
+            Check(copy.save.version==2&&copy.RidgeLinked(0)&&!copy.SwordLessonActive,
+                "SaveData v2 preserves the earned linked route without serializing timed drills");
+        }
+
     }
 }
