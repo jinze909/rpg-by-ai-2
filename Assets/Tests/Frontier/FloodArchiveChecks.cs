@@ -414,8 +414,13 @@ namespace Starfall.Tests
             g.effects.Add(warning);
             Check(warning.floodReliefOwned,
                 "A real enemy telegraph belongs to the same transport encounter");
-            var otherShot=new Projectile{position=new Point(east.x,east.y),
-                velocity=new Point(1,0),damage=9,life=10,source="shot"};
+            // An unrelated shot must begin on real passable terrain away
+            // from the eastern player. A projectile spawned ON the player
+            // naturally collides before ownership cleanup is inspected.
+            Check(g.CanStand(new Point(west.x,west.y)),
+                "The original west-dock comparison projectile has valid ground collision");
+            var otherShot=new Projectile{position=new Point(west.x,west.y),
+                velocity=new Point(),damage=9,life=10,source="shot"};
             var otherWarning=new Effect("danger",new Point(east.x+3,east.y),3f);
             g.projectiles.Add(otherShot);g.effects.Add(otherWarning);
             // Force only the mission's first actor to leave without a lethal
