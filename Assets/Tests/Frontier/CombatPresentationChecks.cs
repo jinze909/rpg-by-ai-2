@@ -1648,16 +1648,25 @@ namespace Starfall.Tests
                     "The original release frame emits exactly one real Ivo arrow");
                 Projectile shot = g.projectiles[0];
                 Point expected = (foe.Position - g.companionPosition).Normalized;
+                // Arrows leave the physical muzzle, NOT the companion's
+                // feet. WeaponShot correctly corrects the flying vector
+                // from its swept hand attachment toward the live target.
+                Point flightAim = (foe.Position - shot.position).Normalized;
                 Check((prepared.direction - expected).Length < .002f &&
                     prepared.target.HasValue &&
                     (prepared.target.Value - foe.Position).Length < .002f &&
-                    (shot.velocity.Normalized - expected).Length < .002f,
-                    "Live projectile velocity and target snapshot follow the moving foe at contact, not the old windup ray");
+                    (shot.velocity.Normalized - flightAim).Length < .002f,
+                    "Real muzzle-to-live-target velocity and target snapshot follow the sidestepping foe rather than the old windup ray");
                 Check((g.companionAim - expected).Length < .002f &&
                     g.effects.Exists(e => e.kind == "release" &&
                         (e.position - GameCore.WeaponOrigin(g.companionPosition,
                             1, expected)).Length < .002f),
                     "Ivo's physical bow release visual, weapon origin and authoritative aim stay aligned");
+                // Validate the real game result, not only coherent vectors.
+                // The old stale forward shot misses this distant sidestep.
+                Advance(g, .65f);
+                Check(foe.hp < foe.maxHp,
+                    "The physically guided companion arrow actually hits the moved enemy on subsequent world ticks");
             }
             finally { data.maps[0] = previous; }
         }
