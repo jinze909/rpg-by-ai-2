@@ -390,8 +390,7 @@ namespace Starfall.Tests
                 g.enemies.FindAll(g.IsTemperEnemy).Count == 2,
                 "A real foundry starts with both authored sentinels");
             g.enemies.RemoveAll(g.IsTemperEnemy);
-            g.save.x = northwest.x; g.save.y = northwest.y;
-            Action(g, northwest.kind, "iron_temper_vent_1");
+            g.Tick(.05f, new Point());
             Check(!g.TemperActive && !g.Has("iron_temper_complete") &&
                 g.save.coins == coins,
                 "An empty unverified guard roster cannot bypass the first valve or grant rewards");
@@ -408,8 +407,7 @@ namespace Starfall.Tests
             Check(g.TemperStage == 2,
                 "Killing both first-wave guards through real combat unlocks the northern valve");
             g.enemies.RemoveAll(g.IsTemperEnemy);
-            g.save.x = east.x; g.save.y = east.y;
-            Action(g, east.kind, "iron_temper_vent_2");
+            g.Tick(.05f, new Point());
             Check(!g.TemperActive && !g.Has("iron_temper_complete"),
                 "Vanished second-wave defenders cannot skip the eastern valve");
             g.save.x = foundry.x; g.save.y = foundry.y;
@@ -426,8 +424,7 @@ namespace Starfall.Tests
                 g.enemies.FindAll(g.IsTemperEnemy).Count == 1,
                 "Two actual defeated patrol waves still summon the genuine armored overseer");
             g.enemies.RemoveAll(g.IsTemperEnemy);
-            g.save.x = foundry.x; g.save.y = foundry.y;
-            Action(g, foundry.kind, "iron_temper_finish");
+            g.Tick(.05f, new Point());
             Check(!g.TemperActive && !g.Has("iron_temper_complete") &&
                 g.save.coins == coins && g.TemperUpgradeTimber >= 3,
                 "Removing the final overseer without a lethal Hit can never publish a cheaper permanent recipe");
