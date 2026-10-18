@@ -192,7 +192,9 @@ namespace Starfall.Tests
                     g.effects.Contains(otherEffect)&&g.enemies.Count==1,
                     "Genuine combat Break cancels the unspent Boss call, retracts ONLY its own warning and spawns nobody");
                 boss.stun=0;boss.hitTime=0;boss.releaseTime=0;boss.timer=0;
-                g.Tick(.02f,new Point());
+                // The authentic parry/contact applies 25ms of hit-stop.
+                // Consume it without falsifying the game's freeze contract.
+                g.Tick(.05f,new Point());
                 Check(boss.state==1&&g.effects.Exists(e=>
                     e.bossSummonCueOwnerId==boss.id),
                     "Boss can start a second honest call after recovering from interruption");
