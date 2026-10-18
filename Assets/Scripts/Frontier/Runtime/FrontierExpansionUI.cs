@@ -676,7 +676,8 @@ namespace Starfall
                 bool reserve=Game.AfterlightReserve(region);
                 bool civicFight=!anchor&&Game.AfterlightWatchActive;
                 bool defended=Game.AfterlightWatchDone(region);
-                Color tint=civicFight?gold:
+                Color tint=civicFight?
+                    (Game.AfterlightWatchStock<=30?PixelArt.C("#f17368"):gold):
                     complete?(!anchor&&Game.AfterlightComplete&&!reserve?gold:mint):
                     active?PixelArt.C("#f1d39a"):
                     Game.AfterlightMode(region)!=0?gold:muted;
@@ -701,8 +702,9 @@ namespace Starfall
                         12,tint,TextAnchor.MiddleCenter);
                 if(civicFight)
                     Text(p.x-79,p.y-123,158,18,
-                        Game.AfterlightWatchWave+"/2 · "+Math.Ceiling(Game.AfterlightWatchTime)+"s",
-                        11,gold,TextAnchor.MiddleCenter);
+                        Game.AfterlightWatchWave+"/2 · "+Math.Ceiling(Game.AfterlightWatchTime)+"s · "+
+                            Math.Ceiling(Game.AfterlightWatchStock)+"%",
+                        11,tint,TextAnchor.MiddleCenter);
                 else if(complete&&!anchor&&Game.AfterlightComplete&&!reserve)
                     Text(p.x-79,p.y-123,158,18,
                         Game.L("应急物资待补充 · E","STOCK SUPPLIES · E"),
