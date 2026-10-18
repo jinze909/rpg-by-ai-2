@@ -260,6 +260,15 @@ namespace Starfall
             }
             if(afterlightChargeRegion==room)
             {
+                var receiverChoices=new List<Choice>();
+                receiverChoices.Add(C("安装并接通公共设施",
+                    "Install and reconnect public service","afterlight_install_"+room));
+                if(afterlightChargeIntegrity<AfterlightReceiverThreshold&&!afterlightReceiverRepaired)
+                    receiverChoices.Add(C("现场修复负载 · 月光草1、时间8秒",
+                        "Repair power · 1 Moonherb and 8 seconds","afterlight_repair_"+room));
+                receiverChoices.Add(C("放弃受损负载 · 原方案保留",
+                    "Abandon load · keep civic design","afterlight_discard_"+room));
+                receiverChoices.Add(C("保留传输，先备料","Check materials","close"));
                 Dialog(o.name,o.en,
                     "余光已抵达接收端，剩余 "+Math.Ceiling(afterlightChargeLeft)+" 秒；完整度 "+
                         Math.Ceiling(afterlightChargeIntegrity)+"%，安装至少需要35%。"+
@@ -274,12 +283,7 @@ namespace Starfall
                         " The load is too weak. Spend one Moonherb and 8 seconds to restore 45 integrity, or release the cargo here and retry at the source.":"")+
                     "\n\nMaterial cost: "+(AfterlightMode(room)==1?"2 timber and 2 Moonherb":"2 starcrystal and 1 machine part")+
                     ". The service becomes a permanent local facility once built.",
-                    C("安装并接通公共设施","Install and reconnect public service","afterlight_install_"+room),
-                    C("现场修复负载 · 月光草1、时间8秒",
-                        "Repair power · 1 Moonherb and 8 seconds","afterlight_repair_"+room),
-                    C("放弃受损负载 · 原方案保留",
-                        "Abandon load · keep civic design","afterlight_discard_"+room),
-                    C("保留传输，先备料","Check materials","close"));return true;
+                    receiverChoices.ToArray());return true;
             }
             Dialog(o.name,o.en,
                 "这里仍是一座未接电的旧公用终端。先到本地区另一端的星根锚点校准用途，启动真实传输后再回这里。",
@@ -476,11 +480,17 @@ namespace Starfall
             }
             if(pieces[1]=="repair")
             {
-                if(afterlightChargeRegion!=room||afterlightChargeLeft<=8||
+                if(afterlightChargeRegion!=room||
                     afterlightReceiverRepaired||afterlightChargeIntegrity<=0||
                     afterlightChargeIntegrity>=AfterlightReceiverThreshold||
                     (Position-AfterlightPoint(room,"outlet")).Length>2.2f||
                     !SafeTravel)return true;
+                if(afterlightChargeLeft<=8)
+                {
+                    Notify("运输时间不足8秒，无法在本次载荷上修复。可直接在此放弃并重新组织。",
+                        "Less than eight seconds remain. Discharge the load at this receiver and retry.");
+                    return true;
+                }
                 if(save.inventory[2]<1)
                 {
                     Notify("现场修复需要一株真正的月光草，可返回原锚点重新运输。",
@@ -498,9 +508,14 @@ namespace Starfall
             if(pieces[1]=="install")
             {
                 if(afterlightChargeRegion!=room || afterlightChargeLeft<=0 ||
-                    afterlightChargeIntegrity<AfterlightReceiverThreshold ||
                     (Position-AfterlightPoint(room,"outlet")).Length>2.2f ||
                     !SafeTravel)return true;
+                if(afterlightChargeIntegrity<AfterlightReceiverThreshold)
+                {
+                    Notify("负载不足35%：请在接收台使用月光草抢修，或释放载荷回原锚点重试。",
+                        "Power below 35%. Repair with one Moonherb here or discharge and retry from the anchor.");
+                    return true;
+                }
                 bool care=AfterlightMode(room)==1;
                 if(!Spend(care?2:0,care?0:2,care?2:0,0,care?0:1))return true;
                 ResetAfterlightCharge();
