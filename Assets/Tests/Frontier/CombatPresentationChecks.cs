@@ -24,7 +24,11 @@ namespace Starfall.Tests
                 Check(g.riposteTime>0&&
                     Math.Abs(action.damage-baseDamage)<.001f&&!action.released,
                     "Visible windup preserves the original bonus and untouched power");
-                Advance(g,action.contact+.04f);
+                // Finish preparation with a single contact frame. Any shot
+                // released THIS frame is not allowed to fly before the next,
+                // so the real projectile profile remains observable here.
+                Advance(g,Math.Max(0,action.contact-action.elapsed-.04f));
+                g.Tick(.05f,new Point());
                 Check(action.released&&!action.riposteArmed&&g.riposteTime<=0&&
                     Math.Abs(action.damage-baseDamage*1.5f)<.001f,
                     "The sole original release frame commits exactly one +50 percent earned riposte");
@@ -50,12 +54,13 @@ namespace Starfall.Tests
             g.riposteTime=1.5f;
             g.Attack(new Point(1,0));
             ActorAction abandoned=g.playerAction;
+            float originalDamage=abandoned==null?0:abandoned.damage;
             Check(abandoned!=null&&abandoned.riposteArmed&&g.riposteTime>0,
                 "A legitimate sword windup begins with the earned bonus reserved but unpaid");
             g.Dash(new Point(1,0));
             Check(g.playerAction==null&&g.riposteTime>0&&
                 !abandoned.released&&
-                Math.Abs(abandoned.damage-((float)abandoned.damage))<.001f,
+                Math.Abs(abandoned.damage-originalDamage)<.001f,
                 "Dodge-cancel before actual release preserves the riposte window instead of consuming it");
             Advance(g,.22f);
             Check(g.riposteTime>0,
