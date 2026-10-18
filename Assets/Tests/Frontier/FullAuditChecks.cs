@@ -203,6 +203,46 @@ namespace Starfall.Tests
             finally { data.maps[0]=original; }
         }
 
+        public static void BossSupportCannotSpawnOnTheLivingCompanion(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[17];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',17).ToCharArray();
+                    if(y>=2&&y<=14)for(int x=2;x<=14;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=8.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                Check(g.save.companion==1,"Physical Boss reinforcements test uses a real selected party companion");
+                Point intended=new Point(5.5f,9.5f);
+                g.companionPosition=intended;
+                var boss=new Enemy(99271,3,7.5f,8.5f,999,true)
+                    {hp=100,cycle=3};
+                g.enemies.Add(boss);
+                var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check((bool)summon.Invoke(g,new object[]{boss})&&g.enemies.Count==2,
+                    "The Boss's preferred occupied reinforcement tile still allows an alternate genuine local spawn");
+                Enemy recruit=g.enemies[1];
+                Check((recruit.Position-intended).Length>=1.2f&&
+                    (recruit.Position-g.Position).Length>=1.25f &&
+                    g.CanStand(recruit.Position),
+                    "Summoned support must not appear inside companion, hero or an obstructed footprint");
+                Check(recruit.kind==0,
+                    "Original third-cycle reinforcements keep their actual melee identity when avoiding party characters");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void TideTransitionPrecedesAllAttackContacts(Campaign data)
         {
             var g=Unlocked(data);g.save.totalTime=21.995f;g.Enter(5);g.enemies.Clear();g.invulnerable=100;
