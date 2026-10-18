@@ -264,19 +264,21 @@ namespace Starfall
                     "余光已抵达接收端，剩余 "+Math.Ceiling(afterlightChargeLeft)+" 秒；完整度 "+
                         Math.Ceiling(afterlightChargeIntegrity)+"%，安装至少需要35%。"+
                     (afterlightChargeIntegrity<AfterlightReceiverThreshold?
-                        "\n负载过弱！可消耗月光草1现场恢复45完整度（每趟一次，花费8秒）。":"")+
+                        "\n负载过弱！可消耗月光草1现场恢复45完整度（每趟一次，花费8秒），或在这里主动释放载荷后回锚点重试。":"")+
                     "\n\n接通所需真实材料："+(AfterlightMode(room)==1?"木材 ×2、月光草 ×2":"星晶 ×2、零件 ×1")+
                     "。安装完成后将永久改变这片地区的设施功能。",
                     "Afterlight receiver: "+Math.Ceiling(afterlightChargeLeft)+
                         "s and "+Math.Ceiling(afterlightChargeIntegrity)+"% load integrity. "+
                     "Installation requires at least 35%."+
                     (afterlightChargeIntegrity<AfterlightReceiverThreshold?
-                        " The load is too weak. One Moonherb can repair 45 integrity once per run at a cost of 8 seconds.":"")+
+                        " The load is too weak. Spend one Moonherb and 8 seconds to restore 45 integrity, or release the cargo here and retry at the source.":"")+
                     "\n\nMaterial cost: "+(AfterlightMode(room)==1?"2 timber and 2 Moonherb":"2 starcrystal and 1 machine part")+
                     ". The service becomes a permanent local facility once built.",
                     C("安装并接通公共设施","Install and reconnect public service","afterlight_install_"+room),
                     C("现场修复负载 · 月光草1、时间8秒",
                         "Repair power · 1 Moonherb and 8 seconds","afterlight_repair_"+room),
+                    C("放弃受损负载 · 原方案保留",
+                        "Abandon load · keep civic design","afterlight_discard_"+room),
                     C("保留传输，先备料","Check materials","close"));return true;
             }
             Dialog(o.name,o.en,
@@ -455,6 +457,21 @@ namespace Starfall
                     stable?
                     "One crystal invested: 120-second stable load started. Walk physically to the distant public receiver.":
                     "90-second load transfer started! Reach the real receiver across the map. Combat cannot substitute for reconstruction.");
+                return true;
+            }
+            if(pieces[1]=="discard")
+            {
+                // A true physical receiver withdrawal lets an underpowered
+                // courier retreat without walking the full route back or
+                // spending unrelated crafting inputs just to clear the task.
+                if(afterlightChargeRegion!=room||
+                    (Position-AfterlightPoint(room,"outlet")).Length>2.2f)
+                    return true;
+                bool wasStable=afterlightStableCharge;
+                ResetAfterlightCharge();revision++;sound="quest";
+                Notify("本次远端负载已安全释放。居民用途方案与旧重建进度仍在；可回原锚点重新运输。",
+                    "Receiver discharged. Civic design and prior achievements remain; retry the transport at its source anchor."+
+                    (wasStable?" The previously spent stabilizing crystal is not refunded.":""));
                 return true;
             }
             if(pieces[1]=="repair")
