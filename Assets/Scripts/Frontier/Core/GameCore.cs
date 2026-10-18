@@ -843,6 +843,7 @@ namespace Starfall
             enemy.timer=Math.Max(enemy.timer,enemy.boss?.65f:.45f);
             enemy.targetingWayfarer=false;
             enemy.targetingReliefCivilian=false;
+            enemy.targetingAfterlightStock=false;
             RemoveEnemyPendingWarning(enemy);
         }
         private void RemoveEnemyPendingWarning(Enemy enemy)
@@ -961,7 +962,12 @@ namespace Starfall
                 bool escortPatrol = reliefMissionRoom == save.room &&
                     reliefMissionWave == 3 && !IsReliefMissionEnemy(e) && !e.boss &&
                     (e.Position - reliefFollowerPosition).Length < 8f;
-                Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
+                // The public station is an actual defense objective: melee
+                // raiders advance toward its receiver, ranged threats still
+                // pressure the hero with ordinary traveling projectiles.
+                bool stockRaider=IsAfterlightWatchEnemy(e)&&e.kind!=1;
+                Point pursuit = stockRaider ? AfterlightPoint(save.room,"outlet") :
+                    wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
@@ -1016,6 +1022,11 @@ namespace Starfall
                         }
                         else if (e.kind == 1) Fire(e, e.facing, 5);
                         else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position)) Hurt(11, "lunge", e.facing);
+                        // Only an uninterrupted genuine enemy release can
+                        // strike the receiver. Nearby bodyguards draw the
+                        // enemy's locked intent and prevent stock damage.
+                        if(stockRaider&&e.targetingAfterlightStock)
+                            DamageAfterlightWatchStock(e);
                         if (travelerAttacker && e.targetingWayfarer) DamageWayfarer(e);
                         if (reliefMissionRoom != 0 &&
                             (IsReliefMissionEnemy(e) || escortPatrol) &&
@@ -1023,7 +1034,8 @@ namespace Starfall
                             DamageReliefCivilian(e);
                         // Rescue archers only injure civilians where their real
                         // arrow actually flies. No hitscan at the windup release.
-                        e.targetingWayfarer = e.targetingReliefCivilian = false;
+                        e.targetingWayfarer = e.targetingReliefCivilian =
+                            e.targetingAfterlightStock = false;
                         rescueWindupEffects.Remove(e);
                         e.state = 0; e.timer = e.boss ? 2.2f - e.BossPhase * .3f : 1.4f;
                     }
@@ -1031,13 +1043,14 @@ namespace Starfall
                 }
                 // Defense attackers cannot abandon the beacon after knockback
                 // or while navigating around a distant obstruction.
-                if (!wardAttacker && !travelerAttacker && !reliefAttacker && !escortPatrol &&
+                if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
+                    !escortPatrol && !stockRaider &&
                     distance > (e.boss ? 18 : 8)) continue;
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
                 float desired = (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
-                    wardAttacker || travelerAttacker || reliefAttacker || escortPatrol ? 1.05f :
+                    wardAttacker || travelerAttacker || reliefAttacker || escortPatrol || stockRaider ? 1.05f :
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 Point before = e.Position;
@@ -1078,12 +1091,16 @@ namespace Starfall
                     ClearAttackPath(e.Position, pursuit);
                 bool strikeCivilian = nearCivilian &&
                     (!heroInRange || distance > 2.2f);
-                if (e.timer <= 0 && (heroInRange || strikeTraveler || strikeCivilian))
+                bool nearStock=stockRaider&&(pursuit-e.Position).Length<2.2f &&
+                    ClearAttackPath(e.Position,pursuit);
+                bool strikeStock=nearStock&&(!heroInRange||distance>2.2f);
+                if (e.timer <= 0 && (heroInRange || strikeTraveler || strikeCivilian || strikeStock))
                 {
                     e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer;
                     e.targetingWayfarer = strikeTraveler;
                     e.targetingReliefCivilian = strikeCivilian;
-                    e.target = strikeTraveler || strikeCivilian ? pursuit : Position;
+                    e.targetingAfterlightStock = strikeStock;
+                    e.target = strikeTraveler || strikeCivilian || strikeStock ? pursuit : Position;
                     e.Face(e.target - e.Position);
                     // A ground warning must precede the REAL damage, not
                     // appear for the first time on its contact frame.
@@ -1093,7 +1110,8 @@ namespace Starfall
                     // melee rings. Keep this effect tied to its attacker so
                     // stun, stagger or death can retract an unspent warning.
                     bool areaAttack = e.boss || e.kind == 2;
-                    if (areaAttack || (strikeCivilian && e.kind != 1))
+                    if (areaAttack || (strikeCivilian && e.kind != 1) ||
+                        (strikeStock && e.kind != 1))
                     {
                         var telegraph = new Effect("danger", e.target, e.timer)
                         {
@@ -1105,7 +1123,7 @@ namespace Starfall
                         rescueWindupEffects.Remove(e);
                         rescueWindupEffects.Add(e, telegraph);
                     }
-                    if (e.boss || distance < 6 || strikeCivilian) sound = "windup";
+                    if (e.boss || distance < 6 || strikeCivilian || strikeStock) sound = "windup";
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)
                         for (int step = 0; step < 12; step++)
