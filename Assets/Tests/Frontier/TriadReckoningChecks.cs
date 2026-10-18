@@ -215,5 +215,52 @@ namespace Starfall.Tests
                 "A legitimate new boss attempt restores exactly one interrupt opportunity");
         }
 
+        public static void ThreeCoreAuditMustConfirmActualGuardianDefeat(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"core_1","core_2","core_3",
+                "triad_started","triad_evidence_1","triad_evidence_2",
+                "triad_evidence_3"})g.save.flags.Add(flag);
+            g.Enter(4);g.enemies.Clear();
+            WorldObject nexus=Object(g,"triadnexus");
+            g.save.x=nexus.x;g.save.y=nexus.y;g.invulnerable=200;
+            Action(g,"triadnexus","triad_defense_start");
+            Check(g.TriadDefenseActive&&g.enemies.FindAll(g.IsTriadEnemy).Count==1,
+                "Real fourth-chapter security spawns the actual guardian");
+            Enemy phantom=g.enemies.Find(g.IsTriadEnemy);
+            g.enemies.Remove(phantom);
+            g.Tick(.05f,new Point());
+            Check(!g.TriadDefenseActive&&!g.Has("triad_defense_clear")&&
+                !g.Has("triad_sealed"),
+                "Unconfirmed disappearance cannot unlock the mandatory campaign audit");
+            g.Talk(nexus);
+            Check(g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,c=>c.action=="triad_seal")<0,
+                "After disappearance, the live console must still require a real guard encounter");
+            g.Close();
+            Action(g,"triadnexus","triad_defense_start");
+            Check(g.TriadDefenseActive&&g.enemies.FindAll(g.IsTriadEnemy).Count==1,
+                "The protected original evidence allows a free legitimate retry");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The authoritative game damage path is present");
+            Enemy genuine=g.enemies.Find(g.IsTriadEnemy);
+            hit.Invoke(g,new object[]{genuine,99999f,false,null,null});
+            Check(!g.enemies.Exists(g.IsTriadEnemy),
+                "Actual lethal player attack removes the genuine mission security");
+            g.Tick(.05f,new Point());
+            Check(g.Has("triad_defense_clear")&&!g.TriadDefenseActive,
+                "Only confirmed combat releases the core Chapter Four journal seal");
+            g.save.x=nexus.x;g.save.y=nexus.y;
+            Action(g,"triadnexus","triad_seal");
+            Check(g.Has("triad_sealed")&&!g.Has("triad_complete"),
+                "Physical audit publication remains a separate earned step");
+            g.PrepareSave();var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(reloaded.save.version==2&&reloaded.Has("triad_sealed")&&
+                !reloaded.TriadDefenseActive,
+                "Old v2 saves retain actual evidence, not transient combat confirmations");
+        }
+
     }
 }

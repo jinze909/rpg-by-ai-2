@@ -12,6 +12,12 @@ namespace Starfall
         public bool TriadDefenseActive { get; private set; }
         private float triadSurgeTime;
         private bool triadBossBreakUsed;
+        private bool triadSecurityKillConfirmed;
+        private void OnTriadSecurityEnemyDefeated(Enemy enemy)
+        {
+            if(TriadDefenseActive&&save.room==4&&IsTriadEnemy(enemy))
+                triadSecurityKillConfirmed=true;
+        }
         public bool TriadBossInterruptReady
         { get { return save.room==4 && Has("triad_complete") &&
             !triadBossBreakUsed && !Has("boss_4") &&
@@ -32,7 +38,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.triadOwned);
             effects.RemoveAll(e=>e.triadOwned);
             TriadDefenseActive=false;TriadTime=0;triadSurgeTime=0;
-            triadBossBreakUsed=false;
+            triadBossBreakUsed=false;triadSecurityKillConfirmed=false;
         }
         private bool TalkTriadGuild(WorldObject o)
         {
@@ -253,6 +259,7 @@ namespace Starfall
                 guardian.timer=.9f;
                 enemies.Add(guardian);
                 TriadDefenseActive=true;TriadTime=85;triadSurgeTime=3.2f;
+                triadSecurityKillConfirmed=false;
                 revision++;sound="quest";
                 Notify("旧保密协议启动！在85秒内击败守卫，并闪避延迟护盾脉冲。",
                     "Audit security activated! Defeat the guard within 85 seconds; dodge delayed shield pulses.");
@@ -304,7 +311,16 @@ namespace Starfall
             {ResetTriadDefense();revision++;return;}
             if(!enemies.Exists(IsTriadEnemy))
             {
-                ResetTriadDefense();Flag("triad_defense_clear");
+                bool defeated=triadSecurityKillConfirmed;
+                ResetTriadDefense();
+                if(!defeated)
+                {
+                    revision++;sound="deny";
+                    Notify("保密守卫异常离场，未确认击败。原始证据保留，可重新挑战。",
+                        "Security vanished without a confirmed defeat. Evidence is safe; retry the fight.");
+                    return;
+                }
+                Flag("triad_defense_clear");
                 revision++;sound="quest";
                 Notify("保密守卫已被击败！返回中央审计台保全原始日志。",
                     "Audit guardian defeated! Return to the central console to preserve the original log.");
