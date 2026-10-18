@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void BossSummonsRequireActualWalkableLocalRoutes() { CoreChecks.BossSummonsRejectVisibleButUnreachableDiagonalPocket(Data()); }
         [Test] public void BossSupportNeverMaterializesOnPlayerCompanion() { CoreChecks.BossSupportCannotSpawnOnTheLivingCompanion(Data()); }
         [Test] public void LateBossRecruitedArcherFiresActualTravelingArrow() { CoreChecks.LateBossArcherActuallyPerformsTimedRealArrowCombat(Data()); }
         [Test] public void LaterBossSummonsMixActualArcherAndMeleeCombat() { CoreChecks.LateBossCyclesSpawnVisibleMeleeAndRangedSupportWithoutActorOverlap(Data()); }
