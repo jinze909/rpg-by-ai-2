@@ -33,6 +33,12 @@ namespace Starfall
         public float FloodReliefIntegrity { get { return FloodReliefActive?floodReliefIntegrity:0; } }
         public int FloodReliefRaiders
         { get {return enemies.FindAll(e=>IsFloodReliefEnemy(e)&&e.hp>0).Count;} }
+        public int FloodReliefDefeated
+        { get { if(!FloodReliefActive)return 0;
+                return (floodReliefConfirmedKills&1)+((floodReliefConfirmedKills>>1)&1); } }
+        public bool FloodReliefSecured
+        { get { return FloodReliefCrossed&&floodReliefConfirmedKills==3&&
+                       floodReliefIntegrity>0; } }
         public bool FloodReliefRepairAvailable
         { get {return FloodReliefCrossed&&!floodReliefPatched&&
             floodReliefIntegrity>0&&floodReliefIntegrity<100&&save.inventory[2]>=1;} }
@@ -112,7 +118,9 @@ namespace Starfall
             if(spots.Count!=2)return false;
             for(int i=0;i<2;i++)
             {
-                var e=CreatePlacedEnemy(92340+i,i==0?0:2,spots[i],78+i*14);
+                // Distinct real attack profiles: a pursuing melee raider and an
+                // actual arrow-firing archer, not two identical area slams.
+                var e=CreatePlacedEnemy(92340+i,i==0?0:1,spots[i],78+i*14);
                 e.timer=.8f+i*.25f;enemies.Add(e);
             }
             return true;
@@ -174,8 +182,7 @@ namespace Starfall
                     !floodReliefPatched&&floodReliefIntegrity>0&&floodReliefIntegrity<100)
                     choices.Add(C("现场草药修补 · 草药1","Patch medical seal · 1 herb",
                         "floodarchive_relief_patch"));
-                if(floodReliefActive&&stage==3&&floodReliefCrossed&&
-                    floodReliefConfirmedKills==3&&floodReliefIntegrity>0)
+                if(floodReliefActive&&stage==3&&FloodReliefSecured)
                     choices.Add(C("交付完整医疗包","Deliver guarded medicine","floodarchive_relief_deliver"));
                 if(ferryDock&&LowTide)
                     choices.Add(C("乘渡船 · 耐力"+PublicFerryEnergyCost,

@@ -205,10 +205,15 @@ namespace Starfall
                     "The eastern medicine has been genuinely delivered"):
                     q.locked?L("先完成沉桥民用档案，恢复低潮渡船",
                         "Restore the public tide ferry through the archive"):
-                    FloodReliefCrossed?L("击败真实拦截者，保护封条并在东岸码头交付 · 剩余"+
-                        (int)Math.Ceiling(FloodReliefTime)+"秒",
-                        "Defeat the raiders and deliver at east dock · "+
-                        (int)Math.Ceiling(FloodReliefTime)+"s left"):
+                    FloodReliefCrossed?(FloodReliefSecured?
+                        L("两名拦截者确已击败！立刻在东岸交付医疗包 · 剩余"+
+                            (int)Math.Ceiling(FloodReliefTime)+"秒",
+                          "Both real raiders defeated! Deliver the medicine at east dock · "+
+                            (int)Math.Ceiling(FloodReliefTime)+"s left"):
+                        L("击败拦截者 "+FloodReliefDefeated+"/2，保护药品封条 · 剩余"+
+                            (int)Math.Ceiling(FloodReliefTime)+"秒",
+                          "Defeat raiders "+FloodReliefDefeated+"/2 and guard cargo · "+
+                            (int)Math.Ceiling(FloodReliefTime)+"s left")):
                     FloodReliefActive?L("携带药品搭乘西岸低潮渡船 · 剩余"+
                         (int)Math.Ceiling(FloodReliefTime)+"秒",
                         "Take the west-side low-tide ferry with medicine · "+

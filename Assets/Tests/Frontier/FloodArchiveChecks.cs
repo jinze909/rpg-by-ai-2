@@ -221,17 +221,22 @@ namespace Starfall.Tests
             Check(hit!=null,"The game has an authoritative lethal-hit callback");
             var a=g.enemies.Find(e=>e.id==92340);
             var b=g.enemies.Find(e=>e.id==92341);
-            Check(a!=null&&b!=null&&g.CanStand(a.Position)&&g.CanStand(b.Position),
-                "The real raiders spawn on original accessible east-bank terrain");
+            Check(a!=null&&b!=null&&g.CanStand(a.Position)&&g.CanStand(b.Position)&&
+                a.kind==0&&b.kind==1&&g.FloodReliefDefeated==0,
+                "The actual east-bank battle deploys distinct melee and bow combat profiles");
             choose.Invoke(g,new object[]{"floodarchive_relief_deliver"});
             Check(!g.FloodReliefComplete&&g.save.coins==cash,
                 "Ferry arrival alone does not grant the combat-and-delivery reward");
             hit.Invoke(g,new object[]{a,99999f,false,null,null});
-            Check(g.FloodReliefActive&&g.FloodReliefRaiders==1,
-                "Defeating one genuine attacker is not yet completion");
+            Check(g.FloodReliefActive&&g.FloodReliefRaiders==1&&
+                g.FloodReliefDefeated==1&&!g.FloodReliefSecured&&
+                g.GetQuest("ferry_relief").next.Contains("1/2"),
+                "One genuine kill updates the playable quest compass but cannot publish delivery");
             hit.Invoke(g,new object[]{b,99999f,false,null,null});
             g.hitStop=0;g.Tick(.05f,new Point());
             Check(g.FloodReliefActive&&g.FloodReliefRaiders==0&&
+                g.FloodReliefSecured&&g.FloodReliefDefeated==2&&
+                g.GetQuest("ferry_relief").next.Contains("交付")&&
                 g.save.coins==cash&&g.save.shards==shards&&
                 g.save.kills[2]==kills,
                 "Two genuine quest kills preserve the parcel without farmable normal loot or bounty kills");
