@@ -159,6 +159,84 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Both actual Q HUD layouts queue during ordinary attack and preserve world aim");
     }
 
+    private static void CivicReserveCombatHudTracksGenuineReceiverObjective(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;
+        g.save.stage=3;g.save.ending=3;g.save.english=false;
+        foreach (string flag in new[]{
+            "afterlight_started","afterlight_complete","afterlight_done_1",
+            "afterlight_steward_1","afterlight_reserve_1",
+            "afterlight_plan_1_watch"})
+            if(!g.Has(flag))g.save.flags.Add(flag);
+        g.Enter(1);g.enemies.Clear();
+        WorldObject receiver=null;
+        foreach(WorldObject o in g.Map.objects)
+            if(o.kind=="afterlightoutlet1"){receiver=o;break;}
+        Check(receiver!=null,"Published Thornwood public receiver actually exists");
+        g.save.x=receiver.x;g.save.y=receiver.y;
+        g.Talk(receiver);
+        Check(g.conversation!=null,"The rebuilt public receiver opens real dialogue");
+        int start=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="afterlight_watch_start_1"){start=i;break;}
+        Check(start>=0,"Public stock provides an authentic defense start choice");
+        g.Choose(start);
+        Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+            g.AfterlightWatchStock==100f&&g.AfterlightWatchTime==100f,
+            "Real siege starts with complete timed receiver objective");
+
+        // The hero and camera may move away from the receiver. A genuinely
+        // live siege must keep its status in the combat layout itself, even
+        // with the ordinary combat HUD grace timer at zero.
+        Set(app,"combatHudTime",0f);
+        Set(app,"camera",new Point(13,14));
+        GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();
+        Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("公共储备防卫 · 第1/2"))),
+            "Real combat HUD exposes the active wave instead of hiding it at the offscreen station");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("设施耐久 100%"))),
+            "Real HUD shows the actual live objective percentage");
+        Check(GUI.buttonCalls.Exists(c=>Math.Abs(c.rect.x-430)<.5f&&
+            Math.Abs(c.rect.y-732)<.5f),
+            "Civic-defense HUD retains the actual compact combat skill input instead of blocking Q");
+
+        var integrity=typeof(GameCore).GetField("afterlightWatchStock",
+            Private);
+        var patched=typeof(GameCore).GetField("afterlightWatchPatched",
+            Private);
+        Check(integrity!=null&&patched!=null,
+            "Real civilian stock and one-use repair availability are produced by GameCore");
+        integrity.SetValue(g,22.5f);
+        g.save.inventory[0]=2;g.save.inventory[2]=2;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("设施耐久 23% · 抢修 E"))),
+            "Critical objective turns into a readable 23%-integrity prompt with a truthful E repair hint");
+
+        g.save.english=true;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("STOCK INTEGRITY 23% · PATCH E"))),
+            "Active English combat HUD reports the identical real stock condition");
+        patched.SetValue(g,true);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("STOCK INTEGRITY 23%")))&&
+            !GUI.commands.Exists(c=>c.Contains(GUI.S("STOCK INTEGRITY 23% · PATCH E"))),
+            "Consumed repair is never falsely advertised as available");
+        g.save.english=false;
+        g.save.x=receiver.x;g.save.y=receiver.y;
+        g.Talk(receiver);
+        int abort=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="afterlight_watch_abort_1"){abort=i;break;}
+        Check(abort>=0,"Public receiver supports actual on-site siege withdrawal");
+        g.Choose(abort);
+        g.enemies.Clear();
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains(GUI.S("公共储备防卫 · 第"))),
+            "No stale combat HUD after a real withdrawal");
+        Console.WriteLine("PASS actual civic stock siege draws bilingual offscreen HUD, honest patch hints, input-safe compact controls and cleanup");
+    }
+
     private static void MenuAndApplicationPauseDiscardIntent(FrontierRuntime app)
     {
         foreach (string boundary in new[] { "pause", "inventory", "application", "focus" })
@@ -1515,7 +1593,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
