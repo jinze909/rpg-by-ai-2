@@ -3258,6 +3258,12 @@ namespace Starfall.Tests
                 data.maps[5]=new MapData{
                     id=5,spawnX=10.5f,spawnY=10.5f,rows=rows,
                     objects=new WorldObject[0],decor=new Decoration[0]};
+                var escapeField=typeof(GameCore).GetField("dodgeEscapeTime",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var originField=typeof(GameCore).GetField("dashOrigin",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
                 var g=Fresh(data,0);g.enemies.Clear();
                 g.save.room=5;g.save.totalTime=21.98f;
                 g.save.x=11.5f;g.save.y=10.5f;
@@ -3266,16 +3272,16 @@ namespace Starfall.Tests
                     "Hero starts in the playable real shoal while outgoing tide is still low");
                 Point endangered=g.Position;
                 g.Dash(new Point(1,0));
-                Check(g.perfectDodgeArmed&&g.dodgeEscapeTime>.29f&&
+                Check(g.perfectDodgeArmed&&(float)escapeField.GetValue(g)>.29f&&
                     g.dashTime>.17f&&g.dashCooldown>.7f&&
                     g.save.energy==80f,
                     "A physical charged player dash is legitimately committed before the tidal transition");
                 g.Tick(.04f,new Point());
                 Check(!g.LowTide&&g.CanStand(g.Position)&&
                     (g.Position-endangered).Length>.3f&&
-                    g.dashTime<=0f&&g.dodgeEscapeTime<=0f&&
+                    g.dashTime<=0f&&(float)escapeField.GetValue(g)<=0f&&
                     !g.perfectDodgeArmed&&
-                    (g.dashOrigin-g.Position).Length<.001f,
+                    (((Point)originField.GetValue(g))-g.Position).Length<.001f,
                     "Actual tide-forced player teleport cancels invalid active dodge and its unearned counter eligibility");
                 Check(g.dashCooldown>.6f&&
                     g.save.energy<81f&&g.save.energy>=80f&&
