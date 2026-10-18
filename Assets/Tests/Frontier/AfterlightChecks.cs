@@ -863,6 +863,142 @@ namespace Starfall.Tests
                 "All optional civic upgrades survive the original v2 save format and leave original charter intact");
         }
 
+        public static void AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_complete");
+            for(int room=1;room<=3;room++)
+            {
+                g.save.flags.Add("afterlight_done_"+room);
+                g.save.flags.Add("afterlight_steward_"+room);
+                g.save.flags.Add("afterlight_reserve_"+room);
+                g.save.flags.Add("afterlight_plan_"+room+"_watch");
+            }
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Live combat contact and lethal-death pathway available");
+            for(int room=1;room<=3;room++)
+            {
+                g.Enter(room);g.enemies.Clear();g.invulnerable=1000;
+                var receiver=Object(g,"afterlightoutlet"+room);
+                g.save.x=receiver.x;g.save.y=receiver.y;
+                int originalCoins=g.save.coins,originalShards=g.save.shards;
+                int originalKilled=g.save.kills[room];
+                g.Talk(receiver);
+                Check(Array.Exists(g.conversation.choices,c=>c.action=="afterlight_watch_start_"+room),
+                    "Repaired, stocked civic receiver exposes genuine playable defense");
+                g.Close();
+                Action(g,receiver.kind,"afterlight_watch_start_"+room);
+                Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+                    g.AfterlightWatchTime>99&&g.enemies.Count==2,
+                    "The original receiver really spawns two live physical attackers in wave one");
+                Check(g.CanStand(g.enemies[0].Position)&&g.CanStand(g.enemies[1].Position)&&
+                    (g.enemies[0].Position-g.enemies[1].Position).Length>1f,
+                    "All challenge attackers spawn on distinct walkable ground");
+                g.Enter(0);
+                Check(g.save.room==room&&g.AfterlightWatchActive,
+                    "Live civic combat cannot be skipped with region travel");
+                g.ReturnToTown();
+                Check(g.save.room==room,"Return-to-town cannot erase an unfinished defense");
+                g.PrepareSave();
+                Check(g.save.worldEnemies!=null&&g.save.worldEnemies.Length==0,
+                    "Temporary civic attackers never poison version-two world snapshots");
+                var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
+                Check(!resumed.AfterlightWatchActive&&!resumed.AfterlightWatchDone(room)&&
+                    resumed.enemies.Count==0,
+                    "Saving during a defense never resurrects trial enemies or fabricates reward flags");
+                // Calling the actual lethal-contact transaction is essential:
+                // deleting enemy list entries is NOT a victory.
+                Enemy lost=g.enemies[0];g.enemies.Remove(lost);
+                g.Tick(.02f,new Point());
+                Check(!g.AfterlightWatchActive&&!g.AfterlightWatchDone(room)&&
+                    g.save.coins==originalCoins&&g.save.shards==originalShards,
+                    "Missing enemy without an authentic lethal hit aborts the attempt reward-free");
+                g.enemies.Clear();
+                Action(g,receiver.kind,"afterlight_watch_start_"+room);
+                Check(g.AfterlightWatchActive&&g.enemies.Count==2,
+                    "Interrupted actual civic defense can be restarted on site");
+                for(int wave=1;wave<=2;wave++)
+                {
+                    Check(g.AfterlightWatchWave==wave&&g.enemies.Count==2,
+                        "Each of the two authored waves fields two real enemies");
+                    Enemy a=g.enemies[0], b=g.enemies[1];
+                    hit.Invoke(g,new object[]{a,2000f,false,null,null});
+                    Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==wave &&
+                        !g.AfterlightWatchDone(room),
+                        "A single genuine hit kill cannot fake clearing an entire wave");
+                    hit.Invoke(g,new object[]{b,2000f,false,null,null});
+                    Check(!g.AfterlightWatchDone(room),
+                        "The last lethal contact must be settled through the production tick");
+                    g.Tick(.02f,new Point());
+                }
+                Check(g.AfterlightWatchDone(room)&&!g.AfterlightWatchActive&&
+                    g.enemies.Count==0 &&g.save.coins==originalCoins+25+room*5 &&
+                    g.save.shards==originalShards+1&&
+                    g.save.kills[room]==originalKilled,
+                    "Exactly two full real waves award the one-time civic defense reward without farming ordinary kills, loot or bounty");
+                g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+                Check(loaded.save.version==2&&loaded.AfterlightWatchDone(room)&&
+                    !loaded.AfterlightWatchActive,
+                    "One-time civic defense clearance survives reload without transient attackers");
+                int earnedCoins=g.save.coins,earnedShards=g.save.shards,earnedXP=g.save.xp;
+                Action(g,receiver.kind,"afterlight_watch_start_"+room);
+                Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1,
+                    "Completed defenses offer actual replayable combat");
+                for(int wave=1;wave<=2;wave++)
+                {
+                    hit.Invoke(g,new object[]{g.enemies[0],2000f,false,null,null});
+                    hit.Invoke(g,new object[]{g.enemies[0],2000f,false,null,null});
+                    g.Tick(.02f,new Point());
+                }
+                Check(!g.AfterlightWatchActive&&g.save.coins==earnedCoins&&
+                    g.save.shards==earnedShards&&g.save.xp==earnedXP,
+                    "Veteran repeats yield no additional coins, shards or quest XP");
+            }
+            Check(g.AfterlightWatchesCleared==3&&g.Has("afterlight_watch_all")&&
+                g.save.skillPoints>=1,
+                "All three genuine public-defense victories award exactly one campaign-wide talent point");
+        }
+
+        public static void AfterlightDefenseRequiresStockAndSupportsHonestWithdrawal(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");g.save.flags.Add("afterlight_complete");
+            g.save.flags.Add("afterlight_done_2");g.save.flags.Add("afterlight_steward_2");
+            g.save.flags.Add("afterlight_plan_2_care");
+            g.Enter(2);g.enemies.Clear();g.invulnerable=400;
+            var outlet=Object(g,"afterlightoutlet2");
+            g.save.x=outlet.x;g.save.y=outlet.y;
+            g.Talk(outlet);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_watch_start_2"),
+                "Without real purchased reserve the public cannot start the optional defense");
+            g.Close();
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            choose.Invoke(g,new object[]{"afterlight_watch_start_2"});
+            Check(!g.AfterlightWatchActive,"Forged start before stocking is rejected");
+            g.save.flags.Add("afterlight_reserve_2");
+            Action(g,outlet.kind,"afterlight_watch_start_2");
+            Check(g.AfterlightWatchActive&&g.enemies.Count==2,
+                "On-site stocked receiver starts live defense after actual upgrade");
+            Action(g,outlet.kind,"afterlight_watch_abort_2");
+            Check(!g.AfterlightWatchActive&&g.enemies.Count==0 &&
+                !g.AfterlightWatchDone(2)&&g.AfterlightReserve(2),
+                "Explicit receiver withdrawal retires only temporary attackers and preserves purchased permanent reserve");
+            Action(g,outlet.kind,"afterlight_watch_start_2");
+            var time=typeof(GameCore).GetField("afterlightWatchTime",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(time!=null,"Authentic defense clock exists");
+            time.SetValue(g,.01f);g.Tick(.02f,new Point());
+            Check(!g.AfterlightWatchActive&&g.enemies.Count==0&&
+                !g.AfterlightWatchDone(2)&&g.AfterlightReserve(2),
+                "Timeout retires real waves without forging a region victory or deleting saved infrastructure");
+        }
+
         public static void AfterlightWorkshopCannotCraftPartsDuringHostileCombat(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;
