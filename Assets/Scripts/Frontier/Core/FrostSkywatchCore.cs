@@ -13,6 +13,15 @@ namespace Starfall
         private float skywatchPulseTime;
         private int skywatchPulseCycle;
         private bool skywatchGroundingUsed;
+        // A missing enemy is not a Boss victory. Persist only the normal
+        // original completion flag after the actual lethal combat callback.
+        private bool skywatchKillConfirmed;
+        private void OnSkywatchEnemyDefeated(Enemy guardian)
+        {
+            if (SkywatchRoom == 7 && save.room == 7 &&
+                IsSkywatchEnemy(guardian))
+                skywatchKillConfirmed = true;
+        }
         public float SkywatchGroundingTime { get; private set; }
         public bool SkywatchGroundingAvailable
         {
@@ -29,7 +38,8 @@ namespace Starfall
             hazards.RemoveAll(h => h.skywatchOwned);
             SkywatchRoom = 0; SkywatchTime = 0;
             skywatchPulseTime = 0; skywatchPulseCycle = 0;
-            skywatchGroundingUsed = false; SkywatchGroundingTime = 0;
+            skywatchGroundingUsed = false; skywatchKillConfirmed = false;
+            SkywatchGroundingTime = 0;
         }
         private bool SkywatchReady()
         {
@@ -412,12 +422,19 @@ namespace Starfall
             Enemy guardian=enemies.Find(IsSkywatchEnemy);
             if (guardian==null)
             {
+                bool genuineVictory = skywatchKillConfirmed;
                 ResetSkywatch();
-                if (!Has("skywatch_defeated"))
+                if (genuineVictory && !Has("skywatch_defeated"))
                 {
                     Flag("skywatch_defeated"); revision++; sound="reward";
                     Notify("古观星守卫已停机！回余烬镇向伊澜公开原始光谱。",
                         "The skywatch guardian is down! Return to Yilan with the true spectrum.");
+                }
+                else if (!genuineVictory)
+                {
+                    revision++;
+                    Notify("观星守卫异常离场，未确认击败。棱镜记录保留，可免费重试。",
+                        "The guardian vanished without a confirmed defeat. The prisms remain calibrated; retry for free.");
                 }
                 return;
             }

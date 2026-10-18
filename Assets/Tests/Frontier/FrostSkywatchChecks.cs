@@ -456,5 +456,51 @@ namespace Starfall.Tests
             }
         }
 
+        public static void SkywatchBossDisappearanceCannotForgeAnAstronomerVictory(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 12;
+            foreach (string flag in new[] {
+                "mountain_report", "desert_report", "gate_7",
+                "skywatch_started", "skywatch_prism_1",
+                "skywatch_prism_2", "skywatch_prism_3" })
+                g.save.flags.Add(flag);
+            g.Enter(7); g.enemies.Clear(); g.projectiles.Clear();
+            var altar = Object(g, "skyobservatory");
+            g.save.x = altar.x; g.save.y = altar.y;
+            Action(g, altar.kind, "skywatch_start");
+            var guardian = g.enemies.Find(g.IsSkywatchEnemy);
+            Check(g.SkywatchRoom == 7 && guardian != null,
+                "The astronomer's real calibrated observatory starts its original armored boss");
+            g.enemies.Remove(guardian);
+            g.Tick(.05f, new Point());
+            Check(g.SkywatchRoom == 0 && !g.Has("skywatch_defeated") &&
+                !g.Has("skywatch_complete"),
+                "A vanished but undefeated boss cannot counterfeit an earned public spectrum");
+            g.Talk(altar);
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices,
+                    c => c.action == "skywatch_start"),
+                "The physical observatory offers a legitimate free retry after an abnormal reset");
+            g.Close(); g.enemies.Clear();
+            Action(g, altar.kind, "skywatch_start");
+            guardian = g.enemies.Find(g.IsSkywatchEnemy);
+            Check(g.SkywatchRoom == 7 && guardian != null,
+                "A fresh legitimate guardian spawns with the same authored combat");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit != null, "Original actual lethal damage is the only source of victory");
+            hit.Invoke(g, new object[] { guardian, 99999f, false, null, null });
+            g.Tick(.05f, new Point());
+            Check(g.Has("skywatch_defeated") &&
+                g.SkywatchRoom == 0 && !g.Has("boss_7"),
+                "Real lethal skywatch combat confirms the optional boss without forging the unrelated main story gate");
+            g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save));
+            Check(resumed.Has("skywatch_defeated") &&
+                !resumed.Has("skywatch_complete"),
+                "Verified defeat survives the original v2 slot and still needs Yilan's distinct publication");
+        }
+
     }
 }
