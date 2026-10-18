@@ -472,7 +472,10 @@ namespace Starfall.Tests
             float firstDamage=100-g.FloodReliefIntegrity;
             Check(g.save.health<health&&firstDamage>0&&firstDamage<14&&
                 g.FloodReliefRaiders==2,
-                "A genuine enemy hit still hurts the hero, but the paid ward reduces parcel damage");
+                "Ward contact: hero="+health+"->"+g.save.health+
+                " cargoLost="+firstDamage+" ward="+g.FloodReliefWardTime+
+                " raiders="+g.FloodReliefRaiders+
+                " mode="+g.mode+" invulnerable="+g.invulnerable);
             g.invulnerable=0;
             var ward=typeof(GameCore).GetField("floodReliefWardTime",
                 System.Reflection.BindingFlags.NonPublic|
