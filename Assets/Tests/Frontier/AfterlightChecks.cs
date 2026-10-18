@@ -691,5 +691,60 @@ namespace Starfall.Tests
                 "A half-repaired run cannot be serialized as a completed public work");
         }
 
+        public static void AfterlightRemoteReceiverCanDiscardHopelessLoadWithoutWipingPriorStory(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_plan_2_watch");
+            g.save.flags.Add("afterlight_done_1");
+            g.Enter(2);g.enemies.Clear();
+            WorldObject anchor=Object(g,"afterlightanchor2"),
+                outlet=Object(g,"afterlightoutlet2");
+            g.save.x=anchor.x;g.save.y=anchor.y;
+            g.save.inventory[1]=4;g.save.inventory[2]=0;
+            Action(g,anchor.kind,"afterlight_stable_2");
+            Check(g.AfterlightChargeRegion==2&&g.AfterlightStableCharge&&
+                g.save.inventory[1]==3,
+                "An original post-ending civic anchor pays exactly one starcrystal for stable power");
+            var integrity=typeof(GameCore).GetField("afterlightChargeIntegrity",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(integrity!=null,"Temporary live civic charge state exists");
+            integrity.SetValue(g,20f);
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            choose.Invoke(g,new object[]{"afterlight_discard_2"});
+            Check(g.AfterlightChargeRegion==2&&g.AfterlightChargeIntegrity==20&&
+                g.save.inventory[1]==3,
+                "A forged discharge from the source cannot prematurely abandon a charged civic run");
+            g.enemies.Clear();g.invulnerable=500;
+            WalkWithAfterlightCharge(g,new Point(outlet.x,outlet.y));
+            g.save.x=outlet.x;g.save.y=outlet.y;
+            g.Talk(outlet);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterlight_discard_2");
+            Check(option>=0,"The actual physical receiver offers voluntary release for a doomed run");
+            g.Choose(option);
+            Check(g.AfterlightChargeRegion==0&&g.AfterlightChargeIntegrity==0&&
+                !g.AfterlightStableCharge&&g.save.inventory[1]==3&&
+                g.AfterlightMode(2)==2&&!g.Has("afterlight_done_2")&&
+                g.Has("afterlight_done_1"),
+                "Receiver withdrawal clears transient cargo only, preserving older region and planned service");
+            choose.Invoke(g,new object[]{"afterlight_discard_2"});
+            Check(g.save.inventory[1]==3&&!g.Has("afterlight_done_2"),
+                "Repeated discard cannot refund crystals or forge completion flags");
+            g.save.x=anchor.x;g.save.y=anchor.y;
+            Action(g,anchor.kind,"afterlight_charge_2");
+            Check(g.AfterlightChargeRegion==2&&!g.AfterlightStableCharge&&
+                g.AfterlightChargeLeft==90&&g.save.inventory[1]==3,
+                "After remote withdrawal the original free trip can be started without paying the stabilizing crystal again");
+            g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&saved.Has("afterlight_done_1")&&
+                saved.AfterlightMode(2)==2&&saved.AfterlightChargeRegion==0&&
+                !saved.Has("afterlight_done_2"),
+                "SaveData v2 preserves earned districts and local design but never a canceled cargo run");
+        }
+
     }
 }
