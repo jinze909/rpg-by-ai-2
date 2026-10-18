@@ -194,16 +194,23 @@ namespace Starfall
         { Point direction=(target-feet).Normalized;return (target-WeaponOrigin(feet,weapon,direction)).Normalized; }
         private Projectile WeaponShot(Point feet, int weapon, Point direction, float speed, float damage, Point? target=null)
         {
-            var shot = new Projectile { position = feet, velocity = direction.Normalized * speed, damage = damage, height = WeaponHeight(weapon, direction) };
+            var shot = new Projectile { position = feet, velocity = direction.Normalized * speed, damage = damage,
+                height = WeaponHeight(weapon, direction),
+                // Select the actual collision radius before muzzle sweep,
+                // instead of treating every not-yet-named projectile as a
+                // point and making the arrow head overlap solid scenery.
+                visual = weapon == 1 ? "arrow" : "starfire" };
             shot.launchHeight=shot.height;shot.flightHeight=weapon==2?39:shot.height;
             Point attachment = WeaponOrigin(feet, weapon, direction), delta = attachment - feet;
             int steps = Math.Max(1, (int)Math.Ceiling(delta.Length / .04f));
-            // An extended bow/staff cannot spawn a missile beyond a thin wall.
-            // Keep its first wall contact for the impact, even at point blank.
-            for (int i = 1; i <= steps; i++)
+            // The muzzle and the later flight MUST share the same full
+            // projectile footprint. Thin wall edges must stop the leading
+            // edge, not just the center after it has pierced the wall.
+            if (ShotBlocked(shot, feet)) shot.blockedAtSpawn = true;
+            for (int i = 1; i <= steps && !shot.blockedAtSpawn; i++)
             {
                 Point next = feet + delta * (i / (float)steps);
-                if (Blocked(next.x, next.y)) { shot.blockedAtSpawn = true; break; }
+                if (ShotBlocked(shot, next)) { shot.blockedAtSpawn = true; break; }
                 shot.position = next;
             }
             if(target.HasValue&&(target.Value-shot.position).Length>.01f)shot.velocity=(target.Value-shot.position).Normalized*speed;
