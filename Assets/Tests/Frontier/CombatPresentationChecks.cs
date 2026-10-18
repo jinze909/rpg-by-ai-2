@@ -26,8 +26,8 @@ namespace Starfall.Tests
                 Point before=g.Position;
                 Check(g.CanStand(before),
                     "The hero legitimately stands in the open before the tide/gate collision changes");
-                char[] sealed=rows[10].ToCharArray();
-                sealed[10]='#';rows[10]=new string(sealed);
+                char[] sealedTile=rows[10].ToCharArray();
+                sealedTile[10]='#';rows[10]=new string(sealedTile);
                 Check(!g.CanStand(before),
                     "Dynamic solid world terrain truly seals the full player footprint before dash input");
                 g.Dash(new Point(1,0));
@@ -37,7 +37,7 @@ namespace Starfall.Tests
                     !g.effects.Exists(e=>e.kind=="dash")&&
                     (g.Position-before).Length<.001f,
                     "An impossible dodge neither spends real stamina nor grants invisible i-frames, a false counter or visual movement");
-                sealed[10]='.';rows[10]=new string(sealed);
+                sealedTile[10]='.';rows[10]=new string(sealedTile);
                 Check(g.CanStand(before),
                     "The same scene physically reopens the hero's grounded dash lane");
                 g.Dash(new Point(1,0));
