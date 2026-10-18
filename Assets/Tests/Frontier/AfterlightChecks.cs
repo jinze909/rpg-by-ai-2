@@ -1002,10 +1002,47 @@ namespace Starfall.Tests
             Action(g,outlet.kind,"afterlight_watch_start_2");
             Check(g.AfterlightWatchActive&&g.enemies.Count==2,
                 "On-site stocked receiver starts live defense after actual upgrade");
+            // Production-generated ranged shots and their warnings belong to
+            // this exact fight, not ambient enemies already on the map.
+            var fire=typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var tag=typeof(GameCore).GetMethod("TagEnemyCombatEffect",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var fade=typeof(GameCore).GetMethod("AddProjectileFade",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(fire!=null&&tag!=null&&fade!=null,
+                "Actual enemy arrow release and shot effect ownership paths exist");
+            Enemy archer=g.enemies.Find(e=>e.kind==1);
+            Check(archer!=null,"Ruins opening wave contains a real archer");
+            fire.Invoke(g,new object[]{archer,new Point(1,0),6f});
+            Projectile owned=g.projectiles[g.projectiles.Count-1];
+            Check(owned.afterlightWatchOwned,
+                "Authentic enemy Fire marks the released arrow as belonging to this civic defense");
+            var unrelatedShot=new Projectile{position=new Point(15,15),velocity=new Point(1,0),
+                life=8,damage=1,source="ambient"};
+            g.projectiles.Add(unrelatedShot);
+            var ownedSignal=new Effect("enemyRelease",archer.Position,3f);
+            tag.Invoke(g,new object[]{ownedSignal,archer,false});
+            Check(ownedSignal.afterlightWatchOwned,
+                "Real enemy attack warnings retain their specific encounter ownership");
+            g.effects.Add(ownedSignal);
+            fade.Invoke(g,new object[]{owned});
+            Check(g.effects.Exists(e=>e.kind=="projectileFade"&&e.afterlightWatchOwned),
+                "Actual expired projectile visual remains owned until cleanup");
+            var unrelatedSignal=new Effect("discover",g.Position,3f);
+            g.effects.Add(unrelatedSignal);
             Action(g,outlet.kind,"afterlight_watch_abort_2");
             Check(!g.AfterlightWatchActive&&g.enemies.Count==0 &&
-                !g.AfterlightWatchDone(2)&&g.AfterlightReserve(2),
-                "Explicit receiver withdrawal retires only temporary attackers and preserves purchased permanent reserve");
+                !g.AfterlightWatchDone(2)&&g.AfterlightReserve(2)&&
+                !g.projectiles.Contains(owned)&&g.projectiles.Contains(unrelatedShot)&&
+                !g.effects.Contains(ownedSignal)&&
+                !g.effects.Exists(e=>e.kind=="projectileFade"&&e.afterlightWatchOwned)&&
+                g.effects.Contains(unrelatedSignal),
+                "Withdrawal removes real duel arrows, releases and fades without erasing unrelated ambient shots and effects");
+            g.projectiles.Clear();g.effects.Clear();
             Action(g,outlet.kind,"afterlight_watch_start_2");
             var time=typeof(GameCore).GetField("afterlightWatchTime",
                 System.Reflection.BindingFlags.NonPublic|
