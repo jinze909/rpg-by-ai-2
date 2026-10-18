@@ -3,6 +3,58 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void SealedHeroFootCannotSpendPhantomDodgeOrEarnCounter(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)row[x]='.';
+                    rows[y]=new string(row);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.energy=100f;g.save.reducedMotion=true;
+                g.invulnerable=0;
+                Point before=g.Position;
+                Check(g.CanStand(before),
+                    "The hero legitimately stands in the open before the tide/gate collision changes");
+                char[] sealed=rows[10].ToCharArray();
+                sealed[10]='#';rows[10]=new string(sealed);
+                Check(!g.CanStand(before),
+                    "Dynamic solid world terrain truly seals the full player footprint before dash input");
+                g.Dash(new Point(1,0));
+                Check(g.dashTime<=0&&g.dashCooldown<=0&&
+                    g.invulnerable<=0&&g.save.energy==100f&&
+                    !g.perfectDodgeArmed&&
+                    !g.effects.Exists(e=>e.kind=="dash")&&
+                    (g.Position-before).Length<.001f,
+                    "An impossible dodge neither spends real stamina nor grants invisible i-frames, a false counter or visual movement");
+                sealed[10]='.';rows[10]=new string(sealed);
+                Check(g.CanStand(before),
+                    "The same scene physically reopens the hero's grounded dash lane");
+                g.Dash(new Point(1,0));
+                Check(g.dashTime>.15f&&g.dashCooldown>.6f&&
+                    g.invulnerable>.3f&&g.save.energy==80f&&
+                    g.perfectDodgeArmed&&
+                    g.effects.Exists(e=>e.kind=="dash"),
+                    "A legal replacement dash retains its real stamina cost, recovery and invulnerability only on actual startup");
+                Advance(g,.20f);
+                Check(g.Position.x>before.x+2.4f&&
+                    Math.Abs(g.Position.y-before.y)<.01f&&
+                    g.dashTime<=0,
+                    "Restored ground permits the original physically swept dash distance without inventing footfalls");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void DynamicTerrainCannotReleaseHeroAttacksFromBuriedRoot(Campaign data)
         {
             MapData previous=data.maps[0];

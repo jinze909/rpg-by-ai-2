@@ -555,6 +555,15 @@ namespace Starfall
                 direction=new Point();
             float cost = Relic(2) ? 25 : 20;
             if (mode != "world" || Dying) return;
+            // Dynamic gates/tides can close over the hero between ticks.
+            // A dash from buried ground cannot physically travel, and must
+            // not consume stamina, mint 320ms of invulnerability or grant
+            // a free perfect-dodge counter for a nonexistent dodge.
+            if (!CanStand(Position))
+            {
+                ClearBufferedDodge();
+                return;
+            }
             if (dashCooldown > 0 || save.energy < cost)
             {
                 if(dashCooldown>0&&dashCooldown<=DodgeBufferWindow+.00001f&&

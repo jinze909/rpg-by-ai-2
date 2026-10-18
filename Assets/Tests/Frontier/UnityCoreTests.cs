@@ -19,6 +19,7 @@ namespace Starfall.Tests
         [Test] public void ProtectedDashCannotFarmFalseGroundBlastCounter() { CoreChecks.GroundHazardDodgeRewardRequiresRealExposedStartingFoot(Data()); }
         [Test] public void OverlappingBlastsOnlyDamageThroughClearLineOfSight() { CoreChecks.SimultaneousGroundHazardsOnlyDamageThroughClearLane(Data()); }
         [Test] public void DynamicSealedPlayerRootCancelsAllRealWeaponContacts() { CoreChecks.DynamicTerrainCannotReleaseHeroAttacksFromBuriedRoot(Data()); }
+        [Test] public void SealedPlayerGroundRejectsPhantomDashImmunity() { CoreChecks.SealedHeroFootCannotSpendPhantomDodgeOrEarnCounter(Data()); }
         [Test] public void DynamicSealedPlayerRootCancelsAllProfessionSkills() { CoreChecks.DynamicTerrainCannotReleaseHeroSkillsFromBuriedRoot(Data()); }
         [Test] public void InterruptedCounterCannotChargeForUnreleasedAttacks() { CoreChecks.InterruptedCounterWindupsCannotWasteEarnedReward(Data()); }
         [Test] public void HitStopConsumesExactImpactTime() { CoreChecks.ShortHitStopReleasesUnusedFrameTime(Data()); }
