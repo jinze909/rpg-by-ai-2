@@ -1054,6 +1054,83 @@ namespace Starfall.Tests
                 "Timeout retires real waves without forging a region victory or deleting saved infrastructure");
         }
 
+        public static void CivicReserveSaboteursMustReachReceiverAndCommitRealWindupBeforeDestroyingStock(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_complete");
+            g.save.flags.Add("afterlight_done_1");
+            g.save.flags.Add("afterlight_steward_1");
+            g.save.flags.Add("afterlight_reserve_1");
+            g.save.flags.Add("afterlight_plan_1_watch");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=1000;
+            WorldObject station=Object(g,"afterlightoutlet1");
+            g.save.x=station.x;g.save.y=station.y;
+            int coins=g.save.coins,shards=g.save.shards,herbs=g.save.inventory[2];
+            Action(g,station.kind,"afterlight_watch_start_1");
+            Check(g.AfterlightWatchActive&&g.AfterlightWatchStock==100f&&
+                g.AfterlightWatchWave==1,
+                "Public defense now contains a real 100-integrity objective at the original receiver");
+            Enemy raider=g.enemies.Find(e=>e.kind==0);
+            Enemy archer=g.enemies.Find(e=>e.kind==1);
+            Check(raider!=null&&archer!=null,
+                "First wave fields an actual station saboteur and a distinct ranged threat");
+            // Physically place the real owned attacker on the restored site
+            // while the player is away: production AI must choose the stock,
+            // commit its normal tell and only then apply honest damage.
+            raider.x=station.x;raider.y=station.y;
+            raider.timer=0;raider.stun=raider.hitTime=raider.releaseTime=0;
+            archer.stun=10;
+            g.save.x=station.x+5f;g.save.y=station.y;
+            g.Tick(.03f,new Point());
+            Check(g.AfterlightWatchActive&&raider.state==1&&
+                raider.targetingAfterlightStock&&g.AfterlightWatchStock==100f&&
+                g.effects.Exists(e=>e.kind=="danger"&&e.afterlightWatchOwned),
+                "An unguarded raider commits a visible real attack windup against the receiver, not instant damage");
+            g.Tick(.20f,new Point());
+            Check(g.AfterlightWatchStock==100f,
+                "Still-winding enemy cannot silently drain civic supplies early");
+            g.Tick(.55f,new Point());
+            Check(g.AfterlightWatchStock==86f&&g.AfterlightWatchActive,
+                "Only the actual completed attack deals the original melee saboteur's 14 integrity damage");
+
+            // A hero in front of the station genuinely redirects aggression.
+            g.save.x=station.x+.6f;g.save.y=station.y;
+            raider.timer=0;raider.state=0;raider.stun=0;
+            raider.releaseTime=raider.hitTime=0;
+            g.Tick(.04f,new Point());
+            Check(raider.state==1&&!raider.targetingAfterlightStock&&
+                g.AfterlightWatchStock==86f,
+                "Bodyguarding beside the receiver redirects the raider's next physical attack toward the hero");
+            g.Tick(.70f,new Point());
+            Check(g.AfterlightWatchStock==86f,
+                "Hero-intercepted real contact cannot additionally damage protected stock");
+
+            // Even when a stored reserve is overwhelmed, neither the
+            // already-built service nor old save rewards are destroyed.
+            var stock=typeof(GameCore).GetField("afterlightWatchStock",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(stock!=null,"Active civic receiver has a transient integrity meter");
+            stock.SetValue(g,10f);
+            g.save.x=station.x+5f;g.save.y=station.y;
+            raider.state=0;raider.timer=raider.hitTime=raider.releaseTime=raider.stun=0;
+            g.Tick(.03f,new Point());
+            Check(raider.targetingAfterlightStock&&g.AfterlightWatchStock==10f,
+                "A second unguarded attack is still a timed telegraph rather than damage at intent selection");
+            g.Tick(.70f,new Point());
+            Check(!g.AfterlightWatchActive&&g.AfterlightWatchStock==0f&&
+                !g.AfterlightWatchDone(1)&&g.enemies.Count==0&&
+                g.AfterlightReserve(1)&&g.Has("afterlight_done_1")&&
+                g.save.coins==coins&&g.save.shards==shards&&g.save.inventory[2]==herbs,
+                "Broken temporary stock fails this challenge, removes trial enemies and preserves permanent public infrastructure and materials");
+            g.PrepareSave();
+            var reopened=new GameCore(data,CloneSave(g.save));reopened.Start();
+            Check(reopened.save.version==2&&reopened.AfterlightReserve(1)&&
+                !reopened.AfterlightWatchActive&&reopened.AfterlightWatchStock==0f,
+                "Legacy version-two reload preserves earned civic reserve but never carries temporary damaged siege integrity");
+        }
+
         public static void AfterlightWorkshopCannotCraftPartsDuringHostileCombat(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;
