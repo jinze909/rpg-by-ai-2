@@ -921,6 +921,7 @@ namespace Starfall
             effect.floodReliefOwned = IsFloodReliefEnemy(attacker);
             effect.civicResponseOwned = IsCivicResponseEnemy(attacker);
             effect.lastDirectiveOwned = IsLastDirectiveEnemy(attacker);
+            effect.afterlightWatchOwned = IsAfterlightWatchEnemy(attacker);
         }
         private void UpdateEnemies(float dt)
         {
@@ -1126,7 +1127,9 @@ namespace Starfall
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
                 e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);
             shot.commonsRelayOwned=IsCommonsRelayEnemy(e);
-            shot.glasswindOwned=IsGlasswindEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+            shot.glasswindOwned=IsGlasswindEnemy(e);
+            shot.afterlightWatchOwned=IsAfterlightWatchEnemy(e);
+            shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
         // Signed ray-circle entry measured from a shared flight sample.
         // A negative value means the projectile has already crossed that
         // actor's front edge. Comparing entries is still well-defined when
@@ -1155,7 +1158,8 @@ namespace Starfall
                         commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
                         roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned, wayfarerOwned = p.wayfarerOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
-                        civicConduitOwned = p.civicConduitOwned });
+                        civicConduitOwned = p.civicConduitOwned,
+                        afterlightWatchOwned = p.afterlightWatchOwned });
         }
         private void UpdateProjectiles(float dt)
         {
@@ -1345,7 +1349,8 @@ namespace Starfall
                         commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
                         roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned, wayfarerOwned = p.wayfarerOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
-                        civicConduitOwned = p.civicConduitOwned });
+                        civicConduitOwned = p.civicConduitOwned,
+                        afterlightWatchOwned = p.afterlightWatchOwned });
                 }
                 else if (p.life <= 0 && projectiles.Remove(p))
                     AddProjectileFade(p);
