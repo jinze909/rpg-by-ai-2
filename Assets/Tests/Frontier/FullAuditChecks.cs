@@ -212,6 +212,35 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void ZeroIdCombatWarningCleanupCannotEraseUnrelatedPresentation(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            var ordinary=new Effect("danger",g.Position,4f)
+                {radius=1.2f};
+            var heroCue=new Effect("number",g.Position,4f,"player feedback");
+            var actualBossCue=new Effect("number",g.Position,4f,
+                "a separate real Boss")
+                {bossSummonCueOwnerId=11871};
+            g.effects.Add(ordinary);
+            g.effects.Add(heroCue);
+            g.effects.Add(actualBossCue);
+            var invalid=new Enemy(0,0,g.Position.x,g.Position.y,40);
+            g.enemies.Add(invalid);
+            var cleanup=typeof(GameCore).GetMethod("RemoveEnemyPendingWarning",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(cleanup!=null,"Genuine enemy warning cleanup exists");
+            cleanup.Invoke(g,new object[]{invalid});
+            Check(g.effects.Contains(ordinary)&&g.effects.Contains(heroCue)&&
+                g.effects.Contains(actualBossCue)&&g.effects.Count>=3,
+                "A legacy or synthetic zero-ID opponent can never wipe all ordinary unowned effects or another Boss cue");
+            var rightful=new Enemy(11871,3,g.Position.x+2f,g.Position.y,999,true);
+            g.enemies.Add(rightful);
+            cleanup.Invoke(g,new object[]{rightful});
+            Check(!g.effects.Contains(actualBossCue)&&
+                g.effects.Contains(ordinary)&&g.effects.Contains(heroCue),
+                "Valid Boss cleanup still selectively retires its own exact support warning without deleting ambient combat feedback");
+        }
+
         public static void LateBossCyclesSpawnVisibleMeleeAndRangedSupportWithoutActorOverlap(Campaign data)
         {
             var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
