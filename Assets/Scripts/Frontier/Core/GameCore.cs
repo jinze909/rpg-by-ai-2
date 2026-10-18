@@ -1091,7 +1091,14 @@ namespace Starfall
                                 escortPatrol && e.targetingReliefCivilian);
                             effects.Add(strikeEffect);
                             if ((Position - e.target).Length < radius && ClearAttackPath(e.Position, Position)) Hurt(e.boss ? 22 + e.BossPhase * 3 : 14, "slam", (Position - e.Position).Normalized);
-                            else TryRewardEscapedWarning(e.target, radius);
+                            else if (perfectDodgeArmed &&
+                                ClearAttackPath(e.Position, dashOrigin))
+                                // Dodge counters are earned by escaping a
+                                // REAL strike, not by dashing outside a red
+                                // ring that could never reach the original
+                                // foot through a newly shut wall. Match the
+                                // live path used for the actual melee/AoE hit.
+                                TryRewardEscapedWarning(e.target, radius);
                             if (Dying) break;
                             if (e.boss)
                             {

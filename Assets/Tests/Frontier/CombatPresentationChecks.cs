@@ -163,6 +163,80 @@ namespace Starfall.Tests
             finally{data.maps[0]=previous;}
         }
 
+        public static void HeavyDodgeCounterRequiresRealUnblockedWindupLane(Campaign data)
+        {
+            // Preserve the existing heavy warning/release state machine.
+            // A gate can seal the lane after a valid ground-ring warning
+            // but before a player dashes outside the actual 1.5-tile
+            // heavy contact radius. That is NOT a real dodge if the enemy
+            // cannot have struck the original foot through solid world.
+            MapData previous=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(bool sealLane in new[]{true,false})
+                {
+                    char[] tile=rows[11].ToCharArray();
+                    tile[10]='.';rows[11]=new string(tile);
+                    var g=Fresh(data,0);g.enemies.Clear();
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.reducedMotion=true;g.save.energy=100f;
+                    var heavy=new Enemy(99521,2,10.5f,12.5f,10000f)
+                        {timer=0f};
+                    g.enemies.Add(heavy);
+                    g.Tick(.02f,new Point());
+                    Check(heavy.state==1&&
+                        g.effects.Exists(f=>f.kind=="danger")&&
+                        (heavy.target-g.Position).Length<.001f,
+                        "The real heavy first locks a legitimate open-lane world target and publishes a physical danger ring");
+                    // Compress this already-authored windup solely within
+                    // the test, keeping a real AI release while the player's
+                    // 300ms dodge-escape clock is still eligible.
+                    heavy.timer=.22f;heavy.windupDuration=.22f;
+                    if(sealLane)
+                    {
+                        tile=rows[11].ToCharArray();
+                        tile[10]='#';rows[11]=new string(tile);
+                    }
+                    Check(g.CanStand(g.Position)&&g.CanStand(heavy.Position)&&
+                        (sealLane?g.Blocked(10.5f,11.5f):
+                            !g.Blocked(10.5f,11.5f)),
+                        "Dynamic cover changes only the attack's live path while the player and actual hostile feet remain legal");
+                    Point origin=g.Position;
+                    g.Dash(new Point(1,0));
+                    Check(g.perfectDodgeArmed&&g.dashTime>.17f,
+                        "The player must actually commit a stamina-paid dodge out of the locked ring");
+                    Advance(g,.26f);
+                    Check(heavy.state==0&&
+                        (g.Position-origin).Length>2.4f&&
+                        (g.Position-heavy.target).Length>EnemyAreaRadius(heavy)&&
+                        g.perfectDodgeArmed==sealLane,
+                        "The heavy completed its genuine attack and the dodge originated in its visible radius");
+                    if(sealLane)
+                        Check(g.riposteTime<=0f&&
+                            !g.effects.Exists(f=>f.text=="闪避反击"||
+                                f.text=="COUNTER"),
+                            "A dodge from an already protected foot cannot earn a false heavy-attack riposte");
+                    else
+                        Check(g.riposteTime>1.1f&&
+                            g.effects.Exists(f=>f.text=="闪避反击"||
+                                f.text=="COUNTER"),
+                            "A dash out of the identical open-lane heavy warning still earns the original real riposte counter");
+                }
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void GroundHazardDodgeRewardRequiresRealExposedStartingFoot(Campaign data)
         {
             MapData previous=data.maps[0];
