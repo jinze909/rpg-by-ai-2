@@ -1000,6 +1000,19 @@ namespace Starfall
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
+                    // A gate, rising tide or collapsing floor may close
+                    // UNDER an enemy after the attack warning was issued.
+                    // A sealed attacker cannot complete its old contact,
+                    // fire missiles or call Boss support from solid ground.
+                    if (!CanStand(e.Position))
+                    {
+                        e.state = 0;
+                        e.timer = Math.Max(e.timer, .22f);
+                        e.targetingWayfarer = e.targetingReliefCivilian =
+                            e.targetingAfterlightStock = false;
+                        RemoveEnemyPendingWarning(e);
+                        continue;
+                    }
                     e.timer -= freeDt;
                     if (e.boss && save.room == 1 && e.windupDuration > 0 && e.timer < .2f)
                     {
@@ -1126,7 +1139,11 @@ namespace Starfall
                 bool nearStock=stockRaider&&(pursuit-e.Position).Length<2.2f &&
                     ClearAttackPath(e.Position,pursuit);
                 bool strikeStock=nearStock&&(!heroInRange||distance>2.2f);
-                if (e.timer <= 0 && (heroInRange || strikeTraveler || strikeCivilian || strikeStock))
+                // A still-buried enemy may recover its footing when the
+                // world opens again, but must not start a new windup from an
+                // invalid tile while waiting for that transition.
+                if (e.timer <= 0 && CanStand(e.Position) &&
+                    (heroInRange || strikeTraveler || strikeCivilian || strikeStock))
                 {
                     e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer;
                     e.targetingWayfarer = strikeTraveler;

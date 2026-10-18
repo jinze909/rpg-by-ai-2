@@ -618,6 +618,108 @@ namespace Starfall.Tests
                 "Later frost pulse failed to reapply exact 450ms chill after previous stun expired");
         }
 
+        public static void SealedEnemyGroundCancelsOnlyItsOwnCombatWarning(Campaign data)
+        {
+            // Create two REAL simultaneous heavy-enemy AI windups against
+            // the same point. Only one foot becomes impassable mid-windup.
+            // The other warning and attack must still land normally.
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)row[x]='.';
+                    rows[y]=new string(row);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=12.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);
+                g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=12.5f;
+                g.save.health=100f;g.save.reducedMotion=true;
+                var buried=new Enemy(99201,2,9.5f,10.5f,10000f){timer=0};
+                var live=new Enemy(99202,2,11.5f,10.5f,10000f){timer=0};
+                g.enemies.Add(buried);g.enemies.Add(live);
+                g.Tick(.02f,new Point());
+                var originalCues=g.effects.FindAll(f=>f.kind=="danger");
+                Check(buried.state==1&&live.state==1&&
+                    originalCues.Count==2&&
+                    (originalCues[0].position-originalCues[1].position).Length<.001f,
+                    "Two live AI heavy attacks issued overlapping REAL warnings against the player");
+                char[] tile=rows[10].ToCharArray();
+                tile[9]='#';rows[10]=new string(tile);
+                Check(!g.CanStand(buried.Position)&&g.CanStand(live.Position)&&
+                    g.CanStand(g.Position),
+                    "Dynamic terrain closes only the first attacker's real feet, not the other opponent or hero");
+                g.Tick(.02f,new Point());
+                Check(buried.state==0&&live.state==1&&
+                    !g.effects.Contains(originalCues[0])&&
+                    g.effects.Contains(originalCues[1])&&
+                    !buried.targetingReliefCivilian&&!buried.targetingWayfarer,
+                    "Sealing the original caster retracts precisely its unspent warning and keeps the other identical danger ring");
+                float before=g.save.health;
+                Advance(g,.78f);
+                Check(g.save.health<before&&g.save.health>=before-14.01f&&
+                    buried.state==0&&g.projectiles.Count==0,
+                    "The legitimate heavy enemy still lands one actual world hit while the buried attacker emits no phantom damage");
+                // Let the same actor resume normally after terrain clears.
+                tile[9]='.';rows[10]=new string(tile);
+                buried.timer=0f;
+                g.Tick(.02f,new Point());
+                Check(buried.state==1&&g.CanStand(buried.Position)&&
+                    g.effects.Exists(f=>f.kind=="danger"),
+                    "Reopening terrain permits normal live AI telegraph and attack readiness again");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
+        public static void SealedEnemyArcherCannotFireUntilGroundReopens(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] row=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)row[x]='.';
+                    rows[y]=new string(row);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=13.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=13.5f;
+                g.save.reducedMotion=true;
+                var archer=new Enemy(99211,1,10.5f,9.5f,10000f){timer=0};
+                g.enemies.Add(archer);
+                g.Tick(.02f,new Point());
+                Check(archer.state==1&&g.CanStand(archer.Position),
+                    "An open-lane enemy archer begins its actual aimed windup");
+                char[] sealedRow=rows[9].ToCharArray();
+                sealedRow[10]='#';rows[9]=new string(sealedRow);
+                Check(!g.CanStand(archer.Position),
+                    "A real dynamic tile buries the archer only after its accepted windup");
+                Advance(g,.90f);
+                Check(archer.state==0&&g.projectiles.Count==0&&
+                    !g.effects.Exists(f=>f.kind=="enemyRelease"),
+                    "Enemy cannot shoot any hostile arrow, release cue or contact while physically trapped inside a wall");
+                sealedRow[10]='.';rows[9]=new string(sealedRow);
+                archer.timer=0f;
+                g.Tick(.02f,new Point());
+                Check(archer.state==1,
+                    "The same archer can begin another genuine attack after its tile opens");
+                Advance(g,.70f);
+                Check(g.projectiles.Exists(p=>!p.friendly&&p.visual=="enemyArrow"&&
+                    !p.blockedAtSpawn),
+                    "Restored archer attack creates a true traveling hostile arrow from legal ground");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void DamageEarnedBreakDoesNotShortenExistingRecovery(Campaign data)
         {
             // Exercise an actual flying combat hit, not only timer fields.
