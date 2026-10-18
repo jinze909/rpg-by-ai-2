@@ -193,7 +193,7 @@ public static class RuntimeCombatInputChecks
         Set(app,"camera",new Point(13,14));
         GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();
         Call(app,"OnGUI");
-        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("公共储备防卫 · 第1/2"))),
+        Check(GUI.commands.Exists(c=>c.Contains("公共储备防卫 · 第1/2")),
             "Real combat HUD exposes the active wave instead of hiding it at the offscreen station");
         Check(GUI.commands.Exists(c=>c.Contains(GUI.S("设施耐久 100%"))),
             "Real HUD shows the actual live objective percentage");
@@ -232,7 +232,7 @@ public static class RuntimeCombatInputChecks
         g.Choose(abort);
         g.enemies.Clear();
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(!GUI.commands.Exists(c=>c.Contains(GUI.S("公共储备防卫 · 第"))),
+        Check(!GUI.commands.Exists(c=>c.Contains("公共储备防卫 · 第")),
             "No stale combat HUD after a real withdrawal");
         Console.WriteLine("PASS actual civic stock siege draws bilingual offscreen HUD, honest patch hints, input-safe compact controls and cleanup");
     }
