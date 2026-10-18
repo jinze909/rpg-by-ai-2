@@ -438,7 +438,8 @@ namespace Starfall
             if(action=="afterlight_craft")
             {
                 if(save.room!=3 || !Has("afterlight_done_3") || AfterlightMode(3)!=1 ||
-                    Dying || practicing ||
+                    Dying || practicing || racing || FieldWorkPreventsRest ||
+                    !SafeTravel || afterlightChargeRegion!=0 ||
                     (Position-AfterlightPoint(3,"outlet")).Length>2.2f)return true;
                 int output = 2 + (HearingComplete && HearingVoice(3) == 1 ? 1 : 0)
                     + (AfterlightReserve(3) ? 1 : 0);
