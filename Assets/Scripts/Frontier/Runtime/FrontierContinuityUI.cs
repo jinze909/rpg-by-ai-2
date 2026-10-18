@@ -12,11 +12,15 @@ namespace Starfall
         private readonly List<Rect> worldOverlayRegions = new List<Rect>(8);
         private static readonly Rect CombatJournalButton=new Rect(1185,58,65,24);
         private bool CombatClimate { get { return Game.save.room == 6 || Game.save.room == 7 || Game.save.teaUntil > Game.save.totalTime; } }
-        private float CombatToastY { get { return CombatClimate ? 135 : 108; } }
+        private bool CounterHud { get { return Game.riposteTime > .001f; } }
+        private float CounterHudY { get { return CombatClimate ? 136 : 103; } }
+        private float CombatToastY
+        { get { return CombatClimate ? (CounterHud ? 170 : 135) :
+            (CounterHud ? 137 : 108); } }
         private bool HasLiveBoss { get {foreach(Enemy e in Game.enemies)if(e.boss)return true;return false;} }
         private bool HasFallenBoss { get {foreach(FallenActor f in Game.fallen)if(f.actor.boss)return true;return false;} }
         private bool CombatHud
-        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||combatHudTime>0||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
+        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
         private static bool Contains(Rect r, Point p) { return p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height; }
         private static bool Overlap(Rect a, Rect b) { return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y; }
         private Rect ActorBounds(Point feet, bool boss = false)
@@ -51,6 +55,7 @@ namespace Starfall
                 rects.Add(new Rect(20, 20, 260, 77)); rects.Add(new Rect(1030, 22, 230, 70));
                 rects.Add(new Rect(426, 730, 428, 54)); rects.Add(new Rect(1134, 746, 126, 36));
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
+                if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
                 if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive)
                     rects.Add(new Rect(380, 22, 520, 65));
@@ -145,6 +150,22 @@ namespace Starfall
             {
                 Panel(20,103,260,26,new Color(.045f,.08f,.13f,.45f),new Color(mint.r,mint.g,mint.b,.3f));
                 Text(30,107,240,20,Game.save.teaUntil>Game.save.totalTime?Game.L("凉茶保护 · ","Tea ward · ")+(int)(Game.save.teaUntil-Game.save.totalTime)+"s":Game.save.room==6?Game.L("炎热 ","Heat ")+(int)Game.save.heat+"%":Game.L("寒冷 ","Cold ")+(int)Game.save.cold+"%",12,Game.save.heat>75||Game.save.cold>75?gold:mint);
+            }
+            if (CounterHud)
+            {
+                // A real dodge/parry earned this opening. Keep the countdown
+                // legible beside climate and toast rather than hiding it
+                // behind the standard exploration HUD during a brief lull.
+                float y=CounterHudY;
+                bool armed=Game.playerAction!=null&&
+                    Game.playerAction.riposteArmed;
+                Panel(20,y,260,27,new Color(.075f,.09f,.12f,.68f),
+                    new Color(gold.r,gold.g,gold.b,.68f));
+                Text(30,y+3,242,21,
+                    Game.L(armed?"反击蓄力 · ":"反击就绪 · ",
+                        armed?"RIPOSTE WINDUP · ":"RIPOSTE READY · ")+
+                    Math.Ceiling(Game.riposteTime*10f)/10f+"s",
+                    12,gold);
             }
             QuestGuide guide = Game.CurrentGuide;
             Panel(1030,22,230,70,new Color(.045f,.08f,.13f,.45f),new Color(gold.r,gold.g,gold.b,.4f));
