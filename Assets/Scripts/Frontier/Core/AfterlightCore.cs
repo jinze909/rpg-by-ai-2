@@ -137,8 +137,13 @@ namespace Starfall
             }
             if(AfterlightWatchActive||!AfterlightComplete||
                 !AfterlightReserve(room)||!Has("afterlight_steward_"+room)||
-                FieldWorkPreventsRest||!SafeTravel||Dying||practicing||racing||
-                save.health<=15)return true;
+                Dying||practicing||racing||save.health<=15)return true;
+            if(FieldWorkPreventsRest||!SafeTravel)
+            {
+                Notify("先结束其它现场任务并清理真正的追击者，再开启公共防卫。",
+                    "Finish the other live field mission and clear nearby attackers before starting this civic defense.");
+                return true;
+            }
             afterlightWatchRoom=room;afterlightWatchTime=100f;
             if(!SpawnAfterlightWatchWave(1))
             {
@@ -634,9 +639,14 @@ namespace Starfall
             if(action=="afterlight_craft")
             {
                 if(save.room!=3 || !Has("afterlight_done_3") || AfterlightMode(3)!=1 ||
-                    Dying || practicing || racing || FieldWorkPreventsRest ||
-                    !SafeTravel || afterlightChargeRegion!=0 ||
+                    Dying || practicing || racing ||
                     (Position-AfterlightPoint(3,"outlet")).Length>2.2f)return true;
+                if(FieldWorkPreventsRest || !SafeTravel || afterlightChargeRegion!=0)
+                {
+                    Notify("工房暂时停工：附近仍有战斗或尚未完成的现场任务。",
+                        "Workshop paused: nearby combat or another live field mission must finish before crafting.");
+                    return true;
+                }
                 int output = 2 + (HearingComplete && HearingVoice(3) == 1 ? 1 : 0)
                     + (AfterlightReserve(3) ? 1 : 0);
                 // Repeatable public workshop recipes must reject a full parts
