@@ -806,13 +806,15 @@ namespace Starfall.Tests
                     "The newly closed wall lies only between caster and target, not on their feet");
                 Advance(g,.12f);
                 Check(archer.state==0&&g.projectiles.Count==0&&
+                    archer.timer<=.22f &&
                     !g.effects.Exists(f=>f.kind=="enemyRelease"),
-                    "Closing a lane cancels real archer contact before its 650ms windup, with no phantom hostile arrow");
+                    "Closing a lane cancels the 650ms draw and refunds prompt AI reacquisition without phantom arrows");
                 closed[12]='.';rows[10]=new string(closed);
-                archer.timer=0f;
-                g.Tick(.02f,new Point());
+                // No manual timer reset: the repaired AI must naturally
+                // re-evaluate the newly opened lane promptly.
+                Advance(g,.25f);
                 Check(archer.state==1,
-                    "Restoring original line of sight accepts a genuinely new windup");
+                    "Restoring original line of sight accepts a genuine new windup within the 220ms retry cadence");
                 Advance(g,.70f);
                 Check(g.projectiles.Exists(p=>!p.friendly&&
                     p.visual=="enemyArrow"&&!p.blockedAtSpawn),

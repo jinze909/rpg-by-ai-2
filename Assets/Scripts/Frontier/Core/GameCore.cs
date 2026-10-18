@@ -1029,7 +1029,10 @@ namespace Starfall
                         !ClearAttackPath(e.Position,e.target))
                     {
                         e.state=0;
-                        e.timer=Math.Max(e.timer,.22f);
+                        // Cancel the missed *long* draw: once cover opens,
+                        // reacquire the lane on the same responsive 220ms
+                        // polling cadence as companion ranged combat.
+                        e.timer=.22f;
                         e.targetingWayfarer=e.targetingReliefCivilian=
                             e.targetingAfterlightStock=false;
                         RemoveEnemyPendingWarning(e);
