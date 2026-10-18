@@ -454,7 +454,8 @@ namespace Starfall
                 }
                 if(outlet && room==3 && AfterlightMode(3)==1)
                 {
-                    int parts=2+(HearingComplete&&HearingVoice(3)==1?1:0)+(AfterlightReserve(3)?1:0);
+                    int parts=2+(HearingComplete&&HearingVoice(3)==1?1:0)+
+                        (AfterlightReserve(3)?1:0)+(AfterlightWatchDone(3)?1:0);
                     descriptionZh+="\n\n真实成本：木材 ×1，星晶 ×"+(StormPolicy(3)==2?1:2)+"；加工零件 ×"+parts+"。";
                     descriptionEn+="\n\nReal cost: 1 timber, "+(StormPolicy(3)==2?1:2)+" starcrystal, gaining "+parts+" machine parts.";
                     options.Add(C("制作可修桥的零件 ×"+parts,"Craft "+parts+" repair parts","afterlight_craft"));
@@ -496,10 +497,12 @@ namespace Starfall
                     }
                     else
                     {
-                        descriptionZh+=AfterlightWatchDone(room)?"\n\n公共防卫已完成首通，可无奖励复练两波袭击。":
-                            "\n\n应急储备需要通过实战检验：挑战两波实际袭击者，首次胜利计入地区巡护记录。";
-                        descriptionEn+=AfterlightWatchDone(room)?"\n\nDefense completed once. Replay two waves without additional rewards.":
-                            "\n\nTest this emergency reserve against two real waves. First clear records a guarded public site.";
+                        descriptionZh+=AfterlightWatchDone(room)?
+                            "\n\n巡护已通过实战：本地疗养站额外恢复 1 生命/秒、林灯额外恢复 1.5 耐力/秒，或矿场工房每批多产 1 零件（按当地既有服务适用）。可无奖励复练。":
+                            "\n\n应急储备需要通过实战检验：挑战两波实际袭击者，首次胜利计入地区巡护记录，并改善当地公共服务。";
+                        descriptionEn+=AfterlightWatchDone(room)?
+                            "\n\nDefense passed: +1 HP/s at this region's safe refuge, +1.5 energy/s at the forest lamps, or +1 part per real mine workshop batch, as applicable. Replays carry no extra rewards.":
+                            "\n\nDefend the receiver against two real waves for a permanent local service improvement and first-clear credit.";
                         options.Add(C(AfterlightWatchDone(room)?"复练两波防卫 · 无奖励":"守护公共储备 · 两波实战",
                             AfterlightWatchDone(room)?"Replay defense · no rewards":"Defend civic supplies · two waves",
                             "afterlight_watch_start_"+room));
@@ -707,7 +710,8 @@ namespace Starfall
                     return true;
                 }
                 int output = 2 + (HearingComplete && HearingVoice(3) == 1 ? 1 : 0)
-                    + (AfterlightReserve(3) ? 1 : 0);
+                    + (AfterlightReserve(3) ? 1 : 0) +
+                    (AfterlightWatchDone(3) ? 1 : 0);
                 // Repeatable public workshop recipes must reject a full parts
                 // stack BEFORE charging genuine timber and starcrystal.
                 if(HasInventoryRoom(4, output) &&
