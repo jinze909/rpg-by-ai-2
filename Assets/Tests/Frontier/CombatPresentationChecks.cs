@@ -3461,6 +3461,66 @@ namespace Starfall.Tests
             finally{data.maps[5]=previous;}
         }
 
+        public static void ActualRisingTideClearsStrandedCivilianGaitAndEnemyStockIntent(Campaign data)
+        {
+            MapData previous=data.maps[5];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='%';
+                    rows[y]=new string(cells);
+                }
+                data.maps[5]=new MapData{
+                    id=5,spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);
+                g.enemies.Clear();
+                g.save.room=5;g.save.totalTime=21.98f;
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.reducedMotion=true;
+                g.reliefMissionRoom=5;g.reliefMissionWave=3;
+                g.reliefMissionTime=100f;g.reliefFollowerSafety=90f;
+                g.reliefFollowerPosition=new Point(11.5f,10.5f);
+                g.reliefFollowerWaiting=true;
+                g.reliefFollowerMoving=true;
+                g.reliefFollowerWalkDistance=42f;
+                var raider=new Enemy(99771,2,11.5f,10.5f,10000f)
+                {
+                    state=1,timer=.5f,
+                    targetingWayfarer=true,
+                    targetingReliefCivilian=true,
+                    targetingAfterlightStock=true
+                };
+                g.enemies.Add(raider);
+                Check(g.LowTide&&g.CanStand(g.reliefFollowerPosition)&&
+                    g.CanStand(raider.Position)&&g.ReliefEscortActive,
+                    "Both real actors stand on a formerly exposed tidal bank during an active wave-three civilian escort");
+                float safety=g.reliefFollowerSafety;
+                float time=g.reliefMissionTime;
+                g.Tick(.04f,new Point());
+                Check(!g.LowTide&&g.CanStand(g.Position)&&
+                    g.CanStand(g.reliefFollowerPosition)&&
+                    g.CanStand(raider.Position),
+                    "Actual world Tick crosses rising tide and recovers both stranded actors onto legal physical footing");
+                Check(!g.reliefFollowerMoving&&g.reliefFollowerWalkDistance<.01f&&
+                    g.reliefFollowerWaiting&&g.ReliefEscortActive&&
+                    g.reliefFollowerSafety==safety&&
+                    g.reliefMissionTime>time-.1f,
+                    "A rescued civilian teleported onto shore does not inherit old walk animation, loses no safety or remaining mission, and preserves the wait order");
+                Check(raider.state==0&&raider.releaseTime<=0&&
+                    !raider.targetingWayfarer&&!raider.targetingReliefCivilian&&
+                    !raider.targetingAfterlightStock,
+                    "The same flood cancels every old raider attack target, including supply-station intent, without generating false mission damage");
+                Check(g.save.version==2,
+                    "All recovery state remains transient with the exact old save schema");
+            }
+            finally{data.maps[5]=previous;}
+        }
+
         public static void RisingTideCancelsUnfiredCompanionAutoShotWithoutFullCadence(Campaign data)
         {
             MapData previous=data.maps[5];

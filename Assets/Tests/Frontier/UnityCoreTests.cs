@@ -36,6 +36,7 @@ namespace Starfall.Tests
         [Test] public void SwitchingCompanionsRefundsOnlyUnspentManualOrders() { CoreChecks.SafeCompanionSwapRefundsUnreleasedButNotSpentOrder(Data()); }
         [Test] public void ForcedTideEvacuationOnlyRefundsUnspentAllyOrders() { CoreChecks.RisingTideRefundsOnlyUnreleasedCompanionOrders(Data()); }
         [Test] public void RisingTideCannotWasteUnfiredAutoBowCooldown() { CoreChecks.RisingTideCancelsUnfiredCompanionAutoShotWithoutFullCadence(Data()); }
+        [Test] public void FloodedRescueCivilianAndRaiderResetAllInvalidMotionAndTargets() { CoreChecks.ActualRisingTideClearsStrandedCivilianGaitAndEnemyStockIntent(Data()); }
         [Test] public void RisingTideCannotMintEvacuatedDashCounter() { CoreChecks.ForcedPlayerTideEvacuationCancelsOnlyPhantomDodgeReward(Data()); }
         [Test] public void InvalidWeaponDamageCannotHealEnemies() { CoreChecks.InvalidOffensiveDamageNeverHealsOrCreatesPhantomHits(Data()); }
         [Test] public void SwappedWeaponsCannotCarrySwordComboProgress() { CoreChecks.RealWeaponChangesRestartWeaponComboButReselectDoesNot(Data()); }

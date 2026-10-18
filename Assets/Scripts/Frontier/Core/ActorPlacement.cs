@@ -147,7 +147,8 @@ namespace Starfall
                 RemoveEnemyPendingWarning(enemy);
                 Point p = SafeActorFoot(enemy.Position); enemy.x = p.x; enemy.y = p.y;
                 enemy.moving = enemy.backpedaling = false; enemy.state = 0; enemy.releaseTime = 0;
-                enemy.targetingWayfarer = enemy.targetingReliefCivilian = false;
+                enemy.targetingWayfarer = enemy.targetingReliefCivilian =
+                    enemy.targetingAfterlightStock = false;
                 enemy.timer = Math.Max(.35f, enemy.timer);
             }
             if (save.companion >= 0 && !Fits(companionPosition))
@@ -174,7 +175,15 @@ namespace Starfall
             // outgoing tide can trap her in newly flooded shoals while the
             // hero and enemies recover to the nearest walkable bank.
             if (ReliefEscortActive && !Fits(reliefFollowerPosition))
+            {
                 reliefFollowerPosition = SafeActorFoot(reliefFollowerPosition);
+                // This shoreline relocation is not a walked animation
+                // frame. Drop old gait distance and movement state while
+                // preserving the civilian's tactical WAIT/FOLLOW choice,
+                // safety, mission time and saved rescue checkpoint format.
+                reliefFollowerMoving = false;
+                reliefFollowerWalkDistance = 0f;
+            }
         }
     }
 }
