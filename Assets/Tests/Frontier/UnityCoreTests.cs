@@ -83,6 +83,8 @@ namespace Starfall.Tests
         [Test] public void SenFrostRetainsLongRecoveryAndBreaksAttacks() { CoreChecks.SenCommandPreservesLongEnemyRecoveryAndCancelsRealWindup(Data()); }
         [Test] public void RealDamageBreakNeverShortensExistingEnemyRecovery() { CoreChecks.DamageEarnedBreakDoesNotShortenExistingRecovery(Data()); }
         [Test] public void DynamicGroundSealingCancelsOnlyOwnEnemyWarning() { CoreChecks.SealedEnemyGroundCancelsOnlyItsOwnCombatWarning(Data()); }
+        [Test] public void ClosingLineOfSightCancelsOnlyOccludedHeavyAttack() { CoreChecks.SealedWindupLaneCancelsOnlyOccludedHeavyWarning(Data()); }
+        [Test] public void BlockedArcherWindupMustRetireUntilLaneReopens() { CoreChecks.OccludedEnemyArcherRetiresUnspentAttackAndRecovers(Data()); }
         [Test] public void BuriedEnemyArcherCannotReleaseProjectiles() { CoreChecks.SealedEnemyArcherCannotFireUntilGroundReopens(Data()); }
         [Test] public void CompanionFrostCannotCrossLiveSolidWalls() { CoreChecks.CompanionFrostCannotHitThroughWallsEvenWithinAreaRadius(Data()); }
         [Test] public void CompanionAndPlayerFrostCoexistWithPhysicalCasterOrigins() { CoreChecks.CompanionFrostUsesPhysicalCasterAndNeverReplacesArcanistField(Data()); }

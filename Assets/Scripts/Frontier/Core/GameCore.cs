@@ -1013,6 +1013,21 @@ namespace Starfall
                         RemoveEnemyPendingWarning(e);
                         continue;
                     }
+                    // Validate the locked release lane against CURRENT
+                    // topology. An obstacle may have closed after a real
+                    // windup began, without burying either actor's feet.
+                    // Cancel only this attack and its still-pending cues:
+                    // no invisible arrows, false contact or Boss summons
+                    // from behind a newly raised gate.
+                    if (!ClearAttackPath(e.Position,e.target))
+                    {
+                        e.state=0;
+                        e.timer=Math.Max(e.timer,.22f);
+                        e.targetingWayfarer=e.targetingReliefCivilian=
+                            e.targetingAfterlightStock=false;
+                        RemoveEnemyPendingWarning(e);
+                        continue;
+                    }
                     e.timer -= freeDt;
                     if (e.boss && save.room == 1 && e.windupDuration > 0 && e.timer < .2f)
                     {

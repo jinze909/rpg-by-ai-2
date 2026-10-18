@@ -726,6 +726,103 @@ namespace Starfall.Tests
                 "Later frost pulse failed to reapply exact 450ms chill after previous stun expired");
         }
 
+        public static void SealedWindupLaneCancelsOnlyOccludedHeavyWarning(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=12.5f,spawnY=12.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=12.5f;g.save.y=12.5f;
+                g.save.health=100f;g.save.reducedMotion=true;
+                g.invulnerable=0f;
+                var sealedFoe=new Enemy(99401,2,10.5f,11.5f,10000f)
+                    {timer=0};
+                var openFoe=new Enemy(99402,2,14.5f,11.5f,10000f)
+                    {timer=0};
+                g.enemies.Add(sealedFoe);g.enemies.Add(openFoe);
+                g.Tick(.02f,new Point());
+                var warnings=g.effects.FindAll(f=>f.kind=="danger");
+                Check(sealedFoe.state==1&&openFoe.state==1&&
+                    warnings.Count==2&&
+                    (warnings[0].position-warnings[1].position).Length<.001f,
+                    "Two legitimate enemy windups create overlapping real target warnings");
+                char[] closed=rows[12].ToCharArray();
+                closed[11]='#';rows[12]=new string(closed);
+                Check(g.CanStand(sealedFoe.Position)&&
+                    g.CanStand(openFoe.Position)&&g.CanStand(g.Position)&&
+                    g.Blocked(11.5f,12.5f),
+                    "The dynamic wall interrupts only the first real release lane without burying any actor feet");
+                float before=g.save.health;
+                g.Tick(.02f,new Point());
+                Check(sealedFoe.state==0&&openFoe.state==1&&
+                    !g.effects.Contains(warnings[0])&&
+                    g.effects.Contains(warnings[1]),
+                    "Only the actually occluded heavy loses its unspent warning; identical second warning stays alive");
+                Advance(g,.72f);
+                Check(g.save.health<before&&
+                    g.save.health>before-14.01f&&
+                    !g.effects.Exists(f=>f.kind=="enemyRelease"&&
+                        (f.position-sealedFoe.Position).Length<.1f),
+                    "The unobstructed heavy lands exactly one real body strike without releasing the newly occluded attack");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
+        public static void OccludedEnemyArcherRetiresUnspentAttackAndRecovers(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=14.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.x=14.5f;g.save.y=10.5f;
+                g.save.reducedMotion=true;
+                var archer=new Enemy(99411,1,10.5f,10.5f,10000f)
+                    {timer=0};
+                g.enemies.Add(archer);
+                g.Tick(.02f,new Point());
+                Check(archer.state==1&&g.CanStand(archer.Position),
+                    "The physical archer acquired and locked an unobstructed real target");
+                char[] closed=rows[10].ToCharArray();
+                closed[12]='#';rows[10]=new string(closed);
+                Check(g.CanStand(archer.Position)&&g.CanStand(g.Position),
+                    "The newly closed wall lies only between caster and target, not on their feet");
+                Advance(g,.12f);
+                Check(archer.state==0&&g.projectiles.Count==0&&
+                    !g.effects.Exists(f=>f.kind=="enemyRelease"),
+                    "Closing a lane cancels real archer contact before its 650ms windup, with no phantom hostile arrow");
+                closed[12]='.';rows[10]=new string(closed);
+                archer.timer=0f;
+                g.Tick(.02f,new Point());
+                Check(archer.state==1,
+                    "Restoring original line of sight accepts a genuinely new windup");
+                Advance(g,.70f);
+                Check(g.projectiles.Exists(p=>!p.friendly&&
+                    p.visual=="enemyArrow"&&!p.blockedAtSpawn),
+                    "After reopening, a true traveling hostile arrow launches from physical enemy bow");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void SealedEnemyGroundCancelsOnlyItsOwnCombatWarning(Campaign data)
         {
             // Create two REAL simultaneous heavy-enemy AI windups against
