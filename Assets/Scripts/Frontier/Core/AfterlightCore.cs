@@ -96,10 +96,15 @@ namespace Starfall
             if(!AfterlightWatchSpawnPoint(0,wave,new Point(-100,-100),out first)||
                 !AfterlightWatchSpawnPoint(1,wave,first,out second))return false;
             int region=afterlightWatchRoom;
-            // Existing real enemy combat AI, telegraphs, contact and poise.
-            Enemy a=CreatePlacedEnemy(++enemyId,wave==1?0:2,first,
+            // Regional threats differ tactically: forest flank + bow;
+            // ruined quay archers; mine armored raiders. Wave two advances
+            // to armored pressure instead of spawning cosmetic substitutes.
+            // Existing production AI, stagger, attacks and telegraphs apply.
+            int kindA=wave==1?(region==1?0:region==2?1:2):2;
+            int kindB=wave==1?(region==1?1:0):(region==1?0:1);
+            Enemy a=CreatePlacedEnemy(++enemyId,kindA,first,
                 44+region*10+(wave-1)*22);
-            Enemy b=CreatePlacedEnemy(++enemyId,wave==1?1:0,second,
+            Enemy b=CreatePlacedEnemy(++enemyId,kindB,second,
                 42+region*10+(wave-1)*18);
             afterlightWatchA=a.id;afterlightWatchB=b.id;
             afterlightWatchADead=afterlightWatchBDead=false;
