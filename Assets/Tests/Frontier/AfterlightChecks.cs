@@ -932,7 +932,9 @@ namespace Starfall.Tests
                     hit.Invoke(g,new object[]{b,2000f,false,null,null});
                     Check(!g.AfterlightWatchDone(room),
                         "The last lethal contact must be settled through the production tick");
-                    g.Tick(.02f,new Point());
+                    // Genuine hits trigger a 25ms pause. Consume hit-stop
+                    // before expecting the next gameplay wave to activate.
+                    g.Tick(.08f,new Point());
                 }
                 Check(g.AfterlightWatchDone(room)&&!g.AfterlightWatchActive&&
                     g.enemies.Count==0 &&g.save.coins==originalCoins+25+room*5 &&
@@ -951,7 +953,7 @@ namespace Starfall.Tests
                 {
                     hit.Invoke(g,new object[]{g.enemies[0],2000f,false,null,null});
                     hit.Invoke(g,new object[]{g.enemies[0],2000f,false,null,null});
-                    g.Tick(.02f,new Point());
+                    g.Tick(.08f,new Point());
                 }
                 Check(!g.AfterlightWatchActive&&g.save.coins==earnedCoins&&
                     g.save.shards==earnedShards&&g.save.xp==earnedXP,
