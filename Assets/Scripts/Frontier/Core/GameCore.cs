@@ -598,9 +598,12 @@ namespace Starfall
             // established 25% finisher and larger contact reach.
             float finisher = combo != 2 ? 1f : save.weapon == 0 ? 1.25f :
                 save.weapon == 1 ? 1.15f : 1.12f;
-            float attackDamage = profile.damage * finisher * (riposteTime > 0 ? 1.5f : 1);
-            riposteTime = 0;
-            BeginAction("attack", attackDamage, profile.interval, profile.interval * (save.weapon == 1 ? .55f : .45f));
+            // Queue a counter on the accepted action, but spend it only
+            // when a genuine hit/projectile is RELEASED. Dodge, hit stun or
+            // an equipment change before contact must not silently waste it.
+            float attackDamage = profile.damage * finisher;
+            BeginAction("attack", attackDamage, profile.interval,
+                profile.interval * (save.weapon == 1 ? .55f : .45f));
         }
         public void Skill(Point? direction = null)
         {
