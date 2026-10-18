@@ -27,6 +27,50 @@ namespace Starfall
             Point p = SafeActorFoot(proposed);
             return new Enemy(id, kind, p.x, p.y, health, boss);
         }
+        // A living Boss's reinforcements MUST emerge in the current local
+        // arena. CreatePlacedEnemy is deliberately broader (recovery of valid
+        // old saves, authored actors) and can relocate an invalid summon to
+        // another side of the map; that is not valid gameplay telegraphing.
+        // Try the legacy near-left tile first, then nearby reachable ring tiles.
+        private bool TrySpawnBossReinforcement(Enemy boss)
+        {
+            if (boss==null || !boss.boss || boss.hp<=0 || !enemies.Contains(boss)
+                || enemies.Count>=9)return false;
+            Point[] candidates = {
+                new Point(-2f,1f), new Point(2f,1f), new Point(-2f,-1f),
+                new Point(2f,-1f), new Point(0f,2.5f), new Point(0f,-2.5f),
+                new Point(-3f,0f), new Point(3f,0f),
+                new Point(-3f,2f), new Point(3f,2f),
+                new Point(-3f,-2f), new Point(3f,-2f),
+                new Point(-1f,3f), new Point(1f,3f),
+                new Point(-1f,-3f), new Point(1f,-3f)
+            };
+            foreach(Point offset in candidates)
+            {
+                Point foot=boss.Position+offset;
+                if (!CanStand(foot) || (foot-Position).Length<1.25f ||
+                    (foot-boss.Position).Length<1.2f ||
+                    !ClearAttackPath(boss.Position,foot))continue;
+                bool occupied=false;
+                foreach(Enemy existing in enemies)
+                    if((foot-existing.Position).Length<1.15f)
+                    {occupied=true;break;}
+                if(occupied)continue;
+                Enemy recruit=new Enemy(++enemyId,save.room==4?1:0,
+                    foot.x,foot.y,38+save.room*3);
+                // Give a genuine audible and visual entrance: summoning a
+                // standing combatant inside a swing should not hit instantly.
+                recruit.stun=.35f;
+                enemies.Add(recruit);
+                effects.Add(new Effect("burst",foot,.35f)
+                    {radius=.65f,variant=0});
+                sound="spell";revision++;
+                return true;
+            }
+            // No legal nearby arena foot: skip only this summon, not the
+            // Boss attack, normal fight or any existing opponent.
+            return false;
+        }
         private void TickTideTransition()
         {
             if (save.room != 5 || previousLowTide == LowTide) return;
