@@ -2753,5 +2753,68 @@ namespace Starfall.Tests
                 "Intermission remains transient; original v2 testimony persists on reload");
         }
 
+        public static void MinecartAndFrostEmberCannotBeHiddenByASecondCourierClock(Campaign data)
+        {
+            // Region 3: the miners' physical cart already owns the player's
+            // escort clock, so a bridge parcel must not replace its objective.
+            var mine=Fresh(data);mine.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","gate_3","boss_3",
+                "far_bridge_3","far_shelter_3"})mine.save.flags.Add(flag);
+            mine.Enter(3);mine.enemies.Clear();
+            WorldObject start=Object(mine,"mineconvoy"),bridge=Object(mine,"farbridge");
+            Check(start!=null&&bridge!=null,"Original mine and bridge objects exist");
+            mine.save.x=start.x;mine.save.y=start.y;
+            Action(mine,start.kind,"mineconvoy_start");
+            Check(mine.MineConvoyActive,
+                "Real western dispatch launches the miners' timed escort");
+            mine.save.x=bridge.x;mine.save.y=bridge.y;
+            Action(mine,bridge.kind,"far_courier_start");
+            Check(mine.MineConvoyActive&&!mine.FarCourierActive,
+                "Active minecart protects its own clock against competing courier pickup");
+            mine.save.x=start.x;mine.save.y=start.y;
+            Action(mine,start.kind,"mineconvoy_abort");
+            Check(!mine.MineConvoyActive,"Original mine dispatch can abort cleanly");
+            mine.save.x=bridge.x;mine.save.y=bridge.y;
+            Action(mine,bridge.kind,"far_courier_start");
+            Check(mine.FarCourierActive,
+                "After explicitly canceling the cart, bridge delivery is playable");
+            int mineCoins=mine.save.coins;
+            mine.PrepareSave();var mineLoaded=new GameCore(data,CloneSave(mine.save));
+            Check(mineLoaded.save.version==2&&!mineLoaded.FarCourierActive&&
+                mineLoaded.save.coins==mineCoins,
+                "Old save slots cannot preserve unearned overlapping transports");
+
+            // Region 7: the original ember has its own warmth and timer,
+            // and should never be hidden by a second carried parcel.
+            var frost=Fresh(data);frost.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","desert_report",
+                "gate_7","boss_7","far_bridge_7","far_shelter_7"})
+                frost.save.flags.Add(flag);
+            frost.Enter(7);frost.enemies.Clear();
+            WorldObject west=null;
+            foreach(WorldObject o in frost.Map.objects)
+                if(o.id=="frostsignal_1")west=o;
+            bridge=Object(frost,"farbridge");
+            Check(west!=null&&bridge!=null,"Physical ember and bridge stations exist");
+            frost.save.x=west.x;frost.save.y=west.y;
+            Action(frost,west.kind,"frostsignal_start");
+            Check(frost.FrostSignalActive,
+                "Actual western signal starts the authored ember run");
+            float flame=frost.FrostSignalFlame;
+            frost.save.x=bridge.x;frost.save.y=bridge.y;
+            Action(frost,bridge.kind,"far_courier_start");
+            Check(frost.FrostSignalActive&&!frost.FarCourierActive&&
+                frost.FrostSignalFlame==flame,
+                "Live ember and its warmth are never overwritten by courier pickup");
+            frost.save.x=west.x;frost.save.y=west.y;
+            Action(frost,west.kind,"frostsignal_abort");
+            Check(!frost.FrostSignalActive,
+                "The original western station can safely return the ember");
+            frost.save.x=bridge.x;frost.save.y=bridge.y;
+            Action(frost,bridge.kind,"far_courier_start");
+            Check(frost.FarCourierActive,
+                "Civilian delivery remains usable after the prior run is canceled");
+        }
+
     }
 }

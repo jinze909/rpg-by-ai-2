@@ -262,10 +262,13 @@ namespace Starfall
             if(action=="far_courier_start")
             {
                 if(FarCourierActive||(Position-new Point(bridge.x,bridge.y)).Length>2.2f)return true;
-                if(CivicResponseActive||TideSalvageActive)
+                // Reuse the same comprehensive live-field exclusion as
+                // resting and the minecart/frost mission pickup. A second
+                // transport clock must never mask the current quest objective.
+                if(FieldWorkPreventsRest)
                 {
-                    Notify("当前还有居民服务或潮滩打捞行动。先完成或明确取消，再领取救援包。",
-                        "Finish or explicitly cancel the active civilian service or tide salvage before carrying another parcel.");
+                    Notify("仍有进行中的现场行动。先完成或在原地点明确取消，再领取救援包。",
+                        "Another field mission is active. Finish it or cancel at its original station before collecting a parcel.");
                     return true;
                 }
                 if(!SafeTravel)
