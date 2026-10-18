@@ -422,5 +422,57 @@ namespace Starfall.Tests
                 "Existing reconstruction flags persist without changing SaveData v2");
         }
 
+        public static void AfterlightStableCrystalChargeRespectsFreeRouteAndRealMaterialCosts(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_plan_1_care");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=500;
+            WorldObject anchor=Object(g,"afterlightanchor1"),
+                outlet=Object(g,"afterlightoutlet1");
+            g.save.x=anchor.x;g.save.y=anchor.y;
+            g.save.inventory[1]=0;
+            Action(g,anchor.kind,"afterlight_stable_1");
+            Check(g.AfterlightChargeRegion==0&&!g.AfterlightStableCharge,
+                "Stable load requires a real owned crystal and cannot start for free");
+            Action(g,anchor.kind,"afterlight_charge_1");
+            Check(g.AfterlightChargeRegion==1&&!g.AfterlightStableCharge&&
+                g.AfterlightChargeLeft==90,
+                "The original free 90-second physically carried civic route remains available");
+            Action(g,anchor.kind,"afterlight_abort");
+            Check(g.AfterlightChargeRegion==0&&!g.AfterlightStableCharge,
+                "Canceling a free transfer resets only the transient timer");
+            g.save.inventory[1]=2;g.save.inventory[0]=4;g.save.inventory[2]=4;
+            Action(g,anchor.kind,"afterlight_stable_1");
+            Check(g.AfterlightChargeRegion==1&&g.AfterlightStableCharge&&
+                g.AfterlightChargeLeft==120&&g.save.inventory[1]==1,
+                "One real starcrystal purchases precisely 120 seconds of civic load time");
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Original civic action dispatcher exists");
+            choose.Invoke(g,new object[]{"afterlight_stable_1"});
+            Check(g.save.inventory[1]==1&&g.AfterlightChargeLeft==120,
+                "A forged repeat cannot spend multiple crystals or stack extra time");
+            Action(g,anchor.kind,"afterlight_abort");
+            Check(g.AfterlightChargeRegion==0&&g.save.inventory[1]==1,
+                "An aborted paid stabilization does not refund the explicitly spent optional crystal");
+            Action(g,anchor.kind,"afterlight_stable_1");
+            Check(g.AfterlightStableCharge&&g.save.inventory[1]==0,
+                "Each fresh paid attempt consumes a genuine new crystal");
+            WalkWithAfterlightCharge(g,new Point(outlet.x,outlet.y));
+            Check(g.AfterlightChargeRegion==1&&g.AfterlightStableCharge,
+                "The authorized longer budget still requires physically reaching the distant receiver");
+            Action(g,outlet.kind,"afterlight_install_1");
+            Check(g.Has("afterlight_done_1")&&g.AfterlightChargeRegion==0&&
+                !g.AfterlightStableCharge&&g.save.inventory[1]==0&&
+                g.save.inventory[0]==2&&g.save.inventory[2]==2,
+                "Real installation pays its original wood/herb costs, not another crystal");
+            g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&saved.Has("afterlight_done_1")&&
+                !saved.AfterlightStableCharge&&saved.save.inventory[1]==0,
+                "Original v2 save persists repaired civic work without transient stable charge state");
+        }
+
     }
 }
