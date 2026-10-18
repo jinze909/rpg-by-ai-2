@@ -50,7 +50,9 @@ namespace Starfall
             if(courierRaided||!FarCourierActive)return;
             // Never half-deploy a wave: choose BOTH reachable placements
             // before mutating the enemy roster or its owned telegraphs.
-            Point melee,archer;
+            // Older Unity-compatible C# compilers require explicit assignment
+            // even when the second out parameter is guarded by short-circuiting.
+            Point melee=new Point(),archer=new Point();
             bool ready=FindCourierRaiderPosition(
                 new Point(111.5f,57.5f),new Point(),false,out melee);
             if(ready)ready=FindCourierRaiderPosition(
