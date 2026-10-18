@@ -685,5 +685,42 @@ namespace Starfall.Tests
                 "Actual evidence publication and original ending gate survive the v2 save roundtrip");
         }
 
+        public static void EightPhysicalTrailCircuitsPreserveFinalTalentAtSaveLimits(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3;
+            for (int region = 1; region <= 7; region++)
+                g.save.flags.Add("trail_circuit_" + region + "_3");
+            g.save.coins = 999998; g.save.shards = 99998;
+            g.save.skillPoints = 99;
+            Check(g.TrailCircuitCount == 7 && !g.Has("trail_circuits_all"),
+                "Seven independently completed regions are not an earned full roadwarden network");
+            int xp = g.save.xp;
+            for (int step = 1; step <= 3; step++)
+            {
+                WorldObject bearing = null;
+                foreach (WorldObject o in g.Map.objects)
+                    if (o.id == "trailcircuit_0_" + step && o.kind == "trailcircuit")
+                    { bearing = o; break; }
+                Check(bearing != null, "Original Emberfall map retains authored walkable field bearing " + step);
+                g.save.x = bearing.x; g.save.y = bearing.y;
+                g.Talk(bearing);
+                Check(g.Has("trail_circuit_0_" + step) &&
+                    g.TrailCircuitProgress(0) == step,
+                    "Physically reading the next original roadmarker advances this region's real ordered evidence");
+                g.Close();
+            }
+            Check(g.TrailCircuitCount == 8 && g.Has("trail_circuits_all") &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.skillPoints == 99 && g.save.xp > xp,
+                "Eight fully surveyed routes earn the original capped currency, XP, regional rest, and final talent milestone");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.TrailCircuitCount == 8 &&
+                restored.Has("trail_circuits_all") &&
+                restored.save.coins == 999999 &&
+                restored.save.shards == 99999 && restored.save.skillPoints == 99,
+                "The complete regional walking network remains identical through legacy v2 save reload");
+        }
+
     }
 }

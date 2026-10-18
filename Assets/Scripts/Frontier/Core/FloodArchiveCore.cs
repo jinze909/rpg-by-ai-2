@@ -207,7 +207,7 @@ namespace Starfall
                 return true;
             }
             Flag(action);
-            save.coins+=50;save.shards+=2;AddXp(80);
+            CreditCoins(50); CreditShards(2); AddXp(80);
             revision++;sound="reward";
             RecordMoment(action=="floodarchive_public"?
                 "沉桥上从未登记的家庭终于写入公共名单，摆渡人在潮标旁照顾伤者。":

@@ -292,8 +292,8 @@ namespace Starfall
                     Has("witness_complete_"+region) ||
                     (Position-WitnessPoint(region,"npc")).Length>2.2f)return true;
                 Flag("witness_complete_"+region);
-                save.coins+=region*10+15;
-                save.shards++;
+                CreditCoins(region*10+15);
+                CreditShards(1);
                 AddXp(20+region*5);
                 RecordMoment("第"+region+"章：证词已由活着的居民署名，将成为第四章三核审计的直接依据。",
                     "Chapter "+region+": a living witness signed evidence for the Chapter Four audit.");
