@@ -1671,6 +1671,64 @@ namespace Starfall.Tests
             finally { data.maps[0] = previous; }
         }
 
+        public static void CompanionAutoMuzzleObstructionRefundsCadenceAndRetries(Campaign data)
+        {
+            // A thin side-wall can cover Ivo's upper-facing bow HAND even
+            // though the ally's full actor foot stands safely in the aisle
+            // and a center-line ray to the enemy remains clear. Validate
+            // the actual projectile's swept muzzle, not only tile LOS.
+            MapData previous = data.maps[0];
+            try
+            {
+                var rows = new string[25];
+                for (int y = 0; y < 25; y++)
+                {
+                    char[] row = new string('#', 25).ToCharArray();
+                    if (y >= 2 && y <= 22)
+                        for (int x = 2; x <= 22; x++) row[x] = '.';
+                    if (y == 10) row[9] = '#'; // Left of clear vertical ray
+                    rows[y] = new string(row);
+                }
+                data.maps[0] = new MapData { id = 0,
+                    spawnX = 8.5f, spawnY = 10.5f, rows = rows,
+                    objects = new WorldObject[0], decor = new Decoration[0] };
+                var g = Fresh(data, 1); g.enemies.Clear();
+                g.save.x = 8.5f; g.save.y = 10.5f;
+                g.save.flags.Add("companion_1"); g.SelectCompanion(1);
+                g.companionPosition = new Point(10.5f, 10.5f);
+                var foe = new Enemy(98841, 0, 10.5f, 7.5f, 10000f)
+                    { stun = 100f, timer = 1000f, staggerRecovery = 100f };
+                g.enemies.Add(foe);
+                var cadence = typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                cadence.SetValue(g, 0f);
+                g.Tick(.02f, new Point());
+                ActorAction prepared = g.companionAction;
+                Check(prepared != null && prepared.kind == "attack" &&
+                    g.CanStand(g.companionPosition) && g.CanStand(foe.Position),
+                    "Ivo acquires a live foe across a real open aisle while both actors have valid physical feet");
+                Point hand = GameCore.WeaponOrigin(g.companionPosition,
+                    1, prepared.direction);
+                Check(g.Blocked(hand.x, hand.y),
+                    "Side wall genuinely intersects Ivo's upward bow muzzle while the center ray and caster foot remain valid");
+                Advance(g, .17f);
+                Check(prepared.released && g.projectiles.Count == 0 &&
+                    (float)cadence.GetValue(g) <= .23f &&
+                    !g.effects.Exists(e => e.kind == "release"),
+                    "A wall-born auto arrow is rejected before spawn with no phantom release or full cooldown cost");
+                // Open only the lateral side wall. The original target,
+                // damage, projectile collision and action schedule all run.
+                char[] open = rows[10].ToCharArray();
+                open[9] = '.';
+                rows[10] = new string(open);
+                Advance(g, .85f);
+                Check(foe.hp < foe.maxHp,
+                    "The same physical companion retries after wall removal and really damages the reachable foe");
+            }
+            finally { data.maps[0] = previous; }
+        }
+
         public static void CompanionAutoTargetsNearestReachableThreat(Campaign data)
         {
             // Combat uses the actual, ordered roster: the original Find()

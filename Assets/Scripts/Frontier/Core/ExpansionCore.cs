@@ -531,9 +531,24 @@ namespace Starfall
                                 action.target = locked.Position;
                                 companionAim = action.direction;
                             }
-                            projectiles.Add(FriendlyShot(companionPosition, action.weapon == 1 ? 1 : 2, action.direction, 9, action.damage, action.weapon == 2, action.target, action.impact));
-                            effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) });
-                            sound = action.weapon == 1 ? "arrow" : "spell";
+                            Projectile shot = FriendlyShot(companionPosition,
+                                action.weapon == 1 ? 1 : 2, action.direction, 9,
+                                action.damage, action.weapon == 2,
+                                action.target, action.impact);
+                            if (shot.blockedAtSpawn)
+                            {
+                                // Clear center-to-target LOS does NOT prove the
+                                // wider physical arrow/staff attachment fits a
+                                // neighboring corner. Do not spend the whole
+                                // cadence or publish a false cast from a wall.
+                                companionAttack = Math.Min(companionAttack, .22f);
+                            }
+                            else
+                            {
+                                projectiles.Add(shot);
+                                effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, variant = action.weapon == 1 ? 1 : 2, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) });
+                                sound = action.weapon == 1 ? "arrow" : "spell";
+                            }
                         }
                     }
                 }

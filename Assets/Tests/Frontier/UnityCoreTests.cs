@@ -53,6 +53,7 @@ namespace Starfall.Tests
         [Test] public void AlliesDoNotGrantUnearnedHeroWeaponMastery() { CoreChecks.AllyKillsRewardPartyButNotUnwieldedHeroMastery(Data()); }
         [Test] public void CompanionPicksNearestVisibleEnemy() { CoreChecks.CompanionAutoTargetsNearestReachableThreat(Data()); }
         [Test] public void AutoArcherTracksMovingEnemyAtActualRelease() { CoreChecks.CompanionAutoReleaseTracksMovingVisibleEnemy(Data()); }
+        [Test] public void AllyPhysicalMuzzleObstructionAllowsSafeRetry() { CoreChecks.CompanionAutoMuzzleObstructionRefundsCadenceAndRetries(Data()); }
         [Test] public void AutoHealingRequiresRealLineOfSight() { CoreChecks.CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Data()); }
         [Test] public void AllyFeetNeverOverlapHeroOnNarrowBridges() { CoreChecks.CompanionNarrowBridgesKeepSeparateSafeFeet(Data()); }
         [Test] public void IdleAllyWakesWhenTargetAppears() { CoreChecks.CompanionIdleReadinessReactsToRealTargets(Data()); }
