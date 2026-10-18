@@ -159,6 +159,57 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Both actual Q HUD layouts queue during ordinary attack and preserve world aim");
     }
 
+    private static void RiposteHudFollowsRealParryIntentAndUnreleasedContact(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.save.english=false;g.save.energy=100;
+        g.invulnerable=0;g.Dash(new Point(1,0));
+        var hurt=typeof(GameCore).GetMethod("Hurt",Private);
+        Check(hurt!=null&&g.perfectDodgeArmed,
+            "Real Dodge and enemy hurt contact route must be available");
+        hurt.Invoke(g,new object[]{10f,"lunge",(Point?)new Point(-1,0)});
+        Check(g.riposteTime>1.4f&&!g.perfectDodgeArmed,
+            "True enemy contact inside real dodge invulnerability awards the timed counter");
+        Set(app,"combatHudTime",0f);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("反击就绪"))&&
+            GUI.buttonCalls.Exists(c=>Math.Abs(c.rect.x-430)<.5f&&
+                Math.Abs(c.rect.y-732)<.5f),
+            "Actual Chinese compact HUD shows earned counter even with no nearby enemies, without blocking Q");
+        g.save.english=true;g.save.teaUntil=g.save.totalTime+35f;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("RIPOSTE READY"))&&
+            GUI.commands.Exists(c=>c.Contains("Tea ward")),
+            "English counter HUD coexists with physical climate badge");
+        var y=(float)typeof(FrontierRuntime).GetProperty("CounterHudY",Private)
+            .GetValue(app,null);
+        var toastY=(float)typeof(FrontierRuntime).GetProperty("CombatToastY",Private)
+            .GetValue(app,null);
+        Check(y==136f&&toastY>=y+27f,
+            "Climate and riposte panels never overlap each other or the actual combat toast");
+        g.dashTime=g.dashCooldown=g.attackCooldown=0;
+        g.Attack(new Point(1,0));
+        ActorAction swing=g.playerAction;
+        Check(swing!=null&&swing.riposteArmed,
+            "A real attack accepts an earned counter and holds the original contact clock");
+        g.riposteTime=.001f;
+        g.Tick(.02f,new Point());
+        Check(g.riposteTime<=0&&swing.riposteArmed&&!swing.released,
+            "The earned release stays armed even after its preparation outlasts the original countdown");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("RIPOSTE CHARGED"))&&
+            !GUI.commands.Exists(c=>c.Contains("RIPOSTE READY")),
+            "Actual English HUD never hides a committed-but-unreleased counter windup");
+        for(int i=0;i<60&&!swing.released;i++)g.Tick(.02f,new Point());
+        Check(swing.released&&!swing.riposteArmed,
+            "The real action releases its stored bonus through production combat frames");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains("RIPOSTE READY"))&&
+            !GUI.commands.Exists(c=>c.Contains("RIPOSTE CHARGED")),
+            "No stale earned counter panel survives a genuine spent-contact frame");
+        Console.WriteLine("PASS production combat HUD tracks actual earned and charged riposte across language, climate and contact");
+    }
+
     private static void CivicReserveCombatHudTracksGenuineReceiverObjective(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1593,7 +1644,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, RiposteHudFollowsRealParryIntentAndUnreleasedContact, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
