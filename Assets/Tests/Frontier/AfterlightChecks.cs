@@ -363,5 +363,64 @@ namespace Starfall.Tests
             }
         }
 
+        public static void AfterlightTransportPreservesFieldMissionsAndValidArrivalGeometry(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            for(int room=1;room<=3;room++)
+            {
+                g.save.flags.Add("afterlight_plan_"+room+"_care");
+                g.save.flags.Add("afterlight_done_"+room);
+                g.save.flags.Add("afterlight_steward_"+room);
+            }
+            g.Enter(2);g.enemies.Clear();
+            WorldObject outlet=Object(g,"afterlightoutlet2"),
+                anchor=Object(g,"afterlightanchor2");
+            g.save.x=outlet.x;g.save.y=outlet.y;
+            var blast=new Hazard{position=new Point(anchor.x,anchor.y),
+                timer=9f,radius=1.5f,damage=20,kind="rift"};
+            g.hazards.Add(blast);
+            Action(g,outlet.kind,"afterlight_ferry_out");
+            Check((g.Position-new Point(outlet.x,outlet.y)).Length<.01f,
+                "A repaired public ferry rejects a real pending landing explosion");
+            g.hazards.Remove(blast);
+            var arrow=new Projectile{position=new Point(anchor.x,anchor.y),
+                velocity=new Point(),life=9f,damage=11,source="shot"};
+            g.projectiles.Add(arrow);
+            Action(g,outlet.kind,"afterlight_ferry_out");
+            Check((g.Position-new Point(outlet.x,outlet.y)).Length<.01f,
+                "A destination enemy projectile also makes civic ferry arrival unsafe");
+            g.projectiles.Remove(arrow);
+            Action(g,outlet.kind,"afterlight_ferry_out");
+            Check((g.Position-new Point(anchor.x,anchor.y)).Length<.01f,
+                "Normal two-way civic ferry still works after the danger clears");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject waypoint=Object(g,"afterlightwaypoint1");
+            g.save.x=waypoint.x;g.save.y=waypoint.y;
+            Point from=g.Position;
+            WorldObject arrival=null;
+            foreach(WorldObject o in data.maps[1].objects)
+                if(o.kind=="afterlightoutlet1")arrival=o;
+            Check(arrival!=null,"Original repaired destination exists");
+            int x=(int)Math.Floor(arrival.x),y=(int)Math.Floor(arrival.y);
+            string row=data.maps[1].rows[y];
+            try
+            {
+                char[] blocked=row.ToCharArray();blocked[x]='#';
+                data.maps[1].rows[y]=new string(blocked);
+                Action(g,waypoint.kind,"afterlight_route_1");
+                Check(g.save.room==0&&(g.Position-from).Length<.01f,
+                    "Blocked original destination prevents map reset before transit");
+            }
+            finally {data.maps[1].rows[y]=row;}
+            Action(g,waypoint.kind,"afterlight_route_1");
+            Check(g.save.room==1&&
+                (g.Position-new Point(arrival.x,arrival.y)).Length<.01f,
+                "Clearing the destination obstruction restores actual signed starroad travel");
+            g.PrepareSave();var load=new GameCore(data,CloneSave(g.save));
+            Check(load.save.version==2&&load.Has("afterlight_done_1"),
+                "Existing reconstruction flags persist without changing SaveData v2");
+        }
+
     }
 }
