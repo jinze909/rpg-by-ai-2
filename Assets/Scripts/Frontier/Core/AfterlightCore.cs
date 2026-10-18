@@ -32,6 +32,168 @@ namespace Starfall
         { return region>=1&&region<=3&&Has("afterlight_reserve_"+region); }
         public int AfterlightReserves
         { get { int n=0;for(int r=1;r<=3;r++)if(AfterlightReserve(r))n++;return n; } }
+        // Two-wave public-defense drills have one earned clearance per region,
+        // but trial foes, clock and wave IDs must NEVER enter v2 saved state.
+        private int afterlightWatchRoom,afterlightWatchWave,afterlightWatchA,afterlightWatchB;
+        private bool afterlightWatchADead,afterlightWatchBDead;
+        private float afterlightWatchTime;
+        public bool AfterlightWatchActive {get{return afterlightWatchRoom>=1&&afterlightWatchRoom==save.room;}}
+        public int AfterlightWatchWave {get{return AfterlightWatchActive?afterlightWatchWave:0;}}
+        public float AfterlightWatchTime {get{return AfterlightWatchActive?afterlightWatchTime:0;}}
+        public bool AfterlightWatchDone(int room)
+        {return room>=1&&room<=3&&Has("afterlight_watch_done_"+room);}
+        public int AfterlightWatchesCleared
+        {get{int n=0;for(int i=1;i<=3;i++)if(AfterlightWatchDone(i))n++;return n;}}
+
+        private bool IsAfterlightWatchEnemy(Enemy e)
+        {return e!=null&&AfterlightWatchActive&&(e.id==afterlightWatchA||e.id==afterlightWatchB);}
+        private void OnAfterlightWatchEnemyDefeated(Enemy e)
+        {
+            if(!IsAfterlightWatchEnemy(e))return;
+            if(e.id==afterlightWatchA)afterlightWatchADead=true;
+            if(e.id==afterlightWatchB)afterlightWatchBDead=true;
+        }
+        private void ResetAfterlightWatch()
+        {
+            // Retire ONLY attackers owned by this local drill; ordinary patrols,
+            // boss state, permanent repairs and unrelated warnings survive.
+            if(afterlightWatchRoom!=0)
+            {
+                for(int i=enemies.Count-1;i>=0;i--)
+                    if(enemies[i].id==afterlightWatchA||enemies[i].id==afterlightWatchB)
+                    { RemoveEnemyPendingWarning(enemies[i]);enemies.RemoveAt(i); }
+            }
+            afterlightWatchRoom=afterlightWatchWave=afterlightWatchA=afterlightWatchB=0;
+            afterlightWatchADead=afterlightWatchBDead=false;afterlightWatchTime=0;
+        }
+        private bool AfterlightWatchSpawnPoint(int ordinal,int wave,Point avoid,out Point spot)
+        {
+            Point center=AfterlightPoint(save.room,"outlet");
+            Point[] offsets={
+                new Point(-3f,0),new Point(3f,0),new Point(0,-3f),new Point(0,3f),
+                new Point(-3f,-2f),new Point(3f,-2f),new Point(-3f,2f),new Point(3f,2f),
+                new Point(-4f,1f),new Point(4f,1f),new Point(1f,-4f),new Point(1f,4f),
+                new Point(-2f,-4f),new Point(2f,4f),new Point(4f,-2f),new Point(-4f,2f)};
+            for(int i=0;i<offsets.Length;i++)
+            {
+                int slot=(i+ordinal*5+(wave-1)*3)%offsets.Length;
+                Point p=center+offsets[slot];
+                if(CanStand(p)&&(p-Position).Length>1.7f &&
+                    (p-avoid).Length>2f)
+                {spot=p;return true;}
+            }
+            spot=new Point(-100,-100);return false;
+        }
+        private bool SpawnAfterlightWatchWave(int wave)
+        {
+            Point first,second;
+            if(!AfterlightWatchSpawnPoint(0,wave,new Point(-100,-100),out first)||
+                !AfterlightWatchSpawnPoint(1,wave,first,out second))return false;
+            int region=afterlightWatchRoom;
+            // Existing real enemy combat AI, telegraphs, contact and poise.
+            Enemy a=CreatePlacedEnemy(++enemyId,wave==1?0:2,first,
+                44+region*10+(wave-1)*22);
+            Enemy b=CreatePlacedEnemy(++enemyId,wave==1?1:0,second,
+                42+region*10+(wave-1)*18);
+            afterlightWatchA=a.id;afterlightWatchB=b.id;
+            afterlightWatchADead=afterlightWatchBDead=false;
+            afterlightWatchWave=wave;
+            enemies.Add(a);enemies.Add(b);
+            revision++;sound="quest";
+            Notify("公共设施防卫 第"+wave+"/2波：真正击退两名袭击者！",
+                "Civic defense wave "+wave+"/2: defeat both actual attackers.");
+            return true;
+        }
+        private bool ChooseAfterlightWatch(string action)
+        {
+            bool begin=action.StartsWith("afterlight_watch_start_");
+            bool abort=action.StartsWith("afterlight_watch_abort_");
+            if(!begin&&!abort)return false;
+            int room;
+            if(!int.TryParse(action.Substring(begin?
+                "afterlight_watch_start_".Length:"afterlight_watch_abort_".Length),out room)||
+                room<1||room>3||save.room!=room||
+                (Position-AfterlightPoint(room,"outlet")).Length>2.2f)return true;
+            if(abort)
+            {
+                if(AfterlightWatchActive)
+                {
+                    ResetAfterlightWatch();revision++;
+                    Notify("本次公共防卫已安全终止，已建立的储备不受影响。",
+                        "Civic defense withdrawn. All permanent emergency stocks remain.");
+                }
+                return true;
+            }
+            if(AfterlightWatchActive||!AfterlightComplete||
+                !AfterlightReserve(room)||!Has("afterlight_steward_"+room)||
+                FieldWorkPreventsRest||!SafeTravel||Dying||practicing||racing||
+                save.health<=15)return true;
+            afterlightWatchRoom=room;afterlightWatchTime=100f;
+            if(!SpawnAfterlightWatchWave(1))
+            {
+                ResetAfterlightWatch();
+                Notify("该设施周围暂无可站立的防卫位置，请稍后再试。",
+                    "No safe footing for this civic defense. Retry later.");
+            }
+            return true;
+        }
+        private void TickAfterlightWatch(float dt)
+        {
+            if(!AfterlightWatchActive)return;
+            int room=afterlightWatchRoom;
+            if(Dying||practicing||save.room!=room||
+                (Position-AfterlightPoint(room,"outlet")).Length>11.5f)
+            {
+                ResetAfterlightWatch();revision++;
+                Notify("离开防区：演练中止，永久储备与已赢得的记录保留。",
+                    "You left the defense perimeter. Permanent stocks and cleared records remain.");
+                return;
+            }
+            afterlightWatchTime-=dt;
+            if(afterlightWatchTime<=0)
+            {
+                ResetAfterlightWatch();revision++;
+                Notify("防卫时限结束，袭击者已退散。本次未获得胜利记录。",
+                    "Defense timed out; attackers dispersed. No victory credit awarded.");
+                return;
+            }
+            bool presentA=enemies.Exists(e=>e.id==afterlightWatchA);
+            bool presentB=enemies.Exists(e=>e.id==afterlightWatchB);
+            if((!presentA&&!afterlightWatchADead)||(!presentB&&!afterlightWatchBDead))
+            {
+                ResetAfterlightWatch();revision++;
+                Notify("袭击者被异常移除，防卫中断；不能以清空列表伪造胜利。",
+                    "Defense interrupted by a missing attacker. Only actual lethal contacts count.");
+                return;
+            }
+            if(!afterlightWatchADead||!afterlightWatchBDead||presentA||presentB)return;
+            if(afterlightWatchWave==1)
+            {
+                if(!SpawnAfterlightWatchWave(2))
+                {
+                    ResetAfterlightWatch();revision++;
+                    Notify("第二波没有安全落脚点，本次未结算胜利。可重试。",
+                        "No safe footing for wave two. No victory recorded; retry later.");
+                }
+                return;
+            }
+            ResetAfterlightWatch();
+            if(!AfterlightWatchDone(room))
+            {
+                Flag("afterlight_watch_done_"+room);
+                CreditCoins(25+room*5);CreditShards(1);AddXp(35);
+                if(AfterlightWatchesCleared==3&&!Has("afterlight_watch_all"))
+                {Flag("afterlight_watch_all");CreditSkillPoints(1);}
+                RecordMoment(AfterlightLocation(room,false)+"的居民应急储备通过两波真实袭击检验，巡护人员开始定期守护公共设施。",
+                    "The civic reserve at "+AfterlightLocation(room,true)+
+                    " survived two real attacker waves; public wardens now protect it.");
+                Notify("公共防卫首通：硬币、碎片与经验已发放（"+AfterlightWatchesCleared+"/3）。",
+                    "First civic defense clear: coins, a shard and XP awarded ("+AfterlightWatchesCleared+"/3).");
+            }
+            else Notify("公共防卫复练通过！永久储备仍在；本次不重复发奖。",
+                "Civic defense replay cleared! Permanent stocks remain; no repeat rewards.");
+            revision++;sound="reward";
+        }
         public int AfterlightStewards
         {
             get { int n=0;for(int i=1;i<=3;i++)if(Has("afterlight_steward_"+i))n++;return n; }
@@ -152,11 +314,13 @@ namespace Starfall
                         "重建议事厅的地图不再只有矿脉与军用货路。莫芽、阿菱、维恩与镇民共同维护的三座设施已经开始运行，公会每周公开下一轮修复名单。\n\n"+ 
                         "你的结局没有让所有损失凭空消失。真正改变世界的是有人继续照看这些路。\n\n"+
                         (AfterlightReserves==3?"三地应急储备均已建立，今后的疗养、巡路灯、渡口和工房有了真正的备用物资。":
-                        "应急储备已建立 "+AfterlightReserves+"/3。亲自前往三座修复后的地区接收台，用真实材料建立永久性的公共应急储备。"),
+                        "应急储备已建立 "+AfterlightReserves+"/3。亲自前往三座修复后的地区接收台，用真实材料建立永久性的公共应急储备。")+
+                        "\n\n公共防卫首通："+AfterlightWatchesCleared+"/3，三地全胜额外奖励技能点1。",
                         "The new map records living residents instead of mining lines alone. Three repaired public sites now run under Moya, Arin, Venn and their neighbors. The guild publishes each weekly repair roster.\n\n"+
                         "Your ending did not erase every hardship. Continuing to care for the roads is what changed this world.\n\n"+
                         (AfterlightReserves==3?"All three emergency reserves are stocked. Rebuilt public services have dependable supplies.":
-                        "Emergency reserves stocked: "+AfterlightReserves+"/3. Visit each rebuilt regional receiver in person and invest real supplies in permanent upgrades."),
+                        "Emergency reserves stocked: "+AfterlightReserves+"/3. Visit each rebuilt regional receiver in person and invest real supplies in permanent upgrades.")+
+                        "\n\nCivic defenses cleared: "+AfterlightWatchesCleared+"/3; all three first clears award one talent point.",
                         C("回顾旅程","Review the journey","epilogue"),C("继续旅行","Travel on","close"));return true;
                 }
                 if(!Has("afterlight_started"))
@@ -246,6 +410,26 @@ namespace Starfall
                         descriptionEn+="\n\nThis service has a stocked emergency reserve and a lasting practical improvement.";
                     }
                 }
+                if(outlet && AfterlightComplete && AfterlightReserve(room))
+                {
+                    if(AfterlightWatchActive)
+                    {
+                        descriptionZh+="\n\n公共防卫进行中：第"+AfterlightWatchWave+"/2波，剩余"+Math.Ceiling(AfterlightWatchTime)+"秒。两波敌人必须真正被击败。";
+                        descriptionEn+="\n\nCivic defense wave "+AfterlightWatchWave+"/2. "+Math.Ceiling(AfterlightWatchTime)+"s left; defeat both real attacker waves.";
+                        options.Add(C("安全终止本次公共防卫","Withdraw from current civic defense",
+                            "afterlight_watch_abort_"+room));
+                    }
+                    else
+                    {
+                        descriptionZh+=AfterlightWatchDone(room)?"\n\n公共防卫已完成首通，可无奖励复练两波袭击。":
+                            "\n\n应急储备需要通过实战检验：挑战两波实际袭击者，首次胜利计入地区巡护记录。";
+                        descriptionEn+=AfterlightWatchDone(room)?"\n\nDefense completed once. Replay two waves without additional rewards.":
+                            "\n\nTest this emergency reserve against two real waves. First clear records a guarded public site.";
+                        options.Add(C(AfterlightWatchDone(room)?"复练两波防卫 · 无奖励":"守护公共储备 · 两波实战",
+                            AfterlightWatchDone(room)?"Replay defense · no rewards":"Defend civic supplies · two waves",
+                            "afterlight_watch_start_"+room));
+                    }
+                }
                 if(outlet && Has("afterlight_steward_"+room))
                     options.Add(C("沿公共星灯返回余烬镇","Return to Emberfall via public starroad",
                         "afterlight_return_"+room));
@@ -331,6 +515,7 @@ namespace Starfall
         {
             if(action=="afterlight_track"){TrackQuest("afterlight");return true;}
             if(!action.StartsWith("afterlight_"))return false;
+            if(action.StartsWith("afterlight_watch_"))return ChooseAfterlightWatch(action);
             if(action=="afterlight_begin")
             {
                 if(save.room!=0 || !AfterlightEligible || Has("afterlight_started") ||
