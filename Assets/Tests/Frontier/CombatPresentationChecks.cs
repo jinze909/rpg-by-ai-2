@@ -19,10 +19,10 @@ namespace Starfall.Tests
                 gate[11]='#';rows[10]=new string(gate);
                 var blocked=new WorldObject {
                     id="blocked",kind="sign",name="Sealed archive sign",
-                    en="Sealed archive sign",x=12.05f,y=10.5f};
+                    en="Sealed archive sign",x=12.23f,y=10.5f};
                 var accessible=new WorldObject {
                     id="accessible",kind="sign",name="Open path sign",
-                    en="Open path sign",x=10.5f,y=12.2f};
+                    en="Open path sign",x=10.5f,y=12.24f};
                 data.maps[0]=new MapData {
                     id=0,spawnX=10.5f,spawnY=10.5f,rows=rows,
                     objects=new[]{blocked,accessible},
