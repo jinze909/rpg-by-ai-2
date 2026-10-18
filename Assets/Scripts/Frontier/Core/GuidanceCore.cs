@@ -112,8 +112,8 @@ namespace Starfall
                     SwordLessonComplete?L("返回诺尔铁匠铺，开始五箭精英考核",
                         "Return to Noll for the advanced five-arrow drill"):
                     L("回城与诺尔对话，开始三箭实战练习","Talk to Noll to start three real-arrow reflections");
-                q.reward=L("三箭首次30硬币、1碎片、50经验；五箭精英首次技能点1、经验75；精英可无奖励复练",
-                    "Three-arrow first clear: 30 coins, 1 shard, 50 XP. Advanced five-arrow first clear: 1 talent, 75 XP; later replays have no rewards.");
+                q.reward=L("三箭首次30硬币、1碎片、50经验；五箭精英首次技能点1、经验75，实际箭矢弹反耐力7→5、近战破招9→7；可无奖励复练",
+                    "Three-arrow first clear: 30 coins, 1 shard, 50 XP. Five-arrow first clear: 1 talent, 75 XP and lower real sword-guard costs (arrows 7→5, melee 9→7); free replay without rewards.");
                 return q;
             }
             if(id=="frost_signal")

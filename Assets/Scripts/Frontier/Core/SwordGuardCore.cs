@@ -8,11 +8,16 @@ namespace Starfall
     {
         public float deflectCooldown { get; private set; }
         public float deflectFlash { get; private set; }
+        // Mastery is an earned ordinary v2 quest flag, not a default class
+        // buff. It changes real contact costs but not guard timing, reach,
+        // rear vulnerability, or the impact owner's snapshot.
+        public int SwordGuardArrowEnergy { get { return SwordLessonVeteranComplete?5:7; } }
+        public int SwordGuardMeleeEnergy { get { return SwordLessonVeteranComplete?7:9; } }
         public bool SwordGuardReady
         {
             get { return mode=="world"&&!Dying&&!practicing&&
                 save.profession==0&&save.weapon==0&&guardTime>0&&
-                deflectCooldown<=0&&save.energy>=7&&invulnerable<=0; }
+                deflectCooldown<=0&&save.energy>=SwordGuardArrowEnergy&&invulnerable<=0; }
         }
         private void ResetSwordGuard()
         { deflectCooldown=deflectFlash=0; }
@@ -25,15 +30,15 @@ namespace Starfall
         {
             // A sword-guard blocks the CONTACT of an actual lunge, never the
             // abstract warning circle from a shockwave. Frontal contact and
-            // nine spare energy are required; rear hits retain normal armor.
-            if(source!="lunge"||!SwordGuardReady||save.energy<9||
+            // sufficient contact energy is required; rear hits retain armor.
+            if(source!="lunge"||!SwordGuardReady||save.energy<SwordGuardMeleeEnergy||
                 !incoming.HasValue||!Finite(incoming.Value.x)||
                 !Finite(incoming.Value.y)||incoming.Value.Length<.5f)return false;
             Point threat=incoming.Value.Normalized*-1;
             Point face=aim.Normalized;
             if(face.Length<.1f||face.x*threat.x+face.y*threat.y<.55f)
                 return false;
-            save.energy-=9;
+            save.energy-=SwordGuardMeleeEnergy;
             deflectCooldown=.36f;deflectFlash=.42f;
             riposteTime=Math.Max(riposteTime,1.5f);
             effects.Add(new Effect("number",Position,.7f,
@@ -55,7 +60,7 @@ namespace Starfall
             Point forward=aim.Normalized;
             if(forward.Length<.1f||forward.x*fromEnemy.x+
                 forward.y*fromEnemy.y<.55f)return false;
-            save.energy-=7;
+            save.energy-=SwordGuardArrowEnergy;
             deflectCooldown=.28f;deflectFlash=.34f;
             p.friendly=true;
             // A deflected projectile starts an entirely NEW outbound visual

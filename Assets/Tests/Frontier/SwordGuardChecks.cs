@@ -185,5 +185,58 @@ namespace Starfall.Tests
                 "Reflected arrow kill credits the warrior's original sword mastery, never the weapon equipped during flight");
         }
 
+        public static void VeteranSwordGuardUsesEarnedEnergyDiscountOnRealProjectileAndLunge(Campaign data)
+        {
+            float[] afterShot=new float[2],afterMelee=new float[2];
+            for(int i=0;i<2;i++)
+            {
+                bool veteran=i==1;
+                var g=Fresh(data,0);g.enemies.Clear();g.projectiles.Clear();
+                g.save.x=19.5f;g.save.y=14.5f;
+                Advance(g,1.1f);g.enemies.Clear();
+                if(veteran)g.save.flags.Add("swordlesson_veteran");
+                g.save.energy=60;g.guardTime=2;g.aim=new Point(-1,0);
+                g.invulnerable=0;
+                Check(g.SwordGuardArrowEnergy==(veteran?5:7)&&
+                    g.SwordGuardMeleeEnergy==(veteran?7:9),
+                    "Only the legitimately completed advanced course adjusts guard stamina requirements");
+                var arrow=ThreateningShot(g,new Point(6,0));
+                g.projectiles.Add(arrow);
+                for(int step=0;step<10&&!arrow.friendly;step++)
+                    g.Tick(.05f,new Point());
+                Check(arrow.friendly&&arrow.impact!=null&&
+                    arrow.impact.playerOwned&&arrow.impact.weapon==0,
+                    "Both standard and veteran blocks reflect a real projectile with the same sword owner");
+                afterShot[i]=g.save.energy;
+                g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.SwordGuardArrowEnergy==(veteran?5:7),
+                    "Legacy v2 retains the earned technique using only existing quest flags");
+
+                var m=Fresh(data,0);m.enemies.Clear();m.save.x=19.5f;m.save.y=14.5f;
+                Advance(m,1.1f);m.enemies.Clear();
+                if(veteran)m.save.flags.Add("swordlesson_veteran");
+                m.save.energy=60;m.guardTime=2;m.aim=new Point(-1,0);
+                m.invulnerable=0;
+                var attacker=new Enemy(91891+i,0,18.25f,14.5f,180);
+                attacker.Face(new Point(1,0));attacker.target=m.Position;
+                attacker.state=1;attacker.timer=.02f;attacker.windupDuration=.65f;
+                m.enemies.Add(attacker);
+                float health=m.save.health;
+                m.Tick(.05f,new Point());
+                Check(m.save.health==health&&m.riposteTime>1.3f&&
+                    m.deflectCooldown>.25f,
+                    "Both techniques still counter a true frontal lunge and open the original riposte");
+                afterMelee[i]=m.save.energy;
+            }
+            Check(Math.Abs((afterShot[1]-afterShot[0])-2)<.11f&&
+                Math.Abs((afterMelee[1]-afterMelee[0])-2)<.11f,
+                "The earned technique saves exactly two energy per actual arrow or melee contact");
+            var mage=Fresh(data,2);mage.save.flags.Add("swordlesson_veteran");
+            mage.guardTime=2;mage.save.energy=100;
+            Check(!mage.SwordGuardReady,
+                "No advanced training flag can grant the warrior-exclusive sword guard to another vocation");
+        }
+
     }
 }
