@@ -109,6 +109,7 @@ namespace Starfall.Tests
                     id=0,spawnX=10.5f,spawnY=11.5f,rows=rows,
                     objects=new WorldObject[0],decor=new Decoration[0]};
                 var g=Fresh(data,2);g.enemies.Clear();g.save.energy=100;
+                g.save.reducedMotion=true;
                 g.save.x=10.5f;g.save.y=11.5f;
                 g.save.flags.Add("companion_2");
                 g.SelectCompanion(2);
@@ -148,7 +149,10 @@ namespace Starfall.Tests
                     (published.position-g.companionPosition).Length<.01f,
                     "Sen's visible frost ring is authored at the ally's CURRENT feet, not invisibly under the hero");
                 float heroCurrent=nearHero.hp,allyCurrent=nearAlly.hp;
-                Advance(g,.83f);
+                // Each real frost pulse is 800ms apart. Advance safely
+                // past both caster schedules instead of testing exactly at
+                // the boundary of combat hit-stop or per-frame rounding.
+                Advance(g,1.12f);
                 Check(nearHero.hp<heroCurrent&&nearAlly.hp<allyCurrent,
                     "Both independently scheduled player and companion frost fields continue genuine later damage pulses");
                 Check(g.enemies.Count==2&&g.save.version==2,
