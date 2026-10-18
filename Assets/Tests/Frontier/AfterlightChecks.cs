@@ -746,6 +746,119 @@ namespace Starfall.Tests
                 "SaveData v2 preserves earned districts and local design but never a canceled cargo run");
         }
 
+        public static void AfterlightReservesRequireHonestPostCharterSuppliesAndImproveRealServices(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            for(int room=1;room<=3;room++)
+            {
+                g.save.flags.Add("afterlight_done_"+room);
+                g.save.flags.Add("afterlight_steward_"+room);
+            }
+            g.save.flags.Add("afterlight_plan_1_watch");
+            g.save.flags.Add("afterlight_plan_2_care");
+            g.save.flags.Add("afterlight_plan_3_care");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=500;
+            var forest=Object(g,"afterlightoutlet1");
+            g.save.x=forest.x;g.save.y=forest.y;
+            g.Talk(forest);
+            Check(!Array.Exists(g.conversation.choices,c=>c.action=="afterlight_reserve_1"),
+                "Finished regional construction alone cannot bypass publishing the entire civic charter");
+            g.Close();
+            g.save.flags.Add("afterlight_complete");
+            g.save.inventory[0]=1;g.save.inventory[2]=1;
+            Action(g,forest.kind,"afterlight_reserve_1");
+            Check(!g.AfterlightReserve(1) && g.save.inventory[0]==1 &&
+                g.save.inventory[2]==1,
+                "Insufficient genuine timber rejects reserve upgrades without partial material theft");
+            g.save.inventory[0]=2;
+            Action(g,forest.kind,"afterlight_reserve_1");
+            Check(g.AfterlightReserve(1)&&g.AfterlightReserves==1&&
+                g.save.inventory[0]==0&&g.save.inventory[2]==0,
+                "Actually investing 2 timber and 1 Moonherb installs the forest reserve once");
+            Action(g,forest.kind,"afterlight_reserve_1");
+            Check(g.AfterlightReserves==1&&g.save.inventory[0]==0&&
+                g.save.inventory[2]==0,
+                "Replayed reserve actions cannot buy the same improvement twice");
+            var oldForest=CloneSave(g.save);
+            oldForest.flags.Remove("afterlight_reserve_1");
+            var basic=new GameCore(data,oldForest);basic.Start();
+            basic.enemies.Clear();basic.invulnerable=500;
+            basic.save.x=forest.x;basic.save.y=forest.y;
+            g.save.energy=basic.save.energy=10;
+            Advance(g,2);Advance(basic,2);
+            Check(g.save.energy>basic.save.energy+3f,
+                "Physically provisioned forest lamps replenish actual energy faster than ordinary unstocked lamps");
+            g.save.x=basic.save.x=forest.x-5f;
+            g.save.y=basic.save.y=forest.y;
+            g.save.energy=basic.save.energy=10;
+            Advance(g,2);Advance(basic,2);
+            Check(Math.Abs(g.save.energy-basic.save.energy)<.2f,
+                "Reserve improvements cannot regenerate energy anywhere in the region");
+
+            g.Enter(2);g.enemies.Clear();g.invulnerable=500;
+            var ruins=Object(g,"afterlightoutlet2");
+            var quay=Object(g,"afterlightanchor2");
+            var choose=typeof(GameCore).GetMethod("ChooseAfterlight",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(choose!=null,"Physical civic reserve action dispatcher remains available");
+            g.save.x=quay.x;g.save.y=quay.y;
+            g.save.inventory[0]=1;g.save.inventory[2]=2;
+            choose.Invoke(g,new object[]{"afterlight_reserve_2"});
+            Check(!g.AfterlightReserve(2),
+                "Forged action at original ferry anchor cannot stock the far receiver");
+            g.save.x=ruins.x;g.save.y=ruins.y;
+            g.enemies.Add(new Enemy(88995,0,ruins.x+.7f,ruins.y,30));
+            choose.Invoke(g,new object[]{"afterlight_reserve_2"});
+            Check(!g.AfterlightReserve(2)&&g.save.inventory[2]==2,
+                "An active nearby patrol blocks material provisioning instead of allowing midcombat escape");
+            g.enemies.Clear();
+            Action(g,ruins.kind,"afterlight_reserve_2");
+            Check(g.AfterlightReserve(2)&&g.AfterlightReserves==2&&
+                g.save.inventory[0]==0&&g.save.inventory[2]==0,
+                "The second region consumes one timber and two herbs exactly once");
+            var oldRuins=CloneSave(g.save);
+            oldRuins.flags.Remove("afterlight_reserve_2");
+            var ordinary=new GameCore(data,oldRuins);ordinary.Start();
+            ordinary.enemies.Clear();ordinary.invulnerable=500;
+            g.save.x=ordinary.save.x=quay.x;
+            g.save.y=ordinary.save.y=quay.y;
+            g.save.health=ordinary.save.health=Math.Min(g.save.maxHealth-40,40);
+            Advance(g,2);Advance(ordinary,2);
+            Check(g.save.health>ordinary.save.health+2f,
+                "Stocked public ferry establishes actual out-of-combat healing at the original far quay");
+            g.save.x=ordinary.save.x=quay.x+5f;
+            g.save.y=ordinary.save.y=quay.y;
+            g.save.health=ordinary.save.health=40;
+            Advance(g,2);Advance(ordinary,2);
+            Check(Math.Abs(g.save.health-ordinary.save.health)<.2f,
+                "Ferry reserve healing remains tightly local, not a remote map-wide passive bonus");
+
+            g.Enter(3);g.enemies.Clear();g.invulnerable=500;
+            var mine=Object(g,"afterlightoutlet3");
+            g.save.x=mine.x;g.save.y=mine.y;
+            g.save.inventory[1]=2;g.save.inventory[4]=1;
+            Action(g,mine.kind,"afterlight_reserve_3");
+            Check(g.AfterlightReserve(3)&&g.AfterlightReserves==3 &&
+                g.save.inventory[1]==0&&g.save.inventory[4]==0,
+                "Mine emergency investment really spends two crystals and one machine part");
+            g.save.inventory[0]=1;g.save.inventory[1]=2;
+            g.Talk(mine);
+            Check(Array.Exists(g.conversation.choices,c=>c.action=="afterlight_craft" &&
+                c.en.Contains("3 repair parts")),
+                "Public workshop dialogue reflects the actual enhanced three-part recipe");
+            g.Close();
+            Action(g,mine.kind,"afterlight_craft");
+            Check(g.save.inventory[0]==0&&g.save.inventory[1]==0 &&
+                g.save.inventory[4]==3,
+                "A stocked mine workshop produces one extra usable part per genuinely paid batch");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.save.version==2&&restored.AfterlightReserves==3&&
+                restored.AfterlightReserve(3)&&restored.Has("afterlight_complete"),
+                "All optional civic upgrades survive the original v2 save format and leave original charter intact");
+        }
+
         public static void AfterlightReceiverChoicesRespondToInsufficientPowerAndRemainingTime(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;
