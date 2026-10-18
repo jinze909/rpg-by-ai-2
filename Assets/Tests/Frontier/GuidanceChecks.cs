@@ -2946,5 +2946,66 @@ namespace Starfall.Tests
             }
         }
 
+        public static void ChapterElevenManualValveGroundingCancelsOnlyRealGridArcs(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.energy=100;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=300;
+            WorldObject desk=Object(g,"civicconduitmaster"),valve=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(g.CivicConduitValveIndex(o)==0)valve=o;
+            Check(valve!=null,"Chapter Eleven's first grounded valve exists in the original Citadel");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_start");
+            Check(g.CivicConduitActive&&g.CivicConduitGroundAvailable,
+                "Physical fuse setup exposes optional protective grounding");
+            for(int f=0;f<190&&g.Position.x<valve.x-.15f;f++)
+                g.Tick(.05f,new Point(1,0));
+            Check(g.CivicConduitActive&&
+                (g.Position-new Point(valve.x,valve.y)).Length<2.2f,
+                "The real hero walks to the authored control valve");
+            var pulse=typeof(GameCore).GetField("conduitPulseLeft",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(pulse!=null,"The actual live-arc timer exists");
+            pulse.SetValue(g,.01f);
+            g.Tick(.05f,new Point());
+            Check(g.hazards.Exists(h=>h.civicConduitOwned),
+                "A real hazardous arc is active before the grounded contact");
+            var unrelated=new Hazard{position=new Point(6,6),radius=.4f,
+                timer=55,damage=9,kind="root"};
+            g.hazards.Add(unrelated);
+            int energy=g.save.energy;
+            g.Talk(valve);
+            Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
+                c=>c.action=="civic_conduit_ground"),
+                "The in-world valve really offers manual grounding, even outside a green phase");
+            int index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_conduit_ground");
+            g.Choose(index);
+            Check(g.CivicConduitActive&&!g.CivicConduitGroundAvailable&&
+                g.save.energy==energy-20&&!g.hazards.Exists(h=>h.civicConduitOwned)&&
+                g.hazards.Contains(unrelated),
+                "Paying 20 energy once clears only live grid hazards, not ordinary world danger");
+            float delay=(float)pulse.GetValue(g);
+            Check(delay>=4.75f,"Actual subsequent arc is suppressed for almost five seconds");
+            var choose=typeof(GameCore).GetMethod("ChooseCivicConduit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"civic_conduit_ground"});
+            Check(g.save.energy==energy-20&&
+                Math.Abs((float)pulse.GetValue(g)-delay)<.01f,
+                "Direct repeated requests cannot buy multiple emergency grounds");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.CivicConduitActive&&
+                !loaded.CivicConduitGroundAvailable&&!loaded.CivicConduitComplete,
+                "Emergency grounding is not serialized into old SaveData v2");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_abort");
+            Check(!g.CivicConduitActive&&g.hazards.Contains(unrelated),
+                "Explicit abort removes the temporary grounding without damaging other hazards");
+        }
+
     }
 }

@@ -9,6 +9,13 @@ namespace Starfall
         private int conduitRoom=-1,conduitStage;
         private float conduitElapsed,conduitWalked,conduitIntegrity,conduitPulseLeft;
         private Point conduitLast;
+        // An actual valve can ground its own circuit once per powered stage.
+        // These are per-attempt bits, not new SaveData fields.
+        private int conduitGroundedMask;
+        public bool CivicConduitGroundAvailable
+        { get { return CivicConduitActive &&
+            (conduitGroundedMask & (1 << conduitStage)) == 0 &&
+            save.energy >= 20; } }
         // Stable campaign object identity, not a hard-coded X coordinate.
         // Moving a field valve in the authored map must never change its slot.
         public int CivicConduitValveIndex(WorldObject o)
@@ -51,7 +58,7 @@ namespace Starfall
         private void ResetCivicConduit()
         {
             conduitRoom=-1;conduitStage=0;conduitElapsed=conduitWalked=conduitIntegrity=conduitPulseLeft=0;
-            conduitLast=new Point();
+            conduitLast=new Point();conduitGroundedMask=0;
             hazards.RemoveAll(h=>h.civicConduitOwned);
             effects.RemoveAll(e=>e.civicConduitOwned);
         }
@@ -165,6 +172,14 @@ namespace Starfall
                     C("返回上一个","Backtrack","close"));return true;
             }
             bool open=CivicConduitWindowOpen;
+            // The grounding option remains visible even at zero energy, so
+            // players know the resource requirement before trying it.
+            string controlZh=(conduitGroundedMask&(1<<conduitStage))==0?
+                " 可花20耐力在此阀门接地一次，清除本电网当前预警并延缓下一次脉冲。":
+                " 此阀门的接地机会已用过。";
+            string controlEn=(conduitGroundedMask&(1<<conduitStage))==0?
+                " Ground this valve once for 20 energy to clear active grid arcs and delay the next pulse.":
+                " This valve's grounding has already been used.";
             Dialog(o.name,o.en,
                 (open?"当前阀门稳定！":"当前阀门处于高压闭锁期。")+
                 "\n导体完好度："+(int)Math.Ceiling(conduitIntegrity)+
@@ -172,17 +187,20 @@ namespace Starfall
                 " 秒。\n"+
                 (open?"绿色窗口剩余 ":"下个绿色窗口还有 ")+
                 CivicConduitWindowRemaining.ToString("0.0")+" 秒。"+
-                (open?"请在相位结束前确认。":"关闭面板后时间才会继续，记得躲避电弧。"),
+                (open?"请在相位结束前确认。":"关闭面板后时间才会继续，记得躲避电弧。")+controlZh,
                 (open?"Valve stable now!":"Valve pressure locked!")+
                 "\nConductor: "+(int)Math.Ceiling(conduitIntegrity)+
                 "%; "+(int)Math.Ceiling(CivicConduitTimeLeft)+
                 " seconds left.\n"+
                 (open?"Green phase remaining: ":"Next green phase in ")+
                 CivicConduitWindowRemaining.ToString("0.0")+"s. "+
-                (open?"Confirm while stable.":"Close dialogue to resume the clock; dodge the arcs."),
+                (open?"Confirm while stable.":"Close dialogue to resume the clock; dodge the arcs.")+controlEn,
                 C(open?"执行实际调谐":"关闭面板并等待绿色周期",
                     open?"Tune now":"Close panel and wait for green",
                     open?"civic_conduit_tune":"close"),
+                (conduitGroundedMask&(1<<conduitStage))==0?
+                    C("手动接地 · 耐力20","Ground valve · 20 energy","civic_conduit_ground"):
+                    C("查看接地记录","Review grounding","close")),
                 C("暂时离开","Leave","close"));
             return true;
         }
@@ -222,10 +240,33 @@ namespace Starfall
                 }
                 conduitRoom=4;conduitStage=0;conduitElapsed=conduitWalked=0;
                 conduitIntegrity=100;conduitPulseLeft=4.7f;
+                conduitGroundedMask=0;
                 conduitLast=Position;revision++;sound="quest";
                 TrackQuest("civic_conduit");
                 Notify("公共线路已通电！沿道路向东，在三处阀门绿色周期内操作。80秒。",
                     "Public conductor live! Walk east and tune all three valves during green phases within 80s.");
+                return true;
+            }
+            if(action=="civic_conduit_ground")
+            {
+                if(!CivicConduitActive||valve==null||
+                    (conduitGroundedMask&(1<<conduitStage))!=0)return true;
+                if(save.energy<20)
+                {
+                    Notify("手动接地需要20耐力；仍可以正常躲避电弧。",
+                        "Grounding needs 20 energy; you can still dodge the arc normally.");
+                    return true;
+                }
+                save.energy-=20;conduitGroundedMask|=1<<conduitStage;
+                // Grounding cancels only THIS circuit's live contact. Other
+                // authored encounters' warning circles remain untouched.
+                hazards.RemoveAll(h=>h.civicConduitOwned);
+                effects.RemoveAll(e=>e.civicConduitOwned);
+                conduitPulseLeft=Math.Max(conduitPulseLeft,4.8f);
+                effects.Add(new Effect("discover",Position,.6f){civicConduitOwned=true});
+                revision++;sound="guard";
+                Notify("阀门接地成功！当前电弧已安全消散，下一次脉冲延后。",
+                    "Valve grounded! Current grid arcs canceled; the next surge is delayed.");
                 return true;
             }
             if(action!="civic_conduit_tune"||!CivicConduitActive||valve==null||
