@@ -205,12 +205,16 @@ namespace Starfall.Tests
             foreach (Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
                 hit.Invoke(g, new object[] { guard, 99999f, false, null, null });
             g.save.x = middle.x; g.save.y = middle.y;
-            Action(g, middle.kind, "frostsignal_free");
+            g.Talk(middle);
+            Check(FrostChoice(g, "frostsignal_free"),
+                "Original middle highland post offers free flame conservation only after verified kills");
             Check(g.FrostSignalStage == 3 &&
                 !g.FrostSignalComplete && g.FrostSignalFlame > 0,
                 "Actually defeating two enemies opens optional free flame conservation");
             g.save.x = south.x; g.save.y = south.y;
-            Action(g, south.kind, "frostsignal_clinic");
+            g.Talk(south);
+            Check(FrostChoice(g, "frostsignal_clinic"),
+                "Original southern hearth presents the public clinic decision after authentic switchyard combat");
             Check(g.FrostSignalComplete && g.FrostSignalOutcome == 1 &&
                 g.save.coins >= coins + 55 && g.save.shards == shards + 2,
                 "The true real-combat ember trip still permanently opens its authored public clinic");
