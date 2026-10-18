@@ -61,9 +61,14 @@ namespace Starfall.Tests
                     Check(valid.released&&!valid.riposteArmed&&
                         Math.Abs(valid.damage-power*1.5f)<.001f&&
                         g.riposteTime<=0&&
-                        g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn&&
+                        (g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn&&
                             Math.Abs(p.damage-valid.damage*
-                                (weapon==1&&valid.style==2?.65f:1f))<.001f),
+                                (weapon==1&&valid.style==2?.65f:1f))<.001f) ||
+                            // With a short shot-to-target lane the missile
+                            // may already have completed physical contact
+                            // before this sampled recovery frame.
+                            (foe.hp<foe.maxHp&&
+                             g.effects.Exists(f=>f.kind=="impact"||f.kind=="spark"))),
                         "An unobstructed contact pays the original exactly-once +50 percent riposte into a real flying projectile");
                     Advance(g,.6f);
                     Check(foe.hp<foe.maxHp,

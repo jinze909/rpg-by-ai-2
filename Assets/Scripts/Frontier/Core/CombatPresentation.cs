@@ -304,8 +304,12 @@ namespace Starfall
                     // the earned riposte window for an actual later release.
                     a.riposteArmed = false;
                     if (blocked != null)
-                        effects.Add(new Effect("projectileImpact", blocked.position, .22f)
-                            { direction = a.direction, height = blocked.height });
+                        // Retain the existing combat contract: a swept
+                        // wall-born projectile enters the world for exactly
+                        // one tick, then physics creates the near-side spark.
+                        // It is NOT a successful shot, so no riposte, launch
+                        // VFX or counter text is committed.
+                        projectiles.Add(blocked);
                     sound = "guard";
                     return;
                 }
