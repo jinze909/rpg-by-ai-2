@@ -78,9 +78,15 @@ namespace Starfall
             {
                 int slot=(i+ordinal*5+(wave-1)*3)%offsets.Length;
                 Point p=center+offsets[slot];
-                if(CanStand(p)&&(p-Position).Length>1.7f &&
-                    (p-avoid).Length>2f)
-                {spot=p;return true;}
+                if(!CanStand(p)||(p-Position).Length<=1.7f ||
+                    (p-avoid).Length<=2f)continue;
+                // A merely walkable point across impassable tiles can strand
+                // a real encounter. Require the production pathfinder to
+                // actually reach within a combat step of this spawn.
+                List<Point> route=NavigationPath(p);
+                if(route.Count==0||
+                    (route[route.Count-1]-p).Length>1.25f)continue;
+                spot=p;return true;
             }
             spot=new Point(-100,-100);return false;
         }
