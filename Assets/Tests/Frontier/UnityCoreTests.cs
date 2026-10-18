@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void BossWarningCleanupDoesNotEraseZeroOwnedPlayerEffects() { CoreChecks.ZeroIdCombatWarningCleanupCannotEraseUnrelatedPresentation(Data()); }
         [Test] public void BossSupportCallsAreReadableAndCancelableByRealCombat() { CoreChecks.BossReinforcementWindupTelegraphRetractsOnRealControlAndReleasesWithWave(Data()); }
         [Test] public void BossSummonsRequireActualWalkableLocalRoutes() { CoreChecks.BossSummonsRejectVisibleButUnreachableDiagonalPocket(Data()); }
         [Test] public void BossSupportNeverMaterializesOnPlayerCompanion() { CoreChecks.BossSupportCannotSpawnOnTheLivingCompanion(Data()); }
