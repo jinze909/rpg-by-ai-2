@@ -279,6 +279,99 @@ namespace Starfall.Tests
             finally{data.maps[2]=original;}
         }
 
+        public static void BeaconWithdrawalCannotEraseFoesRemotelyAndAllResetPathsCleanOwnActors(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[34];
+                for(int y=0;y<34;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=31)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                WorldObject beacon=new WorldObject{id="survey1",kind="survey1",
+                    name="Beacon",en="Beacon",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{beacon},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("dispatch_complete");
+                g.save.flags.Add("survey_1");
+                g.Enter(1);g.enemies.Clear();
+                g.invulnerable=180;g.save.x=12.25f;g.save.y=10.5f;
+                Action(g,beacon.kind,"road_trial_start_1");
+                Check(g.RoadwardenTrialRoom==1&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==2,
+                    "The first real forest beacon wave is active before withdrawal");
+                var ambient=new Enemy(93075,0,19.5f,10.5f,100f)
+                    {stun=180,timer=180};
+                g.enemies.Add(ambient);
+                var shot=new Projectile{
+                    position=new Point(10.5f,10.5f),
+                    velocity=new Point(1,0),damage=5,
+                    roadTrialOwned=true};
+                var unrelatedShot=new Projectile{
+                    position=new Point(18.5f,10.5f),
+                    velocity=new Point(1,0),damage=5};
+                g.projectiles.Add(shot);g.projectiles.Add(unrelatedShot);
+                var wardWarning=new Effect("danger",
+                    new Point(10.5f,10.5f),.6f)
+                    {roadTrialOwned=true};
+                var ambientEffect=new Effect("spark",
+                    new Point(18.5f,10.5f),.6f);
+                g.effects.Add(wardWarning);g.effects.Add(ambientEffect);
+                g.Talk(beacon);
+                int choice=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="road_trial_abandon")
+                    {choice=i;break;}
+                Check(choice>=0,"The active beacon exposes the original withdraw choice");
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                Check(g.CanStand(g.Position)&&g.Blocked(11.5f,10.5f),
+                    "A solid wall cuts the physical signal terminal off after dialogue creation");
+                g.Choose(choice);
+                Check(g.RoadwardenTrialRoom==1&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==2&&
+                    g.projectiles.Contains(shot)&&g.effects.Contains(wardWarning),
+                    "A cached withdraw command cannot erase real fighters, arrows or warnings across cover");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(beacon);choice=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="road_trial_abandon")
+                    {choice=i;break;}
+                Check(choice>=0,"Reopened terminal still supports intentional retreat");
+                g.Choose(choice);
+                Check(g.RoadwardenTrialRoom==0&&
+                    g.enemies.Count==1&&g.enemies.Contains(ambient)&&
+                    !g.projectiles.Contains(shot)&&
+                    g.projectiles.Contains(unrelatedShot)&&
+                    !g.effects.Contains(wardWarning)&&
+                    g.effects.Contains(ambientEffect)&&
+                    !g.Has("road_trial_1"),
+                    "Real withdrawal removes ONLY owned actors, missiles and cues, preserving unrelated threats and no reward");
+                g.enemies.Remove(ambient);
+                g.projectiles.Clear();g.effects.Clear();
+                g.Talk(beacon);
+                Action(g,beacon.kind,"road_trial_start_1");
+                Check(g.RoadwardenTrialRoom==1&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==2,
+                    "A fully cleaned up real beacon can be started again");
+                var reset=typeof(GameCore).GetMethod("ResetRoadwardenTrial",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(reset!=null,"All original abnormal termination paths use the shared reset");
+                reset.Invoke(g,new object[0]);
+                Check(g.RoadwardenTrialRoom==0&&g.enemies.Count==0&&
+                    !g.Has("road_trial_1")&&g.save.version==2,
+                    "A non-dialogue abnormal reset cannot leave ghost trial attackers in a live room");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();

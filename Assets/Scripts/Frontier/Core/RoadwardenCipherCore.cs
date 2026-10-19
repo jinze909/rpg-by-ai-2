@@ -145,6 +145,17 @@ namespace Starfall
         { return e != null && e.id >= 81000 && e.id < 81100; }
         private void ResetRoadwardenTrial()
         {
+            // All reset paths, including death/practice/load and out-of-room
+            // termination, must retire their living trial actors. The old
+            // abort button cleaned them, but other reset callers did not:
+            // a canceled duel could keep attacking as anonymous enemies.
+            if(roadTrialRoom!=0)
+                for(int i=enemies.Count-1;i>=0;i--)
+                    if(IsRoadwardenTrialEnemy(enemies[i]))
+                    {
+                        RemoveEnemyPendingWarning(enemies[i]);
+                        enemies.RemoveAt(i);
+                    }
             foreach (Hazard warning in roadTrialWarnings) hazards.Remove(warning);
             roadTrialWarnings.Clear();
             // A stopped drill must not leave its already-fired arrows active.
@@ -211,9 +222,12 @@ namespace Starfall
             }
             if (action == "road_trial_abandon")
             {
-                if (roadTrialRoom != 0)
+                // The choice may have been opened before a gate closed,
+                // or after a different region was loaded. Withdrawal is a
+                // physical beacon action, not an anywhere-in-world reset.
+                if (roadTrialRoom != 0&&save.room==roadTrialRoom&&
+                    CanReachRoadwardenBeacon(roadTrialRoom))
                 {
-                    enemies.RemoveAll(IsRoadwardenTrialEnemy);
                     ResetRoadwardenTrial(); revision++;
                     Notify("守路试炼已放弃。可再次从信标开始。", "Defense drill abandoned. Restart at the beacon.");
                 }

@@ -253,6 +253,7 @@ namespace Starfall.Tests
         [Test] public void BeaconLaterWaveWaitsForClearGroundWithoutHealingTwice() { CoreChecks.RoadwardenClearedWaveCanResumeAfterBlockedRealArena(Data()); }
         [Test] public void BeaconStaleStartAndRepairRejectWallBlockedActions() { CoreChecks.BeaconCachedStartAndEnergyRepairRequireOpenPhysicalLane(Data()); }
         [Test] public void RoadwardenSurgeCannotCountSealedPocketAsDodgeExit() { CoreChecks.RoadwardenHazardCannotTreatSealedPocketAsEscapeRoute(Data()); }
+        [Test] public void BeaconWithdrawAndAbnormalResetRetireOnlyOwnedCombatActors() { CoreChecks.BeaconWithdrawalCannotEraseFoesRemotelyAndAllResetPathsCleanOwnActors(Data()); }
         [Test] public void LiveQuestProgressAndTracking() { CoreChecks.QuestTrackingTransitions(Data()); }
         [Test] public void QuestRoutesRespectCollisionAndTides() { CoreChecks.NavigationRespectsWorldCollision(Data()); }
         [Test] public void SafePracticeAndReplay() { CoreChecks.InteractivePracticeAndReplay(Data()); }
