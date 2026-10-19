@@ -63,6 +63,57 @@ namespace Starfall.Tests
                 "Additional arena checks do not unlock a reward or alter an existing v2 save");
         }
 
+        public static void GlasswindPublicShadeOnlyProtectsPhysicallyAccessibleTravelers(Campaign data)
+        {
+            // An already-restored valve is a physical public refuge.
+            // Simply being within three tiles on the other side of a
+            // solid wall must not cool the hero without actual access.
+            MapData original=data.maps[6];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='#';
+                    rows[y]=new string(cells);
+                }
+                WorldObject relay=new WorldObject {
+                    id="glasswindrelay1",kind="glasswindrelay",
+                    name="Civic wind valve",en="Civic wind valve",
+                    x=12.5f,y=10.5f};
+                data.maps[6]=new MapData {
+                    id=6,spawnX=10.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{relay},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("harbor_report");g.Enter(6);
+                g.enemies.Clear();
+                g.save.flags.Add("glasswind_1");
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.heat=40f;g.save.teaUntil=0;
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(relay.x,relay.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "A real unbroken wall separates an otherwise nearby restored public wind valve");
+                Check(!g.GlasswindRefuge,
+                    "Permanent public shade must not protect the hero across sealed scenery");
+                g.Tick(.05f,new Point());
+                Check(g.save.heat>40.045f,
+                    "Sandreach climate advances actual heat when public shade is physically inaccessible");
+                char[] opened=rows[10].ToCharArray();
+                opened[11]='.';rows[10]=new string(opened);
+                Check(g.GlasswindRefuge,
+                    "Opening the exact barrier immediately activates the existing completed valve");
+                g.Tick(.05f,new Point());
+                Check(g.save.heat<40f&&g.save.version==2,
+                    "The same valve now cools the real hero without a save migration or duplicate quest award");
+            }
+            finally {data.maps[6]=original;}
+        }
+
         public static void GlasswindCircuitHasRealCaptureWavesAndPermanentShade(Campaign data)
         {
             var g=Fresh(data);

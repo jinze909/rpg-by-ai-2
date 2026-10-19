@@ -37,7 +37,8 @@ namespace Starfall
                 if(save.room!=6 || GlasswindSite!=0 || !SafeTravel) return false;
                 for(int i=1;i<=3;i++)
                     if(Has("glasswind_"+i) &&
-                        (Position-GlasswindPoint(i)).Length<3.1f) return true;
+                        PhysicalRefugeReach(GlasswindPoint(i),3.1f))
+                        return true;
                 return false;
             }
         }
