@@ -186,6 +186,50 @@ namespace Starfall.Tests
             }
         }
 
+        public static void DesertShadeRequiresPhysicalContactAcrossLiveWall(Campaign data)
+        {
+            // NearKind powers actual heat protection AND other resident
+            // stations. This checks one world tick before/after opening a
+            // real barrier without any new story flag or save migration.
+            MapData previous=data.maps[6];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='#';
+                    rows[y]=new string(cells);
+                }
+                WorldObject shade=new WorldObject{id="shade-test",
+                    kind="shade",name="Shade canopy",en="Shade canopy",
+                    x=12.5f,y=10.5f};
+                data.maps[6]=new MapData{id=6,
+                    spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new[]{shade},decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.save.stage=3;g.save.flags.Add("desert_report");
+                g.Enter(6);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.teaUntil=0;g.save.heat=40f;
+                Check(g.save.room==6&&g.CanStand(g.Position)&&
+                    g.CanStand(new Point(shade.x,shade.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "A genuine desert shade exists nearby but behind a full wall with valid standing feet");
+                g.Tick(.05f,new Point());
+                Check(g.save.heat>40.04f,
+                    "An inaccessible canopy cannot grant free desert cooling through a sealed wall");
+                char[] open=rows[10].ToCharArray();
+                open[11]='.';rows[10]=new string(open);
+                g.Tick(.05f,new Point());
+                Check(g.save.heat<40f&&g.save.version==2,
+                    "Opening the same route makes the real nearby shade immediately reduce heat without changing save schema");
+            }
+            finally{data.maps[6]=previous;}
+        }
+
         public static void ExplorationPowersAndDiscoveries(Campaign data)
         {
             var g = Unlocked(data); g.save.flags.RemoveAll(f => f.StartsWith("core_") || f.StartsWith("seal_") || f.StartsWith("cache_"));

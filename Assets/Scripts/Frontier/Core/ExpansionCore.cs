@@ -690,7 +690,14 @@ namespace Starfall
         }
         private bool NearKind(string kind, float range)
         {
-            foreach (WorldObject o in Map.objects) if (o.kind == kind && (new Point(o.x, o.y) - Position).Length < range) return true;
+            // This predicate drives real civic recovery, climate shelter and
+            // restored stations. A nearby icon behind a solid wall is not
+            // a physically accessible service; keep the original radius
+            // but share the real near-side path test with field refuges.
+            foreach (WorldObject o in Map.objects)
+                if(o.kind==kind&&
+                    PhysicalRefugeReach(new Point(o.x,o.y),range))
+                    return true;
             return false;
         }
         private void TickExpansion(float dt)
