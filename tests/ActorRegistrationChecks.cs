@@ -172,8 +172,8 @@ public static class ActorRegistrationChecks
                 var healing=Draw(app,"DrawCompanionActor").Single(ActorTexture);
                 int healColumn=(int)Math.Round(Math.Min(healing.uv.x,
                     healing.uv.x+healing.uv.width)*3f);
-                int healRow=(int)Math.Round(1f-healing.uv.y-
-                    Math.Abs(healing.uv.height));
+                int healRow=(int)Math.Round((1f-healing.uv.y-
+                    Math.Abs(healing.uv.height))*4f);
                 int healFrame=healRow*3+healColumn;
                 int expectedHealFrame=heading==2?7:heading==3?10:5;
                 Check(healFrame==expectedHealFrame&&
