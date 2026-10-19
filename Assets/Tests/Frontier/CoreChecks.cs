@@ -855,6 +855,77 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RealCompanionGuardsSuppliesWithoutWarpingOrPersisting(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            Check(post!=null,"Regional relief post exists on physical map");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_0");
+            g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            Check(g.CanStand(g.companionPosition),
+                "Guard begins at a genuine unblocked companion foot");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Watchpost has a genuine active defense");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"The physical watchpost offers a live companion guard order");
+            Point before=g.companionPosition;
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.CanStand(g.OuterPatrolCompanionGuardPosition)&&
+                (g.companionPosition-before).Length<.001f,
+                "Guard command picks legal foot but never teleports ally");
+            Point destination=g.OuterPatrolCompanionGuardPosition;
+            // The player can intercept the second raider without dragging
+            // the ranged guard away from the vulnerable stock.
+            g.save.x=post.x+5f;g.save.y=post.y;
+            float distBefore=(g.companionPosition-destination).Length;
+            for(int tick=0;tick<90&&g.OuterPatrolActive;tick++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.companionPosition-destination).Length<distBefore+.05f&&
+                (g.companionPosition-new Point(post.x,post.y)).Length<5f,
+                "Guard follows a physical local stock waypoint, not the distant hero");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Follow option exists while guard is active");
+            g.Choose(guard);
+            Check(!g.OuterPatrolCompanionGuarding,
+                "Player can restore original ordinary companion follow behavior");
+            // Independent guard order can be given again in the same siege,
+            // but it must disappear on withdrawal and save round-trip.
+            g.Talk(post);
+            guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Guard can be reassigned by an actual valid local order");
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&!g.OuterPatrolCompanionGuarding,
+                "Leaving a siege retires ephemeral guard orders");
+            SaveData slot=new SaveData {
+                version=2,room=0,x=post.x,y=post.y,
+                flags=new List<string>(g.save.flags)
+            };
+            GameCore reload=new GameCore(data,slot);
+            Check(!reload.OuterPatrolCompanionGuarding&&
+                reload.save.version==2,
+                "v2 slots never persist a transient tactical guard command");
+        }
+
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");

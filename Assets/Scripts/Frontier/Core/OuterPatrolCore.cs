@@ -9,9 +9,14 @@ namespace Starfall
         private int outerPatrolRoom=-1;
         private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1,outerPatrolEnemyC=-1;
         private bool outerPatrolADead,outerPatrolBDead,outerPatrolCDead,outerPatrolPatched;
-        private bool outerPatrolVeteran,outerPatrolBraceBuilt;
+        private bool outerPatrolVeteran,outerPatrolBraceBuilt,outerPatrolCompanionGuard;
+        private Point outerPatrolCompanionGuardFoot;
         private float outerPatrolTime,outerPatrolStock,outerPatrolBrace,outerPatrolBraceFlash;
         private Point outerPatrolPost;
+        public bool OuterPatrolCompanionGuarding
+        {get{return OuterPatrolActive&&outerPatrolCompanionGuard&&save.companion>=0;}}
+        public Point OuterPatrolCompanionGuardPosition
+        {get{return OuterPatrolCompanionGuarding?outerPatrolCompanionGuardFoot:companionPosition;}}
         public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
         public float OuterPatrolTime {get{return OuterPatrolActive?outerPatrolTime:0f;}}
         public float OuterPatrolBraceIntegrity
@@ -101,7 +106,8 @@ namespace Starfall
                 outerPatrolEnemyC=-1;
             outerPatrolADead=outerPatrolBDead=outerPatrolCDead=
                 outerPatrolPatched=outerPatrolVeteran=
-                outerPatrolBraceBuilt=false;
+                outerPatrolBraceBuilt=outerPatrolCompanionGuard=false;
+            outerPatrolCompanionGuardFoot=new Point();
             outerPatrolStock=outerPatrolTime=outerPatrolBrace=
                 outerPatrolBraceFlash=0f;
             outerPatrolPost=new Point();
@@ -196,6 +202,10 @@ namespace Starfall
                     choices.Add(C("部署路障 · 木材2、零件1",
                         "Deploy barricade · 2 timber + 1 spare part",
                         "outer_watch_brace"));
+                if(save.companion>=0)
+                    choices.Add(OuterPatrolCompanionGuarding?
+                        C("同伴恢复跟随","Companion: follow me","outer_watch_guard"):
+                        C("同伴驻守哨岗","Companion: guard the cache","outer_watch_guard"));
                 choices.Add(C("主动撤守","Withdraw defense","outer_watch_abort"));
                 choices.Add(C("继续防卫","Continue the defense","close"));
                 Dialog(o.name,o.en,
@@ -390,6 +400,83 @@ namespace Starfall
                     "The outpost approach is crowded; you arrived at the normal region entrance.");
             return true;
         }
+        // Guarding is a physical tactical order, not a teleport or a
+        // remote perk. Choose a valid and connected tile adjacent to the
+        // real protected supply post, outside the defender's occupied foot.
+        // A placed ally walks there via its normal SweepActor movement.
+        private bool TryOuterPatrolCompanionGuardFoot(out Point result)
+        {
+            result=new Point();
+            if(!OuterPatrolActive||save.companion<0||
+                !Fits(companionPosition))return false;
+            Point[] offsets={
+                new Point(0f,2.5f),new Point(-2.5f,0f),
+                new Point(2.5f,0f),new Point(0f,-2.5f),
+                new Point(-1.7f,1.7f),new Point(1.7f,1.7f),
+                new Point(-1.7f,-1.7f),new Point(1.7f,-1.7f)
+            };
+            float best=float.MaxValue;
+            foreach(Point offset in offsets)
+            {
+                Point candidate=outerPatrolPost+offset;
+                if(!Fits(candidate)||
+                    (candidate-Position).Length<1.15f||
+                    enemies.Exists(e=>e.hp>0&&
+                        (e.Position-candidate).Length<1.2f)||
+                    !ActorHasLocalRoute(companionPosition,candidate,10))
+                    continue;
+                float distance=(candidate-companionPosition).Length;
+                if(distance>=best)continue;
+                best=distance;result=candidate;
+            }
+            return best<float.MaxValue;
+        }
+        private Point CompanionOutpostGuardTarget()
+        {
+            if(!OuterPatrolCompanionGuarding)return CompanionFollowTarget();
+            // Tide, gates and local map changes can invalidate a planted
+            // guard foot. Fall back to normal following rather than walking
+            // through a suddenly blocked prop, retaining the chosen stance
+            // only while a real guard position remains available.
+            if(!Fits(outerPatrolCompanionGuardFoot))
+            {
+                outerPatrolCompanionGuard=false;
+                return CompanionFollowTarget();
+            }
+            return outerPatrolCompanionGuardFoot;
+        }
+        private bool ToggleOuterPatrolCompanionGuard()
+        {
+            if(!OuterPatrolActive||save.companion<0||Dying||practicing)
+                return false;
+            WorldObject watch=null;
+            foreach(WorldObject candidate in Map.objects)
+                if(candidate.kind=="outerwatch"){watch=candidate;break;}
+            if(watch==null||
+                !PhysicalRefugeReach(new Point(watch.x,watch.y),2.2001f))
+                return false;
+            if(outerPatrolCompanionGuard)
+            {
+                outerPatrolCompanionGuard=false;
+                revision++;sound="quest";
+                Notify("同伴恢复正常跟随与既有战斗指令。",
+                    "Companion resumes normal following and combat commands.");
+                return true;
+            }
+            Point standing;
+            if(!TryOuterPatrolCompanionGuardFoot(out standing))
+            {
+                Notify("附近没有同伴可步行抵达的安全驻守位置。",
+                    "No safe, walkable guard foot is reachable near the supplies.");
+                return true;
+            }
+            outerPatrolCompanionGuardFoot=standing;
+            outerPatrolCompanionGuard=true;
+            revision++;sound="quest";
+            Notify("同伴正在步行前往补给岗守卫位置。",
+                "Companion moving on foot to defend the supplies.");
+            return true;
+        }
         // The timed veteran raid is playable without pausing to open
         // a dialog: a single physical, already validated button uses the
         // SAME guarded resource transaction as the dialogue choice.
@@ -411,6 +498,11 @@ namespace Starfall
         private bool ChooseOuterPatrol(string action)
         {
             if(ChooseOuterPatrolRoutes(action))return true;
+            if(action=="outer_watch_guard")
+            {
+                ToggleOuterPatrolCompanionGuard();
+                return true;
+            }
             if(action=="outer_watch_patch"||action=="outer_watch_abort"||
                 action=="outer_watch_brace")
             {
@@ -474,6 +566,8 @@ namespace Starfall
             outerPatrolRoom=room;outerPatrolVeteran=veteran;
             outerPatrolTime=veteran?110f:95f;
             outerPatrolStock=100f;outerPatrolPatched=false;
+            outerPatrolCompanionGuard=false;
+            outerPatrolCompanionGuardFoot=new Point();
             outerPatrolBrace=outerPatrolBraceFlash=0f;
             outerPatrolBraceBuilt=false;
             outerPatrolPost=new Point(post.x,post.y);

@@ -608,7 +608,7 @@ namespace Starfall
                 { companionAction = null; companionAutoTarget = null; }
                 return; // Plant the feet while drawing a bow or casting.
             }
-            Point follow = CompanionFollowTarget();
+            Point follow = CompanionOutpostGuardTarget();
             Point delta = follow - companionPosition;
             if (!Fits(companionPosition))
             {
