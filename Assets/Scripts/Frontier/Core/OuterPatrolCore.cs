@@ -406,6 +406,32 @@ namespace Starfall
         // remote perk. Choose a valid and connected tile adjacent to the
         // real protected supply post, outside the defender's occupied foot.
         // A placed ally walks there via its normal SweepActor movement.
+        // Compute usable bow/staff lines, not just straight-line LOS.
+        // A legal foot behind a high wall or a muzzle-burying corner is
+        // physically safe but cannot defend supplies from genuine raiders.
+        // This is a PURE probe: WeaponShot returns the launch record; no
+        // fake projectile or cooldown is published to the battlefield.
+        private int OuterPatrolGuardFiringLanes(Point candidate)
+        {
+            if(!OuterPatrolActive||save.companion<0||
+                !Fits(candidate))return 0;
+            int weapon=save.companion==1?1:2,score=0;
+            foreach(Enemy foe in enemies)
+            {
+                if(foe==null||foe.hp<=0||
+                    !IsOuterPatrolEnemy(foe))continue;
+                Point aim=foe.Position-candidate;
+                if(aim.Length<=.1f||aim.Length>=7f||
+                    !ClearAttackPath(candidate,foe.Position))continue;
+                if(WeaponShot(candidate,weapon,aim.Normalized,9f,0f,
+                    foe.Position).blockedAtSpawn)continue;
+                // Prefer an actual telegraphed cache hit over a distant
+                // shot, but never trade away all valid firing lanes.
+                score+=foe.kind!=1?
+                    (foe.state==1&&foe.targetingOuterPatrolStock?4:2):1;
+            }
+            return score;
+        }
         private bool TryOuterPatrolCompanionGuardFoot(out Point result)
         {
             result=new Point();
@@ -418,6 +444,7 @@ namespace Starfall
                 new Point(-1.7f,-1.7f),new Point(1.7f,-1.7f)
             };
             float best=float.MaxValue;
+            int bestCoverage=-1;
             foreach(Point offset in offsets)
             {
                 Point candidate=outerPatrolPost+offset;
@@ -428,8 +455,10 @@ namespace Starfall
                     !ActorHasLocalRoute(companionPosition,candidate,10))
                     continue;
                 float distance=(candidate-companionPosition).Length;
-                if(distance>=best)continue;
-                best=distance;result=candidate;
+                int coverage=OuterPatrolGuardFiringLanes(candidate);
+                if(coverage<bestCoverage||
+                    (coverage==bestCoverage&&distance>=best))continue;
+                best=distance;bestCoverage=coverage;result=candidate;
             }
             return best<float.MaxValue;
         }

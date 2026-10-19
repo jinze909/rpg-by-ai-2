@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void AlliesPickReachableShootingLanesAtAllEightPhysicalSupplyPosts() { CoreChecks.GuardChoosesRealClearMuzzleCoverageAtEveryRegionalCache(Data()); }
         [Test] public void PhysicalCompanionInterceptsRealIncomingHeavyStockSlam() { CoreChecks.CompanionInterceptsLiveHeavyWindupBeforeIdleCacheRaider(Data()); }
         [Test] public void MedicalGuardRalliesToCriticalHeroOnFootThenReturnsToStock() { CoreChecks.GuardMedicPhysicallyRalliesToCriticalHeroAndReturnsToStock(Data()); }
         [Test] public void CompanionCanPhysicallyGuardActualReliefStockWithoutWarpOrSaveChanges() { CoreChecks.RealCompanionGuardsSuppliesWithoutWarpingOrPersisting(Data()); }

@@ -922,6 +922,71 @@ namespace Starfall.Tests
                 "Withdrawal removes emergency medic and guard states");
         }
 
+        public static void GuardChoosesRealClearMuzzleCoverageAtEveryRegionalCache(Campaign data)
+        {
+            var select=typeof(GameCore).GetMethod(
+                "TryOuterPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var score=typeof(GameCore).GetMethod(
+                "OuterPatrolGuardFiringLanes",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(select!=null&&score!=null,
+                "Test real guard placement and actual physically swept muzzle");
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                Check(post!=null,"Map has a real rescue watch in room "+room);
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.enemies.Clear();
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.companion=1;
+                g.companionPosition=new Point(post.x,post.y);
+                g.save.flags.Add("outer_cache_"+room);
+                g.Talk(post);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_start");
+                Check(start>=0,"Regional raid can start with a true supply cache");
+                g.Choose(start);
+                Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                    "Physical guard coverage test uses real enemy positions");
+                Point[] original={
+                    new Point(0f,2.5f),new Point(-2.5f,0f),
+                    new Point(2.5f,0f),new Point(0f,-2.5f),
+                    new Point(-1.7f,1.7f),new Point(1.7f,1.7f),
+                    new Point(-1.7f,-1.7f),new Point(1.7f,-1.7f)
+                };
+                var reachable=typeof(GameCore).GetMethod(
+                    "ActorHasLocalRoute",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                int maximum=-1;
+                foreach(Point offset in original)
+                {
+                    Point candidate=new Point(post.x+offset.x,post.y+offset.y);
+                    if(!g.CanStand(candidate)||
+                        (candidate-g.Position).Length<1.15f||
+                        g.enemies.Exists(e=>e.hp>0&&
+                            (e.Position-candidate).Length<1.2f)||
+                        !(bool)reachable.Invoke(g,new object[]{
+                            g.companionPosition,candidate,10}))continue;
+                    int value=(int)score.Invoke(g,new object[]{candidate});
+                    if(value>maximum)maximum=value;
+                }
+                Check(maximum>=0,
+                    "There is a legal reachable guard foot in region "+room);
+                object[] args={null};
+                bool chosen=(bool)select.Invoke(g,args);
+                Check(chosen,"Guard placement finds a real reachable foot");
+                Point landing=(Point)args[0];
+                Check(g.CanStand(landing)&&
+                    (int)score.Invoke(g,new object[]{landing})==maximum,
+                    "Guard aims from maximum genuine projectile coverage, region "+room);
+            }
+        }
+
         public static void RealCompanionGuardsSuppliesWithoutWarpingOrPersisting(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
