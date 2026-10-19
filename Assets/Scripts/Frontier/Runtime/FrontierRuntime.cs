@@ -783,10 +783,13 @@ namespace Starfall
                 bool done=Game.OuterPatrolDone(Game.save.room);
                 PropImage("post",0,p.x-34,p.y-80,68,83,
                     done?new Color(.68f,.93f,.78f):Color.white);
-                Ring(new Point(o.x,o.y),.43f,done?mint:
-                    Game.OuterPatrolActive?new Color(1,.4f,.34f):gold,14);
-                if(!done)Diamond(p.x,p.y-79,5,
-                    Game.OuterPatrolActive?new Color(1,.4f,.34f):gold);
+                // Veteran fights occur at already-repaired posts: the
+                // live danger color MUST outrank the old green-clear tint.
+                Color guardColor=Game.OuterPatrolActive?
+                    new Color(1,.4f,.34f):done?mint:gold;
+                Ring(new Point(o.x,o.y),.43f,guardColor,14);
+                if(Game.OuterPatrolActive||!done)
+                    Diamond(p.x,p.y-79,5,guardColor);
                 if(Game.OuterPatrolActive)
                     Text(p.x-79,p.y-107,158,20,
                         Math.Ceiling(Game.OuterPatrolTime)+"s · "+

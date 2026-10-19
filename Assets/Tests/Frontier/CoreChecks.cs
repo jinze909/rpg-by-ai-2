@@ -918,6 +918,15 @@ namespace Starfall.Tests
                 g.save.flags.Add("outer_cache_"+room);
                 g.save.flags.Add("outer_patrol_done_"+room);
                 int coins=g.save.coins;
+                // Final veteran clear must really award exactly one talent
+                // after *eight* regional victories, never before.
+                if(room==7)
+                    for(int previous=0;previous<7;previous++)
+                    {
+                        g.save.flags.Add("outer_patrol_done_"+previous);
+                        g.save.flags.Add("outer_patrol_veteran_"+previous);
+                    }
+                int talents=g.save.skillPoints;
                 g.Talk(post);
                 Check(g.conversation!=null,
                     "Veteran battle is offered at a physical post in region "+room);
@@ -946,6 +955,12 @@ namespace Starfall.Tests
                     !g.OuterPatrolActive&&g.save.coins==coins+26&&
                     g.save.shards==shard+2,
                     "Three genuine lethal transactions award exactly one veteran clear");
+                Check(room==7?
+                    g.OuterPatrolVeteranWins==8&&
+                    g.Has("outer_patrol_veteran_all")&&
+                    g.save.skillPoints==talents+1:
+                    g.save.skillPoints==talents,
+                    "Exactly the eighth genuine regional veteran win awards the extra talent");
                 // Loading a NEW hero may sanitize an otherwise locked
                 // region. Don't alias the current active hero's SaveData:
                 // this check must not teleport the current challenger.
@@ -968,9 +983,25 @@ namespace Starfall.Tests
                 g.Choose(veteran);
                 Check(g.OuterPatrolVeteranActive&&g.enemies.Count==3,
                     "Replay actually spawns combat again, not a free menu reward");
+                Enemy[] replay=g.enemies.ToArray();
+                foreach(Enemy raider in replay)
+                {
+                    hit.Invoke(g,new object[]{raider,10000f,true,null,null});
+                    for(int n=0;n<12;n++)g.Tick(.02f,new Point());
+                }
+                Check(!g.OuterPatrolActive&&g.save.coins==coins+26&&
+                    g.save.shards==shard+2,
+                    "Actual lethal veteran replay produces no duplicate coins or shards");
+                g.Talk(post);
+                veteran=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(veteran>=0,"Veteran post stays replayable after a full second victory");
+                g.Choose(veteran);
+                Check(g.OuterPatrolVeteranActive&&g.enemies.Count==3,
+                    "A third veteran attempt still creates a real three-raider fight");
                 g.enemies.Clear();g.Tick(.02f,new Point());
                 Check(!g.OuterPatrolActive&&g.save.coins==coins+26,
-                    "A replay with missing raiders cancels without duplicating rewards");
+                    "Interrupted subsequent attempts cannot farm a reward");
             }
         }
 
@@ -1001,6 +1032,10 @@ namespace Starfall.Tests
                 "All eight persisted veteran victories complete the in-game quest");
             SaveData persisted=new SaveData {
                 version=2,room=0,trackedQuest="outer_watch_veteran",
+                // Preserve modern v2 journal presentation. A fresh
+                // presentationVersion=0 correctly migrates a LEGACY UI
+                // and resets old tracking, as the original game requires.
+                presentationVersion=g.save.presentationVersion,
                 flags=new List<string>(g.save.flags)
             };
             GameCore restored=new GameCore(data,persisted);
