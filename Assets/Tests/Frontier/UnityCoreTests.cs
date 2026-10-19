@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void VeteranDefenseJournalUsesActualSavedWinsAndPhysicalSiegeMarker() { CoreChecks.VeteranOutpostJournalTracksTrueRegionalFlagsAndLiveObjective(Data()); }
         [Test] public void VeteranReliefDefenseRequiresThreeGenuineKillsAndPreservesV2Saves() { CoreChecks.VeteranReliefDefenseHasThreeRealKillsOneTimeRewardAndSafeReplay(Data()); }
         [Test] public void CompanionActuallyProtectsLiveReliefCacheFromMeleeRaiders() { CoreChecks.CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Data()); }
         [Test] public void SafeDefendedDesertHighlandPostsProtectAgainstActualClimates() { CoreChecks.DefendedDesertAndHighlandPostsShelterAgainstActualWeather(Data()); }

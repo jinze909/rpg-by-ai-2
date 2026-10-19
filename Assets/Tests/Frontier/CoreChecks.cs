@@ -974,6 +974,59 @@ namespace Starfall.Tests
             }
         }
 
+        public static void VeteranOutpostJournalTracksTrueRegionalFlagsAndLiveObjective(Campaign data)
+        {
+            GameCore g=new GameCore(data);g.mode="world";
+            QuestGuide q=g.GetQuest("outer_watch_veteran");
+            Check(q.locked&&!q.complete&&q.steps.Count==8,
+                "New quest is dormant until a real ordinary supply defense");
+            g.save.flags.Add("outer_patrol_done_0");
+            q=g.GetQuest("outer_watch_veteran");
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            Check(!q.locked&&!q.complete&&q.room==0&&
+                (q.target-new Point(post.x,post.y)).Length<.1f,
+                "Journal points to the actual unlocked region-zero veteran post");
+            g.save.flags.Add("outer_patrol_veteran_0");
+            q=g.GetQuest("outer_watch_veteran");
+            Check(q.steps[0].done&&q.Progress>.12f&&
+                !q.complete,"Genuine permanent veteran flag advances the tracked quest");
+            for(int room=1;room<8;room++)
+            {
+                g.save.flags.Add("outer_patrol_done_"+room);
+                g.save.flags.Add("outer_patrol_veteran_"+room);
+            }
+            q=g.GetQuest("outer_watch_veteran");
+            Check(q.complete&&q.Progress==1f,
+                "All eight persisted veteran victories complete the in-game quest");
+            SaveData persisted=new SaveData {
+                version=2,room=0,trackedQuest="outer_watch_veteran",
+                flags=new List<string>(g.save.flags)
+            };
+            GameCore restored=new GameCore(data,persisted);
+            Check(restored.save.trackedQuest=="outer_watch_veteran"&&
+                restored.GetQuest("outer_watch_veteran").complete,
+                "Legacy v2 journal selection survives loading a separate slot");
+
+            // A real running siege should outrank the tracked objective
+            // while retaining that tracked quest for the next safe moment.
+            GameCore siege=new GameCore(data);siege.mode="world";
+            siege.save.room=0;siege.enemies.Clear();
+            siege.save.x=post.x;siege.save.y=post.y;
+            siege.save.flags.Add("outer_cache_0");
+            siege.save.trackedQuest="outer_watch_veteran";
+            siege.Talk(post);
+            int start=Array.FindIndex(siege.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Real outpost is combat-ready");
+            siege.Choose(start);
+            Point? marker=siege.NavigationTarget();
+            Check(siege.OuterPatrolActive&&marker.HasValue&&
+                (marker.Value-new Point(post.x,post.y)).Length<.1f&&
+                siege.save.trackedQuest=="outer_watch_veteran",
+                "World objective marker tracks live cache without rewriting saved quest");
+        }
+
         public static void OuterPatrolCacheDefenseUsesRealTimedStockCombat(Campaign data)
         {
             // The existing eight-map witness proves physically playable roots.

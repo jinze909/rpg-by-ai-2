@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -676,6 +676,48 @@ namespace Starfall
                     L("走到救援岗主动发起防卫","Reach the watchpost and start the defense");
                 q.reward=L("每岗硬币 +14、碎片 +1、经验 +28；八岗全守住再得1技能点",
                     "Each defense: +14 coins, +1 shard, +28 XP; all eight: +1 talent point");
+                return q;
+            }
+
+            if(id=="outer_watch_veteran")
+            {
+                q.title=L("精英巡防 · 八地补给岗","Veteran Patrol · Eight Relief Outposts");
+                q.category=L("精英挑战 · 战斗与野外补给",
+                    "VETERAN CHALLENGE · DEFENSE & FIELD CARE");
+                q.description=L(
+                    "每处救援岗的普通战斗通关后，仍可主动开启 110 秒进阶防卫。近战、游击射手与重甲撞击手会真实攻击你或补给箱。击退三人可永久强化当地的医疗与补给。再次挑战不重复领奖。",
+                    "After clearing normal defense, challenge the 110-second veteran team at each outpost. Melee, archer and heavy slammer attack you and the real cache. Defeat all three to improve local treatment. Replays award no duplicate loot.");
+                q.locked=OuterPatrolWins==0;
+                q.complete=OuterPatrolVeteranWins==8;
+                int target=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场",
+                    "堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach",
+                    "Citadel","Mistport","Glasswind","Frostchime"};
+                for(int room=0;room<8;room++)
+                {
+                    bool done=OuterPatrolVeteranDone(room);
+                    bool available=OuterPatrolDone(room);
+                    q.steps.Add(new QuestStep(L(zh[room],en[room])+
+                        (done?" ✓":available?" · 精英挑战已解锁":" · 先守住普通补给"),
+                        done));
+                    if(target<0&&!done&&available&&CanEnter(room))
+                        target=room;
+                }
+                q.room=target<0?0:target;
+                q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.kind=="outerwatch")
+                        {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("全部八处精英补给岗已强化",
+                    "All eight veteran outposts upgraded"):
+                    target<0?L("先完成一处普通物资防卫，开启进阶挑战",
+                        "Defend one standard supply post to unlock veteran challenges"):
+                    L("到已守住的救援岗发起三人精英防卫",
+                        "Challenge three live raiders at a defended outpost");
+                q.reward=L("每处首次获胜：硬币26、碎片2、经验60，强化安全恢复；八处再得技能点1",
+                    "First clear each: 26 coins, 2 shards, 60 XP, better local care; all eight: +1 talent");
                 return q;
             }
 
@@ -1799,6 +1841,11 @@ namespace Starfall
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
+            // During an actual timed supply defense the world's objective
+            // arrow points back to the vulnerable physical cache, never
+            // away to an unrelated stale journal waypoint. Original tracked
+            // quest selection is left untouched after combat.
+            if(OuterPatrolActive)return outerPatrolPost;
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.
