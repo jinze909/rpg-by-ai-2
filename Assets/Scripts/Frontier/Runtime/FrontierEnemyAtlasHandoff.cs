@@ -94,9 +94,9 @@ namespace Starfall
                 if(local==1||local==3)
                 {
                     float duration=
-                        CurrentWorldVisualLook.nonheroAtlasHandoffSeconds;
+                        CurrentWorldVisualLook.nonheroStopPlantSeconds;
                     if(!FiniteEnemyStopValue(duration)||duration<=.001f)
-                        duration=.105f;
+                        duration=.08f;
                     float stopUntil=clock+duration;
                     if(FiniteEnemyStopValue(stopUntil)&&stopUntil>clock)
                     {

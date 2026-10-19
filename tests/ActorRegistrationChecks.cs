@@ -2193,6 +2193,86 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS 10 live enemy/Boss stop transitions: authored next planted gait cell, one body, stable feet, bounded Idle return and all five production atlas families");
     }
 
+    // Stop-plant is its own bounded source-pose hold, not a side effect of
+    // whole-body canvas easing. A Boss must return to the correct Idle atlas
+    // after the plant duration even when atlas-size easing is deliberately longer.
+    static void EnemyStopPlantDurationIsIndependent(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,2);
+        object look=null;
+        System.Reflection.FieldInfo handoffField=null,stopField=null;
+        float previousHandoff=0f,previousStop=0f;
+        bool havePrevious=false;
+        try
+        {
+            var property=typeof(FrontierRuntime).GetProperty(
+                "CurrentWorldVisualLook",Private);
+            Check(property!=null,"WorldLook must expose the live stop-plant timing source");
+            look=property.GetValue(app,null);
+            handoffField=look.GetType().GetField("nonheroAtlasHandoffSeconds");
+            stopField=look.GetType().GetField("nonheroStopPlantSeconds");
+            Check(handoffField!=null&&stopField!=null,
+                "Stop-plant and atlas-handoff timings must be independent settings");
+            previousHandoff=(float)handoffField.GetValue(look);
+            previousStop=(float)stopField.GetValue(look);
+            havePrevious=true;
+            handoffField.SetValue(look,.15f);
+            stopField.SetValue(look,.07f);
+
+            var game=app.Game;
+            game.enemies.Clear();game.save.companion=-1;
+            game.save.effectsQuality=2;game.save.reducedMotion=false;
+            Set(app,"clock",40f);
+            var enemy=new Enemy(99772,0,game.Position.x+1f,
+                game.Position.y+.5f,160f,true)
+            {facing=new Point(1,0),moving=true,
+                moveTime=MoveTimeForGait(1,2.8f)};
+            game.enemies.Add(enemy);
+            Place(app,enemy.Position,new Point(500,350));Clear();
+            string walkName="resource:Frontier/Art/WalkBossA";
+            string idleName="resource:Frontier/Art/Bosses";
+            var walking=Draw(app,"DrawEnemyActor",enemy);
+            var walkBody=walking.Single(c=>c.texture.name==walkName);
+            Check(FrameRow(walkBody,4)==1&&FrameColumn(walkBody,4)==1,
+                "Native Boss stop-plant fixture must start on WalkBossA's real passing cell");
+
+            enemy.x+=.90f;
+            Place(app,enemy.Position,new Point(500,350));
+            enemy.moving=false;
+            Set(app,"clock",40.02f);Clear();
+            var stopping=Draw(app,"DrawEnemyActor",enemy);
+            var contact=stopping.Single(c=>c.texture.name==walkName);
+            Check(FrameRow(contact,4)==1&&FrameColumn(contact,4)==2&&
+                stopping.Count(ActorTexture)==1,
+                "Boss stop must select the next painted foot plant as one whole body");
+
+            Set(app,"clock",40.05f);Clear();
+            var holding=Draw(app,"DrawEnemyActor",enemy);
+            var held=holding.Single(c=>c.texture.name==walkName);
+            Check(FrameRow(held,4)==1&&FrameColumn(held,4)==2&&
+                holding.Count(ActorTexture)==1,
+                "Boss planted contact must remain stable inside its own hold window");
+
+            // 90ms after stopping exceeds the 70ms plant window but is still
+            // inside the deliberately longer 150ms atlas-size easing window.
+            Set(app,"clock",40.11f);Clear();
+            var idle=Draw(app,"DrawEnemyActor",enemy);
+            var idleBody=idle.Single(c=>c.texture.name==idleName);
+            Check(FrameRow(idleBody,8)==1&&idle.Count(ActorTexture)==1,
+                "Boss must return to the correct 8-row Idle atlas when stop-plant expires, independent of size easing");
+            Console.WriteLine("PASS independent Boss stop-plant hold vs atlas-size easing: authored contact, bounded Idle return, one whole body");
+        }
+        finally
+        {
+            if(havePrevious)
+            {
+                handoffField.SetValue(look,previousHandoff);
+                stopField.SetValue(look,previousStop);
+            }
+            app.EndVisualReview();Clear();
+        }
+    }
+
     // Stop-plant transitions are presentation-only: combat and accessibility
     // interrupts must immediately regain ownership of the source body.
     static void EnemyStopPlantInterruptions(FrontierRuntime app,string folder)
@@ -3142,6 +3222,7 @@ public static class ActorRegistrationChecks
             briarField.SetValue(app,briar);
             EnemyWalkStopUsesNextPlantedSourceCell(
                 app,".starfall-checks/sprite-qa");
+            EnemyStopPlantDurationIsIndependent(app);
             EnemyStopPlantInterruptions(app,".starfall-checks/sprite-qa");
         }
         finally

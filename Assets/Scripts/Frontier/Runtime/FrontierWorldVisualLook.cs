@@ -73,6 +73,9 @@ namespace Starfall
             // Artist-facing, bounded transitions for whole painted enemy
             // bodies and phase-cue particles, never GameCore attack timing.
             public float nonheroAtlasHandoffSeconds=.12f;
+            // A gait stop uses the next source-painted foot contact before Idle.
+            // Keep its short pose hold independent of cross-atlas size easing.
+            public float nonheroStopPlantSeconds=.08f;
             public float bossPhaseMoteAlpha=.26f;
             public float enemyReleaseDustAlpha=.48f;
             public float enemyReleaseDustSeam=.18f;
@@ -285,6 +288,9 @@ namespace Starfall
                             case "nonheroAtlasHandoffSeconds":
                                 if(value>=.07f&&value<=.15f)
                                     settings.nonheroAtlasHandoffSeconds=value;break;
+                            case "nonheroStopPlantSeconds":
+                                if(value>=.04f&&value<=.16f)
+                                    settings.nonheroStopPlantSeconds=value;break;
                             case "bossPhaseMoteAlpha":
                                 if(value>=.12f&&value<=.32f)
                                     settings.bossPhaseMoteAlpha=value;break;

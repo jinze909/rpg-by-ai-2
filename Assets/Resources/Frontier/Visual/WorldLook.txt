@@ -117,6 +117,9 @@ relicHaloAlpha=0.18
 # and action clocks are never prolonged. A SINGLE current source body
 # eases the canvas over 0.07-0.15s, with no previous helmet/weapon ghost.
 nonheroAtlasHandoffSeconds=0.120
+# Hold a stopped walker's next painted foot contact before returning to Idle.
+# Independent from whole-body atlas size easing above.
+nonheroStopPlantSeconds=0.080
 # Two quiet ORIGINAL Effects.png sources on HP stage change. This affects
 # visual alpha only, not hit timing, Boss identity or saved HP thresholds.
 bossPhaseMoteAlpha=0.26
