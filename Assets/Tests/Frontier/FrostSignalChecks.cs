@@ -90,6 +90,70 @@ namespace Starfall.Tests
             finally{data.maps[7]=original;}
         }
 
+        public static void HighlandEmberEnemyPressureStopsAcrossActualMountainWall(Campaign data)
+        {
+            MapData original=data.maps[7];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[7]=new MapData{id=7,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("desert_report");
+                g.Enter(7);g.enemies.Clear();
+                g.save.flags.Add("boss_7");g.invulnerable=200;
+                WorldObject west=FrostPost(g,1),
+                    junction=FrostPost(g,2);
+                g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+                Check(FrostChoice(g,"frostsignal_start")&&
+                    g.FrostSignalStage==1,
+                    "The original real highland ember starts from its physical western station");
+                g.save.x=junction.x;g.save.y=junction.y;g.Talk(junction);
+                Check(g.FrostSignalStage==2&&
+                    g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                    "The actual mid-journey switchyard deploys both authored guard identities");
+                var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+                Enemy pressure=guards[0],distant=guards[1];
+                pressure.x=junction.x+3f;pressure.y=junction.y;
+                distant.x=west.x;distant.y=west.y;
+                foreach(Enemy guard in guards)
+                {guard.stun=100f;guard.timer=1000f;}
+                g.Close();g.save.x=junction.x;g.save.y=junction.y;
+                g.save.cold=0f;
+                int y=(int)Math.Floor(junction.y),
+                    x=(int)Math.Floor(junction.x)+2;
+                char[] closed=rows[y].ToCharArray();
+                closed[x]='#';rows[y]=new string(closed);
+                Check(g.CanStand(g.Position)&&g.CanStand(pressure.Position)&&
+                    g.Blocked(x+.5f,y+.5f)&&
+                    (pressure.Position-g.Position).Length<5f,
+                    "The true first guard remains in ember pressure range across an obstructing full wall");
+                float flame=g.FrostSignalFlame;
+                g.Tick(.05f,new Point());
+                float shelteredLoss=flame-g.FrostSignalFlame;
+                Check(g.FrostSignalStage==2&&shelteredLoss>.02f&&
+                    shelteredLoss<.05f,
+                    "A blocked guard imposes only the original ambient highland ember cost");
+                closed[x]='.';rows[y]=new string(closed);
+                flame=g.FrostSignalFlame;
+                g.Tick(.05f,new Point());
+                float exposedLoss=flame-g.FrostSignalFlame;
+                Check(exposedLoss>shelteredLoss+.02f&&
+                    exposedLoss<shelteredLoss+.04f,
+                    "Opening the wall adds precisely real close-guard pressure to the normal 0.65-per-second flame cost");
+                closed[x]='#';rows[y]=new string(closed);
+                flame=g.FrostSignalFlame;
+                g.Tick(.05f,new Point());
+                float recoveredLoss=flame-g.FrostSignalFlame;
+                Check(Math.Abs(recoveredLoss-shelteredLoss)<.005f&&
+                    g.FrostSignalActive&&!g.FrostSignalComplete&&
+                    g.save.version==2,
+                    "Closing the same corridor instantly restores shelter without changing the mission timer, kill or old-save contract");
+            }
+            finally {data.maps[7]=original;}
+        }
+
         public static void HighlandGuardsSpawnOnDistinctUnoccupiedCombatFeet(Campaign data)
         {
             var g=Fresh(data);

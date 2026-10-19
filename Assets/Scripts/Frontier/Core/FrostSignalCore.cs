@@ -127,7 +127,11 @@ namespace Starfall
             if(FrostSignalStage==2)
                 foreach(Enemy enemy in enemies)
                     if(IsFrostSignalEnemy(enemy)&&enemy.hp>0&&
-                        (enemy.Position-Position).Length<5f)drain+=.58f;
+                        (enemy.Position-Position).Length<5f&&
+                        // The carried fire is threatened by real adjacent
+                        // combat, not a guard sealed behind solid stone.
+                        ClearAttackPath(enemy.Position,Position))
+                        drain+=.58f;
             // Shield only the remaining fraction of this simulation frame.
             float protectedDt=Math.Min(dt,FrostSignalWindbreakTime);
             FrostSignalWindbreakTime=Math.Max(0,FrostSignalWindbreakTime-dt);
