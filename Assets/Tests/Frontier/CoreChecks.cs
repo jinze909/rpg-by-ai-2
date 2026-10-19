@@ -1902,6 +1902,33 @@ namespace Starfall.Tests
             Check(fieldKilled.companionAction.target.HasValue&&
                 (fieldKilled.companionAction.target.Value-survivor.Position).Length<.01f,
                 "Target death cannot leave the replacement arrow aimed at stale coordinates");
+
+            // Automatic recovery must never rewrite an explicit user order.
+            // Move its marked foe into the same muzzle-only corner after the
+            // command starts: the command still fires along the captured aim.
+            GameCore manual=new GameCore(data);manual.mode="world";
+            manual.save.room=0;manual.save.companion=1;
+            manual.companionPosition=origin;
+            manual.enemies.Clear();manual.projectiles.Clear();
+            Enemy commanded=new Enemy(920616,0,first.x,first.y,30f);
+            Enemy bystander=new Enemy(920617,0,alternate.x,alternate.y,30f);
+            manual.enemies.Add(commanded);manual.enemies.Add(bystander);
+            manual.SetAimTarget(first);
+            manual.CommandCompanion();
+            Check(manual.companionAction!=null&&
+                manual.companionAction.kind=="command"&&
+                manual.companionAction.target.HasValue,
+                "Player command captures its explicit world target");
+            Point explicitTarget=manual.companionAction.target.Value;
+            commanded.x=corner.x;commanded.y=corner.y;
+            tick.Invoke(manual,new object[]{.21f});
+            Check(manual.companionAction.released&&
+                manual.companionAction.target.HasValue&&
+                (manual.companionAction.target.Value-explicitTarget).Length<.01f&&
+                manual.projectiles.Count==3&&
+                manual.projectiles.TrueForAll(p=>p.friendly&&!p.blockedAtSpawn)&&
+                target.GetValue(manual)==null,
+                "Automatic retargeting never steals an explicit volley or changes its captured aim");
         }
 
         public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
