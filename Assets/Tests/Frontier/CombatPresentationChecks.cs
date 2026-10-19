@@ -3423,6 +3423,65 @@ namespace Starfall.Tests
                 "Piercing arrows still contact every overlapping real enemy once");
         }
 
+        public static void PiercingProjectilesTrackEnemyIdentityAcrossReusedSpawnIds(Campaign data)
+        {
+            // Numeric enemy IDs are spawn/save slots, NOT the physical
+            // identity of an opponent. Ivo's pierce and Ranger volleys
+            // must contact two different enemies even when their IDs match.
+            var g=Fresh(data,1);g.Enter(1);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;g.save.reducedMotion=true;
+            var first=new Enemy(73201,0,12.5f,14f,500f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            var second=new Enemy(73201,0,13.7f,14f,500f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            g.enemies.Add(first);g.enemies.Add(second);
+            var shot=new Projectile {position=new Point(12f,14f),
+                velocity=new Point(20f,0f),life=3f,damage=25f,
+                friendly=true,piercing=true,visual="arrow"};
+            g.projectiles.Add(shot);
+            for(int i=0;i<3;i++)g.Tick(.05f,new Point());
+            Check(first.hp<500f&&second.hp<500f&&
+                shot.hitActors.Count==2&&
+                shot.hitActors.Contains(first)&&shot.hitActors.Contains(second),
+                "One piercing arrow must hit each physically distinct enemy even when IDs are reused");
+            Check(shot.hits.Count==2&&shot.hits[0]==first.id&&
+                shot.hits[1]==second.id,
+                "Existing hit-ID trace must still record BOTH real contacts without hiding duplicate IDs");
+            float firstHp=first.hp,secondHp=second.hp;
+            for(int i=0;i<4;i++)g.Tick(.05f,new Point());
+            Check(first.hp==firstHp&&second.hp==secondHp&&
+                shot.hitActors.Count==2&&shot.hits.Count==2,
+                "Piercing arrow must never damage the same actor twice while staying in flight");
+
+            // A live projectile can outlast a defeated opponent; the next
+            // wave is a NEW physical body even when it reuses the same ID.
+            var respawn=Fresh(data,1);respawn.Enter(1);
+            respawn.enemies.Clear();respawn.save.reducedMotion=true;
+            respawn.save.x=12;respawn.save.y=14;
+            var oldEnemy=new Enemy(73202,0,12.5f,14f,15f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            respawn.enemies.Add(oldEnemy);
+            var continuing=new Projectile {position=new Point(12f,14f),
+                velocity=new Point(20f,0f),life=3f,damage=40f,
+                friendly=true,piercing=true,visual="arrow"};
+            respawn.projectiles.Add(continuing);
+            respawn.Tick(.05f,new Point());
+            Check(oldEnemy.hp<=0&&continuing.hitActors.Contains(oldEnemy)&&
+                respawn.projectiles.Contains(continuing),
+                "Piercing arrow must remain in flight after its real first kill");
+            var newEnemy=new Enemy(73202,0,14f,14f,500f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            respawn.enemies.Add(newEnemy);
+            for(int i=0;i<3;i++)respawn.Tick(.05f,new Point());
+            Check(newEnemy.hp<500f&&continuing.hitActors.Contains(newEnemy)&&
+                continuing.hits.Count==2&&continuing.hitActors.Count==2,
+                "A later new enemy with a reused ID must be hittable by an existing piercing shot");
+            float newHp=newEnemy.hp;
+            for(int i=0;i<3;i++)respawn.Tick(.05f,new Point());
+            Check(newEnemy.hp==newHp&&continuing.hitActors.Count==2,
+                "A genuinely hit respawned actor must be immune to duplicate contacts from the same bolt");
+        }
+
         public static void PiercingVolleysKeepEveryContactWithReusableTargetSnapshot(Campaign data)
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();

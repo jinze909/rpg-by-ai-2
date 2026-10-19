@@ -1396,7 +1396,7 @@ namespace Starfall
                             Point direction = p.velocity.Normalized;
                             foreach (Enemy candidate in projectileTargets)
                             {
-                                if (candidate.hp <= 0 || p.hits.Contains(candidate.id))
+                                if (candidate.hp <= 0 || p.hitActors.Contains(candidate))
                                     continue;
                                 Point offset = candidate.Position - p.position;
                                 float radius = (candidate.boss ? .9f : .5f) + p.Radius;
@@ -1423,7 +1423,8 @@ namespace Starfall
                         bool hitAny = false;
                         foreach (Enemy e in projectileTargets)
                         {
-                            if (p.hits.Contains(e.id) || (e.Position - p.position).Length >= (e.boss ? .9f : .5f) + p.Radius || !ClearAttackPath(p.position, e.Position)) continue;
+                            if (p.hitActors.Contains(e) || e.hp <= 0 || (e.Position - p.position).Length >= (e.boss ? .9f : .5f) + p.Radius || !ClearAttackPath(p.position, e.Position)) continue;
+                            p.hitActors.Add(e);
                             p.hits.Add(e.id);
                             hitAny = true;
                             Hit(e, p.damage, p.technique, p.velocity.Normalized, p.impact);

@@ -82,6 +82,7 @@ namespace Starfall
             // Do not turn an arcane orb into an arrow in the renderer.
             // The existing friendly starfire frame depicts reflected magic.
             p.visual=p.visual=="enemyOrb"?"starfire":"arrow";
+            p.hitActors.Clear();
             p.hits.Clear();
             effects.Add(new Effect("number",Position,.7f,
                 L("剑盾弹反","GUARD REFLECT")));

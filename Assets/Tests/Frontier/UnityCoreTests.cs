@@ -57,6 +57,7 @@ namespace Starfall.Tests
         [Test] public void SaveSwitchesResetTransientInputState() { CoreChecks.SwitchingSaveSlotsDoesNotInheritOldAimOrFishingState(Data()); }
         [Test] public void LoadingAnotherSlotDuringModalResumesWorld() { CoreChecks.SwitchingSaveDuringDialogueResumesNewWorldWithoutStaleModal(Data()); }
         [Test] public void PiercingProjectilesPreserveSweptContactOrder() { CoreChecks.PiercingVolleysKeepEveryContactWithReusableTargetSnapshot(Data()); }
+        [Test] public void PiercingHitsDistinctActorsWhenSpawnIdsRepeat() { CoreChecks.PiercingProjectilesTrackEnemyIdentityAcrossReusedSpawnIds(Data()); }
         [Test] public void ZeroDamageDoesNotCauseHitStunOrIFrames() { CoreChecks.NonDamagingContactsCannotGrantFreeHitImmunity(Data()); }
         [Test] public void SameCompanionSelectionDoesNotCancelHealing() { CoreChecks.ReselectingSameCompanionPreservesInFlightCommand(Data()); }
         [Test] public void SwitchingCompanionsRefundsOnlyUnspentManualOrders() { CoreChecks.SafeCompanionSwapRefundsUnreleasedButNotSpentOrder(Data()); }

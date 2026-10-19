@@ -138,6 +138,13 @@ namespace Starfall
         public ImpactProfile impact;
         public float Radius { get { return visual == "arrow" || visual == "enemyArrow" ? .14f : .28f; } }
         public int theme;
+        // A projectile can cross several independently spawned actors with the
+        // SAME numeric ID (wave resets, restored encounters or procedural IDs).
+        // Collision deduplication therefore follows the live Enemy reference,
+        // never its reusable save/spawn ID. This stays transient with the shot.
+        public readonly HashSet<Enemy> hitActors = new HashSet<Enemy>();
+        // Preserve the existing contact-ID trace for visual/debug consumers.
+        // Different actor instances may legitimately append the same number.
         public List<int> hits = new List<int>();
     }
     public class Effect
