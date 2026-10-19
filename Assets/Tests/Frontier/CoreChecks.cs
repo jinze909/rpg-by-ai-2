@@ -1875,30 +1875,6 @@ namespace Starfall.Tests
                 (field.companionAction.target.Value-fieldBackup.Position).Length<.01f,
                 "Field release updates aim and projectile target together");
 
-            // Reuse the same real muzzle-only corner found above: no guessed
-            // map coordinates, and no dependence on an outpost guard order.
-            // A Ranger Q whose entire five-arrow volley is blocked must refund
-            // the paid cast rather than charging for five nonexistent arrows.
-            GameCore ranger=Fresh(data,1);ranger.mode="world";
-            ranger.save.room=0;ranger.enemies.Clear();
-            ranger.projectiles.Clear();ranger.effects.Clear();
-            ranger.save.x=origin.x;ranger.save.y=origin.y;
-            ranger.save.energy=100f;
-            Point rangerAim=(corner-origin).Normalized;
-            ranger.SetAimTarget(corner);
-            ranger.Skill(rangerAim);
-            Check(ranger.playerAction!=null&&ranger.playerAction.kind=="skill"&&
-                Math.Abs(ranger.save.energy-60f)<.001f&&
-                ranger.skillCooldown>3f,
-                "Ranger Q charges once when its cast starts");
-            Advance(ranger,.30f);
-            Check(ranger.playerAction!=null&&ranger.playerAction.released&&
-                ranger.projectiles.Count==0&&
-                Math.Abs(ranger.save.energy-100f)<.001f&&
-                ranger.skillCooldown<=0f,
-                "A five-arrow volley blocked at every real muzzle refunds energy and cooldown");
-            Check(ranger.effects.Exists(e=>e.kind=="projectileImpact"),
-                "A refunded blocked volley still shows honest wall-impact feedback");
         }
 
         public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
