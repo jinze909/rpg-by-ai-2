@@ -1426,6 +1426,11 @@ namespace Starfall.Tests
             Check(g.OuterPatrolIncomingStockThreat==null&&
                 g.OuterPatrolIncomingStockSeconds<0f,
                 "Dead or canceled raiders instantly retract warning");
+            // The observer is deliberately away from the cache during
+            // warning verification. Return to its real interactable foot
+            // before opening the withdrawal dialogue; Talk cannot create
+            // an out-of-range conversation by design.
+            g.save.x=post.x;g.save.y=post.y;
             g.Talk(post);
             int abort=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_abort");
