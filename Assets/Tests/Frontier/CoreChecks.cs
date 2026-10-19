@@ -914,6 +914,11 @@ namespace Starfall.Tests
                 Check(post!=null,"Veteran post is authored in room "+room);
                 GameCore g=new GameCore(data);g.mode="world";
                 g.save.room=room;g.enemies.Clear();g.projectiles.Clear();
+                // Isolate the distinct veteran "eight defended" talent
+                // from ordinary XP level-ups caused by four-to-six real
+                // kill/reward transactions in this same integration test.
+                // Level 25 begins at zero XP, far from its next threshold.
+                g.save.level=25;g.save.xp=0;
                 g.save.x=post.x;g.save.y=post.y;
                 g.save.flags.Add("outer_cache_"+room);
                 g.save.flags.Add("outer_patrol_done_"+room);
