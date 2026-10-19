@@ -79,7 +79,10 @@ namespace Starfall
         }
         private Point companionPrevious;
         private int companionRoom=-1,companionId=-1;
-        private float companionTravel;
+        private GameCore companionFootfallOwner;
+        private int companionFootfallGeneration=-1;
+        private float companionLastMoveTime;
+        private int companionContactIndex=-1;
 
 
         private void AdvanceFootfallVisual(float delta)
@@ -147,26 +150,38 @@ namespace Starfall
         {
             Point now=Game.companionPosition;
             int id=Game.save.companion;
-            if(id<0){companionRoom=-1;return;}
-            if(companionRoom!=room || companionId!=id)
+            if(id<0){companionRoom=-1;companionFootfallOwner=null;return;}
+            // DrawCompanionActor samples this same four-cell source family:
+            // gait phases 0/2 are grounded and appear every HALF stride.
+            float stride=GameCore.WalkStride*
+                CurrentWorldVisualLook.companionStrideDistanceFactor;
+            int contact=PlantedFootfallIndex(Game.companionMoveTime,stride);
+            if(companionRoom!=room || companionId!=id ||
+               !System.Object.ReferenceEquals(companionFootfallOwner,Game) ||
+               companionFootfallGeneration!=Game.companionPresentationGeneration)
             {
                 companionId=id;companionRoom=room;
-                companionPrevious=now;companionTravel=0f;return;
+                companionFootfallOwner=Game;
+                companionFootfallGeneration=Game.companionPresentationGeneration;
+                companionPrevious=now;
+                companionLastMoveTime=Game.companionMoveTime;
+                companionContactIndex=contact;return;
             }
             float distance=(now-companionPrevious).Length;
+            bool rewound=Game.companionMoveTime<
+                companionLastMoveTime-.0001f;
             companionPrevious=now;
+            companionLastMoveTime=Game.companionMoveTime;
+            int prior=companionContactIndex;
+            companionContactIndex=contact;
+            // Paused spells, collisions, party swaps and teleport recovery
+            // must not replay old foot contacts or add ghost footsteps.
             if(!Game.companionMoving || Game.companionAction!=null ||
-                distance<.003f || distance>.95f)
-            {
-                companionTravel=0f;return;
-            }
-            companionTravel+=distance;
-            if(companionTravel>=.48f)
-            {
-                companionTravel%=.48f;
-                EmitFootfall(now,room,FrontierAudio.FootSurface(Game,now),
-                    ((int)(Game.companionMoveTime*4f)&1)!=0,.84f);
-            }
+               distance<.003f || distance>.95f || rewound ||
+               contact<0 || prior<0 || contact<=prior ||
+               contact-prior>2)return;
+            EmitFootfall(now,room,FrontierAudio.FootSurface(Game,now),
+                (contact&1)!=0,.84f);
         }
 
         private void AdvanceEnemyFootfalls(int room)

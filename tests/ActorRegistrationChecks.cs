@@ -2970,6 +2970,72 @@ public static class ActorRegistrationChecks
         finally {app.EndVisualReview();Clear();}
     }
 
+    public static void VerifyCompanionFootfallsMatchAuthoredWalkContacts(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        int savedId=game.save.companion;
+        int savedQuality=game.save.effectsQuality;
+        try
+        {
+            var marks=(System.Collections.IList)typeof(FrontierRuntime)
+                .GetField("footfallMarks",Private).GetValue(app);
+            game.save.effectsQuality=2;
+            float stride=GameCore.WalkStride*1.20f;
+            foreach(int companion in new[]{0,1,2})
+            {
+                marks.Clear();
+                game.save.companion=companion;
+                game.companionPosition=new Point(12f,12f);
+                game.companionMoveTime=0f;
+                game.companionMoving=false;
+                game.companionAction=null;
+                Call(app,"AdvanceCompanionFootfalls",game.save.room);
+                Check(marks.Count==0,
+                    "Newly selected companion must not inherit any previously painted footprints");
+                for(int step=1;step<=16;step++)
+                {
+                    float moved=stride*step/8f;
+                    game.companionPosition=new Point(12f+moved,12f);
+                    game.companionMoveTime=moved;
+                    game.companionMoving=true;
+                    Call(app,"AdvanceCompanionFootfalls",game.save.room);
+                    int expected=step/4;
+                    Check(marks.Count==expected,
+                        "Companion "+companion+" left a footmark away from its original Walk cell 0/2 grounded contacts");
+                    if(step%4==0)
+                    {
+                        object mark=marks[marks.Count-1];
+                        bool alternate=(bool)mark.GetType().GetField("alternate",
+                            BindingFlags.Instance|BindingFlags.NonPublic|
+                            BindingFlags.Public).GetValue(mark);
+                        Check(alternate==((expected&1)!=0),
+                            "Companion contact alternation must follow original source art");
+                    }
+                }
+                int before=marks.Count;
+                game.companionMoving=false;
+                game.companionMoveTime+=stride;
+                Call(app,"AdvanceCompanionFootfalls",game.save.room);
+                Check(marks.Count==before,
+                    "Stationary or commanded companion must not cycle ghost foot contacts");
+                game.companionPosition=new Point(12f,12f);
+                game.companionMoveTime=0f;
+                game.companionMoving=true;
+                Call(app,"AdvanceCompanionFootfalls",game.save.room);
+                Check(marks.Count==before,
+                    "Companion root recovery must not replay stale ground VFX");
+            }
+            Console.WriteLine("PASS all three actual companion source-walk families emit ground marks at physical gait cells 0/2 and reset across party swaps");
+        }
+        finally
+        {
+            game.save.companion=savedId;
+            game.save.effectsQuality=savedQuality;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyMaterialGroundContactFrames(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -3304,7 +3370,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
