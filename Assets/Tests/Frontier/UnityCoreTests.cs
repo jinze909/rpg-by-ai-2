@@ -153,6 +153,7 @@ namespace Starfall.Tests
         [Test] public void AfterlightReceiverDamageRequiresRealWindupAndPlayerCanBodyguard() { CoreChecks.CivicReserveSaboteursMustReachReceiverAndCommitRealWindupBeforeDestroyingStock(Data()); }
         [Test] public void AfterlightWorkshopRejectsLiveHostileCrafting() { CoreChecks.AfterlightWorkshopCannotCraftPartsDuringHostileCombat(Data()); }
         [Test] public void AfterlightCivilianReservesDefendAgainstRealTwoWaveAttacks() { CoreChecks.AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Data()); }
+        [Test] public void CivicDefenseWavesAvoidCompanionsAndRealAmbientEnemies() { CoreChecks.CivicWatchPlacementAvoidsBystandersAndCompanionOnRealGround(Data()); }
         [Test] public void AfterlightDefenseWithdrawalLeavesEarnedSupplies() { CoreChecks.AfterlightDefenseRequiresStockAndSupportsHonestWithdrawal(Data()); }
         [Test] public void AfterlightCivicReservesAreRealAndPersist() { CoreChecks.AfterlightReservesRequireHonestPostCharterSuppliesAndImproveRealServices(Data()); }
         [Test] public void LastDodgeFrameFacing(){CoreChecks.DashExitKeepsVisibleFacing(Data());}

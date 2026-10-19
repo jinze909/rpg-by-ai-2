@@ -964,6 +964,49 @@ namespace Starfall.Tests
                 "Guarded production upgrades persist in original v2 save flags, with no changed schema");
         }
 
+        public static void CivicWatchPlacementAvoidsBystandersAndCompanionOnRealGround(Campaign data)
+        {
+            var choose=typeof(GameCore).GetMethod("AfterlightWatchSpawnPoint",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(choose!=null,"The actual civic defense uses its own live physical spawn preflight");
+            for(int room=1;room<=3;room++)
+            {
+                var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+                g.Enter(room);g.enemies.Clear();
+                g.save.flags.Add("companion_1");
+                g.SelectCompanion(1);
+                var receiver=Object(g,"afterlightoutlet"+room);
+                g.save.x=receiver.x;g.save.y=receiver.y;
+                object[] first={0,1,new Point(-100,-100),new Point()};
+                Check((bool)choose.Invoke(g,first),
+                    "Each of the three authentic civic receivers supports a legal first-wave combat foothold");
+                Point original=(Point)first[3];
+                Check(g.CanStand(original),
+                    "The physical receiver spawn preflight returns an actually standing actor root");
+                var living=new Enemy(92960+room,0,original.x,original.y,900f)
+                    {stun=200f,timer=1000f};
+                g.enemies.Add(living);
+                object[] alternate={0,1,new Point(-100,-100),new Point()};
+                Check((bool)choose.Invoke(g,alternate),
+                    "A legitimate receiver can choose a second local foot instead of spawning on a living bystander");
+                Point second=(Point)alternate[3];
+                Check((second-original).Length>=1.55f,
+                    "A real hostile actor must displace new reinforcements, not become an overlapping sprite");
+                g.companionPosition=second;
+                object[] companionAvoided={0,1,new Point(-100,-100),new Point()};
+                Check((bool)choose.Invoke(g,companionAvoided),
+                    "Civic watch can find another genuine nearby foot while a recruited ally guards the prior one");
+                Point third=(Point)companionAvoided[3];
+                Check(g.CanStand(third)&&
+                    (third-original).Length>=1.55f&&
+                    (third-second).Length>=1.55f&&
+                    (third-g.Position).Length>1.7f&&
+                    g.enemies.Contains(living)&&g.save.version==2,
+                    "All three regions avoid the hero, living enemy and canonical companion without displacing actors or changing old saves");
+            }
+        }
+
         public static void AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;

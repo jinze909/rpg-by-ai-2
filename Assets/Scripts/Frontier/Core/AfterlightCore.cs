@@ -116,13 +116,21 @@ namespace Starfall
                 int slot=(i+ordinal*5+(wave-1)*3)%offsets.Length;
                 Point p=center+offsets[slot];
                 if(!CanStand(p)||(p-Position).Length<=1.7f ||
-                    (p-avoid).Length<=2f)continue;
-                // A merely walkable point across impassable tiles can strand
-                // a real encounter. Require the production pathfinder to
-                // actually reach within a combat step of this spawn.
-                List<Point> route=NavigationPath(p);
-                if(route.Count==0||
-                    (route[route.Count-1]-p).Length>1.25f)continue;
+                    (p-avoid).Length<=2f ||
+                    (save.companion>=0 &&
+                     (p-companionPosition).Length<1.55f))
+                    continue;
+                // Partial NavigationPath fallbacks may stop at a shoreline
+                // frontier without ever reaching the actual receiver.
+                // Require the full enemy-foot graph to connect to this
+                // authored defense objective, while permitting real turns
+                // around near-side walls.
+                if(!ActorHasLocalRoute(p,center,9))continue;
+                bool occupied=false;
+                foreach(Enemy living in enemies)
+                    if(living.hp>0&&(p-living.Position).Length<1.55f)
+                    {occupied=true;break;}
+                if(occupied)continue;
                 spot=p;return true;
             }
             spot=new Point(-100,-100);return false;
