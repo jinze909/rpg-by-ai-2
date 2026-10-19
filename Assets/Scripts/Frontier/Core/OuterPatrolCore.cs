@@ -348,7 +348,7 @@ namespace Starfall
                 return true;
             }
             Point[] feet;
-            if(!TryOuterPatrolFeet(post,out feet,veteran?3:2))
+            if(!TryOuterPatrolFeetWithCount(post,out feet,veteran?3:2))
             {
                 Notify("救援岗没有足够的可达战斗落点，请清理拥挤的场地后重试。",
                     "Insufficient walkable, reachable raider roots. Clear the outpost and retry.");
@@ -379,8 +379,12 @@ namespace Starfall
                     "Relief defense started: defeat both attackers!");
             return true;
         }
-        private bool TryOuterPatrolFeet(WorldObject post,out Point[] result,
-            int required=2)
+        // Keep the exact original two-argument reflection and call
+        // surface for older regional geometry regression checks.
+        private bool TryOuterPatrolFeet(WorldObject post,out Point[] result)
+        { return TryOuterPatrolFeetWithCount(post,out result,2); }
+        private bool TryOuterPatrolFeetWithCount(WorldObject post,
+            out Point[] result,int required)
         {
             result=null;
             Point center=new Point(post.x,post.y);

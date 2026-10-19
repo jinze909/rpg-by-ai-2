@@ -911,6 +911,7 @@ namespace Starfall.Tests
             {
                 WorldObject post=Array.Find(data.maps[room].objects,
                     o=>o.kind=="outerwatch");
+                Check(post!=null,"Veteran post is authored in room "+room);
                 GameCore g=new GameCore(data);g.mode="world";
                 g.save.room=room;g.enemies.Clear();g.projectiles.Clear();
                 g.save.x=post.x;g.save.y=post.y;
@@ -918,6 +919,8 @@ namespace Starfall.Tests
                 g.save.flags.Add("outer_patrol_done_"+room);
                 int coins=g.save.coins;
                 g.Talk(post);
+                Check(g.conversation!=null,
+                    "Veteran battle is offered at a physical post in region "+room);
                 int veteran=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="outer_watch_veteran");
                 Check(veteran>=0,
@@ -943,12 +946,22 @@ namespace Starfall.Tests
                     !g.OuterPatrolActive&&g.save.coins==coins+26&&
                     g.save.shards==shard+2,
                     "Three genuine lethal transactions award exactly one veteran clear");
-                GameCore reloaded=new GameCore(data,g.save);
+                // Loading a NEW hero may sanitize an otherwise locked
+                // region. Don't alias the current active hero's SaveData:
+                // this check must not teleport the current challenger.
+                SaveData persisted=new SaveData {
+                    version=g.save.version, room=g.save.room,
+                    stage=g.save.stage,x=g.save.x,y=g.save.y,
+                    flags=new List<string>(g.save.flags)
+                };
+                GameCore reloaded=new GameCore(data,persisted);
                 Check(reloaded.save.version==2&&
                     reloaded.OuterPatrolVeteranDone(room)&&
                     !reloaded.OuterPatrolVeteranActive,
                     "Veteran clear persists in existing v2 flags with no transient raid leak");
                 g.Talk(post);
+                Check(g.conversation!=null,"Completed veteran post "+
+                    room+" remains physically interactable");
                 veteran=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="outer_watch_veteran");
                 Check(veteran>=0,"Veteran combat remains playable after victory");
