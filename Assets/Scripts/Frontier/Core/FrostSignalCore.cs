@@ -140,12 +140,18 @@ namespace Starfall
                     "The ember burned out. Return to the source to retry; already used resources are not refunded.");
             }
         }
+        // The live ember and one-time civilian outcome belong to
+        // physical mountain posts. Revalidate the near-side path when an
+        // opened dialogue is actually committed after terrain changes.
+        private bool CanReachFrostSignalPost(WorldObject site)
+        { return site!=null && PhysicalRefugeReach(
+            new Point(site.x,site.y),1.8001f); }
         private bool TalkFrostSignal(WorldObject o)
         {
             if(o.kind!="frostsignal")return false;
             int at=0;for(int i=1;i<=3;i++)if(o.id=="frostsignal_"+i)at=i;
             if(at==0||save.room!=7||
-                (Position-new Point(o.x,o.y)).Length>1.8f)return true;
+                !CanReachFrostSignalPost(o))return true;
             if(!Has("boss_7"))
             {
                 Dialog(o.name,o.en,
@@ -239,7 +245,7 @@ namespace Starfall
             {
                 if(FrostSignalActive||FrostSignalComplete||!Has("boss_7")||
                     FieldWorkPreventsRest||!SafeTravel||
-                    (Position-new Point(west.x,west.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(west))return true;
                 FrostSignalStage=1;FrostSignalTime=100;FrostSignalFlame=85;
                 Flag("frostsignal_started");revision++;sound="quest";
                 Notify("火种已领取。沿旧山道前往转折台，击败守卫。",
@@ -249,7 +255,7 @@ namespace Starfall
             if(action=="frostsignal_abort")
             {
                 if(!FrostSignalActive||
-                    (Position-new Point(west.x,west.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(west))return true;
                 ResetFrostSignal();revision++;
                 Notify("余火归还。可以重新取火。",
                     "The ember is returned. Another attempt is available.");
@@ -259,7 +265,7 @@ namespace Starfall
                 action=="frostsignal_windbreak"||action=="frostsignal_free")
             {
                 if(FrostSignalStage!=2||enemies.Exists(IsFrostSignalEnemy)||
-                    (Position-new Point(mid.x,mid.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(mid))return true;
                 if (!FrostSignalGuardsDefeated)
                 {
                     ResetFrostSignal(); revision++;
@@ -293,7 +299,7 @@ namespace Starfall
             if(action=="frostsignal_clinic"||action=="frostsignal_guides")
             {
                 if(FrostSignalStage!=3||FrostSignalComplete||
-                    (Position-new Point(end.x,end.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(end))return true;
                 float quality=FrostSignalFlame;
                 ResetFrostSignal();
                 Flag(action);Flag("frostsignal_complete");

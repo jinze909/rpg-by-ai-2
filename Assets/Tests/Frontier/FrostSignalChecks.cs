@@ -16,6 +16,80 @@ namespace Starfall.Tests
                 if(g.conversation.choices[i].action==a){g.Choose(i);return true;}
             return false;
         }
+        public static void HighlandEmberCachedChoicesCannotCommitAcrossClosedPosts(Campaign data)
+        {
+            MapData original=data.maps[7];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[7]=new MapData {id=7,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("desert_report");
+                g.Enter(7);g.enemies.Clear();g.invulnerable=180;
+                g.save.flags.Add("boss_7");
+                WorldObject west=FrostPost(g,1),
+                    mid=FrostPost(g,2),south=FrostPost(g,3);
+                g.save.x=west.x+1.75f;g.save.y=west.y;
+                Check(g.CanStand(g.Position)&&
+                    (g.Position-new Point(west.x,west.y)).Length<1.8f,
+                    "The canonical hero can genuinely open the western ember pickup from reachable ground");
+                g.Talk(west);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The real mountain post exposes the original timed ember acceptance");
+                int barrier=(int)Math.Floor(west.x)+1,wy=(int)Math.Floor(west.y);
+                char[] closed=rows[wy].ToCharArray();closed[barrier]='#';
+                rows[wy]=new string(closed);
+                Check(g.CanStand(g.Position)&&g.Blocked(barrier+.5f,wy+.5f),
+                    "An intervening full solid mountain wall closes after the pickup dialogue was opened");
+                Check(FrostChoice(g,"frostsignal_start")&&
+                    !g.FrostSignalActive&&g.FrostSignalStage==0&&
+                    !g.Has("frostsignal_started"),
+                    "Cached pickup cannot mint an active ember through solid scenery");
+                closed[barrier]='.';rows[wy]=new string(closed);
+                g.Talk(west);
+                Check(FrostChoice(g,"frostsignal_start")&&
+                    g.FrostSignalStage==1&&g.FrostSignalActive,
+                    "Reopening the exact path starts the authentic ninety-plus-second physical ember delivery");
+                g.save.x=mid.x;g.save.y=mid.y;
+                g.Talk(mid);
+                Check(g.FrostSignalStage==2&&
+                    g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                    "The original switchyard really deploys two authored defenders");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"Authentic enemy death callbacks exist");
+                foreach(Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                    hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+                g.hitStop=0;g.Close();g.Talk(mid);
+                Check(FrostChoice(g,"frostsignal_free")&&g.FrostSignalStage==3,
+                    "Both actual lethal guard kills allow the original no-resource southbound choice");
+                g.save.x=south.x+1.75f;g.save.y=south.y;
+                Check(g.CanStand(g.Position),
+                    "The final real authored public hearth has safe player footing on its eastern approach");
+                g.Talk(south);
+                int coins=g.save.coins;
+                int sy=(int)Math.Floor(south.y),sx=(int)Math.Floor(south.x)+1;
+                char[] finalWall=rows[sy].ToCharArray();finalWall[sx]='#';
+                rows[sy]=new string(finalWall);
+                Check(g.CanStand(g.Position)&&g.Blocked(sx+.5f,sy+.5f),
+                    "A new solid wall closes the actual final hearth contact after the reward menu opens");
+                Check(FrostChoice(g,"frostsignal_clinic")&&
+                    !g.FrostSignalComplete&&g.FrostSignalStage==3&&
+                    g.save.coins==coins&&g.FrostSignalActive,
+                    "An old final outcome button cannot publish a civilian clinic or forfeit the ember behind cover");
+                finalWall[sx]='.';rows[sy]=new string(finalWall);
+                g.Talk(south);
+                Check(FrostChoice(g,"frostsignal_clinic")&&
+                    g.FrostSignalComplete&&g.Has("frostsignal_clinic")&&
+                    g.save.coins>coins&&g.save.version==2,
+                    "Reopened real hearth completes exactly one authentic clinic reward without save migration");
+            }
+            finally{data.maps[7]=original;}
+        }
+
         public static void HighlandGuardsSpawnOnDistinctUnoccupiedCombatFeet(Campaign data)
         {
             var g=Fresh(data);

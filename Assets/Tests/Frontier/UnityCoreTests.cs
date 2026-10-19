@@ -54,6 +54,7 @@ namespace Starfall.Tests
         [Test] public void SwordGuardRejectsSideHitsAndOtherProfessions() { CoreChecks.SwordGuardDoesNotReflectSideShotsOrBypassClassAndCooldown(Data()); }
         [Test] public void HighlandCivicEmberSurvivesActualColdAndGuardCombat() { CoreChecks.HighlandCivicEmberHasActualColdCombatAndPublicChoices(Data()); }
         [Test] public void LiveHighlandEmberCompassFollowsNextObjectiveAndSave() { CoreChecks.LiveFrostSignalNavigationTracksActualCarriedEmber(Data()); }
+        [Test] public void LiveHighlandCachedEmberAndClinicActionsNeedOpenPhysicalLane() { CoreChecks.HighlandEmberCachedChoicesCannotCommitAcrossClosedPosts(Data()); }
         [Test] public void HighlandGuardsNeverOverlapOtherCombatActors() { CoreChecks.HighlandGuardsSpawnOnDistinctUnoccupiedCombatFeet(Data()); }
         [Test] public void HighlandGuardCannotMaterializeInIsolatedWalkablePocket() { CoreChecks.HighlandSignalGuardsCannotSpawnInIsolatedWalkablePocket(Data()); }
         [Test] public void CombatEffectsKeepEncounterOwnershipThroughImpact() { CoreChecks.CombatSignalsRetireOnlyTheirOwnImpactAndWarningEffects(Data()); }
