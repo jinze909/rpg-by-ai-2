@@ -3,6 +3,66 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void GlasswindBothWavesSpawnAwayFromExistingCombatActors(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;
+            g.save.flags.Add("harbor_report");
+            g.save.flags.Add("desert_report");
+            g.save.flags.Add("gate_6");
+            g.save.flags.Add("glasswind_started");
+            g.Enter(6);g.enemies.Clear();
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            g.invulnerable=180f;
+            WorldObject station=Object(g,"glasswindrelay1");
+            g.save.x=station.x;g.save.y=station.y;
+            // Both authored first-choice wave-one coordinates are already
+            // physically occupied. Keep these living actors intact.
+            Point originalFirst=new Point(station.x-3.2f,station.y);
+            Point originalSecond=new Point(station.x,station.y+3.2f);
+            var bystander=new Enemy(91999,0,originalFirst.x,originalFirst.y,900f)
+                {stun=200f,timer=1000f};
+            g.enemies.Add(bystander);
+            g.companionPosition=originalSecond;
+            Check(g.CanStand(originalFirst)&&g.CanStand(originalSecond)&&
+                (g.Position-originalFirst).Length>1.75f,
+                "Both existing actors occupy valid first-choice spawn feet in the real desert");
+            Action(g,station.kind,"glasswind_start_1");
+            var first=g.enemies.FindAll(g.IsGlasswindEnemy);
+            Check(g.GlasswindSite==1&&g.GlasswindWave==1&&first.Count==2&&
+                g.enemies.Contains(bystander),
+                "A real relay capture deploys its complete first wave without deleting ambient threats");
+            foreach(Enemy e in first)
+            {
+                Check((e.Position-bystander.Position).Length>=1.55f&&
+                    (e.Position-g.companionPosition).Length>=1.55f&&
+                    (e.Position-g.Position).Length>=1.75f&&
+                    g.CanStand(e.Position)&&g.NavigationPath(e.Position).Count>0,
+                    "First-wave fighters occupy accessible ground without overlapping the hero, ally or other living enemy");
+                e.stun=200f;e.timer=1000f;
+            }
+            Check((first[0].Position-first[1].Position).Length>=2.3f,
+                "A single first wave never spawns overlapping combat roots");
+            Advance(g,4.25f);
+            var both=g.enemies.FindAll(g.IsGlasswindEnemy);
+            Check(g.GlasswindSite==1&&g.GlasswindWave==2&&both.Count==4,
+                "The real ring charge spawns a second complete wave after four seconds");
+            for(int i=0;i<both.Count;i++)
+            {
+                Enemy current=both[i];
+                Check(g.CanStand(current.Position)&&
+                    (current.Position-bystander.Position).Length>=1.55f&&
+                    (current.Position-g.companionPosition).Length>=1.55f&&
+                    (current.Position-g.Position).Length>=1.75f,
+                    "Later reinforcements cannot overlap any preserved living actor");
+                for(int j=0;j<i;j++)
+                    Check((current.Position-both[j].Position).Length>=1.55f,
+                        "Wave-two combatants stay clear of BOTH still-living first-wave fighters");
+            }
+            Check(g.save.version==2&&!g.Has("glasswind_1"),
+                "Additional arena checks do not unlock a reward or alter an existing v2 save");
+        }
+
         public static void GlasswindCircuitHasRealCaptureWavesAndPermanentShade(Campaign data)
         {
             var g=Fresh(data);

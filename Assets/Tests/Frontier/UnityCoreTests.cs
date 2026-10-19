@@ -90,6 +90,7 @@ namespace Starfall.Tests
         [Test] public void FieldCampsRespectElapsedCombatTimeAndActiveMissions() { CoreChecks.FieldCampRestAdvancesCombatTimeAndCannotSkipLiveCivilianWork(Data()); }
         [Test] public void FieldCampMenuReflectsSafetyAndWaystationUnlock() { CoreChecks.FieldCampMenuShowsRestOnlyWhenActuallyAvailable(Data()); }
         [Test] public void ActiveRelayCapturesCannotRestThroughTimedWaves() { CoreChecks.LiveGlasswindTrialCannotSkipTheFieldRestClock(Data()); }
+        [Test] public void DesertRelayWavesCannotOverlapLiveCombatActors() { CoreChecks.GlasswindBothWavesSpawnAwayFromExistingCombatActors(Data()); }
         [Test] public void SameWeaponEquippingKeepsCombatIntent() { CoreChecks.EquippingIdenticalWeaponCannotEraseActiveAttack(Data()); }
         [Test] public void ReleaseEventGovernsContactPoses(){CoreChecks.ReleasedContactsSelectVisibleActivePoses(Data());}
         [Test] public void RecoveryWalkingRestoresEquipment(){CoreChecks.WalkingSkillRecoveryRestoresEquippedAppearance(Data());}

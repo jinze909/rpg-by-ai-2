@@ -66,9 +66,23 @@ namespace Starfall
             for(int n=0;n<offsets.Length && spots.Count<2;n++)
             {
                 Point p=station+offsets[(n+(GlasswindSite-1)*2+wave)%offsets.Length];
-                if(!CanStand(p) || !ClearAttackPath(station,p) ||
-                    NavigationPath(p).Count==0 || (p-Position).Length<1.75f)
+                // A legal point still may overlap a living bystander or the
+                // companion, or sit in a room disconnected from the valve.
+                // Verify the real four-neighbor body-foot route rather than
+                // accepting NavigationPath's fallback nearest partial path.
+                if(!CanStand(p) || !CanStand(station) ||
+                    !ClearAttackPath(station,p) ||
+                    !BossSummonHasLocalRoute(p,station) ||
+                    (p-Position).Length<1.75f ||
+                    (p-station).Length<1.65f ||
+                    (save.companion>=0 &&
+                     (p-companionPosition).Length<1.55f))
                     continue;
+                bool occupied=false;
+                foreach(Enemy existing in enemies)
+                    if(existing.hp>0&&(p-existing.Position).Length<1.55f)
+                    { occupied=true; break; }
+                if(occupied)continue;
                 bool distinct=true;
                 foreach(Point used in spots)
                     if((p-used).Length<2.3f) distinct=false;
