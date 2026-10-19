@@ -499,8 +499,15 @@ namespace Starfall
                 // raider matters more than firing at a nearer wandering mob.
                 // Only prioritize foes that can be physically shot; an
                 // occluded saboteur must never starve a visible ordinary foe.
-                int priority=OuterPatrolActive&&IsOuterPatrolEnemy(foe)&&
-                    foe.kind!=1?0:1;
+                // When two authentic saboteurs are shootable, an attack
+                // already committed toward the cache is the emergency.
+                // A closer but idle breaker must not starve a heavy's
+                // imminent timed contact. Never skip normal physical shot
+                // clearance for the high-priority target.
+                bool saboteur=OuterPatrolActive&&
+                    IsOuterPatrolEnemy(foe)&&foe.kind!=1;
+                int priority=saboteur?
+                    (foe.state==1&&foe.targetingOuterPatrolStock?0:1):2;
                 if(squared>=7f*7f ||
                     priority>bestPriority ||
                     (priority==bestPriority&&squared>=best) ||

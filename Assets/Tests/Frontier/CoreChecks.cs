@@ -993,6 +993,61 @@ namespace Starfall.Tests
                 "v2 slots never persist a transient tactical guard command");
         }
 
+        public static void CompanionInterceptsLiveHeavyWindupBeforeIdleCacheRaider(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.companion=1;
+            g.companionPosition=new Point(post.x,post.y);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"An actual veteran three-raider cache siege is available");
+            g.Choose(start);
+            Check(g.OuterPatrolVeteranActive&&g.enemies.Count==3,
+                "Threat priority exercises three authentic enemy bodies");
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "Live cache contains both melee raider and heavy slammer");
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(select!=null,"Exercise actual bow ally target-selection code");
+            Enemy first=(Enemy)select.Invoke(g,null);
+            Check(first==melee||first==heavy,
+                "Real sabotage-capable actor outranks wandering ranged raider");
+            // Prove both actual muzzle lanes are legal before asserting any
+            // priority; a blocked shot must never beat an available one.
+            var shot=typeof(GameCore).GetMethod("WeaponShot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(shot!=null,"Real ally projectile sweep is available");
+            Point vectorM=(melee.Position-g.companionPosition).Normalized;
+            Point vectorH=(heavy.Position-g.companionPosition).Normalized;
+            Projectile probeM=(Projectile)shot.Invoke(g,new object[]{
+                g.companionPosition,1,vectorM,9f,0f,(Point?)melee.Position});
+            Projectile probeH=(Projectile)shot.Invoke(g,new object[]{
+                g.companionPosition,1,vectorH,9f,0f,(Point?)heavy.Position});
+            Check(!probeM.blockedAtSpawn&&!probeH.blockedAtSpawn,
+                "Both actual enemy targets have a valid muzzle lane");
+            heavy.state=1;heavy.targetingOuterPatrolStock=true;
+            Check((Enemy)select.Invoke(g,null)==heavy,
+                "Imminent heavy hit wins ally's target over idle melee attacker");
+            heavy.targetingOuterPatrolStock=false;
+            melee.state=1;melee.targetingOuterPatrolStock=true;
+            Check((Enemy)select.Invoke(g,null)==melee,
+                "Threat priority follows the currently committed raider");
+            g.enemies.Remove(heavy);
+            Check((Enemy)select.Invoke(g,null)==melee,
+                "Another registered attacker vanishing never creates a phantom target");
+        }
+
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");
