@@ -294,6 +294,10 @@ namespace Starfall
         { return Has("afterlight_plan_"+region+"_care")?1:Has("afterlight_plan_"+region+"_watch")?2:0; }
         private Point AfterlightPoint(int region,string type)
         { return ObjectPoint(region,"afterlight"+type+region,new Point(-100,-100)); }
+        // Cached civic terminal menus must not spend actual supplies or
+        // complete permanent reconstruction across newly closed terrain.
+        private bool ReachAfterlightPoint(Point station)
+        { return PhysicalRefugeReach(station,2.2001f); }
         private void ResetAfterlightCharge()
         { afterlightChargeRegion=0;afterlightChargeLeft=afterlightChargeIntegrity=0;
           afterlightStableCharge=afterlightReceiverRepaired=false; }
@@ -630,7 +634,7 @@ namespace Starfall
             if(action=="afterlight_begin")
             {
                 if(save.room!=0 || !AfterlightEligible || Has("afterlight_started") ||
-                    (Position-ObjectPoint(0,"afterlightcouncil",new Point(-100,-100))).Length>2.2f)return true;
+                    !ReachAfterlightPoint(ObjectPoint(0,"afterlightcouncil",new Point(-100,-100))))return true;
                 Flag("afterlight_started");TrackQuest("afterlight");
                 RecordMoment("第五章：结局之后，莉雅和居民开始把三处星根锚点改成真正可运行的公共设施。",
                     "Chapter Five: after your ending, Lyra and the townspeople begin rebuilding three working public starroot sites.");
@@ -642,7 +646,7 @@ namespace Starfall
             {
                 if(save.room!=0 || !Has("afterlight_started") || AfterlightRestored!=3 || AfterlightStewards!=3 ||
                     Has("afterlight_complete") ||
-                    (Position-ObjectPoint(0,"afterlightcouncil",new Point(-100,-100))).Length>2.2f)return true;
+                    !ReachAfterlightPoint(ObjectPoint(0,"afterlightcouncil",new Point(-100,-100))))return true;
                 Flag("afterlight_complete");
                 CreditCoins(120);CreditShards(4);CreditSkillPoints(1);
                 AddXp(100);revision++;sound="reward";
@@ -655,7 +659,7 @@ namespace Starfall
             if(action=="afterlight_abort")
             {
                 if(afterlightChargeRegion!=0 && save.room==afterlightChargeRegion &&
-                    (Position-AfterlightPoint(save.room,"anchor")).Length<2.2f)
+                    ReachAfterlightPoint(AfterlightPoint(save.room,"anchor")))
                 {ResetAfterlightCharge();revision++;Notify("本次传输取消。选择的公共方案仍保留。",
                     "Load transfer canceled. Your chosen civic design remains.");}
                 return true;
@@ -666,7 +670,7 @@ namespace Starfall
                     FieldWorkPreventsRest || !SafeTravel || Dying || practicing)return true;
                 Point from=AfterlightPoint(2,action.EndsWith("out")?"outlet":"anchor");
                 Point to=AfterlightPoint(2,action.EndsWith("out")?"anchor":"outlet");
-                if((Position-from).Length>2.2f || !SafeRegionalLanding(to))return true;
+                if(!ReachAfterlightPoint(from) || !SafeRegionalLanding(to))return true;
                 save.x=to.x;save.y=to.y;revision++;sound="travel";
                 Notify("公共渡船已抵达对岸。不是公会独占的水路了。",
                     "Public ferry reached the other bank. Passage no longer belongs only to the guild.");
@@ -690,7 +694,7 @@ namespace Starfall
                 Point destination=outbound?AfterlightPoint(region,"outlet"):
                     ObjectPoint(0,"afterlightwaypoint"+region,new Point(-100,-100));
                 if(save.room!=(outbound?0:region) ||
-                    (Position-from).Length>2.2f)
+                    !ReachAfterlightPoint(from))
                     return true;
                 // A failed arrival should never reset the source room.
                 int targetRoom=outbound?region:0;
@@ -722,7 +726,7 @@ namespace Starfall
                 if(!int.TryParse(action.Substring("afterlight_steward_".Length),out r) ||
                     r<1||r>3 || save.room!=r || !Has("afterlight_started") ||
                     !Has("afterlight_done_"+r) || Has("afterlight_steward_"+r) ||
-                    (Position-ObjectPoint(r,"witnessnpc"+r,new Point(-100,-100))).Length>2.2f)
+                    !ReachAfterlightPoint(ObjectPoint(r,"witnessnpc"+r,new Point(-100,-100))))
                     return true;
                 Flag("afterlight_steward_"+r);revision++;sound="quest";
                 RecordMoment(AfterlightLocation(r,false)+"的当地居民已签下公共设施的维护责任。",
@@ -735,7 +739,7 @@ namespace Starfall
             {
                 if(save.room!=3 || !Has("afterlight_done_3") || AfterlightMode(3)!=1 ||
                     Dying || practicing || racing ||
-                    (Position-AfterlightPoint(3,"outlet")).Length>2.2f)return true;
+                    !ReachAfterlightPoint(AfterlightPoint(3,"outlet")))return true;
                 if(FieldWorkPreventsRest || !SafeTravel || afterlightChargeRegion!=0)
                 {
                     Notify("工房暂时停工：附近仍有战斗或尚未完成的现场任务。",
@@ -762,7 +766,7 @@ namespace Starfall
                     !Has("afterlight_done_"+region) || !Has("afterlight_steward_"+region) ||
                     AfterlightReserve(region) || Dying || practicing || racing ||
                     FieldWorkPreventsRest || !SafeTravel || afterlightChargeRegion!=0 ||
-                    (Position-AfterlightPoint(region,"outlet")).Length>2.2f)
+                    !ReachAfterlightPoint(AfterlightPoint(region,"outlet")))
                     return true;
                 int wood=region==1?2:region==2?1:0;
                 int crystal=region==3?2:0;
@@ -786,7 +790,7 @@ namespace Starfall
             if(pieces[1]=="plan")
             {
                 if(pieces.Length!=4 || AfterlightMode(room)!=0 ||
-                    (Position-AfterlightPoint(room,"anchor")).Length>2.2f)return true;
+                    !ReachAfterlightPoint(AfterlightPoint(room,"anchor")))return true;
                 if(pieces[3]!="care"&&pieces[3]!="watch")return true;
                 Flag(action);TrackQuest("afterlight");
                 Notify("居民用途方案已署名；下一步启动90秒余光输送。",
@@ -798,7 +802,7 @@ namespace Starfall
                 bool stable=pieces[1]=="stable";
                 if(AfterlightMode(room)==0 || afterlightChargeRegion!=0 ||
                     FieldWorkPreventsRest || !SafeTravel ||
-                    (Position-AfterlightPoint(room,"anchor")).Length>2.2f ||
+                    !ReachAfterlightPoint(AfterlightPoint(room,"anchor")) ||
                     racing)return true;
                 if(stable&&save.inventory[1]<1)
                 {
@@ -826,7 +830,7 @@ namespace Starfall
                 // courier retreat without walking the full route back or
                 // spending unrelated crafting inputs just to clear the task.
                 if(afterlightChargeRegion!=room||
-                    (Position-AfterlightPoint(room,"outlet")).Length>2.2f)
+                    !ReachAfterlightPoint(AfterlightPoint(room,"outlet")))
                     return true;
                 bool wasStable=afterlightStableCharge;
                 ResetAfterlightCharge();revision++;sound="quest";
@@ -840,7 +844,7 @@ namespace Starfall
                 if(afterlightChargeRegion!=room||
                     afterlightReceiverRepaired||afterlightChargeIntegrity<=0||
                     afterlightChargeIntegrity>=AfterlightReceiverThreshold||
-                    (Position-AfterlightPoint(room,"outlet")).Length>2.2f||
+                    !ReachAfterlightPoint(AfterlightPoint(room,"outlet"))||
                     !SafeTravel)return true;
                 if(afterlightChargeLeft<=8)
                 {
@@ -865,7 +869,7 @@ namespace Starfall
             if(pieces[1]=="install")
             {
                 if(afterlightChargeRegion!=room || afterlightChargeLeft<=0 ||
-                    (Position-AfterlightPoint(room,"outlet")).Length>2.2f ||
+                    !ReachAfterlightPoint(AfterlightPoint(room,"outlet")) ||
                     !SafeTravel)return true;
                 if(afterlightChargeIntegrity<AfterlightReceiverThreshold)
                 {

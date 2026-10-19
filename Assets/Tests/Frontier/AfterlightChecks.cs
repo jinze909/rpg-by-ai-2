@@ -16,6 +16,92 @@ namespace Starfall.Tests
                 g.AfterlightChargeRegion!=0,
                 "Canonical main character must actually walk a navigable map path to the remote civic receiver before the 90-second charge expires");
         }
+        public static void AfterlightSealedTerminalsCannotSpendStabilizationOrInstallationMaterials(Campaign data)
+        {
+            MapData original=data.maps[3];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] cells=new string('#',32).ToCharArray();
+                    if(y>=2&&y<=29)
+                        for(int x=2;x<=29;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                WorldObject source=new WorldObject{id="afterlightanchor3",
+                    kind="afterlightanchor3",name="Living power source",
+                    en="Living power source",x=10.5f,y=10.5f};
+                WorldObject target=new WorldObject{id="afterlightoutlet3",
+                    kind="afterlightoutlet3",name="Civic power receiver",
+                    en="Civic power receiver",x=20.5f,y=10.5f};
+                data.maps[3]=new MapData{id=3,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{source,target},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+                g.save.flags.Add("afterlight_started");
+                g.save.flags.Add("afterlight_plan_3_watch");
+                g.Enter(3);g.enemies.Clear();g.invulnerable=180f;
+                g.save.inventory[1]=8;g.save.inventory[4]=5;
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.Talk(source);
+                int launch=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_stable_3")
+                    {launch=i;break;}
+                Check(launch>=0&&g.CanStand(g.Position),
+                    "The live signed civic source offers its genuine one-crystal 120-second transaction");
+                char[] gate=rows[10].ToCharArray();
+                gate[11]='#';rows[10]=new string(gate);
+                Check(g.CanStand(new Point(source.x,source.y))&&
+                    g.CanStand(g.Position)&&g.Blocked(11.5f,10.5f),
+                    "Newly sealed solid cover blocks the source from a nearby but legal hero foot");
+                g.Choose(launch);
+                Check(g.AfterlightChargeRegion==0&&g.save.inventory[1]==8,
+                    "Cached stable-start button cannot charge real crystal or create a physical transfer through stone");
+                gate[11]='.';rows[10]=new string(gate);
+                g.Talk(source);launch=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_stable_3")
+                    {launch=i;break;}
+                Check(launch>=0,"Opening the same source contact restores the original stable-load choice");
+                g.Choose(launch);
+                Check(g.AfterlightChargeRegion==3&&g.AfterlightStableCharge&&
+                    g.save.inventory[1]==7&&g.AfterlightChargeLeft==120,
+                    "The reachable 120-second live charge consumes exactly one genuine crystal");
+                g.save.x=22.25f;g.save.y=10.5f;
+                g.Talk(target);
+                int install=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_install_3")
+                    {install=i;break;}
+                Check(install>=0&&g.CanStand(g.Position),
+                    "The actual distant receiver offers a real material-spending permanent installation");
+                int coins=g.save.coins;
+                gate[21]='#';rows[10]=new string(gate);
+                Check(g.CanStand(new Point(target.x,target.y))&&
+                    g.Blocked(21.5f,10.5f),
+                    "A second dynamic wall seals a charged receiver after its dialogue was opened");
+                g.Choose(install);
+                Check(!g.Has("afterlight_done_3")&&g.AfterlightChargeRegion==3&&
+                    g.save.inventory[1]==7&&g.save.inventory[4]==5&&
+                    g.save.coins==coins,
+                    "Stale installation cannot spend crystals/parts, publish a facility or lose the live charge through a wall");
+                gate[21]='.';rows[10]=new string(gate);
+                g.Talk(target);install=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_install_3")
+                    {install=i;break;}
+                Check(install>=0,"Unblocked receiver restores the original permanent installation");
+                g.Choose(install);
+                Check(g.Has("afterlight_done_3")&&g.AfterlightChargeRegion==0&&
+                    g.save.inventory[1]==5&&g.save.inventory[4]==4&&
+                    g.save.coins==coins+50&&g.save.version==2,
+                    "Only accessible full-power receiver charges exact original inputs and awards one legitimate legacy-v2 civic installation");
+            }
+            finally {data.maps[3]=original;}
+        }
+
         public static void ChapterFiveAfterlightRebuildsRealThreeRegionWorldAfterOriginalEnding(Campaign data)
         {
             var g=Fresh(data);

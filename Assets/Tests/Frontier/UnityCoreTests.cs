@@ -149,6 +149,7 @@ namespace Starfall.Tests
         [Test] public void JournalRefreshTriggers(){CoreChecks.JournalRecordsRefreshOnlyOnStateChanges(Data());}
         [Test] public void EnemyRecoveryAndArmoredFlanks(){CoreChecks.TimedRecoveryAndArmoredFlanksCreateCombatOpenings(Data());}
         [Test] public void AfterlightGuardedReceiversImproveActualLocalServices() { CoreChecks.DefendedReceiversImproveOnlyTheirRealLocalPublicServices(Data()); }
+        [Test] public void AfterlightLiveStableChargeAndInstallCannotCrossSealedTerminals() { CoreChecks.AfterlightSealedTerminalsCannotSpendStabilizationOrInstallationMaterials(Data()); }
         [Test] public void AfterlightEmergencyPatchHonorsInventoryAndPerDefenseLimit() { CoreChecks.CivicReserveEmergencyPatchUsesRealSuppliesOncePerActiveDefense(Data()); }
         [Test] public void AfterlightReceiverDamageRequiresRealWindupAndPlayerCanBodyguard() { CoreChecks.CivicReserveSaboteursMustReachReceiverAndCommitRealWindupBeforeDestroyingStock(Data()); }
         [Test] public void AfterlightWorkshopRejectsLiveHostileCrafting() { CoreChecks.AfterlightWorkshopCannotCraftPartsDuringHostileCombat(Data()); }
