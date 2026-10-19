@@ -234,9 +234,9 @@ namespace Starfall.Tests
                         for(int x=2;x<=23;x++)cells[x]='.';
                     rows[y]=new string(cells);
                 }
-                // A center corridor has two nominal dodge feet exactly
-                // 1.6 tiles above/below it, but BOTH lie beyond completely
-                // sealed stone rows. A partial route cannot rescue anyone.
+                // One nominal 1.6-tile dodge foot is truly standable
+                // BEYOND a solid separating row, while the opposite foot
+                // is buried. Neither offers a reachable dodge corridor.
                 foreach(int y in new[]{9,11})
                 {
                     char[] cells=rows[y].ToCharArray();
@@ -244,11 +244,11 @@ namespace Starfall.Tests
                     rows[y]=new string(cells);
                 }
                 data.maps[2]=new MapData{id=2,
-                    spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    spawnX=10.5f,spawnY=10.7f,rows=rows,
                     objects=new WorldObject[0],
                     decor=new Decoration[0]};
                 var g=Fresh(data);g.save.stage=3;g.Enter(2);
-                g.enemies.Clear();g.save.x=10.5f;g.save.y=10.5f;
+                g.enemies.Clear();g.save.x=10.5f;g.save.y=10.7f;
                 var room=typeof(GameCore).GetField("roadTrialRoom",
                     System.Reflection.BindingFlags.NonPublic|
                     System.Reflection.BindingFlags.Instance);
@@ -260,9 +260,9 @@ namespace Starfall.Tests
                     System.Reflection.BindingFlags.Instance);
                 Check(room!=null&&cycle!=null&&surge!=null&&
                     g.CanStand(g.Position)&&
-                    g.CanStand(new Point(10.5f,12.1f))&&
-                    g.CanStand(new Point(10.5f,8.9f)),
-                    "Real tide-surges expose two nominal free dodge feet in inaccessible rooms across walls");
+                    g.CanStand(new Point(10.5f,12.3f))&&
+                    !g.CanStand(new Point(10.5f,9.1f)),
+                    "Tide surge has exactly one physically standable candidate beyond a solid disconnected wall, while the other is impassable");
                 room.SetValue(g,2);cycle.SetValue(g,0);
                 surge.Invoke(g,new object[0]);
                 Check(g.hazards.Count==0,
