@@ -993,6 +993,73 @@ namespace Starfall.Tests
             }
         }
 
+        public static void GuardRangerMovesFromWalkableBlindFootToPhysicalFiringLane(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Actual watch encounter is interactable");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Real ranged guard order was accepted");
+            var score=typeof(GameCore).GetMethod("OuterPatrolGuardFiringLanes",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var route=typeof(GameCore).GetMethod("ActorHasLocalRoute",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var target=typeof(GameCore).GetMethod("CompanionOutpostGuardTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var foot=typeof(GameCore).GetField("outerPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var clock=typeof(GameCore).GetField("outerPatrolGuardRouteCheck",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(score!=null&&route!=null&&target!=null&&foot!=null&&clock!=null,
+                "Exercise the original shooting and local path APIs");
+            int best=(int)score.Invoke(g,new object[]{g.OuterPatrolCompanionGuardPosition});
+            Check(best>0,"Current real post guard can fire on initial raiders");
+            Point blind=new Point();bool found=false;
+            for(int dx=-10;dx<=10&&!found;dx++)
+            for(int dy=-10;dy<=10&&!found;dy++)
+            {
+                Point probe=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(probe)||
+                   (probe-g.OuterPatrolCompanionGuardPosition).Length<3f||
+                   (int)score.Invoke(g,new object[]{probe})>0||
+                   !(bool)route.Invoke(g,new object[]{
+                       probe,g.OuterPatrolCompanionGuardPosition,10}))continue;
+                blind=probe;found=true;
+            }
+            Check(found,"Real map contains a walkable but blind defender tile");
+            g.companionPosition=blind;
+            foot.SetValue(g,blind);
+            clock.SetValue(g,0f);
+            Point before=g.companionPosition;
+            Point better=(Point)target.Invoke(g,null);
+            Check(g.OuterPatrolCompanionGuarding&&
+                (better-blind).Length>.5f&&
+                (int)score.Invoke(g,new object[]{better})>0&&
+                (g.companionPosition-before).Length<.001f,
+                "Blind but walkable guard relocates target to real firing lane without warping");
+            Check(g.save.version==2&&g.projectiles.Count==0,
+                "Firing-lane discovery never spawns fake arrows or changes old saves");
+        }
+
         public static void GuardReplansBlockedWorldRouteWithoutWarpingOrOrphanOrders(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,

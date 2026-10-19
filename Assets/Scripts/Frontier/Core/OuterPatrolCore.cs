@@ -521,6 +521,24 @@ namespace Starfall
                     if(!ReplanOuterPatrolGuardFoot())
                         return CompanionFollowTarget();
                 }
+                else if(save.companion!=0&&
+                    (companionPosition-outerPatrolCompanionGuardFoot).Length<.5f&&
+                    OuterPatrolGuardFiringLanes(outerPatrolCompanionGuardFoot)==0)
+                {
+                    // After a raider moves out of the shot lane, the old
+                    // planted stance may stay walkable but tactically dead.
+                    // Re-evaluate at the same bounded route-check cadence.
+                    // Change post only if a NEW location can actually fire;
+                    // do not roam forever when no targets are shootable.
+                    Point alternate;
+                    if(TryOuterPatrolCompanionGuardFoot(out alternate)&&
+                        (alternate-outerPatrolCompanionGuardFoot).Length>.5f&&
+                        OuterPatrolGuardFiringLanes(alternate)>0)
+                    {
+                        outerPatrolCompanionGuardFoot=alternate;
+                        revision++;
+                    }
+                }
             }
             return outerPatrolCompanionGuardFoot;
         }
