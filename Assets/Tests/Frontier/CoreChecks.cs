@@ -1050,12 +1050,24 @@ namespace Starfall.Tests
                 "Closed route replans to reachable guard position without teleporting actor");
             Check((g.OuterPatrolCompanionGuardPosition-updated).Length<.01f,
                 "World guard marker reads recovered actual reachable destination");
-            // A genuinely invalid foot retires the tactical order instead
-            // of persisting an impossible guard marker over another scene.
+            // A tide-covered or sealed ORIGINAL waypoint must not
+            // prematurely abandon a useful guard when another REAL
+            // connected shooting foot still exists in the same region.
             field.SetValue(g,new Point(-20f,-20f));
+            Point relocated=(Point)target.Invoke(g,null);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.CanStand(relocated)&&
+                (relocated-new Point(-20f,-20f)).Length>1f&&
+                (g.companionPosition-actorBefore).Length<.001f,
+                "Blocked stock foot chooses genuine alternate without warping");
+            // If even the companion itself is buried in invalid terrain,
+            // there is no legal local source from which to certify a route.
+            // Retire the command rather than keeping a phantom guard.
+            field.SetValue(g,new Point(-20f,-20f));
+            g.companionPosition=new Point(-20f,-20f);
             target.Invoke(g,null);
             Check(!g.OuterPatrolCompanionGuarding,
-                "Non-walkable emergency target safely returns to ordinary following");
+                "No physically reachable guard position safely resumes following");
         }
 
         public static void RealCompanionGuardsSuppliesWithoutWarpingOrPersisting(Campaign data)

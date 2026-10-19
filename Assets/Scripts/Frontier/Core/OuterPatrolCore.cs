@@ -467,6 +467,23 @@ namespace Starfall
             }
             return best<float.MaxValue;
         }
+        private bool ReplanOuterPatrolGuardFoot()
+        {
+            Point alternate;
+            if(TryOuterPatrolCompanionGuardFoot(out alternate))
+            {
+                // Reroute only the target. Real ally position, muzzle,
+                // animation, current attack and movement remain untouched.
+                outerPatrolCompanionGuardFoot=alternate;
+                revision++;
+                return true;
+            }
+            outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
+            outerPatrolGuardRouteCheck=0f;
+            Notify("哨岗附近的安全驻守路线已封闭，同伴恢复跟随。",
+                "No accessible cache guard lane remains; companion follows normally.");
+            return false;
+        }
         private Point CompanionOutpostGuardTarget()
         {
             if(!OuterPatrolCompanionGuarding)return CompanionFollowTarget();
@@ -474,11 +491,9 @@ namespace Starfall
             // guard foot. Fall back to normal following rather than walking
             // through a suddenly blocked prop, retaining the chosen stance
             // only while a real guard position remains available.
-            if(!Fits(outerPatrolCompanionGuardFoot))
-            {
-                outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
+            if(!Fits(outerPatrolCompanionGuardFoot)&&
+                !ReplanOuterPatrolGuardFoot())
                 return CompanionFollowTarget();
-            }
             // Mira can protect a relief site without abandoning a critically
             // injured hero beyond her PHYSICAL six-unit heal reach. Rally on
             // foot at <35% HP; do not bounce back after the first small heal.
@@ -503,19 +518,8 @@ namespace Starfall
                     !ActorHasLocalRoute(companionPosition,
                         outerPatrolCompanionGuardFoot,10))
                 {
-                    Point alternate;
-                    if(TryOuterPatrolCompanionGuardFoot(out alternate))
-                    {
-                        outerPatrolCompanionGuardFoot=alternate;
-                        revision++;
-                    }
-                    else
-                    {
-                        outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
-                        Notify("哨岗驻守路线已封闭，同伴改为正常跟随。",
-                            "Watch route closed; companion resumes normal following.");
+                    if(!ReplanOuterPatrolGuardFoot())
                         return CompanionFollowTarget();
-                    }
                 }
             }
             return outerPatrolCompanionGuardFoot;
