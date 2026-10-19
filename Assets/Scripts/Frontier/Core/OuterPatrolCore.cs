@@ -17,6 +17,20 @@ namespace Starfall
         }
         private void ResetOuterPatrol()
         {
+            // An interrupted defense must retire its actual attackers, not
+            // merely forget their IDs and leave orphan combat in the world.
+            // Also retire their already released arrows and pending cues;
+            // unrelated wilderness patrols and player attacks survive.
+            if(outerPatrolRoom>=0)
+                for(int i=enemies.Count-1;i>=0;i--)
+                    if(enemies[i].id==outerPatrolEnemyA||
+                       enemies[i].id==outerPatrolEnemyB)
+                    {
+                        RemoveEnemyPendingWarning(enemies[i]);
+                        enemies.RemoveAt(i);
+                    }
+            projectiles.RemoveAll(p=>p.outerPatrolOwned);
+            effects.RemoveAll(e=>e.outerPatrolOwned);
             outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=-1;
             outerPatrolADead=outerPatrolBDead=false;
         }
@@ -77,24 +91,64 @@ namespace Starfall
                 !OuterCacheRecovered(room)||Dying||practicing)return true;
             WorldObject post=null;
             foreach(WorldObject o in Map.objects)if(o.kind=="outerwatch"){post=o;break;}
-            if(post==null||(Position-new Point(post.x,post.y)).Length>2.2f)return true;
+            if(post==null||!PhysicalRefugeReach(
+                new Point(post.x,post.y),2.2001f))return true;
             if(!SafeTravel)
             {
                 Notify("先清理当前追击你的敌人。","Clear the nearby pursuers first.");
                 return true;
             }
-            Point left=new Point(post.x-2f,post.y);
-            Point right=new Point(post.x+1f,post.y-1f);
-            if(!CanStand(left)||!CanStand(right))return true;
+            Point[] feet;
+            if(!TryOuterPatrolFeet(post,out feet))
+            {
+                Notify("救援岗暂时找不到两处可达且不被占用的安全战斗落点。清出场地后可重试。",
+                    "Two reachable, unoccupied raider roots are unavailable. Clear the outpost and retry.");
+                return true;
+            }
             outerPatrolRoom=room;
-            Enemy one=CreatePlacedEnemy(++enemyId,0,left,48+room*10);
-            Enemy two=CreatePlacedEnemy(++enemyId,1,right,42+room*10);
+            Enemy one=CreatePlacedEnemy(++enemyId,0,feet[0],48+room*10);
+            Enemy two=CreatePlacedEnemy(++enemyId,1,feet[1],42+room*10);
             outerPatrolEnemyA=one.id;outerPatrolEnemyB=two.id;
             outerPatrolADead=outerPatrolBDead=false;
             enemies.Add(one);enemies.Add(two);
             revision++;sound="quest";
             Notify("救援防卫开始：击退两名真实敌人！",
                 "Relief defense started: defeat both attackers!");
+            return true;
+        }
+        private bool TryOuterPatrolFeet(WorldObject post,out Point[] result)
+        {
+            result=null;
+            Point center=new Point(post.x,post.y);
+            if(!CanStand(center))return false;
+            // Preserve original dramatic approaches first, but do not put
+            // attackers in blocked pockets, inside a friend, or overlapping
+            // a pre-existing living enemy. Every chosen foot must have a
+            // complete route into the actual storehouse being defended.
+            Point[] offsets={new Point(-2f,0),new Point(1f,-1f),
+                new Point(-3f,1f),new Point(2f,1f),
+                new Point(-2f,-2f),new Point(3f,0),
+                new Point(0,-3f),new Point(0,3f),
+                new Point(-3f,-2f),new Point(3f,2f),
+                new Point(3f,-2f),new Point(-2f,3f)};
+            var feet=new System.Collections.Generic.List<Point>();
+            foreach(Point offset in offsets)
+            {
+                Point p=center+offset;
+                if(!CanStand(p)||
+                    (p-Position).Length<1.55f||
+                    (save.companion>=0&&
+                     (p-companionPosition).Length<1.55f)||
+                    feet.Exists(other=>(other-p).Length<2.7f)||
+                    enemies.Exists(e=>e.hp>0&&
+                        (e.Position-p).Length<1.8f)||
+                    !ActorHasLocalRoute(p,center,10))
+                    continue;
+                feet.Add(p);
+                if(feet.Count==2)break;
+            }
+            if(feet.Count!=2)return false;
+            result=feet.ToArray();
             return true;
         }
         private void TickOuterPatrol()

@@ -966,6 +966,7 @@ namespace Starfall
             effect.civicResponseOwned = IsCivicResponseEnemy(attacker);
             effect.lastDirectiveOwned = IsLastDirectiveEnemy(attacker);
             effect.afterlightWatchOwned = IsAfterlightWatchEnemy(attacker);
+            effect.outerPatrolOwned = IsOuterPatrolEnemy(attacker);
         }
         private void UpdateEnemies(float dt)
         {
@@ -1262,7 +1263,7 @@ namespace Starfall
             tickingEnemies.Clear();
         }
         private void Fire(Enemy e, Point dir, float speed)
-        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);
+        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e); shot.outerPatrolOwned = IsOuterPatrolEnemy(e);
             shot.skywatchOwned = IsSkywatchEnemy(e);
             shot.atlasEchoOwned = IsAtlasEchoEnemy(e);
             shot.wayfarerOwned = IsWayfarerEnemy(e);

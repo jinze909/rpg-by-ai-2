@@ -447,6 +447,111 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void EightRegionOutpostRetiresOrphanRaidersAndOwnArrowsWithoutFakeRescue(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[34];
+                for(int y=0;y<34;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=31)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                var outpost=new WorldObject{id="outer_watch_0",
+                    kind="outerwatch",name="Relief outpost",
+                    en="Relief outpost",x=10.5f,y=10.5f};
+                data.maps[0]=new MapData{id=0,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{outpost},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(0);
+                g.enemies.Clear();
+                g.save.flags.Add("outer_cache_0");
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.Talk(outpost);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The original recovered relief box unlocks an authentic optional outpost defense");
+                int start=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="outer_watch_start")
+                    {start=i;break;}
+                Check(start>=0,"The actual outpost offers its real two-attacker challenge");
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(start);
+                Check(!g.OuterPatrolActive&&g.enemies.Count==0,
+                    "A stale outpost start cannot spawn hostile creatures through a newly closed physical wall");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(outpost);
+                start=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="outer_watch_start")
+                    {start=i;break;}
+                Check(start>=0,"Opening the same wall restores legitimate outpost combat access");
+                g.Choose(start);
+                var raiders=g.enemies.FindAll(e=>e.hp>0);
+                Check(g.OuterPatrolActive&&raiders.Count==2&&
+                    (raiders[0].Position-raiders[1].Position).Length>=2.7f,
+                    "A complete pair of physically reachable combat raiders is spawned, not a partial enemy list");
+                foreach(Enemy foe in raiders)
+                    Check(g.CanStand(foe.Position)&&
+                        (foe.Position-g.Position).Length>=1.55f,
+                        "Neither real raider materializes inside blocking ground or on the hero");
+                var ambient=new Enemy(93110,0,20.5f,18.5f,500f)
+                    {stun=200,timer=200};
+                g.enemies.Add(ambient);
+                var ownedShot=new Projectile{position=new Point(10.5f,10.5f),
+                    velocity=new Point(1,0),damage=7,outerPatrolOwned=true};
+                var unrelatedShot=new Projectile{position=new Point(20.5f,18.5f),
+                    velocity=new Point(1,0),damage=7};
+                g.projectiles.Add(ownedShot);g.projectiles.Add(unrelatedShot);
+                var warning=new Effect("danger",raiders[0].Position,.75f)
+                    {outerPatrolOwned=true};
+                var unrelated=new Effect("spark",ambient.Position,.75f);
+                g.effects.Add(warning);g.effects.Add(unrelated);
+                int coins=g.save.coins,shards=g.save.shards;
+                // Disappearing from the live list without an actual lethal
+                // Hit callback must abort, NOT complete or leave ghosts.
+                g.enemies.Remove(raiders[1]);g.Close();
+                g.Tick(.05f,new Point());
+                Check(!g.OuterPatrolActive&&
+                    !g.enemies.Contains(raiders[0])&&
+                    g.enemies.Contains(ambient)&&
+                    !g.projectiles.Contains(ownedShot)&&
+                    g.projectiles.Contains(unrelatedShot)&&
+                    !g.effects.Contains(warning)&&
+                    g.effects.Contains(unrelated)&&
+                    !g.OuterPatrolDone(0)&&
+                    g.save.coins==coins&&g.save.shards==shards,
+                    "An abnormal missing raider removes ONLY this outpost's living foes, shots and warnings with no false victory");
+                g.projectiles.Clear();g.effects.Clear();
+                g.enemies.Remove(ambient);
+                g.Talk(outpost);start=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="outer_watch_start")
+                    {start=i;break;}
+                Check(start>=0,"After a genuine abort the recovered outpost can start a fresh real defense");
+                g.Choose(start);
+                raiders=g.enemies.FindAll(e=>e.hp>0);
+                Check(g.OuterPatrolActive&&raiders.Count==2,
+                    "Retry deploys two new original combat opponents without reusing old identities");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(hit!=null,"The original contact pathway is available for real registered combat deaths");
+                foreach(Enemy foe in raiders)
+                    hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+                g.hitStop=0;g.Close();g.Tick(.05f,new Point());
+                Check(g.OuterPatrolDone(0)&&!g.OuterPatrolActive&&
+                    g.save.coins>=coins+14&&g.save.shards>=shards+1&&
+                    g.save.version==2,
+                    "Exactly two authentic lethal hits settle a retry and preserve one legitimate persistent relief clear");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();
