@@ -1875,6 +1875,33 @@ namespace Starfall.Tests
                 (field.companionAction.target.Value-fieldBackup.Position).Length<.01f,
                 "Field release updates aim and projectile target together");
 
+            // A foe can die after the companion has committed its draw.
+            // The release must reacquire a living, actually shootable backup
+            // instead of firing at the dead foe's stale coordinates.
+            GameCore fieldKilled=new GameCore(data);fieldKilled.mode="world";
+            fieldKilled.save.room=0;fieldKilled.save.companion=1;
+            fieldKilled.companionPosition=origin;
+            fieldKilled.enemies.Clear();fieldKilled.projectiles.Clear();
+            Enemy doomed=new Enemy(920614,0,first.x,first.y,30f);
+            Enemy survivor=new Enemy(920615,0,alternate.x,alternate.y,30f);
+            fieldKilled.enemies.Add(doomed);fieldKilled.enemies.Add(survivor);
+            fieldTarget.SetValue(fieldKilled,doomed);
+            fieldCooldown.SetValue(fieldKilled,2.8f);
+            fieldKilled.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(doomed.Position-origin).Normalized,
+                target=doomed.Position
+            };
+            fieldKilled.enemies.Remove(doomed);
+            fieldTick.Invoke(fieldKilled,new object[]{.17f});
+            Check(fieldKilled.companionAction!=null&&
+                fieldKilled.companionAction.released&&
+                (Enemy)fieldTarget.GetValue(fieldKilled)==survivor&&
+                fieldKilled.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "Ordinary field auto-fire reacquires a living backup when its locked foe dies mid-windup");
+            Check(fieldKilled.companionAction.target.HasValue&&
+                (fieldKilled.companionAction.target.Value-survivor.Position).Length<.01f,
+                "Target death cannot leave the replacement arrow aimed at stale coordinates");
         }
 
         public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
