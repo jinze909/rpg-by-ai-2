@@ -1693,11 +1693,54 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS locked/out-of-range saved region returns to inn without stale enemies or lost items");
     }
 
+    private static void LiveVKeyBarricadeUsesRealOutpostGuard(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;g.mode="world";
+        g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+        var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+        Check(post!=null,"Input test targets a real playable outer cache post");
+        g.save.x=post.x;g.save.y=post.y;
+        g.save.flags.Add("outer_cache_0");
+        g.save.flags.Add("outer_patrol_done_0");
+        g.save.inventory[0]=7;g.save.inventory[4]=3;
+        g.Talk(post);
+        int veteran=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_veteran");
+        Check(veteran>=0,"A finished watchpost offers the live veteran siege");
+        g.Choose(veteran);
+        Check(g.OuterPatrolVeteranActive&&g.OuterPatrolBraceIntegrity==0f,
+            "Real veteran fight starts with no prepaid barricade");
+
+        g.save.x=post.x+6f;g.save.y=post.y;
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.OuterPatrolBraceIntegrity==0f&&
+            g.save.inventory[0]==7&&g.save.inventory[4]==3,
+            "Real keyboard V cannot build cover remotely from outside the post");
+
+        g.save.x=post.x;g.save.y=post.y;
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.OuterPatrolBraceStanding&&
+            g.OuterPatrolBraceIntegrity==48f&&
+            g.save.inventory[0]==5&&g.save.inventory[4]==2,
+            "Keyboard V directly buys and places one genuine 48-HP stock barrier");
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.OuterPatrolBraceIntegrity==48f&&
+            g.save.inventory[0]==5&&g.save.inventory[4]==2,
+            "Repeated keyboard activation cannot pay/build the same barricade twice");
+        g.Talk(post);
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.save.inventory[0]==5&&g.save.inventory[4]==2,
+            "Keyboard cannot bypass dialog-mode action restrictions");
+        g.Close();
+        Console.WriteLine("PASS keyboard V constructs only one nearby real veteran barricade");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

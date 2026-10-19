@@ -381,6 +381,16 @@ namespace Starfall
                     "The outpost approach is crowded; you arrived at the normal region entrance.");
             return true;
         }
+        // The timed veteran raid is playable without pausing to open
+        // a dialog: a single physical, already validated button uses the
+        // SAME guarded resource transaction as the dialogue choice.
+        // No cover is spawned while distant, dead, paused or replaying a
+        // normal two-raider siege.
+        public void QuickBraceOuterPatrol()
+        {
+            if(mode!="world"||!OuterPatrolBraceAvailable)return;
+            ChooseOuterPatrol("outer_watch_brace");
+        }
         private bool ChooseOuterPatrol(string action)
         {
             if(ChooseOuterPatrolRoutes(action))return true;

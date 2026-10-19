@@ -230,7 +230,7 @@ namespace Starfall
                     (Game.OuterPatrolPatchAvailable?
                         Game.L(" · 按 E 抢修"," · E TO PATCH"):"")+
                     (Game.OuterPatrolBraceAvailable?
-                        Game.L(" · 按 E 架路障"," · E TO BRACE"):""),
+                        Game.L(" · 靠近哨岗按 V 架路障"," · NEAR POST: V TO BRACE"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
             }
