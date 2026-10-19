@@ -29,6 +29,16 @@ namespace Starfall
         { get { return OuterPatrolActive&&outerPatrolVeteran; } }
         public bool OuterPatrolVeteranDone(int room)
         { return room>=0&&room<8&&Has("outer_patrol_veteran_"+room); }
+        // A genuine flawless victory requires the whole real three-raider
+        // defense with at least 90% stock and no free-form repair or cover.
+        // Unlike the first-clear payout, this badge CAN be earned on replay.
+        public bool OuterPatrolFlawlessEligible
+        { get {return OuterPatrolVeteranActive&&outerPatrolStock>=90f&&
+            !outerPatrolPatched&&!outerPatrolBraceBuilt;}}
+        public bool OuterPatrolFlawlessDone(int room)
+        {return room>=0&&room<8&&Has("outer_patrol_flawless_"+room);}
+        public int OuterPatrolFlawlessWins
+        {get{int n=0;for(int i=0;i<8;i++)if(OuterPatrolFlawlessDone(i))n++;return n;}}
         public int OuterPatrolVeteranWins
         { get { int total=0;for(int i=0;i<8;i++)if(OuterPatrolVeteranDone(i))total++;return total; } }
         public bool OuterPatrolDone(int room)
@@ -161,10 +171,16 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,
                     "居民已接管此处的物资与补给道路，安全时可恢复生命和耐力。"+
+                    (OuterPatrolFlawlessDone(room)?
+                        "本地已获得无损守卫徽章。":
+                        "精英战无路障、无抢修并守住90%以上物资，可争取无损徽章。")+
                     (OuterPatrolVeteranDone(room)?
                         "你击退过精英三人组，此处医疗与补给更充足。可重演训练，但不会重复获得奖品。":
                         "可发起 110 秒精英防卫：真正的重甲敌人会砸毁物资。首次获胜可强化补给点。"),
                     "Residents operate this defended supply route. Recover here when safe. "+
+                    (OuterPatrolFlawlessDone(room)?
+                        "Flawless watch medal earned here. ":
+                        "Clear a veteran siege with >=90% stock and no barricade or patch for a flawless medal. ")+
                     (OuterPatrolVeteranDone(room)?
                         "Veteran defense cleared: stronger local care is available. Replay yields no rewards.":
                         "A 110s veteran defense adds a real heavy cache saboteur. First clear improves this refuge."),
@@ -501,14 +517,33 @@ namespace Starfall
                 (outerPatrolVeteran&&(!outerPatrolCDead||presentC)))return;
             int completedRoom=outerPatrolRoom;
             bool veteranWin=outerPatrolVeteran;
+            bool flawless=veteranWin&&outerPatrolStock>=90f&&
+                !outerPatrolPatched&&!outerPatrolBraceBuilt;
             ResetOuterPatrol();
             if(veteranWin)
             {
+                bool newMedal=flawless&&!OuterPatrolFlawlessDone(completedRoom);
+                if(newMedal)
+                {
+                    Flag("outer_patrol_flawless_"+completedRoom);
+                    if(OuterPatrolFlawlessWins==8&&
+                        !Has("outer_patrol_flawless_all"))
+                    {
+                        Flag("outer_patrol_flawless_all");
+                        CreditSkillPoints(1);
+                    }
+                    RecordMoment("精英救援岗取得真正的无损防卫：未使用路障和抢修，物资保持90%以上。",
+                        "Earned flawless relief watch: three raiders defeated, no barricade or patch, >=90% real stock.");
+                }
                 if(OuterPatrolVeteranDone(completedRoom))
                 {
                     revision++;sound="reward";
-                    Notify("精英三人组已被实际击退，重演无重复奖励。",
-                        "All three veteran raiders defeated; replay offers no repeat loot.");
+                    Notify(newMedal?
+                            "重战精英三人组成功，获得本地无损守卫徽章！":
+                            "精英三人组已被实际击退，重演无重复奖励。",
+                        newMedal?
+                            "Flawless defense medal earned on real replay!":
+                            "All three veteran raiders defeated; replay offers no repeat loot.");
                     return;
                 }
                 Flag("outer_patrol_veteran_"+completedRoom);
@@ -518,8 +553,10 @@ namespace Starfall
                 revision++;sound="reward";
                 RecordMoment("精英补给守卫战已胜利：重甲袭击者确实被击退，哨岗获得强化。",
                     "Veteran cache defense cleared in live combat; field refuge staffing improved.");
-                Notify("精英防卫完成：硬币 +26、碎片 +2、经验 +60；本地医疗强化。",
-                    "Veteran defense cleared: +26 coins, +2 shards, +60 XP; refuge upgraded.");
+                Notify("精英防卫完成：硬币 +26、碎片 +2、经验 +60；本地医疗强化。"+
+                        (newMedal?" 无损守卫徽章 +1。":""),
+                    "Veteran defense cleared: +26 coins, +2 shards, +60 XP; refuge upgraded."+
+                        (newMedal?" Flawless watch medal earned.":""));
                 return;
             }
             if(OuterPatrolDone(completedRoom))return;

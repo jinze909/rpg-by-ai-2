@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -676,6 +676,49 @@ namespace Starfall
                     L("走到救援岗主动发起防卫","Reach the watchpost and start the defense");
                 q.reward=L("每岗硬币 +14、碎片 +1、经验 +28；八岗全守住再得1技能点",
                     "Each defense: +14 coins, +1 shard, +28 XP; all eight: +1 talent point");
+                return q;
+            }
+
+            if(id=="outer_watch_flawless")
+            {
+                q.title=L("无损守卫 · 八地荣誉挑战",
+                    "Flawless Watches · Eight Honor Challenges");
+                q.category=L("精英挑战 · 战斗精通",
+                    "VETERAN CHALLENGE · COMBAT MASTERY");
+                q.description=L(
+                    "在每处真正的精英三人防卫中击退全部敌人，物资剩余至少90%，全过程不使用抢修或路障。可重新挑战已完成的精英防卫争取徽章；旧奖励不会重复发放。",
+                    "Defeat all three live veteran raiders with >=90% cache integrity, no repairs and no barricade. Replay cleared veteran battles to earn medals without duplicating earlier loot.");
+                q.locked=OuterPatrolVeteranWins==0;
+                q.complete=OuterPatrolFlawlessWins==8;
+                int target=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场",
+                    "堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach",
+                    "Citadel","Mistport","Glasswind","Frostchime"};
+                for(int room=0;room<8;room++)
+                {
+                    bool medal=OuterPatrolFlawlessDone(room);
+                    bool unlocked=OuterPatrolDone(room);
+                    q.steps.Add(new QuestStep(L(zh[room],en[room])+
+                        (medal?" ✓":unlocked?" · 可挑战无损防卫":" · 先守住普通救援岗"),
+                        medal));
+                    if(target<0&&!medal&&unlocked&&CanEnter(room))
+                        target=room;
+                }
+                q.room=target<0?0:target;
+                q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.kind=="outerwatch")
+                        {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("八地无损防卫已全部获得徽章",
+                    "All eight flawless watch medals earned"):
+                    target<0?L("先解锁救援岗和精英挑战",
+                        "Unlock a defended veteran outpost first"):
+                    L("在标记哨岗完成无路障、无抢修的真实精英战",
+                        "Defend the marked cache without repairs or a barricade");
+                q.reward=L("八地无损徽章全部取得：额外技能点 +1",
+                    "Complete all eight authentic flawless medals: +1 talent point");
                 return q;
             }
 

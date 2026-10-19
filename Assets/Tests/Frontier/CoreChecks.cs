@@ -901,6 +901,108 @@ namespace Starfall.Tests
                 "After the real defense is withdrawn auto targeting remains normal");
         }
 
+        public static void VeteranFlawlessMedalsRequireRealThreeKillsAndAreEarnableOnReplay(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Flawless medals rely on genuine Hit transactions");
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.enemies.Clear();g.projectiles.Clear();
+                g.save.level=25;g.save.xp=0;
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.flags.Add("outer_cache_"+room);
+                g.save.flags.Add("outer_patrol_done_"+room);
+                g.save.inventory[0]=6;g.save.inventory[4]=4;
+                int coins=g.save.coins,shards=g.save.shards;
+                // Eight-region mastery reward is independent of initial
+                // eight-veteran bonuses and ordinary XP leveling.
+                if(room==7)
+                    for(int i=0;i<7;i++)
+                    {
+                        g.save.flags.Add("outer_patrol_done_"+i);
+                        g.save.flags.Add("outer_patrol_veteran_"+i);
+                        g.save.flags.Add("outer_patrol_flawless_"+i);
+                    }
+                int talent=g.save.skillPoints;
+                g.Talk(post);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(start>=0,"Veteran fight is physically offered");
+                g.Choose(start);
+                Check(g.OuterPatrolFlawlessEligible,
+                    "Clean challenge is eligible at untouched 100% stock");
+                g.Talk(post);
+                int brace=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_brace");
+                Check(brace>=0,"Veteran post allows voluntary protective cover");
+                g.Choose(brace);
+                Check(!g.OuterPatrolFlawlessEligible,
+                    "Deploying tactical cover forfeits this run's no-assist medal");
+                Enemy[] foes=g.enemies.ToArray();
+                foreach(Enemy e in foes)
+                {
+                    hit.Invoke(g,new object[]{e,10000f,true,null,null});
+                    for(int i=0;i<12;i++)g.Tick(.02f,new Point());
+                }
+                Check(g.OuterPatrolVeteranDone(room)&&
+                    !g.OuterPatrolFlawlessDone(room),
+                    "Three genuine kills with a barricade pay base win but not a medal");
+                g.Talk(post);
+                start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                g.Choose(start);
+                Check(g.OuterPatrolFlawlessEligible,
+                    "Replay has a fresh honest no-assist challenge");
+                foes=g.enemies.ToArray();
+                foreach(Enemy e in foes)
+                {
+                    hit.Invoke(g,new object[]{e,10000f,true,null,null});
+                    for(int i=0;i<12;i++)g.Tick(.02f,new Point());
+                }
+                Check(g.OuterPatrolFlawlessDone(room)&&
+                    !g.OuterPatrolActive&&g.save.coins==coins+26&&
+                    g.save.shards==shards+2,
+                    "Clean real replay awards permanent medal without duplicate first-clear loot");
+                if(room==7)
+                    Check(g.OuterPatrolFlawlessWins==8&&
+                        g.Has("outer_patrol_flawless_all")&&
+                        g.save.skillPoints==talent+2,
+                        "Genuine eighth veteran and eighth flawless each grant one skill point");
+                else Check(g.save.skillPoints==talent,
+                    "Partial flawless collection cannot farm talent points");
+                SaveData persisted=new SaveData{
+                    version=2,room=g.save.room,stage=g.save.stage,
+                    x=g.save.x,y=g.save.y,
+                    presentationVersion=g.save.presentationVersion,
+                    flags=new List<string>(g.save.flags),
+                    trackedQuest="outer_watch_flawless"
+                };
+                GameCore reload=new GameCore(data,persisted);
+                Check(reload.save.version==2&&
+                    reload.OuterPatrolFlawlessDone(room)&&
+                    reload.save.trackedQuest=="outer_watch_flawless",
+                    "New mastery medal is an ordinary legacy-compatible v2 flag and journal");
+                g.Talk(post);
+                start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                g.Choose(start);
+                foes=g.enemies.ToArray();
+                foreach(Enemy e in foes)
+                {
+                    hit.Invoke(g,new object[]{e,10000f,true,null,null});
+                    for(int i=0;i<12;i++)g.Tick(.02f,new Point());
+                }
+                Check(g.OuterPatrolFlawlessDone(room)&&
+                    g.save.coins==coins+26&&g.save.shards==shards+2,
+                    "Third full authentic clean win cannot repeat rewards");
+            }
+        }
+
         public static void VeteranBarricadeSpendsRealSuppliesAndAbsorbsReleasedStockHits(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,

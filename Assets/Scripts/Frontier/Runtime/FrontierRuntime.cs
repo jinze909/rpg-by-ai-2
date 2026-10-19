@@ -781,12 +781,14 @@ namespace Starfall
             if(kind=="outerwatch")
             {
                 bool done=Game.OuterPatrolDone(Game.save.room);
+                bool flawless=Game.OuterPatrolFlawlessDone(Game.save.room);
                 PropImage("post",0,p.x-34,p.y-80,68,83,
+                    flawless?new Color(1f,.91f,.68f):
                     done?new Color(.68f,.93f,.78f):Color.white);
                 // Veteran fights occur at already-repaired posts: the
                 // live danger color MUST outrank the old green-clear tint.
                 Color guardColor=Game.OuterPatrolActive?
-                    new Color(1,.4f,.34f):done?mint:gold;
+                    new Color(1,.4f,.34f):flawless?gold:done?mint:gold;
                 Ring(new Point(o.x,o.y),.43f,guardColor,14);
                 if(Game.OuterPatrolActive||!done)
                     Diamond(p.x,p.y-79,5,guardColor);
@@ -800,6 +802,8 @@ namespace Starfall
                             new Color(1,.4f,.34f):gold,TextAnchor.MiddleCenter);
                 else if(done)
                     Text(p.x-79,p.y-104,158,18,
+                        flawless?Game.L("无损守卫徽章 · 荣誉补给岗",
+                            "FLAWLESS MEDAL · HONOR POST"):
                         Game.OuterPatrolVeteranDone(Game.save.room)?
                             Game.L("精英补给岗 · 强化医疗","VETERAN POST · IMPROVED CARE"):
                             Game.L("安全补给 · 恢复与避寒暑",

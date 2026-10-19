@@ -224,7 +224,9 @@ namespace Starfall
                     Math.Ceiling(stock)+"%"+
                     (Game.OuterPatrolVeteranActive?
                         Game.L(" · 路障 "," · BARRICADE ")+
-                        Math.Ceiling(Game.OuterPatrolBraceIntegrity):"")+
+                        Math.Ceiling(Game.OuterPatrolBraceIntegrity)+
+                        (Game.OuterPatrolFlawlessEligible?
+                            Game.L(" · 无损挑战中"," · FLAWLESS ACTIVE"):""):"")+
                     (Game.OuterPatrolPatchAvailable?
                         Game.L(" · 按 E 抢修"," · E TO PATCH"):"")+
                     (Game.OuterPatrolBraceAvailable?
