@@ -326,6 +326,14 @@ namespace Starfall
             bool unreleasedCommand=companionAction!=null &&
                 companionAction.kind=="command" && !companionAction.released;
             save.companion = id;
+            // A tactical watch was assigned to a PARTICULAR companion
+            // body and its original physical foot. Swapping that body
+            // cannot silently transfer the old guard position, medic
+            // rescue state or route timer to a different party member.
+            // Same-ID taps already return above and preserve the watch.
+            outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
+            outerPatrolCompanionGuardFoot=new Point();
+            outerPatrolGuardRouteCheck=0f;
             companionPresentationGeneration++;
             companionAction = null; companionAutoTarget = null;
             if(unreleasedCommand)companionCooldown=0f;

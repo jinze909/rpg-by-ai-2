@@ -855,6 +855,71 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CompanionPartySwapCannotInheritAnotherAllysDefenseOrder(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("companion_1");
+            g.save.flags.Add("companion_2");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Real guard trial can start at the physical cache");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"The live siege exposes the original guard order");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Original Ivo guard foot remains active before party switch");
+            Point postFoot=g.OuterPatrolCompanionGuardPosition;
+            g.SelectCompanion(1);
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.OuterPatrolCompanionGuardPosition-postFoot).Length<.001f,
+                "Repeating same ally selection cannot cancel a valid order");
+            Point safe=new Point();bool found=false;
+            for(int dx=-11;dx<=11&&!found;dx++)
+            for(int dy=-11;dy<=11&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-new Point(post.x,post.y)).Length>11f)continue;
+                g.save.x=p.x;g.save.y=p.y;
+                if(g.SafeTravel){safe=p;found=true;}
+            }
+            Check(found,"Real cache map includes a legal safe party-swap foot");
+            g.save.x=safe.x;g.save.y=safe.y;
+            g.SelectCompanion(2);
+            Check(g.save.companion==2&&g.OuterPatrolActive&&
+                !g.OuterPatrolCompanionGuarding&&
+                !g.OuterPatrolMedicRallying&&g.save.version==2,
+                "New Sen party member cannot inherit Ivo's planted stock order");
+            var stored=typeof(GameCore).GetField("outerPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(stored!=null&&
+                ((Point)stored.GetValue(g)).Length<.001f,
+                "Retired tactical waypoint is cleared, not orphaned in the world");
+            // A new companion must receive a NEW local physical order,
+            // rather than creating fake guard/sprite state from the swap.
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"New companion may receive a real fresh watch order");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.CanStand(g.OuterPatrolCompanionGuardPosition),
+                "New party member can actually be stationed again from post");
+        }
+
         public static void GuardMedicPhysicallyRalliesToCriticalHeroAndReturnsToStock(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
