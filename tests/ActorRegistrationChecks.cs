@@ -2112,19 +2112,19 @@ public static class ActorRegistrationChecks
         var cases=new[]{
             new {room=0,kind=0,boss=false,walk="MossboundRaider",
                 idle="MossboundRaider",stride=1.35f,walkRow=1,idleRow=0,
-                columns=4,rows=6},
+                columns=4,rows=6,idleRows=6},
             new {room=0,kind=2,boss=false,walk="CinderstoneGuard",
                 idle="CinderstoneGuard",stride=1.8f,walkRow=1,idleRow=0,
-                columns=4,rows=6},
+                columns=4,rows=6,idleRows=6},
             new {room=0,kind=1,boss=false,walk="WalkMonsters",
                 idle="Monsters",stride=1.8f,walkRow=1,idleRow=1,
-                columns=4,rows=3},
+                columns=4,rows=3,idleRows=3},
             new {room=2,kind=0,boss=true,walk="WalkBossA",
                 idle="Bosses",stride=2.8f,walkRow=1,idleRow=1,
-                columns=4,rows=4},
+                columns=4,rows=4,idleRows=8},
             new {room=1,kind=0,boss=true,walk="BriarBeast",
                 idle="BriarBeast",stride=2.8f,walkRow=1,idleRow=0,
-                columns=4,rows=18}
+                columns=4,rows=18,idleRows=18}
         };
         foreach(var item in cases)
         foreach(int gait in new[]{1,3})
@@ -2182,9 +2182,12 @@ public static class ActorRegistrationChecks
             Set(app,"clock",10.8f);Clear();
             var idle=Draw(app,"DrawEnemyActor",enemy);
             var idleBody=idle.Single(c=>c.texture.name==idleName);
-            Check(FrameRow(idleBody,item.rows)==item.idleRow&&
+            Check(FrameRow(idleBody,item.idleRows)==item.idleRow&&
                 idle.Count(ActorTexture)==1,
-                "After the bounded plant window, the same actor must return to its authored Idle source");
+                "After the bounded plant window, "+item.walk+" gait "+gait+
+                " expected Idle row "+item.idleRow+", observed row "+
+                FrameRow(idleBody,item.idleRows)+" with "+
+                idle.Count(ActorTexture)+" actor draws");
             GUI.Export(folder,"review-enemy-stop-plant-"+item.walk+"-phase-"+gait);
         }
         Console.WriteLine("PASS 10 live enemy/Boss stop transitions: authored next planted gait cell, one body, stable feet, bounded Idle return and all five production atlas families");
