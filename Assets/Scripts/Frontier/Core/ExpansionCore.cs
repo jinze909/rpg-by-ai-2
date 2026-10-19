@@ -581,34 +581,36 @@ namespace Starfall
                         // into a dead/occluded target and spend a full cooldown;
                         // retain the authored recovery pose and retry promptly.
                         Enemy locked = companionAutoTarget;
-                        if(action.kind=="attack"&&OuterPatrolCompanionGuarding)
+                        if(action.kind=="attack")
                         {
-                            // A living stock saboteur can BEGIN its real
-                            // warned strike during an ally's 160ms bow draw.
-                            // Reassess only this automatic release; a manual
-                            // Z command must always retain the user's aim.
-                            // A vanished/stunned/occluded old lock may instead
-                            // hand the same prepared shot to a new legal foe.
-                            Enemy urgent=NearestCompanionThreat();
+                            // Every automatic release rechecks the actual
+                            // muzzle: a legal foot-to-target line can still
+                            // leave the hand/weapon inside a nearby wall.
+                            // Reuse this already-prepared contact on another
+                            // genuinely shootable foe instead of wasting it.
+                            // Player-issued skills use kind="command" and keep
+                            // their exact user-directed target and aim.
+                            Enemy available=NearestCompanionThreat();
                             Point oldAim=locked==null?new Point():
                                 locked.Position-companionPosition;
-                            // A clear foot-to-target segment is not enough:
-                            // the exact swept hand/muzzle may be embedded in
-                            // a neighboring wall. Reassess that same geometry
-                            // before preserving a prepared target lock.
                             bool oldValid=locked!=null&&locked.hp>0&&
                                 enemies.Contains(locked)&&oldAim.Length<7f&&
                                 ClearAttackPath(companionPosition,locked.Position)&&
                                 !WeaponShot(companionPosition,
                                     action.weapon==1?1:2,oldAim.Normalized,
                                     9f,0f,(Point?)locked.Position).blockedAtSpawn;
-                            if(urgent!=null&&
-                                (!oldValid||
-                                 CompanionCacheContactImminent(urgent)&&
-                                 !CompanionCacheContactImminent(locked)))
+                            // During a real cache defense, an uncovered
+                            // committed stock strike can supersede an otherwise
+                            // valid lock. Outside that narrow priority rule,
+                            // preserve a still-shootable target's windup.
+                            bool urgentCache=OuterPatrolCompanionGuarding&&
+                                available!=null&&
+                                CompanionCacheContactImminent(available)&&
+                                !CompanionCacheContactImminent(locked);
+                            if(available!=null&&(!oldValid||urgentCache))
                             {
-                                locked=urgent;
-                                companionAutoTarget=urgent;
+                                locked=available;
+                                companionAutoTarget=available;
                             }
                         }
                         if (action.kind == "attack" &&

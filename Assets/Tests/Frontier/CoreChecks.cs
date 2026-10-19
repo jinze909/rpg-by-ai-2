@@ -1842,6 +1842,38 @@ namespace Starfall.Tests
             Check(g.companionAction.target.HasValue&&
                 (g.companionAction.target.Value-backup.Position).Length<.01f,
                 "Released projectile target and live aim stay on the replacement foe");
+
+            // Ordinary field combat uses the same release-time muzzle
+            // recovery, without relying on an active outpost guard order.
+            GameCore field=new GameCore(data);field.mode="world";
+            field.save.room=0;field.save.companion=1;
+            field.save.x=data.maps[0].spawnX;field.save.y=data.maps[0].spawnY;
+            field.companionPosition=origin;
+            field.enemies.Clear();field.projectiles.Clear();
+            Enemy fieldPrimary=new Enemy(920612,0,first.x,first.y,30f);
+            Enemy fieldBackup=new Enemy(920613,0,alternate.x,alternate.y,30f);
+            field.enemies.Add(fieldPrimary);field.enemies.Add(fieldBackup);
+            var fieldTarget=typeof(GameCore).GetField("companionAutoTarget",flags);
+            var fieldCooldown=typeof(GameCore).GetField("companionAttack",flags);
+            var fieldTick=typeof(GameCore).GetMethod("TickCompanion",flags);
+            Check(fieldTarget!=null&&fieldCooldown!=null&&fieldTick!=null,
+                "Ordinary companion combat exposes its production release state");
+            fieldTarget.SetValue(field,fieldPrimary);
+            fieldCooldown.SetValue(field,2.8f);
+            field.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(fieldPrimary.Position-origin).Normalized,
+                target=fieldPrimary.Position
+            };
+            fieldPrimary.x=corner.x;fieldPrimary.y=corner.y;
+            fieldTick.Invoke(field,new object[]{.17f});
+            Check(field.companionAction!=null&&field.companionAction.released&&
+                (Enemy)fieldTarget.GetValue(field)==fieldBackup&&
+                field.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "Ordinary field auto-fire reuses its prepared contact on the legal backup");
+            Check(field.companionAction.target.HasValue&&
+                (field.companionAction.target.Value-fieldBackup.Position).Length<.01f,
+                "Field release updates aim and projectile target together");
         }
 
         public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
