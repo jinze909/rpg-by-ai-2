@@ -300,6 +300,11 @@ namespace Starfall
             if (save.room != wayfarerEncounterRoom || Dying || practicing)
             { ResetWayfarerEncounter(); return; }
             int first=82000+wayfarerEncounterRoom*10;
+            bool anyStillAlive=false;
+            // Validate BOTH authored identities before waiting for either.
+            // Previously a surviving first raider made this method return
+            // early, letting the second quietly disappear without a real
+            // lethal hit and leaving the rescue in a broken active state.
             for(int i=0;i<2;i++)
             {
                 bool present=enemies.Exists(e=>e.id==first+i&&e.hp>0);
@@ -310,8 +315,9 @@ namespace Starfall
                         "A raider vanished without defeat. Retry the traveler defense for free.");
                     return;
                 }
-                if(present)return;
+                if(present)anyStillAlive=true;
             }
+            if(anyStillAlive)return;
             int room = wayfarerEncounterRoom;
             ResetWayfarerEncounter(); CompleteWayfarer(room, true);
         }

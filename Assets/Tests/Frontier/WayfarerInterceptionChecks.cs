@@ -4,6 +4,39 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void TravelerFightRejectsMissingSecondRaiderWhileFirstStillLives(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=10;
+            g.save.flags.Add("scout_saved");g.Enter(1);
+            g.enemies.Clear();g.invulnerable=120f;
+            WorldObject traveler=Object(g,"wayfarer1");
+            g.save.x=traveler.x;g.save.y=traveler.y;
+            Action(g,traveler.kind,"wayfarer_defend_1");
+            Check(g.WayfarerEncounterRoom==1&&
+                g.enemies.FindAll(e=>e.id>=82000&&e.id<82100).Count==2,
+                "Actual defense spawns both original identity-verified attackers");
+            Enemy survivor=g.enemies.Find(e=>e.id==82010);
+            Enemy missing=g.enemies.Find(e=>e.id==82011);
+            Check(survivor!=null&&missing!=null,
+                "Both standard traveler combat IDs must remain unchanged");
+            survivor.stun=100f;survivor.timer=100f;
+            g.enemies.Remove(missing);
+            Check(g.enemies.Contains(survivor)&&g.WayfarerEncounterRoom==1,
+                "Only the second real attacker disappears without a lethal callback");
+            int coins=g.save.coins,shards=g.save.shards;
+            g.Tick(.05f,new Point());
+            Check(g.WayfarerEncounterRoom==0&&
+                !g.enemies.Contains(survivor)&&
+                !g.Has("wayfarer_1")&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Still-living first raider cannot mask missing second enemy or lock the rescue into an endless trial");
+            Action(g,traveler.kind,"wayfarer_defend_1");
+            Check(g.WayfarerEncounterRoom==1&&
+                g.enemies.FindAll(e=>e.id>=82000&&e.id<82100).Count==2&&
+                g.save.version==2,
+                "Interrupted encounter can restart free with two real raiders and unmodified v2 save format");
+        }
+
         public static void LateWayfarerBodyguardInterceptionIsRealCombat(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
