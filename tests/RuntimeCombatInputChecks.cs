@@ -1859,6 +1859,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyResidentAnimation,
             ActorRegistrationChecks.VerifyNpcActionSignalProduction,
             ActorRegistrationChecks.VerifyHeroStopPlantContinuity,
+            ActorRegistrationChecks.VerifyEnemyStopPlantContinuity,
             ActorRegistrationChecks.VerifyCompanionGaitContinuity,
             ActorRegistrationChecks.VerifyOriginalEnemyReleaseDust,
             ActorRegistrationChecks.VerifyAuthoredEnemyHitSparks,

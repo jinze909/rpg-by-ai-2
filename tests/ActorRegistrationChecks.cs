@@ -3104,6 +3104,17 @@ public static class ActorRegistrationChecks
         finally { app.EndVisualReview(); Clear(); }
     }
 
+    public static void VerifyEnemyStopPlantContinuity(FrontierRuntime app)
+    {
+        try
+        {
+            EnemyWalkStopUsesNextPlantedSourceCell(
+                app,".starfall-checks/sprite-qa");
+            EnemyStopPlantInterruptions(app,".starfall-checks/sprite-qa");
+        }
+        finally { app.EndVisualReview(); Clear(); }
+    }
+
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
         try { CompanionGaitActuallyPlantsBothFeet(app); }
