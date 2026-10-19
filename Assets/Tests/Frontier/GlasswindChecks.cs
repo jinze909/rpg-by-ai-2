@@ -88,7 +88,7 @@ namespace Starfall.Tests
                     rows[y]=new string(cells);
                 }
                 WorldObject relay=new WorldObject {
-                    id="glasswindrelay1",kind="glasswindrelay",
+                    id="glasswindrelay1",kind="glasswindrelay1",
                     name="Civic wind valve",en="Civic wind valve",
                     x=12.5f,y=10.5f};
                 data.maps[6]=new MapData {
@@ -139,7 +139,7 @@ namespace Starfall.Tests
                     rows[y]=new string(cells);
                 }
                 WorldObject relay=new WorldObject {
-                    id="glasswindrelay1",kind="glasswindrelay",
+                    id="glasswindrelay1",kind="glasswindrelay1",
                     name="Public wind valve",en="Public wind valve",
                     x=10.7f,y=10.5f};
                 data.maps[6]=new MapData {id=6,
