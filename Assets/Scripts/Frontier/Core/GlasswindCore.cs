@@ -197,7 +197,8 @@ namespace Starfall
             {
                 if(save.room==0 && Has("desert_report") &&
                     !Has("glasswind_started") && !Dying &&
-                    (Position-ObjectPoint(0,"glasswindkeeper",new Point(-100,-100))).Length<2.2f)
+                    PhysicalRefugeReach(ObjectPoint(0,"glasswindkeeper",
+                        new Point(-100,-100)),2.2f))
                 {
                     Flag("glasswind_started");TrackQuest("glasswind");revision++;
                     Notify("新委托：玻璃风脉。守住沙海三座中继。",
@@ -217,7 +218,7 @@ namespace Starfall
                     site<1 || site>3 || save.room!=6 || !Has("glasswind_started") ||
                     Has("glasswind_"+site) || GlasswindSite!=0 || Dying ||
                     practicing || racing || !SafeTravel ||
-                    (Position-GlasswindPoint(site)).Length>2.2f)return true;
+                    !PhysicalRefugeReach(GlasswindPoint(site),2.2001f))return true;
                 GlasswindSite=site;GlasswindTime=95;GlasswindCharge=0;
                 glasswindSurgeTimer=2.5f;glasswindSurgeCycle=0;
                 if(!SpawnGlasswindWave(1))
@@ -235,7 +236,7 @@ namespace Starfall
             if(action=="glasswind_withdraw")
             {
                 if(save.room==6 && GlasswindSite!=0 &&
-                    (Position-GlasswindPoint(GlasswindSite)).Length<2.2f)
+                    PhysicalRefugeReach(GlasswindPoint(GlasswindSite),2.2f))
                 {
                     ResetGlasswind();revision++;
                     Notify("已撤出。未封存中继可免费重试。",
@@ -249,7 +250,7 @@ namespace Starfall
                 if(site==0 || save.room!=6 || Dying || GlasswindWave!=2 ||
                     GlasswindCharge<8 || !GlasswindWavesDefeated ||
                     enemies.Exists(IsGlasswindEnemy) ||
-                    (Position-GlasswindPoint(site)).Length>2.2f ||
+                    !PhysicalRefugeReach(GlasswindPoint(site),2.2001f) ||
                     Has("glasswind_"+site))return true;
                 ResetGlasswind();Flag("glasswind_"+site);
                 CreditCoins(15);CreditShards(1);AddXp(20);revision++;sound="reward";
@@ -271,7 +272,8 @@ namespace Starfall
             {
                 if(save.room!=0 || Dying || !Has("glasswind_all_sealed") ||
                     Has("glasswind_complete") ||
-                    (Position-ObjectPoint(0,"glasswindkeeper",new Point(-100,-100))).Length>2.2f)
+                    !PhysicalRefugeReach(ObjectPoint(0,"glasswindkeeper",
+                        new Point(-100,-100)),2.2001f))
                     return true;
                 Flag("glasswind_complete");CreditCoins(65);CreditShards(2);
                 CreditSkillPoints(1);AddXp(70);revision++;sound="reward";

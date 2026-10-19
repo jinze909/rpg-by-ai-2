@@ -246,10 +246,102 @@ namespace Starfall.Tests
                 g.enemies.FindAll(g.IsGlasswindEnemy).Count==4&&
                 g.GlasswindCharge>=4f&&g.GlasswindCharge<4.2f,
                 "Clearing actual reinforcement footing deploys exactly two new living fighters without losing progress");
+            // Once the second wave actually appears it legitimately
+            // contests the capture circle. Hold its real actors in a
+            // stunned state, as the existing full-capture combat regression
+            // does, before asserting uninterrupted meter progress.
+            foreach(Enemy guard in g.enemies.FindAll(g.IsGlasswindEnemy))
+            {guard.stun=200;guard.timer=200;}
             Advance(g,4.15f);
             Check(g.GlasswindCharge>=8f&&!g.Has("glasswind_1")&&
                 g.GlasswindWave==2&&g.save.version==2,
                 "The conserved charge resumes to full meter but still requires four real kills and a manual seal");
+        }
+
+        public static void GlasswindCachedChoicesRespectClosingPhysicalRelayWall(Campaign data)
+        {
+            MapData previous=data.maps[6];
+            try
+            {
+                var rows=new string[26];
+                for(int y=0;y<26;y++)
+                {
+                    char[] cells=new string('#',26).ToCharArray();
+                    if(y>=2&&y<=23)
+                        for(int x=2;x<=23;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                WorldObject valve=new WorldObject{id="glasswindrelay1",
+                    kind="glasswindrelay1",name="Live wind valve",
+                    en="Live wind valve",x=10.5f,y=10.5f};
+                data.maps[6]=new MapData{id=6,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{valve},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.save.level=20;
+                foreach(string flag in new[]{"harbor_report","desert_report",
+                    "gate_6","glasswind_started"})g.save.flags.Add(flag);
+                g.Enter(6);g.enemies.Clear();
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.invulnerable=200;
+                Check(g.CanStand(g.Position)&&
+                    (g.Position-new Point(valve.x,valve.y)).Length<2.2f,
+                    "A legitimate hero can open the original relay menu from reachable nearby floor");
+                g.Talk(valve);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "A live in-world relay presents its real start choice");
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                bool attempted=false;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="glasswind_start_1")
+                    {g.Choose(i);attempted=true;break;}
+                Check(attempted&&g.GlasswindSite==0&&
+                    !g.enemies.Exists(g.IsGlasswindEnemy),
+                    "Closing a physical wall invalidates a stale start button without secretly spawning guards");
+                wall[11]='.';rows[10]=new string(wall);
+                Action(g,valve.kind,"glasswind_start_1");
+                Check(g.GlasswindSite==1&&g.GlasswindWave==1&&
+                    g.enemies.FindAll(g.IsGlasswindEnemy).Count==2,
+                    "Opening the same wall launches the original physical trial and wave-one battle");
+                foreach(Enemy guard in g.enemies.FindAll(g.IsGlasswindEnemy))
+                {guard.stun=200;guard.timer=200;}
+                Advance(g,4.25f);
+                Check(g.GlasswindWave==2&&
+                    g.enemies.FindAll(g.IsGlasswindEnemy).Count==4,
+                    "The authentic timed relay deploys both guard waves before it can ever be sealed");
+                foreach(Enemy guard in g.enemies.FindAll(g.IsGlasswindEnemy))
+                {guard.stun=200;guard.timer=200;}
+                Advance(g,4.2f);
+                Check(g.GlasswindCharge>=8f,
+                    "A real eight-second hold, not a forged progress setter, prepares the public seal");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"The original game provides real combat kill registration");
+                foreach(Enemy guard in g.enemies.FindAll(g.IsGlasswindEnemy))
+                    hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+                g.hitStop=0;g.Close();
+                int beforeCoins=g.save.coins;
+                g.Talk(valve);
+                int rewardIndex=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="glasswind_seal")
+                    {rewardIndex=i;break;}
+                Check(rewardIndex>=0,
+                    "All genuine wave deaths and full charge expose the original one-time relay seal");
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(rewardIndex);
+                Check(!g.Has("glasswind_1")&&
+                    g.GlasswindSite==1&&g.save.coins==beforeCoins,
+                    "A stale seal button cannot grant money, quest flags or evade physical wall collision");
+                wall[11]='.';rows[10]=new string(wall);
+                Action(g,valve.kind,"glasswind_seal");
+                Check(g.Has("glasswind_1")&&g.GlasswindSite==0&&
+                    g.save.coins==beforeCoins+15&&
+                    g.save.version==2,
+                    "With the wall reopened the true complete run seals exactly once and preserves old save schema");
+            }
+            finally{data.maps[6]=previous;}
         }
 
         public static void GlasswindCircuitHasRealCaptureWavesAndPermanentShade(Campaign data)
