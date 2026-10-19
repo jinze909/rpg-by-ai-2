@@ -2071,6 +2071,9 @@ namespace Starfall.Tests
             near.timer=far.timer=.4f;
             Check((Enemy)select.Invoke(g,null)==near,
                 "Equal imminent contact times retain nearest-target tie breaking");
+            near.timer=-.02f;far.timer=-.15f;
+            Check((Enemy)select.Invoke(g,null)==far,
+                "A farther but already-overdue stock hit outranks a less-overdue nearby raider");
         }
 
         public static void OuterPatrolWarningSelectsFiniteEarliestThreatAndStableTie(Campaign data)
@@ -2105,6 +2108,16 @@ namespace Starfall.Tests
                 "A NaN attack clock cannot hide the next real stock impact");
             Check(Math.Abs(g.OuterPatrolIncomingStockSeconds-.2f)<.001f,
                 "Incoming-stock HUD exposes a finite countdown for a real strike");
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(select!=null,"Use the production companion threat selector");
+            Check((Enemy)select.Invoke(g,null)==melee,
+                "An invalid stock timer cannot monopolize the companion's target priority");
+            heavy.timer=float.PositiveInfinity;
+            Check(g.OuterPatrolIncomingStockThreat==melee&&
+                (Enemy)select.Invoke(g,null)==melee,
+                "Infinite stock timers are excluded from both warnings and emergency target priority");
 
             // Equal deadlines use physical distance to the protected stock,
             // then favor the heavy if both are at the same distance. Reorder
@@ -2121,6 +2134,14 @@ namespace Starfall.Tests
                 "Equal-deadline warnings choose the nearest physical stock contact independent of list order");
             Check(g.OuterPatrolIncomingStockHeavy==(expected.kind==2),
                 "Heavy warning metadata matches the deterministically selected threat");
+
+            Enemy fartherCache=Math.Abs(hd-md)<.0001f?melee:
+                (hd>md?heavy:melee);
+            Enemy nearerCache=fartherCache==heavy?melee:heavy;
+            fartherCache.timer=-.15f;nearerCache.timer=-.02f;
+            Check(g.OuterPatrolIncomingStockThreat==fartherCache&&
+                g.OuterPatrolIncomingStockSeconds==0f,
+                "Raw negative deadlines prioritize an overdue strike while the HUD clamps its display to zero");
         }
 
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)

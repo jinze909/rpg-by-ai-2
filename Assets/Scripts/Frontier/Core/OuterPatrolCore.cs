@@ -47,6 +47,7 @@ namespace Starfall
             return OuterPatrolActive&&foe!=null&&foe.hp>0&&
                 IsOuterPatrolEnemy(foe)&&foe.kind!=1&&
                 foe.state==1&&foe.targetingOuterPatrolStock&&
+                !float.IsNaN(foe.timer)&&!float.IsInfinity(foe.timer)&&
                 foe.stun<=0f&&foe.hitTime<=0f&&
                 (foe.Position-outerPatrolPost).Length<=2.35f&&
                 CanStand(foe.Position)&&
@@ -89,7 +90,10 @@ namespace Starfall
                     // comparison false and can hide a real, finite incoming hit.
                     if(float.IsNaN(foe.timer)||float.IsInfinity(foe.timer))
                         continue;
-                    float seconds=Math.Max(0f,foe.timer);
+                    // Sort by the raw finite deadline: a negative timer
+                    // is already overdue and must outrank a small positive
+                    // timer. Only the HUD-facing seconds property clamps to 0.
+                    float seconds=foe.timer;
                     Point delta=foe.Position-outerPatrolPost;
                     float distance=delta.x*delta.x+delta.y*delta.y;
                     bool sameDeadline=closest!=null&&seconds==bestSeconds;

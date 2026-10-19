@@ -514,9 +514,11 @@ namespace Starfall
                     (OuterPatrolUncoveredStockStrike(foe)?0:1):2;
                 if(squared>=7f*7f || priority>bestPriority)
                     continue;
-                float stockSeconds=priority==0&&
-                    !float.IsNaN(foe.timer)&&!float.IsInfinity(foe.timer)?
-                    Math.Max(0f,foe.timer):float.PositiveInfinity;
+                // OuterPatrolUncoveredStockStrike guarantees a finite
+                // clock. Preserve negative overdue deadlines when ordering;
+                // clamping them would turn every overdue hit into a distance tie.
+                float stockSeconds=priority==0?foe.timer:
+                    float.PositiveInfinity;
                 if(priority==bestPriority)
                 {
                     if(priority==0)
@@ -621,14 +623,13 @@ namespace Starfall
                             bool lockedCache=OuterPatrolCompanionGuarding&&
                                 locked!=null&&
                                 CompanionCacheContactImminent(locked);
-                            float availableSeconds=availableCache&&
-                                !float.IsNaN(available.timer)&&
-                                !float.IsInfinity(available.timer)?
-                                Math.Max(0f,available.timer):float.PositiveInfinity;
-                            float lockedSeconds=lockedCache&&
-                                !float.IsNaN(locked.timer)&&
-                                !float.IsInfinity(locked.timer)?
-                                Math.Max(0f,locked.timer):float.PositiveInfinity;
+                            // The shared stock-threat predicate guarantees
+                            // finite timers. Compare their raw values so an
+                            // already-overdue strike can supersede a later one.
+                            float availableSeconds=availableCache?
+                                available.timer:float.PositiveInfinity;
+                            float lockedSeconds=lockedCache?
+                                locked.timer:float.PositiveInfinity;
                             // A currently committed stock attacker is not
                             // automatically the best one: if another real,
                             // uncovered strike will land sooner, redirect the
