@@ -16,6 +16,47 @@ namespace Starfall.Tests
                 if(g.conversation.choices[i].action==a){g.Choose(i);return true;}
             return false;
         }
+        public static void HighlandGuardsSpawnOnDistinctUnoccupiedCombatFeet(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;g.save.flags.Add("desert_report");
+            g.Enter(7);g.enemies.Clear();g.save.flags.Add("boss_7");
+            g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            WorldObject west=FrostPost(g,1),junction=FrostPost(g,2);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start"),
+                "The genuine highland escort begins at its authored west station");
+            // Both fixed spawn positions are already occupied by living world
+            // actors; the mission must select safe nearby feet or defer.
+            var standing=new Enemy(91911,0,62.5f,41.5f,300f)
+                {stun=100f,timer=1000f};
+            g.enemies.Add(standing);
+            g.companionPosition=new Point(65.5f,42.5f);
+            g.save.x=junction.x;g.save.y=junction.y;
+            g.Talk(junction);
+            var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+            Check(g.FrostSignalStage==2&&guards.Count==2&&
+                g.enemies.Contains(standing)&&
+                (standing.Position-new Point(62.5f,41.5f)).Length<.001f,
+                "The switchyard starts two genuine guards without deleting or moving the pre-existing fighter");
+            Point[] authored={new Point(62.5f,41.5f),
+                              new Point(65.5f,42.5f)};
+            for(int i=0;i<guards.Count;i++)
+            {
+                Point foot=guards[i].Position;
+                Check(g.CanStand(foot)&&
+                    (foot-authored[i]).Length<=2.2f &&
+                    (foot-standing.Position).Length>=1.25f &&
+                    (foot-g.companionPosition).Length>=1.25f &&
+                    (foot-g.Position).Length>=1.25f,
+                    "A live guard must materialize on real nearby free ground without overlapping hero, ally or another foe");
+            }
+            Check((guards[0].Position-guards[1].Position).Length>=1.25f &&
+                guards[0].id==91400&&guards[1].id==91401,
+                "Two uniquely identified defenders occupy separate feet and preserve their actual quest-kill identities");
+        }
+
         public static void CivicEmberAbortAndFailurePreserveUnrelatedWorldEffects(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;

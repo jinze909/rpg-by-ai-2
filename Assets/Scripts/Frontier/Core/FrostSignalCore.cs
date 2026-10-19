@@ -43,10 +43,47 @@ namespace Starfall
             FrostSignalStage=0;frostSignalConfirmedKills=0;
             FrostSignalTime=FrostSignalFlame=FrostSignalWindbreakTime=0;
         }
+        // The authored switchyard positions are preferred, not permission to
+        // materialize a raider inside the player, companion or a living enemy.
+        // Keep alternates local to the real ambush rather than teleporting a
+        // quest guard to a disconnected location elsewhere on the map.
+        private static readonly Point[] frostSignalGuardOffsets={
+            new Point(0f,0f),new Point(0f,1.5f),
+            new Point(-1.5f,0f),new Point(1.5f,0f),
+            new Point(0f,-1.5f),new Point(-1.5f,1.5f),
+            new Point(1.5f,1.5f),new Point(-1.5f,-1.5f),
+            new Point(1.5f,-1.5f)
+        };
+        private bool TryFrostSignalGuardFoot(Point origin,Point other,
+            bool hasOther,out Point result)
+        {
+            foreach(Point offset in frostSignalGuardOffsets)
+            {
+                Point foot=origin+offset;
+                if(!CanStand(foot) ||
+                    (foot-Position).Length<1.25f ||
+                    (save.companion>=0 &&
+                     (foot-companionPosition).Length<1.25f) ||
+                    (hasOther && (foot-other).Length<1.25f))continue;
+                bool occupied=false;
+                foreach(Enemy e in enemies)
+                    if(e.hp>0&&(foot-e.Position).Length<1.25f)
+                    {occupied=true;break;}
+                if(occupied)continue;
+                result=foot;return true;
+            }
+            result=new Point();return false;
+        }
         private bool SpawnFrostSignalGuards()
         {
-            Point[] posts={new Point(62.5f,41.5f),new Point(65.5f,42.5f)};
-            foreach(Point p in posts)if(!CanStand(p))return false;
+            Point[] desired={new Point(62.5f,41.5f),new Point(65.5f,42.5f)};
+            Point first,second;
+            // Validate BOTH feet before adding EITHER guard. A crowded
+            // junction remains retryable, without a half-spawned encounter.
+            if(!TryFrostSignalGuardFoot(desired[0],new Point(),false,out first) ||
+               !TryFrostSignalGuardFoot(desired[1],first,true,out second))
+                return false;
+            Point[] posts={first,second};
             for(int i=0;i<posts.Length;i++)
             {
                 Enemy e=new Enemy(91400+i,i==0?0:2,
