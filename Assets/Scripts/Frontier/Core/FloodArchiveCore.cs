@@ -502,7 +502,7 @@ namespace Starfall
                 if(!FloodArchiveComplete||save.room!=2)return false;
                 foreach(WorldObject o in Map.objects)
                     if(o.kind=="floodarchive"&&
-                        (Position-new Point(o.x,o.y)).Length<3f)return true;
+                        PhysicalRefugeReach(new Point(o.x,o.y),3f))return true;
                 return false;
             }
         }

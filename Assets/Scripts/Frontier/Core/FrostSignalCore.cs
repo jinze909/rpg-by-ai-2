@@ -318,7 +318,7 @@ namespace Starfall
                 if(!FrostSignalComplete||save.room!=7)return false;
                 foreach(WorldObject o in Map.objects)
                     if(o.kind=="frostsignal"&&
-                        (Position-new Point(o.x,o.y)).Length<3.2f)return true;
+                        PhysicalRefugeReach(new Point(o.x,o.y),3.2f))return true;
                 return false;
             }
         }

@@ -305,7 +305,8 @@ namespace Starfall
             {
                 if(!MineConvoyComplete||save.room!=3)return false;
                 WorldObject shelter=MineCartPost(3);
-                return shelter!=null&&(Position-new Point(shelter.x,shelter.y)).Length<3.2f;
+                return shelter!=null&&
+                    PhysicalRefugeReach(new Point(shelter.x,shelter.y),3.2f);
             }
         }
     }

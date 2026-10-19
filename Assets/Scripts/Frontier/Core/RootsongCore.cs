@@ -215,7 +215,8 @@ namespace Starfall
             {
                 if(!RootsongComplete||save.room!=1)return false;
                 foreach(WorldObject o in Map.objects)
-                    if(o.kind=="rootsonestone"&&(Position-new Point(o.x,o.y)).Length<3.1f)return true;
+                    if(o.kind=="rootsonestone"&&
+                        PhysicalRefugeReach(new Point(o.x,o.y),3.1f))return true;
                 return false;
             }
         }

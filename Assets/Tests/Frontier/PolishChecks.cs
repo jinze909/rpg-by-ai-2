@@ -107,6 +107,80 @@ namespace Starfall.Tests
             finally { data.maps[0]=original; }
         }
 
+        public static void PhysicalFieldRefugesDoNotHealAcrossDynamicSolidWall(Campaign data)
+        {
+            // Test all four already-shipped permanent civic shelters through
+            // their ACTUAL GameCore properties and frame-based stat recovery.
+            int[] rooms={1,2,3,7};
+            string[] kinds={"rootsonestone","floodarchive","mineconvoy","frostsignal"};
+            string[] flags={"rootsong_complete","floodarchive_public",
+                "mineconvoy_complete","frostsignal_complete"};
+            for(int i=0;i<rooms.Length;i++)
+            {
+                int room=rooms[i];
+                MapData original=data.maps[room];
+                try
+                {
+                    var rows=new string[25];
+                    for(int y=0;y<25;y++)
+                    {
+                        char[] cells=new string('#',25).ToCharArray();
+                        if(y>=2&&y<=22)
+                            for(int x=2;x<=22;x++)cells[x]='.';
+                        if(y==10)cells[11]='#';
+                        rows[y]=new string(cells);
+                    }
+                    var station=new WorldObject{
+                        id=room==3?"mineconvoy_3":"refuge-test",
+                        kind=kinds[i],name="Protected service",
+                        en="Protected service",x=12.5f,y=10.5f};
+                    data.maps[room]=new MapData{id=room,
+                        spawnX=10.5f,spawnY=10.5f,
+                        rows=rows,objects=new[]{station},
+                        decor=new Decoration[0]};
+                    var g=Fresh(data);
+                    g.save.stage=3;g.save.flags.Add("desert_report");
+                    g.Enter(room);g.enemies.Clear();
+                    g.save.flags.Add(flags[i]);
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.health=40;g.save.energy=0;
+                    g.save.cold=40;
+                    Check(g.CanStand(g.Position)&&
+                        g.CanStand(new Point(station.x,station.y))&&
+                        g.Blocked(11.5f,10.5f),
+                        "Living hero and civic refuge must have legal ground separated by genuine impassable stone");
+                    bool blocked=room==1?g.RootsongRefuge:
+                        room==2?g.FloodArchiveRefuge:
+                        room==3?g.MineConvoyRefuge:g.FrostSignalRefuge;
+                    Check(!blocked,
+                        "A completed public service must not activate a remote health, stamina or warmth radius through stone");
+                    g.Tick(.05f,new Point());
+                    Check(Math.Abs(g.save.health-40)<.0001f,
+                        "The actual world tick must not restore health through the closed wall");
+                    float blockedEnergy=g.save.energy;
+                    char[] opened=rows[10].ToCharArray();
+                    opened[11]='.';rows[10]=new string(opened);
+                    bool clear=room==1?g.RootsongRefuge:
+                        room==2?g.FloodArchiveRefuge:
+                        room==3?g.MineConvoyRefuge:g.FrostSignalRefuge;
+                    Check(clear&&g.save.version==2,
+                        "Removing that wall immediately exposes the already-unlocked refuge without new save fields");
+                    g.save.health=40;g.save.energy=0;
+                    g.Tick(.05f,new Point());
+                    if(room==1)
+                        Check(g.save.energy>blockedEnergy+.08f,
+                            "Rootsong physical contact grants its genuine stamina recovery above baseline regeneration");
+                    else
+                        Check(g.save.health>40.04f,
+                            "A legitimately reached public clinic/shelter restores actual player HP on the world tick");
+                    if(room==7)
+                        Check(g.save.cold<40,
+                            "A physically reached Frostchime hearth now provides genuine protection from cold");
+                }
+                finally {data.maps[room]=original;}
+            }
+        }
+
         public static void ExplorationPowersAndDiscoveries(Campaign data)
         {
             var g = Unlocked(data); g.save.flags.RemoveAll(f => f.StartsWith("core_") || f.StartsWith("seal_") || f.StartsWith("cache_"));

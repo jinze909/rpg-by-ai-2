@@ -188,6 +188,19 @@ namespace Starfall
         }
         public static float WeaponHeight(int weapon, Point direction)
         { return DirectionRow(direction) == 0 ? weapon == 1 ? 36 : 35 : DirectionRow(direction) == 1 ? weapon == 1 ? 35 : 65 : weapon == 1 ? 32 : 82; }
+        // A public hearth/field refuge is a physical service, not a
+        // radius-only global buff through a wall. Share E's near-side
+        // .55-tile endpoint margin so authored wall-mounted instruments
+        // still work when approached from their actual usable side.
+        private bool PhysicalRefugeReach(Point site,float radius)
+        {
+            Point delta=site-Position;
+            float distance=delta.Length;
+            if(distance>=radius)return false;
+            Point contact=distance>.55f?
+                site-delta.Normalized*.55f:Position;
+            return ClearAttackPath(Position,contact);
+        }
         public static float BossEmissionHeight(int room)
         { return room==1?64:room==2?68:room==3?80:room==4?72:room==5?50:room==6?94:room==7?78:102; }
         public static Point AimFromWeapon(Point feet,int weapon,Point target)
