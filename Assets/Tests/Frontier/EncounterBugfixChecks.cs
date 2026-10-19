@@ -3,6 +3,69 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void RoadwardenTwoRealDefendersAvoidSealedPocketAndFriendlyActors(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[44];
+                for(int y=0;y<44;y++)
+                {
+                    char[] cells=new string('#',44).ToCharArray();
+                    if(y>=2&&y<=41)
+                        for(int x=2;x<=41;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                // First nominal radius-three candidate has free standing
+                // space but no body-foot route out of its solid ring.
+                for(int y=16;y<=18;y++)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    for(int x=16;x<=18;x++)
+                        if(x!=17||y!=17)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                var survey=new WorldObject{id="survey1",kind="survey1",
+                    x=20.5f,y=20.5f,name="Beacon",en="Beacon"};
+                data.maps[1]=new MapData{id=1,spawnX=20.5f,
+                    spawnY=20.5f,rows=rows,
+                    objects=new[]{survey},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.save.x=survey.x;g.save.y=survey.y;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.companionPosition=new Point(17.5f,20.5f);
+                var bystander=new Enemy(92700,0,20.5f,17.5f,500f)
+                    {stun=100f,timer=100f};
+                g.enemies.Add(bystander);
+                Point isolated=new Point(17.5f,17.5f);
+                var method=typeof(GameCore).GetMethod("TryRoadwardenTrialFeet",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(method!=null&&g.CanStand(isolated)&&
+                    g.CanStand(new Point(survey.x,survey.y)),
+                    "The real beacon planner sees a superficially free isolated land cell and a legal objective");
+                object[] args={null};
+                Check((bool)method.Invoke(g,args),
+                    "Despite sealed terrain and occupied candidate feet the real beacon can still spawn a full pair");
+                Point[] feet=(Point[])args[0];
+                Check(feet!=null&&feet.Length==2&&
+                    (feet[0]-feet[1]).Length>=3.5f,
+                    "Both actual attackers reserve distinct eligible physical spawn roots atomically");
+                foreach(Point foot in feet)
+                    Check(g.CanStand(foot)&&
+                        (foot-isolated).Length>1.5f&&
+                        (foot-g.Position).Length>=2.7f&&
+                        (foot-g.companionPosition).Length>=1.55f&&
+                        (foot-bystander.Position).Length>=2f,
+                        "No raider can spawn within unreachable rock or on hero, existing enemy or recruit");
+                Check(g.enemies.Count==1&&
+                    g.RoadwardenTrialRoom==0&&!g.Has("road_trial_1")&&
+                    g.save.version==2,
+                    "Spawn preflight cannot mint combat actors, complete quest flags or migrate saved data");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();

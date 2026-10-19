@@ -238,22 +238,8 @@ namespace Starfall
         }
         private bool SpawnRoadwardenTrialWave()
         {
-            Point beacon = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, new Point(-100, -100));
-            var positions = new List<Point>();
-            for (int radius = 3; radius <= 6 && positions.Count < 2; radius++)
-            for (int dx = -radius; dx <= radius && positions.Count < 2; dx++)
-            for (int dy = -radius; dy <= radius && positions.Count < 2; dy++)
-            {
-                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
-                Point candidate = new Point(beacon.x + dx, beacon.y + dy);
-                if (!CanStand(candidate) || (candidate - Position).Length < 2.7f ||
-                    (candidate - beacon).Length > 6.7f ||
-                    enemies.Exists(e => (e.Position - candidate).Length < 2.0f) ||
-                    positions.Exists(p => (p - candidate).Length < 3.5f) ||
-                    NavigationPath(candidate).Count == 0) continue;
-                positions.Add(candidate);
-            }
-            if (positions.Count != 2) return false;
+            Point[] positions;
+            if (!TryRoadwardenTrialFeet(out positions)) return false;
             roadTrialConfirmedKills=0;
             for (int slot = 0; slot < 2; slot++)
             {
@@ -272,6 +258,38 @@ namespace Starfall
             }
             revision++; sound = "quest";
             return true;
+        }
+        // NavigationPath may yield a partial pursuit path to the nearest
+        // reachable bank even when the proposed raider is isolated. Verify
+        // a complete local body-foot route to the BEACON, and never put
+        // authored foes on a recruited ally or a surviving world enemy.
+        private bool TryRoadwardenTrialFeet(out Point[] result)
+        {
+            result=null;
+            Point beacon=ObjectPoint(save.room,"survey"+save.room,
+                new Point(-100,-100));
+            if(!CanStand(beacon))return false;
+            var feet=new List<Point>();
+            for(int radius=3;radius<=6&&feet.Count<2;radius++)
+            for(int dx=-radius;dx<=radius&&feet.Count<2;dx++)
+            for(int dy=-radius;dy<=radius&&feet.Count<2;dy++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point candidate=beacon+new Point(dx,dy);
+                if(!CanStand(candidate)||
+                    (candidate-Position).Length<2.7f||
+                    (candidate-beacon).Length>6.7f||
+                    (save.companion>=0&&
+                     (candidate-companionPosition).Length<1.55f)||
+                    feet.Exists(p=>(p-candidate).Length<3.5f)||
+                    enemies.Exists(e=>e.hp>0&&
+                        (e.Position-candidate).Length<2f)||
+                    !ActorHasLocalRoute(candidate,beacon,12))
+                    continue;
+                feet.Add(candidate);
+            }
+            if(feet.Count!=2)return false;
+            result=feet.ToArray();return true;
         }
         // The second wave has a distinct, telegraphed regional hazard pattern.
         // All strikes use the existing warning, dodge and damage pipeline.
