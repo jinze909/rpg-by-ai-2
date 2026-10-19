@@ -85,6 +85,8 @@ namespace Starfall.Tests
         [Test] public void TravelerDefenseMissingSecondRaiderCannotRemainStuckBehindFirst() { CoreChecks.TravelerFightRejectsMissingSecondRaiderWhileFirstStillLives(Data()); }
         [Test] public void TravelerRaidersAvoidSealedLocalPocketAndLivingCompanion() { CoreChecks.WayfarerAmbushFeetRejectIsolatedPocketAndOccupiedRealCompanion(Data()); }
         [Test] public void TravelerStaleDonationAndSharedRewardNeedUnblockedNPCContact() { CoreChecks.TravelerDonationAndSharedStewRequireLiveUnblockedNPCContact(Data()); }
+        [Test] public void EveryRealTravelerAmbushStillResolvesAfterTwoActualLethalHits() { CoreChecks.AllThreeAuthoredTravelersStillSupportRealTwoRaiderRescue(Data()); }
+        [Test] public void TravelerEmergencyAidAndRetreatNeedPhysicalNPCContact() { CoreChecks.TravelerEmergencyAidAndWithdrawalRejectClosedNPCContact(Data()); }
         [Test] public void EscortSwordGuardReflectsRealArrow() { CoreChecks.EscortGuardReflectionPreservesRealCivilianSafety(Data()); }
         [Test] public void AlliesDoNotGrantUnearnedHeroWeaponMastery() { CoreChecks.AllyKillsRewardPartyButNotUnwieldedHeroMastery(Data()); }
         [Test] public void CompanionPicksNearestVisibleEnemy() { CoreChecks.CompanionAutoTargetsNearestReachableThreat(Data()); }

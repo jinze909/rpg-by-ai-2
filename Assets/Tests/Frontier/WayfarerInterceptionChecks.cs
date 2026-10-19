@@ -181,6 +181,138 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void AllThreeAuthoredTravelersStillSupportRealTwoRaiderRescue(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The original weapon contact and kill accounting remain callable");
+            for(int room=1;room<=3;room++)
+            {
+                var g=Fresh(data);g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("scout_saved");
+                g.Enter(room);g.enemies.Clear();g.invulnerable=180f;
+                WorldObject traveler=Object(g,"wayfarer"+room);
+                g.save.x=traveler.x;g.save.y=traveler.y;
+                int beforeCoins=g.save.coins,beforeShards=g.save.shards;
+                int beforeMastery=g.save.mastery[g.save.weapon];
+                Action(g,traveler.kind,"wayfarer_defend_"+room);
+                var raiders=g.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+                Check(g.WayfarerEncounterRoom==room&&raiders.Count==2&&
+                    raiders[0].id==82000+room*10&&
+                    raiders[1].id==82001+room*10,
+                    "Every authored forest/river/mine traveler still starts two genuine reachable defense opponents");
+                foreach(Enemy raider in raiders)
+                    Check(g.CanStand(raider.Position)&&
+                        (raider.Position-new Point(traveler.x,traveler.y)).Length>=3f,
+                        "Both physical opponents are on actual standing regional terrain outside the civilian foot");
+                foreach(Enemy raider in raiders)
+                    hit.Invoke(g,new object[]{raider,99999f,false,null,null});
+                g.hitStop=0;g.Tick(.05f,new Point());
+                Check(g.WayfarerEncounterRoom==0&&
+                    g.Has("wayfarer_"+room)&&
+                    g.Has("wayfarer_defended_"+room)&&
+                    g.save.coins==beforeCoins+20&&
+                    g.save.shards==beforeShards+1&&
+                    g.save.mastery[g.save.weapon]==
+                        Math.Min(100,beforeMastery+4)&&
+                    g.save.version==2,
+                    "Two original registered lethal hits conclude each physical roadside rescue once with unchanged currency, mastery and v2 persistence");
+            }
+        }
+
+        public static void TravelerEmergencyAidAndWithdrawalRejectClosedNPCContact(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[30];
+                for(int y=0;y<30;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                var traveler=new WorldObject{id="wayfarer1",
+                    kind="wayfarer1",name="Living civilian",
+                    en="Living civilian",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=10.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{traveler},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("scout_saved");
+                g.Enter(1);g.enemies.Clear();g.invulnerable=200f;
+                g.save.inventory[2]=2;
+                g.save.x=traveler.x;g.save.y=traveler.y;
+                Action(g,traveler.kind,"wayfarer_defend_1");
+                Check(g.WayfarerEncounterRoom==1&&
+                    g.enemies.Count==2,
+                    "The real civilian ambush begins with two actual hostile opponents");
+                Enemy striking=g.enemies.Find(e=>e.id==82010);
+                Enemy second=g.enemies.Find(e=>e.id==82011);
+                Check(striking!=null&&second!=null,
+                    "Authentic melee and breaker identities exist before a civilian injury");
+                second.stun=200f;second.timer=200f;
+                striking.x=traveler.x+1.4f;striking.y=traveler.y;
+                striking.state=1;striking.timer=.01f;
+                striking.stun=0;striking.releaseTime=0;
+                striking.target=new Point(traveler.x,traveler.y);
+                striking.targetingWayfarer=true;
+                striking.Face(striking.target-striking.Position);
+                g.save.x=traveler.x+8;g.save.y=traveler.y;
+                g.Tick(.05f,new Point());
+                Check(g.WayfarerIntegrity<100&&g.WayfarerIntegrity>60&&
+                    g.WayfarerEncounterRoom==1,
+                    "A genuinely released hostile contact injures the defended civilian before aid becomes available");
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.Talk(traveler);
+                int aid=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_aid")
+                    {aid=i;break;}
+                Check(aid>=0,"The actual injured civilian offers a genuine one-supply field aid");
+                float injured=g.WayfarerIntegrity;
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(aid);
+                Check(g.WayfarerEncounterRoom==1&&
+                    Math.Abs(g.WayfarerIntegrity-injured)<.0001f&&
+                    g.save.inventory[2]==2,
+                    "An old aid menu cannot heal an inaccessible civilian or consume genuine medicine across a new wall");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(traveler);aid=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_aid")
+                    {aid=i;break;}
+                Check(aid>=0,"Reopening the exact barrier restores the real medical-aid option");
+                g.Choose(aid);
+                Check(g.WayfarerIntegrity==100&&g.save.inventory[2]==1,
+                    "One accessible medical rescue restores up to 35 safety and consumes exactly one herb");
+                g.Talk(traveler);int withdraw=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_abandon")
+                    {withdraw=i;break;}
+                Check(withdraw>=0,"Live defense still exposes the safe voluntary withdrawal action");
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(withdraw);
+                Check(g.WayfarerEncounterRoom==1&&
+                    !g.Has("wayfarer_1")&&g.enemies.Count==2,
+                    "An old withdraw button cannot remotely erase a physical encounter while the NPC is behind a solid wall");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(traveler);withdraw=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_abandon")
+                    {withdraw=i;break;}
+                Check(withdraw>=0,"The original nearby withdrawal can be selected after access reopens");
+                g.Choose(withdraw);
+                Check(g.WayfarerEncounterRoom==0&&
+                    !g.Has("wayfarer_1")&&g.enemies.Count==0&&
+                    g.save.inventory[2]==1&&g.save.version==2,
+                    "Legitimate withdrawal clears only mission raiders while keeping already paid real aid and old save state");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void LateWayfarerBodyguardInterceptionIsRealCombat(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
