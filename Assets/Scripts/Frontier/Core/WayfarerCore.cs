@@ -136,6 +136,11 @@ namespace Starfall
                 C("稍后再说", "Prepare first", "close"));
             return true;
         }
+        // Old dialogue choices may still be clickable after a gate
+        // closes. Donations, field medicine, withdrawals and the shared
+        // one-time stew are real NPC handovers, not radial telekinesis.
+        private bool CanReachWayfarer(Point npc)
+        { return PhysicalRefugeReach(npc,2.1001f); }
         private bool ChooseWayfarer(string action)
         {
             if (action == "wayfarer_reward")
@@ -144,7 +149,7 @@ namespace Starfall
                     save.room > 3 || Dying || practicing) return true;
                 Point source = ObjectPoint(save.room, "wayfarer" + save.room,
                     new Point(-100, -100));
-                if ((Position - source).Length > 2.1f) return true;
+                if (!CanReachWayfarer(source)) return true;
                 ClaimWayfarerFinalReward();
                 return true;
             }
@@ -153,7 +158,7 @@ namespace Starfall
                 if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
                     wayfarerAidUsed || wayfarerIntegrity >= 100 || Dying || practicing) return true;
                 Point aidTarget = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
-                if ((Position - aidTarget).Length > 2.1f) return true;
+                if (!CanReachWayfarer(aidTarget)) return true;
                 int item = WayfarerItem(wayfarerEncounterRoom);
                 if (save.inventory[item] < 1)
                 {
@@ -170,7 +175,10 @@ namespace Starfall
             }
             if (action == "wayfarer_abandon")
             {
-                if (wayfarerEncounterRoom != 0)
+                if (wayfarerEncounterRoom != 0 &&
+                    save.room==wayfarerEncounterRoom &&
+                    CanReachWayfarer(ObjectPoint(save.room,
+                        "wayfarer"+save.room,new Point(-100,-100))))
                 {
                     enemies.RemoveAll(IsWayfarerEnemy);
                     ResetWayfarerEncounter(); revision++;
@@ -187,7 +195,7 @@ namespace Starfall
                 wayfarerEncounterRoom != 0 || roadTrialRoom != 0 ||
                 atlasEchoRoom != 0 || practicing || Dying) return true;
             Point npc = ObjectPoint(room, "wayfarer" + room, new Point(-100, -100));
-            if ((Position - npc).Length > 2.1f) return true;
+            if (!CanReachWayfarer(npc)) return true;
             if (donation)
             {
                 int item = WayfarerItem(room);

@@ -97,6 +97,90 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void TravelerDonationAndSharedStewRequireLiveUnblockedNPCContact(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[30];
+                for(int y=0;y<30;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)
+                        for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                var traveler=new WorldObject{
+                    id="wayfarer1",kind="wayfarer1",
+                    name="Stranded civilian",en="Stranded civilian",
+                    x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,
+                    spawnX=12.25f,spawnY=10.5f,rows=rows,
+                    objects=new[]{traveler},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("scout_saved");
+                g.save.flags.Add("wayfarer_2");
+                g.save.flags.Add("wayfarer_3");
+                g.Enter(1);g.enemies.Clear();
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.save.inventory[2]=4;g.save.inventory[6]=9999;
+                g.Talk(traveler);
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    g.CanStand(g.Position),
+                    "Genuine rescued-scout roadside NPC offers a two-Moonherb physical donation");
+                int donate=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_supply_1")
+                    {donate=i;break;}
+                Check(donate>=0,"The real two-herb rescue action is visible");
+                char[] closed=rows[10].ToCharArray();
+                closed[11]='#';rows[10]=new string(closed);
+                Check(g.CanStand(new Point(traveler.x,traveler.y))&&
+                    g.CanStand(g.Position)&&g.Blocked(11.5f,10.5f),
+                    "A live blocking wall separates standable hero and civilian after dialogue opens");
+                g.Choose(donate);
+                Check(g.save.inventory[2]==4&&!g.Has("wayfarer_1")&&
+                    !g.Has("wayfarer_complete"),
+                    "Stale donation cannot spend two actual herbs or award a permanent rescue through stone");
+                closed[11]='.';rows[10]=new string(closed);
+                g.Talk(traveler);donate=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_supply_1")
+                    {donate=i;break;}
+                Check(donate>=0,"Opening the same path restores the original donation");
+                g.Choose(donate);
+                Check(g.save.inventory[2]==2&&g.Has("wayfarer_1")&&
+                    !g.Has("wayfarer_complete"),
+                    "A genuinely reachable civilian accepts exactly the two real Moonherbs and defers a full-stack stew reward");
+                g.save.inventory[6]=9998;int beforeSkill=g.save.skillPoints;
+                g.Talk(traveler);
+                int collect=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_reward")
+                    {collect=i;break;}
+                Check(collect>=0,"All three saved rescues expose the actual once-only shared stew handover");
+                closed[11]='#';rows[10]=new string(closed);
+                g.Choose(collect);
+                Check(g.save.inventory[6]==9998&&
+                    g.save.skillPoints==beforeSkill&&
+                    !g.Has("wayfarer_complete"),
+                    "A stale handover button cannot mint stew or a talent point across the closed wall");
+                closed[11]='.';rows[10]=new string(closed);
+                g.Talk(traveler);collect=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="wayfarer_reward")
+                    {collect=i;break;}
+                Check(collect>=0,"An open rescue NPC still offers the legitimate pending final reward");
+                g.Choose(collect);
+                Check(g.Has("wayfarer_complete")&&
+                    g.save.inventory[6]==9999&&
+                    g.save.skillPoints==beforeSkill+1&&
+                    g.save.version==2,
+                    "One reachable handover creates exactly one lasting stew/talent reward with original v2 saves");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void LateWayfarerBodyguardInterceptionIsRealCombat(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
