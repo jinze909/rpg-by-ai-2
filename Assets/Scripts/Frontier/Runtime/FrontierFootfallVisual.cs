@@ -23,6 +23,9 @@ namespace Starfall
         private readonly List<FootfallMark> footfallMarks =
             new List<FootfallMark>(18);
         private int paintedFootContact = -1, paintedFootRoom = -1;
+        private int paintedHeroContactIndex=-1;
+        private float paintedHeroWalkDistance;
+        private GameCore paintedHeroOwner;
         private const int MaxFootfallMarks = 18;
         private Texture2D groundContactSheet;
         private float groundContactLastCheck=float.NegativeInfinity;
@@ -98,6 +101,10 @@ namespace Starfall
                 footfallMarks.Clear();
                 paintedFootRoom=room;
                 paintedFootContact=contacts;
+                paintedHeroOwner=Game;
+                paintedHeroWalkDistance=Game.walkDistance;
+                paintedHeroContactIndex=PlantedFootfallIndex(
+                    Game.walkDistance,GameCore.WalkStride);
                 return;
             }
             if(Game.mode!="world" || Game.save.reducedMotion ||
@@ -105,6 +112,10 @@ namespace Starfall
             {
                 footfallMarks.Clear();
                 paintedFootContact=contacts;
+                paintedHeroOwner=Game;
+                paintedHeroWalkDistance=Game.walkDistance;
+                paintedHeroContactIndex=PlantedFootfallIndex(
+                    Game.walkDistance,GameCore.WalkStride);
                 companionRoom=-1;
                 return;
             }
@@ -115,14 +126,30 @@ namespace Starfall
                 if(footfallMarks[i].age>=lifetime)
                     footfallMarks.RemoveAt(i);
             }
-            // One repaint can contain several 50ms physics slices. A huge
-            // teleport-style contact jump must not emit a pile of decals.
-            if(contacts>paintedFootContact && Game.ActuallyMoving &&
-               Game.dashTime<=0 && Game.playerAction==null)
+            // Hero audio contact count is a separate cadence from the
+            // authentic four-frame walking BODY. Ground decals must appear
+            // only as its painted sole arrives at cells 2/0, never during
+            // the airborne 1/3 frames; leave sound and physics unchanged.
+            int planted=PlantedFootfallIndex(
+                Game.walkDistance,GameCore.WalkStride);
+            bool sameHero=System.Object.ReferenceEquals(
+                paintedHeroOwner,Game);
+            bool continued=Game.walkDistance>=
+                paintedHeroWalkDistance-.0001f;
+            if(sameHero&&continued&&planted>=0&&
+               paintedHeroContactIndex>=0&&
+               planted>paintedHeroContactIndex&&
+               planted-paintedHeroContactIndex<=2&&
+               Game.ActuallyMoving&&Game.dashTime<=0&&
+               Game.playerAction==null)
             {
                 EmitFootfall(Game.Position,room,
-                    FrontierAudio.FootSurface(Game),(contacts&1)!=0,1f);
+                    FrontierAudio.FootSurface(Game),
+                    (planted&1)!=0,1f);
             }
+            paintedHeroOwner=Game;
+            paintedHeroContactIndex=planted;
+            paintedHeroWalkDistance=Game.walkDistance;
             paintedFootContact=contacts;
             if(Game.save.effectsQuality>1)
             {

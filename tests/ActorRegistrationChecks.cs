@@ -3036,6 +3036,60 @@ public static class ActorRegistrationChecks
         }
     }
 
+    public static void VerifyCanonicalHeroFootfallsMatchWalkCellContacts(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        try
+        {
+            var marks=(System.Collections.IList)typeof(FrontierRuntime)
+                .GetField("footfallMarks",Private).GetValue(app);
+            marks.Clear();game.enemies.Clear();
+            game.save.companion=-1;
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=2;
+            game.walkDistance=0f;game.footContacts=0;
+            game.movementDirection=new Point();
+            Set(app,"paintedFootRoom",-1);
+            Set(app,"paintedFootContact",-1);
+            Call(app,"AdvanceFootfallVisual",.05f);
+            Check(marks.Count==0,
+                "First seen canonical hero must not replay past footsteps");
+            for(int step=1;step<=16;step++)
+            {
+                float moved=GameCore.WalkStride*step/8f;
+                game.walkDistance=moved;
+                game.save.x=12f+moved;
+                game.movementDirection=new Point(1f,0f);
+                game.footContacts++;
+                Call(app,"AdvanceFootfallVisual",.05f);
+                Check(marks.Count==step/4,
+                    "Canonical blonde hero ground contact must match ONLY original planted Walk frames 2/0");
+            }
+            int painted=marks.Count;
+            game.movementDirection=new Point();
+            game.walkDistance+=GameCore.WalkStride;
+            game.footContacts+=2;
+            Call(app,"AdvanceFootfallVisual",.05f);
+            Check(marks.Count==painted,
+                "Stationary hero cannot emit new stamps from audio contacts");
+            game.walkDistance=0f;
+            game.movementDirection=new Point(1f,0f);
+            game.footContacts++;
+            Call(app,"AdvanceFootfallVisual",.05f);
+            Check(marks.Count==painted,
+                "Hero teleport/recovery walk-cycle rewind cannot paint old phantom footfalls");
+            game.save.reducedMotion=true;
+            game.walkDistance=GameCore.WalkStride;
+            game.footContacts++;
+            Call(app,"AdvanceFootfallVisual",.05f);
+            Check(marks.Count==0,
+                "Reduced-motion retains its existing no-extra-footprint contract");
+            Console.WriteLine("PASS canonical hero world foot contacts use actual planted Sprite frames, not independent audio cadence; stationary, rewind and reduced-motion stay safe");
+        }
+        finally {app.EndVisualReview();Clear();}
+    }
+
     public static void VerifyMaterialGroundContactFrames(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -3370,7 +3424,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
