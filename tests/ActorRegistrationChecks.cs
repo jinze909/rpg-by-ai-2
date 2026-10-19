@@ -2150,6 +2150,12 @@ public static class ActorRegistrationChecks
                 FrameColumn(walkBody,item.columns)==gait,
                 "Regression setup must paint the selected real walking keyframe for "+item.walk);
 
+            // Simulate the largest ordinary displacement expected
+            // between painted frames when Update catches up a 200ms stall.
+            // Camera re-centering keeps the same visible foot while the
+            // actor-keyed state sees the real .9-world-unit translation.
+            enemy.x+=.90f;
+            Place(app,enemy.Position,new Point(500,350));
             enemy.moving=false;
             Set(app,"clock",10.02f);Clear();
             var stopping=Draw(app,"DrawEnemyActor",enemy);

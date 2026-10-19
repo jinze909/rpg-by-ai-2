@@ -68,8 +68,13 @@ namespace Starfall
                 ignored=>new EnemyStopPlantState());
             int directionRow=GameCore.DirectionRow(enemy.facing);
             bool finiteClock=FiniteEnemyStopValue(clock);
+            // Update can catch up four 50ms simulation slices in one
+            // render. A normal actor may therefore travel about one world
+            // unit between painted frames; do not lose its planted contact
+            // merely because the display ran at a low frame rate. Real
+            // teleports/lunges remain outside this bounded displacement.
             bool sameContext=finiteClock&&state.room==Game.save.room&&
-                (enemy.Position-state.position).Length<.68f&&
+                (enemy.Position-state.position).Length<1.25f&&
                 state.directionRow==directionRow&&state.flip==flip&&
                 clock>=state.lastAt;
             bool quietIdle=pose==0&&finiteClock&&
