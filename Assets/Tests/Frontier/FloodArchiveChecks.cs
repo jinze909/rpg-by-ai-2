@@ -252,6 +252,64 @@ namespace Starfall.Tests
             finally{data.maps[2]=original;}
         }
 
+        public static void UnavailableFerryAmbushNeverSpendsStaminaOrLosesParcel(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);
+            g.enemies.Clear();g.invulnerable=180;
+            g.save.flags.Add("scout_saved");
+            g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.x=west.x;g.save.y=west.y;
+            g.save.energy=100;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&
+                g.FloodReliefActive&&!g.FloodReliefCrossed,
+                "A genuine archived medicine parcel begins at the physical west-bank ferry");
+            int coins=g.save.coins;
+            MapData original=data.maps[2];
+            try
+            {
+                // Leave exactly the valid landing foot while closing every
+                // potential ambush foothold within the maximum local ring.
+                // An ordinary ferry can still land safely here.
+                var rows=(string[])original.rows.Clone();
+                int cx=(int)Math.Floor(east.x);
+                int cy=(int)Math.Floor(east.y);
+                for(int y=cy-9;y<=cy+9;y++)
+                {
+                    char[] tiles=rows[y].ToCharArray();
+                    for(int x=cx-9;x<=cx+9;x++)
+                        if(x!=cx||y!=cy)tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[2]=new MapData {
+                    id=2,spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,
+                    decor=original.decor};
+                Check(g.CanStand(new Point(east.x,east.y))&&
+                    g.CanStand(g.Position),
+                    "Both physical ferry landing tiles remain standable even though the east ambush area is sealed");
+                g.Talk(west);
+                Check(FerryChoice(g,"floodarchive_ferry"),
+                    "The original west dock still exposes the allowed low-tide ferry choice");
+                Check((g.Position-new Point(west.x,west.y)).Length<.001f&&
+                    g.save.energy==100&&g.FloodReliefActive&&
+                    !g.FloodReliefCrossed&&g.FloodReliefTime==65&&
+                    g.FloodReliefRaiders==0&&g.save.coins==coins,
+                    "A blocked east-bank ambush cannot charge stamina, teleport or erase the original medicine run");
+            }
+            finally {data.maps[2]=original;}
+            // Repair the actual east bank and take the same advertised
+            // ferry again, without reaccepting or farming the 65s parcel.
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(east.x,east.y)).Length<.001f&&
+                g.save.energy==86&&g.FloodReliefCrossed&&
+                g.FloodReliefRaiders==2&&g.FloodReliefTime==65&&
+                !g.FloodReliefComplete&&g.save.version==2,
+                "Reopened shoreline commits exactly one full-cost crossing and two real raiders while retaining the active run");
+        }
+
         public static void PublicFerryEmergencyRunRequiresRealCrossingAndBothRaiderKills(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=18;

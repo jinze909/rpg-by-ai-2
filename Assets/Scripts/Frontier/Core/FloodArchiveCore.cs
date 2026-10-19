@@ -131,7 +131,7 @@ namespace Starfall
                             !ClearAttackPath(anchor,p)||
                             // Radius 12 bounds the route around a nearby
                             // pier; all Boss calls keep their prior 5 tiles.
-                            !BossSummonHasLocalRoute(p,anchor,12))
+                            !ActorHasLocalRoute(p,anchor,12))
                             continue;
                         spots.Add(p);
                     }
@@ -149,13 +149,6 @@ namespace Starfall
                     spots[i].x,spots[i].y,78+i*14);
                 e.timer=.8f+i*.25f;enemies.Add(e);
             }
-        }
-        private bool SpawnFloodReliefRaiders()
-        {
-            Point[] spots;
-            if(!TryFloodReliefRaiderSpots(Position,out spots))return false;
-            SpawnFloodReliefRaiders(spots);
-            return true;
         }
         private WorldObject FloodArchiveObject(int stage)
         {
@@ -355,20 +348,29 @@ namespace Starfall
                     "Crossing requires "+PublicFerryEnergyCost+" energy.");
                 return true;
             }
+            // The old code charged ferry energy and moved the parcel
+            // BEFORE checking whether two reachable east-bank raiders
+            // could exist. A blocked shoreline then silently canceled the
+            // entire 65-second mission while leaving the player stranded
+            // on the far bank. Plan the full encounter before either
+            // resource or travel transaction; never commit half a pair.
+            Point[] crossingRaiders=null;
+            if(floodReliefActive&&from==western&&
+                !TryFloodReliefRaiderSpots(new Point(to.x,to.y),
+                    out crossingRaiders))
+            {
+                Notify("东岸拦截战没有安全落点。仍在西岸，未消耗耐力；调整战场后可继续护送。",
+                    "No safe east-bank ambush feet. The ferry remains west without spending energy; clear the shore and retry.");
+                return true;
+            }
             save.energy-=PublicFerryEnergyCost;save.x=to.x;save.y=to.y;
             revision++;sound="travel";
             if(floodReliefActive&&from==western)
             {
                 floodReliefCrossed=true;
-                if(!SpawnFloodReliefRaiders())
-                {
-                    ResetFloodRelief();revision++;
-                    Notify("东岸战场无法安全部署拦截者，本次医疗护送已取消，可重新领取。",
-                        "The eastern encounter cannot spawn safely. Return west and retry the medical run.");
-                }
-                else
-                    Notify("真实拦截者登岸！护住医疗包并击退两人，再把药品送到东岸。",
-                        "Two real raiders ambush the medicine! Defeat them and deliver at the eastern dock.");
+                SpawnFloodReliefRaiders(crossingRaiders);
+                Notify("真实拦截者登岸！护住医疗包并击退两人，再把药品送到东岸。",
+                    "Two real raiders ambush the medicine! Defeat them and deliver at the eastern dock.");
             }
             else Notify("低潮渡船把你安全带到了河对岸。","The low-tide public ferry brought you to the opposite bank.");
             return true;

@@ -65,6 +65,7 @@ namespace Starfall.Tests
         [Test] public void FerrymanRemembersPublicArchiveChoice() { CoreChecks.RestoredFerrymanRespondsToActualCivicArchiveChoice(Data()); }
         [Test] public void PublicFerryRespectsCombatHazardsAndTides() { CoreChecks.RestoredPublicFerryHasRealSafetyAndLowTideGates(Data()); }
         [Test] public void FerryRaiderFeetAvoidSealedPocketsAndLivingAllies() { CoreChecks.FerryAmbushRejectsIsolatedGroundAndOccupiedCompanion(Data()); }
+        [Test] public void SealedFerryAmbushCannotSpendEnergyOrCancelMedicalParcel() { CoreChecks.UnavailableFerryAmbushNeverSpendsStaminaOrLosesParcel(Data()); }
         [Test] public void DrownedRuinsArchiveChoicesPersist() { CoreChecks.DrownedFloodArchiveRequiresRealTidesAndChoice(Data()); }
         [Test] public void RestoredRootguardHasRealEnemyInterrupts() { CoreChecks.RestoredRootGuardInterruptsOnlyNearbyThreats(Data()); }
         [Test] public void RootsongRequiresActualTimedForestTones() { CoreChecks.ThornwoodRootsongUsesPhysicalTimingAndPersistentHarmony(Data()); }

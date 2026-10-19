@@ -33,7 +33,12 @@ namespace Starfall
         // four-neighbor footprint graph as real enemy pursuit, bounded to
         // the actual local summoning arena. Shared generation-stamped path
         // workspace avoids allocations on repeated Boss phases.
-        private bool BossSummonHasLocalRoute(Point from, Point target, int radius = 5)
+        private bool BossSummonHasLocalRoute(Point from, Point target)
+        { return ActorHasLocalRoute(from,target,5); }
+        // Keep the established two-argument boss interface (used by
+        // existing Unity reflection checks) while allowing public ferry
+        // encounters to check a wider pier path without partial routing.
+        private bool ActorHasLocalRoute(Point from,Point target,int radius)
         {
             if(!CanStand(from)||!CanStand(target))return false;
             int width=Map.rows[0].Length,height=Map.rows.Length;
