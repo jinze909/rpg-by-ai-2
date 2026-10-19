@@ -2025,6 +2025,85 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS 10 live enemy/Boss stop transitions: authored next planted gait cell, one body, stable feet, bounded Idle return and all five production atlas families");
     }
 
+    // Stop-plant transitions are presentation-only: combat and accessibility
+    // interrupts must immediately regain ownership of the source body.
+    static void EnemyStopPlantInterruptions(FrontierRuntime app,string folder)
+    {
+        app.BeginVisualReview(0,0);
+        var game=app.Game;
+        game.enemies.Clear();game.save.companion=-1;
+        game.save.effectsQuality=2;game.save.reducedMotion=false;
+        Set(app,"clock",20f);
+        var raider=new Enemy(99601,0,game.Position.x+1f,
+            game.Position.y+.5f,160f)
+        {facing=new Point(1,0),moving=true,
+            moveTime=MoveTimeForGait(3,1.35f)};
+        game.enemies.Add(raider);
+        Place(app,raider.Position,new Point(500,350));
+        Clear();Draw(app,"DrawEnemyActor",raider);
+        raider.moving=false;
+        Set(app,"clock",20.02f);Clear();
+        var planted=Draw(app,"DrawEnemyActor",raider)
+            .Single(c=>c.texture.name=="resource:Frontier/Art/MossboundRaider");
+        Check(FrameRow(planted,6)==1&&FrameColumn(planted,4)==0,
+            "Phase 3 must reach its next authored planted contact");
+        raider.stun=.2f;
+        Set(app,"clock",20.04f);Clear();
+        var stunned=Draw(app,"DrawEnemyActor",raider);
+        var body=stunned.Single(c=>c.texture.name=="resource:Frontier/Art/MossboundRaider");
+        Check(FrameRow(body,6)==0&&stunned.Count(ActorTexture)==1,
+            "A real stun cancels the pending walk plant immediately");
+        raider.stun=0f;raider.state=1;raider.timer=.3f;raider.windupDuration=.65f;
+        Set(app,"clock",20.06f);Clear();
+        var windup=Draw(app,"DrawEnemyActor",raider);
+        body=windup.Single(c=>c.texture.name=="resource:Frontier/Art/MossboundRaider");
+        Check(FrameRow(body,6)==2&&windup.Count(ActorTexture)==1,
+            "A real attack windup cannot be hidden by an old planted gait cell");
+
+        app.BeginVisualReview(0,0);
+        game=app.Game;game.enemies.Clear();
+        game.save.effectsQuality=2;game.save.reducedMotion=false;
+        Set(app,"clock",30f);
+        var archer=new Enemy(99602,1,game.Position.x+1f,
+            game.Position.y+.5f,160f)
+        {facing=new Point(1,0),moving=true,
+            moveTime=MoveTimeForGait(1,1.8f)};
+        game.enemies.Add(archer);
+        Place(app,archer.Position,new Point(500,350));
+        Clear();Draw(app,"DrawEnemyActor",archer);
+        archer.moving=false;
+        Set(app,"clock",30.02f);Clear();
+        var archerStop=Draw(app,"DrawEnemyActor",archer);
+        Check(archerStop.Any(c=>c.texture.name=="resource:Frontier/Art/WalkMonsters"),
+            "Archer stop should use its source-authored planted walk cell");
+        archer.Face(new Point(-1,0));
+        Set(app,"clock",30.04f);Clear();
+        var turned=Draw(app,"DrawEnemyActor",archer);
+        Check(turned.Any(c=>c.texture.name=="resource:Frontier/Art/Monsters")&&
+            !turned.Any(c=>c.texture.name=="resource:Frontier/Art/WalkMonsters")&&
+            turned.Count(ActorTexture)==1,
+            "A real facing change cancels the previous walk source immediately");
+
+        app.BeginVisualReview(0,0);
+        game=app.Game;game.enemies.Clear();
+        game.save.effectsQuality=2;game.save.reducedMotion=false;
+        Set(app,"clock",40f);
+        var guard=new Enemy(99603,2,game.Position.x+1f,
+            game.Position.y+.5f,160f)
+        {facing=new Point(1,0),moving=true,
+            moveTime=MoveTimeForGait(1,1.8f)};
+        game.enemies.Add(guard);
+        Place(app,guard.Position,new Point(500,350));
+        Clear();Draw(app,"DrawEnemyActor",guard);
+        guard.moving=false;game.save.reducedMotion=true;
+        Set(app,"clock",40.02f);Clear();
+        var reduced=Draw(app,"DrawEnemyActor",guard);
+        body=reduced.Single(c=>c.texture.name=="resource:Frontier/Art/CinderstoneGuard");
+        Check(FrameRow(body,6)==0&&reduced.Count(ActorTexture)==1,
+            "Reduced motion returns to Idle immediately without holding a gait phase");
+        Console.WriteLine("PASS enemy stop-plant interruption: stun, attack, archer turn and reduced-motion gates");
+    }
+
     // This is called by the executable core C# suite, not only by
     // ActorRegistrationChecks.Run's optional review-gallery entrypoint.
     // The accepted regional Boss Idle (320px) and Walk (384px) canvases
@@ -2862,7 +2941,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
