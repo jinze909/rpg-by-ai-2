@@ -26,6 +26,9 @@ namespace Starfall
         private int paintedHeroContactIndex=-1;
         private float paintedHeroWalkDistance;
         private GameCore paintedHeroOwner;
+        // GameCore.Load can replace SaveData without changing the GameCore
+        // instance or room. Old physical prints belong to the old journey.
+        private SaveData paintedHeroSave;
         private const int MaxFootfallMarks = 18;
         private Texture2D groundContactSheet;
         private float groundContactLastCheck=float.NegativeInfinity;
@@ -94,13 +97,19 @@ namespace Starfall
             int room=Game.save.room;
             int contacts=Game.footContacts;
             if(paintedFootRoom!=room || paintedFootContact<0 ||
-               contacts<paintedFootContact)
+               contacts<paintedFootContact ||
+               !System.Object.ReferenceEquals(paintedHeroOwner,Game) ||
+               !System.Object.ReferenceEquals(paintedHeroSave,Game.save))
             {
                 // No ghosts across teleport, save reload, death or scene
                 // transition. Never replay past footsteps as fresh VFX.
                 footfallMarks.Clear();
                 paintedFootRoom=room;
                 paintedFootContact=contacts;
+                // A same-room save switch is still an entirely new gait
+                // owner, even if its audio step counter happens to match.
+                companionRoom=-1;
+                paintedHeroSave=Game.save;
                 paintedHeroOwner=Game;
                 paintedHeroWalkDistance=Game.walkDistance;
                 paintedHeroContactIndex=PlantedFootfallIndex(
@@ -112,6 +121,7 @@ namespace Starfall
             {
                 footfallMarks.Clear();
                 paintedFootContact=contacts;
+                paintedHeroSave=Game.save;
                 paintedHeroOwner=Game;
                 paintedHeroWalkDistance=Game.walkDistance;
                 paintedHeroContactIndex=PlantedFootfallIndex(
@@ -148,6 +158,7 @@ namespace Starfall
                     (planted&1)!=0,1f);
             }
             paintedHeroOwner=Game;
+            paintedHeroSave=Game.save;
             paintedHeroContactIndex=planted;
             paintedHeroWalkDistance=Game.walkDistance;
             paintedFootContact=contacts;

@@ -3085,6 +3085,22 @@ public static class ActorRegistrationChecks
             Call(app,"AdvanceFootfallVisual",.05f);
             Check(marks.Count==0,
                 "Reduced-motion retains its existing no-extra-footprint contract");
+            // A loaded save can carry the same room and foot-contact
+            // count. That is not permission to reuse old journey decals.
+            game.save.reducedMotion=false;
+            Call(app,"EmitFootfall",game.Position,game.save.room,
+                "stone",false,1f);
+            Check(marks.Count==1,"A planted contact marker is available for same-room owner isolation");
+            Set(app,"paintedHeroSave",null);
+            Call(app,"AdvanceFootfallVisual",.05f);
+            Check(marks.Count==0,
+                "Loading another save in the same room must retire last journey's physical ground contacts");
+            Call(app,"EmitFootfall",game.Position,game.save.room,
+                "stone",false,1f);
+            Set(app,"paintedHeroOwner",null);
+            Call(app,"AdvanceFootfallVisual",.05f);
+            Check(marks.Count==0,
+                "A replacement GameCore instance must not inherit old combat footsteps even with matching foot counters");
             Console.WriteLine("PASS canonical hero world foot contacts use actual planted Sprite frames, not independent audio cadence; stationary, rewind and reduced-motion stay safe");
         }
         finally {app.EndVisualReview();Clear();}
