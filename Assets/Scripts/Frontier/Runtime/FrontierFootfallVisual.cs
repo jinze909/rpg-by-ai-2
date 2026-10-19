@@ -57,13 +57,26 @@ namespace Starfall
         {
             internal Point previous;
             internal int room=-1;
-            internal float travel;
+            internal float lastMoveTime;
+            internal int contactIndex=-1;
         }
         // Per-actor ID is NOT a stable identity across saved/respawned enemies.
         // Weak object references isolate identical IDs and avoid accumulating
         // old regional encounters in the transient visual renderer.
         private readonly ConditionalWeakTable<Enemy,StepTracker> enemySteps =
             new ConditionalWeakTable<Enemy,StepTracker>();
+
+        // Contact 0 and contact 2 are the two grounded cells in every
+        // accepted four-frame Walk sprite row. Use the SAME distance phase
+        // as the source's GameCore.GaitFrame, not an unrelated dust cadence.
+        private static int PlantedFootfallIndex(float distance,float stride)
+        {
+            if(float.IsNaN(distance)||float.IsInfinity(distance)||
+               float.IsNaN(stride)||float.IsInfinity(stride)||
+               distance<0f||stride<=.1f)return -1;
+            double index=Math.Floor((double)distance*2d/stride+1e-7d);
+            return index>=int.MaxValue?int.MaxValue:(int)index;
+        }
         private Point companionPrevious;
         private int companionRoom=-1,companionId=-1;
         private float companionTravel;
@@ -163,30 +176,35 @@ namespace Starfall
                 StepTracker tracker=enemySteps.GetValue(enemy,
                     ignored=>new StepTracker());
                 Point now=enemy.Position;
+                // The exact source Sprite selected in DrawEnemyActor uses
+                // 2.8 units per Boss walk cycle and 1.35/1.8 for enemies.
+                // Its planted cells are 0/2, one contact per HALF cycle.
+                float stride=enemy.boss?2.8f:
+                    enemy.kind==0?1.35f:1.8f;
+                int contact=PlantedFootfallIndex(enemy.moveTime,stride);
                 if(tracker.room!=room)
                 {
                     tracker.room=room;tracker.previous=now;
-                    tracker.travel=0f;continue;
+                    tracker.lastMoveTime=enemy.moveTime;
+                    tracker.contactIndex=contact;continue;
                 }
                 float distance=(now-tracker.previous).Length;
+                bool rewound=enemy.moveTime<tracker.lastMoveTime-.0001f;
                 tracker.previous=now;
-                // Movement must come from real translated feet. A stagger,
-                // windup, knockback or teleport cannot emit phantom steps.
+                tracker.lastMoveTime=enemy.moveTime;
+                int prior=tracker.contactIndex;
+                tracker.contactIndex=contact;
+                // Only source-painted foot plants produce ground contacts.
+                // A lunge, collision warp, pause, recoil or skipped giant
+                // frame never manufactures prints at an airborne keyframe.
                 if(!enemy.moving || enemy.state!=0 ||
                    enemy.releaseTime>0f || enemy.stun>0f ||
-                   enemy.hp<=0f || distance<.003f || distance>.95f)
-                {
-                    tracker.travel=0f;continue;
-                }
-                tracker.travel+=distance;
-                float stride=enemy.boss?.78f:.46f;
-                if(tracker.travel>=stride)
-                {
-                    tracker.travel%=stride;
-                    EmitFootfall(now,room,FrontierAudio.FootSurface(Game,now),
-                        ((int)(enemy.moveTime*4f)&1)!=0,
-                        enemy.boss?.90f:.65f);
-                }
+                   enemy.hp<=0f || distance<.003f || distance>.95f ||
+                   rewound || contact<0 || prior<0 ||
+                   contact<=prior || contact-prior>2)
+                    continue;
+                EmitFootfall(now,room,FrontierAudio.FootSurface(Game,now),
+                    (contact&1)!=0,enemy.boss?.90f:.65f);
             }
         }
 

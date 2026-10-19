@@ -2910,6 +2910,66 @@ public static class ActorRegistrationChecks
         }
     }
 
+    public static void VerifyEnemyFootfallsFollowGenuinePaintedContacts(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        try
+        {
+            var marks=(System.Collections.IList)typeof(FrontierRuntime)
+                .GetField("footfallMarks",Private).GetValue(app);
+            var previous=game.save.effectsQuality;
+            game.save.effectsQuality=2;
+            try
+            {
+                foreach(int kind in new[]{0,1,2,3})
+                {
+                    marks.Clear();game.enemies.Clear();
+                    bool boss=kind==3;
+                    float stride=boss?2.8f:kind==0?1.35f:1.8f;
+                    var enemy=new Enemy(991100+kind,kind==3?0:kind,
+                        12f,12f,300f,boss)
+                        {timer=999f,stun=0f,moveTime=0f};
+                    game.enemies.Add(enemy);
+                    Call(app,"AdvanceEnemyFootfalls",game.save.room);
+                    Check(marks.Count==0,"A newly observed actor has no fake prior footstep");
+                    for(int step=1;step<=16;step++)
+                    {
+                        float moved=stride*step/8f;
+                        enemy.moveTime=moved;
+                        enemy.x=12f+moved;
+                        enemy.moving=true;
+                        Call(app,"AdvanceEnemyFootfalls",game.save.room);
+                        int expected=step/4;
+                        Check(marks.Count==expected,
+                            "Enemy "+kind+" contact effects must coincide with accepted Walk Sprite cells 0/2, not arbitrary gait distance");
+                        if(step%4==0)
+                        {
+                            object mark=marks[marks.Count-1];
+                            bool flipped=(bool)mark.GetType().GetField("alternate",
+                                BindingFlags.Instance|BindingFlags.NonPublic|
+                                BindingFlags.Public).GetValue(mark);
+                            Check(flipped==((expected&1)!=0),
+                                "Painted left/right ground contact must alternate at source footfall, not wall-clock phase");
+                        }
+                    }
+                    int frozen=marks.Count;
+                    enemy.moving=false;enemy.moveTime+=stride;
+                    Call(app,"AdvanceEnemyFootfalls",game.save.room);
+                    Check(marks.Count==frozen,
+                        "Inactive or windup Boss cannot leave stationary gait footprints");
+                    enemy.moveTime=0f;enemy.x=12f;enemy.moving=true;
+                    Call(app,"AdvanceEnemyFootfalls",game.save.room);
+                    Check(marks.Count==frozen,
+                        "A new gait epoch or teleport cannot emit old contact events");
+                }
+            }
+            finally {game.save.effectsQuality=previous;}
+            Console.WriteLine("PASS native-compatible enemy and Boss footfall VFX are phase-locked to actual planted walk cells across four actor families");
+        }
+        finally {app.EndVisualReview();Clear();}
+    }
+
     public static void VerifyMaterialGroundContactFrames(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -3244,7 +3304,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
