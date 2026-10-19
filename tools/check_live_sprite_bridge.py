@@ -260,6 +260,31 @@ def check():
             assert item in source, ("NATIVE_PRODUCTION_SCENE_COVERAGE_LOST",item)
         assert "Assert.Ignore(" not in source, (
             "NATIVE_ANIMATOR_MISSING_MUST_NOT_BE_IGNORED")
+    # The production scene must explicitly serialize the runtime, not rely
+    # solely on RuntimeInitializeOnLoadMethod to create a hidden bootstrap.
+    production_scene = (ROOT / "Assets/Scenes/Frontier.unity").read_text()
+    def check_production_scene_wiring(source):
+        required_scene = (
+            "m_Name: Starfall Frontier Runtime",
+            "guid: 16d54181515d5dd1ab56d8585bf2b304",
+            "useSpriteRendererHero: 1",
+            "useSpriteRendererActors: 1",
+            "- {fileID: 740000002}",
+        )
+        for item in required_scene:
+            assert item in source, ("FRONTIER_SCENE_RUNTIME_WIRING_MISSING", item)
+    check_production_scene_wiring(production_scene)
+    for item in ("m_Name: Starfall Frontier Runtime",
+                 "useSpriteRendererHero: 1",
+                 "useSpriteRendererActors: 1"):
+        try:
+            check_production_scene_wiring(
+                production_scene.replace(item, "/* removed production scene wiring */", 1))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError(
+                "UNSAFE_VISUAL_CI: missing serialized Frontier production runtime accepted")
     # Imported Animator missing must hard-fail in its own separate native
     # clip test, which lives OUTSIDE the production idle-scene method.
     assert "Native Animator MISSING: production PlayMode must FAIL" in native_qa
