@@ -160,6 +160,66 @@ namespace Starfall.Tests
                 "Application pause/focus must retire all queued combat inputs");
         }
 
+        public static void FullyBlockedRangerSkillRefundsEnergyAndCooldown(Campaign data)
+        {
+            GameCore g=Fresh(data,1);
+            g.enemies.Clear();g.projectiles.Clear();g.effects.Clear();
+            g.save.energy=100;
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var shot=typeof(GameCore).GetMethod("FriendlyShot",flags);
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+            Check(shot!=null&&clear!=null,
+                "Probe the real production bow muzzle and physical target lane");
+
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            Point center=new Point(post.x,post.y);
+            Point[] directions={
+                new Point(1,0),new Point(-1,0),new Point(0,1),
+                new Point(0,-1),new Point(.7071068f,.7071068f),
+                new Point(.7071068f,-.7071068f),
+                new Point(-.7071068f,.7071068f),
+                new Point(-.7071068f,-.7071068f)
+            };
+            Point origin=new Point(),direction=new Point(),target=new Point();
+            bool found=false;
+            for(float dx=-6f;dx<=6f&&!found;dx+=.25f)
+            for(float dy=-6f;dy<=6f&&!found;dy+=.25f)
+            {
+                Point candidate=center+new Point(dx,dy);
+                if(!g.CanStand(candidate))continue;
+                foreach(Point dir in directions)
+                {
+                    Point candidateTarget=candidate+dir*4f;
+                    if(!(bool)clear.Invoke(g,new object[]{candidate,candidateTarget}))
+                        continue;
+                    Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                        candidate,1,dir,13f,1f,false,
+                        (Point?)candidateTarget,null});
+                    if(!probe.blockedAtSpawn)continue;
+                    origin=candidate;direction=dir;target=candidateTarget;
+                    found=true;break;
+                }
+            }
+            Check(found,
+                "Authored outpost terrain has a walkable hero foot with clear target LOS but blocked bow muzzle");
+            g.save.x=origin.x;g.save.y=origin.y;
+            g.SetAimTarget(target);
+            g.Skill(direction);
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                Math.Abs(g.save.energy-60f)<.001f&&g.skillCooldown>3f,
+                "Ranger Q charges its ordinary cost when the cast actually starts");
+            Advance(g,.29f);
+            Check(g.playerAction!=null&&g.playerAction.released&&
+                g.projectiles.Count==0&&Math.Abs(g.save.energy-100f)<.001f&&
+                g.skillCooldown<=0f,
+                "A volley blocked at every physical muzzle refunds all energy and cooldown");
+            Check(g.effects.Exists(e=>e.kind=="projectileImpact")&&
+                g.lastSound=="guard",
+                "Blocked contact keeps honest wall-impact feedback without a phantom arrow");
+        }
+
         public static void BufferedSkillRepeatCannotExtendOrRetargetIntent(Campaign data)
         {
             var g=Fresh(data,1);g.enemies.Clear();

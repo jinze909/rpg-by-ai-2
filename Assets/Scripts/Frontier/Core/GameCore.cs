@@ -697,6 +697,12 @@ namespace Starfall
                           height = WeaponHeight(visualWeapon, action.direction) });
                 else if (blocked != null)
                 {
+                    // A fully muzzle-blocked Ranger volley never launched.
+                    // Match the companion command contract: refund the exact
+                    // Q cost and cooldown instead of charging for zero shots.
+                    save.energy = Math.Min(100f,
+                        save.energy + (Relic(4) ? 50f : 40f));
+                    skillCooldown = 0f;
                     effects.Add(new Effect("projectileImpact", blocked.position, .22f)
                         { direction = action.direction, height = blocked.height });
                     sound = "guard";
