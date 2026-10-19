@@ -987,6 +987,71 @@ namespace Starfall.Tests
             }
         }
 
+        public static void GuardReplansBlockedWorldRouteWithoutWarpingOrOrphanOrders(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Real ranged guard is initially stationed");
+            var field=typeof(GameCore).GetField("outerPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var clock=typeof(GameCore).GetField("outerPatrolGuardRouteCheck",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var target=typeof(GameCore).GetMethod("CompanionOutpostGuardTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var route=typeof(GameCore).GetMethod("ActorHasLocalRoute",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(field!=null&&clock!=null&&target!=null&&route!=null,
+                "Test live connectedness, not a fake route flag");
+            Point stranded=new Point();bool found=false;
+            for(int radius=12;radius<=20&&!found;radius++)
+            for(int dx=-radius;dx<=radius&&!found;dx++)
+            for(int dy=-radius;dy<=radius&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-g.companionPosition).Length<11f||
+                    (bool)route.Invoke(g,new object[]{
+                        g.companionPosition,p,10}))continue;
+                stranded=p;found=true;
+            }
+            Check(found,"Real world has walkable but locally disconnected foot");
+            Point actorBefore=g.companionPosition;
+            field.SetValue(g,stranded);clock.SetValue(g,0f);
+            Point updated=(Point)target.Invoke(g,null);
+            Check(g.OuterPatrolCompanionGuarding&&
+                (updated-stranded).Length>1f&&g.CanStand(updated)&&
+                (bool)route.Invoke(g,new object[]{
+                    g.companionPosition,updated,10})&&
+                (g.companionPosition-actorBefore).Length<.001f,
+                "Closed route replans to reachable guard position without teleporting actor");
+            Check((g.OuterPatrolCompanionGuardPosition-updated).Length<.01f,
+                "World guard marker reads recovered actual reachable destination");
+            // A genuinely invalid foot retires the tactical order instead
+            // of persisting an impossible guard marker over another scene.
+            field.SetValue(g,new Point(-20f,-20f));
+            target.Invoke(g,null);
+            Check(!g.OuterPatrolCompanionGuarding,
+                "Non-walkable emergency target safely returns to ordinary following");
+        }
+
         public static void RealCompanionGuardsSuppliesWithoutWarpingOrPersisting(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,

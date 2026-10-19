@@ -12,6 +12,7 @@ namespace Starfall
         private bool outerPatrolVeteran,outerPatrolBraceBuilt,outerPatrolCompanionGuard,
             outerPatrolGuardMedicRescue;
         private Point outerPatrolCompanionGuardFoot;
+        private float outerPatrolGuardRouteCheck;
         private float outerPatrolTime,outerPatrolStock,outerPatrolBrace,outerPatrolBraceFlash;
         private Point outerPatrolPost;
         public bool OuterPatrolCompanionGuarding
@@ -110,6 +111,7 @@ namespace Starfall
                 outerPatrolBraceBuilt=outerPatrolCompanionGuard=
                 outerPatrolGuardMedicRescue=false;
             outerPatrolCompanionGuardFoot=new Point();
+            outerPatrolGuardRouteCheck=0f;
             outerPatrolStock=outerPatrolTime=outerPatrolBrace=
                 outerPatrolBraceFlash=0f;
             outerPatrolPost=new Point();
@@ -486,6 +488,33 @@ namespace Starfall
                 outerPatrolGuardMedicRescue=false;
             if(outerPatrolGuardMedicRescue)
                 return CompanionFollowTarget();
+            // A dynamic flood, raised gate or reconfigured corridor can
+            // strand an otherwise valid original guard foot. Test actual
+            // local connectivity at a bounded 0.85s cadence, never 50
+            // flood-fill searches per second. Reposition to another safe,
+            // shootable reachable foot; do not teleport the ally itself.
+            if(outerPatrolGuardRouteCheck<=0f)
+            {
+                outerPatrolGuardRouteCheck=.85f;
+                if((companionPosition-outerPatrolCompanionGuardFoot).Length>.4f&&
+                    !ActorHasLocalRoute(companionPosition,
+                        outerPatrolCompanionGuardFoot,10))
+                {
+                    Point alternate;
+                    if(TryOuterPatrolCompanionGuardFoot(out alternate))
+                    {
+                        outerPatrolCompanionGuardFoot=alternate;
+                        revision++;
+                    }
+                    else
+                    {
+                        outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
+                        Notify("哨岗驻守路线已封闭，同伴改为正常跟随。",
+                            "Watch route closed; companion resumes normal following.");
+                        return CompanionFollowTarget();
+                    }
+                }
+            }
             return outerPatrolCompanionGuardFoot;
         }
         private bool ToggleOuterPatrolCompanionGuard()
@@ -501,6 +530,7 @@ namespace Starfall
             if(outerPatrolCompanionGuard)
             {
                 outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
+                outerPatrolGuardRouteCheck=0f;
                 revision++;sound="quest";
                 Notify("同伴恢复正常跟随与既有战斗指令。",
                     "Companion resumes normal following and combat commands.");
@@ -516,6 +546,7 @@ namespace Starfall
             outerPatrolCompanionGuardFoot=standing;
             outerPatrolCompanionGuard=true;
             outerPatrolGuardMedicRescue=false;
+            outerPatrolGuardRouteCheck=.85f;
             revision++;sound="quest";
             Notify("同伴正在步行前往补给岗守卫位置。",
                 "Companion moving on foot to defend the supplies.");
@@ -621,6 +652,7 @@ namespace Starfall
             outerPatrolStock=100f;outerPatrolPatched=false;
             outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
             outerPatrolCompanionGuardFoot=new Point();
+            outerPatrolGuardRouteCheck=0f;
             outerPatrolBrace=outerPatrolBraceFlash=0f;
             outerPatrolBraceBuilt=false;
             outerPatrolPost=new Point(post.x,post.y);
@@ -689,6 +721,8 @@ namespace Starfall
         {
             if(outerPatrolRoom<0)return;
             outerPatrolBraceFlash=Math.Max(0f,outerPatrolBraceFlash-dt);
+            outerPatrolGuardRouteCheck=Math.Max(0f,
+                outerPatrolGuardRouteCheck-dt);
             if(outerPatrolRoom!=save.room||Dying)
             {
                 ResetOuterPatrol();return;
