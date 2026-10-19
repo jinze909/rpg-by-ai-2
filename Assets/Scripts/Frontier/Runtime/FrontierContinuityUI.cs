@@ -214,7 +214,9 @@ namespace Starfall
                 Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
                     new Color(accent.r,accent.g,accent.b,.7f));
                 Text(393,25,494,27,
-                    Game.L("救援岗防卫 · 倒计时 ","RELIEF OUTPOST DEFENSE · ")+
+                    (Game.OuterPatrolVeteranActive?
+                        Game.L("精英补给保卫 · 倒计时 ","VETERAN CACHE SIEGE · "):
+                        Game.L("救援岗防卫 · 倒计时 ","RELIEF OUTPOST DEFENSE · "))+
                     Math.Ceiling(Game.OuterPatrolTime)+"s",
                     15,paper,TextAnchor.MiddleCenter);
                 Text(398,49,481,18,

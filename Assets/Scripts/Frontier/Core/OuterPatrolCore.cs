@@ -7,8 +7,9 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int outerPatrolRoom=-1;
-        private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1;
-        private bool outerPatrolADead,outerPatrolBDead,outerPatrolPatched;
+        private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1,outerPatrolEnemyC=-1;
+        private bool outerPatrolADead,outerPatrolBDead,outerPatrolCDead,outerPatrolPatched;
+        private bool outerPatrolVeteran;
         private float outerPatrolTime,outerPatrolStock;
         private Point outerPatrolPost;
         public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
@@ -18,6 +19,12 @@ namespace Starfall
             outerPatrolStock>0f&&outerPatrolStock<100f&&
             save.inventory[0]>0&&save.inventory[2]>0;}}
         public bool OuterPatrolActive { get { return outerPatrolRoom==save.room; } }
+        public bool OuterPatrolVeteranActive
+        { get { return OuterPatrolActive&&outerPatrolVeteran; } }
+        public bool OuterPatrolVeteranDone(int room)
+        { return room>=0&&room<8&&Has("outer_patrol_veteran_"+room); }
+        public int OuterPatrolVeteranWins
+        { get { int total=0;for(int i=0;i<8;i++)if(OuterPatrolVeteranDone(i))total++;return total; } }
         public bool OuterPatrolDone(int room)
         { return room>=0&&room<8&&Has("outer_patrol_done_"+room); }
         // Victory changes the actual world, not only the quest journal.
@@ -51,22 +58,26 @@ namespace Starfall
             if(outerPatrolRoom>=0)
                 for(int i=enemies.Count-1;i>=0;i--)
                     if(enemies[i].id==outerPatrolEnemyA||
-                       enemies[i].id==outerPatrolEnemyB)
+                       enemies[i].id==outerPatrolEnemyB||
+                       enemies[i].id==outerPatrolEnemyC)
                     {
                         RemoveEnemyPendingWarning(enemies[i]);
                         enemies.RemoveAt(i);
                     }
             projectiles.RemoveAll(p=>p.outerPatrolOwned);
             effects.RemoveAll(e=>e.outerPatrolOwned);
-            outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=-1;
-            outerPatrolADead=outerPatrolBDead=outerPatrolPatched=false;
+            outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=
+                outerPatrolEnemyC=-1;
+            outerPatrolADead=outerPatrolBDead=outerPatrolCDead=
+                outerPatrolPatched=outerPatrolVeteran=false;
             outerPatrolStock=outerPatrolTime=0f;
             outerPatrolPost=new Point();
         }
         private bool IsOuterPatrolEnemy(Enemy e)
         {
             return outerPatrolRoom==save.room &&
-                (e.id==outerPatrolEnemyA||e.id==outerPatrolEnemyB);
+                (e.id==outerPatrolEnemyA||e.id==outerPatrolEnemyB||
+                 e.id==outerPatrolEnemyC);
         }
         private void OnOuterPatrolEnemyDefeated(Enemy e)
         {
@@ -75,6 +86,7 @@ namespace Starfall
             if(!IsOuterPatrolEnemy(e))return;
             if(e.id==outerPatrolEnemyA)outerPatrolADead=true;
             if(e.id==outerPatrolEnemyB)outerPatrolBDead=true;
+            if(e.id==outerPatrolEnemyC)outerPatrolCDead=true;
         }
         // Only a genuine released melee swing can damage this physical cache.
         // No passive radius drain, through-wall attrition, or fake projectile hits.
@@ -105,12 +117,35 @@ namespace Starfall
             if(o.kind!="outerwatch")return false;
             int room=save.room;
             if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(OuterPatrolActive)
+            {
+                Dialog(o.name,o.en,
+                    (outerPatrolVeteran?"精英突袭正在威胁已守住的救援岗。三名敌人包括重甲撞击手。":"盗取物资的袭击者逼近哨岗。")+
+                    "剩余 "+Math.Ceiling(outerPatrolTime)+" 秒，物资耐久 "+
+                    Math.Ceiling(outerPatrolStock)+"%。木材和月光草可抢修一次。",
+                    (outerPatrolVeteran?"A veteran three-raider assault, including a heavy slammer, is underway.":"Raiders are attacking the relief stock.")+
+                    " Time left "+Math.Ceiling(outerPatrolTime)+"s; integrity "+
+                    Math.Ceiling(outerPatrolStock)+"%. Timber and Moonherb patch it once.",
+                    C("临时加固 · 木材和草药各1","Emergency patch · timber + Moonherb","outer_watch_patch"),
+                    C("主动撤守","Withdraw defense","outer_watch_abort"),
+                    C("继续防卫","Continue the defense","close"));
+                return true;
+            }
             if(OuterPatrolDone(room))
             {
                 Dialog(o.name,o.en,
-                    "你保护过的救援物资正在送往居民手中。这里已成为真正的补给点：脱离战斗并靠近哨岗时，可以缓慢恢复生命与耐力。",
-                    "The supplies you defended now reach the people who need them. This staffed outpost now restores health and energy when the road is safe.",
-                    C("查看已守护的补给道路","Open the protected supply routes","outer_watch_routes"),
+                    "居民已接管此处的物资与补给道路，安全时可恢复生命和耐力。"+
+                    (OuterPatrolVeteranDone(room)?
+                        "你击退过精英三人组，此处医疗与补给更充足。可重演训练，但不会重复获得奖品。":
+                        "可发起 110 秒精英防卫：真正的重甲敌人会砸毁物资。首次获胜可强化补给点。"),
+                    "Residents operate this defended supply route. Recover here when safe. "+
+                    (OuterPatrolVeteranDone(room)?
+                        "Veteran defense cleared: stronger local care is available. Replay yields no rewards.":
+                        "A 110s veteran defense adds a real heavy cache saboteur. First clear improves this refuge."),
+                    C(OuterPatrolVeteranDone(room)?"再战精英防卫 · 无重复奖励":"挑战精英防卫 · 强化补给岗",
+                        OuterPatrolVeteranDone(room)?"Replay veteran defense · no repeat loot":"Veteran defense · upgrade this refuge",
+                        "outer_watch_veteran"),
+                    C("查看已守护的补给道路","Open protected supply routes","outer_watch_routes"),
                     C("继续巡路","Keep exploring","close"));
                 return true;
             }
@@ -120,16 +155,6 @@ namespace Starfall
                     "此处还没有可以守护的物资。先调查南部记录，修复求援灯，找回东南方的救援箱。",
                     "No supplies have arrived yet. Recover the southern log, repair the eastern relay, then retrieve the relief cache.",
                     C("查找信号","Find the signal","close"));
-                return true;
-            }
-            if(OuterPatrolActive)
-            {
-                Dialog(o.name,o.en,
-                    "盗取补给的暴走兽就在附近。守住物资直到两名袭击者落败：剩余 "+Math.Ceiling(outerPatrolTime)+" 秒，物资耐久 "+Math.Ceiling(outerPatrolStock)+"%。可以使用木材和草药抢修一次。",
-                    "Raiders are attacking the stores! Defeat both before the "+Math.Ceiling(outerPatrolTime)+"s deadline; stock integrity "+Math.Ceiling(outerPatrolStock)+"%. Timber and Moonherb can patch it once.",
-                    C("临时加固 · 木材和草药各1","Emergency patch · timber + Moonherb","outer_watch_patch"),
-                    C("主动撤守","Withdraw defense","outer_watch_abort"),
-                    C("继续防卫","Continue the defense","close"));
                 return true;
             }
             Dialog(o.name,o.en,
@@ -306,9 +331,12 @@ namespace Starfall
                     "Emergency patch complete: -1 timber, -1 Moonherb, +30 stock integrity.");
                 return true;
             }
-            if(action!="outer_watch_start")return false;
+            bool veteran=action=="outer_watch_veteran";
+            if(!veteran&&action!="outer_watch_start")return false;
             int room=save.room;
-            if(room<0||room>=8||OuterPatrolActive||OuterPatrolDone(room)||
+            if(room<0||room>=8||OuterPatrolActive||
+                (veteran&&!OuterPatrolDone(room))||
+                (!veteran&&OuterPatrolDone(room))||
                 !OuterCacheRecovered(room)||Dying||practicing)return true;
             WorldObject post=null;
             foreach(WorldObject o in Map.objects)if(o.kind=="outerwatch"){post=o;break;}
@@ -320,26 +348,39 @@ namespace Starfall
                 return true;
             }
             Point[] feet;
-            if(!TryOuterPatrolFeet(post,out feet))
+            if(!TryOuterPatrolFeet(post,out feet,veteran?3:2))
             {
-                Notify("救援岗暂时找不到两处可达且不被占用的安全战斗落点。清出场地后可重试。",
-                    "Two reachable, unoccupied raider roots are unavailable. Clear the outpost and retry.");
+                Notify("救援岗没有足够的可达战斗落点，请清理拥挤的场地后重试。",
+                    "Insufficient walkable, reachable raider roots. Clear the outpost and retry.");
                 return true;
             }
-            outerPatrolRoom=room;
-            outerPatrolTime=95f;outerPatrolStock=100f;outerPatrolPatched=false;
+            outerPatrolRoom=room;outerPatrolVeteran=veteran;
+            outerPatrolTime=veteran?110f:95f;
+            outerPatrolStock=100f;outerPatrolPatched=false;
             outerPatrolPost=new Point(post.x,post.y);
-            Enemy one=CreatePlacedEnemy(++enemyId,0,feet[0],48+room*10);
-            Enemy two=CreatePlacedEnemy(++enemyId,1,feet[1],42+room*10);
+            Enemy one=CreatePlacedEnemy(++enemyId,0,feet[0],
+                (veteran?70:48)+room*10);
+            Enemy two=CreatePlacedEnemy(++enemyId,1,feet[1],
+                (veteran?65:42)+room*10);
             outerPatrolEnemyA=one.id;outerPatrolEnemyB=two.id;
-            outerPatrolADead=outerPatrolBDead=false;
+            outerPatrolADead=outerPatrolBDead=outerPatrolCDead=false;
             enemies.Add(one);enemies.Add(two);
+            if(veteran)
+            {
+                // Third enemy is a real heavy actor with a timed slamming
+                // release. Its 22-point stock hit reuses actual hit/LOS logic.
+                Enemy heavy=CreatePlacedEnemy(++enemyId,2,feet[2],88+room*12);
+                outerPatrolEnemyC=heavy.id;enemies.Add(heavy);
+            }
             revision++;sound="quest";
-            Notify("救援防卫开始：击退两名真实敌人！",
-                "Relief defense started: defeat both attackers!");
+            Notify(veteran?"精英防卫开始：守住物资，击退三名实战袭击者！":
+                    "救援防卫开始：击退两名真实敌人！",
+                veteran?"Veteran siege started: protect supplies from all three live raiders!":
+                    "Relief defense started: defeat both attackers!");
             return true;
         }
-        private bool TryOuterPatrolFeet(WorldObject post,out Point[] result)
+        private bool TryOuterPatrolFeet(WorldObject post,out Point[] result,
+            int required=2)
         {
             result=null;
             Point center=new Point(post.x,post.y);
@@ -368,9 +409,9 @@ namespace Starfall
                     !ActorHasLocalRoute(p,center,10))
                     continue;
                 feet.Add(p);
-                if(feet.Count==2)break;
+                if(feet.Count==required)break;
             }
-            if(feet.Count!=2)return false;
+            if(feet.Count!=required)return false;
             result=feet.ToArray();
             return true;
         }
@@ -400,16 +441,42 @@ namespace Starfall
             // lethal damage against BOTH owned attackers can settle it.
             bool presentA=enemies.Exists(e=>e.id==outerPatrolEnemyA);
             bool presentB=enemies.Exists(e=>e.id==outerPatrolEnemyB);
-            if((!presentA&&!outerPatrolADead)||(!presentB&&!outerPatrolBDead))
+            bool presentC=outerPatrolVeteran&&
+                enemies.Exists(e=>e.id==outerPatrolEnemyC);
+            if((!presentA&&!outerPatrolADead)||
+                (!presentB&&!outerPatrolBDead)||
+                (outerPatrolVeteran&&!presentC&&!outerPatrolCDead))
             {
                 ResetOuterPatrol();
-                Notify("守卫战中断；只有击退两只敌人才算成功。",
-                    "Defense interrupted. Only actual defeated attackers count.");
+                Notify("守卫战中断：敌人无故消失不算击退。",
+                    "Defense interrupted: a missing enemy is never an earned kill.");
                 return;
             }
-            if(!outerPatrolADead||!outerPatrolBDead||presentA||presentB)return;
+            if(!outerPatrolADead||!outerPatrolBDead||presentA||presentB||
+                (outerPatrolVeteran&&(!outerPatrolCDead||presentC)))return;
             int completedRoom=outerPatrolRoom;
+            bool veteranWin=outerPatrolVeteran;
             ResetOuterPatrol();
+            if(veteranWin)
+            {
+                if(OuterPatrolVeteranDone(completedRoom))
+                {
+                    revision++;sound="reward";
+                    Notify("精英三人组已被实际击退，重演无重复奖励。",
+                        "All three veteran raiders defeated; replay offers no repeat loot.");
+                    return;
+                }
+                Flag("outer_patrol_veteran_"+completedRoom);
+                CreditCoins(26);CreditShards(2);AddXp(60);
+                if(OuterPatrolVeteranWins==8&&!Has("outer_patrol_veteran_all"))
+                { Flag("outer_patrol_veteran_all");CreditSkillPoints(1); }
+                revision++;sound="reward";
+                RecordMoment("精英补给守卫战已胜利：重甲袭击者确实被击退，哨岗获得强化。",
+                    "Veteran cache defense cleared in live combat; field refuge staffing improved.");
+                Notify("精英防卫完成：硬币 +26、碎片 +2、经验 +60；本地医疗强化。",
+                    "Veteran defense cleared: +26 coins, +2 shards, +60 XP; refuge upgraded.");
+                return;
+            }
             if(OuterPatrolDone(completedRoom))return;
             Flag("outer_patrol_done_"+completedRoom);
             CreditCoins(14);CreditShards(1);

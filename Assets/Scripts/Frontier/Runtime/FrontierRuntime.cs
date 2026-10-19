@@ -795,8 +795,10 @@ namespace Starfall
                             new Color(1,.4f,.34f):gold,TextAnchor.MiddleCenter);
                 else if(done)
                     Text(p.x-79,p.y-104,158,18,
-                        Game.L("安全补给 · 恢复与避寒暑",
-                            "SAFE OUTPOST · REST & SHELTER"),
+                        Game.OuterPatrolVeteranDone(Game.save.room)?
+                            Game.L("精英补给岗 · 强化医疗","VETERAN POST · IMPROVED CARE"):
+                            Game.L("安全补给 · 恢复与避寒暑",
+                                "SAFE OUTPOST · REST & SHELTER"),
                         10,mint,TextAnchor.MiddleCenter);
                 return;
             }

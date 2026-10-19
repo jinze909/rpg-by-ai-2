@@ -869,8 +869,10 @@ namespace Starfall
             if(safeReliefShelter)
             {
                 if(save.health>0&&save.health<save.maxHealth)
-                    save.health=Math.Min(save.maxHealth,save.health+dt*1.55f);
-                save.energy=Math.Min(100f,save.energy+dt*3.0f);
+                    save.health=Math.Min(save.maxHealth,save.health+
+                        dt*(OuterPatrolVeteranDone(save.room)?2.4f:1.55f));
+                save.energy=Math.Min(100f,save.energy+
+                    dt*(OuterPatrolVeteranDone(save.room)?4.5f:3.0f));
             }
             // A finished reconstruction actually changes what the region
             // can do, without impacting boss combat or distant locations.

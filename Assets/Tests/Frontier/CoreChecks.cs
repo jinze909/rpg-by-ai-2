@@ -901,6 +901,66 @@ namespace Starfall.Tests
                 "After the real defense is withdrawn auto targeting remains normal");
         }
 
+        public static void VeteranReliefDefenseHasThreeRealKillsOneTimeRewardAndSafeReplay(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Use genuine combat Hit, not fake victory flags");
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.enemies.Clear();g.projectiles.Clear();
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.flags.Add("outer_cache_"+room);
+                g.save.flags.Add("outer_patrol_done_"+room);
+                int coins=g.save.coins;
+                g.Talk(post);
+                int veteran=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(veteran>=0,
+                    "Already guarded supply depot offers actual veteran combat");
+                g.Choose(veteran);
+                Check(g.OuterPatrolActive&&g.OuterPatrolVeteranActive&&
+                    g.OuterPatrolTime>109f&&g.enemies.Count==3,
+                    "Veteran raid spawns three genuine enemy bodies and a full cache clock");
+                Enemy[] raiders=g.enemies.ToArray();
+                Check(raiders[0].kind==0&&raiders[1].kind==1&&
+                    raiders[2].kind==2&&raiders[2].hp>raiders[0].hp,
+                    "Veteran squad has melee, real ranged, and tougher slammer");
+                int shard=g.save.shards;
+                hit.Invoke(g,new object[]{raiders[0],10000f,true,null,null});
+                for(int n=0;n<12;n++)g.Tick(.02f,new Point());
+                hit.Invoke(g,new object[]{raiders[1],10000f,true,null,null});
+                for(int n=0;n<12;n++)g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolVeteranDone(room)&&g.OuterPatrolActive,
+                    "Two kills cannot counterfeit a three-member veteran victory");
+                hit.Invoke(g,new object[]{raiders[2],10000f,true,null,null});
+                for(int n=0;n<15;n++)g.Tick(.02f,new Point());
+                Check(g.OuterPatrolVeteranDone(room)&&
+                    !g.OuterPatrolActive&&g.save.coins==coins+26&&
+                    g.save.shards==shard+2,
+                    "Three genuine lethal transactions award exactly one veteran clear");
+                GameCore reloaded=new GameCore(data,g.save);
+                Check(reloaded.save.version==2&&
+                    reloaded.OuterPatrolVeteranDone(room)&&
+                    !reloaded.OuterPatrolVeteranActive,
+                    "Veteran clear persists in existing v2 flags with no transient raid leak");
+                g.Talk(post);
+                veteran=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(veteran>=0,"Veteran combat remains playable after victory");
+                g.Choose(veteran);
+                Check(g.OuterPatrolVeteranActive&&g.enemies.Count==3,
+                    "Replay actually spawns combat again, not a free menu reward");
+                g.enemies.Clear();g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolActive&&g.save.coins==coins+26,
+                    "A replay with missing raiders cancels without duplicating rewards");
+            }
+        }
+
         public static void OuterPatrolCacheDefenseUsesRealTimedStockCombat(Campaign data)
         {
             // The existing eight-map witness proves physically playable roots.
