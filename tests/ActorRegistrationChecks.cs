@@ -2128,11 +2128,12 @@ public static class ActorRegistrationChecks
         };
         foreach(var item in cases)
         foreach(int gait in new[]{1,3})
+        foreach(int effectsQuality in new[]{0,2})
         {
             app.BeginVisualReview(0,item.room);
             var game=app.Game;
             game.enemies.Clear();game.save.companion=-1;
-            game.save.effectsQuality=2;game.save.reducedMotion=false;
+            game.save.effectsQuality=effectsQuality;game.save.reducedMotion=false;
             Set(app,"clock",10f);
             var enemy=new Enemy(99500+item.kind+item.room*10,
                 item.kind,game.Position.x+1f,game.Position.y+.5f,
@@ -2188,9 +2189,9 @@ public static class ActorRegistrationChecks
                 " expected Idle row "+item.idleRow+", observed row "+
                 FrameRow(idleBody,item.idleRows)+" with "+
                 idle.Count(ActorTexture)+" actor draws");
-            GUI.Export(folder,"review-enemy-stop-plant-"+item.walk+"-phase-"+gait);
+            GUI.Export(folder,"review-enemy-stop-plant-"+item.walk+"-phase-"+gait+"-quality-"+effectsQuality);
         }
-        Console.WriteLine("PASS 10 live enemy/Boss stop transitions: authored next planted gait cell, one body, stable feet, bounded Idle return and all five production atlas families");
+        Console.WriteLine("PASS 20 live enemy/Boss stop transitions at effects quality 0 and 2: authored next planted gait cell, one body, stable feet, bounded Idle return and all five production atlas families");
     }
 
     // Stop-plant is its own bounded source-pose hold, not a side effect of

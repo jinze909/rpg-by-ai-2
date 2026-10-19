@@ -18,6 +18,28 @@ def check():
     engine = (RUNTIME / "FrontierHeroSpriteCapture.cs").read_text()
     compositor = (RUNTIME / "CanonicalHeroSpriteFactory.cs").read_text()
     actor = (RUNTIME / "FrontierActors.cs").read_text()
+    enemy_visuals = (RUNTIME / "FrontierEnemyAtlasHandoff.cs").read_text()
+    def check_stop_plant_quality_contract(source):
+        match = re.search(
+            r"bool quietIdle=pose==0&&finiteClock&&(?P<gate>.*?)!Game\.Dying",
+            source, re.S)
+        assert match, "ENEMY_STOP_PLANT_QUIET_IDLE_GATE_MISSING"
+        gate = match.group("gate")
+        assert "!Game.save.reducedMotion" in gate, (
+            "STOP_PLANT_MUST_RESPECT_REDUCED_MOTION")
+        assert "effectsQuality" not in gate, (
+            "STOP_PLANT_IS_CORE_LOCOMOTION_NOT_OPTIONAL_VFX")
+    check_stop_plant_quality_contract(enemy_visuals)
+    corrupted_stop_plant = enemy_visuals.replace(
+        "!Game.Dying&&enemy.hp>0f",
+        "Game.save.effectsQuality>0&&!Game.Dying&&enemy.hp>0f", 1)
+    try:
+        check_stop_plant_quality_contract(corrupted_stop_plant)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(
+            "UNSAFE_VISUAL_CI: effects quality can disable the enemy stop-plant")
     game = (RUNTIME / "FrontierRuntime.cs").read_text()
     editor = (ROOT / "Assets/Scripts/Frontier/Editor/StarfallHeroAnimatorBuilder.cs").read_text()
     native = (ROOT / "Assets/Scripts/Frontier/Editor/StarfallCanonicalHeroProductionBuilder.cs").read_text()
