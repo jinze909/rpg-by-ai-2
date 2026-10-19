@@ -372,6 +372,81 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void RoadwardenCipherRewardCannotBeCollectedThroughClosingWall(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] tiles=new string('#',32).ToCharArray();
+                    if(y>=2&&y<=29)
+                        for(int x=2;x<=29;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                WorldObject letter=new WorldObject{id="letter6",
+                    kind="history6",name="Old roadwarden letter",
+                    en="Old roadwarden letter",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{letter},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.save.x=12.25f;g.save.y=10.5f;
+                g.save.flags.Add("survey_complete");
+                // The other two actual dispatch letters were already
+                // decoded in the persisted world: this final real letter
+                // is allowed to unlock the whole roadwarden oath.
+                g.save.flags.Add("dispatch_7");
+                g.save.flags.Add("dispatch_8");
+                g.Talk(letter);
+                Check(g.mode=="dialog"&&g.Has("history_6")&&
+                    g.conversation!=null,
+                    "Reading the original accessible letter records its lore and shows the genuine cipher path");
+                int open=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="dispatch_open_6")
+                    {open=i;break;}
+                Check(open>=0,"The actual history document offers the original roadwarden cipher");
+                g.Choose(open);
+                int answer=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="dispatch_answer_6_1")
+                    {answer=i;break;}
+                Check(answer>=0,"A genuine, correct decoded answer is available after the initial puzzle");
+                int coin=g.save.coins,shard=g.save.shards,talent=g.save.skillPoints;
+                char[] barrier=rows[10].ToCharArray();
+                barrier[11]='#';rows[10]=new string(barrier);
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(letter.x,letter.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "An actual closing wall separates a still-standable history object from the player");
+                g.Choose(answer);
+                Check(!g.Has("dispatch_6")&&!g.Has("dispatch_complete")&&
+                    g.save.coins==coin&&g.save.shards==shard&&
+                    g.save.skillPoints==talent,
+                    "A cached correct choice across solid cover cannot mint a real letter, shared coins or an irreversible talent");
+                barrier[11]='.';rows[10]=new string(barrier);
+                g.Talk(letter);
+                open=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="dispatch_open_6")
+                    {open=i;break;}
+                Check(open>=0,"Reopening the same path restores the original decipher interaction");
+                g.Choose(open);answer=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="dispatch_answer_6_1")
+                    {answer=i;break;}
+                Check(answer>=0,"The same authentic correct letter answer still works");
+                g.Choose(answer);
+                Check(g.Has("dispatch_6")&&g.Has("dispatch_complete")&&
+                    g.save.coins==coin+60&&g.save.shards==shard+1&&
+                    g.save.skillPoints==talent+1&&g.save.version==2,
+                    "Only reachable cipher completion can award the exact original letter and all-three oath bonus once");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();

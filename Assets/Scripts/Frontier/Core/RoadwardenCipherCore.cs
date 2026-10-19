@@ -510,8 +510,15 @@ namespace Starfall
 
         private bool CanDecodeLetter(int id)
         {
+            // A history menu can remain open after walls/gates change.
+            // Cipher completion mints real irreversible coins, shards and
+            // eventually a talent point. Commit it at the physical letter,
+            // not simply anywhere inside the same region after opening UI.
             return id >= 6 && id <= 8 && save.room == id - 5 &&
-                Has("survey_complete") && Has("history_" + id) && !Has("dispatch_" + id);
+                Has("survey_complete") && Has("history_" + id) &&
+                !Has("dispatch_" + id) &&
+                PhysicalRefugeReach(ObjectPoint(save.room,
+                    "history" + id,new Point(-100,-100)),1.8001f);
         }
     }
 }
