@@ -1030,8 +1030,18 @@ namespace Starfall.Tests
             Check(!g.OuterPatrolRefuge,
                 "Real nearby raider disables medal-powered refuge care");
             g.Tick(.05f,new Point());
-            Check(g.save.health<=45f&&g.save.energy<=30.001f,
-                "A hostile siege cannot be healed away by the new honor reward");
+            float blockedHp=g.save.health;
+            float blockedEnergy=g.save.energy;
+            // The hero has native combat energy regeneration even with no
+            // refuge. Compare the SAME real threat with and without the medal
+            // instead of incorrectly requiring all regeneration to stop.
+            g.save.flags.Remove("outer_patrol_flawless_0");
+            g.save.health=45f;g.save.energy=30f;
+            g.Tick(.05f,new Point());
+            Check(blockedHp<=45f&&g.save.health<=45f&&
+                Math.Abs(blockedEnergy-g.save.energy)<.01f,
+                "A hostile raider suppresses medal care without removing ordinary stamina recovery");
+            g.save.flags.Add("outer_patrol_flawless_0");
             g.enemies.Clear();
             g.save.x=post.x+20f;g.save.y=post.y+20f;
             Check(!g.OuterPatrolRefuge,
@@ -1099,6 +1109,9 @@ namespace Starfall.Tests
             invoke.Invoke(g,new object[]{"outer_watch_brace"});
             Check(g.save.inventory[0]==6&&g.save.inventory[4]==3,
                 "Forged cached brace choice cannot buy a second barricade");
+            // A private handler call bypasses Choose(index)'s automatic
+            // Close(); restore gameplay mode before advancing real AI time.
+            g.Close();
             Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
             Check(melee!=null,"Veteran raid owns an authentic melee stock attacker");
             Point safe=new Point();bool found=false;
