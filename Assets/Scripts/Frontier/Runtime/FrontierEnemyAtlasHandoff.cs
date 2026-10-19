@@ -75,7 +75,8 @@ namespace Starfall
             bool quietIdle=pose==0&&finiteClock&&
                 !Game.save.reducedMotion&&Game.save.effectsQuality>0&&
                 !Game.Dying&&enemy.hp>0f&&enemy.state!=1&&
-                enemy.releaseTime<=0f&&enemy.flash<=0f;
+                enemy.stun<=0f&&enemy.releaseTime<=0f&&
+                enemy.hitTime<=0f&&enemy.flash<=0f;
             if(state.stopActive&&
                 (!quietIdle||!sameContext||clock>=state.stopUntil))
                 state.stopActive=false;
