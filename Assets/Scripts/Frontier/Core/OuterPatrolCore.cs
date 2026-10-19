@@ -546,21 +546,27 @@ namespace Starfall
         {
             if(!OuterPatrolActive||save.companion<0||Dying||practicing)
                 return false;
+            // Calling a defender back is NOT a remote placement or warp.
+            // It is a reversible command to use normal movement again, and
+            // remains usable anywhere inside this actual defense perimeter.
+            // Establishing a NEW planted guard still requires physical
+            // interaction beside the original cache.
+            if(outerPatrolCompanionGuard)
+            {
+                if((Position-outerPatrolPost).Length>12f)return false;
+                outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
+                outerPatrolGuardRouteCheck=0f;
+                revision++;sound="quest";
+                Notify("同伴收到战场召回指令，将步行恢复跟随。",
+                    "Companion recalled on foot to resume normal following.");
+                return true;
+            }
             WorldObject watch=null;
             foreach(WorldObject candidate in Map.objects)
                 if(candidate.kind=="outerwatch"){watch=candidate;break;}
             if(watch==null||
                 !PhysicalRefugeReach(new Point(watch.x,watch.y),2.2001f))
                 return false;
-            if(outerPatrolCompanionGuard)
-            {
-                outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
-                outerPatrolGuardRouteCheck=0f;
-                revision++;sound="quest";
-                Notify("同伴恢复正常跟随与既有战斗指令。",
-                    "Companion resumes normal following and combat commands.");
-                return true;
-            }
             Point standing;
             if(!TryOuterPatrolCompanionGuardFoot(out standing))
             {
@@ -597,9 +603,10 @@ namespace Starfall
         }
         public void QuickToggleOuterPatrolCompanionGuard()
         {
-            // Keyboard Y is an actual tactical toggle, never a remote
-            // teleport or a paused-menu bypass. The physical post and
-            // available floor must pass the same checks as dialogue.
+            // Keyboard Y can recall an ALREADY-deployed guard from within
+            // the actual siege perimeter. Initial guard placement still
+            // requires the same physical post as dialogue, never a remote
+            // teleport or a paused-menu bypass.
             if(mode!="world"||!OuterPatrolActive||save.companion<0)
                 return;
             ToggleOuterPatrolCompanionGuard();

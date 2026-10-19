@@ -222,10 +222,10 @@ namespace Starfall
                     Game.OuterPatrolRaidersRemaining+
                     (Game.save.companion>=0?
                         (Game.OuterPatrolMedicRallying?
-                            Game.L(" · 救援中 Y"," · MEDIC RALLY Y"):
+                            Game.L(" · 救援中 · 召回 Y"," · MEDIC · RECALL Y"):
                             Game.OuterPatrolCompanionGuarding?
-                                Game.L(" · 驻守 Y"," · GUARD Y"):
-                                Game.L(" · 跟随 Y"," · FOLLOW Y")):""),
+                                Game.L(" · 召回 Y"," · RECALL Y"):
+                                Game.L(" · 驻守 Y"," · GUARD Y")):""),
                     15,paper,TextAnchor.MiddleCenter);
                 Text(398,49,481,18,
                     Game.L("物资耐久 ","CACHE INTEGRITY ")+

@@ -1720,17 +1720,19 @@ public static class RuntimeCombatInputChecks
             "Pressing Y places a tactical guard waypoint without warping ally");
         Point guardFoot=g.OuterPatrolCompanionGuardPosition;
         g.save.x=post.x+6f;g.save.y=post.y;
+        Point beforeRecall=g.companionPosition;
         Input.keys.Add(KeyCode.Y);Update(app);
-        Check(g.OuterPatrolCompanionGuarding&&
-            (g.OuterPatrolCompanionGuardPosition-guardFoot).Length<.01f,
-            "Distant keyboard Y cannot erase a currently valid stock defense order");
-        g.save.x=post.x;g.save.y=post.y;
+        Check(!g.OuterPatrolCompanionGuarding&&
+            (g.companionPosition-beforeRecall).Length<1f,
+            "Defender recalls from the live perimeter without teleport");
         Input.keys.Add(KeyCode.Y);Update(app);
         Check(!g.OuterPatrolCompanionGuarding,
-            "Local keyboard Y restores the original follower stance");
+            "Remote keyboard Y cannot PLACE a new outpost guard");
+        g.save.x=post.x;g.save.y=post.y;
         Input.keys.Add(KeyCode.Y);Update(app);
-        Check(g.OuterPatrolCompanionGuarding,
-            "Local keyboard Y can issue a new real guard order");
+        Check(g.OuterPatrolCompanionGuarding&&
+            g.CanStand(g.OuterPatrolCompanionGuardPosition),
+            "Local Y can physically reassign a reachable outpost guard");
         g.Talk(post);
         Input.keys.Add(KeyCode.Y);Update(app);
         Check(g.OuterPatrolCompanionGuarding,
