@@ -222,8 +222,24 @@ namespace Starfall
         public string PracticeHint { get { return L(new[] { "J / 左键：命中木桩", "观察红圈，空格闪避攻击", "Q：命中目标，完成练习" }[practiceStage], new[] { "J / click: hit the dummy", "Read the red circle; Space to dodge", "Q: hit the target to finish" }[practiceStage]); } }
         public void UseExplorationAbility()
         {
-            if (mode != "world" || Dying || practicing) return; WorldObject near = null; float distance = 3;
-            foreach (var o in Map.objects) if (o.kind.StartsWith("seal")) { float d = (Position - new Point(o.x, o.y)).Length; if (d < distance) { near = o; distance = d; } }
+            if (mode != "world" || Dying || practicing) return;
+            WorldObject near = null; float distance = 3;
+            foreach (WorldObject o in Map.objects)
+            {
+                if (!o.kind.StartsWith("seal")) continue;
+                Point objective = new Point(o.x, o.y);
+                float d = (Position - objective).Length;
+                if (d >= distance) continue;
+                // R and E both require a physically reachable contact.
+                // Authored seals sit ON a blocked route tile, so test the
+                // player-facing reach just before the fixture, rather than
+                // invalidating every legitimate near-side activation.
+                Point contact = d > .55f ?
+                    objective - (objective - Position).Normalized * .55f :
+                    Position;
+                if (!ClearAttackPath(Position, contact)) continue;
+                near = o; distance = d;
+            }
             if (near == null) { Notify("靠近封印入口按 R；探索能力来自前三枚星核。", "Press R near a sealed route; the first three cores grant exploration powers."); return; }
             int id = int.Parse(near.kind.Substring(4));
             if (!Ability(id)) { Notify("需要第 " + id + " 枚星核的探索能力。", "Requires exploration power from core " + id + "."); return; }

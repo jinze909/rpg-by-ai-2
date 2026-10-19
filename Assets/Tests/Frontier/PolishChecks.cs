@@ -54,6 +54,59 @@ namespace Starfall.Tests
                 g.StartPractice(); g.Enter(1); Check(!g.practicing && g.save.room == 1, "Travel cleanly ends practice");
             }
         }
+        public static void ExplorationSealCannotBeActivatedThroughRealWall(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                WorldObject hidden=new WorldObject{id="hidden",kind="seal1",
+                    name="Blocked seal",en="Blocked seal",x=12.25f,y=10.5f};
+                WorldObject reachable=new WorldObject{id="reachable",kind="seal1",
+                    name="Near-side seal",en="Near-side seal",x=10.5f,y=12.5f};
+                data.maps[0]=new MapData {id=0,spawnX=10.5f,
+                    spawnY=10.5f,rows=rows,objects=new[]{hidden},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.flags.Add("core_1");
+                g.save.x=10.5f;g.save.y=10.5f;
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(hidden.x,hidden.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "The hero and seal stand on legal floors, but a real wall separates their interaction lanes");
+                g.UseExplorationAbility();
+                Check(!g.Has("seal_0")&&
+                    !g.effects.Exists(e=>e.kind=="discover"),
+                    "Pressing R through a solid wall cannot open a route or publish a false discovery");
+                data.maps[0].objects=new[]{hidden,reachable};
+                g.UseExplorationAbility();
+                Check(g.Has("seal_0")&&
+                    g.effects.Exists(e=>e.kind=="discover"&&
+                        (e.position-new Point(reachable.x,reachable.y)).Length<.001f),
+                    "With two nearby seals, R chooses the reachable fixture instead of the closer one behind cover");
+                g.save.flags.Remove("seal_0");g.effects.Clear();
+                data.maps[0].objects=new[]{hidden};
+                wall[11]='.';rows[10]=new string(wall);
+                g.UseExplorationAbility();
+                Check(g.Has("seal_0")&&g.effects.Exists(e=>
+                    e.kind=="discover"&&
+                    (e.position-new Point(hidden.x,hidden.y)).Length<.001f),
+                    "Opening the same wall immediately permits the original seal without resetting the world");
+                Check(g.save.version==2,
+                    "Real seal reachability changes no old save fields, permanent core abilities or asset IDs");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void ExplorationPowersAndDiscoveries(Campaign data)
         {
             var g = Unlocked(data); g.save.flags.RemoveAll(f => f.StartsWith("core_") || f.StartsWith("seal_") || f.StartsWith("cache_"));
