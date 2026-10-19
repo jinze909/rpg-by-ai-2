@@ -901,6 +901,79 @@ namespace Starfall.Tests
                 "After the real defense is withdrawn auto targeting remains normal");
         }
 
+        public static void VeteranBarricadeSpendsRealSuppliesAndAbsorbsReleasedStockHits(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.inventory[0]=8;g.save.inventory[4]=4;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"Completed relief post offers actual veteran raid");
+            g.Choose(start);
+            Check(g.OuterPatrolVeteranActive&&g.OuterPatrolBraceIntegrity==0&&
+                g.OuterPatrolBraceAvailable,"Veteran assault offers an unused physical brace");
+            g.Talk(post);
+            int brace=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_brace");
+            Check(brace>=0,"Barricade is a genuine post interaction");
+            g.Choose(brace);
+            Check(g.OuterPatrolBraceIntegrity==48f&&
+                !g.OuterPatrolBraceAvailable&&
+                g.save.inventory[0]==6&&g.save.inventory[4]==3,
+                "First barricade spends two real timber and one spare part");
+            g.Talk(post);
+            brace=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_brace");
+            g.Choose(brace);
+            Check(g.save.inventory[0]==6&&g.save.inventory[4]==3,
+                "Cached menu action cannot buy a second barricade");
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null,"Veteran raid owns an authentic melee stock attacker");
+            Point safe=new Point();bool found=false;
+            for(int radius=7;radius<=10&&!found;radius++)
+            for(int dx=-radius;dx<=radius&&!found;dx++)
+            for(int dy=-radius;dy<=radius&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if((p-new Point(post.x,post.y)).Length>11f||
+                    (p-melee.Position).Length<6f||!g.CanStand(p))
+                    continue;
+                safe=p;found=true;
+            }
+            Check(found,"A real walkable observation foot exists near cache");
+            g.save.x=safe.x;g.save.y=safe.y;
+            float stock=g.OuterPatrolIntegrity;
+            for(int frame=0;frame<1100&&g.OuterPatrolActive&&
+                g.OuterPatrolBraceIntegrity==48f;frame++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolBraceIntegrity<48f,
+                "Unintercepted real raider winds up and releases into the barricade");
+            Check(g.OuterPatrolIntegrity==stock,
+                "A real stock strike first consumes physical cover, not protected cache HP");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            brace=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_brace");
+            g.Choose(brace);
+            Check(g.save.inventory[0]==6&&g.save.inventory[4]==3,
+                "A damaged cover cannot be re-purchased during same siege");
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&g.OuterPatrolBraceIntegrity==0f,
+                "Withdrawal retires unsaved barricade durability and attackers");
+            GameCore restored=new GameCore(data,g.save);
+            Check(!restored.OuterPatrolActive&&restored.OuterPatrolBraceIntegrity==0&&
+                restored.save.version==2,"Old v2 saves never persist temporary cover");
+        }
+
         public static void VeteranReliefDefenseHasThreeRealKillsOneTimeRewardAndSafeReplay(Campaign data)
         {
             var hit=typeof(GameCore).GetMethod("Hit",

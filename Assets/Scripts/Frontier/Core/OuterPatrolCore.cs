@@ -9,11 +9,17 @@ namespace Starfall
         private int outerPatrolRoom=-1;
         private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1,outerPatrolEnemyC=-1;
         private bool outerPatrolADead,outerPatrolBDead,outerPatrolCDead,outerPatrolPatched;
-        private bool outerPatrolVeteran;
-        private float outerPatrolTime,outerPatrolStock;
+        private bool outerPatrolVeteran,outerPatrolBraceBuilt;
+        private float outerPatrolTime,outerPatrolStock,outerPatrolBrace;
         private Point outerPatrolPost;
         public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
         public float OuterPatrolTime {get{return OuterPatrolActive?outerPatrolTime:0f;}}
+        public float OuterPatrolBraceIntegrity
+        {get{return OuterPatrolVeteranActive?outerPatrolBrace:0f;}}
+        public bool OuterPatrolBraceAvailable
+        {get{return OuterPatrolVeteranActive&&!outerPatrolBraceBuilt&&
+            !Dying&&!practicing&&save.inventory[0]>=2&&
+            save.inventory[4]>=1;}}
         public bool OuterPatrolPatchAvailable
         {get{return OuterPatrolActive&&!outerPatrolPatched&&
             outerPatrolStock>0f&&outerPatrolStock<100f&&
@@ -69,8 +75,9 @@ namespace Starfall
             outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=
                 outerPatrolEnemyC=-1;
             outerPatrolADead=outerPatrolBDead=outerPatrolCDead=
-                outerPatrolPatched=outerPatrolVeteran=false;
-            outerPatrolStock=outerPatrolTime=0f;
+                outerPatrolPatched=outerPatrolVeteran=
+                outerPatrolBraceBuilt=false;
+            outerPatrolStock=outerPatrolTime=outerPatrolBrace=0f;
             outerPatrolPost=new Point();
         }
         private bool IsOuterPatrolEnemy(Enemy e)
@@ -98,6 +105,23 @@ namespace Starfall
                 !CanStand(attacker.Position)||
                 !ClearAttackPath(attacker.Position,outerPatrolPost))return;
             float damage=attacker.kind==2?22f:14f;
+            // A real player's one-time timber/gear fortification absorbs
+            // only genuine released, unobstructed saboteur contacts.
+            // It is NOT a new NPC, passive radius drain, or global shield.
+            if(outerPatrolBrace>0f)
+            {
+                float absorbed=Math.Min(outerPatrolBrace,damage);
+                outerPatrolBrace=Math.Max(0f,outerPatrolBrace-absorbed);
+                damage-=absorbed;
+                effects.Add(new Effect("number",outerPatrolPost,.8f,
+                    L("路障承受 -"+(int)absorbed,
+                      "BARRICADE -"+(int)absorbed))
+                    {outerPatrolOwned=true});
+                if(outerPatrolBrace<=0f)
+                    Notify("临时路障被击破！继续贴身保护物资。",
+                        "Barricade broken! Intercept raiders to save the cache.");
+            }
+            if(damage<=0f){revision++;sound="hit";return;}
             outerPatrolStock=Math.Max(0f,outerPatrolStock-damage);
             effects.Add(new Effect("number",outerPatrolPost,.75f,
                 L("物资受损 -"+(int)damage,"SUPPLIES -"+(int)damage))
@@ -121,12 +145,14 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,
                     (outerPatrolVeteran?"精英突袭正在威胁已守住的救援岗。三名敌人包括重甲撞击手。":"盗取物资的袭击者逼近哨岗。")+
+                    (outerPatrolVeteran?" 路障耐久 "+Math.Ceiling(outerPatrolBrace)+"。":"")+
                     "剩余 "+Math.Ceiling(outerPatrolTime)+" 秒，物资耐久 "+
                     Math.Ceiling(outerPatrolStock)+"%。木材和月光草可抢修一次。",
                     (outerPatrolVeteran?"A veteran three-raider assault, including a heavy slammer, is underway.":"Raiders are attacking the relief stock.")+
                     " Time left "+Math.Ceiling(outerPatrolTime)+"s; integrity "+
                     Math.Ceiling(outerPatrolStock)+"%. Timber and Moonherb patch it once.",
                     C("临时加固 · 木材和草药各1","Emergency patch · timber + Moonherb","outer_watch_patch"),
+                    C("部署路障 · 木材2、零件1","Deploy barricade · 2 timber + 1 spare part","outer_watch_brace"),
                     C("主动撤守","Withdraw defense","outer_watch_abort"),
                     C("继续防卫","Continue the defense","close"));
                 return true;
@@ -309,7 +335,8 @@ namespace Starfall
         private bool ChooseOuterPatrol(string action)
         {
             if(ChooseOuterPatrolRoutes(action))return true;
-            if(action=="outer_watch_patch"||action=="outer_watch_abort")
+            if(action=="outer_watch_patch"||action=="outer_watch_abort"||
+                action=="outer_watch_brace")
             {
                 if(!OuterPatrolActive||Dying||practicing)return true;
                 WorldObject cache=null;
@@ -322,6 +349,19 @@ namespace Starfall
                     ResetOuterPatrol();revision++;
                     Notify("本次防卫已结束。救援记录和物资仍然保留。",
                         "Defense withdrawn. Relief records and supplies are intact.");
+                    return true;
+                }
+                if(action=="outer_watch_brace")
+                {
+                    if(!OuterPatrolBraceAvailable||
+                        !Spend(2,0,0,0,1))return true;
+                    outerPatrolBraceBuilt=true;outerPatrolBrace=48f;
+                    revision++;sound="quest";
+                    effects.Add(new Effect("number",outerPatrolPost,.9f,
+                        L("路障 +48","BARRICADE +48"))
+                        {outerPatrolOwned=true});
+                    Notify("路障部署完成：木材 -2、零件 -1。48点真实攻击防护，用尽不可重复建造。",
+                        "Barricade deployed: -2 timber, -1 part. 48 real hit protection; once per siege.");
                     return true;
                 }
                 if(!OuterPatrolPatchAvailable||!Spend(1,0,1,0,0))return true;
@@ -357,6 +397,7 @@ namespace Starfall
             outerPatrolRoom=room;outerPatrolVeteran=veteran;
             outerPatrolTime=veteran?110f:95f;
             outerPatrolStock=100f;outerPatrolPatched=false;
+            outerPatrolBrace=0f;outerPatrolBraceBuilt=false;
             outerPatrolPost=new Point(post.x,post.y);
             Enemy one=CreatePlacedEnemy(++enemyId,0,feet[0],
                 (veteran?70:48)+room*10);

@@ -793,7 +793,9 @@ namespace Starfall
                 if(Game.OuterPatrolActive)
                     Text(p.x-79,p.y-107,158,20,
                         Math.Ceiling(Game.OuterPatrolTime)+"s · "+
-                        Math.Ceiling(Game.OuterPatrolIntegrity)+"%",
+                        Math.Ceiling(Game.OuterPatrolIntegrity)+"%"+
+                        (Game.OuterPatrolVeteranActive?
+                            " · "+Math.Ceiling(Game.OuterPatrolBraceIntegrity)+"B":""),
                         11,Game.OuterPatrolIntegrity<=30f?
                             new Color(1,.4f,.34f):gold,TextAnchor.MiddleCenter);
                 else if(done)

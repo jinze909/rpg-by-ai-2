@@ -222,8 +222,13 @@ namespace Starfall
                 Text(398,49,481,18,
                     Game.L("物资耐久 ","CACHE INTEGRITY ")+
                     Math.Ceiling(stock)+"%"+
+                    (Game.OuterPatrolVeteranActive?
+                        Game.L(" · 路障 "," · BARRICADE ")+
+                        Math.Ceiling(Game.OuterPatrolBraceIntegrity):"")+
                     (Game.OuterPatrolPatchAvailable?
-                        Game.L(" · 返回哨岗按 E 抢修"," · RETURN TO POST · E TO PATCH"):""),
+                        Game.L(" · 按 E 抢修"," · E TO PATCH"):"")+
+                    (Game.OuterPatrolBraceAvailable?
+                        Game.L(" · 按 E 架路障"," · E TO BRACE"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
             }
