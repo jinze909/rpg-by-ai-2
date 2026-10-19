@@ -3106,13 +3106,48 @@ public static class ActorRegistrationChecks
 
     public static void VerifyEnemyStopPlantContinuity(FrontierRuntime app)
     {
+        var raiderField=typeof(FrontierRuntime).GetField(
+            "mossboundRaiderSheet",Private);
+        var guardField=typeof(FrontierRuntime).GetField(
+            "cinderstoneGuardSheet",Private);
+        var briarField=typeof(FrontierRuntime).GetField(
+            "briarBeastSheet",Private);
+        object originalRaider=raiderField.GetValue(app);
+        object originalGuard=guardField.GetValue(app);
+        object originalBriar=briarField.GetValue(app);
         try
         {
+            // These three full-body sheets are retained as editable review
+            // candidates and deliberately NOT loaded by production LoadVisuals.
+            // Inject them only for the candidate preview lanes in this QA
+            // verifier; the published WalkMonsters/WalkBossA lanes are still
+            // exercised by the same real DrawEnemyActor path below.
+            Texture2D raider=Resources.Load<Texture2D>(
+                "Frontier/Art/MossboundRaider");
+            Texture2D guard=Resources.Load<Texture2D>(
+                "Frontier/Art/CinderstoneGuard");
+            Texture2D briar=Resources.Load<Texture2D>(
+                "Frontier/Art/BriarBeast");
+            Check(raider!=null&&raider.width==512&&raider.height==768,
+                "Mossbound review candidate missing or malformed");
+            Check(guard!=null&&guard.width==512&&guard.height==768,
+                "Cinderstone review candidate missing or malformed");
+            Check(briar!=null&&briar.width==512&&briar.height==2304,
+                "Briar Beast review candidate missing or malformed");
+            raiderField.SetValue(app,raider);
+            guardField.SetValue(app,guard);
+            briarField.SetValue(app,briar);
             EnemyWalkStopUsesNextPlantedSourceCell(
                 app,".starfall-checks/sprite-qa");
             EnemyStopPlantInterruptions(app,".starfall-checks/sprite-qa");
         }
-        finally { app.EndVisualReview(); Clear(); }
+        finally
+        {
+            raiderField.SetValue(app,originalRaider);
+            guardField.SetValue(app,originalGuard);
+            briarField.SetValue(app,originalBriar);
+            app.EndVisualReview();Clear();
+        }
     }
 
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
