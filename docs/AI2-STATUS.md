@@ -1,5 +1,14 @@
 # AI-2 live development handoff — Starfall Frontier
 
+## 2026-10-19 AI-2 nonhero gait-stop contact recovery
+
+- **Scope and source:** Continued only on `jinze909/rpg-by-ai-2/chatgpt/dev`, from verified code/test HEAD `cce1b9a52db0ee54193ce5720183a69a6b17d75b`. All updates are non-forced expected-head fast-forwards; canonical gold-haired hero art, accepted source PNGs, Unity GUIDs, gameplay hit timing, collision, quest data and old save schema remain untouched.
+- [`61efbbd1`](https://github.com/jinze909/rpg-by-ai-2/commit/61efbbd1baa338a4d8dd8e9cad97a9211a6212c2) adds per-Enemy stop-plant state to the live `DrawEnemyActor` path. When an authored 4-cell gait ends on passing phases 1/3, the renderer holds only the next original planted contact cell (1→2, 3→0), then returns to Idle within the existing bounded nonhero transition window. It keeps a single complete source body and stable foot root; it does not clone anatomy, fabricate in-betweens, delay attacks or change movement physics.
+- The feature is integrated across **five actual source families**: `MossboundRaider`, `CinderstoneGuard`, horizontal `WalkMonsters`, regional `WalkBossA`, and `BriarBeast`. The source atlas/cell actually drawn is retained for hit-flash and lethal-frame continuity.
+- [`8d20c7a5`](https://github.com/jinze909/rpg-by-ai-2/commit/8d20c7a5eb43469ea6910333dc85166ebc639e8f) cancels the stop-plant when an enemy is stunned or hit, preserving immediate combat-state ownership.
+- [`cce1b9a5`](https://github.com/jinze909/rpg-by-ai-2/commit/cce1b9a52db0ee54193ce5720183a69a6b17d75b) adds live production-draw regressions for **10 gait transitions** (phases 1/3 across all five atlas families) plus stun, attack windup, archer facing change and reduced-motion interruptions. [Exact-commit CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39293999374), all 51 core steps passed.
+- **Verification boundary:** These transitions reuse accepted original walk cells; they are not new character paintings and do not claim that root-motion foot sliding during hero Attack/Cast recovery is solved. Licensed Unity 2022.3.53f1 Editor/PlayMode/GameView/GPU review remains **`NATIVE_UNVERIFIED`**; the 18 missing original hero Attack/Cast contacts remain **`ART_REVIEW_REQUIRED`**.
+
 ## 2026-10-19 AI-2 outpost threat ordering and malformed enemy-clock recovery
 
 - **Scope and source:** Continued exclusively on `jinze909/rpg-by-ai-2/chatgpt/dev`, starting at verified parent `37bb3f69d3b17e6a3a50f9331942d187cb4fd4c6`. All updates were non-forced compare-and-swap fast-forwards; no other repository/branch, schedules, hero artwork, Unity GUIDs, saved data or quest schema were changed.
