@@ -310,6 +310,62 @@ namespace Starfall.Tests
                 "Reopened shoreline commits exactly one full-cost crossing and two real raiders while retaining the active run");
         }
 
+        public static void PublicFerryStaleDockChoiceCannotCrossClosingPhysicalWall(Campaign data)
+        {
+            MapData original=data.maps[2];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] cells=new string('#',32).ToCharArray();
+                    if(y>=2&&y<=29)
+                        for(int x=2;x<=29;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                WorldObject west=new WorldObject{id="floodarchive_1",
+                    kind="floodarchive",name="West ferry dock",
+                    en="West ferry dock",x=10.5f,y=10.5f};
+                WorldObject east=new WorldObject{id="floodarchive_3",
+                    kind="floodarchive",name="East ferry dock",
+                    en="East ferry dock",x=21.5f,y=10.5f};
+                data.maps[2]=new MapData{id=2,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{west,east},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(2);
+                g.enemies.Clear();
+                g.save.flags.Add("scout_saved");
+                g.save.flags.Add("floodarchive_public");
+                g.save.totalTime=36;g.save.energy=100;
+                g.save.x=12.25f;g.save.y=10.5f;
+                Check(g.CanStand(g.Position)&&
+                    (g.Position-new Point(west.x,west.y)).Length<1.8f,
+                    "The real hero starts close enough to select the western ferry");
+                g.Talk(west);
+                Check(g.conversation!=null&&g.mode=="dialog",
+                    "The completed archive presents the genuine ferry transaction");
+                // Open the dialogue on clear ground, then close the barrier
+                // before submitting its formerly valid cached choice.
+                char[] closed=rows[10].ToCharArray();
+                closed[11]='#';rows[10]=new string(closed);
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(west.x,west.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "A full dynamic wall separates two standing legal actors");
+                Check(FerryChoice(g,"floodarchive_ferry")&&
+                    g.save.energy==100&&
+                    (g.Position-new Point(12.25f,10.5f)).Length<.001f,
+                    "A cached ferry choice cannot charge energy or teleport through the newly closed dock wall");
+                closed[11]='.';rows[10]=new string(closed);
+                g.Talk(west);
+                Check(FerryChoice(g,"floodarchive_ferry")&&
+                    (g.Position-new Point(east.x,east.y)).Length<.001f&&
+                    g.save.energy==86&&g.save.version==2,
+                    "Reopening that wall restores real public ferry movement and a single stamina charge");
+            }
+            finally{data.maps[2]=original;}
+        }
+
         public static void PublicFerryEmergencyRunRequiresRealCrossingAndBothRaiderKills(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=18;

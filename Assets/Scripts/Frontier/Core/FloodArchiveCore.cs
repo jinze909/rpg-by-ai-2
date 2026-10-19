@@ -315,15 +315,21 @@ namespace Starfall
                     return false;
             return true;
         }
+        // A cached dialogue button must revalidate physical dock
+        // access. Nearby does not mean reachable if a wall closes after
+        // the menu opens; preserve the same near-side interaction margin.
+        private bool AtFloodArchivePost(WorldObject site)
+        { return site!=null&&PhysicalRefugeReach(
+            new Point(site.x,site.y),1.8001f); }
         private bool ChooseFloodArchiveFerry()
         {
             if(!FloodArchiveComplete||save.room!=2||Dying||practicing||racing)return true;
             WorldObject from=null,to=null;
             WorldObject western=FloodArchiveObject(1),eastern=FloodArchiveObject(3);
             if(western==null||eastern==null)return true;
-            if((Position-new Point(western.x,western.y)).Length<=1.8f)
+            if(AtFloodArchivePost(western))
             {from=western;to=eastern;}
-            else if((Position-new Point(eastern.x,eastern.y)).Length<=1.8f)
+            else if(AtFloodArchivePost(eastern))
             {from=eastern;to=western;}
             if(from==null)return true;
             if(!LowTide)
@@ -385,7 +391,7 @@ namespace Starfall
                 if(!FloodArchiveComplete||FloodReliefComplete||save.room!=2||
                     floodReliefActive||Dying||practicing||!LowTide||
                     FieldWorkPreventsRest||!SafeTravel||west==null||
-                    (Position-new Point(west.x,west.y)).Length>1.8f)return true;
+                    !AtFloodArchivePost(west))return true;
                 floodReliefActive=true;floodReliefCrossed=false;
                 floodReliefPatched=floodReliefWarded=false;
                 floodReliefTime=65;floodReliefIntegrity=100;floodReliefWardTime=0;
@@ -402,7 +408,7 @@ namespace Starfall
                 WorldObject dock=FloodArchiveObject(eastern?3:1);
                 if(floodReliefActive&&dock!=null&&save.room==2&&
                     floodReliefCrossed==eastern&&
-                    (Position-new Point(dock.x,dock.y)).Length<=1.8f)
+                    AtFloodArchivePost(dock))
                 {
                     ResetFloodRelief();revision++;
                     Notify(eastern?
@@ -419,7 +425,7 @@ namespace Starfall
                 WorldObject east=FloodArchiveObject(3);
                 if(!FloodReliefCrossed||floodReliefWarded||east==null||
                     save.room!=2||Dying||practicing||
-                    (Position-new Point(east.x,east.y)).Length>1.8f)return true;
+                    !AtFloodArchivePost(east))return true;
                 if(save.energy<20)
                 {
                     Notify("居民防护法阵需要20耐力。仍可通过躲避保住药品。",
@@ -439,7 +445,7 @@ namespace Starfall
                 if(!FloodReliefCrossed||east==null||save.room!=2||
                     Dying||practicing||floodReliefPatched||
                     floodReliefIntegrity<=0||floodReliefIntegrity>=100||
-                    (Position-new Point(east.x,east.y)).Length>1.8f)return true;
+                    !AtFloodArchivePost(east))return true;
                 if(save.inventory[2]<1)
                 {
                     Notify("现场修补需要一份实际草药。仍可躲避追兵并完成交付。",
@@ -459,7 +465,7 @@ namespace Starfall
                 if(!FloodReliefActive||!floodReliefCrossed||
                     floodReliefConfirmedKills!=3||floodReliefIntegrity<=0||
                     east==null||save.room!=2||Dying||practicing||
-                    (Position-new Point(east.x,east.y)).Length>1.8f)return true;
+                    !AtFloodArchivePost(east))return true;
                 ResetFloodRelief();Flag("floodarchive_relief");
                 CreditCoins(45);CreditShards(1);AddXp(65);
                 revision++;sound="reward";
