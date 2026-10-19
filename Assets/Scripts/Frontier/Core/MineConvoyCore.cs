@@ -42,12 +42,53 @@ namespace Starfall
             MineCartPosition=new Point();mineConvoySteam=0;
             mineConvoyBraced=false;mineConvoyConfirmedKills=0;
         }
+        // Keep the authored two-guard confrontation, but do not summon a
+        // fighter inside the real cart, hero, companion, existing enemy or
+        // an unreachable island. A crowded junction may choose nearby floor.
+        private static readonly Point[] mineConvoyAmbushOffsets={
+            new Point(0f,0f),new Point(0f,1.5f),
+            new Point(-1.5f,0f),new Point(1.5f,0f),
+            new Point(0f,-1.5f),new Point(-1.5f,1.5f),
+            new Point(1.5f,1.5f),new Point(-1.5f,-1.5f),
+            new Point(1.5f,-1.5f),new Point(0f,2.5f),
+            new Point(0f,-2.5f),new Point(-2.5f,0f),
+            new Point(2.5f,0f)
+        };
+        private bool TryMineConvoyAmbushFoot(Point origin,Point other,
+            bool hasOther,out Point result)
+        {
+            foreach(Point offset in mineConvoyAmbushOffsets)
+            {
+                Point foot=origin+offset;
+                if(!CanStand(foot) ||
+                    (foot-Position).Length<1.25f ||
+                    (foot-MineCartPosition).Length<1.25f ||
+                    (save.companion>=0 &&
+                     (foot-companionPosition).Length<1.25f) ||
+                    (hasOther && (foot-other).Length<1.25f) ||
+                    !ClearAttackPath(MineCartPosition,foot) ||
+                    !BossSummonHasLocalRoute(foot,MineCartPosition))
+                    continue;
+                bool occupied=false;
+                foreach(Enemy existing in enemies)
+                    if(existing.hp>0&&(foot-existing.Position).Length<1.25f)
+                    {occupied=true;break;}
+                if(occupied)continue;
+                result=foot;return true;
+            }
+            result=new Point();return false;
+        }
         private bool SpawnMineConvoyAmbush()
         {
-            Point[] points={new Point(62.5f,40.5f),new Point(65.5f,42.5f)};
-            foreach(Point p in points)
-                if(!CanStand(p)||!ClearAttackPath(MineCartPosition,p))return false;
-            mineConvoyConfirmedKills=0;
+            Point first,second;
+            // Validate the entire pair before changing mission kills or
+            // inserting actors. If the local arena is genuinely full, the
+            // cart stays at the junction and retries on the next live tick.
+            if(!TryMineConvoyAmbushFoot(new Point(62.5f,40.5f),
+                new Point(),false,out first) ||
+               !TryMineConvoyAmbushFoot(new Point(65.5f,42.5f),
+                first,true,out second))return false;
+            Point[] points={first,second};
             for(int i=0;i<points.Length;i++)
             {
                 Enemy guard=new Enemy(91300+i,i==0?0:2,points[i].x,points[i].y,
@@ -55,6 +96,7 @@ namespace Starfall
                 guard.timer=.75f+i*.25f;
                 enemies.Add(guard);
             }
+            mineConvoyConfirmedKills=0;
             return true;
         }
         private void TickMineConvoy(float dt)

@@ -45,6 +45,62 @@ namespace Starfall.Tests
                     "Actual player combat defeats each minecart ambusher");
             }
         }
+        public static void MinecartJunctionGuardsAvoidActualCombatActorOccupancy(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(3);
+            g.enemies.Clear();
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            g.invulnerable=120;
+            WorldObject west=MineCartTestPost(g,1);
+            WorldObject junction=MineCartTestPost(g,2);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start")&&
+                g.MineConvoyStage==1,
+                "The authentic Ironreach civilian cart starts at its old western dispatch");
+            // A genuine final cart arrival (not a synthetic stage-2 flag)
+            // triggers the guarded spawn transaction in the next Tick.
+            var positionField=typeof(GameCore).GetField(
+                "<MineCartPosition>k__BackingField",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(positionField!=null,
+                "The live minecart still owns its real position and motion state");
+            positionField.SetValue(g,new Point(junction.x,junction.y));
+            // Both preferred authored feet are occupied by distinct actors.
+            // The enemy is unrelated to the escort and must not be moved,
+            // killed or converted into an authored 91300-series combatant.
+            var bystander=new Enemy(91823,0,62.5f,40.5f,800f)
+                {stun=200f,timer=1000f};
+            g.enemies.Add(bystander);
+            g.save.x=junction.x;g.save.y=junction.y;
+            g.companionPosition=new Point(65.5f,42.5f);
+            Point allyBefore=g.companionPosition;
+            g.Tick(.05f,new Point());
+            var guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+            Check(g.MineConvoyStage==2&&guards.Count==2&&
+                g.enemies.Contains(bystander)&&
+                (bystander.Position-new Point(62.5f,40.5f)).Length<.001f,
+                "Cart reaches live contested junction with two actual guards and untouched pre-existing fighter");
+            Check(guards[0].id==91300&&guards[1].id==91301,
+                "Existing pair of kill-confirmed minecart enemy identities is stable");
+            foreach(Enemy guard in guards)
+            {
+                Check(g.CanStand(guard.Position)&&
+                    (guard.Position-bystander.Position).Length>=1.25f&&
+                    (guard.Position-g.Position).Length>=1.25f&&
+                    (guard.Position-g.companionPosition).Length>=1.25f&&
+                    (guard.Position-g.MineCartPosition).Length>=1.25f&&
+                    g.NavigationPath(guard.Position).Count>0,
+                    "Each actual ambusher stands apart from the cart and actors on walkable reachable junction floor");
+            }
+            Check((guards[0].Position-guards[1].Position).Length>=1.25f&&
+                (allyBefore-g.companionPosition).Length<1f,
+                "New enemies may not overlap each other or teleport an unrelated recruited ally");
+            Check(g.save.version==2&&!g.MineConvoyComplete,
+                "An in-progress combat ambush cannot leak a permanent quest result or alter old saves");
+        }
+
         public static void MinecartCivicTimberSavingsActuallyReachTownForge(Campaign data)
         {
             foreach(bool temper in new[]{false,true})
