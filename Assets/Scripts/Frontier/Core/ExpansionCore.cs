@@ -599,11 +599,19 @@ namespace Starfall
                         }
                         if (action.kind == "attack" &&
                             (!CanStand(companionPosition) ||
-                             locked != null &&
-                             (!enemies.Contains(locked) || locked.hp <= 0 ||
-                              (locked.Position-companionPosition).Length >= 7f ||
-                              !ClearAttackPath(companionPosition,locked.Position))))
+                             locked == null || !enemies.Contains(locked) ||
+                             locked.hp <= 0 ||
+                             (locked.Position-companionPosition).Length >= 7f ||
+                             !ClearAttackPath(companionPosition,locked.Position)))
+                        {
+                            // Retire this *unreleased* contact. Merely
+                            // reducing the next attack timer while falling
+                            // through to FriendlyShot launched phantom
+                            // projectiles at dead, missing, or occluded foes.
+                            // Preserve the real recovery pose, never publish
+                            // a projectile, muzzle effect or audio cue.
                             companionAttack = Math.Min(companionAttack,.22f);
+                        }
                         else
                         {
                             // Auto-fire follows the same living, visible locked foe

@@ -1334,6 +1334,87 @@ namespace Starfall.Tests
                 "Leaving real siege removes all pending stock cues");
         }
 
+        public static void CompanionCancelledAutoContactNeverFiresAtDeadOrLostTarget(Campaign data)
+        {
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.companion=1;
+            g.save.x=data.maps[0].spawnX;
+            g.save.y=data.maps[0].spawnY;
+            g.companionPosition=g.Position;
+            Point foot=new Point();bool found=false;
+            var shot=typeof(GameCore).GetMethod("WeaponShot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var target=typeof(GameCore).GetField("companionAutoTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var next=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var tick=typeof(GameCore).GetMethod("TickCompanion",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(shot!=null&&target!=null&&next!=null&&tick!=null,
+                "Test existing physical companion production release");
+            for(int dx=-5;dx<=5&&!found;dx++)
+            for(int dy=-5;dy<=5&&!found;dy++)
+            {
+                Point p=g.companionPosition+new Point(dx,dy);
+                Point delta=p-g.companionPosition;
+                if(delta.Length<2f||delta.Length>5f||!g.CanStand(p))
+                    continue;
+                Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                    g.companionPosition,1,delta.Normalized,9f,0f,(Point?)p});
+                if(probe.blockedAtSpawn)continue;
+                foot=p;found=true;
+            }
+            Check(found,"Original town terrain has a genuine clear ally bow lane");
+            Enemy foe=new Enemy(920601,0,foot.x,foot.y,30f);
+            g.enemies.Add(foe);
+            Point aim=(foe.Position-g.companionPosition).Normalized;
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=aim,target=foe.Position
+            };
+            target.SetValue(g,foe);next.SetValue(g,2.8f);
+            // During the already-paid bow draw the hero killed the mark.
+            foe.hp=0f;
+            int effects=g.effects.Count;
+            tick.Invoke(g,new object[]{.17f});
+            Check(g.companionAction.released&&g.projectiles.Count==0&&
+                g.effects.Count==effects&&
+                (float)next.GetValue(g)<=.22f,
+                "A dead auto-target cannot emit a phantom arrow or muzzle flash");
+
+            // Test an occluded/stale release separately from death:
+            // moving out of the real seven-unit attack envelope should
+            // never still shoot toward the former locked position.
+            foe.hp=30f;foe.x=foot.x+20f;
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=aim,target=foot
+            };
+            target.SetValue(g,foe);next.SetValue(g,2.8f);
+            tick.Invoke(g,new object[]{.17f});
+            Check(g.projectiles.Count==0&&g.effects.Count==effects&&
+                (float)next.GetValue(g)<=.22f,
+                "A target escaping physical range cancels old arrow release");
+
+            // A subsequent genuinely shootable foe remains available,
+            // without consuming a second false 2.8s cooldown.
+            foe.x=foot.x;foe.y=foot.y;
+            g.companionAction=null;next.SetValue(g,0f);
+            tick.Invoke(g,new object[]{.02f});
+            Check(g.companionAction!=null&&
+                g.companionAction.kind=="attack"&&
+                (Enemy)target.GetValue(g)==foe,
+                "Short retry locks a freshly reachable, living target");
+            tick.Invoke(g,new object[]{.16f});
+            Check(g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "A recovered original bow release still creates a real arrow");
+        }
+
         public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,

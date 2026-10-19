@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void CompanionAutoAttackCannotFireDeadOrEscapedTargets() { CoreChecks.CompanionCancelledAutoContactNeverFiresAtDeadOrLostTarget(Data()); }
         [Test] public void CacheImpactWarningUsesAuthenticReleasedRaidIntent() { CoreChecks.OutpostWarningsTrackActualCommittedRaiderNotPhantomThreat(Data()); }
         [Test] public void ActiveRangedWatchFindsNewLegitimateFiringLaneAsRaidersMove() { CoreChecks.GuardRangerMovesFromWalkableBlindFootToPhysicalFiringLane(Data()); }
         [Test] public void GuardRangerCanRedirectRealBowReleaseToNewStockThreat() { CoreChecks.GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Data()); }
