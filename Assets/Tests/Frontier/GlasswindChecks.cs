@@ -344,6 +344,65 @@ namespace Starfall.Tests
             finally{data.maps[6]=previous;}
         }
 
+        public static void GlasswindPlayerCannotCaptureRingThroughClosingSolidWall(Campaign data)
+        {
+            MapData previous=data.maps[6];
+            try
+            {
+                var rows=new string[26];
+                for(int y=0;y<26;y++)
+                {
+                    char[] tiles=new string('#',26).ToCharArray();
+                    if(y>=2&&y<=23)
+                        for(int x=2;x<=23;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                WorldObject relay=new WorldObject{
+                    id="glasswindrelay1",kind="glasswindrelay1",
+                    name="Desert relay",en="Desert relay",
+                    x=10.5f,y=10.5f};
+                data.maps[6]=new MapData{id=6,spawnX=10.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{relay},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.save.level=20;
+                foreach(string flag in new[]{"harbor_report","desert_report",
+                    "gate_6","glasswind_started"})g.save.flags.Add(flag);
+                g.Enter(6);g.enemies.Clear();g.invulnerable=180;
+                g.save.x=relay.x;g.save.y=relay.y;
+                Action(g,relay.kind,"glasswind_start_1");
+                Check(g.GlasswindSite==1&&g.GlasswindWave==1&&
+                    g.enemies.FindAll(g.IsGlasswindEnemy).Count==2,
+                    "The original live first-wave relay encounter must start on open ground");
+                foreach(Enemy guard in g.enemies.FindAll(g.IsGlasswindEnemy))
+                {guard.stun=200;guard.timer=200;}
+                g.save.x=12.25f;g.save.y=10.5f;
+                Check(g.CanStand(g.Position)&&
+                    (g.Position-new Point(relay.x,relay.y)).Length<2.65f,
+                    "The standing hero remains within the relay's nominal radius");
+                Advance(g,1f);
+                float earned=g.GlasswindCharge;
+                Check(earned>.95f&&earned<1.1f,
+                    "The same live player gains one second of real unobstructed ring capture");
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(relay.x,relay.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "Closing a full wall separates valid hero and relay feet");
+                Advance(g,1f);
+                Check(g.GlasswindCharge<earned-.5f&&
+                    g.GlasswindSite==1&&g.GlasswindWave==1,
+                    "An isolated hero cannot earn capture through the wall, and standard retreat decay resumes");
+                float decayed=g.GlasswindCharge;
+                wall[11]='.';rows[10]=new string(wall);
+                Advance(g,.35f);
+                Check(g.GlasswindCharge>decayed+.3f&&
+                    !g.Has("glasswind_1")&&g.save.version==2,
+                    "Opening the same corridor immediately restores real capture without fake quest rewards or v2 changes");
+            }
+            finally {data.maps[6]=previous;}
+        }
+
         public static void GlasswindCircuitHasRealCaptureWavesAndPermanentShade(Campaign data)
         {
             var g=Fresh(data);

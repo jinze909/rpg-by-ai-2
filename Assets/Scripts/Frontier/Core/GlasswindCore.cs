@@ -366,15 +366,19 @@ namespace Starfall
             }
             Point station=GlasswindPoint(GlasswindSite);
             float range=(Position-station).Length;
-            // An actual defender can contest a relay only on its reachable
-            // side of the wall. A nearby guard behind a newly sealed gate
-            // cannot remotely disable the player's timed capture progress.
+            // Physical capture cannot progress through a closing wall or
+            // gate, even if the player remains inside the icon's radius.
+            // Use the same near-side contact as actual relay interactions.
+            bool reachableRing=PhysicalRefugeReach(station,2.65f);
+            // A defender can contest only from a real attack lane.
             bool jammed=enemies.Exists(e=>IsGlasswindEnemy(e) &&
                 e.hp>0 && (e.Position-station).Length<1.6f &&
                 ClearAttackPath(e.Position,station));
-            if(range<2.65f && !jammed)
+            if(reachableRing && !jammed)
                 GlasswindCharge=Math.Min(8,GlasswindCharge+dt);
-            else if(range>3.2f)
+            else if(range>3.2f || (range<2.65f && !reachableRing))
+                // A nearby but physically isolated hero is outside the
+                // reachable capture area: apply the ordinary retreat decay.
                 GlasswindCharge=Math.Max(0,GlasswindCharge-dt*.6f);
             if(GlasswindWave==1 && GlasswindCharge>=4)
             {

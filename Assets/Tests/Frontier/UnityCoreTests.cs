@@ -96,6 +96,7 @@ namespace Starfall.Tests
         [Test] public void DesertRelayWavesCannotOverlapLiveCombatActors() { CoreChecks.GlasswindBothWavesSpawnAwayFromExistingCombatActors(Data()); }
         [Test] public void CrowdedSecondDesertWaveWaitsWithoutResettingPlayerProgress() { CoreChecks.CrowdedSecondGlasswindWaveWaitsWithoutDiscardingLiveDefense(Data()); }
         [Test] public void GlasswindStaleRelayButtonsRequireActualAccessibleContact() { CoreChecks.GlasswindCachedChoicesRespectClosingPhysicalRelayWall(Data()); }
+        [Test] public void ClosingDesertWallStopsRealRelayCaptureAndOpensAgain() { CoreChecks.GlasswindPlayerCannotCaptureRingThroughClosingSolidWall(Data()); }
         [Test] public void RestoredDesertRelayCannotCoolHeroThroughSolidWall() { CoreChecks.GlasswindPublicShadeOnlyProtectsPhysicallyAccessibleTravelers(Data()); }
         [Test] public void ContestedRelayCannotBeJammedByGuardBehindLiveWall() { CoreChecks.RelayCaptureCannotBeJammedThroughClosingRealWall(Data()); }
         [Test] public void SameWeaponEquippingKeepsCombatIntent() { CoreChecks.EquippingIdenticalWeaponCannotEraseActiveAttack(Data()); }
