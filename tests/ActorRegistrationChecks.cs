@@ -1928,6 +1928,103 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS common/Boss single-body Idle->Walk production lane: rooted source size easing without duplicate head/weapon, attack interrupt, facing safety and accessibility");
     }
 
+    private static float MoveTimeForGait(int target,float stride)
+    {
+        for(int i=1;i<400;i++)
+        {
+            float distance=stride*i/400f;
+            if(GameCore.GaitFrame(distance,stride)==target)return distance;
+        }
+        throw new Exception("Could not select a source-authored gait phase "+target);
+    }
+    private static int FrameColumn(GUI.TextureCall call,int columns)
+    { return (int)Math.Round(call.uv.x*columns); }
+    private static int FrameRow(GUI.TextureCall call,int rows)
+    { return (int)Math.Round((1f-call.uv.y-call.uv.height)*rows); }
+
+    // Stopping on an airborne walk key used to jump directly to Idle on the
+    // next repaint. Exercise the REAL production actor draw for both custom
+    // same-atlas enemies and cross-atlas archers/Bosses, on phases 1 and 3.
+    // The only allowed bridge is the next original planted source cell, with
+    // one complete body, a fixed foot and a bounded return to Idle.
+    static void EnemyWalkStopUsesNextPlantedSourceCell(
+        FrontierRuntime app,string folder)
+    {
+        var cases=new[]{
+            new {room=0,kind=0,boss=false,walk="MossboundRaider",
+                idle="MossboundRaider",stride=1.35f,walkRow=1,idleRow=0,
+                columns=4,rows=6},
+            new {room=0,kind=2,boss=false,walk="CinderstoneGuard",
+                idle="CinderstoneGuard",stride=1.8f,walkRow=1,idleRow=0,
+                columns=4,rows=6},
+            new {room=0,kind=1,boss=false,walk="WalkMonsters",
+                idle="Monsters",stride=1.8f,walkRow=1,idleRow=1,
+                columns=4,rows=3},
+            new {room=2,kind=0,boss=true,walk="WalkBossA",
+                idle="Bosses",stride=2.8f,walkRow=1,idleRow=1,
+                columns=4,rows=4},
+            new {room=1,kind=0,boss=true,walk="BriarBeast",
+                idle="BriarBeast",stride=2.8f,walkRow=1,idleRow=0,
+                columns=4,rows=18}
+        };
+        foreach(var item in cases)
+        foreach(int gait in new[]{1,3})
+        {
+            app.BeginVisualReview(0,item.room);
+            var game=app.Game;
+            game.enemies.Clear();game.save.companion=-1;
+            game.save.effectsQuality=2;game.save.reducedMotion=false;
+            Set(app,"clock",10f);
+            var enemy=new Enemy(99500+item.kind+item.room*10,
+                item.kind,game.Position.x+1f,game.Position.y+.5f,
+                160f,item.boss)
+            {facing=new Point(1,0),moving=true,
+                moveTime=MoveTimeForGait(gait,item.stride)};
+            game.enemies.Add(enemy);
+            Place(app,enemy.Position,new Point(500,350));
+            Clear();
+            var walking=Draw(app,"DrawEnemyActor",enemy);
+            string walkName="resource:Frontier/Art/"+item.walk;
+            string idleName="resource:Frontier/Art/"+item.idle;
+            var walkBody=walking.Single(c=>c.texture.name==walkName);
+            Check(FrameRow(walkBody,item.rows)==item.walkRow&&
+                FrameColumn(walkBody,item.columns)==gait,
+                "Regression setup must paint the selected real walking keyframe for "+item.walk);
+
+            enemy.moving=false;
+            Set(app,"clock",10.02f);Clear();
+            var stopping=Draw(app,"DrawEnemyActor",enemy);
+            var contact=stopping.Single(c=>c.texture.name==walkName);
+            int planted=gait==1?2:0;
+            Check(FrameRow(contact,item.rows)==item.walkRow&&
+                FrameColumn(contact,item.columns)==planted,
+                "Stopping on gait "+gait+" must advance only to the next authored planted cell for "+item.walk);
+            Check(stopping.Count(ActorTexture)==1&&
+                Math.Abs(contact.rect.x+contact.rect.width*.5f-
+                    walkBody.rect.x-walkBody.rect.width*.5f)<.001f&&
+                Math.Abs(contact.rect.y+contact.rect.height*.9375f-
+                    walkBody.rect.y-walkBody.rect.height*.9375f)<.001f,
+                "A stop-plant transition must retain one complete body and the exact world foot root");
+
+            Set(app,"clock",10.05f);Clear();
+            var holding=Draw(app,"DrawEnemyActor",enemy);
+            var held=holding.Single(c=>c.texture.name==walkName);
+            Check(FrameRow(held,item.rows)==item.walkRow&&
+                FrameColumn(held,item.columns)==planted&&
+                holding.Count(ActorTexture)==1,
+                "Planted contact must remain authoritative through the short bounded stop window");
+
+            Set(app,"clock",10.8f);Clear();
+            var idle=Draw(app,"DrawEnemyActor",enemy);
+            var idleBody=idle.Single(c=>c.texture.name==idleName);
+            Check(FrameRow(idleBody,item.rows)==item.idleRow&&
+                idle.Count(ActorTexture)==1,
+                "After the bounded plant window, the same actor must return to its authored Idle source");
+            GUI.Export(folder,"review-enemy-stop-plant-"+item.walk+"-phase-"+gait);
+        }
+        Console.WriteLine("PASS 10 live enemy/Boss stop transitions: authored next planted gait cell, one body, stable feet, bounded Idle return and all five production atlas families");
+    }
+
     // This is called by the executable core C# suite, not only by
     // ActorRegistrationChecks.Run's optional review-gallery entrypoint.
     // The accepted regional Boss Idle (320px) and Walk (384px) canvases
@@ -2765,7 +2862,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }

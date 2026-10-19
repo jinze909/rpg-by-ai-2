@@ -666,20 +666,28 @@ namespace Starfall
                     // Boss phase, windup and contact use the same GameCore
                     // Sprite in living draws and death handoff.
                     int liveCell = BriarBeastLiveCell(e);
+                    Texture2D liveSheet=briarBeastSheet;
+                    int liveColumns=4,liveRows=18;
+                    float liveSize=size;
+                    bool liveFlip=e.VisualFlip;
+                    ResolveEnemyStopPlant(e,pose,ref liveSheet,
+                        ref liveColumns,ref liveRows,ref liveCell,
+                        ref liveSize,liveFlip);
                     lastVisible.lastBriarCell=liveCell;
+                    lastVisible.lastBriarFlip=liveFlip;
                     float paintedBossSize=DrawEnemyAtlasHandoff(
-                        e,briarBeastSheet,4,18,liveCell,
-                        p + offset,size,tint,e.VisualFlip,pose);
+                        e,liveSheet,liveColumns,liveRows,liveCell,
+                        p + offset,liveSize,tint,liveFlip,pose);
                     paintedBossCanvas=paintedBossSize;
                     // On an HP phase transition the *current* whole-body
                     // silhouette glows briefly, even after the ordinary hit
                     // flash expires. No second offset body or old-phase pose.
                     float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                     if (!drawingOutline && flashAlpha > 0f)
-                        Actor(art.FlashMask(briarBeastSheet), 4, 18,
+                        Actor(art.FlashMask(liveSheet), liveColumns, liveRows,
                             liveCell, p + offset, paintedBossSize,
                             new Color(1, 1, 1, flashAlpha * tint.a),
-                            e.VisualFlip);
+                            liveFlip);
                 }
                 else
                 {
@@ -700,11 +708,17 @@ namespace Starfall
                     bossWalkSheets[walkAtlas] != null;
                 Texture2D visibleBossSheet = walking ?
                     bossWalkSheets[walkAtlas] : bossSheet;
+                int visibleBossColumns=4;
                 int visibleBossRows = walking ? 4 : 8;
                 int visibleBossFrame = walking ?
                     row % 4 * 4 + GameCore.GaitFrame(e.moveTime, 2.8f) :
                     row * 4 + frame;
                 float visibleBossSize = walking ? size * 384 / 320f : size;
+                bool visibleBossFlip=e.VisualFlip;
+                ResolveEnemyStopPlant(e,pose,ref visibleBossSheet,
+                    ref visibleBossColumns,ref visibleBossRows,
+                    ref visibleBossFrame,ref visibleBossSize,
+                    visibleBossFlip);
                 // Save the ACTUAL whole-body source selected for this repaint.
                 // A lethal attack can clear moving/state/facing before the
                 // first corpse draw, so reconstructing from dead Enemy is wrong.
@@ -714,11 +728,12 @@ namespace Starfall
                 // Provisional nominal canvas until the real rooted handoff
                 // returns the exact canvas that appeared in THIS repaint.
                 lastVisible.lastRegionalSize=visibleBossSize;
-                lastVisible.lastRegionalFlip=e.VisualFlip;
+                lastVisible.lastRegionalFlip=visibleBossFlip;
                 lastVisible.lastRegionalTint=tint;
                 float paintedBossSize=DrawEnemyAtlasHandoff(
-                    e,visibleBossSheet,4,visibleBossRows,visibleBossFrame,
-                    p + offset,visibleBossSize,tint,e.VisualFlip,pose);
+                    e,visibleBossSheet,visibleBossColumns,visibleBossRows,
+                    visibleBossFrame,p + offset,visibleBossSize,tint,
+                    visibleBossFlip,pose);
                 paintedBossCanvas=paintedBossSize;
                 // A lethal strike DURING the 320 -> 384 canvas handoff
                 // must remember the body pixels the player actually saw,
@@ -727,10 +742,10 @@ namespace Starfall
                 lastVisible.lastRegionalSize=paintedBossSize;
                 float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                 if (!drawingOutline && flashAlpha > 0f && visibleBossSheet != null)
-                    Actor(art.FlashMask(visibleBossSheet), 4, visibleBossRows,
-                        visibleBossFrame, p + offset, paintedBossSize,
-                        new Color(1, 1, 1, flashAlpha * tint.a),
-                        e.VisualFlip);
+                    Actor(art.FlashMask(visibleBossSheet),
+                        visibleBossColumns,visibleBossRows,visibleBossFrame,
+                        p + offset,paintedBossSize,
+                        new Color(1,1,1,flashAlpha*tint.a),visibleBossFlip);
                 }
                 if (!drawingOutline && e.state == 1) Atlas(effectSheet,4,4,13,new Rect(p.x-19,p.y-GameCore.BossEmissionHeight(Game.save.room)-19,38,38),new Color(1,.79f,.49f,charge*.6f));
             }
@@ -805,6 +820,8 @@ namespace Starfall
                 }
                 float canvas=ActorCanvas(sheet,columns,size/128);
                 bool renderFlip=!vertical && e.VisualFlip;
+                ResolveEnemyStopPlant(e,pose,ref sheet,ref columns,
+                    ref rows,ref frame,ref canvas,renderFlip);
                 paintedActorFlip=renderFlip;
                 RememberEnemyPaint(e,sheet,columns,rows,frame,canvas,tint,renderFlip);
                 float paintedEnemySize=DrawEnemyAtlasHandoff(

@@ -30,6 +30,119 @@ namespace Starfall
             enemyAtlasTransitions =
             new ConditionalWeakTable<Enemy,EnemyAtlasTransition>();
 
+        // Walking atlases contain real planted contact cells at gait phases
+        // 0 and 2, while phases 1 and 3 are passing/airborne silhouettes.
+        // When movement ends on an airborne cell, keep the SAME complete
+        // authored body until its next planted contact, then return to Idle.
+        // This is source-cell selection only: no ghost body, interpolated
+        // limbs, delayed combat state, changed collision or new animation clock.
+        private sealed class EnemyStopPlantState
+        {
+            internal int room=-1,pose=-1,directionRow=-1;
+            internal Point position;
+            internal Texture2D sheet;
+            internal int columns,rows,frame;
+            internal float size,lastAt=float.NegativeInfinity,stopUntil;
+            internal bool flip,stopActive;
+            internal Texture2D stopSheet;
+            internal int stopColumns,stopRows,stopFrame;
+            internal float stopSize;
+        }
+        private readonly ConditionalWeakTable<Enemy,EnemyStopPlantState>
+            enemyStopPlants =
+            new ConditionalWeakTable<Enemy,EnemyStopPlantState>();
+
+        private static bool FiniteEnemyStopValue(float value)
+        {
+            return !float.IsNaN(value)&&!float.IsInfinity(value);
+        }
+
+        private void ResolveEnemyStopPlant(Enemy enemy,int pose,
+            ref Texture2D sheet,ref int columns,ref int rows,ref int frame,
+            ref float size,bool flip)
+        {
+            // Outline previews are not a live actor repaint and must never
+            // advance or cancel the real enemy's gait transition.
+            if(enemy==null||sheet==null||drawingOutline)return;
+            EnemyStopPlantState state=enemyStopPlants.GetValue(enemy,
+                ignored=>new EnemyStopPlantState());
+            int directionRow=GameCore.DirectionRow(enemy.facing);
+            bool finiteClock=FiniteEnemyStopValue(clock);
+            bool sameContext=finiteClock&&state.room==Game.save.room&&
+                (enemy.Position-state.position).Length<.68f&&
+                state.directionRow==directionRow&&state.flip==flip&&
+                clock>=state.lastAt;
+            bool quietIdle=pose==0&&finiteClock&&
+                !Game.save.reducedMotion&&Game.save.effectsQuality>0&&
+                !Game.Dying&&enemy.hp>0f&&enemy.state!=1&&
+                enemy.releaseTime<=0f&&enemy.flash<=0f;
+            if(state.stopActive&&
+                (!quietIdle||!sameContext||clock>=state.stopUntil))
+                state.stopActive=false;
+
+            if(!state.stopActive&&quietIdle&&sameContext&&
+                state.pose==1&&state.sheet!=null&&state.columns==4&&
+                state.rows>0)
+            {
+                int local=(state.frame%4+4)%4;
+                if(local==1||local==3)
+                {
+                    float duration=
+                        CurrentWorldVisualLook.nonheroAtlasHandoffSeconds;
+                    if(!FiniteEnemyStopValue(duration)||duration<=.001f)
+                        duration=.105f;
+                    float stopUntil=clock+duration;
+                    if(FiniteEnemyStopValue(stopUntil)&&stopUntil>clock)
+                    {
+                        state.stopSheet=state.sheet;
+                        state.stopColumns=state.columns;
+                        state.stopRows=state.rows;
+                        // Advance only to the next source-painted foot plant:
+                        // 1 -> 2, 3 -> 0 within the same authored gait row.
+                        state.stopFrame=state.frame-local+
+                            (local==1?2:0);
+                        EnemyAtlasTransition transition;
+                        state.stopSize=
+                            enemyAtlasTransitions.TryGetValue(enemy,
+                                out transition)&&
+                            transition.displaySize>0f&&
+                            FiniteEnemyStopValue(transition.displaySize)?
+                            transition.displaySize:state.size;
+                        state.stopUntil=stopUntil;
+                        state.stopActive=state.stopSize>0f&&
+                            FiniteEnemyStopValue(state.stopSize);
+                    }
+                }
+            }
+
+            if(state.stopActive&&quietIdle&&sameContext&&
+                clock<state.stopUntil)
+            {
+                sheet=state.stopSheet;
+                columns=state.stopColumns;
+                rows=state.stopRows;
+                frame=state.stopFrame;
+                size=state.stopSize;
+            }
+            else state.stopActive=false;
+
+            // Record the one source that the production draw path will paint.
+            // The next decision is keyed by this Enemy instance, never its
+            // reusable numeric id; death, turns, teleport and room changes
+            // cannot inherit another actor's contact phase.
+            state.room=Game.save.room;
+            state.pose=pose;
+            state.directionRow=directionRow;
+            state.position=enemy.Position;
+            state.sheet=sheet;
+            state.columns=columns;
+            state.rows=rows;
+            state.frame=frame;
+            state.size=size;
+            state.flip=flip;
+            state.lastAt=clock;
+        }
+
         private float DrawEnemyAtlasHandoff(Enemy enemy,Texture2D sheet,
             int columns,int rows,int frame,Point foot,float size,Color tint,
             bool flip,int pose)
