@@ -24,6 +24,16 @@ namespace Starfall
         {get{return OuterPatrolCompanionGuarding?outerPatrolCompanionGuardFoot:companionPosition;}}
         public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
         public float OuterPatrolTime {get{return OuterPatrolActive?outerPatrolTime:0f;}}
+        // The same LIVE frontline interception must govern the actual
+        // physical stock hit and the predicted warning. A hero who arrived
+        // AFTER the hostile windup still blocks its stock damage on release;
+        // do not display a contradictory unavoidable-hit HUD alert.
+        private bool OuterPatrolHeroIntercepts(Enemy foe)
+        {
+            return foe!=null&&!Dying&&CanStand(Position)&&
+                (Position-foe.Position).Length<=2.2f&&
+                ClearAttackPath(foe.Position,Position);
+        }
         // UI follows the same authentic released-hit requirements as
         // DamageOuterPatrolStock: never warn about a removed, stunned,
         // blocked or behind-wall enemy, or an ordinary archer aimed at the
@@ -42,7 +52,8 @@ namespace Starfall
                         foe.stun>0f||foe.hitTime>0f||
                         (foe.Position-outerPatrolPost).Length>2.35f||
                         !CanStand(foe.Position)||
-                        !ClearAttackPath(foe.Position,outerPatrolPost))
+                        !ClearAttackPath(foe.Position,outerPatrolPost)||
+                        OuterPatrolHeroIntercepts(foe))
                         continue;
                     if(closest==null||foe.timer<closest.timer)
                         closest=foe;
@@ -181,9 +192,7 @@ namespace Starfall
             // hit when the living hero now intercepts the very same swing.
             // The normal melee/AoE release above still tests actual contact
             // with the defender; only the extra stock hit is withheld.
-            if(!Dying&&CanStand(Position)&&
-                (Position-attacker.Position).Length<=2.2f&&
-                ClearAttackPath(attacker.Position,Position))
+            if(OuterPatrolHeroIntercepts(attacker))
             {
                 effects.Add(new Effect("number",outerPatrolPost,.7f,
                     L("拦截成功","INTERCEPTED")){outerPatrolOwned=true});

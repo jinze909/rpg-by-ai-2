@@ -1346,12 +1346,37 @@ namespace Starfall.Tests
             Check(melee!=null&&heavy!=null&&
                 g.OuterPatrolIncomingStockThreat==null,
                 "Idle enemies never create counterfeit supply warnings");
+            // During a real defense the hero can intercept in melee range.
+            // Observe genuine stock threats from a legal but distant post
+            // foot, then move inside the raider's actual attack lane to
+            // verify the same warning retracts BEFORE genuine release.
+            Point observer=new Point();bool foundObserver=false;
+            for(int dx=-10;dx<=10&&!foundObserver;dx++)
+            for(int dy=-10;dy<=10&&!foundObserver;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-new Point(post.x,post.y)).Length>11f||
+                    (p-melee.Position).Length<3.5f||
+                    (p-heavy.Position).Length<3.5f)continue;
+                observer=p;foundObserver=true;
+            }
+            Check(foundObserver,
+                "Actual watch map provides a legal defender observation foot");
+            g.save.x=observer.x;g.save.y=observer.y;
             melee.state=1;melee.timer=.8f;
             melee.targetingOuterPatrolStock=true;
             Check(g.OuterPatrolIncomingStockThreat==melee&&
                 Math.Abs(g.OuterPatrolIncomingStockSeconds-.8f)<.01f&&
                 !g.OuterPatrolIncomingStockHeavy,
                 "Active real melee stock windup produces grounded timing");
+            g.save.x=melee.x;g.save.y=melee.y;
+            Check(g.OuterPatrolIncomingStockThreat==null&&
+                g.OuterPatrolIncomingStockSeconds<0f,
+                "Hero physically entering an already aimed swing cancels false stock-hit alarm");
+            g.save.x=observer.x;g.save.y=observer.y;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "Warning resumes if the physical defender abandons interception");
             // The initial heavy spawn is a valid approach, not yet a
             // legal contact foot. Move this controlled integration fixture
             // to an actually walkable, unobstructed melee range BEFORE
