@@ -99,6 +99,17 @@ namespace Starfall
             mineConvoyConfirmedKills=0;
             return true;
         }
+        private static float ActiveMineConvoyPressureTime(Enemy guard,float dt)
+        {
+            // Enemy AI consumes hit/stun/release locks before the cart is
+            // updated this same world frame. Reconstruct the locked slice
+            // (including a stun expiring midway through this dt), so a
+            // staggered guard never drains full cart HP while disabled.
+            // A fresh hit applied later this frame stays locked completely.
+            float locked=Math.Max(0f,Math.Max(guard.stun,
+                Math.Max(guard.hitTime,guard.releaseTime))+dt);
+            return Math.Max(0f,dt-Math.Min(dt,locked));
+        }
         private void TickMineConvoy(float dt)
         {
             if(!MineConvoyActive)return;
@@ -130,7 +141,7 @@ namespace Starfall
                         // damage a real cart it cannot even see. The same
                         // physical corridor opens damage again immediately.
                         ClearAttackPath(guard.Position,MineCartPosition))
-                        MineConvoyIntegrity-=dt*3.3f;
+                        MineConvoyIntegrity-=ActiveMineConvoyPressureTime(guard,dt)*3.3f;
                 // Real combat is the necessary route to stage three;
                 // no scripted button can despawn surviving miners' attackers.
                 return;

@@ -157,10 +157,22 @@ namespace Starfall.Tests
                 closed[(int)junction.x+1]='.';
                 rows[(int)junction.y]=new string(closed);
                 g.Tick(.05f,new Point());
-                Check(g.MineConvoyIntegrity<hull-.12f&&
-                    g.MineConvoyIntegrity>hull-.23f&&
+                Check(Math.Abs(g.MineConvoyIntegrity-hull)<.0001f,
+                    "A newly open corridor does not let a still-stunned guard sabotage the cart while unable to act");
+                // A genuine combat stagger expires DURING this 50ms
+                // frame. Only the 25ms remaining active slice can damage
+                // the cart, not a free complete frame of pressure.
+                threat.stun=.025f;
+                g.Tick(.05f,new Point());
+                float partial=hull-g.MineConvoyIntegrity;
+                Check(partial>.055f&&partial<.11f,
+                    "Stun ending halfway through a frame restores precisely partial civilian hull pressure");
+                threat.stun=0;
+                g.Tick(.05f,new Point());
+                float active=partial-(hull-g.MineConvoyIntegrity);
+                Check(active<-.12f&&active>-.23f&&
                     g.enemies.Contains(threat)&&g.enemies.Contains(other),
-                    "Reopening the exact route resumes the original 3.3 HP/s real guard pressure without erasing actors");
+                    "Fully recovered raider again drains the original 3.3 HP/s cart integrity without erasing actors");
                 Check(!g.MineConvoyComplete&&g.save.version==2,
                     "Physical collision adjustment changes no final reward, guard kill bit or old save version");
             }
