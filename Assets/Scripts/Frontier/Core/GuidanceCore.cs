@@ -717,8 +717,8 @@ namespace Starfall
                         "Unlock a defended veteran outpost first"):
                     L("在标记哨岗完成无路障、无抢修的真实精英战",
                         "Defend the marked cache without repairs or a barricade");
-                q.reward=L("八地无损徽章全部取得：额外技能点 +1",
-                    "Complete all eight authentic flawless medals: +1 talent point");
+                q.reward=L("每枚徽章强化当地安全医疗恢复；八地全部完成再得技能点 +1",
+                    "Each medal improves care at that safe outpost; all eight: +1 talent point");
                 return q;
             }
 

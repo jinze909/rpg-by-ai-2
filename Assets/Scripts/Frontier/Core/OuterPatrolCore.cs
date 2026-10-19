@@ -153,6 +153,19 @@ namespace Starfall
             if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
             if(OuterPatrolActive)
             {
+                var choices=new List<Choice> {
+                    C("临时加固 · 木材和草药各1",
+                      "Emergency patch · timber + Moonherb","outer_watch_patch")
+                };
+                // A normal raid cannot build veteran cover, and an already
+                // deployed or unaffordable barricade is never an actionable
+                // choice. Keep abort visible regardless of combat resources.
+                if(OuterPatrolBraceAvailable)
+                    choices.Add(C("部署路障 · 木材2、零件1",
+                        "Deploy barricade · 2 timber + 1 spare part",
+                        "outer_watch_brace"));
+                choices.Add(C("主动撤守","Withdraw defense","outer_watch_abort"));
+                choices.Add(C("继续防卫","Continue the defense","close"));
                 Dialog(o.name,o.en,
                     (outerPatrolVeteran?"精英突袭正在威胁已守住的救援岗。三名敌人包括重甲撞击手。":"盗取物资的袭击者逼近哨岗。")+
                     (outerPatrolVeteran?" 路障耐久 "+Math.Ceiling(outerPatrolBrace)+"。":"")+
@@ -161,10 +174,7 @@ namespace Starfall
                     (outerPatrolVeteran?"A veteran three-raider assault, including a heavy slammer, is underway.":"Raiders are attacking the relief stock.")+
                     " Time left "+Math.Ceiling(outerPatrolTime)+"s; integrity "+
                     Math.Ceiling(outerPatrolStock)+"%. Timber and Moonherb patch it once.",
-                    C("临时加固 · 木材和草药各1","Emergency patch · timber + Moonherb","outer_watch_patch"),
-                    C("部署路障 · 木材2、零件1","Deploy barricade · 2 timber + 1 spare part","outer_watch_brace"),
-                    C("主动撤守","Withdraw defense","outer_watch_abort"),
-                    C("继续防卫","Continue the defense","close"));
+                    choices.ToArray());
                 return true;
             }
             if(OuterPatrolDone(room))
@@ -172,14 +182,14 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     "居民已接管此处的物资与补给道路，安全时可恢复生命和耐力。"+
                     (OuterPatrolFlawlessDone(room)?
-                        "本地已获得无损守卫徽章。":
-                        "精英战无路障、无抢修并守住90%以上物资，可争取无损徽章。")+
+                        "本地已获得无损守卫徽章，安全时享受最高级医疗补给。":
+                        "精英战无路障、无抢修并守住90%以上物资，可争取无损徽章并强化现场医疗。")+
                     (OuterPatrolVeteranDone(room)?
                         "你击退过精英三人组，此处医疗与补给更充足。可重演训练，但不会重复获得奖品。":
                         "可发起 110 秒精英防卫：真正的重甲敌人会砸毁物资。首次获胜可强化补给点。"),
                     "Residents operate this defended supply route. Recover here when safe. "+
                     (OuterPatrolFlawlessDone(room)?
-                        "Flawless watch medal earned here. ":
+                        "Flawless watch medal earned: improved local healing and energy support. ":
                         "Clear a veteran siege with >=90% stock and no barricade or patch for a flawless medal. ")+
                     (OuterPatrolVeteranDone(room)?
                         "Veteran defense cleared: stronger local care is available. Replay yields no rewards.":

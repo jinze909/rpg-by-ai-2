@@ -1003,6 +1003,49 @@ namespace Starfall.Tests
             }
         }
 
+        public static void FlawlessFieldCareActuallyImprovesSafeTickAndStopsDuringRaids(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.flags.Add("outer_patrol_veteran_0");
+            g.save.health=45f;g.save.energy=30f;
+            Check(g.OuterPatrolRefuge,"Defended post is a real place of recovery");
+            g.Tick(.05f,new Point());
+            float veteranHp=g.save.health-45f;
+            float veteranEnergy=g.save.energy-30f;
+            g.save.flags.Add("outer_patrol_flawless_0");
+            g.save.health=45f;g.save.energy=30f;
+            g.Tick(.05f,new Point());
+            float flawlessHp=g.save.health-45f;
+            float flawlessEnergy=g.save.energy-30f;
+            Check(flawlessHp>veteranHp+.025f&&
+                flawlessEnergy>veteranEnergy+.05f,
+                "Real 50ms game tick grants strictly better local care after medal");
+            g.enemies.Add(new Enemy(9911,0,post.x+.7f,post.y,32f));
+            g.save.health=45f;g.save.energy=30f;
+            Check(!g.OuterPatrolRefuge,
+                "Real nearby raider disables medal-powered refuge care");
+            g.Tick(.05f,new Point());
+            Check(g.save.health<=45f&&g.save.energy<=30.001f,
+                "A hostile siege cannot be healed away by the new honor reward");
+            g.enemies.Clear();
+            g.save.x=post.x+20f;g.save.y=post.y+20f;
+            Check(!g.OuterPatrolRefuge,
+                "Flawless reward never grants region-wide free healing");
+            GameCore reloaded=new GameCore(data,new SaveData{
+                version=2,room=0,x=post.x,y=post.y,
+                flags=new List<string>(g.save.flags),
+                presentationVersion=g.save.presentationVersion
+            });
+            Check(reloaded.OuterPatrolFlawlessDone(0)&&
+                reloaded.OuterPatrolRefuge,
+                "Old v2 save retains the field care upgrade without new fields");
+        }
+
         public static void VeteranBarricadeSpendsRealSuppliesAndAbsorbsReleasedStockHits(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
@@ -1013,6 +1056,22 @@ namespace Starfall.Tests
             g.save.flags.Add("outer_cache_0");
             g.save.flags.Add("outer_patrol_done_0");
             g.save.inventory[0]=8;g.save.inventory[4]=4;
+            // The ordinary first-time encounter must not pretend that a
+            // veteran barricade is a usable menu command.
+            GameCore ordinary=new GameCore(data);ordinary.mode="world";
+            ordinary.save.room=0;ordinary.enemies.Clear();
+            ordinary.save.x=post.x;ordinary.save.y=post.y;
+            ordinary.save.flags.Add("outer_cache_0");
+            ordinary.save.inventory[0]=8;ordinary.save.inventory[4]=4;
+            ordinary.Talk(post);
+            int normal=Array.FindIndex(ordinary.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            ordinary.Choose(normal);
+            ordinary.Talk(post);
+            Check(Array.FindIndex(ordinary.conversation.choices,
+                c=>c.action=="outer_watch_brace")<0,
+                "Standard two-raider raid never advertises veteran-only cover");
+            ordinary.Close();
             g.Talk(post);
             int start=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_veteran");
@@ -1032,9 +1091,14 @@ namespace Starfall.Tests
             g.Talk(post);
             brace=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_brace");
-            g.Choose(brace);
+            Check(brace<0,"An already built barricade is not offered again");
+            var invoke=typeof(GameCore).GetMethod("ChooseOuterPatrol",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(invoke!=null,"Old cached attack menu is still defended");
+            invoke.Invoke(g,new object[]{"outer_watch_brace"});
             Check(g.save.inventory[0]==6&&g.save.inventory[4]==3,
-                "Cached menu action cannot buy a second barricade");
+                "Forged cached brace choice cannot buy a second barricade");
             Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
             Check(melee!=null,"Veteran raid owns an authentic melee stock attacker");
             Point safe=new Point();bool found=false;
@@ -1062,7 +1126,8 @@ namespace Starfall.Tests
             g.Talk(post);
             brace=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_brace");
-            g.Choose(brace);
+            Check(brace<0,"Broken or damaged used cover stays unavailable");
+            invoke.Invoke(g,new object[]{"outer_watch_brace"});
             Check(g.save.inventory[0]==6&&g.save.inventory[4]==3,
                 "A damaged cover cannot be re-purchased during same siege");
             g.Talk(post);
