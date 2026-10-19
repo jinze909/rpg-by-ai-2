@@ -18,6 +18,82 @@ namespace Starfall.Tests
             throw new Exception("Root tone not in live dialogue: "+action);
         }
 
+        public static void RootsongStaleToneAndRootguardRequireReachablePhysicalStone(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[26];
+                for(int y=0;y<26;y++)
+                {
+                    char[] cells=new string('#',26).ToCharArray();
+                    if(y>=2&&y<=23)for(int x=2;x<=23;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                WorldObject stone=new WorldObject{id="rootsong_1",
+                    kind="rootsonestone",name="Rootsong one",
+                    en="Rootsong one",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,objects=new[]{stone},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.flags.Add("scout_saved");
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.save.totalTime=1f;g.save.energy=90;
+                Check(g.CanStand(g.Position)&&g.RootsongOpen(1),
+                    "The first living root opens in its genuine tuning window");
+                g.Talk(stone);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The physical accessible root displays its actual tone choices");
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                Check(g.CanStand(g.Position)&&g.CanStand(new Point(stone.x,stone.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "A newly solid wall separates legal standing hero and tuning stone");
+                PlayRootTone(g,0);
+                Check(g.RootsongProgress==0&&!g.Has("rootsong_1")&&
+                    g.save.energy==90&&!g.hazards.Exists(h=>h.kind=="root"),
+                    "Stale correct note behind stone can neither forge a root flag nor spend resources");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(stone);PlayRootTone(g,0);
+                Check(g.RootsongProgress==1&&g.Has("rootsong_1")&&
+                    g.save.energy==90,
+                    "Opening the wall restores exactly the authentic low note and earns root one");
+                g.Close();
+                g.save.flags.Add("rootsong_2");
+                g.save.flags.Add("rootsong_3");
+                g.save.flags.Add("rootsong_complete");
+                var foe=new Enemy(92687,2,stone.x,stone.y+2f,300f)
+                    {state=1,timer=10f,stun=0f};
+                g.enemies.Add(foe);
+                g.Talk(stone);
+                int selected=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="rootsongpulse_1")
+                    {selected=i;break;}
+                Check(selected>=0,
+                    "A real living threat allows a rooted field-control action");
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(selected);
+                Check(g.save.energy==90&&g.RootsongPulseCooldown<=0&&
+                    foe.state==1&&foe.stun<=0f,
+                    "Old rootguard choice cannot spend energy, control enemies or start cooldown through a shut wall");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(stone);
+                selected=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="rootsongpulse_1")
+                    {selected=i;break;}
+                Check(selected>=0,
+                    "Unobstructed original rootguard command is available again");
+                g.Choose(selected);
+                Check(g.save.energy==60&&g.RootsongPulseCooldown>8f&&
+                    foe.state==0&&foe.stun>1f&&g.save.version==2,
+                    "Only live reachable rootguard spends the genuine thirty energy and interrupts the enemy");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void RestoredRootGuardInterruptsOnlyNearbyThreats(Campaign data)
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();

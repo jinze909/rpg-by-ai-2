@@ -69,6 +69,7 @@ namespace Starfall.Tests
         [Test] public void ClosingDockWallInvalidatesAlreadyOpenedFerryChoice() { CoreChecks.PublicFerryStaleDockChoiceCannotCrossClosingPhysicalWall(Data()); }
         [Test] public void DrownedRuinsArchiveChoicesPersist() { CoreChecks.DrownedFloodArchiveRequiresRealTidesAndChoice(Data()); }
         [Test] public void RestoredRootguardHasRealEnemyInterrupts() { CoreChecks.RestoredRootGuardInterruptsOnlyNearbyThreats(Data()); }
+        [Test] public void RootsongStalePuzzlesAndGuardCommandsNeedPhysicalContact() { CoreChecks.RootsongStaleToneAndRootguardRequireReachablePhysicalStone(Data()); }
         [Test] public void RootsongRequiresActualTimedForestTones() { CoreChecks.ThornwoodRootsongUsesPhysicalTimingAndPersistentHarmony(Data()); }
         [Test] public void StyleChangesRestartAttackChains() { CoreChecks.StyleChangesRestartCombosButRepeatedStylesPreserveAttacks(Data()); }
         [Test] public void LateAttackBufferHonorsStyleAndWeaponChanges() { CoreChecks.LateBasicAttacksBufferOnceAndRespectCombatProfiles(Data()); }
