@@ -114,6 +114,21 @@ namespace Starfall
             if((attacker.Position-outerPatrolPost).Length>2.35f||
                 !CanStand(attacker.Position)||
                 !ClearAttackPath(attacker.Position,outerPatrolPost))return;
+            // The attack was honestly telegraphed toward the supplies, but
+            // the defender may step into the raider's reach BEFORE contact.
+            // Do not resolve an obsolete target lock into an invisible cache
+            // hit when the living hero now intercepts the very same swing.
+            // The normal melee/AoE release above still tests actual contact
+            // with the defender; only the extra stock hit is withheld.
+            if(!Dying&&CanStand(Position)&&
+                (Position-attacker.Position).Length<=2.2f&&
+                ClearAttackPath(attacker.Position,Position))
+            {
+                effects.Add(new Effect("number",outerPatrolPost,.7f,
+                    L("拦截成功","INTERCEPTED")){outerPatrolOwned=true});
+                revision++;sound="guard";
+                return;
+            }
             float damage=attacker.kind==2?22f:14f;
             // A real player's one-time timber/gear fortification absorbs
             // only genuine released, unobstructed saboteur contacts.

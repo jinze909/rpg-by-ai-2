@@ -1056,6 +1056,67 @@ namespace Starfall.Tests
                 "Old v2 save retains the field care upgrade without new fields");
         }
 
+        public static void LateLiveInterceptionProtectsCacheOnRealEnemyRelease(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Defend an actual supply cache");
+            g.Choose(start);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "An authentic raid has two real enemy actors");
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null&&(melee.Position-new Point(post.x,post.y)).Length<=2.35f,
+                "Raid melee attacker starts at genuine contact range");
+            // The target lock and telegraph are already committed to stock.
+            // A defender enters AFTER the windup began but BEFORE the
+            // real release, so it must still be possible to block the cache.
+            melee.state=1;melee.timer=.02f;
+            melee.target=new Point(post.x,post.y);
+            melee.targetingOuterPatrolStock=true;
+            melee.Face(melee.target-melee.Position);
+            melee.stun=0f;melee.releaseTime=0f;
+            float before=g.OuterPatrolIntegrity;
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity==before,
+                "Defender arriving during authentic attack windup intercepts its stock hit");
+            Check(g.effects.Exists(e=>e.kind=="number"&&
+                e.outerPatrolOwned&&e.text.Contains(
+                    g.save.english?"INTERCEPTED":"拦截成功")),
+                "Actual blocked release gives localized, owned readable combat feedback");
+            // The SAME attacker and identical release must damage an
+            // unobstructed physical store once the hero leaves the lane.
+            Point retreat=new Point();bool found=false;
+            for(int dx=-10;dx<=10&&!found;dx++)
+            for(int dy=-10;dy<=10&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if((p-new Point(post.x,post.y)).Length>10f||
+                    (p-melee.Position).Length<5f||!g.CanStand(p))continue;
+                retreat=p;found=true;
+            }
+            Check(found,"Find genuine unoccupied map floor away from melee");
+            g.save.x=retreat.x;g.save.y=retreat.y;
+            melee.state=1;melee.timer=.02f;
+            melee.target=new Point(post.x,post.y);
+            melee.targetingOuterPatrolStock=true;
+            melee.Face(melee.target-melee.Position);
+            melee.stun=0f;melee.releaseTime=0f;
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity<before,
+                "With no defender in range, an identical real contact damages stock");
+            // Ordinary regional defense and old saves retain their original
+            // one-time reward/failure flags; this is transient interception.
+            Check(!g.OuterPatrolDone(0)&&g.save.version==2,
+                "Interception is not a forged victory or a save schema migration");
+        }
+
         public static void VeteranBarricadeSpendsRealSuppliesAndAbsorbsReleasedStockHits(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,

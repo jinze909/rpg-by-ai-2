@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void DefendersCanInterceptAlreadyTelegraphedReliefCacheStrike() { CoreChecks.LateLiveInterceptionProtectsCacheOnRealEnemyRelease(Data()); }
         [Test] public void FlawlessMedalImprovesPhysicalRefugeWithoutHealingActiveCombat() { CoreChecks.FlawlessFieldCareActuallyImprovesSafeTickAndStopsDuringRaids(Data()); }
         [Test] public void FlawlessVeteranSiegesRequireNoAssistsAndPersistEightRealMedals() { CoreChecks.VeteranFlawlessMedalsRequireRealThreeKillsAndAreEarnableOnReplay(Data()); }
         [Test] public void VeteranBarricadeTakesOnlyRealReleasedRaidContactsAndConsumesSuppliesOnce() { CoreChecks.VeteranBarricadeSpendsRealSuppliesAndAbsorbsReleasedStockHits(Data()); }
