@@ -13,6 +13,8 @@ namespace Starfall
             outerPatrolGuardMedicRescue;
         private Point outerPatrolCompanionGuardFoot;
         private float outerPatrolGuardRouteCheck;
+        private int outerPatrolGuardBlocksLeft;
+        private bool outerPatrolGuardBlockedStock;
         private float outerPatrolTime,outerPatrolStock,outerPatrolBrace,outerPatrolBraceFlash;
         private Point outerPatrolPost;
         public bool OuterPatrolCompanionGuarding
@@ -20,6 +22,21 @@ namespace Starfall
         public bool OuterPatrolMedicRallying
         {get{return OuterPatrolCompanionGuarding&&save.companion==0&&
             outerPatrolGuardMedicRescue;}}
+        public int OuterPatrolGuardBlocksLeft
+        {get{return OuterPatrolActive?outerPatrolGuardBlocksLeft:0;}}
+        // Unlike an inexhaustible proximity aura, a stationed physical
+        // companion gets only two authentic emergency bodyguard contacts
+        // in the entire attempt. Switching allies or issuing Y again can
+        // never refill this finite local supply of guards.
+        private bool OuterPatrolCompanionCanIntercept(Enemy attacker)
+        {
+            return attacker!=null&&OuterPatrolCompanionGuarding&&
+                !OuterPatrolMedicRallying&&outerPatrolGuardBlocksLeft>0&&
+                Fits(companionPosition)&&
+                (companionPosition-outerPatrolCompanionGuardFoot).Length<=.65f&&
+                (companionPosition-attacker.Position).Length<=2.2f&&
+                ClearAttackPath(attacker.Position,companionPosition);
+        }
         public Point OuterPatrolCompanionGuardPosition
         {get{return OuterPatrolCompanionGuarding?outerPatrolCompanionGuardFoot:companionPosition;}}
         public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
@@ -53,7 +70,8 @@ namespace Starfall
                         (foe.Position-outerPatrolPost).Length>2.35f||
                         !CanStand(foe.Position)||
                         !ClearAttackPath(foe.Position,outerPatrolPost)||
-                        OuterPatrolHeroIntercepts(foe))
+                        OuterPatrolHeroIntercepts(foe)||
+                        OuterPatrolCompanionCanIntercept(foe))
                         continue;
                     if(closest==null||foe.timer<closest.timer)
                         closest=foe;
@@ -102,7 +120,8 @@ namespace Starfall
         // Unlike the first-clear payout, this badge CAN be earned on replay.
         public bool OuterPatrolFlawlessEligible
         { get {return OuterPatrolVeteranActive&&outerPatrolStock>=90f&&
-            !outerPatrolPatched&&!outerPatrolBraceBuilt;}}
+            !outerPatrolPatched&&!outerPatrolBraceBuilt&&
+            !outerPatrolGuardBlockedStock;}}
         public bool OuterPatrolFlawlessDone(int room)
         {return room>=0&&room<8&&Has("outer_patrol_flawless_"+room);}
         public int OuterPatrolFlawlessWins
@@ -158,6 +177,8 @@ namespace Starfall
                 outerPatrolGuardMedicRescue=false;
             outerPatrolCompanionGuardFoot=new Point();
             outerPatrolGuardRouteCheck=0f;
+            outerPatrolGuardBlocksLeft=0;
+            outerPatrolGuardBlockedStock=false;
             outerPatrolStock=outerPatrolTime=outerPatrolBrace=
                 outerPatrolBraceFlash=0f;
             outerPatrolPost=new Point();
@@ -196,6 +217,16 @@ namespace Starfall
             {
                 effects.Add(new Effect("number",outerPatrolPost,.7f,
                     L("拦截成功","INTERCEPTED")){outerPatrolOwned=true});
+                revision++;sound="guard";
+                return;
+            }
+            if(OuterPatrolCompanionCanIntercept(attacker))
+            {
+                --outerPatrolGuardBlocksLeft;
+                outerPatrolGuardBlockedStock=true;
+                effects.Add(new Effect("number",companionPosition,.8f,
+                    L("同伴护卫 -1","ALLY GUARD -1"))
+                    {outerPatrolOwned=true});
                 revision++;sound="guard";
                 return;
             }
@@ -726,6 +757,8 @@ namespace Starfall
             outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
             outerPatrolCompanionGuardFoot=new Point();
             outerPatrolGuardRouteCheck=0f;
+            outerPatrolGuardBlocksLeft=2;
+            outerPatrolGuardBlockedStock=false;
             outerPatrolBrace=outerPatrolBraceFlash=0f;
             outerPatrolBraceBuilt=false;
             outerPatrolPost=new Point(post.x,post.y);
@@ -835,7 +868,8 @@ namespace Starfall
             int completedRoom=outerPatrolRoom;
             bool veteranWin=outerPatrolVeteran;
             bool flawless=veteranWin&&outerPatrolStock>=90f&&
-                !outerPatrolPatched&&!outerPatrolBraceBuilt;
+                !outerPatrolPatched&&!outerPatrolBraceBuilt&&
+                !outerPatrolGuardBlockedStock;
             ResetOuterPatrol();
             if(veteranWin)
             {

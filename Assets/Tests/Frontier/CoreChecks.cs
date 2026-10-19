@@ -931,6 +931,118 @@ namespace Starfall.Tests
                 "New party member can actually be stationed again from post");
         }
 
+        public static void RealStationedCompanionHasTwoFinitePhysicalStockGuards(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"The physical cache offers its real veteran siege");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"The real fighting party can plant a cache guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.OuterPatrolGuardBlocksLeft==2&&g.OuterPatrolFlawlessEligible,
+                "New siege has two finite, unused guard contacts");
+            Point foot=g.OuterPatrolCompanionGuardPosition;
+            Check(g.CanStand(foot),
+                "Original guard target is a physically valid tile");
+            // The other companion movement tests exercise SweepActor. This
+            // focused contact test places its actor at that already-verified
+            // legal endpoint to drive 3 real enemy contact releases.
+            g.companionPosition=foot;
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null,"Ordinary melee attacker really exists");
+            bool positioned=false;
+            for(float dx=-2f;dx<=2f&&!positioned;dx+=.5f)
+            for(float dy=-2f;dy<=2f&&!positioned;dy+=.5f)
+            {
+                Point candidate=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(candidate)||
+                    (candidate-new Point(post.x,post.y)).Length>2.2f||
+                    (candidate-foot).Length>2f||
+                    (candidate-foot).Length<.8f)
+                    continue;
+                melee.x=candidate.x;melee.y=candidate.y;
+                positioned=true;
+            }
+            Check(positioned,"Actual cache has a physical melee/guard contact foot");
+            Point observer=new Point();bool found=false;
+            for(int dx=-10;dx<=10&&!found;dx++)
+            for(int dy=-10;dy<=10&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-new Point(post.x,post.y)).Length>11f||
+                    (p-melee.Position).Length<4.5f)continue;
+                observer=p;found=true;
+            }
+            Check(found,"Defender can physically observe from out of melee");
+            g.save.x=observer.x;g.save.y=observer.y;
+            var release=typeof(GameCore).GetMethod("DamageOuterPatrolStock",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var able=typeof(GameCore).GetMethod("OuterPatrolCompanionCanIntercept",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(release!=null&&able!=null,"Actual production stock hit path exists");
+            melee.targetingOuterPatrolStock=true;
+            if(!(bool)able.Invoke(g,new object[]{melee}))
+            {
+                // An authored post may have a narrow gate: search a legal
+                // raider contact foot only through truly connected paths.
+                var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(clear!=null,"Use original physical melee LOS");
+                positioned=false;
+                for(float dx=-2f;dx<=2f&&!positioned;dx+=.25f)
+                for(float dy=-2f;dy<=2f&&!positioned;dy+=.25f)
+                {
+                    Point p=new Point(post.x+dx,post.y+dy);
+                    if(!g.CanStand(p)||
+                        (p-new Point(post.x,post.y)).Length>2.2f||
+                        (p-foot).Length>2.2f||
+                        !(bool)clear.Invoke(g,new object[]{p,foot})||
+                        !(bool)clear.Invoke(g,new object[]{
+                            p,new Point(post.x,post.y)}))continue;
+                    melee.x=p.x;melee.y=p.y;positioned=true;
+                }
+                Check(positioned,"Valid full melee strike exists on authored cache terrain");
+            }
+            Check((bool)able.Invoke(g,new object[]{melee}),
+                "Living posted ally can physically reach a real melee stock strike");
+            float stock=g.OuterPatrolIntegrity;
+            release.Invoke(g,new object[]{melee});
+            Check(g.OuterPatrolGuardBlocksLeft==1&&g.OuterPatrolIntegrity==stock&&
+                !g.OuterPatrolFlawlessEligible,
+                "First real intercepted attack consumes finite ally guard and disqualifies no-aid medal");
+            release.Invoke(g,new object[]{melee});
+            Check(g.OuterPatrolGuardBlocksLeft==0&&g.OuterPatrolIntegrity==stock,
+                "Second intercepted stock strike consumes final finite contact");
+            release.Invoke(g,new object[]{melee});
+            Check(g.OuterPatrolGuardBlocksLeft==0&&g.OuterPatrolIntegrity<stock,
+                "Third genuine melee release reaches stock without free bodyguard");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&g.OuterPatrolGuardBlocksLeft==0&&
+                g.save.version==2,"Withdrawal clears unsaved limited guard state");
+        }
+
         public static void GuardMedicPhysicallyRalliesToCriticalHeroAndReturnsToStock(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
