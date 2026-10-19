@@ -787,6 +787,12 @@ namespace Starfall
                     Game.OuterPatrolActive?new Color(1,.4f,.34f):gold,14);
                 if(!done)Diamond(p.x,p.y-79,5,
                     Game.OuterPatrolActive?new Color(1,.4f,.34f):gold);
+                if(Game.OuterPatrolActive)
+                    Text(p.x-79,p.y-107,158,20,
+                        Math.Ceiling(Game.OuterPatrolTime)+"s · "+
+                        Math.Ceiling(Game.OuterPatrolIntegrity)+"%",
+                        11,Game.OuterPatrolIntegrity<=30f?
+                            new Color(1,.4f,.34f):gold,TextAnchor.MiddleCenter);
                 return;
             }
             if(kind=="outerlog"||kind=="outerrelay"||kind=="outercache")

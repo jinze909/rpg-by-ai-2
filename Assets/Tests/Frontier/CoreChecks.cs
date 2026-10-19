@@ -855,6 +855,88 @@ namespace Starfall.Tests
             }
         }
 
+        public static void OuterPatrolCacheDefenseUsesRealTimedStockCombat(Campaign data)
+        {
+            // The existing eight-map witness proves physically playable roots.
+            // Here a real melee unit must telegraph, wind up and reach the
+            // actual store instead of magically draining it or only chasing
+            // a distant hero. Old v2 flags stay unaltered on withdrawal.
+            int room=0;
+            WorldObject post=Array.Find(data.maps[room].objects,
+                o=>o.kind=="outerwatch");
+            Check(post!=null,"Canal has a real physical relief watchpost");
+            GameCore g=new GameCore(data);
+            g.save.room=room;g.enemies.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_"+room);
+            g.save.inventory[0]=5;g.save.inventory[2]=5;
+            int coins=g.save.coins;
+            g.Talk(post);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(action>=0,"Recovered supplies permit a genuine timed siege");
+            g.Choose(action);
+            Check(g.OuterPatrolActive&&g.OuterPatrolTime>=94f&&
+                g.OuterPatrolIntegrity==100f,
+                "New relief siege has real unsaved clock and full cache integrity");
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null,"A real melee attacker targets the defended cache");
+            // Position hero on a legal tile outside melee interception range.
+            // The attacker must walk toward the post, not passively drain HP.
+            Point safe=new Point();bool found=false;
+            for(int radius=7;radius<=10&&!found;radius++)
+            for(int x=-radius;x<=radius&&!found;x++)
+            for(int y=-radius;y<=radius&&!found;y++)
+            {
+                Point candidate=new Point(post.x+x,post.y+y);
+                if((candidate-new Point(post.x,post.y)).Length>11f||
+                    (candidate-melee.Position).Length<6f||!g.CanStand(candidate))
+                    continue;
+                safe=candidate;found=true;
+            }
+            Check(found,"Find an actual legal bodyguard withdrawal foot");
+            g.save.x=safe.x;g.save.y=safe.y;
+            float before=g.OuterPatrolIntegrity;
+            for(int frame=0;frame<1250&&g.OuterPatrolActive&&
+                    g.OuterPatrolIntegrity==before;frame++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity<before,
+                "Unintercepted raider actually completes a timed attack against supplies");
+            float damaged=g.OuterPatrolIntegrity;
+            // Only the physically present guard can apply the once-per-run
+            // emergency patch. Do not touch permanent cache flag.
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            Check(g.conversation!=null,"Live outpost can report raid integrity");
+            int patch=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_patch");
+            Check(patch>=0,"The ongoing defense offers a player-choice repair");
+            g.Choose(patch);
+            Check(g.OuterPatrolIntegrity>damaged&&g.OuterPatrolIntegrity<=100f&&
+                g.save.inventory[0]==4&&g.save.inventory[2]==4,
+                "First legitimate cache patch spends real supplies and repairs durability");
+            g.Talk(post);
+            patch=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_patch");
+            Check(patch>=0,"Patch choice remains visible but is single-use");
+            g.Choose(patch);
+            Check(g.save.inventory[0]==4&&g.save.inventory[2]==4,
+                "Repeating a cached UI action cannot spend a second repair");
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            Check(abort>=0,"The post allows explicit safe withdrawal");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&g.enemies.Count==0&&
+                !g.OuterPatrolDone(room)&&g.save.coins==coins&&
+                g.OuterCacheRecovered(room),
+                "Aborted physical siege retires attackers, pays no false reward and preserves v2 cache");
+            GameCore reload=new GameCore(data,g.save);
+            Check(!reload.OuterPatrolActive&&reload.OuterCacheRecovered(room)&&
+                !reload.OuterPatrolDone(room),
+                "Transient siege pressure never contaminates legacy save slots");
+        }
+
         public static void ContinuousBiomeNoiseAvoidsSquareMaterialBoundaries(Campaign data)
         {
             for(int room=0;room<8;room++)

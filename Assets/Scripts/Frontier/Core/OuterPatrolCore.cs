@@ -7,7 +7,15 @@ namespace Starfall
     {
         private int outerPatrolRoom=-1;
         private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1;
-        private bool outerPatrolADead,outerPatrolBDead;
+        private bool outerPatrolADead,outerPatrolBDead,outerPatrolPatched;
+        private float outerPatrolTime,outerPatrolStock;
+        private Point outerPatrolPost;
+        public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
+        public float OuterPatrolTime {get{return OuterPatrolActive?outerPatrolTime:0f;}}
+        public bool OuterPatrolPatchAvailable
+        {get{return OuterPatrolActive&&!outerPatrolPatched&&
+            outerPatrolStock>0f&&outerPatrolStock<100f&&
+            save.inventory[0]>0&&save.inventory[2]>0;}}
         public bool OuterPatrolActive { get { return outerPatrolRoom==save.room; } }
         public bool OuterPatrolDone(int room)
         { return room>=0&&room<8&&Has("outer_patrol_done_"+room); }
@@ -32,7 +40,9 @@ namespace Starfall
             projectiles.RemoveAll(p=>p.outerPatrolOwned);
             effects.RemoveAll(e=>e.outerPatrolOwned);
             outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=-1;
-            outerPatrolADead=outerPatrolBDead=false;
+            outerPatrolADead=outerPatrolBDead=outerPatrolPatched=false;
+            outerPatrolStock=outerPatrolTime=0f;
+            outerPatrolPost=new Point();
         }
         private bool IsOuterPatrolEnemy(Enemy e)
         {
@@ -46,6 +56,30 @@ namespace Starfall
             if(!IsOuterPatrolEnemy(e))return;
             if(e.id==outerPatrolEnemyA)outerPatrolADead=true;
             if(e.id==outerPatrolEnemyB)outerPatrolBDead=true;
+        }
+        // Only a genuine released melee swing can damage this physical cache.
+        // No passive radius drain, through-wall attrition, or fake projectile hits.
+        private void DamageOuterPatrolStock(Enemy attacker)
+        {
+            if(!OuterPatrolActive||attacker==null||!IsOuterPatrolEnemy(attacker)||
+                !attacker.targetingOuterPatrolStock||attacker.hp<=0||attacker.kind==1)return;
+            if((attacker.Position-outerPatrolPost).Length>2.35f||
+                !CanStand(attacker.Position)||
+                !ClearAttackPath(attacker.Position,outerPatrolPost))return;
+            float damage=attacker.kind==2?22f:14f;
+            outerPatrolStock=Math.Max(0f,outerPatrolStock-damage);
+            effects.Add(new Effect("number",outerPatrolPost,.75f,
+                L("物资受损 -"+(int)damage,"SUPPLIES -"+(int)damage))
+                {outerPatrolOwned=true});
+            revision++;sound="hit";
+            if(outerPatrolStock<=0f)
+            {
+                ResetOuterPatrol();revision++;
+                Notify("救援物资在真实袭击中失守！探索记录仍在，可重新组织防卫。",
+                    "Raiders destroyed the relief defense! The original supplies and exploration record remain; retry anytime.");
+            }
+            else Notify("救援物资遭到袭击，剩余耐久 "+Math.Ceiling(outerPatrolStock)+"%。",
+                "Relief supplies under attack: "+Math.Ceiling(outerPatrolStock)+"% integrity left.");
         }
         private bool TalkOuterPatrol(WorldObject o)
         {
@@ -71,20 +105,44 @@ namespace Starfall
             if(OuterPatrolActive)
             {
                 Dialog(o.name,o.en,
-                    "盗取补给的暴走兽就在附近。先完成实际战斗，才能报告救援成功。",
-                    "Corrupted beasts are approaching the stores. Defeat them in real combat before claiming a defended route.",
+                    "盗取补给的暴走兽就在附近。守住物资直到两名袭击者落败：剩余 "+Math.Ceiling(outerPatrolTime)+" 秒，物资耐久 "+Math.Ceiling(outerPatrolStock)+"%。可以使用木材和草药抢修一次。",
+                    "Raiders are attacking the stores! Defeat both before the "+Math.Ceiling(outerPatrolTime)+"s deadline; stock integrity "+Math.Ceiling(outerPatrolStock)+"%. Timber and Moonherb can patch it once.",
+                    C("临时加固 · 木材和草药各1","Emergency patch · timber + Moonherb","outer_watch_patch"),
+                    C("主动撤守","Withdraw defense","outer_watch_abort"),
                     C("继续防卫","Continue the defense","close"));
                 return true;
             }
             Dialog(o.name,o.en,
-                "救援信号引来了需要帮助的人，也引来了追逐补给的暴走兽。你可以在这里主动组织一场短途防卫：两只敌人会实际攻击，只有击退它们才算保护成功。\n\n失败或离开会取消本次尝试；此前记录与物资不会消失。",
-                "The relit beacon helps lost travelers, but also draws beasts toward the supplies. Start a voluntary two-enemy defense here. Only real defeated attackers count.\n\nLeaving or falling ends this attempt, without deleting earlier exploration progress.",
+                "救援信号引来了需要帮助的人，也引来了追逐补给的暴走兽。主动组织一场 95 秒的防卫：近战袭击者会冲向物资，贴身阻截才能吸引它。物资耐久归零、超时、远离或倒下均需重试。\n\n此前记录与物资不会消失。",
+                "The relit beacon draws raiders. Defend for up to 95 seconds: melee attackers damage the supplies unless intercepted at close range. Losing the cache, timing out, leaving or falling cancels the attempt.\n\nExisting exploration and relief supplies remain safe.",
                 C("守护物资 · 开始战斗","Defend supplies · begin","outer_watch_start"),
                 C("以后再来","Not now","close"));
             return true;
         }
         private bool ChooseOuterPatrol(string action)
         {
+            if(action=="outer_watch_patch"||action=="outer_watch_abort")
+            {
+                if(!OuterPatrolActive||Dying||practicing)return true;
+                WorldObject cache=null;
+                foreach(WorldObject candidate in Map.objects)
+                    if(candidate.kind=="outerwatch"){cache=candidate;break;}
+                if(cache==null||!PhysicalRefugeReach(
+                    new Point(cache.x,cache.y),2.2001f))return true;
+                if(action=="outer_watch_abort")
+                {
+                    ResetOuterPatrol();revision++;
+                    Notify("本次防卫已结束。救援记录和物资仍然保留。",
+                        "Defense withdrawn. Relief records and supplies are intact.");
+                    return true;
+                }
+                if(!OuterPatrolPatchAvailable||!Spend(1,0,1,0,0))return true;
+                outerPatrolStock=Math.Min(100f,outerPatrolStock+30f);
+                outerPatrolPatched=true;revision++;sound="reward";
+                Notify("临时加固完成：木材、月光草各 -1，物资耐久 +30。",
+                    "Emergency patch complete: -1 timber, -1 Moonherb, +30 stock integrity.");
+                return true;
+            }
             if(action!="outer_watch_start")return false;
             int room=save.room;
             if(room<0||room>=8||OuterPatrolActive||OuterPatrolDone(room)||
@@ -93,9 +151,9 @@ namespace Starfall
             foreach(WorldObject o in Map.objects)if(o.kind=="outerwatch"){post=o;break;}
             if(post==null||!PhysicalRefugeReach(
                 new Point(post.x,post.y),2.2001f))return true;
-            if(!SafeTravel)
+            if(!SafeTravel||FieldWorkPreventsRest)
             {
-                Notify("先清理当前追击你的敌人。","Clear the nearby pursuers first.");
+                Notify("先结束其它现场任务并清理附近追击者。","Finish other active field missions and clear nearby pursuers first.");
                 return true;
             }
             Point[] feet;
@@ -106,6 +164,8 @@ namespace Starfall
                 return true;
             }
             outerPatrolRoom=room;
+            outerPatrolTime=95f;outerPatrolStock=100f;outerPatrolPatched=false;
+            outerPatrolPost=new Point(post.x,post.y);
             Enemy one=CreatePlacedEnemy(++enemyId,0,feet[0],48+room*10);
             Enemy two=CreatePlacedEnemy(++enemyId,1,feet[1],42+room*10);
             outerPatrolEnemyA=one.id;outerPatrolEnemyB=two.id;
@@ -151,12 +211,27 @@ namespace Starfall
             result=feet.ToArray();
             return true;
         }
-        private void TickOuterPatrol()
+        private void TickOuterPatrol(float dt)
         {
             if(outerPatrolRoom<0)return;
             if(outerPatrolRoom!=save.room||Dying)
             {
                 ResetOuterPatrol();return;
+            }
+            if((Position-outerPatrolPost).Length>12f)
+            {
+                ResetOuterPatrol();revision++;
+                Notify("离开救援岗防区，防卫结束。物资不会永久丢失。",
+                    "Defense perimeter abandoned. Relief supplies are still available for another attempt.");
+                return;
+            }
+            outerPatrolTime=Math.Max(0f,outerPatrolTime-dt);
+            if(outerPatrolTime<=0f)
+            {
+                ResetOuterPatrol();revision++;
+                Notify("防卫时间结束，救援岗尚未守住。可以重新挑战。",
+                    "Relief defense timed out. Retry the outpost when ready.");
+                return;
             }
             // Any unexpected removal aborts the attempt. Only registered
             // lethal damage against BOTH owned attackers can settle it.

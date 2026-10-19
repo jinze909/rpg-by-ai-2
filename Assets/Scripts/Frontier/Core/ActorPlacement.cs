@@ -158,7 +158,7 @@ namespace Starfall
                 Point p = SafeActorFoot(enemy.Position); enemy.x = p.x; enemy.y = p.y;
                 enemy.moving = enemy.backpedaling = false; enemy.state = 0; enemy.releaseTime = 0;
                 enemy.targetingWayfarer = enemy.targetingReliefCivilian =
-                    enemy.targetingAfterlightStock = false;
+                    enemy.targetingAfterlightStock = enemy.targetingOuterPatrolStock = false;
                 enemy.timer = Math.Max(.35f, enemy.timer);
             }
             if (save.companion >= 0 && !Fits(companionPosition))
