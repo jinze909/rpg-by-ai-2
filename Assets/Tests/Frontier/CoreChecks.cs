@@ -855,6 +855,52 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.save.x=post.x;g.save.y=post.y;
+            g.enemies.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"An eligible real watchpost can start combat");
+            g.Choose(start);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "Raider priority depends on a genuine live defense");
+            Enemy saboteur=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(saboteur!=null,"A cache saboteur has a genuine world body");
+            g.save.companion=1;
+            g.companionPosition=new Point(post.x,post.y);
+            var chooser=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(chooser!=null,"Actual companion targeting is exercised");
+            Enemy picked=(Enemy)chooser.Invoke(g,null);
+            Check(picked==saboteur,
+                "A visible melee stock saboteur beats a ranged raid distractor");
+            // An unrelated foe even closer to Ivo should not draw the
+            // bodyguard away from the cache while the defense is live.
+            Enemy decoy=new Enemy(8111,0,post.x+.3f,post.y,30f);
+            g.enemies.Add(decoy);
+            picked=(Enemy)chooser.Invoke(g,null);
+            Check(picked==saboteur,
+                "Cache defense prioritizes its actual protected objective");
+            g.enemies.Remove(decoy);
+            // When the actual attack is obstructed, do not aim forever
+            // through a closed wall: the standard line/muzzle validation
+            // must still choose a legal unrelated enemy.
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            Check(abort>=0,"The defended physical post offers withdrawal");
+            g.Choose(abort);
+            g.enemies.Add(decoy);
+            Check((Enemy)chooser.Invoke(g,null)==decoy,
+                "After the real defense is withdrawn auto targeting remains normal");
+        }
+
         public static void OuterPatrolCacheDefenseUsesRealTimedStockCombat(Campaign data)
         {
             // The existing eight-map witness proves physically playable roots.

@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void CompanionActuallyProtectsLiveReliefCacheFromMeleeRaiders() { CoreChecks.CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Data()); }
         [Test] public void SafeDefendedDesertHighlandPostsProtectAgainstActualClimates() { CoreChecks.DefendedDesertAndHighlandPostsShelterAgainstActualWeather(Data()); }
         [Test] public void DefendedOutpostsEnableGuardedWorldTravelAndCompanionSafeLanding() { CoreChecks.DefendedOutpostRoutesRespectLiveProgressAndSafeLanding(Data()); }
         [Test] public void DefendedEightOutpostsActuallyHealSafeNearbyVisitors() { CoreChecks.DefendedOuterCachesBecomeRealSafeFieldRefuges(Data()); }

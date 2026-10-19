@@ -489,12 +489,22 @@ namespace Starfall
         {
             Enemy nearest=null;
             float best=7f*7f;
+            int bestPriority=int.MaxValue;
             foreach(Enemy foe in enemies)
             {
                 if(foe==null || foe.hp<=0)continue;
                 Point delta=foe.Position-companionPosition;
                 float squared=delta.x*delta.x+delta.y*delta.y;
-                if(squared>=best || !ClearAttackPath(companionPosition,foe.Position))
+                // In a real cache defense, intercepting its owned melee
+                // raider matters more than firing at a nearer wandering mob.
+                // Only prioritize foes that can be physically shot; an
+                // occluded saboteur must never starve a visible ordinary foe.
+                int priority=OuterPatrolActive&&IsOuterPatrolEnemy(foe)&&
+                    foe.kind!=1?0:1;
+                if(squared>=7f*7f ||
+                    priority>bestPriority ||
+                    (priority==bestPriority&&squared>=best) ||
+                    !ClearAttackPath(companionPosition,foe.Position))
                     continue;
                 // A clear feet-to-target lane is not necessarily a usable shot:
                 // Ivo's bow and Mira/Sen's staff extend into neighboring tiles.
@@ -506,7 +516,7 @@ namespace Starfall
                 if(WeaponShot(companionPosition,weapon,aimDirection,9f,0f,
                     foe.Position).blockedAtSpawn)
                     continue;
-                best=squared;nearest=foe;
+                best=squared;bestPriority=priority;nearest=foe;
             }
             return nearest;
         }
