@@ -785,6 +785,27 @@ namespace Starfall
                 PropImage("post",0,p.x-34,p.y-80,68,83,
                     flawless?new Color(1f,.91f,.68f):
                     done?new Color(.68f,.93f,.78f):Color.white);
+                // The constructed barricade is now physically legible in
+                // the same live gameplay field as its real stock contacts.
+                // Reuse accepted original wooden prop artwork rather than
+                // faking a new asset or mounting an unverified Sprite.
+                // Only actual unspent structural HP draws this foreground
+                // line of cover. A true released raider strike briefly
+                // brightens it; depleted cover vanishes automatically.
+                if(Game.OuterPatrolBraceStanding)
+                {
+                    float guardHp=Game.OuterPatrolBraceIntegrity;
+                    Color wooden=Game.OuterPatrolBraceHitFlash>0f?
+                        new Color(1f,.85f,.46f):
+                        guardHp<=16f?new Color(.83f,.48f,.39f):
+                        guardHp<=32f?new Color(.91f,.68f,.49f):
+                        new Color(.83f,.87f,.79f);
+                    PropImage("barrel",0,p.x-34,p.y-41,33,40,wooden);
+                    PropImage("barrel",0,p.x+1,p.y-41,33,40,wooden);
+                    Ring(new Point(o.x,o.y),.67f,
+                        Game.OuterPatrolBraceHitFlash>0f?
+                            new Color(1f,.83f,.42f):wooden,18);
+                }
                 // Veteran fights occur at already-repaired posts: the
                 // live danger color MUST outrank the old green-clear tint.
                 Color guardColor=Game.OuterPatrolActive?

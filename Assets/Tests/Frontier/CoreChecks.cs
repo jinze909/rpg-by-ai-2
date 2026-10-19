@@ -1156,6 +1156,8 @@ namespace Starfall.Tests
             Check(brace>=0,"Barricade is a genuine post interaction");
             g.Choose(brace);
             Check(g.OuterPatrolBraceIntegrity==48f&&
+                g.OuterPatrolBraceStanding&&
+                g.OuterPatrolBraceHitFlash==0f&&
                 !g.OuterPatrolBraceAvailable&&
                 g.save.inventory[0]==6&&g.save.inventory[4]==3,
                 "First barricade spends two real timber and one spare part");
@@ -1194,6 +1196,8 @@ namespace Starfall.Tests
                 g.Tick(.02f,new Point());
             Check(g.OuterPatrolActive&&g.OuterPatrolBraceIntegrity<48f,
                 "Unintercepted real raider winds up and releases into the barricade");
+            Check(g.OuterPatrolBraceStanding&&g.OuterPatrolBraceHitFlash>0f,
+                "A real stock contact drives visible barricade impact feedback");
             Check(g.OuterPatrolIntegrity==stock,
                 "A real stock strike first consumes physical cover, not protected cache HP");
             g.save.x=post.x;g.save.y=post.y;
@@ -1208,8 +1212,9 @@ namespace Starfall.Tests
             int abort=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_abort");
             g.Choose(abort);
-            Check(!g.OuterPatrolActive&&g.OuterPatrolBraceIntegrity==0f,
-                "Withdrawal retires unsaved barricade durability and attackers");
+            Check(!g.OuterPatrolActive&&g.OuterPatrolBraceIntegrity==0f&&
+                !g.OuterPatrolBraceStanding&&g.OuterPatrolBraceHitFlash==0f,
+                "Withdrawal retires live barricade artwork cues and attackers");
             GameCore restored=new GameCore(data,g.save);
             Check(!restored.OuterPatrolActive&&restored.OuterPatrolBraceIntegrity==0&&
                 restored.save.version==2,"Old v2 saves never persist temporary cover");
