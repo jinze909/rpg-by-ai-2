@@ -142,6 +142,11 @@ namespace Starfall.Tests
                     g.save.stage=3;g.save.flags.Add("desert_report");
                     g.Enter(room);g.enemies.Clear();
                     g.save.flags.Add(flags[i]);
+                    // A completed Frostchime run grants either clinic HP
+                    // or roadwarden stamina. The HP assertion below must
+                    // explicitly unlock the CLINIC outcome, not only mark
+                    // the mission complete.
+                    if(room==7)g.save.flags.Add("frostsignal_clinic");
                     g.save.x=10.5f;g.save.y=10.5f;
                     g.save.health=40;g.save.energy=0;
                     g.save.cold=40;
