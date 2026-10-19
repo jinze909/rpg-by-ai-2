@@ -855,6 +855,73 @@ namespace Starfall.Tests
             }
         }
 
+        public static void GuardMedicPhysicallyRalliesToCriticalHeroAndReturnsToStock(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.companion=0;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Medical guard uses a real watchpost defense");
+            g.Choose(start);
+            foreach(Enemy foe in g.enemies)foe.stun=20f;
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Mira can be physically assigned to watch stock");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Medical support guard is a valid active tactical order");
+            Point foot=g.OuterPatrolCompanionGuardPosition;
+            Point remote=new Point();bool found=false;
+            for(int dx=-9;dx<=9&&!found;dx++)
+            for(int dy=-9;dy<=9&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-foot).Length<7f||
+                    (p-new Point(post.x,post.y)).Length>10f)
+                    continue;
+                remote=p;found=true;
+            }
+            Check(found,"Real regional defense ring has a separate walkable rescue point");
+            g.save.x=remote.x;g.save.y=remote.y;
+            g.save.health=g.save.maxHealth*.25f;
+            var helper=typeof(GameCore).GetMethod("CompanionOutpostGuardTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(helper!=null,"Actual escort goal is selected by live game logic");
+            Point medicTarget=(Point)helper.Invoke(g,null);
+            Check((medicTarget-foot).Length>1f&&
+                g.OuterPatrolCompanionGuarding,
+                "Critically injured remote hero draws Mira from her watch foot");
+            float before=(g.companionPosition-medicTarget).Length;
+            for(int i=0;i<90&&g.OuterPatrolActive;i++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.companionPosition-medicTarget).Length<before-.1f,
+                "Medic walks toward physical rescue point, never heals globally");
+            g.save.health=g.save.maxHealth;
+            Point returnFoot=(Point)helper.Invoke(g,null);
+            Check((returnFoot-foot).Length<.01f&&
+                g.OuterPatrolCompanionGuarding,
+                "After real recovery medic resumes original protected post");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolCompanionGuarding&&
+                !g.OuterPatrolActive,
+                "Withdrawal removes emergency medic and guard states");
+        }
+
         public static void RealCompanionGuardsSuppliesWithoutWarpingOrPersisting(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,

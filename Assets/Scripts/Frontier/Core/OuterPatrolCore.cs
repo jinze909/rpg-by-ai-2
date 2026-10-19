@@ -9,7 +9,8 @@ namespace Starfall
         private int outerPatrolRoom=-1;
         private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1,outerPatrolEnemyC=-1;
         private bool outerPatrolADead,outerPatrolBDead,outerPatrolCDead,outerPatrolPatched;
-        private bool outerPatrolVeteran,outerPatrolBraceBuilt,outerPatrolCompanionGuard;
+        private bool outerPatrolVeteran,outerPatrolBraceBuilt,outerPatrolCompanionGuard,
+            outerPatrolGuardMedicRescue;
         private Point outerPatrolCompanionGuardFoot;
         private float outerPatrolTime,outerPatrolStock,outerPatrolBrace,outerPatrolBraceFlash;
         private Point outerPatrolPost;
@@ -106,7 +107,8 @@ namespace Starfall
                 outerPatrolEnemyC=-1;
             outerPatrolADead=outerPatrolBDead=outerPatrolCDead=
                 outerPatrolPatched=outerPatrolVeteran=
-                outerPatrolBraceBuilt=outerPatrolCompanionGuard=false;
+                outerPatrolBraceBuilt=outerPatrolCompanionGuard=
+                outerPatrolGuardMedicRescue=false;
             outerPatrolCompanionGuardFoot=new Point();
             outerPatrolStock=outerPatrolTime=outerPatrolBrace=
                 outerPatrolBraceFlash=0f;
@@ -440,9 +442,21 @@ namespace Starfall
             // only while a real guard position remains available.
             if(!Fits(outerPatrolCompanionGuardFoot))
             {
-                outerPatrolCompanionGuard=false;
+                outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
                 return CompanionFollowTarget();
             }
+            // Mira can protect a relief site without abandoning a critically
+            // injured hero beyond her PHYSICAL six-unit heal reach. Rally on
+            // foot at <35% HP; do not bounce back after the first small heal.
+            // Her real command/auto heal still requires range, standability
+            // and LOS, and her guard point remains planted until recovery.
+            if(save.companion!=0)outerPatrolGuardMedicRescue=false;
+            else if(save.health>0&&save.health<save.maxHealth*.35f)
+                outerPatrolGuardMedicRescue=true;
+            else if(save.health>=save.maxHealth*.55f)
+                outerPatrolGuardMedicRescue=false;
+            if(outerPatrolGuardMedicRescue)
+                return CompanionFollowTarget();
             return outerPatrolCompanionGuardFoot;
         }
         private bool ToggleOuterPatrolCompanionGuard()
@@ -457,7 +471,7 @@ namespace Starfall
                 return false;
             if(outerPatrolCompanionGuard)
             {
-                outerPatrolCompanionGuard=false;
+                outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
                 revision++;sound="quest";
                 Notify("同伴恢复正常跟随与既有战斗指令。",
                     "Companion resumes normal following and combat commands.");
@@ -472,6 +486,7 @@ namespace Starfall
             }
             outerPatrolCompanionGuardFoot=standing;
             outerPatrolCompanionGuard=true;
+            outerPatrolGuardMedicRescue=false;
             revision++;sound="quest";
             Notify("同伴正在步行前往补给岗守卫位置。",
                 "Companion moving on foot to defend the supplies.");
@@ -575,7 +590,7 @@ namespace Starfall
             outerPatrolRoom=room;outerPatrolVeteran=veteran;
             outerPatrolTime=veteran?110f:95f;
             outerPatrolStock=100f;outerPatrolPatched=false;
-            outerPatrolCompanionGuard=false;
+            outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
             outerPatrolCompanionGuardFoot=new Point();
             outerPatrolBrace=outerPatrolBraceFlash=0f;
             outerPatrolBraceBuilt=false;
