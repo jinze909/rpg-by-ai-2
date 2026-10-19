@@ -907,9 +907,20 @@ namespace Starfall.Tests
             Check(stored!=null&&
                 ((Point)stored.GetValue(g)).Length<.001f,
                 "Retired tactical waypoint is cleared, not orphaned in the world");
-            // A new companion must receive a NEW local physical order,
-            // rather than creating fake guard/sprite state from the swap.
+            // The new actor joined the party at the player's actual
+            // distant safe foot. Returning the hero to the post does NOT
+            // teleport this other actor. Give the real world simulation time
+            // to walk the companion toward the watch before assigning a
+            // NEW physically reachable defensive position.
             g.save.x=post.x;g.save.y=post.y;
+            g.invulnerable=100f;
+            foreach(Enemy foe in g.enemies)foe.stun=12f;
+            for(int frame=0;frame<520&&g.OuterPatrolActive&&
+                (g.companionPosition-new Point(post.x,post.y)).Length>3.5f;frame++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolActive&&g.CanStand(g.companionPosition)&&
+                (g.companionPosition-new Point(post.x,post.y)).Length<4f,
+                "New companion physically rejoins the genuine post after a party swap");
             g.Talk(post);
             guard=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_guard");
