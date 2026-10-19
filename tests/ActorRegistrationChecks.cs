@@ -182,29 +182,42 @@ public static class ActorRegistrationChecks
                     Math.Abs(strideDraw.rect.height-192)<.01f,
                     "Moving companion suddenly changed overall dimensions");
 
-                // Stop must finish FORWARD through actual artist-approved
-                // complete-body cells (1->2->3->0, 2->3->0, 3->0).
+                // A stop may advance only to the next source-painted
+                // foot contact, then must hold it briefly and settle. The old
+                // 1->2->3->0 / 2->3->0 timer replayed airborne frame 3 while
+                // the world root was stationary, visibly skating the boots.
                 g.companionMoving=false;
-                Set(app,"clock",10.01f+phase);
+                float stopAt=10.01f+phase;
+                Set(app,"clock",stopAt);
                 Clear();
+                var style=Call(app,"get_CurrentWorldVisualLook");
+                float settle=(float)style.GetType().GetField(
+                    "companionFootfallSeconds").GetValue(style);
+                int plantedPhase=phase==1||phase==2?2:0;
                 var firstStop=Draw(app,"DrawCompanionActor").Single(ActorTexture);
                 int first=(int)Math.Round(Math.Min(firstStop.uv.x,
                     firstStop.uv.x+firstStop.uv.width)*4f);
-                Check(first==phase&&firstStop.texture.name==approved&&
+                Check(first==plantedPhase&&firstStop.texture.name==approved&&
                     Math.Abs(firstStop.rect.y-strideDraw.rect.y)<.001f,
-                    "Abrupt stop jumped across gait cycle or floated boots");
+                    "Abrupt stop must choose the next authored planted source cell without shifting boots");
+                Set(app,"clock",stopAt+settle*.5f);
+                Clear();
+                var held=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                int heldPhase=(int)Math.Round(Math.Min(held.uv.x,
+                    held.uv.x+held.uv.width)*4f);
+                Check(heldPhase==plantedPhase&&held.texture.name==approved&&
+                    Math.Abs(held.rect.y-strideDraw.rect.y)<.001f,
+                    "Stop must hold the planted contact instead of replaying airborne gait");
                 for(int n=1;n<=4;n++)
                 {
-                    Set(app,"clock",10.01f+phase+.075f*n+.002f);
+                    Set(app,"clock",stopAt+settle*n+.002f);
                     Clear();
-                    var stepped=Draw(app,"DrawCompanionActor").Single(ActorTexture);
-                    int actual=(int)Math.Round(Math.Min(stepped.uv.x,
-                        stepped.uv.x+stepped.uv.width)*4f);
-                    int expected=phase==0||n>=4-phase?
-                        0:(phase+n)%4;
-                    Check(actual==expected&&stepped.texture.name==approved&&
-                        Math.Abs(stepped.rect.y-strideDraw.rect.y)<.001f,
-                        "Stop recovery reversed the stride or shifted the planted root");
+                    var settled=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                    int actual=(int)Math.Round(Math.Min(settled.uv.x,
+                        settled.uv.x+settled.uv.width)*4f);
+                    Check(actual==0&&settled.texture.name==approved&&
+                        Math.Abs(settled.rect.y-strideDraw.rect.y)<.001f,
+                        "Stationary companion must settle to idle after one planted interval");
                 }
                 g.companionAction=new ActorAction{
                     direction=Directions[heading],kind="attack",

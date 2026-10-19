@@ -24,12 +24,18 @@ namespace Starfall
         private int CompanionStopPose(float seconds)
         {
             int from=(companionLastWalkFrame%4+4)%4;
-            if(from==0 || Game.save.reducedMotion)return 0;
+            if(from==0||Game.save.reducedMotion)return 0;
             float interval=CurrentWorldVisualLook.companionFootfallSeconds;
-            int advanced=(int)Math.Floor(Math.Max(0f,seconds)/interval);
-            // At most three TRUE authored whole-body frames. Complete
-            // the forward cycle; an earlier revision snapped 2 -> 0.
-            return advanced>=4-from?0:(from+advanced)%4;
+            // A stop is not extra distance: do not cycle a stationary ally
+            // through another airborne stride after its feet have planted.
+            // Hold only the next source-painted contact (1->2, 3->0; phase 2
+            // is already planted) for one bounded footfall interval, then
+            // return to the first authored idle-contact cell.
+            if(float.IsNaN(interval)||float.IsInfinity(interval)||
+                interval<=.001f)interval=.075f;
+            if(float.IsNaN(seconds)||float.IsInfinity(seconds)||
+                seconds<0f||seconds>=interval)return 0;
+            return from==1||from==2?2:0;
         }
         private void DrawCompanionActor()
         {
