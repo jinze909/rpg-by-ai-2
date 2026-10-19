@@ -1287,6 +1287,29 @@ namespace Starfall.Tests
                 Math.Abs(g.OuterPatrolIncomingStockSeconds-.8f)<.01f&&
                 !g.OuterPatrolIncomingStockHeavy,
                 "Active real melee stock windup produces grounded timing");
+            // The initial heavy spawn is a valid approach, not yet a
+            // legal contact foot. Move this controlled integration fixture
+            // to an actually walkable, unobstructed melee range BEFORE
+            // asserting that a stock-hit telegraph is truthful.
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(clear!=null,"Verify the physical stock strike lane");
+            bool contactFoot=false;
+            for(float dx=-2f;dx<=2f&&!contactFoot;dx+=.5f)
+            for(float dy=-2f;dy<=2f&&!contactFoot;dy+=.5f)
+            {
+                Point candidate=new Point(post.x+dx,post.y+dy);
+                if((candidate-new Point(post.x,post.y)).Length>2.2f||
+                    (candidate-melee.Position).Length<1.1f||
+                    !g.CanStand(candidate)||
+                    !(bool)clear.Invoke(g,new object[]{
+                        candidate,new Point(post.x,post.y)}))
+                    continue;
+                heavy.x=candidate.x;heavy.y=candidate.y;
+                contactFoot=true;
+            }
+            Check(contactFoot,"Actual map supplies an honest second stock contact foot");
             heavy.state=1;heavy.timer=.28f;
             heavy.targetingOuterPatrolStock=true;
             Check(g.OuterPatrolIncomingStockThreat==heavy&&
