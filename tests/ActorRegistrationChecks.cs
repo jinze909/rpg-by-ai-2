@@ -3132,7 +3132,7 @@ public static class ActorRegistrationChecks
                 "Mossbound review candidate missing or malformed");
             Check(guard!=null&&guard.width==512&&guard.height==768,
                 "Cinderstone review candidate missing or malformed");
-            Check(briar!=null&&briar.width==512&&briar.height==2304,
+            Check(briar!=null&&briar.width==1280&&briar.height==5760,
                 "Briar Beast review candidate missing or malformed");
             raiderField.SetValue(app,raider);
             guardField.SetValue(app,guard);
