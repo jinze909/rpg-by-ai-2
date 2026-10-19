@@ -256,6 +256,7 @@ namespace Starfall.Tests
         [Test] public void BeaconWithdrawAndAbnormalResetRetireOnlyOwnedCombatActors() { CoreChecks.BeaconWithdrawalCannotEraseFoesRemotelyAndAllResetPathsCleanOwnActors(Data()); }
         [Test] public void FinalRoadwardenCipherCannotMintOathThroughClosingWall() { CoreChecks.RoadwardenCipherRewardCannotBeCollectedThroughClosingWall(Data()); }
         [Test] public void ReliefOutpostCannotLeaveGhostRaidersOrArrowsAfterInterruptedCombat() { CoreChecks.EightRegionOutpostRetiresOrphanRaidersAndOwnArrowsWithoutFakeRescue(Data()); }
+        [Test] public void EveryAuthoredOutpostSupportsCompanionSafeTwoRaiderDefense() { CoreChecks.EveryAuthoredOutpostRetainsTwoAccessibleRegionalRaiders(Data()); }
         [Test] public void LiveQuestProgressAndTracking() { CoreChecks.QuestTrackingTransitions(Data()); }
         [Test] public void QuestRoutesRespectCollisionAndTides() { CoreChecks.NavigationRespectsWorldCollision(Data()); }
         [Test] public void SafePracticeAndReplay() { CoreChecks.InteractivePracticeAndReplay(Data()); }

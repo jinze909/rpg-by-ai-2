@@ -552,6 +552,46 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void EveryAuthoredOutpostRetainsTwoAccessibleRegionalRaiders(Campaign data)
+        {
+            // Exercise all eight real outdoor ring maps, not just a
+            // simplified synthetic arena. Companion occupancy must not
+            // make the physical two-attacker rescue impossible.
+            var method=typeof(GameCore).GetMethod("TryOuterPatrolFeet",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(method!=null,"One production preflight owns all eight authentic outpost formations");
+            var g=Fresh(data);
+            g.save.stage=8;
+            g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            for(int room=0;room<8;room++)
+            {
+                g.save.room=room;
+                g.enemies.Clear();
+                WorldObject post=Object(g,"outerwatch");
+                Check(post!=null&&post.kind=="outerwatch"&&
+                    g.CanStand(new Point(post.x,post.y)),
+                    "Every authored outdoor relief post has its genuine accessible center");
+                g.save.x=post.x;g.save.y=post.y;
+                g.companionPosition=new Point(post.x-2f,post.y);
+                object[] args={post,null};
+                Check((bool)method.Invoke(g,args),
+                    "Every authentic ring-region relief site retains a complete pair of physically reachable combat feet");
+                Point[] feet=(Point[])args[1];
+                Check(feet!=null&&feet.Length==2&&
+                    (feet[0]-feet[1]).Length>=2.7f,
+                    "Both real region attackers must have independently reserved actor roots");
+                foreach(Point foot in feet)
+                    Check(g.CanStand(foot)&&
+                        (foot-g.Position).Length>=1.55f&&
+                        (foot-g.companionPosition).Length>=1.55f,
+                        "Authored relief attacks never materialize on blocked terrain, the canonical hero or their recruit");
+            }
+            Check(!g.Has("outer_patrol_all")&&g.save.version==2,
+                "Eight-region preflight alone neither mints a fake rescue nor alters the legacy save schema");
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();
