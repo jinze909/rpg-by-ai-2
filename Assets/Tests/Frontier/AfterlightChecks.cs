@@ -1082,6 +1082,118 @@ namespace Starfall.Tests
                 "Only four real lethal hits across both waves grant the genuine one-time Ironreach public defense reward");
         }
 
+        public static void CivicWatchStaleReceiverMenuCannotStartPatchOrWithdrawThroughWall(Campaign data)
+        {
+            MapData original=data.maps[3];
+            try
+            {
+                var rows=new string[30];
+                for(int y=0;y<30;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                WorldObject receiver=new WorldObject{
+                    id="afterlightoutlet3",kind="afterlightoutlet3",
+                    name="Public civic receiver",en="Public civic receiver",
+                    x=10.5f,y=10.5f};
+                data.maps[3]=new MapData{id=3,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,objects=new[]{receiver},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+                foreach(string flag in new[]{"afterlight_started",
+                    "afterlight_complete","afterlight_done_3",
+                    "afterlight_steward_3","afterlight_reserve_3",
+                    "afterlight_plan_3_watch"})g.save.flags.Add(flag);
+                g.Enter(3);g.enemies.Clear();g.invulnerable=180;
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.save.inventory[0]=2;g.save.inventory[2]=2;
+                g.Talk(receiver);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The real stocked receiver initially offers a live watch drill on accessible ground");
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(receiver.x,receiver.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "A complete physical wall divides an otherwise near public terminal and canonical hero");
+                int first=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_watch_start_3")
+                    {first=i;break;}
+                Check(first>=0,
+                    "Before the dynamic closing wall the original real defense start was offered");
+                g.Choose(first);
+                Check(!g.AfterlightWatchActive&&g.enemies.Count==0,
+                    "A cached start button cannot conjure civic raiders on inaccessible terminal ground");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(receiver);first=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_watch_start_3")
+                    {first=i;break;}
+                Check(first>=0,"Clearing the same wall restores the real start action");
+                g.Choose(first);
+                Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+                    g.enemies.Count==2,
+                    "The authentic citizen reserve defense now launches exactly two attackers");
+                var sabotage=typeof(GameCore).GetMethod("DamageAfterlightWatchStock",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(sabotage!=null,
+                    "Actual production stock damage is an authenticated enemy attack callback");
+                Enemy raider=g.enemies[0];
+                raider.x=receiver.x+.8f;raider.y=receiver.y;
+                raider.targetingAfterlightStock=true;
+                sabotage.Invoke(g,new object[]{raider});
+                Check(g.AfterlightWatchStock<100&&g.AfterlightWatchStock>60,
+                    "A real owned raider's original receiver attack damages the active public stock");
+                g.Close();g.Talk(receiver);
+                int patch=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_watch_patch_3")
+                    {patch=i;break;}
+                Check(patch>=0,"Genuine damaged reserve offers the original material-consuming repair");
+                int wood=g.save.inventory[0],herb=g.save.inventory[2];
+                float damaged=g.AfterlightWatchStock;
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(patch);
+                Check(g.AfterlightWatchActive&&g.AfterlightWatchStock==damaged&&
+                    g.save.inventory[0]==wood&&g.save.inventory[2]==herb,
+                    "A stale repair command cannot spend one timber and one herb through solid receiver cover");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(receiver);patch=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_watch_patch_3")
+                    {patch=i;break;}
+                Check(patch>=0,"After opening physical access the same repair becomes available");
+                g.Choose(patch);
+                Check(g.AfterlightWatchStock>damaged&&
+                    g.save.inventory[0]==wood-1&&g.save.inventory[2]==herb-1,
+                    "The real live receiver accepts exactly one resource transaction only when accessible");
+                g.Talk(receiver);int abort=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_watch_abort_3")
+                    {abort=i;break;}
+                Check(abort>=0,"The actual defense exposes the existing safe withdrawal");
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(abort);
+                Check(g.AfterlightWatchActive&&g.enemies.Count==2,
+                    "A stale withdrawal behind stone cannot silently despawn live enemies");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(receiver);abort=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="afterlight_watch_abort_3")
+                    {abort=i;break;}
+                Check(abort>=0,"Restored accessible receiver still permits intentional withdrawal");
+                g.Choose(abort);
+                Check(!g.AfterlightWatchActive&&g.enemies.Count==0&&
+                    !g.AfterlightWatchDone(3)&&g.save.version==2,
+                    "After reopening, manual withdrawal retires only drill actors without minting a defense clear or changing SaveData");
+            }
+            finally{data.maps[3]=original;}
+        }
+
         public static void AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;

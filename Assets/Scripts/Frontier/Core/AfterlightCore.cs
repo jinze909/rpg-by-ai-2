@@ -176,7 +176,11 @@ namespace Starfall
                 abort?"afterlight_watch_abort_":"afterlight_watch_patch_";
             if(!int.TryParse(action.Substring(prefix.Length),out room)||
                 room<1||room>3||save.room!=room||
-                (Position-AfterlightPoint(room,"outlet")).Length>2.2f)return true;
+                // A wall may close AFTER a watch/patch/withdraw
+                // dialogue is opened. Commit only when the same
+                // physical receiver is still reachable from this foot.
+                !PhysicalRefugeReach(AfterlightPoint(room,"outlet"),
+                    2.2001f))return true;
             if(abort)
             {
                 if(AfterlightWatchActive)
