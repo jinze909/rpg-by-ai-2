@@ -221,6 +221,64 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void RoadwardenHazardCannotTreatSealedPocketAsEscapeRoute(Campaign data)
+        {
+            MapData original=data.maps[2];
+            try
+            {
+                var rows=new string[26];
+                for(int y=0;y<26;y++)
+                {
+                    char[] cells=new string('#',26).ToCharArray();
+                    if(y>=2&&y<=23)
+                        for(int x=2;x<=23;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                // A center corridor has two nominal dodge feet exactly
+                // 1.6 tiles above/below it, but BOTH lie beyond completely
+                // sealed stone rows. A partial route cannot rescue anyone.
+                foreach(int y in new[]{9,11})
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    for(int x=2;x<=23;x++)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[2]=new MapData{id=2,
+                    spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(2);
+                g.enemies.Clear();g.save.x=10.5f;g.save.y=10.5f;
+                var room=typeof(GameCore).GetField("roadTrialRoom",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                var cycle=typeof(GameCore).GetField("roadTrialSurgeCount",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                var surge=typeof(GameCore).GetMethod("SpawnRoadwardenSurge",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(room!=null&&cycle!=null&&surge!=null&&
+                    g.CanStand(g.Position)&&
+                    g.CanStand(new Point(10.5f,12.1f))&&
+                    g.CanStand(new Point(10.5f,8.9f)),
+                    "Real tide-surges expose two nominal free dodge feet in inaccessible rooms across walls");
+                room.SetValue(g,2);cycle.SetValue(g,0);
+                surge.Invoke(g,new object[0]);
+                Check(g.hazards.Count==0,
+                    "The trial must never draw three real damage circles when its only supposedly safe exits cannot be reached");
+                char[] opened=rows[11].ToCharArray();
+                opened[10]='.';rows[11]=new string(opened);
+                cycle.SetValue(g,0);
+                surge.Invoke(g,new object[0]);
+                Check(g.hazards.Count==3&&
+                    g.hazards.TrueForAll(h=>h.kind=="tide")&&
+                    g.save.version==2,
+                    "Opening an actual walkable dodge route admits the full original three-cue river barrage without save changes");
+            }
+            finally{data.maps[2]=original;}
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();

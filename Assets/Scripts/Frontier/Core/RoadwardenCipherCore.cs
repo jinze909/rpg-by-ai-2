@@ -351,8 +351,12 @@ namespace Starfall
             bool escape = false;
             foreach (Point exit in exits)
             {
-                if (!Fits(exit) || (exit - center).Length > .01f &&
-                    NavigationPath(exit).Count == 0) continue;
+                // A partial pursuit path to a sealed standable pocket is
+                // NOT a real dodge route. If every apparent exit is isolated
+                // across solid cover, suppress the entire unfair surge.
+                if(!Fits(exit)||
+                    (exit-center).Length>.01f&&
+                    !ActorHasLocalRoute(center,exit,6))continue;
                 bool safe = true;
                 foreach (Hazard warning in planned)
                     if ((exit - warning.position).Length <= warning.radius + .3f)
