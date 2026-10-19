@@ -2004,6 +2004,32 @@ namespace Starfall.Tests
                 "One genuine released projectile changes to urgent stock attacker");
             Check((g.companionAction.target.Value-alternate.Position).Length<.01f,
                 "Prepared shot's direction and target both follow actual threat");
+
+            // A second genuine stock attack can become more urgent while
+            // the companion is already committed to another stock attacker.
+            // Being a valid target is not enough: choose the earlier release.
+            PlaceShootableCacheContact(g,post,alternate,available);
+            PlaceShootableCacheContact(g,post,available,alternate);
+            MoveToRealUncoveredStockObserver(g,post,alternate,available);
+            alternate.state=1;alternate.targetingOuterPatrolStock=true;
+            available.state=1;available.targetingOuterPatrolStock=true;
+            alternate.timer=.9f;available.timer=.12f;
+            Check(g.OuterPatrolIncomingStockThreat==available,
+                "The second unguarded stock strike has the earlier real deadline");
+            target.SetValue(g,alternate);
+            cooldown.SetValue(g,2.8f);
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(alternate.Position-
+                    g.companionPosition).Normalized,target=alternate.Position
+            };
+            tick.Invoke(g,new object[]{.17f});
+            Check(g.companionAction.released&&
+                (Enemy)target.GetValue(g)==available&&
+                g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "A faster stock strike supersedes an already-valid slower stock lock");
+            Check((g.companionAction.target.Value-available.Position).Length<.01f,
+                "Emergency retarget updates the real projectile aim and target together");
         }
 
         public static void CompanionPrioritizesSoonestAuthenticStockStrike(Campaign data)

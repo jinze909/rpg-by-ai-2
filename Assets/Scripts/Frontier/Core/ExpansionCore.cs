@@ -615,10 +615,28 @@ namespace Starfall
                             // committed stock strike can supersede an otherwise
                             // valid lock. Outside that narrow priority rule,
                             // preserve a still-shootable target's windup.
-                            bool urgentCache=OuterPatrolCompanionGuarding&&
+                            bool availableCache=OuterPatrolCompanionGuarding&&
                                 available!=null&&
-                                CompanionCacheContactImminent(available)&&
-                                !CompanionCacheContactImminent(locked);
+                                CompanionCacheContactImminent(available);
+                            bool lockedCache=OuterPatrolCompanionGuarding&&
+                                locked!=null&&
+                                CompanionCacheContactImminent(locked);
+                            float availableSeconds=availableCache&&
+                                !float.IsNaN(available.timer)&&
+                                !float.IsInfinity(available.timer)?
+                                Math.Max(0f,available.timer):float.PositiveInfinity;
+                            float lockedSeconds=lockedCache&&
+                                !float.IsNaN(locked.timer)&&
+                                !float.IsInfinity(locked.timer)?
+                                Math.Max(0f,locked.timer):float.PositiveInfinity;
+                            // A currently committed stock attacker is not
+                            // automatically the best one: if another real,
+                            // uncovered strike will land sooner, redirect the
+                            // planted arrow to that deadline as well.
+                            bool urgentCache=availableCache&&
+                                (!lockedCache||
+                                 available!=locked&&
+                                 availableSeconds<lockedSeconds-.0001f);
                             if(available!=null&&(!oldValid||urgentCache))
                             {
                                 locked=available;
