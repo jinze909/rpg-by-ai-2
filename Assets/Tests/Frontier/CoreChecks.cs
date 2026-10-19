@@ -2144,6 +2144,73 @@ namespace Starfall.Tests
                 "Raw negative deadlines prioritize an overdue strike while the HUD clamps its display to zero");
         }
 
+        public static void OuterPatrolInvalidWindupsRecoverAndRetractWarnings(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"A real cache defense starts the recovery test");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "The real patrol enemy roster is available");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
+            g.save.companion=-1;
+            foreach(Enemy foe in g.enemies)
+            {
+                if(foe==heavy)continue;
+                foe.state=0;foe.timer=5f;
+                foe.targetingWayfarer=foe.targetingReliefCivilian=
+                    foe.targetingAfterlightStock=foe.targetingOuterPatrolStock=false;
+            }
+            heavy.state=1;heavy.timer=float.NaN;
+            heavy.targetingOuterPatrolStock=true;
+            heavy.target=new Point(post.x,post.y);
+            float integrity=g.OuterPatrolIntegrity;
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var pendingField=typeof(GameCore).GetField("rescueWindupEffects",flags);
+            Check(pendingField!=null,
+                "The real pending-windup warning registry is available");
+            object table=pendingField.GetValue(g);
+            var add=table.GetType().GetMethod("Add");
+            Check(add!=null,"Pending warning ownership can be registered");
+            Effect nanWarning=new Effect("danger",heavy.target,1f);
+            g.effects.Add(nanWarning);
+            add.Invoke(table,new object[]{heavy,nanWarning});
+            g.Tick(.02f,new Point());
+            Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                !heavy.targetingOuterPatrolStock,
+                "A NaN windup recovers into a short safe reacquisition instead of becoming immortal");
+            Check(!g.effects.Contains(nanWarning),
+                "The invalid enemy's stale danger warning is removed by owner identity");
+            Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                "Invalid enemy clocks cannot cause an untelegraphed stock hit");
+
+            heavy.state=1;heavy.timer=float.PositiveInfinity;
+            heavy.targetingOuterPatrolStock=true;
+            Effect infiniteWarning=new Effect("danger",heavy.target,1f);
+            g.effects.Add(infiniteWarning);
+            add.Invoke(table,new object[]{heavy,infiniteWarning});
+            g.Tick(.02f,new Point());
+            Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                !heavy.targetingOuterPatrolStock&&
+                !g.effects.Contains(infiniteWarning),
+                "An infinite windup also retires its target lock and warning cleanly");
+            Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                "Neither malformed clock can bypass the real stock-contact checks");
+        }
+
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");

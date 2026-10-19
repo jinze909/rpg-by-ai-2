@@ -1018,6 +1018,20 @@ namespace Starfall
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
+                    // Combat clocks are transient and should always be finite.
+                    // A malformed timer would otherwise leave the actor in an
+                    // immortal windup (NaN never reaches <= 0) and leak its
+                    // danger ring forever. Retire the invalid contact, clear
+                    // every objective lock, and let the enemy reacquire safely.
+                    if(!Finite(e.timer))
+                    {
+                        e.state=0;
+                        e.timer=.22f;
+                        e.targetingWayfarer=e.targetingReliefCivilian=
+                            e.targetingAfterlightStock=e.targetingOuterPatrolStock=false;
+                        RemoveEnemyPendingWarning(e);
+                        continue;
+                    }
                     // A gate, rising tide or collapsing floor may close
                     // UNDER an enemy after the attack warning was issued.
                     // A sealed attacker cannot complete its old contact,
