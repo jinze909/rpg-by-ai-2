@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void DefendedOutpostsEnableGuardedWorldTravelAndCompanionSafeLanding() { CoreChecks.DefendedOutpostRoutesRespectLiveProgressAndSafeLanding(Data()); }
         [Test] public void DefendedEightOutpostsActuallyHealSafeNearbyVisitors() { CoreChecks.DefendedOuterCachesBecomeRealSafeFieldRefuges(Data()); }
         [Test] public void ReliefOutpostsReallyLoseStockAndPatchOnlyOnce() { CoreChecks.OuterPatrolCacheDefenseUsesRealTimedStockCombat(Data()); }
         [Test] public void ReliefOutpostDeadlineAndLeavingRejectFalseWins() { CoreChecks.OuterPatrolRealTimeoutAndPerimeterDoNotForgeWins(Data()); }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace Starfall
 {
     // Voluntary, authentic combat challenges placed in the new map ring.
@@ -109,6 +110,7 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     "你保护过的救援物资正在送往居民手中。这里已成为真正的补给点：脱离战斗并靠近哨岗时，可以缓慢恢复生命与耐力。",
                     "The supplies you defended now reach the people who need them. This staffed outpost now restores health and energy when the road is safe.",
+                    C("查看已守护的补给道路","Open the protected supply routes","outer_watch_routes"),
                     C("继续巡路","Keep exploring","close"));
                 return true;
             }
@@ -137,8 +139,151 @@ namespace Starfall
                 C("以后再来","Not now","close"));
             return true;
         }
+        // A protected post is a genuinely connected field station. Its
+        // travel board is not a global "warp to locked content" menu: check
+        // the *current* physical station and threats again on every cached
+        // choice, including the final destination action.
+        private bool CanUseOuterPatrolRoutes()
+        {
+            if(save.room<0||save.room>=8||!OuterPatrolDone(save.room)||
+                Dying||practicing||racing||FieldWorkPreventsRest||!SafeTravel)
+                return false;
+            foreach(WorldObject site in Map.objects)
+                if(site.kind=="outerwatch"&&
+                    PhysicalRefugeReach(new Point(site.x,site.y),2.2001f))
+                    return true;
+            return false;
+        }
+        private static readonly string[] OuterWatchNamesZh={
+            "引水渠","荆棘密林","沉没遗迹","赤铁矿场",
+            "堡垒外环","雾港","玻璃沙海","霜钟高原"
+        };
+        private static readonly string[] OuterWatchNamesEn={
+            "Canal","Thornwood","Drowned Ruins","Ironreach",
+            "Citadel","Mistport","Glasswind","Frostchime"
+        };
+        private bool ChooseOuterPatrolRoutes(string action)
+        {
+            bool main=action=="outer_watch_routes";
+            bool ring=action=="outer_watch_ring_0"||action=="outer_watch_ring_1";
+            bool destinationAction=action.StartsWith("outer_watch_to_");
+            if(!main&&!ring&&!destinationAction)return false;
+            if(!CanUseOuterPatrolRoutes())
+            {
+                Notify("必须在已守住且安全可达的救援岗操作道路图；战斗或其它现场任务期间无法旅行。",
+                    "Use a defended, physically reachable outpost while safe; combat or live fieldwork blocks travel.");
+                return true;
+            }
+            if(main)
+            {
+                Dialog("八地救援补给路网","Protected Relief Road Network",
+                    "八地补给线路已由居民接管。只能在已守护并解锁的哨岗之间旅行；正在进行的救援、敌袭与尚未开启的章节关卡都不会被跳过。",
+                    "Residents now maintain the protected supply roads. Travel only between defeated, unlocked outposts; live rescues, pursuers and campaign gates still apply.",
+                    C("西部四地 · 查看路线","Western four regions · routes","outer_watch_ring_0"),
+                    C("远岸四地 · 查看路线","Farshore four regions · routes","outer_watch_ring_1"),
+                    C("返回哨岗","Back to post","close"));
+                return true;
+            }
+            if(ring)
+            {
+                int first=action=="outer_watch_ring_0"?0:4;
+                var choices=new List<Choice>();
+                for(int i=first;i<first+4;i++)
+                    if(i!=save.room&&OuterPatrolDone(i)&&CanEnter(i))
+                        choices.Add(C("前往 "+OuterWatchNamesZh[i],
+                            "Travel to "+OuterWatchNamesEn[i],
+                            "outer_watch_to_"+i));
+                choices.Add(C("返回路线图","Back to route map","outer_watch_routes"));
+                choices.Add(C("留在这里","Remain at this post","close"));
+                Dialog("救援道路 · "+(first==0?"西部":"远岸"),
+                    "Relief Roads · "+(first==0?"West":"Farshore"),
+                    choices.Count==2?"当前尚无其它已守住且已解锁的目的地。":
+                        "选择一个已实际守住的哨岗。行军前再次检查附近敌人和活动任务。",
+                    choices.Count==2?"No other defended and unlocked outpost is available yet.":
+                        "Choose an outpost you actually defended; live threats and missions are checked again before departure.",
+                    choices.ToArray());
+                return true;
+            }
+            int room;
+            if(!int.TryParse(action.Substring("outer_watch_to_".Length),out room)||
+                room<0||room>=8||room==save.room||
+                !OuterPatrolDone(room))return true;
+            if(!CanEnter(room))
+            {
+                Notify(RouteHint(room,false),RouteHint(room,true));
+                return true;
+            }
+            int origin=save.room;
+            Enter(room); // Preserve all original region, mission and save rules.
+            if(save.room!=room||save.room==origin)return true;
+            WorldObject destination=null;
+            foreach(WorldObject site in Map.objects)
+                if(site.kind=="outerwatch"){destination=site;break;}
+            // Existing safe map spawn is the fallback if the authored post
+            // becomes blocked, flooded or too crowded when new actors load.
+            // Never put the protagonist atop an enemy or inside a closed gate.
+            bool landed=false;
+            if(destination!=null)
+            {
+                Point center=new Point(destination.x,destination.y);
+                Point[] positions={
+                    center+new Point(0f,1f),center+new Point(1f,0f),
+                    center+new Point(-1f,0f),center+new Point(0f,-1f),
+                    center+new Point(1f,1f),center+new Point(-1f,1f),
+                    center+new Point(1f,-1f),center+new Point(-1f,-1f),
+                    center+new Point(0f,2f),center+new Point(2f,0f),
+                    center+new Point(-2f,0f),center+new Point(0f,-2f)
+                };
+                Point safest=new Point();float bestClearance=-1f;
+                foreach(Point foot in positions)
+                {
+                    if(!CanStand(foot)||!ActorHasLocalRoute(foot,center,4))
+                        continue;
+                    float clearance=9999f;
+                    foreach(Enemy e in enemies)
+                        if(e.hp>0)clearance=Math.Min(clearance,
+                            (e.Position-foot).Length);
+                    if(clearance<4f||clearance<=bestClearance)continue;
+                    safest=foot;bestClearance=clearance;landed=true;
+                }
+                if(landed)
+                {
+                    save.x=safest.x;save.y=safest.y;
+                    // Enter() correctly reset the old companion's action at
+                    // the map spawn. Reattach its physical feet at the *new*
+                    // arrival only when a truly free ally spot exists.
+                    if(save.companion>=0)
+                    {
+                        Point[] allyOffsets={new Point(-.7f,0f),
+                            new Point(.7f,0f),new Point(0f,1f),
+                            new Point(0f,-1f)};
+                        foreach(Point offset in allyOffsets)
+                        {
+                            Point ally=safest+offset;
+                            if(!CanStand(ally))continue;
+                            bool occupied=false;
+                            foreach(Enemy foe in enemies)
+                                if(foe.hp>0&&(foe.Position-ally).Length<2.6f)
+                                {occupied=true;break;}
+                            if(occupied)continue;
+                            companionPosition=ally;
+                            companionMoving=false;companionMoveTime=0f;
+                            companionPresentationGeneration++;
+                            break;
+                        }
+                    }
+                }
+            }
+            revision++;sound="travel";
+            Notify(landed?"已抵达实际守护过的救援岗。":
+                    "前方补给点暂时拥挤，已在本地区安全入口落脚。",
+                landed?"You arrive beside the defended relief post.":
+                    "The outpost approach is crowded; you arrived at the normal region entrance.");
+            return true;
+        }
         private bool ChooseOuterPatrol(string action)
         {
+            if(ChooseOuterPatrolRoutes(action))return true;
             if(action=="outer_watch_patch"||action=="outer_watch_abort")
             {
                 if(!OuterPatrolActive||Dying||practicing)return true;

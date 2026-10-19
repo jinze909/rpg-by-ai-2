@@ -1032,6 +1032,74 @@ namespace Starfall.Tests
             }
         }
 
+        public static void DefendedOutpostRoutesRespectLiveProgressAndSafeLanding(Campaign data)
+        {
+            WorldObject[] posts=new WorldObject[8];
+            for(int i=0;i<8;i++)
+                posts[i]=Array.Find(data.maps[i].objects,o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.save.x=posts[0].x;g.save.y=posts[0].y;
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            g.save.stage=3;
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.flags.Add("outer_patrol_done_1");
+            int coin=g.save.coins;
+            g.Talk(posts[0]);
+            int routes=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_routes");
+            Check(routes>=0,"Defended outpost offers a usable travel board");
+            g.Choose(routes);
+            int west=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_ring_0");
+            Check(west>=0,"Travel board has a real regional route selection");
+            g.Choose(west);
+            int target=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_to_1");
+            Check(target>=0,"Another genuinely defended reachable region appears");
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_to_2")<0,
+                "Unsecured outposts cannot be selected to skip defense");
+            g.Choose(target);
+            Check(g.save.room==1&&g.CanStand(g.Position)&&
+                g.OuterPatrolDone(0)&&g.OuterPatrolDone(1)&&
+                g.save.coins==coin,
+                "Existing map Enter and walkable landing preserve rewards and flags");
+            GameCore reloaded=new GameCore(data,g.save);
+            Check(reloaded.save.version==2&&reloaded.OuterPatrolDone(1),
+                "Fast travel introduces no new save schema or unlock reset");
+
+            g.save.x=posts[1].x;g.save.y=posts[1].y;
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            g.Talk(posts[1]);
+            routes=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_routes");
+            g.Choose(routes);
+            // The safe outpost menu may remain open while a real raider
+            // arrives. Stale travel actions must be reauthenticated.
+            Enemy attacker=new Enemy(9111,0,posts[1].x+1f,posts[1].y,40f);
+            g.enemies.Add(attacker);
+            west=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_ring_0");
+            g.Choose(west);
+            Check(g.save.room==1&&g.save.coins==coin,
+                "An arriving enemy blocks cached route selections");
+            g.enemies.Clear();
+            g.mode="world";
+            // A forged/replayed link to a mission-locked region is not
+            // authorized by the old SaveData win flag alone.
+            var choose=typeof(GameCore).GetMethod("ChooseOuterPatrol",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Live gameplay owns a guarded route handler");
+            choose.Invoke(g,new object[]{"outer_watch_to_6"});
+            Check(g.save.room==1,
+                "Unsecured destination cannot bypass physical campaign travel");
+            g.save.flags.Add("outer_patrol_done_6");
+            choose.Invoke(g,new object[]{"outer_watch_to_6"});
+            Check(g.save.room==1,
+                "A won-but-locked region still cannot bypass its campaign entry");
+        }
+
         public static void ContinuousBiomeNoiseAvoidsSquareMaterialBoundaries(Campaign data)
         {
             for(int room=0;room<8;room++)
