@@ -1693,6 +1693,59 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS locked/out-of-range saved region returns to inn without stale enemies or lost items");
     }
 
+    private static void LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;g.mode="world";
+        g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+        var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+        Check(post!=null,"Y key uses a real authored relief watch");
+        g.save.x=post.x;g.save.y=post.y;
+        g.save.flags.Add("outer_cache_0");
+        g.save.flags.Add("outer_patrol_done_0");
+        g.save.companion=1;
+        g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+        Check(g.CanStand(g.companionPosition),
+            "The physical ranger has a legal start foot");
+        g.Talk(post);
+        int start=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_veteran");
+        Check(start>=0,"A real veteran siege is available at this post");
+        g.Choose(start);
+        Point allyBefore=g.companionPosition;
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(g.OuterPatrolCompanionGuarding&&
+            g.CanStand(g.OuterPatrolCompanionGuardPosition)&&
+            (g.companionPosition-allyBefore).Length<1f,
+            "Pressing Y places a tactical guard waypoint without warping ally");
+        Point guardFoot=g.OuterPatrolCompanionGuardPosition;
+        g.save.x=post.x+6f;g.save.y=post.y;
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(g.OuterPatrolCompanionGuarding&&
+            (g.OuterPatrolCompanionGuardPosition-guardFoot).Length<.01f,
+            "Distant keyboard Y cannot erase a currently valid stock defense order");
+        g.save.x=post.x;g.save.y=post.y;
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(!g.OuterPatrolCompanionGuarding,
+            "Local keyboard Y restores the original follower stance");
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(g.OuterPatrolCompanionGuarding,
+            "Local keyboard Y can issue a new real guard order");
+        g.Talk(post);
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(g.OuterPatrolCompanionGuarding,
+            "Keyboard Y cannot bypass a paused dialogue input context");
+        g.Close();
+        g.Talk(post);
+        int abort=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_abort");
+        Check(abort>=0,"Original withdrawal remains reachable");
+        g.Choose(abort);
+        Check(!g.OuterPatrolActive&&!g.OuterPatrolCompanionGuarding,
+            "Original withdrawal clears real keyboard tactical state");
+        Console.WriteLine("PASS actual Y keyboard companion guard/follow uses walkable stock waypoint");
+    }
+
     private static void LiveXKeyPatchCannotRepairRemoteOrTwice(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1793,7 +1846,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

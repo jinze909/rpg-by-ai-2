@@ -70,7 +70,7 @@ namespace Starfall
         private float worldActorOpacity = 1f;
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
-        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
+        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
 
@@ -175,6 +175,7 @@ namespace Starfall
                 if (Input.GetKeyDown(KeyCode.R)) Game.UseExplorationAbility();
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
+                if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();
                 if (PadDown(4)) Game.Eat(); if (PadDown(5)) Game.CommandCompanion();
                 if (PadDown(6)) OpenMenu("journal"); if (PadDown(7)) { OpenMenu("pause"); Save(); }
             }
@@ -815,6 +816,14 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),.43f,guardColor,14);
                 if(Game.OuterPatrolActive||!done)
                     Diamond(p.x,p.y-79,5,guardColor);
+                if(Game.OuterPatrolCompanionGuarding)
+                {
+                    // A guard is an actual foot waypoint beside the stock:
+                    // visually mark the destination, not a second ally,
+                    // copied sprite or a fake detached attack body.
+                    Ring(Game.OuterPatrolCompanionGuardPosition,.35f,
+                        new Color(.48f,.9f,1f),12);
+                }
                 if(Game.OuterPatrolActive)
                     Text(p.x-79,p.y-107,158,20,
                         Math.Ceiling(Game.OuterPatrolTime)+"s · "+

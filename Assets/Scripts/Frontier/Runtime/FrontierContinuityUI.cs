@@ -219,7 +219,11 @@ namespace Starfall
                         Game.L("救援岗防卫 · 倒计时 ","RELIEF OUTPOST DEFENSE · "))+
                     Math.Ceiling(Game.OuterPatrolTime)+"s"+
                     Game.L(" · 敌人剩余 "," · RAIDERS LEFT ")+
-                    Game.OuterPatrolRaidersRemaining,
+                    Game.OuterPatrolRaidersRemaining+
+                    (Game.save.companion>=0?
+                        (Game.OuterPatrolCompanionGuarding?
+                            Game.L(" · 驻守 Y"," · GUARD Y"):
+                            Game.L(" · 跟随 Y"," · FOLLOW Y")):""),
                     15,paper,TextAnchor.MiddleCenter);
                 Text(398,49,481,18,
                     Game.L("物资耐久 ","CACHE INTEGRITY ")+

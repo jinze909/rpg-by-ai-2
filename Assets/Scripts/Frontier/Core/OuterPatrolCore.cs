@@ -495,6 +495,15 @@ namespace Starfall
             if(mode!="world"||!OuterPatrolPatchAvailable)return;
             ChooseOuterPatrol("outer_watch_patch");
         }
+        public void QuickToggleOuterPatrolCompanionGuard()
+        {
+            // Keyboard Y is an actual tactical toggle, never a remote
+            // teleport or a paused-menu bypass. The physical post and
+            // available floor must pass the same checks as dialogue.
+            if(mode!="world"||!OuterPatrolActive||save.companion<0)
+                return;
+            ToggleOuterPatrolCompanionGuard();
+        }
         private bool ChooseOuterPatrol(string action)
         {
             if(ChooseOuterPatrolRoutes(action))return true;
