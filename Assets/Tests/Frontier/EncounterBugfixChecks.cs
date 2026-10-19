@@ -140,6 +140,87 @@ namespace Starfall.Tests
             finally {data.maps[1]=original;}
         }
 
+        public static void BeaconCachedStartAndEnergyRepairRequireOpenPhysicalLane(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[34];
+                for(int y=0;y<34;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=31)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                WorldObject station=new WorldObject{id="survey1",
+                    kind="survey1",name="Open beacon",
+                    en="Open beacon",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{station},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("dispatch_complete");
+                g.save.flags.Add("survey_1");
+                g.Enter(1);g.enemies.Clear();g.invulnerable=200;
+                g.save.x=12.25f;g.save.y=10.5f;
+                g.Talk(station);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Actual roadwarden beacon opens its authentic defense dialogue from reachable nearby ground");
+                int start=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="road_trial_start_1")
+                    {start=i;break;}
+                Check(start>=0,"Unlocked beacon offers the original physical two-wave challenge");
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                Check(g.CanStand(g.Position)&&g.Blocked(11.5f,10.5f),
+                    "A solid dynamic gate cuts access to the trial after the initial dialogue opens");
+                g.Choose(start);
+                Check(g.RoadwardenTrialRoom==0&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==0,
+                    "A stale trial button cannot conjure armed guards on the wrong side of a closed wall");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(station);start=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="road_trial_start_1")
+                    {start=i;break;}
+                Check(start>=0,"Reopened beacon resumes the exact original defense challenge");
+                g.Choose(start);
+                Check(g.RoadwardenTrialRoom==1&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==2,
+                    "Only reachable interaction launches two genuine beacon attackers");
+                var ward=typeof(GameCore).GetField("roadTrialWard",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(ward!=null,"True active beacon owns original transient ward integrity");
+                ward.SetValue(g,50f);g.save.energy=100f;
+                g.Close();g.Talk(station);
+                int patch=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="road_trial_repair")
+                    {patch=i;break;}
+                Check(patch>=0,"The real damaged beacon offers its once-per-wave 35-energy ward repair");
+                wall[11]='#';rows[10]=new string(wall);
+                g.Choose(patch);
+                Check(g.RoadwardenTrialRoom==1&&
+                    Math.Abs(g.RoadwardenWardIntegrity-50f)<.001f&&
+                    g.save.energy==100f,
+                    "Stale beacon repair cannot spend energy or heal a real wall-isolated ward");
+                wall[11]='.';rows[10]=new string(wall);
+                g.Talk(station);patch=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="road_trial_repair")
+                    {patch=i;break;}
+                Check(patch>=0,"Reopened physical beacon offers the same valid repair again");
+                g.Choose(patch);
+                Check(Math.Abs(g.RoadwardenWardIntegrity-75f)<.001f&&
+                    g.save.energy==65f&&g.save.version==2,
+                    "Only an actually reachable repair heals exactly 25 and consumes 35 energy without new save fields");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();

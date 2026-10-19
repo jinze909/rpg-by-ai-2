@@ -182,12 +182,19 @@ namespace Starfall
             return english ? "\n\nOptional two-wave defense. Stop attackers before they drain the beacon ward. " + RoadwardenSurgeHint(region, true) + " Complete all three for a talent point. Leaving or loading restarts a drill."
                 : "\n\n可选双波守路试炼。阻止敌人靠近并侵蚀信标护盾。" + RoadwardenSurgeHint(region, false) + " 完成三座信标可获得技能点。离开或读档需重新挑战。";
         }
+        // Dialogue remains cached even when a real gate closes.
+        // Spawning attackers and spending ward-repair energy both require
+        // a current near-side physical lane to the active beacon.
+        private bool CanReachRoadwardenBeacon(int room)
+        { return room>=1&&room<=3 &&
+            PhysicalRefugeReach(ObjectPoint(room,"survey"+room,
+                new Point(-100,-100)),2.1001f); }
         private bool ChooseRoadwardenTrial(string action)
         {
             if (action == "road_trial_repair")
             {
                 if (!RoadwardenWardRepairAvailable || roadTrialRoom != save.room ||
-                    (Position - ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)).Length > 2.1f)
+                    !CanReachRoadwardenBeacon(roadTrialRoom))
                     return true;
                 if (save.energy < 35)
                 {
@@ -220,7 +227,7 @@ namespace Starfall
                 atlasEchoRoom != 0 || practicing || Dying)
                 return true;
             Point beacon = ObjectPoint(region, "survey" + region, new Point(-100, -100));
-            if ((Position - beacon).Length > 2.1f) return true;
+            if (!CanReachRoadwardenBeacon(region)) return true;
             if (!SafeTravel)
             {
                 Notify("先清理信标附近的敌人，再开始守路试炼。", "Clear nearby enemies before beginning the defense drill.");
