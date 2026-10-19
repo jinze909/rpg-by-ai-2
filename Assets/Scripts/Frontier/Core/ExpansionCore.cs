@@ -515,7 +515,7 @@ namespace Starfall
                 bool saboteur=OuterPatrolActive&&
                     IsOuterPatrolEnemy(foe)&&foe.kind!=1;
                 int priority=saboteur?
-                    (foe.state==1&&foe.targetingOuterPatrolStock?0:1):2;
+                    (OuterPatrolUncoveredStockStrike(foe)?0:1):2;
                 if(squared>=7f*7f ||
                     priority>bestPriority ||
                     (priority==bestPriority&&squared>=best) ||
@@ -537,10 +537,8 @@ namespace Starfall
         }
         private bool CompanionCacheContactImminent(Enemy foe)
         {
-            return foe!=null&&foe.hp>0&&enemies.Contains(foe)&&
-                OuterPatrolActive&&IsOuterPatrolEnemy(foe)&&
-                foe.kind!=1&&foe.state==1&&
-                foe.targetingOuterPatrolStock;
+            return foe!=null&&enemies.Contains(foe)&&
+                OuterPatrolUncoveredStockStrike(foe);
         }
         private void TickCompanion(float dt)
         {

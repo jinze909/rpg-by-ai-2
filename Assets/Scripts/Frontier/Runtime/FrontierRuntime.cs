@@ -838,7 +838,16 @@ namespace Starfall
                     Ring(Game.OuterPatrolCompanionGuardPosition,.35f,
                         Game.OuterPatrolMedicRallying?
                             new Color(1f,.73f,.43f):
+                            Game.OuterPatrolGuardBlocksLeft==0?
+                            new Color(.64f,.63f,.66f):
                             new Color(.48f,.9f,1f),12);
+                    // The additional ring appears only on the physical
+                    // planted ally when finite interception is actually
+                    // ready; never represent an approaching/remote guard
+                    // or a medic rushing away as an active bodyguard.
+                    if(Game.OuterPatrolGuardReady)
+                        Ring(Game.companionPosition,.53f,
+                            new Color(.46f,1f,.78f),16);
                     if(Game.OuterPatrolMedicRallying)
                         // This is an actual healing rally, not a second
                         // companion sprite, phantom projectile or teleport.

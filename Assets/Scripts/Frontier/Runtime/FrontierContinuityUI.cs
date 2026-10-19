@@ -235,6 +235,9 @@ namespace Starfall
                 Text(398,49,481,18,
                     Game.L("物资耐久 ","CACHE INTEGRITY ")+
                     Math.Ceiling(stock)+"%"+
+                    (Game.OuterPatrolCompanionGuarding?
+                        Game.L(" · 同伴格挡 "," · ALLY BLOCKS ")+
+                        Game.OuterPatrolGuardBlocksLeft:"")+
                     (Game.OuterPatrolVeteranActive?
                         Game.L(" · 路障 "," · BARRICADE ")+
                         Math.Ceiling(Game.OuterPatrolBraceIntegrity)+

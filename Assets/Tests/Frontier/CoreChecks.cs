@@ -1021,8 +1021,17 @@ namespace Starfall.Tests
                 }
                 Check(positioned,"Valid full melee strike exists on authored cache terrain");
             }
-            Check((bool)able.Invoke(g,new object[]{melee}),
+            Check((bool)able.Invoke(g,new object[]{melee})&&
+                g.OuterPatrolGuardReady,
                 "Living posted ally can physically reach a real melee stock strike");
+            var exposed=typeof(GameCore).GetMethod(
+                "CompanionCacheContactImminent",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(exposed!=null,"Test the real auto-fire emergency priority path");
+            melee.state=1;
+            Check(!(bool)exposed.Invoke(g,new object[]{melee}),
+                "Already blocked stock threat cannot steal urgent ally target");
             float stock=g.OuterPatrolIntegrity;
             release.Invoke(g,new object[]{melee});
             Check(g.OuterPatrolGuardBlocksLeft==1&&g.OuterPatrolIntegrity==stock&&
@@ -1031,6 +1040,9 @@ namespace Starfall.Tests
             release.Invoke(g,new object[]{melee});
             Check(g.OuterPatrolGuardBlocksLeft==0&&g.OuterPatrolIntegrity==stock,
                 "Second intercepted stock strike consumes final finite contact");
+            Check(!g.OuterPatrolGuardReady&&
+                (bool)exposed.Invoke(g,new object[]{melee}),
+                "Depleted guard exposes real incoming cache hit to auto-fire priority");
             release.Invoke(g,new object[]{melee});
             Check(g.OuterPatrolGuardBlocksLeft==0&&g.OuterPatrolIntegrity<stock,
                 "Third genuine melee release reaches stock without free bodyguard");

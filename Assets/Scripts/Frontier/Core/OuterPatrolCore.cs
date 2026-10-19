@@ -24,18 +24,35 @@ namespace Starfall
             outerPatrolGuardMedicRescue;}}
         public int OuterPatrolGuardBlocksLeft
         {get{return OuterPatrolActive?outerPatrolGuardBlocksLeft:0;}}
+        public bool OuterPatrolGuardReady
+        {get{return OuterPatrolCompanionGuarding&&
+            !OuterPatrolMedicRallying&&outerPatrolGuardBlocksLeft>0&&
+            Fits(companionPosition)&&
+            (companionPosition-outerPatrolCompanionGuardFoot).Length<=.65f;}}
         // Unlike an inexhaustible proximity aura, a stationed physical
         // companion gets only two authentic emergency bodyguard contacts
         // in the entire attempt. Switching allies or issuing Y again can
         // never refill this finite local supply of guards.
         private bool OuterPatrolCompanionCanIntercept(Enemy attacker)
         {
-            return attacker!=null&&OuterPatrolCompanionGuarding&&
-                !OuterPatrolMedicRallying&&outerPatrolGuardBlocksLeft>0&&
-                Fits(companionPosition)&&
-                (companionPosition-outerPatrolCompanionGuardFoot).Length<=.65f&&
+            return attacker!=null&&OuterPatrolGuardReady&&
                 (companionPosition-attacker.Position).Length<=2.2f&&
                 ClearAttackPath(attacker.Position,companionPosition);
+        }
+        // Combat target selection, warning and actual stock damage use
+        // identical physical coverage: prioritize the raider who can
+        // STILL injure supplies despite the hero/guard frontline.
+        private bool OuterPatrolUncoveredStockStrike(Enemy foe)
+        {
+            return OuterPatrolActive&&foe!=null&&foe.hp>0&&
+                IsOuterPatrolEnemy(foe)&&foe.kind!=1&&
+                foe.state==1&&foe.targetingOuterPatrolStock&&
+                foe.stun<=0f&&foe.hitTime<=0f&&
+                (foe.Position-outerPatrolPost).Length<=2.35f&&
+                CanStand(foe.Position)&&
+                ClearAttackPath(foe.Position,outerPatrolPost)&&
+                !OuterPatrolHeroIntercepts(foe)&&
+                !OuterPatrolCompanionCanIntercept(foe);
         }
         public Point OuterPatrolCompanionGuardPosition
         {get{return OuterPatrolCompanionGuarding?outerPatrolCompanionGuardFoot:companionPosition;}}
@@ -63,15 +80,7 @@ namespace Starfall
                 Enemy closest=null;
                 foreach(Enemy foe in enemies)
                 {
-                    if(foe==null||foe.hp<=0||foe.kind==1||
-                        !IsOuterPatrolEnemy(foe)||
-                        foe.state!=1||!foe.targetingOuterPatrolStock||
-                        foe.stun>0f||foe.hitTime>0f||
-                        (foe.Position-outerPatrolPost).Length>2.35f||
-                        !CanStand(foe.Position)||
-                        !ClearAttackPath(foe.Position,outerPatrolPost)||
-                        OuterPatrolHeroIntercepts(foe)||
-                        OuterPatrolCompanionCanIntercept(foe))
+                    if(!OuterPatrolUncoveredStockStrike(foe))
                         continue;
                     if(closest==null||foe.timer<closest.timer)
                         closest=foe;
