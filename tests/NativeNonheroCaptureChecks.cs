@@ -262,7 +262,7 @@ public static class NativeNonheroCaptureChecks
                 "actorCaptureAnimator",BindingFlags.Instance|BindingFlags.NonPublic);
             Require(spriteField!=null&&animatorField!=null,
                 "actual nonhero SpriteRenderer/Animator fields absent");
-            int[] frames={0,4*(rowCounts[kind]/2)+2,
+            int[] frames={0,6,4,4*(rowCounts[kind]/2)+2,
                 4*rowCounts[kind]-1};
             for(int i=0;i<frames.Length;i++)
             {
@@ -270,13 +270,13 @@ public static class NativeNonheroCaptureChecks
                 int f=frames[i];
                 bool success=(bool)method.Invoke(character,new object[]{
                     atlas,4,rowCounts[kind],f,new Point(200,220),96f,
-                    new Color(1,1,1,1),i==2,0f});
+                    new Color(1,1,1,1),i==frames.Length-1,0f});
                 var liveRenderer=spriteField.GetValue(character) as SpriteRenderer;
                 var liveAnimator=animatorField.GetValue(character) as Animator;
                 Require(success&&liveRenderer!=null&&liveAnimator!=null&&
                     liveAnimator.enabled&&
                     ReferenceEquals(liveRenderer.sprite,imported[f])&&
-                    liveRenderer.flipX==(i==2),
+                    liveRenderer.flipX==(i==frames.Length-1),
                     "native row/cell/profession mismatch for "+family+" frame "+f);
                 Require(Math.Abs(liveAnimator.lastNormalizedSample-
                     ((f%4+.5f)/4f))<.0001f,
@@ -325,14 +325,17 @@ public static class NativeNonheroCaptureChecks
             Resources.Registered["Frontier/Actors/Native/Actor_"+family]=
                 new RuntimeAnimatorController{className="Actor_"+family};
             var actualOriginal=new FrontierRuntime();
-            int[] cells={0,cols-1,(rows-1)*cols,rows*cols-1};
+            int[] cells=cols==4&&rows>1?
+                new[]{0,cols-1,cols+2,cols,(rows-1)*cols,rows*cols-1}:
+                new[]{0,cols-1,(rows-1)*cols,rows*cols-1};
             for(int v=0;v<cells.Length;v++)
             {
                 Time.frameCount=1550+i*5+v;
                 int frame=cells[v];
+                bool flip=v==cells.Length-1;
                 bool ok=(bool)method.Invoke(actualOriginal,new object[]{
                     atlas,cols,rows,frame,new Point(200,220),96f,
-                    new Color(1,1,1,1),v==3,0f});
+                    new Color(1,1,1,1),flip,0f});
                 var rendererField=typeof(FrontierRuntime).GetField(
                     "actorCaptureRenderer",BindingFlags.Instance|BindingFlags.NonPublic);
                 var animatorField=typeof(FrontierRuntime).GetField(
@@ -341,7 +344,7 @@ public static class NativeNonheroCaptureChecks
                 var animator=animatorField.GetValue(actualOriginal) as Animator;
                 Require(ok&&animator!=null&&animator.enabled&&
                     ReferenceEquals(artRenderer.sprite,slices[frame])&&
-                    artRenderer.flipX==(v==3),
+                    artRenderer.flipX==flip,
                     "accepted original atlas native capture selected wrong family/pose: "+
                     family+"/"+frame);
                 Require(Math.Abs(animator.lastNormalizedSample-
@@ -1412,7 +1415,7 @@ public static class NativeNonheroCaptureChecks
             ((RenderTexture)second).releaseCount >= 1 &&
             ((RenderTexture)mirrored).releaseCount >= 1,
             "actor GPU targets leaked on runtime destruction");
-        Console.WriteLine("PASS 17 native actor families (13 original accepted, including all companions): 3/4/6-column GameCore samples, late Controller recovery, GPU safety");
+        Console.WriteLine("PASS 17 native actor families (13 original accepted, including all companions): both stop-plant contact cells, 3/4/6-column GameCore samples, late Controller recovery, GPU safety");
         Console.WriteLine("NATIVE_UNVERIFIED: GPU pixels, Unity GameView and Animator");
     }
 }

@@ -183,6 +183,46 @@ def check():
     # preview prefab or a spare SpriteRenderer. Native runner remains
     # NATIVE_UNVERIFIED until Unity 2022.3 actually executes these checks.
     native_qa = (ROOT / "Assets/Tests/PlayMode/VisualPlayModeTests.cs").read_text()
+    native_probe = (ROOT / "Assets/Tests/PlayMode/NativeActorGameViewProbe.cs").read_text()
+    def check_native_stop_plant_scene_contract(source, probe):
+        required_source = (
+            'string[] sources={"WalkMonsters","WalkBossA","MossboundRaider",',
+            'int[] columns={4,4,4,4,4,4,4,3},rows={3,4,6,6,18,8,4,4};',
+            'new[]{0,4,6,columns[family]*rows[family]-1}',
+            'Assert.AreSame(sprite,probe.capturedSprite,',
+            'Assert.AreEqual(atlas.height-',
+            'Assert.IsFalse(probe.capturedFlip,',
+        )
+        for item in required_source:
+            assert item in source, ("NATIVE_STOP_PLANT_SCENE_COVERAGE_LOST", item)
+        required_probe = (
+            "public int columns,rows,frame;",
+            "public bool flip;",
+            "public Sprite capturedSprite;",
+            "public bool capturedFlip;",
+            "frame,new Point(128,128)",
+            "capturedSprite=renderer.sprite;",
+            "capturedFlip=renderer.flipX;",
+        )
+        for item in required_probe:
+            assert item in probe, ("NATIVE_STOP_PLANT_GAMEVIEW_PROBE_LOST", item)
+    nonhero_start = native_qa.index(
+        "public IEnumerator RealFrontierSceneRendersNonheroWholeBodyPixels()")
+    nonhero_end = native_qa.index(
+        "public IEnumerator NativeWalkingAndPlantedAttackTransitions()", nonhero_start)
+    native_nonhero_scene = native_qa[nonhero_start:nonhero_end]
+    check_native_stop_plant_scene_contract(native_nonhero_scene, native_probe)
+    for item in ('"WalkMonsters","WalkBossA"',
+                 'new[]{0,4,6,columns[family]*rows[family]-1}',
+                 'Assert.AreSame(sprite,probe.capturedSprite,'):
+        try:
+            check_native_stop_plant_scene_contract(
+                native_nonhero_scene.replace(item, "/* corrupted stop-plant QA */", 1),
+                native_probe)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_CI: native stop-plant frame coverage removed")
     def check_native_scene_contract(source):
         required = (
             "ProductionFrontierSceneUsesTheLiveThreeClassHeroPath",

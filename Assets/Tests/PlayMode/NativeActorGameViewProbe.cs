@@ -10,8 +10,11 @@ namespace Starfall.Tests
     {
         public FrontierRuntime runtime;
         public Texture2D atlas;
-        public int columns,rows;
+        public int columns,rows,frame;
+        public bool flip;
         public bool completed,drawn;
+        public Sprite capturedSprite;
+        public bool capturedFlip;
         public System.Exception failure;
         private void OnGUI()
         {
@@ -26,8 +29,18 @@ namespace Starfall.Tests
                 if(method==null)throw new System.MissingMethodException(
                     "Production nonhero native capture missing");
                 drawn=(bool)method.Invoke(runtime,new object[]{
-                    atlas,columns,rows,0,new Point(128,128),96f,
-                    Color.white,false,0f});
+                    atlas,columns,rows,frame,new Point(128,128),96f,
+                    Color.white,flip,0f});
+                var rendererField=typeof(FrontierRuntime).GetField(
+                    "actorCaptureRenderer",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var renderer=rendererField==null?null:
+                    rendererField.GetValue(runtime) as SpriteRenderer;
+                if(renderer==null)throw new System.MissingFieldException(
+                    "Native actor capture SpriteRenderer missing");
+                capturedSprite=renderer.sprite;
+                capturedFlip=renderer.flipX;
             }
             catch(System.Exception ex){failure=ex;}
             finally {completed=true;}
