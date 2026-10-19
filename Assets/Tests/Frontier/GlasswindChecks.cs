@@ -16,17 +16,20 @@ namespace Starfall.Tests
             g.invulnerable=180f;
             WorldObject station=Object(g,"glasswindrelay1");
             g.save.x=station.x;g.save.y=station.y;
-            // Both authored first-choice wave-one coordinates are already
-            // physically occupied. Keep these living actors intact.
+            // Opening an actual relay requires SafeTravel: ordinary
+            // enemies cannot stand within six tiles at the START. Position
+            // the companion at a favorite first-wave foot, then insert an
+            // unrelated active-world bystander AFTER the allowed start, so
+            // the second wave must choose a different nearby arena tile.
             Point originalFirst=new Point(station.x-3.2f,station.y);
             Point originalSecond=new Point(station.x,station.y+3.2f);
-            var bystander=new Enemy(91999,0,originalFirst.x,originalFirst.y,900f)
+            var bystander=new Enemy(91999,0,station.x+12f,station.y+8f,900f)
                 {stun=200f,timer=1000f};
             g.enemies.Add(bystander);
             g.companionPosition=originalSecond;
             Check(g.CanStand(originalFirst)&&g.CanStand(originalSecond)&&
-                (g.Position-originalFirst).Length>1.75f,
-                "Both existing actors occupy valid first-choice spawn feet in the real desert");
+                (g.Position-bystander.Position).Length>6f,
+                "The real relay may start safely, even with an existing distant wilderness fighter");
             Action(g,station.kind,"glasswind_start_1");
             var first=g.enemies.FindAll(g.IsGlasswindEnemy);
             Check(g.GlasswindSite==1&&g.GlasswindWave==1&&first.Count==2&&
@@ -43,6 +46,10 @@ namespace Starfall.Tests
             }
             Check((first[0].Position-first[1].Position).Length>=2.3f,
                 "A single first wave never spawns overlapping combat roots");
+            // First-wave combat is already active. An ordinary wilderness
+            // actor may enter the next reinforcement's favored location.
+            bystander.x=station.x+2.8f;
+            bystander.y=station.y+2.8f;
             Advance(g,4.25f);
             var both=g.enemies.FindAll(g.IsGlasswindEnemy);
             Check(g.GlasswindSite==1&&g.GlasswindWave==2&&both.Count==4,
