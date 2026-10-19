@@ -101,6 +101,72 @@ namespace Starfall.Tests
                 "An in-progress combat ambush cannot leak a permanent quest result or alter old saves");
         }
 
+        public static void MinecartHullOnlyDrainsFromUnobstructedLivingGuards(Campaign data)
+        {
+            // The mission's authored three rail posts remain in place, but
+            // the switchyard has one genuinely dynamic solid barrier.
+            // The cart arrives by actual player movement, not a stage setter.
+            MapData original=data.maps[3];
+            try
+            {
+                var rows=new string[80];
+                for(int y=0;y<80;y++)
+                {
+                    char[] cells=new string('#',120).ToCharArray();
+                    if(y>=2&&y<=77)
+                        for(int x=2;x<=117;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[3]=new MapData{id=3,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(3);
+                g.enemies.Clear();
+                g.save.flags.Add("boss_3");
+                g.save.flags.Add("gate_3");
+                g.invulnerable=120;
+                WorldObject west=MineCartTestPost(g,1);
+                WorldObject junction=MineCartTestPost(g,2);
+                g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+                Check(MineCartTestChoice(g,"mineconvoy_start"),
+                    "A real cart dispatch is required to test physical escort damage");
+                WalkBesideMinecart(g,new Point(junction.x,junction.y),1);
+                var guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+                Check(g.MineConvoyStage==2&&guards.Count==2&&
+                    g.MineConvoyIntegrity>0,
+                    "The cart physically traverses the route and reaches its true two-raider encounter");
+                Enemy threat=guards[0],other=guards[1];
+                threat.x=junction.x+3f;threat.y=junction.y;
+                threat.stun=100;threat.timer=1000;
+                other.x=junction.x+12f;other.y=junction.y+8f;
+                other.stun=100;other.timer=1000;
+                char[] closed=rows[(int)junction.y].ToCharArray();
+                closed[(int)junction.x+1]='#';
+                rows[(int)junction.y]=new string(closed);
+                Check(g.CanStand(threat.Position)&&
+                    g.CanStand(g.MineCartPosition)&&
+                    g.Blocked(junction.x+1f,junction.y)&&
+                    (threat.Position-g.MineCartPosition).Length<5.3f,
+                    "A standing real guard is in damage range, but a dynamic wall seals its entire approach to the cart");
+                float hull=g.MineConvoyIntegrity;
+                g.Tick(.05f,new Point());
+                Check(g.MineConvoyStage==2&&
+                    Math.Abs(g.MineConvoyIntegrity-hull)<.0001f,
+                    "Live timed junction combat must not drain civilian cart health through sealed cover");
+                closed[(int)junction.x+1]='.';
+                rows[(int)junction.y]=new string(closed);
+                g.Tick(.05f,new Point());
+                Check(g.MineConvoyIntegrity<hull-.12f&&
+                    g.MineConvoyIntegrity>hull-.23f&&
+                    g.enemies.Contains(threat)&&g.enemies.Contains(other),
+                    "Reopening the exact route resumes the original 3.3 HP/s real guard pressure without erasing actors");
+                Check(!g.MineConvoyComplete&&g.save.version==2,
+                    "Physical collision adjustment changes no final reward, guard kill bit or old save version");
+            }
+            finally {data.maps[3]=original;}
+        }
+
         public static void MinecartCivicTimberSavingsActuallyReachTownForge(Campaign data)
         {
             foreach(bool temper in new[]{false,true})

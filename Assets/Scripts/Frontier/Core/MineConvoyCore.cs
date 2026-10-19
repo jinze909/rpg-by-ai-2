@@ -124,7 +124,12 @@ namespace Starfall
                     }
                 foreach(Enemy guard in enemies)
                     if(IsMineConvoyEnemy(guard)&&guard.hp>0&&
-                        (guard.Position-MineCartPosition).Length<5.3f)
+                        (guard.Position-MineCartPosition).Length<5.3f&&
+                        // A junction wall can close AFTER the guards
+                        // arrived. A fighter behind sealed cover cannot
+                        // damage a real cart it cannot even see. The same
+                        // physical corridor opens damage again immediately.
+                        ClearAttackPath(guard.Position,MineCartPosition))
                         MineConvoyIntegrity-=dt*3.3f;
                 // Real combat is the necessary route to stage three;
                 // no scripted button can despawn surviving miners' attackers.
