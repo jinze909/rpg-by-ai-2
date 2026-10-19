@@ -64,7 +64,12 @@ namespace Starfall
                     (foot-Position).Length<1.25f ||
                     (save.companion>=0 &&
                      (foot-companionPosition).Length<1.25f) ||
-                    (hasOther && (foot-other).Length<1.25f))continue;
+                    (hasOther && (foot-other).Length<1.25f) ||
+                    // A legal isolated tile behind solid scenery makes the
+                    // timed two-guard fight impossible. Require a genuine
+                    // local four-neighbor route from guard to player, just
+                    // as Boss reinforcements do, before committing either ID.
+                    !BossSummonHasLocalRoute(foot,Position))continue;
                 bool occupied=false;
                 foreach(Enemy e in enemies)
                     if(e.hp>0&&(foot-e.Position).Length<1.25f)

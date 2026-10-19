@@ -121,6 +121,57 @@ namespace Starfall.Tests
                 "Permanent civilian completion remains recorded as finished independently of transient active mission state");
         }
 
+        public static void HighlandSignalGuardsCannotSpawnInIsolatedWalkablePocket(Campaign data)
+        {
+            // An isolated tile is legal standing ground but a melee guard
+            // spawned inside it can never reach the live timed encounter.
+            // Reuse the actual authored post coordinates and real path graph.
+            MapData old=data.maps[7];
+            try
+            {
+                var rows=new string[80];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',120).ToCharArray();
+                    if(y>=2&&y<78)
+                        for(int x=2;x<118;x++)cells[x]='.';
+                    // Seal the original first-guard tile in its own 1x1
+                    // legal pocket without filling the center itself.
+                    if(y>=40&&y<=42)
+                        for(int x=61;x<=63;x++)
+                            if(x!=62||y!=41)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[7]=new MapData{id=7,spawnX=58.5f,
+                    spawnY=35.5f,rows=rows,
+                    objects=old.objects,decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+                g.save.flags.Add("boss_7");g.invulnerable=120;
+                Point trapped=new Point(62.5f,41.5f);
+                WorldObject west=FrostPost(g,1),mid=FrostPost(g,2);
+                g.save.x=mid.x;g.save.y=mid.y;
+                Check(g.CanStand(trapped)&&g.NavigationPath(trapped).Count==0,
+                    "The sealed first spawn pocket has legal floor but no genuine reachable route to the junction");
+                g.save.x=west.x;g.save.y=west.y;
+                g.Talk(west);
+                Check(FrostChoice(g,"frostsignal_start"),
+                    "The real timed highland mission starts from the old western signal");
+                g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+                var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+                Check(g.FrostSignalStage==2&&guards.Count==2,
+                    "An accessible alternate local guard pair begins the genuine mid-quest battle");
+                foreach(Enemy guard in guards)
+                {
+                    Check((guard.Position-trapped).Length>.1f&&
+                        g.NavigationPath(guard.Position).Count>0&&
+                        g.CanStand(guard.Position),
+                        "No live guard is marooned in the disconnected authored pocket: each has a real walking route to the player");
+                }
+            }
+            finally{data.maps[7]=old;}
+        }
+
         public static void CivicEmberAbortAndFailurePreserveUnrelatedWorldEffects(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;

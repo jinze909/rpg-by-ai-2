@@ -52,6 +52,7 @@ namespace Starfall.Tests
         [Test] public void HighlandCivicEmberSurvivesActualColdAndGuardCombat() { CoreChecks.HighlandCivicEmberHasActualColdCombatAndPublicChoices(Data()); }
         [Test] public void LiveHighlandEmberCompassFollowsNextObjectiveAndSave() { CoreChecks.LiveFrostSignalNavigationTracksActualCarriedEmber(Data()); }
         [Test] public void HighlandGuardsNeverOverlapOtherCombatActors() { CoreChecks.HighlandGuardsSpawnOnDistinctUnoccupiedCombatFeet(Data()); }
+        [Test] public void HighlandGuardCannotMaterializeInIsolatedWalkablePocket() { CoreChecks.HighlandSignalGuardsCannotSpawnInIsolatedWalkablePocket(Data()); }
         [Test] public void CombatEffectsKeepEncounterOwnershipThroughImpact() { CoreChecks.CombatSignalsRetireOnlyTheirOwnImpactAndWarningEffects(Data()); }
         [Test] public void MinecartMaterialsReallyLowerSmithCosts() { CoreChecks.MinecartCivicTimberSavingsActuallyReachTownForge(Data()); }
         [Test] public void CartEngineeringHalvesSteamAndAbortsSelectiveActors() { CoreChecks.MinecartEngineeringReallyReducesSteamDamageAndAbortIsSelective(Data()); }
