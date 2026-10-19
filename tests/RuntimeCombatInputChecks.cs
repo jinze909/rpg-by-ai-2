@@ -1693,6 +1693,59 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS locked/out-of-range saved region returns to inn without stale enemies or lost items");
     }
 
+    private static void LiveXKeyPatchCannotRepairRemoteOrTwice(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.mode="world";
+        g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+        var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+        Check(post!=null,"Real regional post exists in shipped game");
+        g.save.x=post.x;g.save.y=post.y;
+        g.save.flags.Add("outer_cache_0");
+        g.save.inventory[0]=5;g.save.inventory[2]=5;
+        g.Talk(post);
+        int start=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_start");
+        Check(start>=0,"Unwon real cache challenge offers genuine defense");
+        g.Choose(start);
+        Check(g.OuterPatrolRaidersRemaining==2&&
+            !g.OuterPatrolPatchAvailable,"Full stock cannot be patched");
+
+        Point retreat=new Point();bool found=false;
+        for(int dx=-10;dx<=10&&!found;dx++)
+        for(int dy=-10;dy<=10&&!found;dy++)
+        {
+            Point p=new Point(post.x+dx,post.y+dy);
+            if(!g.CanStand(p)||
+                (p-new Point(post.x,post.y)).Length>10f||
+                (p-new Point(post.x-2f,post.y)).Length<5f)continue;
+            retreat=p;found=true;
+        }
+        Check(found,"Shipped map provides a real safe observation foot");
+        g.save.x=retreat.x;g.save.y=retreat.y;
+        for(int i=0;i<1000&&g.OuterPatrolActive&&
+                g.OuterPatrolIntegrity==100f;i++)
+            g.Tick(.02f,new Point());
+        Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity<100f&&
+            g.OuterPatrolPatchAvailable,
+            "Real timed raider attacks eventually damage physical stores");
+
+        float damaged=g.OuterPatrolIntegrity;
+        Input.keys.Add(KeyCode.X);Update(app);
+        Check(g.save.inventory[0]==5&&g.save.inventory[2]==5,
+            "X cannot buy an emergency repair from a distant location");
+        g.save.x=post.x;g.save.y=post.y;
+        Input.keys.Add(KeyCode.X);Update(app);
+        Check(g.OuterPatrolIntegrity>damaged&&
+            g.save.inventory[0]==4&&g.save.inventory[2]==4,
+            "Real runtime X input repairs damaged cache with one real timber and herb");
+        Input.keys.Add(KeyCode.X);Update(app);
+        Check(g.save.inventory[0]==4&&g.save.inventory[2]==4&&
+            !g.OuterPatrolPatchAvailable,
+            "Repeated X key cannot duplicate one-use healing or spend resources");
+        Console.WriteLine("PASS live X repair respects damage, physical range and one-use stock");
+    }
+
     private static void LiveVKeyBarricadeUsesRealOutpostGuard(FrontierRuntime app)
     {
         Prepare(app,1);
@@ -1740,7 +1793,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

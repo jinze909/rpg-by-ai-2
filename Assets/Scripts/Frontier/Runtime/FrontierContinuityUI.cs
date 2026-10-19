@@ -217,7 +217,9 @@ namespace Starfall
                     (Game.OuterPatrolVeteranActive?
                         Game.L("精英补给保卫 · 倒计时 ","VETERAN CACHE SIEGE · "):
                         Game.L("救援岗防卫 · 倒计时 ","RELIEF OUTPOST DEFENSE · "))+
-                    Math.Ceiling(Game.OuterPatrolTime)+"s",
+                    Math.Ceiling(Game.OuterPatrolTime)+"s"+
+                    Game.L(" · 敌人剩余 "," · RAIDERS LEFT ")+
+                    Game.OuterPatrolRaidersRemaining,
                     15,paper,TextAnchor.MiddleCenter);
                 Text(398,49,481,18,
                     Game.L("物资耐久 ","CACHE INTEGRITY ")+
@@ -228,7 +230,7 @@ namespace Starfall
                         (Game.OuterPatrolFlawlessEligible?
                             Game.L(" · 无损挑战中"," · FLAWLESS ACTIVE"):""):"")+
                     (Game.OuterPatrolPatchAvailable?
-                        Game.L(" · 按 E 抢修"," · E TO PATCH"):"")+
+                        Game.L(" · 靠近哨岗按 X 抢修"," · NEAR POST: X TO PATCH"):"")+
                     (Game.OuterPatrolBraceAvailable?
                         Game.L(" · 靠近哨岗按 V 架路障"," · NEAR POST: V TO BRACE"):""),
                     11,accent,TextAnchor.MiddleCenter);

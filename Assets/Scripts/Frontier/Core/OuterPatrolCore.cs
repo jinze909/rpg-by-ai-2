@@ -31,6 +31,15 @@ namespace Starfall
             outerPatrolStock>0f&&outerPatrolStock<100f&&
             save.inventory[0]>0&&save.inventory[2]>0;}}
         public bool OuterPatrolActive { get { return outerPatrolRoom==save.room; } }
+        public int OuterPatrolRaidersRemaining
+        {
+            get
+            {
+                if(!OuterPatrolActive)return 0;
+                return (outerPatrolADead?0:1)+(outerPatrolBDead?0:1)+
+                    (outerPatrolVeteran&&!outerPatrolCDead?1:0);
+            }
+        }
         public bool OuterPatrolVeteranActive
         { get { return OuterPatrolActive&&outerPatrolVeteran; } }
         public bool OuterPatrolVeteranDone(int room)
@@ -390,6 +399,14 @@ namespace Starfall
         {
             if(mode!="world"||!OuterPatrolBraceAvailable)return;
             ChooseOuterPatrol("outer_watch_brace");
+        }
+        public void QuickPatchOuterPatrol()
+        {
+            // X in-world does not open/stop the real siege clock. Spend the
+            // SAME wood/herb transaction as the E dialogue: true damaged
+            // stock, real nearby contact, exactly once per attempt.
+            if(mode!="world"||!OuterPatrolPatchAvailable)return;
+            ChooseOuterPatrol("outer_watch_patch");
         }
         private bool ChooseOuterPatrol(string action)
         {
