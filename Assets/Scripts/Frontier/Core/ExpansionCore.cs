@@ -590,10 +590,18 @@ namespace Starfall
                             // A vanished/stunned/occluded old lock may instead
                             // hand the same prepared shot to a new legal foe.
                             Enemy urgent=NearestCompanionThreat();
+                            Point oldAim=locked==null?new Point():
+                                locked.Position-companionPosition;
+                            // A clear foot-to-target segment is not enough:
+                            // the exact swept hand/muzzle may be embedded in
+                            // a neighboring wall. Reassess that same geometry
+                            // before preserving a prepared target lock.
                             bool oldValid=locked!=null&&locked.hp>0&&
-                                enemies.Contains(locked)&&
-                                (locked.Position-companionPosition).Length<7f&&
-                                ClearAttackPath(companionPosition,locked.Position);
+                                enemies.Contains(locked)&&oldAim.Length<7f&&
+                                ClearAttackPath(companionPosition,locked.Position)&&
+                                !WeaponShot(companionPosition,
+                                    action.weapon==1?1:2,oldAim.Normalized,
+                                    9f,0f,(Point?)locked.Position).blockedAtSpawn;
                             if(urgent!=null&&
                                 (!oldValid||
                                  CompanionCacheContactImminent(urgent)&&

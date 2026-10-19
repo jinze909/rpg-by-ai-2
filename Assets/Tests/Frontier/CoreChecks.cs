@@ -1706,6 +1706,102 @@ namespace Starfall.Tests
                 "A recovered original bow release still creates a real arrow");
         }
 
+        public static void GuardedAllyRetargetsWhenLockedMuzzleBecomesBlocked(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"Real watchpost offers the veteran defense");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Ranger can take the physical guard order");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Release-time retargeting runs only under a real guard order");
+            g.companionPosition=g.OuterPatrolCompanionGuardPosition;
+            g.enemies.Clear();g.projectiles.Clear();
+
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+            var shot=typeof(GameCore).GetMethod("WeaponShot",flags);
+            var tick=typeof(GameCore).GetMethod("TickCompanion",flags);
+            var target=typeof(GameCore).GetField("companionAutoTarget",flags);
+            var cooldown=typeof(GameCore).GetField("companionAttack",flags);
+            Check(clear!=null&&shot!=null&&tick!=null&&target!=null&&
+                cooldown!=null,"Exercise real path, muzzle, target and release APIs");
+
+            Point origin=g.companionPosition;
+            List<Point> open=new List<Point>();
+            List<Point> muzzleBlocked=new List<Point>();
+            for(float dx=-6.5f;dx<=6.5f;dx+=.25f)
+            for(float dy=-6.5f;dy<=6.5f;dy+=.25f)
+            {
+                Point p=origin+new Point(dx,dy);
+                float distance=(p-origin).Length;
+                if(distance<1.4f||distance>=6.9f||!g.CanStand(p)||
+                    !(bool)clear.Invoke(g,new object[]{origin,p}))
+                    continue;
+                Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                    origin,1,(p-origin).Normalized,9f,0f,(Point?)p});
+                if(probe.blockedAtSpawn)muzzleBlocked.Add(p);
+                else open.Add(p);
+            }
+            open.Sort((a,b)=>(a-origin).Length.CompareTo((b-origin).Length));
+            Check(open.Count>=2&&muzzleBlocked.Count>0,
+                "Authored terrain provides both a valid shot and a clear-feet/blocked-muzzle corner");
+            Point first=open[0],alternate=new Point(),corner=new Point();
+            bool foundAlternate=false,foundCorner=false;
+            float firstDistance=(first-origin).Length;
+            foreach(Point candidate in open)
+                if((candidate-origin).Length>=firstDistance+1f&&
+                    (candidate-first).Length>=1.25f)
+                {alternate=candidate;foundAlternate=true;break;}
+            foreach(Point candidate in muzzleBlocked)
+                if((candidate-origin).Length<6.9f&&
+                    (candidate-first).Length>1f&&
+                    (candidate-alternate).Length>1.25f)
+                {corner=candidate;foundCorner=true;break;}
+            Check(foundAlternate&&foundCorner,
+                "Find a distinct legal backup and a reproducible muzzle-only obstruction");
+
+            Enemy primary=new Enemy(920610,0,first.x,first.y,30f);
+            Enemy backup=new Enemy(920611,0,alternate.x,alternate.y,30f);
+            g.enemies.Add(primary);g.enemies.Add(backup);
+            cooldown.SetValue(g,0f);
+            tick.Invoke(g,new object[]{.02f});
+            Check(g.companionAction!=null&&g.companionAction.kind=="attack"&&
+                (Enemy)target.GetValue(g)==primary,
+                "Automatic bow draw starts on the nearest genuinely shootable foe");
+
+            primary.x=corner.x;primary.y=corner.y;
+            Point blockedAim=primary.Position-origin;
+            Projectile blockedProbe=(Projectile)shot.Invoke(g,new object[]{
+                origin,1,blockedAim.Normalized,9f,0f,(Point?)primary.Position});
+            Check((bool)clear.Invoke(g,new object[]{origin,primary.Position})&&
+                blockedProbe.blockedAtSpawn,
+                "Locked foe keeps clear foot LOS while its real muzzle becomes blocked");
+            tick.Invoke(g,new object[]{.16f});
+            Check(g.companionAction!=null&&g.companionAction.released&&
+                (Enemy)target.GetValue(g)==backup&&
+                g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "Prepared shot redirects at release to the valid backup instead of wasting its contact");
+            Check(g.companionAction.target.HasValue&&
+                (g.companionAction.target.Value-backup.Position).Length<.01f,
+                "Released projectile target and live aim stay on the replacement foe");
+        }
+
         public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
