@@ -13,6 +13,9 @@ namespace Starfall
         public float GlasswindCharge { get; private set; }
         private float glasswindSurgeTimer;
         private int glasswindSurgeCycle;
+        // A crowded second-wave arena is a retryable transient state,
+        // not permission to discard four seconds of actual player defense.
+        private bool glasswindReinforcementsDeferred;
         // Two real kills from EACH wave, never inferred from an empty list.
         private int glasswindConfirmedKills;
         private bool GlasswindWavesDefeated { get { return glasswindConfirmedKills==15; } }
@@ -51,6 +54,7 @@ namespace Starfall
             hazards.RemoveAll(h => h.glasswindOwned);
             effects.RemoveAll(e => e.glasswindOwned);
             glasswindSurgeTimer=0;glasswindSurgeCycle=0;
+            glasswindReinforcementsDeferred=false;
             glasswindConfirmedKills=0;
             GlasswindSite=GlasswindWave=0;
             GlasswindTime=GlasswindCharge=0;
@@ -374,11 +378,21 @@ namespace Starfall
             {
                 if(!SpawnGlasswindWave(2))
                 {
-                    ResetGlasswind();revision++;
-                    Notify("增援队缺少安全落点，中继重置，可重试。",
-                        "Reinforcements lacked a safe spawn; relay reset for free.");
+                    // Do not let a temporarily occupied foot cause an
+                    // unrecoverable reset. Hold at the first-wave threshold
+                    // until two genuinely clear feet are available; keep
+                    // the 95-second deadline and first-wave combat alive.
+                    GlasswindCharge=4f;
+                    if(!glasswindReinforcementsDeferred)
+                    {
+                        glasswindReinforcementsDeferred=true;
+                        revision++;
+                        Notify("增援暂缺安全落点，已保留第一波守点进度。清出位置后继续迎战。",
+                            "Reinforcements need clear ground. First-wave progress is held; clear the arena to continue.");
+                    }
                     return;
                 }
+                glasswindReinforcementsDeferred=false;
                 sound="windup";revision++;
                 Notify("第二波重甲守卫来袭！","The armored second wave is coming!");
             }

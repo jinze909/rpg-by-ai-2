@@ -190,6 +190,68 @@ namespace Starfall.Tests
             finally {data.maps[6]=original;}
         }
 
+        public static void CrowdedSecondGlasswindWaveWaitsWithoutDiscardingLiveDefense(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"harbor_report","desert_report",
+                "gate_6","glasswind_started"})g.save.flags.Add(flag);
+            g.Enter(6);g.enemies.Clear();g.invulnerable=180;
+            WorldObject valve=Object(g,"glasswindrelay1");
+            g.save.x=valve.x;g.save.y=valve.y;
+            Action(g,valve.kind,"glasswind_start_1");
+            Check(g.GlasswindSite==1&&g.GlasswindWave==1&&
+                g.enemies.FindAll(g.IsGlasswindEnemy).Count==2,
+                "The real northern relay starts with two original guards");
+            foreach(Enemy guard in g.enemies.FindAll(g.IsGlasswindEnemy))
+            {guard.stun=120;guard.timer=120;}
+            // Crowd all eight authored potential reinforcement feet.
+            // Existing original wave-one guards keep their actual positions.
+            Point[] offsets={new Point(3.2f,0),new Point(-3.2f,0),
+                new Point(0,3.2f),new Point(0,-3.2f),
+                new Point(2.8f,2.8f),new Point(-2.8f,-2.8f),
+                new Point(-2.8f,2.8f),new Point(2.8f,-2.8f)};
+            var blockers=new System.Collections.Generic.List<Enemy>();
+            foreach(Point offset in offsets)
+            {
+                Point spot=new Point(valve.x,valve.y)+offset;
+                if(!g.CanStand(spot))continue;
+                bool alreadyCovered=false;
+                foreach(Enemy guard in g.enemies)
+                    if(guard.hp>0&&(guard.Position-spot).Length<1.55f)
+                    {alreadyCovered=true;break;}
+                if(alreadyCovered)continue;
+                var bystander=new Enemy(92600+blockers.Count,0,
+                    spot.x,spot.y,900){stun=200,timer=1000};
+                g.enemies.Add(bystander);blockers.Add(bystander);
+            }
+            Check(blockers.Count>=4,
+                "At least four genuine remaining authored wave-two sites are blocked by living actors");
+            float firstDeadline=g.GlasswindTime;
+            Advance(g,4.25f);
+            Check(g.GlasswindSite==1&&g.GlasswindWave==1&&
+                Math.Abs(g.GlasswindCharge-4f)<.02f&&
+                g.enemies.FindAll(g.IsGlasswindEnemy).Count==2&&
+                g.GlasswindTime<firstDeadline-4.1f,
+                "Full second-wave occupancy retains genuine first-wave guards and exact four-second progress while countdown continues");
+            float held=g.GlasswindTime;
+            Advance(g,.45f);
+            Check(g.GlasswindSite==1&&g.GlasswindWave==1&&
+                Math.Abs(g.GlasswindCharge-4f)<.02f&&
+                g.GlasswindTime<held-.4f,
+                "Repeated deployment failure neither restarts the trial nor freezes its real time limit");
+            foreach(Enemy blocker in blockers)g.enemies.Remove(blocker);
+            Advance(g,.15f);
+            Check(g.GlasswindSite==1&&g.GlasswindWave==2&&
+                g.enemies.FindAll(g.IsGlasswindEnemy).Count==4&&
+                g.GlasswindCharge>=4f&&g.GlasswindCharge<4.2f,
+                "Clearing actual reinforcement footing deploys exactly two new living fighters without losing progress");
+            Advance(g,4.15f);
+            Check(g.GlasswindCharge>=8f&&!g.Has("glasswind_1")&&
+                g.GlasswindWave==2&&g.save.version==2,
+                "The conserved charge resumes to full meter but still requires four real kills and a manual seal");
+        }
+
         public static void GlasswindCircuitHasRealCaptureWavesAndPermanentShade(Campaign data)
         {
             var g=Fresh(data);
