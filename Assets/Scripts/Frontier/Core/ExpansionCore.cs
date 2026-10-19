@@ -498,28 +498,39 @@ namespace Starfall
             Enemy nearest=null;
             float best=7f*7f;
             int bestPriority=int.MaxValue;
+            // When multiple raiders have committed genuine stock strikes,
+            // the earliest physical contact wins; distance is only the tie
+            // breaker. Otherwise Ivo could shoot a nearby slow windup while a
+            // farther heavy lands an already-warned hit on the protected cache.
+            float bestStockSeconds=float.PositiveInfinity;
             foreach(Enemy foe in enemies)
             {
                 if(foe==null || foe.hp<=0)continue;
                 Point delta=foe.Position-companionPosition;
                 float squared=delta.x*delta.x+delta.y*delta.y;
-                // In a real cache defense, intercepting its owned melee
-                // raider matters more than firing at a nearer wandering mob.
-                // Only prioritize foes that can be physically shot; an
-                // occluded saboteur must never starve a visible ordinary foe.
-                // When two authentic saboteurs are shootable, an attack
-                // already committed toward the cache is the emergency.
-                // A closer but idle breaker must not starve a heavy's
-                // imminent timed contact. Never skip normal physical shot
-                // clearance for the high-priority target.
                 bool saboteur=OuterPatrolActive&&
                     IsOuterPatrolEnemy(foe)&&foe.kind!=1;
                 int priority=saboteur?
                     (OuterPatrolUncoveredStockStrike(foe)?0:1):2;
-                if(squared>=7f*7f ||
-                    priority>bestPriority ||
-                    (priority==bestPriority&&squared>=best) ||
-                    !ClearAttackPath(companionPosition,foe.Position))
+                if(squared>=7f*7f || priority>bestPriority)
+                    continue;
+                float stockSeconds=priority==0&&
+                    !float.IsNaN(foe.timer)&&!float.IsInfinity(foe.timer)?
+                    Math.Max(0f,foe.timer):float.PositiveInfinity;
+                if(priority==bestPriority)
+                {
+                    if(priority==0)
+                    {
+                        bool earlier=stockSeconds<bestStockSeconds;
+                        bool tied=stockSeconds==bestStockSeconds||
+                            (!float.IsInfinity(stockSeconds)&&
+                             !float.IsInfinity(bestStockSeconds)&&
+                             Math.Abs(stockSeconds-bestStockSeconds)<=.0001f);
+                        if(!earlier&&!(tied&&squared<best))continue;
+                    }
+                    else if(squared>=best)continue;
+                }
+                if(!ClearAttackPath(companionPosition,foe.Position))
                     continue;
                 // A clear feet-to-target lane is not necessarily a usable shot:
                 // Ivo's bow and Mira/Sen's staff extend into neighboring tiles.
@@ -532,6 +543,7 @@ namespace Starfall
                     foe.Position).blockedAtSpawn)
                     continue;
                 best=squared;bestPriority=priority;nearest=foe;
+                bestStockSeconds=priority==0?stockSeconds:float.PositiveInfinity;
             }
             return nearest;
         }

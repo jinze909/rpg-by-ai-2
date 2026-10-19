@@ -2006,6 +2006,47 @@ namespace Starfall.Tests
                 "Prepared shot's direction and target both follow actual threat");
         }
 
+        public static void CompanionPrioritizesSoonestAuthenticStockStrike(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"A real veteran cache defense can be started");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "Both authentic stock-raiding enemy classes exist");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            PlaceShootableCacheContact(g,post,melee,heavy);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
+            heavy.state=1;heavy.targetingOuterPatrolStock=true;
+            melee.state=1;melee.targetingOuterPatrolStock=true;
+            Enemy near=(heavy.Position-g.companionPosition).Length<
+                (melee.Position-g.companionPosition).Length?heavy:melee;
+            Enemy far=near==heavy?melee:heavy;
+            near.timer=.9f;far.timer=.12f;
+            Check(g.OuterPatrolIncomingStockThreat==far,
+                "Real stock-warning selector confirms the farther strike lands first");
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(select!=null,"Use the production companion target selector");
+            Check((Enemy)select.Invoke(g,null)==far,
+                "Companion chooses earliest real stock contact over the nearer slower raider");
+            near.timer=far.timer=.4f;
+            Check((Enemy)select.Invoke(g,null)==near,
+                "Equal imminent contact times retain nearest-target tie breaking");
+        }
+
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");

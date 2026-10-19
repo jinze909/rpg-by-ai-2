@@ -119,6 +119,7 @@ namespace Starfall.Tests
         [Test] public void ManualArcherVolleyMustClearPhysicalMuzzle() { CoreChecks.ManualCompanionVolleyCannotSpendCooldownFromBlockedMuzzle(Data()); }
         [Test] public void CompanionReleaseReacquiresAfterMuzzleBlockOrTargetDeathAndPreservesManualAim() { CoreChecks.GuardedAllyRetargetsWhenLockedMuzzleBecomesBlocked(Data()); }
         [Test] public void GuardedCompanionRedirectsPreparedShotToRealStockThreat() { CoreChecks.GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Data()); }
+        [Test] public void CompanionPrioritizesSoonestAuthenticStockStrike() { CoreChecks.CompanionPrioritizesSoonestAuthenticStockStrike(Data()); }
         [Test] public void BothRangerSkillsRequireRealPhysicalMuzzle() { CoreChecks.RangerSkillsCannotLaunchProjectilesFromBuriedPhysicalMuzzle(Data()); }
         [Test] public void AutoHealingRequiresRealLineOfSight() { CoreChecks.CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Data()); }
         [Test] public void AllyFeetNeverOverlapHeroOnNarrowBridges() { CoreChecks.CompanionNarrowBridgesKeepSeparateSafeFeet(Data()); }
