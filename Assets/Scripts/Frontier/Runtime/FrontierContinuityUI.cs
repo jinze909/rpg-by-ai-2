@@ -205,6 +205,14 @@ namespace Starfall
             }
             else if (Game.OuterPatrolActive)
             {
+                // Read the expensive physical-threat selector once per IMGUI
+                // pass. Its result feeds the ETA and heavy-hit label together,
+                // avoiding three repeated enemy/LOS/muzzle scans in one panel.
+                Enemy incomingStockThreat=Game.OuterPatrolIncomingStockThreat;
+                float incomingStockSeconds=incomingStockThreat==null?-1f:
+                    Math.Max(0f,incomingStockThreat.timer);
+                bool incomingStockHeavy=incomingStockThreat!=null&&
+                    incomingStockThreat.kind==2;
                 // The threatened relief cache must be readable even when
                 // the hero is intercepting a raider beyond the watchpost.
                 // Register this panel as HUD geometry so warning overlays
@@ -220,11 +228,11 @@ namespace Starfall
                     Math.Ceiling(Game.OuterPatrolTime)+"s"+
                     Game.L(" · 敌人剩余 "," · RAIDERS LEFT ")+
                     Game.OuterPatrolRaidersRemaining+
-                    (Game.OuterPatrolIncomingStockSeconds>=0f?
-                        (Game.OuterPatrolIncomingStockHeavy?
+                    (incomingStockSeconds>=0f?
+                        (incomingStockHeavy?
                             Game.L(" · 重甲即将砸击 "," · HEAVY HIT IN "):
                             Game.L(" · 物资即将遇袭 "," · CACHE HIT IN "))+
-                        Game.OuterPatrolIncomingStockSeconds.ToString("0.0")+"s":
+                        incomingStockSeconds.ToString("0.0")+"s":
                         Game.save.companion>=0?
                         (Game.OuterPatrolMedicRallying?
                             Game.L(" · 救援中 · 召回 Y"," · MEDIC · RECALL Y"):

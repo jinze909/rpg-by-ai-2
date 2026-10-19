@@ -1,5 +1,15 @@
 # AI-2 live development handoff — Starfall Frontier
 
+## 2026-10-19 AI-2 outpost threat ordering and malformed enemy-clock recovery
+
+- **Scope and source:** Continued exclusively on `jinze909/rpg-by-ai-2/chatgpt/dev`, starting at verified parent `37bb3f69d3b17e6a3a50f9331942d187cb4fd4c6`. All updates were non-forced compare-and-swap fast-forwards; no other repository/branch, schedules, hero artwork, Unity GUIDs, saved data or quest schema were changed.
+- [`ce9d324f`](https://github.com/jinze909/rpg-by-ai-2/commit/ce9d324ff27004ae302b76d2f3eb40c3ca088a43): the real outpost warning selector ignores non-finite attack clocks and resolves equal-deadline threats by physical distance to the cache, with a stable heavy-threat tie-break. Actual CoreChecks use live patrol enemies and validate the HUD heavy indicator.
+- [`68f7b850`](https://github.com/jinze909/rpg-by-ai-2/commit/68f7b8509eb56c5a2cdd4436d7f512e07592c6d4): target selection and release retargeting preserve raw signed attack deadlines; an already-overdue strike is not collapsed into a distance-only tie with a positive countdown.
+- [`5056380d`](https://github.com/jinze909/rpg-by-ai-2/commit/5056380da2492536a5be313940fb5dfc6ebc3cac) and [`37bb3f69`](https://github.com/jinze909/rpg-by-ai-2/commit/37bb3f69d3b17e6a3a50f9331942d187cb4fd4c6): non-finite enemy windup and idle cooldown timers now reset to a short safe reacquisition; objective target flags and the enemy-owned pending danger cue are retired. Regression coverage exercises NaN and infinity in both states and proves malformed clocks cannot damage the real cache.
+- [CI SUCCESS for `37bb3f69`](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39288918800): actual offline C# gameplay checks, assembly checks, canonical hero/source art gates and the full 51-step core workflow completed without failures.
+- **Current follow-up:** `FrontierContinuityUI` reads the selected physical stock threat once per active outpost HUD pass and derives ETA plus heavy-hit label from that same actor. This avoids three repeated enemy/line-of-sight/muzzle scans in one IMGUI panel; gameplay timing and damage are unchanged. The current commit's CI must still be checked before this UI optimization is marked verified.
+- **Verification boundary:** Licensed Unity 2022.3.53f1 Editor, PlayMode and native GameView/GPU review have not run here: retain **`NATIVE_UNVERIFIED`**. The 18 original full-body hero Attack/Cast contact drawings and moving recovery still require legitimate art and review: **`ART_REVIEW_REQUIRED`**.
+
 ## 2026-10-16 AI-2 verified water biome and campfire original sprite animation
 
 - **Source synchronization and scope:** Verified live `jinze909/rpg-by-ai-2/chatgpt/dev` HEAD `4867e76d4ddc2287911cfaae5c989d2b3ca98b9e` and green CI before edits, after the prior AI-2 reimport/Boss hit-fix handoff. Wrote exclusively this branch with `expected_sha` + `force:false` fast-forward. Other team repository and all Muse scheduling/task controls were untouched. Unity target 2022.3.53f1; golden protagonist source pixels, NPC identities, original Terrain/FieldProps/Effects atlases, their GUIDs, GameCore, quests and old saves unchanged.
