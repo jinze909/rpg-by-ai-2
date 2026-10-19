@@ -235,6 +235,20 @@ namespace Starfall
         private readonly System.Collections.Generic.HashSet<string>
             missingHeroBodyWarnings = new System.Collections.Generic.HashSet<string>();
 
+        // Preserve a source-authored planted Run contact for a few frames
+        // when the hero releases movement on a passing gait cell. This state
+        // is presentation-only and shared by SpriteRenderer and OnGUI through
+        // ResolveFullBodyHeroFrame; it never moves the GameCore root or alters
+        // attack, projectile, collision, or foot-contact clocks.
+        private const float HeroStopPlantSeconds=.075f;
+        private GameCore heroGaitOwner;
+        private int heroGaitRoom=-1,heroGaitAppearance=-1,heroGaitFacing=-1;
+        private int heroGaitFrame=-1;
+        private Point heroGaitPosition;
+        private float heroGaitLastAt=float.NegativeInfinity;
+        private bool heroGaitWasMoving,heroStopPlantActive;
+        private int heroStopPlantFrame;
+        private float heroStopPlantUntil=float.NegativeInfinity;
 
         // A contact transfer is considered live only when the COMPLETE set
         // of 18 seven-cell actions exists: no mixed professions/facings.
@@ -351,6 +365,93 @@ namespace Starfall
             return cached?accepted:null;
         }
 
+        private void ApplyHeroStopPlant(bool moving,int facing,
+            ref int action,ref int frames,ref int index,ref float position)
+        {
+            bool validClock=!float.IsNaN(clock)&&!float.IsInfinity(clock);
+            int appearance=Game.AppearanceWeapon;
+            bool sameContext=validClock&&
+                System.Object.ReferenceEquals(heroGaitOwner,Game)&&
+                heroGaitRoom==Game.save.room&&
+                heroGaitAppearance==appearance&&heroGaitFacing==facing&&
+                (Game.Position-heroGaitPosition).Length<1.5f&&
+                clock>=heroGaitLastAt;
+            if(heroStopPlantActive&&
+                (!sameContext||moving||action!=0||
+                 Game.save.reducedMotion||clock>=heroStopPlantUntil))
+                heroStopPlantActive=false;
+
+            if(moving&&action==1)
+            {
+                heroStopPlantActive=false;
+                if(validClock)
+                {
+                    heroGaitOwner=Game;heroGaitRoom=Game.save.room;
+                    heroGaitAppearance=appearance;heroGaitFacing=facing;
+                    heroGaitPosition=Game.Position;heroGaitLastAt=clock;
+                    heroGaitFrame=index;heroGaitWasMoving=true;
+                }
+                else
+                {
+                    heroGaitOwner=null;heroGaitLastAt=float.NegativeInfinity;
+                    heroGaitWasMoving=false;
+                }
+                return;
+            }
+
+            if(!moving&&action==0)
+            {
+                if(heroStopPlantActive&&sameContext&&
+                    clock<heroStopPlantUntil&&!Game.save.reducedMotion)
+                {
+                    action=1;frames=4;index=heroStopPlantFrame;
+                    position=heroStopPlantFrame;
+                    return;
+                }
+                heroStopPlantActive=false;
+                if(heroGaitWasMoving&&sameContext&&
+                    !Game.save.reducedMotion)
+                {
+                    int previous=heroGaitFrame;
+                    heroGaitWasMoving=false;
+                    // Authored gait contacts are cells 0 and 2. Keep the
+                    // next actual planted cell only; do not replay airborne
+                    // cell 3 after the world root has stopped.
+                    int planted=previous==1?2:previous==3?0:
+                        previous==2?2:-1;
+                    float until=clock+HeroStopPlantSeconds;
+                    if(planted>=0&&validClock&&
+                        !float.IsNaN(until)&&!float.IsInfinity(until)&&
+                        until>clock)
+                    {
+                        heroStopPlantFrame=planted;
+                        heroStopPlantUntil=until;
+                        heroStopPlantActive=true;
+                        action=1;frames=4;index=planted;
+                        position=planted;
+                        return;
+                    }
+                }
+                else heroGaitWasMoving=false;
+                return;
+            }
+
+            // Attack, Cast, Dodge, Hit, Death, a direction change, and
+            // Reduced Motion immediately regain their own frame authority.
+            heroStopPlantActive=false;
+            heroGaitWasMoving=false;
+            if(validClock)
+            {
+                heroGaitOwner=Game;heroGaitRoom=Game.save.room;
+                heroGaitAppearance=appearance;heroGaitFacing=facing;
+                heroGaitPosition=Game.Position;heroGaitLastAt=clock;
+            }
+            else
+            {
+                heroGaitOwner=null;heroGaitLastAt=float.NegativeInfinity;
+            }
+        }
+
         private bool ResolveFullBodyHeroFrame(bool moving,int facing,
             out int action,out int frames,out int index,out float position)
         {
@@ -394,6 +495,8 @@ namespace Starfall
             }
             if(action==1)position%=frames;
             index=Math.Max(0,Math.Min(frames-1,(int)Math.Floor(position+.20f)));
+            ApplyHeroStopPlant(moving,facing,ref action,ref frames,
+                ref index,ref position);
             return true;
         }
 

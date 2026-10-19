@@ -70,6 +70,131 @@ public static class ActorRegistrationChecks
         }
         Console.WriteLine("PASS "+total+" player combinations: exact foot/canvas density, fixed blonde head, four directions, contact, guard, recoil and death");
     }
+    static int AtlasFrame(GUI.TextureCall call,int columns,int rows)
+    {
+        int column=(int)Math.Round(Math.Min(call.uv.x,
+            call.uv.x+call.uv.width)*columns);
+        int row=(int)Math.Round((1f-call.uv.y-
+            Math.Abs(call.uv.height))*rows);
+        return row*columns+column;
+    }
+
+    // The canonical blonde actor must stop on a genuine planted Run source
+    // cell before Idle, using the same frame resolver for native SpriteRenderer
+    // and the whole-body GUI fallback. No root translation or action clock is
+    // changed; all classes, cardinal facings, gait phases and interrupts run
+    // through the real DrawPlayerActor call.
+    static void HeroWalkStopUsesNextPlantedSourceCell(
+        FrontierRuntime app,string folder)
+    {
+        string[] classes={"Vanguard","Ranger","Arcanist"};
+        string[] facings={"E","E","N","S"};
+        for(int outfit=0;outfit<3;outfit++)
+        for(int heading=0;heading<4;heading++)
+        for(int phase=0;phase<4;phase++)
+        {
+            app.BeginVisualReview(outfit,0);
+            var game=app.Game;
+            game.enemies.Clear();game.save.companion=-1;
+            game.save.weapon=outfit;game.save.reducedMotion=false;
+            game.save.effectsQuality=2;game.playerAction=null;
+            game.playerHitTime=game.playerFlash=game.deathTime=
+                game.dashTime=game.guardTime=0f;
+            game.movementDirection=Directions[heading];
+            game.locomotionFacing=Directions[heading];
+            game.SetAim(Directions[heading]);
+            game.walkDistance=GameCore.WalkStride*(phase+.5f)/4f;
+            float start=180f+outfit*20f+heading*5f+phase;
+            Set(app,"clock",start);
+            Point pixel=new Point(500,350);
+            Place(app,game.Position,pixel);
+            Clear();
+            var moving=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+            string runName="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                classes[outfit]+"_Run_"+facings[heading];
+            Check(moving.texture.name==runName&&
+                AtlasFrame(moving,4,1)==phase,
+                "Hero stop fixture must begin on the selected canonical Run keypose");
+            Check((moving.uv.width<0)==(heading==1),
+                "Horizontal facing must retain the canonical left/right mirror");
+
+            game.movementDirection=new Point();
+            float stopAt=start+.01f;
+            Set(app,"clock",stopAt);Clear();
+            var stop=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+            int planted=phase==1?2:phase==3?0:phase==2?2:-1;
+            string idleName="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                classes[outfit]+"_Idle_"+facings[heading];
+            if(planted>=0)
+                Check(stop.texture.name==runName&&AtlasFrame(stop,4,1)==planted,
+                    "Hero must stop on the next authored planted Run frame, not an airborne pose");
+            else
+                Check(stop.texture.name==idleName,
+                    "Already-planted phase zero should return directly to Idle");
+            Check(Math.Abs(stop.rect.x-moving.rect.x)<.001f&&
+                Math.Abs(stop.rect.y-moving.rect.y)<.001f&&
+                Math.Abs(stop.rect.width-moving.rect.width)<.001f,
+                "Hero stop transition must keep the canonical full-body world root and scale");
+
+            Set(app,"clock",stopAt+.035f);Clear();
+            var held=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+            if(planted>=0)
+                Check(held.texture.name==runName&&AtlasFrame(held,4,1)==planted,
+                    "Hero must hold its planted contact instead of replaying the airborne stride");
+            else
+                Check(held.texture.name==idleName,
+                    "Phase-zero hero idle must not acquire a gait afterimage");
+
+            Set(app,"clock",stopAt+.09f);Clear();
+            var idle=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+            Check(idle.texture.name==idleName&&
+                Math.Abs(idle.rect.y-moving.rect.y)<.001f,
+                "Hero stop plant must return to the equipped Idle atlas after its bounded hold");
+            if(outfit==0&&heading==0&&phase==1)
+                GUI.Export(folder,"review-hero-stop-planted-contact");
+        }
+
+        // Accessibility bypass: reduced motion never retains a running body.
+        app.BeginVisualReview(0,0);
+        var reduced=app.Game;
+        reduced.save.weapon=0;reduced.save.reducedMotion=false;
+        reduced.playerAction=null;reduced.movementDirection=Directions[0];
+        reduced.locomotionFacing=Directions[0];reduced.SetAim(Directions[0]);
+        reduced.walkDistance=GameCore.WalkStride*.875f;
+        Set(app,"clock",400f);Clear();Draw(app,"DrawPlayerActor");
+        reduced.movementDirection=new Point();reduced.save.reducedMotion=true;
+        Set(app,"clock",400.01f);Clear();
+        var quiet=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+        Check(quiet.texture.name==
+            "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_Idle_E",
+            "Reduced motion must bypass hero stop-plant holds immediately");
+
+        // Real combat action interrupts any pending gait contact; after it
+        // ends the stale Run cell must not restart from a retired walk.
+        reduced.save.reducedMotion=false;
+        reduced.movementDirection=Directions[0];
+        reduced.walkDistance=GameCore.WalkStride*.875f;
+        Set(app,"clock",401f);Clear();Draw(app,"DrawPlayerActor");
+        reduced.movementDirection=new Point();
+        Set(app,"clock",401.01f);Clear();Draw(app,"DrawPlayerActor");
+        reduced.playerAction=new ActorAction{
+            kind="attack",weapon=0,equippedWeapon=0,profession=0,
+            direction=Directions[0],duration=1f,contact=.4f
+        };
+        Set(app,"clock",401.02f);Clear();
+        var attack=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+        Check(attack.texture.name==
+            "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_Attack_E",
+            "A real attack must cancel the pending hero gait contact immediately");
+        reduced.playerAction=null;
+        Set(app,"clock",401.03f);Clear();
+        var afterAttack=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+        Check(afterAttack.texture.name==
+            "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_Idle_E",
+            "A completed attack must not resurrect the prior running frame");
+        Console.WriteLine("PASS canonical hero stop-plant continuity: 48 class/facing/gait cases plus reduced-motion and real attack interrupts");
+    }
+
     static void ProductionLoadoutUsesFullBodyHero(FrontierRuntime app)
     {
         app.BeginVisualReview(0,0);
@@ -2975,7 +3100,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
