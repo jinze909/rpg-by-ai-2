@@ -37,6 +37,66 @@ namespace Starfall.Tests
                 "Interrupted encounter can restart free with two real raiders and unmodified v2 save format");
         }
 
+        public static void WayfarerAmbushFeetRejectIsolatedPocketAndOccupiedRealCompanion(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[40];
+                for(int y=0;y<40;y++)
+                {
+                    char[] tiles=new string('#',40).ToCharArray();
+                    if(y>=2&&y<=37)
+                        for(int x=2;x<=37;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                // The first former radius-three candidate (-3,-3) is
+                // apparently standable but enclosed inside genuine walls.
+                for(int y=15;y<=17;y++)
+                {
+                    char[] tiles=rows[y].ToCharArray();
+                    for(int x=15;x<=17;x++)
+                        if(x!=16||y!=16)tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,
+                    spawnX=19.5f,spawnY=19.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.save.x=19.5f;g.save.y=19.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.companionPosition=new Point(16.5f,19.5f);
+                Point isolated=new Point(16.5f,16.5f);
+                var existing=new Enemy(92711,0,19.5f,16.5f,100f)
+                    {stun=200f,timer=1000f};
+                g.enemies.Add(existing);
+                var method=typeof(GameCore).GetMethod("TryWayfarerAmbushFeet",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(method!=null&&g.CanStand(isolated)&&
+                    g.CanStand(g.companionPosition),
+                    "The actual rescue selector sees an isolated walkable room and a live companion foot");
+                object[] args={g.Position,null};
+                Check((bool)method.Invoke(g,args),
+                    "Ambush still has enough alternative combat floor with one sealed pocket, a friend and a bystander");
+                Point[] feet=(Point[])args[1];
+                Check(feet!=null&&feet.Length==2,
+                    "Two complete authored ambush feet preflight before any combat actor is inserted");
+                foreach(Point foot in feet)
+                    Check(g.CanStand(foot)&&
+                        (foot-isolated).Length>1.5f&&
+                        (foot-g.companionPosition).Length>=1.55f&&
+                        (foot-existing.Position).Length>=2.1f&&
+                        (foot-g.Position).Length>=2.7f,
+                        "Real spawn cannot overlap canonical hero, companion, ambient enemy or unreachable floor");
+                Check((feet[0]-feet[1]).Length>=3f&&
+                    g.enemies.Count==1&&!g.Has("wayfarer_1")&&
+                    g.WayfarerEncounterRoom==0&&g.save.version==2,
+                    "Preflight never materializes only one fighter, spends supplies, forges an award or changes the save");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void LateWayfarerBodyguardInterceptionIsRealCombat(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

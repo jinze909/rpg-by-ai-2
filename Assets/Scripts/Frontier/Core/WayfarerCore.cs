@@ -203,20 +203,8 @@ namespace Starfall
             {
                 Notify("先清理附近的普通敌人。", "Clear nearby patrols first."); return true;
             }
-            var positions = new List<Point>();
-            for (int radius = 3; radius <= 7 && positions.Count < 2; radius++)
-            for (int dx = -radius; dx <= radius && positions.Count < 2; dx++)
-            for (int dy = -radius; dy <= radius && positions.Count < 2; dy++)
-            {
-                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
-                Point p = new Point(npc.x + dx, npc.y + dy);
-                if (!CanStand(p) || (p - Position).Length < 2.7f ||
-                    positions.Exists(other => (other - p).Length < 3) ||
-                    enemies.Exists(e => (e.Position - p).Length < 2.1f) ||
-                    NavigationPath(p).Count == 0) continue;
-                positions.Add(p);
-            }
-            if (positions.Count != 2)
+            Point[] positions;
+            if (!TryWayfarerAmbushFeet(npc,out positions))
             {
                 Notify("附近没有足够安全的战斗空间；可选择物资救助。",
                     "Not enough clear space for an ambush; try donating supplies.");
@@ -238,6 +226,36 @@ namespace Starfall
             TrackQuest("wayfarers"); sound = "quest"; revision++;
             Notify("守住旅人安全度！敌人会冲向旅人，拦截并击退他们。",
                 "Protect the traveler! Raiders will rush them; intercept and defeat both.");
+            return true;
+        }
+        // Test candidate actor roots against a FULL walkable local route to
+        // the genuine civilian. NavigationPath can legally return a partial
+        // fallback toward unreachable shore tiles and cannot justify a
+        // real hostile spawn. Validate both raiders before changing flags.
+        private bool TryWayfarerAmbushFeet(Point civilian,out Point[] result)
+        {
+            result=null;
+            if(!CanStand(civilian))return false;
+            var positions=new List<Point>();
+            for(int radius=3;radius<=7&&positions.Count<2;radius++)
+            for(int dx=-radius;dx<=radius&&positions.Count<2;dx++)
+            for(int dy=-radius;dy<=radius&&positions.Count<2;dy++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point foot=civilian+new Point(dx,dy);
+                if(!CanStand(foot)||
+                   (foot-Position).Length<2.7f||
+                   (save.companion>=0 &&
+                    (foot-companionPosition).Length<1.55f)||
+                   positions.Exists(p=>(p-foot).Length<3f)||
+                   enemies.Exists(e=>e.hp>0&&
+                        (e.Position-foot).Length<2.1f)||
+                   !ActorHasLocalRoute(foot,civilian,12))
+                    continue;
+                positions.Add(foot);
+            }
+            if(positions.Count!=2)return false;
+            result=positions.ToArray();
             return true;
         }
         // The player can physically bodyguard a committed traveler strike.
