@@ -179,6 +179,87 @@ namespace Starfall.Tests
             finally {data.maps[3]=original;}
         }
 
+        public static void MinecartStaleRailwayActionsCannotSpendOrRewardThroughClosedWall(Campaign data)
+        {
+            MapData original=data.maps[3];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[3]=new MapData {id=3,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;g.Enter(3);
+                g.enemies.Clear();g.save.flags.Add("boss_3");
+                g.save.flags.Add("gate_3");g.invulnerable=180;
+                WorldObject west=MineCartTestPost(g,1),
+                    relay=MineCartTestPost(g,2),end=MineCartTestPost(g,3);
+                g.save.x=west.x+1.75f;g.save.y=west.y;
+                g.Talk(west);
+                Check(g.mode=="dialog"&&g.CanStand(g.Position),
+                    "The real western railway dispatch offers the original cart start on accessible ground");
+                int wy=(int)Math.Floor(west.y),wx=(int)Math.Floor(west.x)+1;
+                char[] blocked=rows[wy].ToCharArray();
+                blocked[wx]='#';rows[wy]=new string(blocked);
+                Check(g.CanStand(g.Position)&&g.Blocked(wx+.5f,wy+.5f),
+                    "A real solid mine wall seals the dispatch while the hero stands beyond it");
+                Check(MineCartTestChoice(g,"mineconvoy_start")&&
+                    !g.MineConvoyActive&&!g.Has("mineconvoy_started"),
+                    "Previously offered start cannot materialize a cart on the other side of solid cover");
+                blocked[wx]='.';rows[wy]=new string(blocked);
+                g.Talk(west);
+                Check(MineCartTestChoice(g,"mineconvoy_start")&&
+                    g.MineConvoyActive&&g.MineConvoyStage==1,
+                    "Opening the exact wall starts the authentic railway mission");
+                WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+                Check(g.MineConvoyStage==2&&
+                    g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                    "The physical cart reaches the original guarded switchyard");
+                DefeatMinecartRaiders(g,relay);
+                int coins=g.save.coins;
+                g.save.x=relay.x+1.75f;g.save.y=relay.y;
+                Check(g.CanStand(g.Position),
+                    "The living hero may reach the east side of the original switchyard post");
+                g.Talk(relay);
+                int ry=(int)Math.Floor(relay.y),rx=(int)Math.Floor(relay.x)+1;
+                char[] sw=rows[ry].ToCharArray();sw[rx]='#';
+                rows[ry]=new string(sw);
+                Check(g.CanStand(g.Position)&&g.Blocked(rx+.5f,ry+.5f),
+                    "The switchyard now has a real full-wall divide between worker and hero");
+                Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                    g.MineConvoyStage==2&&g.MineConvoyActive&&
+                    g.save.coins==coins,
+                    "A cached switch lever cannot move a defended cart forward through closed scenery");
+                sw[rx]='.';rows[ry]=new string(sw);
+                g.Talk(relay);
+                Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                    g.MineConvoyStage==3,
+                    "Opening the exact barrier resumes the legitimate full railway escort");
+                WalkBesideMinecart(g,new Point(end.x,end.y),3);
+                Check(g.MineConvoyStage==4&&g.MineConvoyIntegrity>0,
+                    "The surviving real cart reaches the authored civilian shelter without a teleport");
+                g.save.x=end.x+1.75f;g.save.y=end.y;
+                Check(g.CanStand(g.Position),
+                    "The original depot has standable eastern approach terrain");
+                g.Talk(end);
+                int ey=(int)Math.Floor(end.y),ex=(int)Math.Floor(end.x)+1;
+                char[] finalWall=rows[ey].ToCharArray();
+                finalWall[ex]='#';rows[ey]=new string(finalWall);
+                Check(g.CanStand(g.Position)&&g.Blocked(ex+.5f,ey+.5f),
+                    "A newly sealed last wall separates the opened completion panel and physical depot");
+                Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                    !g.MineConvoyComplete&&g.MineConvoyStage==4&&
+                    g.save.coins==coins,
+                    "Cached depot registry cannot mint rescues, currency or upgrade discounts through a wall");
+                finalWall[ex]='.';rows[ey]=new string(finalWall);
+                g.Talk(end);
+                Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                    g.MineConvoyComplete&&g.save.coins==coins+60&&
+                    g.save.version==2,
+                    "Reopening real depot contact awards exactly one valid civilian rescue without altering existing saves");
+            }
+            finally {data.maps[3]=original;}
+        }
+
         public static void MinecartCivicTimberSavingsActuallyReachTownForge(Campaign data)
         {
             foreach(bool temper in new[]{false,true})

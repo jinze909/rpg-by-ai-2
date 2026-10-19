@@ -61,6 +61,7 @@ namespace Starfall.Tests
         [Test] public void MinecartMaterialsReallyLowerSmithCosts() { CoreChecks.MinecartCivicTimberSavingsActuallyReachTownForge(Data()); }
         [Test] public void CartEngineeringHalvesSteamAndAbortsSelectiveActors() { CoreChecks.MinecartEngineeringReallyReducesSteamDamageAndAbortIsSelective(Data()); }
         [Test] public void IronreachEscortRequiresActualFightingAndMovement() { CoreChecks.IronreachMinecartEscortProtectsRealWorkers(Data()); }
+        [Test] public void ClosedRailwayWallsInvalidateCachedCartAndDepotTransactions() { CoreChecks.MinecartStaleRailwayActionsCannotSpendOrRewardThroughClosedWall(Data()); }
         [Test] public void IronreachAmbushersNeverSpawnOnCartOrOccupiedActors() { CoreChecks.MinecartJunctionGuardsAvoidActualCombatActorOccupancy(Data()); }
         [Test] public void MinecartPressureRequiresWalkableLaneAndActiveUnstunnedGuard() { CoreChecks.MinecartHullOnlyDrainsFromUnobstructedLivingGuards(Data()); }
         [Test] public void FerrymanRemembersPublicArchiveChoice() { CoreChecks.RestoredFerrymanRespondsToActualCivicArchiveChoice(Data()); }

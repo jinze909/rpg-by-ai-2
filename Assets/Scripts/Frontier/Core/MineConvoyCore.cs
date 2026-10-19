@@ -199,12 +199,18 @@ namespace Starfall
             MineCartPosition=moved;
             revision++;
         }
+        // The rescue cart, live reinforcement purchase and final
+        // non-repeatable reward are physical railway interactions.
+        // Buttons opened before a wall closes may not skip real contact.
+        private bool CanReachMineCartPost(WorldObject site)
+        { return site!=null&&PhysicalRefugeReach(
+            new Point(site.x,site.y),1.8001f); }
         private bool TalkMineConvoy(WorldObject o)
         {
             if(o.kind!="mineconvoy")return false;
             int stage=0;for(int i=1;i<=3;i++)if(o.id=="mineconvoy_"+i)stage=i;
             if(stage==0||save.room!=3||
-                (Position-new Point(o.x,o.y)).Length>1.8f)return true;
+                !CanReachMineCartPost(o))return true;
             if(!Has("boss_3"))
             {
                 Dialog(o.name,o.en,
@@ -296,7 +302,7 @@ namespace Starfall
                 WorldObject start=MineCartPost(1);
                 if(start==null||MineConvoyActive||MineConvoyComplete||
                     !Has("boss_3")||FieldWorkPreventsRest||!SafeTravel||
-                    (Position-new Point(start.x,start.y)).Length>1.8f)return true;
+                    !CanReachMineCartPost(start))return true;
                 MineCartPosition=new Point(start.x,start.y);
                 mineConvoyBraced=false;MineConvoyStage=1;MineConvoyTime=110;MineConvoyIntegrity=80;
                 mineConvoySteam=5;
@@ -309,7 +315,7 @@ namespace Starfall
             {
                 WorldObject start=MineCartPost(1);
                 if(start==null||!MineConvoyActive||
-                    (Position-new Point(start.x,start.y)).Length>1.8f)return true;
+                    !CanReachMineCartPost(start))return true;
                 ResetMineConvoy();revision++;
                 Notify("矿车安全返回待命，任务可以免费重试。",
                     "Cart safely withdrawn. The rescue can be retried for free.");
@@ -319,7 +325,7 @@ namespace Starfall
             {
                 WorldObject relay=MineCartPost(2);
                 if(MineConvoyStage!=2||relay==null||
-                    (Position-new Point(relay.x,relay.y)).Length>1.8f||
+                    !CanReachMineCartPost(relay)||
                     enemies.Exists(IsMineConvoyEnemy)||!MineConvoyGuardsDefeated)return true;
                 if(action=="mineconvoy_brace")
                 {
@@ -342,7 +348,7 @@ namespace Starfall
             {
                 WorldObject end=MineCartPost(3);
                 if(MineConvoyStage!=4||end==null||MineConvoyComplete||
-                    (Position-new Point(end.x,end.y)).Length>1.8f)return true;
+                    !CanReachMineCartPost(end))return true;
                 bool braceEarned=mineConvoyBraced;
                 ResetMineConvoy();
                 if(braceEarned)Flag("mineconvoy_braced");
