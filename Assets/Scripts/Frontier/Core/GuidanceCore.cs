@@ -125,13 +125,22 @@ namespace Starfall
                     "After the original highland guardian falls, carry the civic ember from west to south in real cold. Defeat both guards, then choose a Moonherb refill, energy refill, timed windbreak, or no supplies before commissioning a clinic or road-crew fire.");
                 q.room=7;q.locked=!Has("boss_7")||!CanEnter(7);
                 q.complete=FrostSignalComplete;
+                // "Started sometime in an earlier attempt" is a saved
+                // historical fact, not proof that this run still carries
+                // the ember after abort, expiry or a v2 reload.
                 q.steps.Add(new QuestStep(L("在西部领取余火","Collect the original western ember"),
-                    Has("frostsignal_started")));
+                    FrostSignalActive||q.complete));
                 q.steps.Add(new QuestStep(L("守卫实战与补给抉择","Overcome the middle guards and select supplies"),
                     q.complete||FrostSignalStage>=3));
                 q.steps.Add(new QuestStep(L("送达南方并选择公共用途","Deliver south and choose a civic purpose"),
                     q.complete));
-                int post=FrostSignalStage==2?2:FrostSignalStage==3?3:1;
+                // Stage 1 means ember in hand: the NEXT objective is the
+                // guard junction. Sending the active HUD marker back to the
+                // western pickup post makes the 100-second timed delivery
+                // appear to go backward. Stage 2 stays at that junction
+                // until two actual guards fall and supplies are chosen.
+                int post=FrostSignalStage==3?3:
+                    FrostSignalStage>=1?2:1;
                 foreach(WorldObject o in data.maps[7].objects)
                     if(o.id=="frostsignal_"+post){q.target=new Point(o.x,o.y);break;}
                 q.next=q.locked?L("先击败高原守护者","First defeat the original Frostchime guardian"):

@@ -57,6 +57,70 @@ namespace Starfall.Tests
                 "Two uniquely identified defenders occupy separate feet and preserve their actual quest-kill identities");
         }
 
+        public static void LiveFrostSignalNavigationTracksActualCarriedEmber(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+            g.save.flags.Add("boss_7");g.invulnerable=250;
+            WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
+            Point source=new Point(west.x,west.y);
+            Point junction=new Point(mid.x,mid.y);
+            Point hearth=new Point(south.x,south.y);
+            var initial=g.GetQuest("frost_signal");
+            Check(!initial.locked&&!initial.complete&&
+                !initial.steps[0].done&&(initial.target-source).Length<.001f,
+                "The real highland quest starts at western pickup before carrying an ember");
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start")&&g.FrostSignalStage==1,
+                "West post starts the actual timed flame delivery");
+            var carried=g.GetQuest("frost_signal");
+            Check(carried.steps[0].done&&!carried.steps[1].done&&
+                (carried.target-junction).Length<.001f&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-junction).Length<.001f,
+                "Immediately after pickup, the world navigation marker and journal route FORWARD to the guard junction");
+            g.Talk(west);Check(FrostChoice(g,"frostsignal_abort"),
+                "Returning the carried ember is a genuine cancel action");
+            var aborted=g.GetQuest("frost_signal");
+            Check(!aborted.steps[0].done&&aborted.Progress==0&&
+                (aborted.target-source).Length<.001f&&
+                g.Has("frostsignal_started"),
+                "A historical started flag survives, but an aborted attempt must show no currently carried ember");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            var restored=loaded.GetQuest("frost_signal");
+            Check(loaded.save.version==2&&!restored.steps[0].done&&
+                (restored.target-source).Length<.001f,
+                "Original v2 slots that once carried an ember restart navigation at the actual pickup post");
+            g.Talk(west);Check(FrostChoice(g,"frostsignal_start"),
+                "An aborted delivery can really restart");
+            g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+            Check(g.FrostSignalStage==2&&
+                (g.GetQuest("frost_signal").target-junction).Length<.001f,
+                "With live defenders, the marker remains at their real junction");
+            g.Close();
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The real gameplay kill path must be present");
+            foreach(Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.Talk(mid);
+            Check(FrostChoice(g,"frostsignal_free")&&g.FrostSignalStage==3,
+                "Only genuine guard defeat unlocks the southbound delivery");
+            var delivered=g.GetQuest("frost_signal");
+            Check(delivered.steps[0].done&&delivered.steps[1].done&&
+                (delivered.target-hearth).Length<.001f&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-hearth).Length<.001f,
+                "After the mid-quest choice, both live guidance and the journal lead to the civilian hearth");
+            g.save.x=south.x;g.save.y=south.y;g.Talk(south);
+            Check(FrostChoice(g,"frostsignal_guides")&&
+                g.GetQuest("frost_signal").complete&&
+                g.GetQuest("frost_signal").Progress==1f,
+                "Permanent civilian completion remains recorded as finished independently of transient active mission state");
+        }
+
         public static void CivicEmberAbortAndFailurePreserveUnrelatedWorldEffects(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;
