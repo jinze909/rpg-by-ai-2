@@ -1100,6 +1100,45 @@ namespace Starfall.Tests
                 "A won-but-locked region still cannot bypass its campaign entry");
         }
 
+        public static void DefendedDesertAndHighlandPostsShelterAgainstActualWeather(Campaign data)
+        {
+            for(int room=6;room<=7;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                Check(post!=null&&post.x>70f,
+                    "The field refuge is out on the real exposed regional ring");
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.save.x=post.x;g.save.y=post.y;
+                g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+                g.save.teaUntil=0f;
+                g.save.heat=room==6?65f:0f;
+                g.save.cold=room==7?65f:0f;
+                float initial=room==6?g.save.heat:g.save.cold;
+                g.save.flags.Add("outer_patrol_done_"+room);
+                Check(g.OuterPatrolRefuge,
+                    "Defended station offers physical local shelter");
+                g.Tick(.05f,new Point());
+                float cooled=room==6?g.save.heat:g.save.cold;
+                Check(cooled<initial,
+                    "Real safe outpost suppresses and reduces local heat/cold buildup");
+                // The shelter depends on a previously won v2 combat flag.
+                // Removing it re-exposes the desert/snow as before.
+                g.save.flags.Remove("outer_patrol_done_"+room);
+                if(room==6)g.save.heat=initial;
+                else g.save.cold=initial;
+                g.Tick(.05f,new Point());
+                float exposed=room==6?g.save.heat:g.save.cold;
+                Check(exposed>initial,
+                    "Undeveloped outpost has no free regional weather immunity");
+                // Existing combat-threat logic must also suppress refuge.
+                g.save.flags.Add("outer_patrol_done_"+room);
+                g.enemies.Add(new Enemy(8810,0,post.x+1f,post.y,30f));
+                Check(!g.OuterPatrolRefuge,
+                    "A true close raider reopens survival pressure even at a rescued post");
+            }
+        }
+
         public static void ContinuousBiomeNoiseAvoidsSquareMaterialBoundaries(Campaign data)
         {
             for(int room=0;room<8;room++)

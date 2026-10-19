@@ -731,13 +731,17 @@ namespace Starfall
             // Persistent forest roots are safe, proximity-gated places to recover.
             if(RootsongRefuge && SafeTravel && !practicing && !racing)
                 save.energy=Math.Min(100,save.energy+dt*2.3f);
+            // A staffed, actually defended relief outpost shelters visitors
+            // against the exposed desert sun and highland wind. This is
+            // current physical protection, not a global immunity reward.
+            bool safeReliefShelter=OuterPatrolRefuge;
             bool tea = save.teaUntil > save.totalTime;
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
-                !GlasswindRefuge && !racing ? 1.3f : -10), 0, 100);
+                !GlasswindRefuge && !safeReliefShelter && !racing ? 1.3f : -10), 0, 100);
             bool warm = FrostSignalRefuge;
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
-            if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
+            if (SkywatchRefuge || SkywatchEchoRefuge || safeReliefShelter) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
             // The first genuine heat/cold danger crossing needs an
@@ -852,7 +856,7 @@ namespace Starfall
             // The eight defended field caches are living outposts: a local
             // field-medic rest and supply pause, never combat healing or a
             // region-wide passive perk. No new permanent state or save format.
-            if(OuterPatrolRefuge)
+            if(safeReliefShelter)
             {
                 if(save.health>0&&save.health<save.maxHealth)
                     save.health=Math.Min(save.maxHealth,save.health+dt*1.55f);
