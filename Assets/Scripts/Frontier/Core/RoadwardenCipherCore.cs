@@ -112,6 +112,8 @@ namespace Starfall
         }
         private float roadTrialSurgeTimer;
         private int roadTrialSurgeCount;
+        // A transiently blocked next-wave arena cannot erase confirmed kills.
+        private bool roadTrialWaveDeferred;
         // The ward is a real, vulnerable objective, not a second health bar
         // persisted in saves. Leaving, losing, or loading restarts it cleanly.
         private float roadTrialWard;
@@ -153,6 +155,7 @@ namespace Starfall
             roadTrialVeteran = false;
             roadTrialConfirmedKills = 0;
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
+            roadTrialWaveDeferred = false;
             roadTrialWard = 0; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
             roadTrialRepairedWave = 0;
         }
@@ -169,8 +172,10 @@ namespace Starfall
         {
             if (!Has("dispatch_complete")) return "";
             if (roadTrialRoom == region)
-                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Ward " + (int)Math.Ceiling(roadTrialWard) + "%. Return to this beacon to restore 25 ward for 35 energy once per wave, or abandon."
-                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。护盾剩余 " + (int)Math.Ceiling(roadTrialWard) + "%。每波可在此花费35耐力修复25点护盾一次，或放弃试炼。";
+                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Ward " + (int)Math.Ceiling(roadTrialWard) + "%. Return to this beacon to restore 25 ward for 35 energy once per wave, or abandon." +
+                    (roadTrialWaveDeferred?" The next wave is waiting for safe ground; your victories remain.":"")
+                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。护盾剩余 " + (int)Math.Ceiling(roadTrialWard) + "%。每波可在此花费35耐力修复25点护盾一次，或放弃试炼。" +
+                    (roadTrialWaveDeferred?" 下一波等待安全地形，已赢得的战果仍保留。":"");
             if (Has("road_trial_" + region))
                 return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense. Attackers drain the beacon ward if they reach it; stop them before it breaks; rewards cannot be claimed twice."
                     : "\n\n守路誓约已完成。可再次挑战更难的三波精英守卫战。敌人靠近后会侵蚀信标护盾，务必阻止；奖励不会重复领取。";
@@ -224,6 +229,7 @@ namespace Starfall
             roadTrialRoom = region; roadTrialWave = 1;
             roadTrialVeteran = Has("road_trial_" + region);
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
+            roadTrialWaveDeferred = false;
             roadTrialWard = 100; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
             if (!SpawnRoadwardenTrialWave())
             {
@@ -418,22 +424,29 @@ namespace Starfall
             }
             if (roadTrialWave < RoadwardenTrialTotalWaves)
             {
-                // End the cleared wave cleanly before spawning its successor;
-                // an old archer shot must not punish the hero in the next wave.
-                projectiles.RemoveAll(p => p.roadTrialOwned);
-                roadTrialWave++;
-                // A cleared wave restores a little ward, but damage sustained
-                // earlier still matters during the remaining defense.
-                roadTrialWard = Math.Min(100, roadTrialWard + 18);
-                roadTrialWardUnderAttack = false;
-                roadTrialSurgeTimer = 1.25f;
-                if (roadTrialWave == 2) roadTrialSurgeCount = 0;
-                if (!SpawnRoadwardenTrialWave())
+                // An old confirmed victory remains valid if a temporary
+                // obstruction prevents a complete physical reinforcement.
+                // Do not award the +18 ward refill until both next-wave
+                // actors actually spawn. Repeated failed retries cost nothing.
+                int previousWave=roadTrialWave;
+                roadTrialWave=previousWave+1;
+                if(!SpawnRoadwardenTrialWave())
                 {
-                    ResetRoadwardenTrial();
-                    Notify("战场已改变，试炼中断；可以再次挑战。", "The arena changed; restart the drill at the beacon.");
+                    roadTrialWave=previousWave;
+                    if(!roadTrialWaveDeferred)
+                    {
+                        roadTrialWaveDeferred=true;revision++;
+                        Notify("当前波次已守住，增援暂缺安全落点。战果和护盾保持，清出道路后继续。",
+                            "Wave defeated. Reinforcements await clear ground; your real kills and ward integrity remain.");
+                    }
                     return;
                 }
+                roadTrialWaveDeferred=false;
+                projectiles.RemoveAll(p=>p.roadTrialOwned);
+                roadTrialWard=Math.Min(100f,roadTrialWard+18f);
+                roadTrialWardUnderAttack=false;
+                roadTrialSurgeTimer=1.25f;
+                if(roadTrialWave==2)roadTrialSurgeCount=0;
                 if (roadTrialWave == 2)
                     Notify("第二波！重甲破阵者与射手。" + RoadwardenSurgeHint(roadTrialRoom, false),
                         "Wave two! Armored breaker and archer. " + RoadwardenSurgeHint(roadTrialRoom, true));

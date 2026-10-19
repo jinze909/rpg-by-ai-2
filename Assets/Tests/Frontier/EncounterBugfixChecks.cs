@@ -66,6 +66,80 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void RoadwardenClearedWaveCanResumeAfterBlockedRealArena(Campaign data)
+        {
+            MapData original=data.maps[1];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[1]=new MapData{id=1,spawnX=original.spawnX,
+                    spawnY=original.spawnY,rows=rows,
+                    objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("dispatch_complete");
+                g.save.flags.Add("survey_1");
+                g.Enter(1);g.enemies.Clear();g.invulnerable=180;
+                WorldObject station=Object(g,"survey1");
+                g.save.x=station.x;g.save.y=station.y;
+                Action(g,station.kind,"road_trial_start_1");
+                Check(g.RoadwardenTrialRoom==1&&
+                    g.RoadwardenTrialWave==1&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==2,
+                    "The actual unlocked forest beacon launches two first-wave hostile defenders");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(hit!=null,"Authentic lethal contact tracks both current-wave deaths");
+                foreach(Enemy attacker in g.enemies.FindAll(e=>e.id>=81000&&e.id<81100))
+                    hit.Invoke(g,new object[]{attacker,99999f,false,null,null});
+                g.hitStop=0;g.Close();
+                var ward=typeof(GameCore).GetField("roadTrialWard",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(ward!=null&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==0,
+                    "The complete first wave has truly died, without list manipulation");
+                ward.SetValue(g,57f);
+                int cx=(int)station.x,cy=(int)station.y;
+                for(int y=cy-6;y<=cy+6;y++)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    for(int x=cx-6;x<=cx+6;x++)
+                        if(x!=cx||y!=cy)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(station.x,station.y)),
+                    "The real beacon and gold-haired hero can still stand as all reinforcement feet close");
+                int coins=g.save.coins,shards=g.save.shards;
+                g.Tick(.05f,new Point());
+                Check(g.RoadwardenTrialRoom==1&&
+                    g.RoadwardenTrialWave==1&&
+                    Math.Abs(g.RoadwardenWardIntegrity-57f)<.001f&&
+                    !g.Has("road_trial_1")&&
+                    g.save.coins==coins&&g.save.shards==shards,
+                    "An unspawnable second wave cannot erase the genuine two kills, grant ward or fake original rewards");
+                g.Tick(.05f,new Point());
+                Check(g.RoadwardenTrialRoom==1&&
+                    g.RoadwardenTrialWave==1&&
+                    Math.Abs(g.RoadwardenWardIntegrity-57f)<.001f,
+                    "Repeated blocked deployments never duplicate the +18 ward recovery");
+                data.maps[1].rows=(string[])original.rows.Clone();
+                g.Tick(.05f,new Point());
+                Check(g.RoadwardenTrialWave==2&&
+                    g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==2&&
+                    Math.Abs(g.RoadwardenWardIntegrity-75f)<.001f,
+                    "Opening the authentic physical arena launches two second-wave enemies and grants exactly one recovery");
+                foreach(Enemy attacker in g.enemies.FindAll(e=>e.id>=81000&&e.id<81100))
+                    hit.Invoke(g,new object[]{attacker,99999f,false,null,null});
+                g.hitStop=0;g.Tick(.05f,new Point());
+                Check(g.RoadwardenTrialRoom==0&&g.Has("road_trial_1")&&
+                    g.save.version==2,
+                    "Only four authenticated combat deaths complete the existing beacon defense and original v2 quest contract");
+            }
+            finally {data.maps[1]=original;}
+        }
+
         public static void FullInventoryAndWalletRemainStableThroughActualEnemyLoot(Campaign data)
         {
             var g = Fresh(data); g.Enter(1); g.enemies.Clear();

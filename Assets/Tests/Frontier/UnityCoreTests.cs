@@ -250,6 +250,7 @@ namespace Starfall.Tests
         [Test] public void FarshoreWeatherStationsAreLive() { CoreChecks.FarshoreWeatherStationsChangeActualClimateAndTide(Data()); }
         [Test] public void RoadwardenSignalChartAndSave() { CoreChecks.RoadwardenSignalsUnlockOnePersistentTravelReward(Data()); }
         [Test] public void BeaconRaidersCannotSpawnOnSealedPocketOrRecruitedAlly() { CoreChecks.RoadwardenTwoRealDefendersAvoidSealedPocketAndFriendlyActors(Data()); }
+        [Test] public void BeaconLaterWaveWaitsForClearGroundWithoutHealingTwice() { CoreChecks.RoadwardenClearedWaveCanResumeAfterBlockedRealArena(Data()); }
         [Test] public void LiveQuestProgressAndTracking() { CoreChecks.QuestTrackingTransitions(Data()); }
         [Test] public void QuestRoutesRespectCollisionAndTides() { CoreChecks.NavigationRespectsWorldCollision(Data()); }
         [Test] public void SafePracticeAndReplay() { CoreChecks.InteractivePracticeAndReplay(Data()); }
