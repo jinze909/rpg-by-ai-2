@@ -189,6 +189,69 @@ namespace Starfall.Tests
                     "Existing version-two saves retain the player's chosen branch and quest completion");
             }
         }
+        public static void FerryAmbushRejectsIsolatedGroundAndOccupiedCompanion(Campaign data)
+        {
+            MapData original=data.maps[2];
+            try
+            {
+                var rows=new string[45];
+                for(int y=0;y<45;y++)
+                {
+                    char[] cells=new string('#',45).ToCharArray();
+                    if(y>=2&&y<=42)
+                        for(int x=2;x<=42;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                // The first candidate in the old radius-three sweep is a
+                // valid standable island, but its surrounding full moat
+                // makes a complete body-foot route impossible.
+                for(int y=16;y<=18;y++)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    for(int x=16;x<=18;x++)
+                        if(x!=17||y!=17)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[2]=new MapData{id=2,spawnX=20.5f,
+                    spawnY=20.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(2);
+                g.enemies.Clear();g.save.x=20.5f;g.save.y=20.5f;
+                g.save.flags.Add("companion_1");
+                g.SelectCompanion(1);
+                g.companionPosition=new Point(17.5f,20.5f);
+                var bystander=new Enemy(91923,0,20.5f,17.5f,300f)
+                    {stun=100f,timer=1000f};
+                g.enemies.Add(bystander);
+                var plan=typeof(GameCore).GetMethod(
+                    "TryFloodReliefRaiderSpots",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(plan!=null&&g.CanStand(new Point(17.5f,17.5f))&&
+                    g.CanStand(g.Position),
+                    "The live ferry placement code sees a legal isolated pocket and a normal hero landing");
+                var args=new object[]{g.Position,null};
+                Check((bool)plan.Invoke(g,args),
+                    "A nearby genuine two-raider encounter can still be placed despite one inaccessible pocket");
+                var feet=(Point[])args[1];
+                Check(feet!=null&&feet.Length==2,
+                    "Preflight selects two concrete real landing combat feet atomically");
+                foreach(Point foot in feet)
+                {
+                    Check(g.CanStand(foot)&&
+                        (foot-new Point(17.5f,17.5f)).Length>1.1f&&
+                        (foot-g.Position).Length>=3f&&
+                        (foot-g.companionPosition).Length>=1.4f&&
+                        (foot-bystander.Position).Length>=2.2f,
+                        "Raider cannot appear in isolated ground or overlap the hero, companion or living foe");
+                }
+                Check((feet[0]-feet[1]).Length>=3f&&
+                    g.enemies.Count==1&&!g.Has("floodarchive_relief"),
+                    "Uncommitted placement does not create a half-ambush or mint civilian rescue flags");
+            }
+            finally{data.maps[2]=original;}
+        }
+
         public static void PublicFerryEmergencyRunRequiresRealCrossingAndBothRaiderKills(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=18;

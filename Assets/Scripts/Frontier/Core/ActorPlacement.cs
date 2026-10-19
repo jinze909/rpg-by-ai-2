@@ -33,7 +33,7 @@ namespace Starfall
         // four-neighbor footprint graph as real enemy pursuit, bounded to
         // the actual local summoning arena. Shared generation-stamped path
         // workspace avoids allocations on repeated Boss phases.
-        private bool BossSummonHasLocalRoute(Point from, Point target)
+        private bool BossSummonHasLocalRoute(Point from, Point target, int radius = 5)
         {
             if(!CanStand(from)||!CanStand(target))return false;
             int width=Map.rows[0].Length,height=Map.rows.Length;
@@ -41,7 +41,7 @@ namespace Starfall
             int tx=(int)Math.Floor(target.x),ty=(int)Math.Floor(target.y);
             if(sx<0||sy<0||tx<0||ty<0||
                 sx>=width||tx>=width||sy>=height||ty>=height||
-                Math.Abs(tx-sx)>5||Math.Abs(ty-sy)>5)return false;
+                Math.Abs(tx-sx)>radius||Math.Abs(ty-sy)>radius)return false;
             int start=sy*width+sx,goal=ty*width+tx;
             PreparePathSearch(width*height);
             int head=0,tail=0;
@@ -55,7 +55,7 @@ namespace Starfall
                 {
                     int nx=x+pursuitSteps[i,0],ny=y+pursuitSteps[i,1];
                     if(nx<0||ny<0||nx>=width||ny>=height||
-                        Math.Abs(nx-sx)>5||Math.Abs(ny-sy)>5)continue;
+                        Math.Abs(nx-sx)>radius||Math.Abs(ny-sy)>radius)continue;
                     int next=ny*width+nx;
                     if(PathVisited(next)||!Fits(new Point(nx+.5f,ny+.5f)))continue;
                     VisitPath(next,node);pathQueue[tail++]=next;

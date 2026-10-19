@@ -103,9 +103,15 @@ namespace Starfall
                         return;
                     }
         }
-        private bool SpawnFloodReliefRaiders()
+        // The ferry escorts an actual parcel into a two-raider ambush.
+        // NavigationPath may legally return a partial path to the nearest
+        // shoreline when the target is unreachable. That is not a combat
+        // spawn: the attackers must have a complete walkable body-foot
+        // route into the *real* east-bank landing, and occupy free ground.
+        private bool TryFloodReliefRaiderSpots(Point anchor,out Point[] result)
         {
-            Point anchor=Position;
+            result=null;
+            if(!CanStand(anchor))return false;
             var spots=new System.Collections.Generic.List<Point>();
             for(int radius=3;radius<=9&&spots.Count<2;radius++)
                 for(int dx=-radius;dx<=radius&&spots.Count<2;dx++)
@@ -114,19 +120,41 @@ namespace Starfall
                         if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
                         Point p=anchor+new Point(dx,dy);
                         if(!CanStand(p)||(p-anchor).Length<3f||
+                            (p-Position).Length<1.25f||
+                            (save.companion>=0 &&
+                             (p-companionPosition).Length<1.4f)||
                             spots.Exists(other=>(other-p).Length<3f)||
-                            enemies.Exists(e=>e.hp>0&&(e.Position-p).Length<2.2f)||
-                            NavigationPath(p).Count==0)continue;
+                            enemies.Exists(e=>e.hp>0&&
+                                (e.Position-p).Length<2.2f)||
+                            // Keep the real attack lane clear, not a merely
+                            // reachable pocket behind a civilian wall.
+                            !ClearAttackPath(anchor,p)||
+                            // Radius 12 bounds the route around a nearby
+                            // pier; all Boss calls keep their prior 5 tiles.
+                            !BossSummonHasLocalRoute(p,anchor,12))
+                            continue;
                         spots.Add(p);
                     }
             if(spots.Count!=2)return false;
+            result=spots.ToArray();return true;
+        }
+        private void SpawnFloodReliefRaiders(Point[] spots)
+        {
+            // Commit ONLY the already verified physical feet; recovery
+            // spawning can relocate a new enemy to another bank and must
+            // never silently override the intended combat encounter.
             for(int i=0;i<2;i++)
             {
-                // Distinct real attack profiles: a pursuing melee raider and an
-                // actual arrow-firing archer, not two identical area slams.
-                var e=CreatePlacedEnemy(92340+i,i==0?0:1,spots[i],78+i*14);
+                var e=new Enemy(92340+i,i==0?0:1,
+                    spots[i].x,spots[i].y,78+i*14);
                 e.timer=.8f+i*.25f;enemies.Add(e);
             }
+        }
+        private bool SpawnFloodReliefRaiders()
+        {
+            Point[] spots;
+            if(!TryFloodReliefRaiderSpots(Position,out spots))return false;
+            SpawnFloodReliefRaiders(spots);
             return true;
         }
         private WorldObject FloodArchiveObject(int stage)
