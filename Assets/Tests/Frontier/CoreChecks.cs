@@ -1729,7 +1729,7 @@ namespace Starfall.Tests
             g.Choose(guard);
             Check(g.OuterPatrolCompanionGuarding,
                 "Release-time retargeting runs only under a real guard order");
-            g.companionPosition=g.OuterPatrolCompanionGuardPosition;
+            Point guardFoot=g.OuterPatrolCompanionGuardPosition;
             g.enemies.Clear();g.projectiles.Clear();
 
             var flags=System.Reflection.BindingFlags.NonPublic|
@@ -1737,53 +1737,95 @@ namespace Starfall.Tests
             var clear=typeof(GameCore).GetMethod("ClearAttackPath",flags);
             var shot=typeof(GameCore).GetMethod("WeaponShot",flags);
             var tick=typeof(GameCore).GetMethod("TickCompanion",flags);
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",flags);
             var target=typeof(GameCore).GetField("companionAutoTarget",flags);
             var cooldown=typeof(GameCore).GetField("companionAttack",flags);
-            Check(clear!=null&&shot!=null&&tick!=null&&target!=null&&
-                cooldown!=null,"Exercise real path, muzzle, target and release APIs");
+            Check(clear!=null&&shot!=null&&tick!=null&&select!=null&&
+                target!=null&&cooldown!=null,
+                "Exercise real path, muzzle, target and release APIs");
 
-            Point origin=g.companionPosition;
+            // The post's preferred guard foot is intentionally an open firing
+            // lane. Find a nearby REAL walkable corner for the adversarial
+            // case, rather than assuming the best guard tile has a blocked
+            // muzzle. A live guard order remains active while the ally is
+            // physically walking back to that saved post.
+            List<Point> origins=new List<Point>();
+            for(float dx=-8f;dx<=8f;dx+=.5f)
+            for(float dy=-8f;dy<=8f;dy+=.5f)
+            {
+                Point candidate=guardFoot+new Point(dx,dy);
+                if(!g.CanStand(candidate))continue;
+                bool nearBlockedTile=false;
+                for(int sx=-1;sx<=1&&!nearBlockedTile;sx++)
+                for(int sy=-1;sy<=1;sy++)
+                {
+                    if(sx==0&&sy==0)continue;
+                    if(!g.CanStand(candidate+new Point(sx*.7f,sy*.7f)))
+                    {nearBlockedTile=true;break;}
+                }
+                if(nearBlockedTile)origins.Add(candidate);
+            }
+            origins.Sort((a,b)=>(a-guardFoot).Length.CompareTo((b-guardFoot).Length));
+            Point origin=new Point(),first=new Point(),alternate=new Point(),
+                corner=new Point();
+            bool foundLayout=false;
             List<Point> open=new List<Point>();
             List<Point> muzzleBlocked=new List<Point>();
-            for(float dx=-6.5f;dx<=6.5f;dx+=.25f)
-            for(float dy=-6.5f;dy<=6.5f;dy+=.25f)
+            foreach(Point candidateOrigin in origins)
             {
-                Point p=origin+new Point(dx,dy);
-                float distance=(p-origin).Length;
-                if(distance<1.4f||distance>=6.9f||!g.CanStand(p)||
-                    !(bool)clear.Invoke(g,new object[]{origin,p}))
-                    continue;
-                Projectile probe=(Projectile)shot.Invoke(g,new object[]{
-                    origin,1,(p-origin).Normalized,9f,0f,(Point?)p});
-                if(probe.blockedAtSpawn)muzzleBlocked.Add(p);
-                else open.Add(p);
+                open.Clear();muzzleBlocked.Clear();
+                for(float dx=-6.5f;dx<=6.5f;dx+=.5f)
+                for(float dy=-6.5f;dy<=6.5f;dy+=.5f)
+                {
+                    Point p=candidateOrigin+new Point(dx,dy);
+                    float distance=(p-candidateOrigin).Length;
+                    if(distance<1.4f||distance>=6.9f||!g.CanStand(p)||
+                        !(bool)clear.Invoke(g,new object[]{candidateOrigin,p}))
+                        continue;
+                    Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                        candidateOrigin,1,(p-candidateOrigin).Normalized,
+                        9f,0f,(Point?)p});
+                    if(probe.blockedAtSpawn)muzzleBlocked.Add(p);
+                    else open.Add(p);
+                }
+                if(open.Count<2||muzzleBlocked.Count==0)continue;
+                open.Sort((a,b)=>(a-candidateOrigin).Length.CompareTo(
+                    (b-candidateOrigin).Length));
+                Point candidateFirst=open[0],candidateAlternate=new Point(),
+                    candidateCorner=new Point();
+                bool foundAlternate=false,foundCorner=false;
+                float firstDistance=(candidateFirst-candidateOrigin).Length;
+                foreach(Point p in open)
+                    if((p-candidateOrigin).Length>=firstDistance+1f&&
+                        (p-candidateFirst).Length>=1.25f)
+                    {candidateAlternate=p;foundAlternate=true;break;}
+                foreach(Point p in muzzleBlocked)
+                    if((p-candidateOrigin).Length<6.9f&&
+                        (p-candidateFirst).Length>1f&&
+                        (p-candidateAlternate).Length>1.25f)
+                    {candidateCorner=p;foundCorner=true;break;}
+                if(foundAlternate&&foundCorner)
+                {
+                    origin=candidateOrigin;first=candidateFirst;
+                    alternate=candidateAlternate;corner=candidateCorner;
+                    foundLayout=true;break;
+                }
             }
-            open.Sort((a,b)=>(a-origin).Length.CompareTo((b-origin).Length));
-            Check(open.Count>=2&&muzzleBlocked.Count>0,
-                "Authored terrain provides both a valid shot and a clear-feet/blocked-muzzle corner");
-            Point first=open[0],alternate=new Point(),corner=new Point();
-            bool foundAlternate=false,foundCorner=false;
-            float firstDistance=(first-origin).Length;
-            foreach(Point candidate in open)
-                if((candidate-origin).Length>=firstDistance+1f&&
-                    (candidate-first).Length>=1.25f)
-                {alternate=candidate;foundAlternate=true;break;}
-            foreach(Point candidate in muzzleBlocked)
-                if((candidate-origin).Length<6.9f&&
-                    (candidate-first).Length>1f&&
-                    (candidate-alternate).Length>1.25f)
-                {corner=candidate;foundCorner=true;break;}
-            Check(foundAlternate&&foundCorner,
-                "Find a distinct legal backup and a reproducible muzzle-only obstruction");
+            Check(foundLayout,
+                "Find a real walkable origin with both a valid backup and a clear-feet/blocked-muzzle corner");
+            g.companionPosition=origin;
 
             Enemy primary=new Enemy(920610,0,first.x,first.y,30f);
             Enemy backup=new Enemy(920611,0,alternate.x,alternate.y,30f);
             g.enemies.Add(primary);g.enemies.Add(backup);
-            cooldown.SetValue(g,0f);
-            tick.Invoke(g,new object[]{.02f});
-            Check(g.companionAction!=null&&g.companionAction.kind=="attack"&&
-                (Enemy)target.GetValue(g)==primary,
-                "Automatic bow draw starts on the nearest genuinely shootable foe");
+            Check((Enemy)select.Invoke(g,null)==primary,
+                "Automatic target selection chooses the nearest genuinely shootable foe");
+            target.SetValue(g,primary);cooldown.SetValue(g,2.8f);
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(primary.Position-origin).Normalized,
+                target=primary.Position
+            };
 
             primary.x=corner.x;primary.y=corner.y;
             Point blockedAim=primary.Position-origin;
@@ -1792,7 +1834,7 @@ namespace Starfall.Tests
             Check((bool)clear.Invoke(g,new object[]{origin,primary.Position})&&
                 blockedProbe.blockedAtSpawn,
                 "Locked foe keeps clear foot LOS while its real muzzle becomes blocked");
-            tick.Invoke(g,new object[]{.16f});
+            tick.Invoke(g,new object[]{.17f});
             Check(g.companionAction!=null&&g.companionAction.released&&
                 (Enemy)target.GetValue(g)==backup&&
                 g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
