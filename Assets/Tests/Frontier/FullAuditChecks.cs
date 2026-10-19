@@ -218,9 +218,10 @@ namespace Starfall.Tests
             var ordinary=new Effect("danger",g.Position,4f)
                 {radius=1.2f};
             var heroCue=new Effect("number",g.Position,4f,"player feedback");
+            var rightful=new Enemy(11871,3,g.Position.x+2f,g.Position.y,999,true);
             var actualBossCue=new Effect("number",g.Position,4f,
                 "a separate real Boss")
-                {bossSummonCueOwnerId=11871};
+                {bossSummonCueOwnerId=rightful.id,bossSummonCueOwner=rightful};
             g.effects.Add(ordinary);
             g.effects.Add(heroCue);
             g.effects.Add(actualBossCue);
@@ -233,7 +234,6 @@ namespace Starfall.Tests
             Check(g.effects.Contains(ordinary)&&g.effects.Contains(heroCue)&&
                 g.effects.Contains(actualBossCue)&&g.effects.Count>=3,
                 "A legacy or synthetic zero-ID opponent can never wipe all ordinary unowned effects or another Boss cue");
-            var rightful=new Enemy(11871,3,g.Position.x+2f,g.Position.y,999,true);
             g.enemies.Add(rightful);
             cleanup.Invoke(g,new object[]{rightful});
             Check(!g.effects.Contains(actualBossCue)&&
