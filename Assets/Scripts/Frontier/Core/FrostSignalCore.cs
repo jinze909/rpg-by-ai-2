@@ -52,7 +52,13 @@ namespace Starfall
             new Point(-1.5f,0f),new Point(1.5f,0f),
             new Point(0f,-1.5f),new Point(-1.5f,1.5f),
             new Point(1.5f,1.5f),new Point(-1.5f,-1.5f),
-            new Point(1.5f,-1.5f)
+            new Point(1.5f,-1.5f),
+            // A solid one-tile moat around an otherwise walkable pocket
+            // makes every 1.5-tile fallback touch the surrounding wall.
+            // Local 2.5-tile candidates can still reach the active battle
+            // without spawning guards at a distant unrelated world location.
+            new Point(0f,2.5f),new Point(0f,-2.5f),
+            new Point(-2.5f,0f),new Point(2.5f,0f)
         };
         private bool TryFrostSignalGuardFoot(Point origin,Point other,
             bool hasOther,out Point result)
