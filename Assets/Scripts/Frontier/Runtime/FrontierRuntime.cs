@@ -809,6 +809,20 @@ namespace Starfall
                         Game.OuterPatrolBraceHitFlash>0f?
                             new Color(1f,.83f,.42f):wooden,18);
                 }
+                // Highlight ONLY the authentic attacker whose committed
+                // contact is about to hit the actual supply objective.
+                // The footprint is the living actor's, never a fake enemy
+                // or a replacement animation. Reduced motion gets the
+                // identical stationary, readable warning ring.
+                Enemy breaker=Game.OuterPatrolIncomingStockThreat;
+                if(breaker!=null)
+                {
+                    Color imminent=breaker.kind==2?
+                        new Color(1f,.37f,.33f):
+                        new Color(1f,.75f,.35f);
+                    Ring(breaker.Position,breaker.kind==2?.75f:.62f,
+                        imminent,20);
+                }
                 // Veteran fights occur at already-repaired posts: the
                 // live danger color MUST outrank the old green-clear tint.
                 Color guardColor=Game.OuterPatrolActive?

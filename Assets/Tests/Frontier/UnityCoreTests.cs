@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void CacheImpactWarningUsesAuthenticReleasedRaidIntent() { CoreChecks.OutpostWarningsTrackActualCommittedRaiderNotPhantomThreat(Data()); }
         [Test] public void ActiveRangedWatchFindsNewLegitimateFiringLaneAsRaidersMove() { CoreChecks.GuardRangerMovesFromWalkableBlindFootToPhysicalFiringLane(Data()); }
         [Test] public void GuardRangerCanRedirectRealBowReleaseToNewStockThreat() { CoreChecks.GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Data()); }
         [Test] public void DynamicTerrainReroutesARealCompanionWatchInsteadOfWarping() { CoreChecks.GuardReplansBlockedWorldRouteWithoutWarpingOrOrphanOrders(Data()); }

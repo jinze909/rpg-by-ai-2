@@ -220,7 +220,12 @@ namespace Starfall
                     Math.Ceiling(Game.OuterPatrolTime)+"s"+
                     Game.L(" · 敌人剩余 "," · RAIDERS LEFT ")+
                     Game.OuterPatrolRaidersRemaining+
-                    (Game.save.companion>=0?
+                    (Game.OuterPatrolIncomingStockSeconds>=0f?
+                        (Game.OuterPatrolIncomingStockHeavy?
+                            Game.L(" · 重甲即将砸击 "," · HEAVY HIT IN "):
+                            Game.L(" · 物资即将遇袭 "," · CACHE HIT IN "))+
+                        Game.OuterPatrolIncomingStockSeconds.ToString("0.0")+"s":
+                        Game.save.companion>=0?
                         (Game.OuterPatrolMedicRallying?
                             Game.L(" · 救援中 · 召回 Y"," · MEDIC · RECALL Y"):
                             Game.OuterPatrolCompanionGuarding?

@@ -1263,6 +1263,54 @@ namespace Starfall.Tests
                 "Another registered attacker vanishing never creates a phantom target");
         }
 
+        public static void OutpostWarningsTrackActualCommittedRaiderNotPhantomThreat(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null&&
+                g.OuterPatrolIncomingStockThreat==null,
+                "Idle enemies never create counterfeit supply warnings");
+            melee.state=1;melee.timer=.8f;
+            melee.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==melee&&
+                Math.Abs(g.OuterPatrolIncomingStockSeconds-.8f)<.01f&&
+                !g.OuterPatrolIncomingStockHeavy,
+                "Active real melee stock windup produces grounded timing");
+            heavy.state=1;heavy.timer=.28f;
+            heavy.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==heavy&&
+                g.OuterPatrolIncomingStockHeavy,
+                "Warning follows the earliest genuine heavy contact");
+            heavy.stun=.8f;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "Stunned heavy cannot falsely warn of an imminent contact");
+            heavy.stun=0f;heavy.targetingOuterPatrolStock=false;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "Heavy aimed elsewhere cannot counterfeit cache impact");
+            melee.hp=0f;
+            Check(g.OuterPatrolIncomingStockThreat==null&&
+                g.OuterPatrolIncomingStockSeconds<0f,
+                "Dead or canceled raiders instantly retract warning");
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&
+                g.OuterPatrolIncomingStockThreat==null,
+                "Leaving real siege removes all pending stock cues");
+        }
+
         public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
