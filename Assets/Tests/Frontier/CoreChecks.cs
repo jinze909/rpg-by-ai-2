@@ -899,7 +899,7 @@ namespace Starfall.Tests
             Check(helper!=null,"Actual escort goal is selected by live game logic");
             Point medicTarget=(Point)helper.Invoke(g,null);
             Check((medicTarget-foot).Length>1f&&
-                g.OuterPatrolCompanionGuarding,
+                g.OuterPatrolCompanionGuarding&&g.OuterPatrolMedicRallying,
                 "Critically injured remote hero draws Mira from her watch foot");
             float before=(g.companionPosition-medicTarget).Length;
             for(int i=0;i<90&&g.OuterPatrolActive;i++)
@@ -910,8 +910,14 @@ namespace Starfall.Tests
             g.save.health=g.save.maxHealth;
             Point returnFoot=(Point)helper.Invoke(g,null);
             Check((returnFoot-foot).Length<.01f&&
-                g.OuterPatrolCompanionGuarding,
+                g.OuterPatrolCompanionGuarding&&!g.OuterPatrolMedicRallying,
                 "After real recovery medic resumes original protected post");
+            float gap=(g.companionPosition-foot).Length;
+            for(int tick=0;tick<60&&g.OuterPatrolActive;tick++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.companionPosition-foot).Length<=gap+.02f,
+                "Recovery truly resumes walking to the ORIGINAL guard foot");
             g.save.x=post.x;g.save.y=post.y;
             g.Talk(post);
             int abort=Array.FindIndex(g.conversation.choices,

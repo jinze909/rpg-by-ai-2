@@ -822,7 +822,14 @@ namespace Starfall
                     // visually mark the destination, not a second ally,
                     // copied sprite or a fake detached attack body.
                     Ring(Game.OuterPatrolCompanionGuardPosition,.35f,
-                        new Color(.48f,.9f,1f),12);
+                        Game.OuterPatrolMedicRallying?
+                            new Color(1f,.73f,.43f):
+                            new Color(.48f,.9f,1f),12);
+                    if(Game.OuterPatrolMedicRallying)
+                        // This is an actual healing rally, not a second
+                        // companion sprite, phantom projectile or teleport.
+                        Ring(Game.Position,.45f,
+                            new Color(.56f,.98f,.76f),12);
                 }
                 if(Game.OuterPatrolActive)
                     Text(p.x-79,p.y-107,158,20,

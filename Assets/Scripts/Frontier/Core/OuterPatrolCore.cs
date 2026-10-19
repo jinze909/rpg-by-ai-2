@@ -17,6 +17,9 @@ namespace Starfall
         private Point outerPatrolPost;
         public bool OuterPatrolCompanionGuarding
         {get{return OuterPatrolActive&&outerPatrolCompanionGuard&&save.companion>=0;}}
+        public bool OuterPatrolMedicRallying
+        {get{return OuterPatrolCompanionGuarding&&save.companion==0&&
+            outerPatrolGuardMedicRescue;}}
         public Point OuterPatrolCompanionGuardPosition
         {get{return OuterPatrolCompanionGuarding?outerPatrolCompanionGuardFoot:companionPosition;}}
         public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
