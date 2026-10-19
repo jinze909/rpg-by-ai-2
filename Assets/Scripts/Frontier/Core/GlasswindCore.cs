@@ -360,8 +360,12 @@ namespace Starfall
             }
             Point station=GlasswindPoint(GlasswindSite);
             float range=(Position-station).Length;
+            // An actual defender can contest a relay only on its reachable
+            // side of the wall. A nearby guard behind a newly sealed gate
+            // cannot remotely disable the player's timed capture progress.
             bool jammed=enemies.Exists(e=>IsGlasswindEnemy(e) &&
-                (e.Position-station).Length<1.6f);
+                e.hp>0 && (e.Position-station).Length<1.6f &&
+                ClearAttackPath(e.Position,station));
             if(range<2.65f && !jammed)
                 GlasswindCharge=Math.Min(8,GlasswindCharge+dt);
             else if(range>3.2f)

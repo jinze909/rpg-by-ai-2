@@ -121,6 +121,75 @@ namespace Starfall.Tests
             finally {data.maps[6]=original;}
         }
 
+        public static void RelayCaptureCannotBeJammedThroughClosingRealWall(Campaign data)
+        {
+            // The real contest starts without nearby hostile actors, then
+            // a living existing wave fighter moves next to the relay while
+            // a dynamic wall physically separates their contact lanes.
+            MapData original=data.maps[6];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='#';
+                    rows[y]=new string(cells);
+                }
+                WorldObject relay=new WorldObject {
+                    id="glasswindrelay1",kind="glasswindrelay",
+                    name="Public wind valve",en="Public wind valve",
+                    x=10.7f,y=10.5f};
+                data.maps[6]=new MapData {id=6,
+                    spawnX=relay.x,spawnY=relay.y,
+                    rows=rows,objects=new[]{relay},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
+                g.save.flags.Add("gate_6");
+                g.save.flags.Add("glasswind_started");
+                g.Enter(6);g.enemies.Clear();
+                g.save.x=relay.x;g.save.y=relay.y;
+                g.invulnerable=120f;
+                Check(g.CanStand(g.Position)&&g.Blocked(11.5f,10.5f),
+                    "The true hero can hold the valve beside a dynamic full-wall barrier");
+                Action(g,relay.kind,"glasswind_start_1");
+                var guards=g.enemies.FindAll(g.IsGlasswindEnemy);
+                Check(g.GlasswindSite==1&&g.GlasswindWave==1&&
+                    guards.Count==2,
+                    "The normal safety checks still launch two authentic timed relay defenders");
+                Enemy blocked=guards[0],remote=guards[1];
+                blocked.x=12.23f;blocked.y=10.5f;
+                blocked.stun=120;blocked.timer=1000;
+                remote.x=19.5f;remote.y=19.5f;
+                remote.stun=120;remote.timer=1000;
+                Check(g.CanStand(blocked.Position)&&
+                    (blocked.Position-g.Position).Length<1.6f&&
+                    g.Blocked(11.5f,10.5f),
+                    "A live guard is within the contest ring but genuinely separated by one solid wall");
+                float before=g.GlasswindCharge;
+                g.Tick(.05f,new Point());
+                Check(g.GlasswindCharge>before+.04f,
+                    "An active relay must charge while its only nearby guard is physically unable to reach it");
+                char[] opened=rows[10].ToCharArray();
+                opened[11]='.';rows[10]=new string(opened);
+                float charged=g.GlasswindCharge;
+                g.Tick(.05f,new Point());
+                Check(Math.Abs(g.GlasswindCharge-charged)<.0001f,
+                    "Opening the same wall immediately lets the still-living real guard contest the capture");
+                opened[11]='#';rows[10]=new string(opened);
+                g.Tick(.05f,new Point());
+                Check(g.GlasswindCharge>charged+.04f&&
+                    g.GlasswindSite==1&&!g.Has("glasswind_1")&&
+                    g.save.version==2,
+                    "Sealing the path again resumes progress without despawning defenders or claiming permanent rewards");
+            }
+            finally {data.maps[6]=original;}
+        }
+
         public static void GlasswindCircuitHasRealCaptureWavesAndPermanentShade(Campaign data)
         {
             var g=Fresh(data);
