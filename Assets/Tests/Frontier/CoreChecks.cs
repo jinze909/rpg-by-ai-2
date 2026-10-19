@@ -937,6 +937,60 @@ namespace Starfall.Tests
                 "Transient siege pressure never contaminates legacy save slots");
         }
 
+        public static void OuterPatrolRealTimeoutAndPerimeterDoNotForgeWins(Campaign data)
+        {
+            // Timeout is a real world clock, not a local-wall-clock task.
+            // Stun actual raiders only to isolate the countdown from their
+            // otherwise-tested genuine melee pressure.
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);
+            g.save.room=0;g.enemies.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_0");
+            int coins=g.save.coins;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Eligible physical outpost offers a real defense");
+            g.Choose(start);
+            foreach(Enemy attacker in g.enemies)attacker.stun=120f;
+            for(int i=0;i<1860;i++)g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolTime>1f&&
+                g.OuterPatrolTime<3f&&g.OuterPatrolIntegrity==100f,
+                "Combat clock advances on genuine simulation time without phantom supply damage");
+            for(int i=0;i<80&&g.OuterPatrolActive;i++)
+                g.Tick(.05f,new Point());
+            Check(!g.OuterPatrolActive&&g.enemies.Count==0&&
+                !g.OuterPatrolDone(0)&&g.save.coins==coins&&
+                g.OuterCacheRecovered(0),
+                "Real timeout retires only its raiders with no forged reward or lost v2 cache");
+            g.Talk(post);
+            start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Timed-out cache defense can be started again");
+            g.Choose(start);
+            Point away=new Point();bool found=false;
+            for(int y=1;y<g.Map.rows.Length-1&&!found;y++)
+            for(int x=1;x<g.Map.rows[y].Length-1&&!found;x++)
+            {
+                Point p=new Point(x+.5f,y+.5f);
+                if(g.CanStand(p)&&(p-new Point(post.x,post.y)).Length>13f)
+                {away=p;found=true;}
+            }
+            Check(found,"Map has legal ground beyond the outpost perimeter");
+            g.save.x=away.x;g.save.y=away.y;
+            g.Tick(.05f,new Point());
+            Check(!g.OuterPatrolActive&&g.enemies.Count==0&&
+                !g.OuterPatrolDone(0)&&g.save.coins==coins,
+                "Leaving the physical defense radius interrupts the run without paying");
+            // The v2 save must never record ephemeral siege HP or clock.
+            var reload=new GameCore(data,g.save);
+            Check(!reload.OuterPatrolActive&&reload.OuterPatrolDone(0)==false&&
+                reload.OuterCacheRecovered(0),
+                "Pre-existing cache survives both failure paths without schema migration");
+        }
+
         public static void ContinuousBiomeNoiseAvoidsSquareMaterialBoundaries(Campaign data)
         {
             for(int room=0;room<8;room++)

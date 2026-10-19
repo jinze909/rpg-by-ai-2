@@ -22,7 +22,7 @@ namespace Starfall
         private bool HasLiveBoss { get {foreach(Enemy e in Game.enemies)if(e.boss)return true;return false;} }
         private bool HasFallenBoss { get {foreach(FallenActor f in Game.fallen)if(f.actor.boss)return true;return false;} }
         private bool CombatHud
-        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
+        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||Game.OuterPatrolActive||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
         private static bool Contains(Rect r, Point p) { return p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height; }
         private static bool Overlap(Rect a, Rect b) { return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y; }
         private Rect ActorBounds(Point feet, bool boss = false)
@@ -59,7 +59,7 @@ namespace Starfall
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
                 if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
-                if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive)
+                if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive || Game.OuterPatrolActive)
                     rects.Add(new Rect(380, 22, 520, 65));
             }
             else
@@ -200,6 +200,28 @@ namespace Starfall
                     Math.Ceiling(stock)+"%"+
                     (Game.AfterlightWatchPatchAvailable?
                         Game.L(" · 抢修 E"," · PATCH E"):""),
+                    11,accent,TextAnchor.MiddleCenter);
+                Bar(401,71,478,stock/100f,accent,7);
+            }
+            else if (Game.OuterPatrolActive)
+            {
+                // The threatened relief cache must be readable even when
+                // the hero is intercepting a raider beyond the watchpost.
+                // Register this panel as HUD geometry so warning overlays
+                // remain visible above its translucent body.
+                float stock=Game.OuterPatrolIntegrity;
+                Color accent=stock<=30f?PixelArt.C("#ec7668"):stock<=60f?gold:mint;
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(393,25,494,27,
+                    Game.L("救援岗防卫 · 倒计时 ","RELIEF OUTPOST DEFENSE · ")+
+                    Math.Ceiling(Game.OuterPatrolTime)+"s",
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,481,18,
+                    Game.L("物资耐久 ","CACHE INTEGRITY ")+
+                    Math.Ceiling(stock)+"%"+
+                    (Game.OuterPatrolPatchAvailable?
+                        Game.L(" · 返回哨岗按 E 抢修"," · RETURN TO POST · E TO PATCH"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
             }
