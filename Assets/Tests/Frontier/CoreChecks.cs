@@ -2073,6 +2073,56 @@ namespace Starfall.Tests
                 "Equal imminent contact times retain nearest-target tie breaking");
         }
 
+        public static void OuterPatrolWarningSelectsFiniteEarliestThreatAndStableTie(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"A real veteran cache warning can be exercised");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "Real melee and heavy stock attackers are present");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            PlaceShootableCacheContact(g,post,melee,heavy);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
+            heavy.state=melee.state=1;
+            heavy.targetingOuterPatrolStock=melee.targetingOuterPatrolStock=true;
+            heavy.timer=float.NaN;melee.timer=.2f;
+            // Put the malformed timer first to prove it cannot poison the
+            // warning selector before a later authentic finite threat.
+            g.enemies.Remove(heavy);g.enemies.Insert(0,heavy);
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "A NaN attack clock cannot hide the next real stock impact");
+            Check(Math.Abs(g.OuterPatrolIncomingStockSeconds-.2f)<.001f,
+                "Incoming-stock HUD exposes a finite countdown for a real strike");
+
+            // Equal deadlines use physical distance to the protected stock,
+            // then favor the heavy if both are at the same distance. Reorder
+            // the live actors so list insertion order cannot choose the HUD.
+            heavy.timer=melee.timer=.2f;
+            Point cache=new Point(post.x,post.y);
+            Point h=heavy.Position-cache,m=melee.Position-cache;
+            float hd=h.x*h.x+h.y*h.y,md=m.x*m.x+m.y*m.y;
+            Enemy expected=Math.Abs(hd-md)<.0001f?heavy:(hd<md?heavy:melee);
+            Enemy other=expected==heavy?melee:heavy;
+            g.enemies.Remove(other);g.enemies.Remove(expected);
+            g.enemies.Insert(0,other);g.enemies.Insert(1,expected);
+            Check(g.OuterPatrolIncomingStockThreat==expected,
+                "Equal-deadline warnings choose the nearest physical stock contact independent of list order");
+            Check(g.OuterPatrolIncomingStockHeavy==(expected.kind==2),
+                "Heavy warning metadata matches the deterministically selected threat");
+        }
+
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");

@@ -78,12 +78,32 @@ namespace Starfall
             {
                 if(!OuterPatrolActive)return null;
                 Enemy closest=null;
+                float bestSeconds=float.PositiveInfinity;
+                float bestDistance=float.PositiveInfinity;
                 foreach(Enemy foe in enemies)
                 {
                     if(!OuterPatrolUncoveredStockStrike(foe))
                         continue;
-                    if(closest==null||foe.timer<closest.timer)
+                    // A non-finite clock has no meaningful arrival deadline.
+                    // In particular, NaN makes every later "timer < best"
+                    // comparison false and can hide a real, finite incoming hit.
+                    if(float.IsNaN(foe.timer)||float.IsInfinity(foe.timer))
+                        continue;
+                    float seconds=Math.Max(0f,foe.timer);
+                    Point delta=foe.Position-outerPatrolPost;
+                    float distance=delta.x*delta.x+delta.y*delta.y;
+                    bool sameDeadline=closest!=null&&seconds==bestSeconds;
+                    bool closer=distance<bestDistance;
+                    bool sameDistance=distance==bestDistance;
+                    bool preferHeavy=sameDistance&&foe.kind==2&&
+                        closest!=null&&closest.kind!=2;
+                    if(closest==null||seconds<bestSeconds||
+                        (sameDeadline&&(closer||preferHeavy)))
+                    {
                         closest=foe;
+                        bestSeconds=seconds;
+                        bestDistance=distance;
+                    }
                 }
                 return closest;
             }
