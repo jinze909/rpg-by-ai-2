@@ -210,7 +210,10 @@ namespace Starfall.Tests
                     spawnX=10.5f,spawnY=10.5f,rows=rows,
                     objects=new[]{shade},decor=new Decoration[0]};
                 var g=Fresh(data);
-                g.save.stage=3;g.save.flags.Add("desert_report");
+                g.save.stage=3;
+                // Region 6 is gated by the original harbor report, while
+                // the desert report unlocks region 7, not this climate map.
+                g.save.flags.Add("harbor_report");
                 g.Enter(6);g.enemies.Clear();
                 g.save.x=10.5f;g.save.y=10.5f;
                 g.save.teaUntil=0;g.save.heat=40f;
