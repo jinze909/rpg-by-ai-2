@@ -361,11 +361,21 @@ namespace Starfall
     {
         public float x,y;
         public Point(float x,float y){this.x=x;this.y=y;}
+        public float Length { get { return (float)Math.Sqrt(x*x+y*y); } }
+        public static Point operator -(Point a,Point b)
+        { return new Point(a.x-b.x,a.y-b.y); }
+    }
+    public sealed class NativeProbeSave
+    {
+        public int room;
+        public bool reducedMotion;
     }
     public class GameCore
     {
         public int AppearanceWeapon;
         public string mode="world";
+        public NativeProbeSave save=new NativeProbeSave();
+        public Point Position;
     }
     // Real FrontierRuntime is a multi-file partial; provide only members
     // defined elsewhere, never fake the new native capture method.
