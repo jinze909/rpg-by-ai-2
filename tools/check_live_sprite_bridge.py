@@ -285,6 +285,33 @@ def check():
         else:
             raise AssertionError(
                 "UNSAFE_VISUAL_CI: missing serialized Frontier production runtime accepted")
+    def check_single_frontier_runtime_contract(source):
+        names = (
+            "ProductionFrontierSceneUsesTheLiveThreeClassHeroPath",
+            "ActualFrontierSceneAttackAndSkillContactFramesKeepOneBody",
+            "RealFrontierSceneRendersNonheroWholeBodyPixels",
+        )
+        for name in names:
+            start = source.index("public IEnumerator " + name + "()")
+            next_test = source.find("public IEnumerator ", start + 1)
+            method = source[start:] if next_test < 0 else source[start:next_test]
+            assert "var runtimes = Object.FindObjectsOfType<FrontierRuntime>();" in method, (
+                "FRONTIER_SCENE_RUNTIME_COUNT_NOT_CHECKED", name)
+            assert "Assert.AreEqual(1, runtimes.Length," in method, (
+                "FRONTIER_SCENE_DUPLICATE_RUNTIME_NOT_REJECTED", name)
+            assert "app = runtimes[0];" in method, (
+                "FRONTIER_SCENE_RUNTIME_LOOKUP_NOT_FROM_VERIFIED_SET", name)
+    check_single_frontier_runtime_contract(native_qa)
+    corrupted_runtime_count = native_qa.replace(
+        "Assert.AreEqual(1, runtimes.Length,",
+        "Assert.AreEqual(0, runtimes.Length,", 1)
+    try:
+        check_single_frontier_runtime_contract(corrupted_runtime_count)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(
+            "UNSAFE_VISUAL_CI: duplicate Frontier runtime bootstrap would be accepted")
     # Imported Animator missing must hard-fail in its own separate native
     # clip test, which lives OUTSIDE the production idle-scene method.
     assert "Native Animator MISSING: production PlayMode must FAIL" in native_qa

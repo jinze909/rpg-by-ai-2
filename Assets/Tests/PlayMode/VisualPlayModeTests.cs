@@ -39,7 +39,10 @@ namespace Starfall.Tests
             yield return new WaitForEndOfFrame();
             Assert.IsTrue(scene.IsValid() && scene.isLoaded);
             Assert.AreEqual("Frontier", SceneManager.GetActiveScene().name);
-            app = Object.FindObjectOfType<FrontierRuntime>();
+            var runtimes = Object.FindObjectsOfType<FrontierRuntime>();
+            Assert.AreEqual(1, runtimes.Length,
+                "Frontier scene and bootstrap must resolve to exactly one runtime");
+            app = runtimes[0];
             Assert.NotNull(app,
                 "Actual Frontier scene must boot production FrontierRuntime");
             Assert.NotNull(app.Game,
@@ -99,7 +102,10 @@ namespace Starfall.Tests
             yield return null;
             yield return new WaitForEndOfFrame();
             Assert.IsTrue(scene.isLoaded);
-            app = Object.FindObjectOfType<FrontierRuntime>();
+            var runtimes = Object.FindObjectsOfType<FrontierRuntime>();
+            Assert.AreEqual(1, runtimes.Length,
+                "Frontier scene and bootstrap must resolve to exactly one runtime");
+            app = runtimes[0];
             Assert.IsNotNull(app,"Live FrontierRuntime must boot in production scene");
             Assert.IsNotNull(app.Game);
             var flags = System.Reflection.BindingFlags.NonPublic |
@@ -605,7 +611,10 @@ namespace Starfall.Tests
             yield return new WaitForEndOfFrame();
             Assert.IsTrue(scene.IsValid()&&scene.isLoaded);
             Assert.AreEqual("Frontier",SceneManager.GetActiveScene().name);
-            app=Object.FindObjectOfType<FrontierRuntime>();
+            var runtimes = Object.FindObjectsOfType<FrontierRuntime>();
+            Assert.AreEqual(1, runtimes.Length,
+                "Frontier scene and bootstrap must resolve to exactly one runtime");
+            app = runtimes[0];
             Assert.NotNull(app,"Production scene did not boot FrontierRuntime");
             Assert.NotNull(app.Game,"Production Campaign did not initialize");
             var flags=System.Reflection.BindingFlags.Instance|
