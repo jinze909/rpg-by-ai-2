@@ -3423,6 +3423,84 @@ namespace Starfall.Tests
                 "Piercing arrows still contact every overlapping real enemy once");
         }
 
+        public static void BossSummonWarningsStayWithPhysicalCasterAcrossReusedIds(Campaign data)
+        {
+            // Two genuine support-call windups may share an encounter ID.
+            // Canceling the first must never hide the second one's warning.
+            MapData previous=data.maps[3];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[3]=new MapData {id=3,
+                    spawnX=12f,spawnY=12f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,0);g.Enter(3);g.enemies.Clear();
+                g.effects.Clear();g.save.room=3;
+                g.save.x=12f;g.save.y=12f;
+                g.save.reducedMotion=true;
+                g.save.maxHealth=1000f;g.save.health=1000f;
+                var first=new Enemy(8651,0,10f,12f,400f,true)
+                    {hp=120f,cycle=2,timer=.01f};
+                var second=new Enemy(8651,0,14f,12f,400f,true)
+                    {hp=120f,cycle=2,timer=.01f};
+                g.enemies.Add(first);g.enemies.Add(second);
+                Check(g.CanStand(first.Position)&&g.CanStand(second.Position),
+                    "Concurrent support callers need real legal Boss positions");
+                g.Tick(.05f,new Point());
+                Check(first.state==1&&second.state==1,
+                    "Both real Bosses must actually start a telegraphed attack");
+                Check(g.effects.Exists(fx=>fx.bossSummonCueOwner==first&&
+                        fx.bossSummonCueOwnerId==first.id)&&
+                    g.effects.Exists(fx=>fx.bossSummonCueOwner==second&&
+                        fx.bossSummonCueOwnerId==second.id),
+                    "Each physical Boss must own one readable upcoming reinforcement call");
+                var unrelated=new Effect("number",new Point(12,12),3f,"ORDINARY")
+                    {bossSummonCueOwnerId=first.id};
+                g.effects.Add(unrelated);
+                var interrupt=typeof(GameCore).GetMethod("ApplyEnemyControl",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(interrupt!=null,"The real control/contact interruption must exist");
+                interrupt.Invoke(g,new object[]{first,.8f});
+                Check(first.state==0&&
+                    !g.effects.Exists(fx=>fx.bossSummonCueOwner==first)&&
+                    g.effects.Exists(fx=>fx.bossSummonCueOwner==second)&&
+                    g.effects.Contains(unrelated),
+                    "Interrupting one Boss cannot erase another identical-ID Boss's warning or an unrelated number");
+                second.timer=.01f;
+                g.Tick(.05f,new Point());
+                Check(second.state==0&&second.cycle==3&&
+                    !g.effects.Exists(fx=>fx.bossSummonCueOwner==second)&&
+                    g.effects.Contains(unrelated),
+                    "A surviving Boss's real release must retire its own call at contact without erasing other numbers");
+
+                // ID zero is a valid ephemeral actor identity; it must
+                // neither match unowned effects nor suppress an actual cue.
+                g.enemies.Clear();g.effects.Clear();
+                var zero=new Enemy(0,0,14f,12f,400f,true)
+                    {hp=120f,cycle=2,timer=.01f};
+                g.enemies.Add(zero);g.Tick(.05f,new Point());
+                Check(zero.state==1&&
+                    g.effects.Exists(fx=>fx.bossSummonCueOwner==zero&&
+                        fx.bossSummonCueOwnerId==0),
+                    "An actual zero-ID Boss still warns players of its pending support wave");
+                var ordinary=new Effect("number",zero.Position,3f,"UNCHANGED");
+                g.effects.Add(ordinary);
+                interrupt.Invoke(g,new object[]{zero,.5f});
+                Check(!g.effects.Exists(fx=>fx.bossSummonCueOwner==zero)&&
+                    g.effects.Contains(ordinary),
+                    "Canceling a zero-ID Boss cannot remove ordinary unowned VFX");
+            }
+            finally {data.maps[3]=previous;}
+        }
+
         public static void PiercingProjectilesTrackEnemyIdentityAcrossReusedSpawnIds(Campaign data)
         {
             // Numeric enemy IDs are spawn/save slots, NOT the physical

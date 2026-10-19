@@ -157,6 +157,10 @@ namespace Starfall
         // Short-lived boss-reinforcement warnings follow their actual attack
         // owner; stun, Break, or death retracts only this pending cue.
         public int bossSummonCueOwnerId;
+        // Numeric spawn IDs may repeat inside concurrent encounters. The
+        // actual Enemy object owns this transient call warning and alone
+        // can retract it; ordinary number effects have a null owner.
+        public Enemy bossSummonCueOwner;
         // Only encounter-owned warnings retire when an optional rescue ends.
         // Ordinary combat effects are preserved.
         public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned;

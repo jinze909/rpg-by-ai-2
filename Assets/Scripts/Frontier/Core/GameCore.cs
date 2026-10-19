@@ -888,9 +888,8 @@ namespace Starfall
             if(enemy==null)return;
             // A canceled Boss support call must retract only its own warning,
             // not a second guardian's cue or unrelated player combat effects.
-            if(enemy.id!=0)
-                effects.RemoveAll(fx=>fx.bossSummonCueOwnerId!=0&&
-                    fx.bossSummonCueOwnerId==enemy.id);
+            effects.RemoveAll(fx=>Object.ReferenceEquals(
+                fx.bossSummonCueOwner,enemy));
             Effect pending;
             if(enemy!=null&&
                 rescueWindupEffects.TryGetValue(enemy,out pending))
@@ -1127,8 +1126,11 @@ namespace Starfall
                             {
                                 // A released call's warning ends precisely on
                                 // the real contact frame, before support appears.
-                                if(e.id!=0)
-                                    effects.RemoveAll(fx=>fx.bossSummonCueOwnerId==e.id);
+                                // Retire only this actual caster's cue.
+                                // Another guardian can have the same numeric
+                                // spawn ID but its warning still matters.
+                                effects.RemoveAll(fx=>Object.ReferenceEquals(
+                                    fx.bossSummonCueOwner,e));
                                 e.cycle++;
                                 if (save.room == 3)
                                 {
@@ -1261,7 +1263,7 @@ namespace Starfall
                         rescueWindupEffects.Add(e, telegraph);
                     }
                     if (e.boss || distance < 6 || strikeCivilian || strikeStock || strikePatrolStock) sound = "windup";
-                    if(e.boss && e.id!=0 && enemies.Count<9 &&
+                    if(e.boss && enemies.Count<9 &&
                         (e.BossPhase==3||(save.room==4&&e.BossPhase>=2)) &&
                         (e.cycle+1)%3==0)
                     {
@@ -1271,7 +1273,8 @@ namespace Starfall
                         effects.Add(new Effect("number",
                             e.Position+new Point(0,-1f),e.timer+.06f,
                             L("正在呼叫增援！","CALLING REINFORCEMENTS!"))
-                            {bossSummonCueOwnerId=e.id});
+                            {bossSummonCueOwnerId=e.id,
+                             bossSummonCueOwner=e});
                     }
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)
