@@ -998,7 +998,7 @@ namespace Starfall.Tests
                 WorldObject post=Array.Find(data.maps[room].objects,
                     x=>x.kind=="outerwatch");
                 Check(post!=null,"Each region has an authored supply post");
-                GameCore g=new GameCore(data);g.save.room=room;
+                GameCore g=new GameCore(data);g.mode="world";g.save.room=room;
                 g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
                 g.save.x=post.x;g.save.y=post.y;
                 g.save.health=Math.Min(g.save.maxHealth-25f,45f);
