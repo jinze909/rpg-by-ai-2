@@ -19,6 +19,24 @@ namespace Starfall
         public bool OuterPatrolActive { get { return outerPatrolRoom==save.room; } }
         public bool OuterPatrolDone(int room)
         { return room>=0&&room<8&&Has("outer_patrol_done_"+room); }
+        // Victory changes the actual world, not only the quest journal.
+        // Only the local, already-defended post can replenish living visitors.
+        // Re-check the physical interaction lane so sealed gates and shorelines
+        // cannot project healing through terrain or into a live siege.
+        public bool OuterPatrolRefuge
+        {
+            get
+            {
+                if(save.room<0||save.room>=8||!OuterPatrolDone(save.room)||
+                    OuterPatrolActive||Dying||practicing||racing||!SafeTravel)
+                    return false;
+                foreach(WorldObject o in Map.objects)
+                    if(o.kind=="outerwatch"&&
+                        PhysicalRefugeReach(new Point(o.x,o.y),3.15f))
+                        return true;
+                return false;
+            }
+        }
         public int OuterPatrolWins
         {
             get { int n=0;for(int i=0;i<8;i++)if(OuterPatrolDone(i))n++;return n; }
@@ -89,8 +107,8 @@ namespace Starfall
             if(OuterPatrolDone(room))
             {
                 Dialog(o.name,o.en,
-                    "你保护过的救援物资正在交给真实需要它的人。这里的哨岗仍然对平民开放。",
-                    "The supplies you defended now reach the people who need them. This outpost remains open to civilians.",
+                    "你保护过的救援物资正在送往居民手中。这里已成为真正的补给点：脱离战斗并靠近哨岗时，可以缓慢恢复生命与耐力。",
+                    "The supplies you defended now reach the people who need them. This staffed outpost now restores health and energy when the road is safe.",
                     C("继续巡路","Keep exploring","close"));
                 return true;
             }

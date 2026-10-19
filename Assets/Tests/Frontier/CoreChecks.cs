@@ -991,6 +991,47 @@ namespace Starfall.Tests
                 "Pre-existing cache survives both failure paths without schema migration");
         }
 
+        public static void DefendedOuterCachesBecomeRealSafeFieldRefuges(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    x=>x.kind=="outerwatch");
+                Check(post!=null,"Each region has an authored supply post");
+                GameCore g=new GameCore(data);g.save.room=room;
+                g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.health=Math.Min(g.save.maxHealth-25f,45f);
+                g.save.energy=21f;
+                Check(!g.OuterPatrolRefuge,
+                    "An unprotected outpost must not give free field treatment");
+                g.save.flags.Add("outer_patrol_done_"+room);
+                Check(g.OuterPatrolRefuge,
+                    "Only a legitimately defended reachable outpost becomes a refuge");
+                float hp=g.save.health, energy=g.save.energy;
+                g.Tick(.05f,new Point());
+                Check(g.save.health>hp+.06f&&g.save.energy>energy,
+                    "Defended outpost actually replenishes finite combat resources");
+                // The status comes from the original v2 flag, not a
+                // separate migration or untracked runtime counter.
+                GameCore reload=new GameCore(data,g.save);
+                reload.save.room=room;reload.enemies.Clear();
+                reload.projectiles.Clear();reload.hazards.Clear();
+                reload.save.x=post.x;reload.save.y=post.y;
+                Check(reload.save.version==2&&reload.OuterPatrolRefuge,
+                    "Reloaded legacy save retains a physically usable outpost");
+                // A real pursuer forces the field medic to stand down.
+                Enemy pursuer=new Enemy(9000,0,post.x+.4f,post.y+.4f,30);
+                g.enemies.Add(pursuer);
+                Check(!g.OuterPatrolRefuge,
+                    "A nearby actual enemy suppresses the otherwise active treatment");
+                g.enemies.Clear();
+                g.save.flags.Remove("outer_patrol_done_"+room);
+                Check(!g.OuterPatrolRefuge,
+                    "Removing a victory flag immediately removes its local benefit");
+            }
+        }
+
         public static void ContinuousBiomeNoiseAvoidsSquareMaterialBoundaries(Campaign data)
         {
             for(int room=0;room<8;room++)

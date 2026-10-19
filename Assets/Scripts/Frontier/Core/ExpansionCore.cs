@@ -849,6 +849,15 @@ namespace Starfall
                 save.health=Math.Min(save.maxHealth,
                     save.health+dt*(1.2f+StormBudgetLeft*.35f+(StormReliefAll?.75f:0f)+
                         (Has("storm_orrin_open")?StormBudgetLeft*.55f:0f)));
+            // The eight defended field caches are living outposts: a local
+            // field-medic rest and supply pause, never combat healing or a
+            // region-wide passive perk. No new permanent state or save format.
+            if(OuterPatrolRefuge)
+            {
+                if(save.health>0&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.55f);
+                save.energy=Math.Min(100f,save.energy+dt*3.0f);
+            }
             // A finished reconstruction actually changes what the region
             // can do, without impacting boss combat or distant locations.
             // Emergency stocks are post-charter, physically provisioned at
