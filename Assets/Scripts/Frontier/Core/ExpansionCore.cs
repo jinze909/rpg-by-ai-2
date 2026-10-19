@@ -527,6 +527,13 @@ namespace Starfall
             }
             return nearest;
         }
+        private bool CompanionCacheContactImminent(Enemy foe)
+        {
+            return foe!=null&&foe.hp>0&&enemies.Contains(foe)&&
+                OuterPatrolActive&&IsOuterPatrolEnemy(foe)&&
+                foe.kind!=1&&foe.state==1&&
+                foe.targetingOuterPatrolStock;
+        }
         private void TickCompanion(float dt)
         {
             companionMoving = false;
@@ -568,6 +575,28 @@ namespace Starfall
                         // into a dead/occluded target and spend a full cooldown;
                         // retain the authored recovery pose and retry promptly.
                         Enemy locked = companionAutoTarget;
+                        if(action.kind=="attack"&&OuterPatrolCompanionGuarding)
+                        {
+                            // A living stock saboteur can BEGIN its real
+                            // warned strike during an ally's 160ms bow draw.
+                            // Reassess only this automatic release; a manual
+                            // Z command must always retain the user's aim.
+                            // A vanished/stunned/occluded old lock may instead
+                            // hand the same prepared shot to a new legal foe.
+                            Enemy urgent=NearestCompanionThreat();
+                            bool oldValid=locked!=null&&locked.hp>0&&
+                                enemies.Contains(locked)&&
+                                (locked.Position-companionPosition).Length<7f&&
+                                ClearAttackPath(companionPosition,locked.Position);
+                            if(urgent!=null&&
+                                (!oldValid||
+                                 CompanionCacheContactImminent(urgent)&&
+                                 !CompanionCacheContactImminent(locked)))
+                            {
+                                locked=urgent;
+                                companionAutoTarget=urgent;
+                            }
+                        }
                         if (action.kind == "attack" &&
                             (!CanStand(companionPosition) ||
                              locked != null &&

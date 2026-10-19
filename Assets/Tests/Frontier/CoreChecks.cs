@@ -1196,6 +1196,69 @@ namespace Starfall.Tests
                 "Another registered attacker vanishing never creates a phantom target");
         }
 
+        public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"Veteran defense is offered at the real post");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Ranger can guard stock during real siege");
+            g.Choose(guard);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,"Both live melee and heavy exist");
+            var selection=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var tick=typeof(GameCore).GetMethod("TickCompanion",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var target=typeof(GameCore).GetField("companionAutoTarget",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var cooldown=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(selection!=null&&tick!=null&&target!=null&&cooldown!=null,
+                "Regress actual automatic draw, target and released projectile");
+            // Both shots must be possible before measuring target priority.
+            Enemy available=(Enemy)selection.Invoke(g,null);
+            Check(available==melee||available==heavy,
+                "Registered stock raider is shootable through a real muzzle");
+            Enemy alternate=available==melee?heavy:melee;
+            Check(!alternate.targetingOuterPatrolStock,
+                "Secondary saboteur starts without a telegraphed stock hit");
+            cooldown.SetValue(g,0f);
+            tick.Invoke(g,new object[]{.02f});
+            Check(g.companionAction!=null&&
+                g.companionAction.kind=="attack"&&
+                (Enemy)target.GetValue(g)==available,
+                "A real ally starts a planted, automatic bow windup");
+            // Other live raider commits after bow drawing began; retarget
+            // before physical release instead of firing into old stock lane.
+            alternate.state=1;alternate.targetingOuterPatrolStock=true;
+            tick.Invoke(g,new object[]{.16f});
+            Check(g.companionAction.released&&
+                (Enemy)target.GetValue(g)==alternate&&
+                g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "One genuine released projectile changes to urgent stock attacker");
+            Check((g.companionAction.target.Value-alternate.Position).Length<.01f,
+                "Prepared shot's direction and target both follow actual threat");
+        }
+
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");
