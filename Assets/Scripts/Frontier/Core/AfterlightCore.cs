@@ -36,6 +36,9 @@ namespace Starfall
         // but trial foes, clock and wave IDs must NEVER enter v2 saved state.
         private int afterlightWatchRoom,afterlightWatchWave,afterlightWatchA,afterlightWatchB;
         private bool afterlightWatchADead,afterlightWatchBDead,afterlightWatchPatched;
+        // After authentic wave-one kills a crowded receiver must defer
+        // reinforcements, not erase the player's already-won defense.
+        private bool afterlightWatchWaveDeferred;
         private float afterlightWatchTime,afterlightWatchStock;
         public float AfterlightWatchStock
         {get{return AfterlightWatchActive?afterlightWatchStock:0f;}}
@@ -76,6 +79,7 @@ namespace Starfall
             }
             afterlightWatchRoom=afterlightWatchWave=afterlightWatchA=afterlightWatchB=0;
             afterlightWatchADead=afterlightWatchBDead=afterlightWatchPatched=false;
+            afterlightWatchWaveDeferred=false;
             afterlightWatchTime=afterlightWatchStock=0;
         }
         // Siege raiders damage an actual local facility at the end of their
@@ -153,6 +157,7 @@ namespace Starfall
                 42+region*10+(wave-1)*18);
             afterlightWatchA=a.id;afterlightWatchB=b.id;
             afterlightWatchADead=afterlightWatchBDead=false;
+            afterlightWatchWaveDeferred=false;
             afterlightWatchWave=wave;
             enemies.Add(a);enemies.Add(b);
             revision++;sound="quest";
@@ -247,9 +252,16 @@ namespace Starfall
             {
                 if(!SpawnAfterlightWatchWave(2))
                 {
-                    ResetAfterlightWatch();revision++;
-                    Notify("第二波没有安全落脚点，本次未结算胜利。可重试。",
-                        "No safe footing for wave two. No victory recorded; retry later.");
+                    // Keep wave-one lethal acknowledgements and remaining
+                    // watch time. Only two available physical feet can
+                    // advance this scene; repeat the attempt each world
+                    // tick until space opens or the original clock expires.
+                    if(!afterlightWatchWaveDeferred)
+                    {
+                        afterlightWatchWaveDeferred=true;revision++;
+                        Notify("增援暂时缺少安全落点。第一波战果已保留，清出战场后继续防卫。",
+                            "No safe foothold for reinforcements yet. Wave-one victories are retained; clear the arena to continue.");
+                    }
                 }
                 return;
             }

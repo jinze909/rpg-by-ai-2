@@ -1007,6 +1007,81 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CivicWatchCrowdedSecondWaveKeepsRealFirstVictoryAndOriginalTimer(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            foreach(string flag in new[]{"afterlight_started",
+                "afterlight_complete","afterlight_done_3",
+                "afterlight_steward_3","afterlight_reserve_3",
+                "afterlight_plan_3_watch"})g.save.flags.Add(flag);
+            g.Enter(3);g.enemies.Clear();g.invulnerable=180f;
+            WorldObject outlet=Object(g,"afterlightoutlet3");
+            g.save.x=outlet.x;g.save.y=outlet.y;
+            g.Talk(outlet);
+            Action(g,outlet.kind,"afterlight_watch_start_3");
+            Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+                g.enemies.Count==2,
+                "An actual stocked Ironreach receiver starts the first real two-raider wave");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The original production lethal contact pathway exists");
+            var first=g.enemies.FindAll(e=>e.hp>0);
+            float oldCoins=g.save.coins,oldShards=g.save.shards;
+            foreach(Enemy guard in first)
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            Check(g.AfterlightWatchWave==1&&g.enemies.Count==0,
+                "Both authentic first-wave deaths are accounted for but do not prematurely pay defense rewards");
+            // Park living, combat-disabled ambient actors on ALL authored
+            // second-wave tiles. The room must not invent a fake spare foot.
+            Point[] offsets={new Point(-3f,0),new Point(3f,0),
+                new Point(0,-3f),new Point(0,3f),
+                new Point(-3f,-2f),new Point(3f,-2f),
+                new Point(-3f,2f),new Point(3f,2f),
+                new Point(-4f,1f),new Point(4f,1f),
+                new Point(1f,-4f),new Point(1f,4f),
+                new Point(-2f,-4f),new Point(2f,4f),
+                new Point(4f,-2f),new Point(-4f,2f)};
+            var crowded=new System.Collections.Generic.List<Enemy>();
+            foreach(Point offset in offsets)
+            {
+                Point p=new Point(outlet.x,outlet.y)+offset;
+                if(!g.CanStand(p))continue;
+                var occupant=new Enemy(92800+crowded.Count,0,
+                    p.x,p.y,900){stun=200f,timer=1000f};
+                g.enemies.Add(occupant);crowded.Add(occupant);
+            }
+            Check(crowded.Count>=5,
+                "The authored real mine receiver has multiple otherwise legal reinforcement feet occupied by world actors");
+            float before=g.AfterlightWatchTime;
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+                g.enemies.Count==crowded.Count&&
+                !g.AfterlightWatchDone(3)&&
+                g.save.coins==oldCoins&&g.save.shards==oldShards&&
+                g.AfterlightWatchTime<before-.04f,
+                "Crowded real receiver preserves two earned first-wave kills and original countdown without paying a premature reward");
+            float held=g.AfterlightWatchTime;
+            g.Tick(.05f,new Point());
+            Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+                g.AfterlightWatchTime<held-.04f&&
+                g.enemies.Count==crowded.Count,
+                "Repeated wave-two deployment failure neither restarts the live fight nor freezes its authentic timer");
+            foreach(Enemy occupant in crowded)g.enemies.Remove(occupant);
+            g.Tick(.05f,new Point());
+            Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==2&&
+                g.enemies.Count==2&&!g.AfterlightWatchDone(3),
+                "Freeing genuine receiver footing spawns both complete second-wave enemies exactly once");
+            var second=g.enemies.FindAll(e=>e.hp>0);
+            foreach(Enemy guard in second)
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.AfterlightWatchDone(3)&&!g.AfterlightWatchActive&&
+                g.save.coins==oldCoins+40&&g.save.shards==oldShards+1&&
+                g.save.version==2,
+                "Only four real lethal hits across both waves grant the genuine one-time Ironreach public defense reward");
+        }
+
         public static void AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;
