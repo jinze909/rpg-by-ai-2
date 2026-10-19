@@ -1067,6 +1067,13 @@ namespace Starfall.Tests
                 g.AfterlightWatchTime<held-.04f&&
                 g.enemies.Count==crowded.Count,
                 "Repeated wave-two deployment failure neither restarts the live fight nor freezes its authentic timer");
+            g.Talk(outlet);
+            Check(g.mode=="dialog"&&g.conversation!=null&&
+                g.conversation.text.Contains("第一波已击退")&&
+                g.conversation.textEn.Contains("First wave defeated")&&
+                g.conversation.textEn.Contains("countdown"),
+                "Actual bilingual receiver UI explains the deferred second wave and honest continuing timer instead of displaying ghost enemies");
+            g.Close();
             foreach(Enemy occupant in crowded)g.enemies.Remove(occupant);
             g.Tick(.05f,new Point());
             Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==2&&

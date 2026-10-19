@@ -512,6 +512,15 @@ namespace Starfall
                         descriptionEn+="\n\nCivic defense wave "+AfterlightWatchWave+"/2; "+
                             Math.Ceiling(AfterlightWatchTime)+"s left, stock integrity "+
                             Math.Ceiling(AfterlightWatchStock)+"%. Melee raiders attack the receiver unless you intercept them in close combat.";
+                        if(afterlightWatchWaveDeferred)
+                        {
+                            // These actors have already died in authentic
+                            // combat: do not tell the player to fight ghosts.
+                            // Time and stock are still live; an available
+                            // pair of reachable feet starts wave two.
+                            descriptionZh+="\n\n第一波已击退！第二波增援等待安全落点；清出接收台周围空间即可继续，原倒计时仍在继续。";
+                            descriptionEn+="\n\nFirst wave defeated! Reinforcements await clear, reachable ground near the receiver. Make room to continue; the original countdown is still running.";
+                        }
                         if(!afterlightWatchPatched&&afterlightWatchStock<100f)
                             options.Add(C("抢修储备 · 木材1、月光草1、恢复30耐久（每趟一次）",
                                 "Patch stock · 1 timber + 1 Moonherb, +30 (once)",
