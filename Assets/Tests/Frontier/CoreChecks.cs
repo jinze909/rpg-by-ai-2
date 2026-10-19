@@ -2209,6 +2209,20 @@ namespace Starfall.Tests
                 "An infinite windup also retires its target lock and warning cleanly");
             Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
                 "Neither malformed clock can bypass the real stock-contact checks");
+
+            // Idle cooldowns use the same transient clock and must recover too;
+            // otherwise an enemy silently stops attacking for the rest of combat.
+            heavy.state=0;heavy.timer=float.NaN;
+            heavy.targetingOuterPatrolStock=true;
+            Effect idleWarning=new Effect("danger",heavy.target,1f);
+            g.effects.Add(idleWarning);
+            add.Invoke(table,new object[]{heavy,idleWarning});
+            g.Tick(.02f,new Point());
+            Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                !heavy.targetingOuterPatrolStock&&!g.effects.Contains(idleWarning),
+                "A malformed idle cooldown also resets and retires stale objective cues");
+            Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                "Idle timer recovery cannot create an untelegraphed stock hit");
         }
 
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
