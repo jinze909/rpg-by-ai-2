@@ -47,7 +47,9 @@ namespace Starfall
             bool north = direction.y < -Math.Abs(direction.x), south = direction.y > Math.Abs(direction.x);
             int frame = north ? 8 : 0;
             if (action != null)
-                frame = north ? (action.released ? 7 : 6) : south ? (action.released ? 10 : 9) : action.released && action.kind == "command" && id != 1 ? 5 : action.released ? 4 : 3;
+                frame = north ? (action.released ? 7 : 6) : south ? (action.released ? 10 : 9) : action.released && (action.kind == "command" ||
+                    action.kind == "heal") && id != 1 ? 5 :
+                    action.released ? 4 : 3;
             DrawActorContactShadow(p,38,14,4+id,.77f);
             // The former 26x3 opaque mint Box sat ON TOP of finished boot
             // pixels. Use the existing feathered, high-quality Glow() source

@@ -159,6 +159,27 @@ public static class ActorRegistrationChecks
             Clear();var standCombat=Draw(app,"DrawCompanionActor");
             Check(standCombat.Single(ActorTexture).texture.name==actions,
                 "Stationary companion commands must NOT freeze in walking pose");
+            // Mira's real automatic heal has its own authored horizontal
+            // staff-release cell (5). Previously only "command" selected it,
+            // so a successful heal showed the generic sword/attack contact.
+            if(id==0)
+            {
+                g.companionAction=new ActorAction{
+                    direction=Directions[heading],kind="heal",
+                    contact=.16f,duration=.42f,released=true
+                };
+                Clear();
+                var healing=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                int healColumn=(int)Math.Round(Math.Min(healing.uv.x,
+                    healing.uv.x+healing.uv.width)*3f);
+                int healRow=(int)Math.Round(1f-healing.uv.y-
+                    Math.Abs(healing.uv.height));
+                int healFrame=healRow*3+healColumn;
+                int expectedHealFrame=heading==2?7:heading==3?10:5;
+                Check(healFrame==expectedHealFrame&&
+                    healing.texture.name==actions,
+                    "Mira's real heal must select its authored magic-release cell for E/W/N/S");
+            }
             g.companionAction=null;
             for(int phase=0;phase<4;phase++)
             {
