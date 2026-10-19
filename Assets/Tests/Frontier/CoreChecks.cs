@@ -1408,6 +1408,59 @@ namespace Starfall.Tests
                 "v2 slots never persist a transient tactical guard command");
         }
 
+        // Older tests asserted "stock windup" on spawned approach actors
+        // several meters outside actual melee reach, while the hero was
+        // standing in the way. These helpers instead select an AUTHENTIC
+        // standable, unobstructed contact plus a real bow muzzle lane.
+        private static Point PlaceShootableCacheContact(GameCore g,
+            WorldObject post,Enemy attacker,Enemy avoid)
+        {
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+            var shot=typeof(GameCore).GetMethod("WeaponShot",flags);
+            Check(clear!=null&&shot!=null,
+                "Use existing combat path and projectile muzzle geometry");
+            Point cache=new Point(post.x,post.y);
+            for(float dx=-2f;dx<=2f;dx+=.25f)
+            for(float dy=-2f;dy<=2f;dy+=.25f)
+            {
+                Point p=cache+new Point(dx,dy);
+                Point aim=p-g.companionPosition;
+                if(!g.CanStand(p)||(p-cache).Length>2.2f||
+                    aim.Length<1.4f||aim.Length>=6.5f||
+                    avoid!=null&&(p-avoid.Position).Length<1.15f||
+                    !(bool)clear.Invoke(g,new object[]{p,cache})||
+                    !(bool)clear.Invoke(g,new object[]{
+                        g.companionPosition,p}))
+                    continue;
+                Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                    g.companionPosition,1,aim.Normalized,9f,0f,(Point?)p});
+                if(probe.blockedAtSpawn)continue;
+                attacker.x=p.x;attacker.y=p.y;
+                return p;
+            }
+            throw new Exception(
+                "No genuine walkable stock contact with a clear original ally bow muzzle");
+        }
+        private static void MoveToRealUncoveredStockObserver(GameCore g,
+            WorldObject post,Enemy one,Enemy two)
+        {
+            Point cache=new Point(post.x,post.y);
+            for(int dx=-10;dx<=10;dx++)
+            for(int dy=-10;dy<=10;dy++)
+            {
+                Point p=cache+new Point(dx,dy);
+                if(!g.CanStand(p)||(p-cache).Length>11f||
+                    (p-one.Position).Length<3.5f||
+                    two!=null&&(p-two.Position).Length<3.5f)
+                    continue;
+                g.save.x=p.x;g.save.y=p.y;
+                return;
+            }
+            throw new Exception("No real physical safe observer for outpost warning");
+        }
+
         public static void CompanionInterceptsLiveHeavyWindupBeforeIdleCacheRaider(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
@@ -1451,11 +1504,19 @@ namespace Starfall.Tests
                 g.companionPosition,1,vectorH,9f,0f,(Point?)heavy.Position});
             Check(!probeM.blockedAtSpawn&&!probeH.blockedAtSpawn,
                 "Both actual enemy targets have a valid muzzle lane");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
             heavy.state=1;heavy.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==heavy,
+                "Heavy actually threatens uncovered stock from its physical contact range");
             Check((Enemy)select.Invoke(g,null)==heavy,
                 "Imminent heavy hit wins ally's target over idle melee attacker");
             heavy.targetingOuterPatrolStock=false;
+            PlaceShootableCacheContact(g,post,melee,heavy);
+            MoveToRealUncoveredStockObserver(g,post,melee,heavy);
             melee.state=1;melee.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "The ordinary melee attacker also has a real uncovered strike lane");
             Check((Enemy)select.Invoke(g,null)==melee,
                 "Threat priority follows the currently committed raider");
             g.enemies.Remove(heavy);
@@ -1698,7 +1759,19 @@ namespace Starfall.Tests
                 "A real ally starts a planted, automatic bow windup");
             // Other live raider commits after bow drawing began; retarget
             // before physical release instead of firing into old stock lane.
+            // The guard has already exhausted its finite two real body
+            // contacts (tested by the genuine three-hit stock test).
+            // This validates urgent auto-fire against an UNGUARDED lane.
+            var blocks=typeof(GameCore).GetField("outerPatrolGuardBlocksLeft",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(blocks!=null,"Finite bodyguard shield is registered");
+            blocks.SetValue(g,0);
+            PlaceShootableCacheContact(g,post,alternate,available);
+            MoveToRealUncoveredStockObserver(g,post,alternate,available);
             alternate.state=1;alternate.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==alternate,
+                "The late alternative has a real unprotected and visible stock strike");
             tick.Invoke(g,new object[]{.16f});
             Check(g.companionAction.released&&
                 (Enemy)target.GetValue(g)==alternate&&
