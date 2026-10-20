@@ -1388,7 +1388,7 @@ namespace Starfall.Tests
                 object[] separatePlan={replacement,null};
                 Check(newActorHeading.Length>.5f&&
                     (bool)lookup.Invoke(cache,separatePlan)&&
-                    !Object.ReferenceEquals(plan,separatePlan[1]),
+                    !System.Object.ReferenceEquals(plan,separatePlan[1]),
                     "A respawned foe reusing the same numeric ID cannot inherit an older actor's lateral attack route");
             }
             finally {data.maps[0]=original;}
