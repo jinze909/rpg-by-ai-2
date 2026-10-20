@@ -294,8 +294,8 @@ namespace Starfall
                 return true;
             }
             TrackQuest("vigil");
-            Notify(roadTrialVeteran ? "精英守路试炼！保护信标护盾，击退三波敌人；无重复奖励。" : "守路试炼开始！保护信标护盾，击退追猎者与射手。",
-                roadTrialVeteran ? "Veteran defense! Protect the beacon ward through three waves; no repeat rewards." : "Defense drill! Protect the beacon ward from the hunter and archer.");
+            Notify(roadTrialVeteran ? "精英守路试炼！保护信标，近战敌人会冲锋，射手将远程压制你；无重复奖励。" : "守路试炼开始！追猎者冲击信标，弓箭手从远处射向你！",
+                roadTrialVeteran ? "Veteran defense! Guard the beacon: melee attackers rush it, archers target you from range. No repeat rewards." : "Defense drill! The hunter rushes the beacon; the archer targets you from afar.");
             return true;
         }
         private bool SpawnRoadwardenTrialWave()

@@ -1032,8 +1032,17 @@ namespace Starfall
             // The two-wave roadwarden attackers are real combat enemies, but
             // their warm foot ring distinguishes them from roaming patrols.
             // A fixed ring is legible even with reduced-motion effects.
-            if (!drawingOutline && e.id >= 81000 && e.id < 81100)
-                Ring(e.Position, .52f, PixelArt.C("#e6a06c"), 16);
+            // Distinguish the REAL two combat jobs at the Roadwarden
+            // beacon without replacing mature NPC/monster/Boss sprites:
+            // amber hunters rush the ward, violet breakers smash it, and
+            // cyan bowmen seek a hero-facing firing lane. Every marker is
+            // planted on the SAME physical foot as its whole-body actor
+            // and stays legible with accessibility/reduced FX enabled.
+            if (!drawingOutline && e.id >= 81000 && e.id < 81100 &&
+                Game.RoadwardenTrialRoom == Game.save.room)
+                Ring(e.Position, .52f, e.kind==1?
+                    PixelArt.C("#8bd6eb"):e.kind==2?
+                    PixelArt.C("#cd9deb"):PixelArt.C("#e6a06c"),16);
             if (!drawingOutline && e.id >= 82000 && e.id < 82100)
                 Ring(e.Position, .52f, PixelArt.C("#f27d7d"), 16);
             if (!drawingOutline && e.id == 83001)
