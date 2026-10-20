@@ -1283,6 +1283,11 @@ namespace Starfall.Tests
                 Check(Math.Abs(heading.x)<.05f&&
                     Math.Abs(Math.Abs(heading.y)-1f)<.05f,
                     "Physical arrow search selects lateral motion instead of blindly crowding cover");
+                Point outOfRange=new Point(21.5f,from.y);
+                Check((bool)sight.Invoke(g,new object[]{from,outOfRange})&&
+                    !(bool)lane.Invoke(g,new object[]{from,outOfRange})&&
+                    ((Point)search.Invoke(g,new object[]{from,outOfRange})).Length<.001f,
+                    "Beyond real arrow flight lifetime, ordinary archers must not run an irrelevant sideways aiming search");
                 for(float step=.10f;step<.55f;step+=.10f)
                     Check(g.CanStand(from+heading*step),
                         "Long-range firing search cannot plan through a buried intermediate body");
@@ -1291,7 +1296,8 @@ namespace Starfall.Tests
                     {timer=.001f};
                 archer.Face(target-from);g.enemies.Add(archer);
                 g.Tick(.05f,new Point());
-                Check(archer.state==0&&g.CanStand(archer.Position)&&
+                Check(archer.state==0&&archer.moving&&archer.moveTime>0f&&
+                    g.CanStand(archer.Position)&&
                     (archer.Position-from).Length>.015f&&
                     (archer.Position-from).y*heading.y>0f&&
                     !g.projectiles.Exists(p=>!p.friendly),
@@ -1308,6 +1314,23 @@ namespace Starfall.Tests
                     (bool)lane.Invoke(g,new object[]{archer.Position,target})&&
                     g.save.version==2,
                     "Physically swept ordinary bow enemy eventually starts its real telegraphed ranged action only from a genuinely clear arrow lane, without save migration");
+                // Even an earned extended side corridor is not a permanent
+                // shooting license. A gate can seal the target lane after
+                // its readable bow draw starts; the unpaid arrow must stop.
+                string openLine=rows[9];
+                char[] gate=openLine.ToCharArray();
+                gate[13]='#';rows[9]=new string(gate);
+                Check(g.CanStand(archer.Position)&&g.CanStand(g.Position),
+                    "Dynamic mid-windup stone preserves both live actor roots");
+                g.Tick(.02f,new Point());
+                Check(archer.state==0&&
+                    !g.projectiles.Exists(p=>!p.friendly),
+                    "An actual late closing wall cancels the extended-lane bow windup instead of releasing an invisible shot");
+                rows[9]=openLine;
+                archer.timer=.001f;
+                g.Tick(.05f,new Point());
+                Check(archer.state==1&&g.save.version==2,
+                    "After the true side firing corridor reopens, the original ranged enemy immediately earns a new telegraphed aim");
             }
             finally {data.maps[0]=original;}
         }
