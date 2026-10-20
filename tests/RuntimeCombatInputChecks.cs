@@ -548,6 +548,72 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
+    private static void RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap(FrontierRuntime app)
+    {
+        foreach(int weapon in new[]{0,1,2})
+        {
+            Prepare(app,weapon);
+            GameCore game=app.Game;
+            game.save.weapon=weapon;
+            game.save.profession=weapon;
+            float distance=weapon==0?1.30f:3.3f;
+            var target=new Enemy(92110+weapon,0,
+                game.Position.x+distance,game.Position.y,2000f)
+                {stun=40f,timer=40f};
+            game.enemies.Add(target);
+            game.SetAimTarget(target.Position);
+            game.Attack(new Point(1f,0f));
+            bool launched=false,damaged=false;
+            for(int frame=0;frame<120;frame++)
+            {
+                game.Tick(.02f,new Point());
+                if(weapon>0&&!launched&&game.projectiles.Count>0)
+                {
+                    launched=true;
+                    // The physical missile must keep its source weapon's
+                    // hit light, even though GameCore's future avatar
+                    // now displays a different equipped full-body class.
+                    game.save.weapon=0;
+                    game.save.profession=0;
+                }
+                if(target.hp>=2000f)continue;
+                damaged=true;
+                Effect contact=game.effects.FindLast(e=>
+                    (e.kind=="impact"||e.kind=="spark")&&
+                    (e.position-target.Position).Length<.01f);
+                Check(contact!=null&&
+                    contact.variant==(weapon==0?0:weapon+1),
+                    "Actual basic weapon "+weapon+
+                    " lost its physical source-colored impact after the projectile flew");
+                GUI.textureCalls.Clear();
+                Call(app,"DrawAuthoredEffect",contact);
+                Color expected=weapon==1?
+                    new Color(.60f,.91f,.72f):
+                    new Color(.67f,.76f,1f);
+                if(weapon>0)
+                    Check(GUI.textureCalls.Exists(c=>
+                        c.texture!=null&&c.texture.name==
+                        "resource:Frontier/Art/Effects"&&
+                        Math.Abs(c.color.r-expected.r)<.0001f&&
+                        Math.Abs(c.color.g-expected.g)<.0001f&&
+                        Math.Abs(c.color.b-expected.b)<.0001f),
+                        "Real bow/staff contact did not reuse its original painted element");
+                else
+                    Check(GUI.textureCalls.Exists(c=>
+                        c.texture!=null&&c.texture.name==
+                        "resource:Frontier/Art/Effects"&&
+                        Math.Abs(c.color.r-1f)<.0001f&&
+                        Math.Abs(c.color.g-1f)<.0001f&&
+                        Math.Abs(c.color.b-1f)<.0001f),
+                        "Physical sword impact no longer retains classic neutral artwork");
+                break;
+            }
+            Check(damaged&&(weapon==0||launched),
+                "Genuine sword/bow/staff basic attack did not reach actual target through authoritative flight");
+        }
+        Console.WriteLine("PASS actual sword, bow and starstaff basic attacks keep original white/green/blue source-painted physical hit contacts after midflight equipment change");
+    }
+
     private static void RealProfessionQHitsTintOnlyDamageConfirmedContact(FrontierRuntime app)
     {
         float[,] palette={
@@ -2590,7 +2656,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

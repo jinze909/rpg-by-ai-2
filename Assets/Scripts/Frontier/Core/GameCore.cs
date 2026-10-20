@@ -777,9 +777,22 @@ namespace Starfall
             // stagger, critical and cover checks have actually succeeded.
             // The same original contact painting remains on screen; variant
             // only tints that Sprite, never invents a second body/hit.
-            int contactElement=technique&&profile.playerOwned&&
-                profile.profession>=0&&profile.profession<=2?
-                profile.profession+1:0;
+            // A technique belongs to its snapshotted vocation. An ordinary
+            // attack instead belongs to the EQUIPPED physical weapon:
+            // sword stays neutral, arrows carry green flights, staff bolts
+            // carry arcane blue. A projectile landing AFTER a mid-flight
+            // equipment/class change keeps its own original muzzle identity.
+            // Only REAL dealt HP damage reaches this visual event.
+            int contactElement=0;
+            if(profile.playerOwned)
+            {
+                if(technique&&profile.profession>=0&&
+                    profile.profession<=2)
+                    contactElement=profile.profession+1;
+                else if(!technique&&profile.weapon>=1&&
+                    profile.weapon<=2)
+                    contactElement=profile.weapon+1;
+            }
             effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact",
                 e.Position, .22f) { direction = e.recoil,
                 variant = contactElement });
