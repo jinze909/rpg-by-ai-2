@@ -8,8 +8,40 @@ namespace Starfall
         private int journalTab, relicSlot;
         private void DrawRay(Point from, Point to, Color color)
         {
-            Point a = ScreenPoint(from), b = ScreenPoint(to); int count = Math.Max(1, (int)((b - a).Length / 5));
-            for (int i = 0; i <= count; i++) { Point p = a + (b - a) * (i / (float)count); Box(p.x - 2, p.y - 2, 4, 4, color); }
+            // All campaign LightRays and the new live Roadwarden enemy-ward
+            // siphons use this REAL production path. Huge offscreen-to-
+            // offscreen lines previously queued thousands of invisible
+            // 4px GUI rectangles in each repaint on expanded 120x80 maps.
+            // Clip only the SUBMITTED samples; keep their indices against
+            // the ORIGINAL segment so contact diamonds do not pop, shift
+            // phase, or change opacity while the camera pans.
+            Point a=ScreenPoint(from),b=ScreenPoint(to);
+            Point difference=b-a;
+            float distance=difference.Length;
+            if(float.IsNaN(distance)||float.IsInfinity(distance)||
+                distance>10000000f)return;
+            int count=Math.Max(1,(int)(distance/5f));
+            Point clippedA=a,clippedB=b;
+            if(!ClipWarningScreenSegment(ref clippedA,ref clippedB))return;
+            float denom=difference.x*difference.x+
+                difference.y*difference.y;
+            float first=denom>.000001f?
+                ((clippedA-a).x*difference.x+
+                 (clippedA-a).y*difference.y)/denom:0f;
+            float last=denom>.000001f?
+                ((clippedB-a).x*difference.x+
+                 (clippedB-a).y*difference.y)/denom:1f;
+            int firstIndex=Math.Max(0,
+                (int)Math.Floor(Math.Max(0f,first)*count));
+            int lastIndex=Math.Min(count,
+                (int)Math.Ceiling(Math.Min(1f,last)*count));
+            for(int i=firstIndex;i<=lastIndex;i++)
+            {
+                Point p=a+difference*(i/(float)count);
+                if(p.x< -38f||p.x>Width+38f||
+                   p.y< -38f||p.y>Height+38f)continue;
+                Box(p.x-2f,p.y-2f,4f,4f,color);
+            }
         }
         // Visual-only full-body gait continuity, never serialized to saves.
         private int companionVisualId=-1;
