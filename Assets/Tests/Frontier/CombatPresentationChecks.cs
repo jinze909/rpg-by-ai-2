@@ -1128,7 +1128,7 @@ namespace Starfall.Tests
                 Check(flank.CanStand(archerFoot)&&flank.CanStand(victimFoot)&&
                     (bool)center.Invoke(flank,new object[]{
                         archerFoot,victimFoot})&&
-                    Object.ReferenceEquals(nearest.Invoke(flank,null),victim),
+                    System.Object.ReferenceEquals(nearest.Invoke(flank,null),victim),
                     "Genuinely unobstructed target must be available for ally auto-fire");
                 string lower=rows[11];
                 try
