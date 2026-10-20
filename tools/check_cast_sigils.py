@@ -51,8 +51,17 @@ def main():
     renderer=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierEffects.cs").read_text()
     runtime=(ROOT/"Assets/Scripts/Frontier/Runtime/FrontierCastSigilArt.cs").read_text()
     for v in ("DrawCastSigil(enemy,progress);",
-        "DrawWarningArc(enemy.target,radius,0f,"):
+        "DrawCoverAwareEnemyAreaArc(enemy,radius,",
+        "DrawCoverAwareEnemyAreaArc(enemy,innerRadius,",
+        "Game.EnemyAreaWarningSpokeReachable(enemy,sample)"):
         assert v in renderer,("SOURCE_GLYPH_NOT_REAL_WARNING_PATH",v)
+    gamecore=(ROOT/"Assets/Scripts/Frontier/Core/CombatPresentation.cs").read_text()
+    assert "public bool EnemyAreaWarningSpokeReachable(Enemy enemy,Point point)" in gamecore
+    assert "ClearAttackPath(enemy.Position,point)" in gamecore,(
+        "BOSS_WARNING_NOT_LINKED_TO_PHYSICAL_DAMAGE_COVER")
+    assert "RenderStateChecks.VerifyEnemyAreaWarningHonorsRealWallCover," in (
+        ROOT/"tests/RuntimeCombatInputChecks.cs").read_text(),(
+        "BOSS_WARNING_WALL_VISIBILITY_REGRESSION_NOT_EXECUTED")
     for v in ('"Frontier/Art/CastSigils"', "imported.width==128&&",
         "imported.height==64", "Atlas(sheet,4,2,row*4+frame,canvas,",
         "enemy.target", "Game.save.reducedMotion", "Game.save.effectsQuality==0"):
