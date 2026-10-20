@@ -544,7 +544,27 @@ namespace Starfall
                 travel.Length>2.25f||!Fits(from))return false;
             int steps=Math.Max(1,(int)Math.Ceiling(travel.Length/.11f));
             for(int i=1;i<=steps;i++)
-                if(!Fits(from+travel*(i/(float)steps)))return false;
+            {
+                Point foot=from+travel*(i/(float)steps);
+                if(!Fits(foot))return false;
+                // Tile collision alone cannot see a live enemy occupying
+                // the path between this ally and a desired firing lane.
+                // Do not plan a phase-through-enemies combat stride.
+                // Existing close-contact gameplay must still let a
+                // companion step AWAY from an already overlapping foe,
+                // rather than imprisoning its source boots in that spot.
+                foreach(Enemy foe in enemies)
+                {
+                    if(foe==null||foe.hp<=0)continue;
+                    float clearance=foe.boss?.88f:.58f;
+                    float current=(foe.Position-foot).Length;
+                    if(current>=clearance)continue;
+                    float starting=(foe.Position-from).Length;
+                    if(starting>=clearance||
+                        current+.005f<starting)
+                        return false;
+                }
+            }
             return true;
         }
         private bool CompanionCornerShotReady(Point foot,Enemy foe)
