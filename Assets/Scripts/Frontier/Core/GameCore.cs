@@ -1416,16 +1416,19 @@ namespace Starfall
                     {
                         dead = true;
                         // The leading edge can touch a wall AFTER the arrow
-                        // is already inside an exposed enemy's hurt circle.
-                        // Resolve that genuine front-side body contact at
-                        // the last legal flight sample BEFORE consuming a
-                        // non-explosive, nonpiercing arrow on stone. Otherwise
-                        // cover steals a hit that physically happened first.
-                        // A target behind cover still fails ClearAttackPath.
-                        if(p.friendly&&!p.explosive&&!p.piercing&&!startedBlocked)
+                        // is already inside one or more exposed hurt circles.
+                        // Resolve those true body contacts from the last legal
+                        // flight sample before consuming the bolt on stone.
+                        // Cover still blocks every concealed actor by LOS.
+                        if(p.friendly&&!p.explosive&&!startedBlocked)
                         {
                             Enemy firstBody=null;
                             float firstEntry=float.MaxValue;
+                            // Piercing contacts were sorted by signed physical
+                            // circle entry at this sample. Preserve that order
+                            // and per-actor immunity even when the NEXT sample
+                            // would hit cover. Ordinary arrows choose only
+                            // the physically first existing body instead.
                             foreach(Enemy candidate in projectileTargets)
                             {
                                 if(candidate.hp<=0||p.hitActors.Contains(candidate))
@@ -1434,10 +1437,21 @@ namespace Starfall
                                 if((candidate.Position-p.position).Length>=radius||
                                     !ClearAttackPath(p.position,candidate.Position))
                                     continue;
-                                float entry=ProjectileCircleEntry(p.position,
-                                    p.velocity,candidate.Position,radius);
-                                if(entry<firstEntry)
-                                {firstEntry=entry;firstBody=candidate;}
+                                if(p.piercing)
+                                {
+                                    p.hitActors.Add(candidate);p.hits.Add(candidate.id);
+                                    Hit(candidate,p.damage,p.technique,
+                                        p.velocity.Normalized,p.impact);
+                                    if(!projectiles.Contains(p))break;
+                                    if(p.slowing)ApplyEnemyControl(candidate,.45f);
+                                }
+                                else
+                                {
+                                    float entry=ProjectileCircleEntry(p.position,
+                                        p.velocity,candidate.Position,radius);
+                                    if(entry<firstEntry)
+                                    {firstEntry=entry;firstBody=candidate;}
+                                }
                             }
                             if(firstBody!=null)
                             {

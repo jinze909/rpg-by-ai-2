@@ -2616,6 +2616,30 @@ namespace Starfall.Tests
                     !g.projectiles.Contains(blockedArrow),
                     "First-body wall resolver must not grant contact to a sheltered Boss across solid cover");
 
+                // A piercing Ranger volley has a stronger obligation:
+                // multiple real near-wall hurt circles receive ONE damage
+                // event each, in geometric front-to-back order, before the
+                // same wall finally retires its spent projectile.
+                g.effects.Clear();g.projectiles.Clear();g.enemies.Clear();
+                var firstNear=new Enemy(77741,0,7.3f,8.5f,400f)
+                    {stun=99f,timer=999f,staggerRecovery=99f};
+                var secondNear=new Enemy(77742,0,7.45f,8.5f,400f)
+                    {stun=99f,timer=999f,staggerRecovery=99f};
+                g.enemies.Add(secondNear);g.enemies.Add(coverBack);
+                g.enemies.Add(firstNear); // reversed physical contact order
+                var piercingNearWall=new Projectile{
+                    position=new Point(7.82f,8.5f),
+                    velocity=new Point(10f,0),life=1f,damage=24f,
+                    friendly=true,piercing=true,visual="arrow"};
+                g.projectiles.Add(piercingNearWall);
+                g.Tick(.05f,new Point());
+                Check(firstNear.hp<400f&&secondNear.hp<400f&&
+                    coverBack.hp==400f&&piercingNearWall.hits.Count==2&&
+                    piercingNearWall.hits[0]==firstNear.id&&
+                    piercingNearWall.hits[1]==secondNear.id&&
+                    !g.projectiles.Contains(piercingNearWall),
+                    "Piercing arrow must hit both real front-side bodies once, in physical entry order, before wall contact");
+
                 // Simulate a tide/arena wall sealing around a bolt AFTER
                 // its valid muzzle launch. Its stored blockedAtSpawn flag
                 // remains false, but the CURRENT source tile is solid.
