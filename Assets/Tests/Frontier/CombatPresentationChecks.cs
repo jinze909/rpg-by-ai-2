@@ -3748,6 +3748,21 @@ namespace Starfall.Tests
                 Check(foe.hp<foe.maxHp||
                     g.projectiles.Exists(p=>p.friendly&&p.visual=="arrow"),
                     "Real companion flanking must resolve into a physically traveling arrow, not a decorative reticle or phantom attack");
+                // Once the whole-body ally has actually EARNED its firing
+                // foot, an auto cooldown must not make it instantly step
+                // back into the same blocking side wall on the next Tick.
+                // Retire only the finished visual action for this probe;
+                // the living enemy and current terrain remain unchanged.
+                g.companionAction=null;
+                Point planted=g.companionPosition;
+                Point held=(Point)follow.Invoke(g,new object[]{normal});
+                Check((held-planted).Length<.001f&&
+                    (bool)flight.Invoke(g,new object[]{planted,1,target}),
+                    "Completed flank must keep original source boots planted on the actually open bow corridor across automatic recovery");
+                foe.hp=0f;
+                Point released=(Point)follow.Invoke(g,new object[]{normal});
+                Check((released-normal).Length<.001f,
+                    "When the original real enemy is defeated a companion must instantly abandon its spent firing-foot order and resume normal follow");
             }
             finally{data.maps[0]=previous;}
         }
