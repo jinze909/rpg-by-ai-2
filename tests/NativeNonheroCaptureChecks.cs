@@ -27,17 +27,17 @@ public static class NativeNonheroCaptureChecks
         var badWalkBoss = new Texture2D(1536, 1024, TextureFormat.RGBA32, false);
         var verticalArcher = new Texture2D(576, 384, TextureFormat.RGBA32, false);
         var badVerticalArcher = new Texture2D(576, 576, TextureFormat.RGBA32, false);
-        Require(FrontierRuntime.IsAcceptedWalkMonstersAtlas(walkMonsters) &&
-                !FrontierRuntime.IsAcceptedWalkMonstersAtlas(badWalkMonsters) &&
-                !FrontierRuntime.IsAcceptedWalkMonstersAtlas(null),
+        Require(ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(walkMonsters) &&
+                !ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(badWalkMonsters) &&
+                !ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(null),
             "WalkMonsters must reject non-null partial geometry and null resources");
-        Require(FrontierRuntime.IsAcceptedRegionalBossWalkAtlas(walkBoss) &&
-                !FrontierRuntime.IsAcceptedRegionalBossWalkAtlas(badWalkBoss) &&
-                !FrontierRuntime.IsAcceptedRegionalBossWalkAtlas(null),
+        Require(ActorAtlasGeometry.IsAcceptedRegionalBossWalkAtlas(walkBoss) &&
+                !ActorAtlasGeometry.IsAcceptedRegionalBossWalkAtlas(badWalkBoss) &&
+                !ActorAtlasGeometry.IsAcceptedRegionalBossWalkAtlas(null),
             "WalkBoss must reject non-null partial geometry and null resources");
-        Require(FrontierRuntime.IsAcceptedVerticalArcherAtlas(verticalArcher) &&
-                !FrontierRuntime.IsAcceptedVerticalArcherAtlas(badVerticalArcher) &&
-                !FrontierRuntime.IsAcceptedVerticalArcherAtlas(null),
+        Require(ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(verticalArcher) &&
+                !ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(badVerticalArcher) &&
+                !ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(null),
             "vertical archer art must reject non-null partial geometry and null resources");
         var runtime = new FrontierRuntime();
         var method = typeof(FrontierRuntime).GetMethod(

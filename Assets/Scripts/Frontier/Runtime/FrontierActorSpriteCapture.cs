@@ -47,24 +47,6 @@ namespace Starfall
             return (long)width*height*6L;
         }
 
-        // Source dimensions are part of the animation contract, not merely
-        // an importer detail. A Texture2D may be non-null while a Sprite
-        // import is incomplete; selection must hold the previous whole-body
-        // family instead of indexing a truncated/wrong-grid walk atlas.
-        internal static bool IsAcceptedWalkMonstersAtlas(Texture2D sheet)
-        {
-            return sheet != null && sheet.width == 768 && sheet.height == 576;
-        }
-
-        internal static bool IsAcceptedRegionalBossWalkAtlas(Texture2D sheet)
-        {
-            return sheet != null && sheet.width == 1536 && sheet.height == 1536;
-        }
-
-        internal static bool IsAcceptedVerticalArcherAtlas(Texture2D sheet)
-        {
-            return sheet != null && sheet.width == 576 && sheet.height == 384;
-        }
         private readonly Dictionary<string, CapturedActorFrame> actorCapturedFrames =
             new Dictionary<string, CapturedActorFrame>();
         private readonly Dictionary<string, Sprite> actorFrameSprites =

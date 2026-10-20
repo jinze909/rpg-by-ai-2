@@ -1038,7 +1038,7 @@ namespace Starfall
         {
             return bossWalkSheets != null && atlasIndex >= 0 &&
                 atlasIndex < bossWalkSheets.Length &&
-                IsAcceptedRegionalBossWalkAtlas(bossWalkSheets[atlasIndex]);
+                ActorAtlasGeometry.IsAcceptedRegionalBossWalkAtlas(bossWalkSheets[atlasIndex]);
         }
 
         private void DrawEnemyActor(Enemy e)
@@ -1050,7 +1050,7 @@ namespace Starfall
             // while its approved North/South bow Sprite is UNMIRRORED.
             // The ground-release painting follows that real source facing.
             bool uprightArcher=!e.boss&&e.kind==1&&
-                IsAcceptedVerticalArcherAtlas(enemyArcherVertical)&&
+                ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(enemyArcherVertical)&&
                 Math.Abs(e.facing.y)>Math.Abs(e.facing.x);
             float coverAlpha=e.boss&&
                 Math.Abs(e.x-Game.save.x)<1.4f&&
@@ -1261,7 +1261,7 @@ namespace Starfall
                 }
                 else
                 {
-                if (pose == 1 && IsAcceptedWalkMonstersAtlas(monsterWalkSheet)) { sheet = monsterWalkSheet; columns = 4; rows = 3; int gait=GameCore.GaitFrame(e.moveTime,e.kind==0?1.35f:1.8f);frame=Math.Min(2,e.kind)*4+(e.backpedaling?(4-gait)%4:gait); }
+                if (pose == 1 && ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(monsterWalkSheet)) { sheet = monsterWalkSheet; columns = 4; rows = 3; int gait=GameCore.GaitFrame(e.moveTime,e.kind==0?1.35f:1.8f);frame=Math.Min(2,e.kind)*4+(e.backpedaling?(4-gait)%4:gait); }
                 // A NORTH/SOUTH bowman is one identity in ALL gameplay
                 // states. Previous idle/run/isolated Hit reverted to
                 // WalkMonsters/Monsters, producing a 1-2 frame unrelated
@@ -1271,7 +1271,7 @@ namespace Starfall
                 // painted bow body; never invent moving limbs or reuse
                 // the genuine cell-5 fallen silhouette as a walk cycle.
                 // E/W keeps the established accepted Monsters artwork.
-                vertical = e.kind == 1 && IsAcceptedVerticalArcherAtlas(enemyArcherVertical) &&
+                vertical = e.kind == 1 && ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(enemyArcherVertical) &&
                     Math.Abs(e.facing.y) > Math.Abs(e.facing.x);
                 if (vertical)
                 {
@@ -1528,7 +1528,7 @@ namespace Starfall
                         new Color(tint.r,tint.g,tint.b,tint.a*corpseMix),
                         corpseFlip);
             }
-            else if (body.actor.kind == 1 && IsAcceptedVerticalArcherAtlas(enemyArcherVertical) &&
+            else if (body.actor.kind == 1 && ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(enemyArcherVertical) &&
                 enemyArcherVertical.width % 3 == 0 &&
                 enemyArcherVertical.height % 2 == 0 &&
                 (lastEnemyPaint!=null?
@@ -1577,7 +1577,7 @@ namespace Starfall
                 bool transition=lastEnemyPaint==null &&
                     progress<deathBlendFraction &&
                     !Game.save.reducedMotion && monsterSheet!=null;
-                bool walking=body.actor.moving && IsAcceptedWalkMonstersAtlas(monsterWalkSheet);
+                bool walking=body.actor.moving && ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(monsterWalkSheet);
                 float mix=lastEnemyPaint!=null?corpseMix:transition?
                     Mathf.Clamp01(progress/deathBlendFraction):1f;
                 float size=body.actor.kind==2?106f:96f;

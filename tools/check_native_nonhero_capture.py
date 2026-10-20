@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / ".starfall-checks/native-nonhero-compile"
 RUNTIME = ROOT / "Assets/Scripts/Frontier/Runtime"
 CAPTURE = RUNTIME / "FrontierActorSpriteCapture.cs"
+GEOMETRY = RUNTIME / "ActorAtlasGeometry.cs"
 STUB = ROOT / "tests/NativeHeroCaptureStubs.cs"
 ART = ROOT / "Assets/Resources/Frontier/Art"
 
@@ -22,7 +23,7 @@ def compile_source(path, output):
     if not mcs:
         raise AssertionError("NONHERO_SPRITERENDERER_COMPILE_REQUIRES_MCS")
     return subprocess.run([mcs, "-define:UNITY_5_3_OR_NEWER",
-        "-target:library", "-out:" + str(output), str(STUB), str(path)],
+        "-target:library", "-out:" + str(output), str(STUB), str(GEOMETRY), str(path)],
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
 def audit_art(name, columns, rows, used):
@@ -51,6 +52,7 @@ def main():
     actor = (RUNTIME / "FrontierActors.cs").read_text()
     scene = (RUNTIME / "FrontierRuntime.cs").read_text()
     native = CAPTURE.read_text()
+    geometry = GEOMETRY.read_text(encoding="utf-8")
     # The Unity-only native clip builders must never preserve an old
     # m_LocalScale/m_LocalPosition animation on an otherwise correct Sprite.
     # This source contract supplements (not replaces) Editor PlayMode QA.
@@ -72,12 +74,12 @@ def main():
     assert "sheet, columns, rows, frame, foot, size," in actor
     assert "if (nativeActorDrawn) return;" in actor
     # Live and lethal transitions must share strict accepted source geometry.
-    assert "internal static bool IsAcceptedWalkMonstersAtlas(Texture2D sheet)" in native
-    assert "return sheet != null && sheet.width == 768 && sheet.height == 576;" in native
-    assert "internal static bool IsAcceptedRegionalBossWalkAtlas(Texture2D sheet)" in native
-    assert "return sheet != null && sheet.width == 1536 && sheet.height == 1536;" in native
-    assert "internal static bool IsAcceptedVerticalArcherAtlas(Texture2D sheet)" in native
-    assert "return sheet != null && sheet.width == 576 && sheet.height == 384;" in native
+    assert "internal static bool IsAcceptedWalkMonstersAtlas(Texture2D sheet)" in geometry
+    assert "return sheet != null && sheet.width == 768 && sheet.height == 576;" in geometry
+    assert "internal static bool IsAcceptedRegionalBossWalkAtlas(Texture2D sheet)" in geometry
+    assert "return sheet != null && sheet.width == 1536 && sheet.height == 1536;" in geometry
+    assert "internal static bool IsAcceptedVerticalArcherAtlas(Texture2D sheet)" in geometry
+    assert "return sheet != null && sheet.width == 576 && sheet.height == 384;" in geometry
     assert "IsAcceptedRegionalBossWalkAtlas(bossWalkSheets[atlasIndex])" in actor
     assert actor.count("HasAcceptedRegionalBossWalkAtlas(walkAtlas)") == 2, (
         "BOSS_LIVE_AND_DEATH_WALK_GEOMETRY_GATE_MISSING")
@@ -140,7 +142,7 @@ def main():
     assert mono, "NONHERO_RUNTIME_PROBE_REQUIRES_MONO"
     probe = subprocess.run([os.environ.get("STARFALL_MCS", shutil.which("mcs")),
         "-define:UNITY_5_3_OR_NEWER", "-out:" + str(OUT / "nonhero-probe.exe"),
-        str(STUB), str(CAPTURE),
+        str(STUB), str(GEOMETRY), str(CAPTURE),
         str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     assert probe.returncode == 0, ("NONHERO_PROBE_COMPILE", probe.stdout)
@@ -162,7 +164,7 @@ def main():
         "GPU_BYTE_BUDGET_MUTATION_BUILD_FAILED",no_budget_build.stdout)
     unbounded=subprocess.run([os.environ.get("STARFALL_MCS",shutil.which("mcs")),
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(no_budget_exe),
-        str(STUB),str(no_budget_source),
+        str(STUB), str(GEOMETRY),str(no_budget_source),
         str(ROOT/"tests/NativeNonheroCaptureChecks.cs")],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert unbounded.returncode==0,("GPU_BUDGET_PROBE_BUILD_FAILED",unbounded.stdout)
@@ -183,7 +185,7 @@ def main():
     mutation_compiled = subprocess.run([
         os.environ.get("STARFALL_MCS", shutil.which("mcs")),
         "-define:UNITY_5_3_OR_NEWER", "-out:" + str(mutation_exe),
-        str(STUB), str(mutation_path),
+        str(STUB), str(GEOMETRY), str(mutation_path),
         str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     assert mutation_compiled.returncode == 0, (
@@ -205,7 +207,7 @@ def main():
     downgraded_compile = subprocess.run([
         os.environ.get("STARFALL_MCS", shutil.which("mcs")),
         "-define:UNITY_5_3_OR_NEWER", "-out:" + str(downgraded_exe),
-        str(STUB), str(downgraded_path),
+        str(STUB), str(GEOMETRY), str(downgraded_path),
         str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     assert downgraded_compile.returncode == 0, (
@@ -229,7 +231,7 @@ def main():
     stuck_compile = subprocess.run([
         os.environ.get("STARFALL_MCS", shutil.which("mcs")),
         "-define:UNITY_5_3_OR_NEWER", "-out:" + str(stuck_exe),
-        str(STUB), str(stuck_path),
+        str(STUB), str(GEOMETRY), str(stuck_path),
         str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     assert stuck_compile.returncode == 0, (
@@ -257,7 +259,7 @@ def main():
         compiled = subprocess.run([
             os.environ.get("STARFALL_MCS", shutil.which("mcs")),
             "-define:UNITY_5_3_OR_NEWER", "-out:" + str(exe),
-            str(STUB), str(mutation),
+            str(STUB), str(GEOMETRY), str(mutation),
             str(ROOT / "tests/NativeNonheroCaptureChecks.cs")],
             cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         assert compiled.returncode == 0, (
@@ -281,7 +283,7 @@ def main():
     wrong_build=subprocess.run([
         os.environ.get("STARFALL_MCS",shutil.which("mcs")),
         "-define:UNITY_5_3_OR_NEWER", "-out:"+str(wrong_exe),
-        str(STUB),str(wrong_path),
+        str(STUB), str(GEOMETRY),str(wrong_path),
         str(ROOT/"tests/NativeNonheroCaptureChecks.cs")],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert wrong_build.returncode==0,("NONHERO_BAD_POSE_TEST_BUILD",wrong_build.stdout)
@@ -305,7 +307,7 @@ def main():
     wrongBuilt=subprocess.run([
         os.environ.get("STARFALL_MCS",shutil.which("mcs")),
         "-define:UNITY_5_3_OR_NEWER","-out:"+str(wrongExe),
-        str(STUB),str(wrongPath),
+        str(STUB), str(GEOMETRY),str(wrongPath),
         str(ROOT/"tests/NativeNonheroCaptureChecks.cs")],
         cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     assert wrongBuilt.returncode==0,("ORIGINAL_ACTOR_COLUMNS_MUTATION_BUILD",wrongBuilt.stdout)
