@@ -927,6 +927,12 @@ namespace Starfall
             // contact and cosmetic zero-power warnings return above and
             // correctly preserve the deliberate buffered input.
             ClearBufferedAttack();
+            // A dodge queued before an actual hit is no longer an escape.
+            // Without retiring it at physical contact, its cooldown could
+            // finish under recoil and automatically spend energy on a ghost
+            // dodge while the hero is displaying the authored Hit pose.
+            // Q deliberately retains its own hit-recovery input contract.
+            ClearBufferedDodge();
             float multiplier = save.difficulty == 0 ? .45f : save.difficulty == 2 ? 1.4f : 1;
             float armor = (guardTime > 0 ? .45f : 1) * (1 - save.talents[1] * .035f) * (InAbyss ? 1 - save.boons[2] * .12f : 1) * (Relic(5) ? 1.15f : 1);
             playerHitFacing=VisualFacing; playerHitWeapon=AppearanceWeapon;

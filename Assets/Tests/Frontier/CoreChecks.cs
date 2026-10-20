@@ -79,6 +79,49 @@ namespace Starfall.Tests
             finally { data.maps[0] = original; }
         }
 
+        public static void RealIncomingHitRetiresUnspentDodgeAndLeavesSafeInput(Campaign data)
+        {
+            GameCore g=Fresh(data);g.enemies.Clear();
+            g.save.energy=100f;g.invulnerable=0f;
+            g.dashCooldown=.10f;
+            g.Dash(new Point(0,-1));
+            Check(g.DodgeQueued&&g.dashTime<=0f&&
+                Math.Abs(g.save.energy-100f)<.001f,
+                "Queued late dodge must hold stamina until a real accepted mobility action");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hurt!=null,"Production Hero Hurt transaction must exist");
+            g.invulnerable=1f;
+            hurt.Invoke(g,new object[]{7f,"shot",null});
+            Check(g.DodgeQueued&&g.dashTime<=0f,
+                "An avoided arrow cannot cancel an accepted cooldown-buffered dodge");
+            g.invulnerable=0f;
+            float health=g.save.health;
+            hurt.Invoke(g,new object[]{7f,"environment",null});
+            Check(g.save.health<health&&g.playerHitTime>0f&&
+                !g.DodgeQueued&&g.dashTime<=0f,
+                "Genuine damage immediately retires unspent dodge before displaying Hit/recoil");
+            float stamina=g.save.energy;
+            Advance(g,.2f);
+            Check(g.dashTime<=0f&&!g.DodgeQueued&&
+                g.save.energy>=stamina,
+                "Recovery and cooldown completion cannot start a ghost dodge or spend stamina");
+
+            GameCore harmless=Fresh(data);harmless.enemies.Clear();
+            harmless.save.energy=100f;
+            harmless.dashCooldown=.09f;
+            harmless.Dash(new Point(0,-1));
+            hurt.Invoke(harmless,new object[]{0f,"environment",null});
+            Check(harmless.DodgeQueued,
+                "Zero-power warnings cannot consume defensive input");
+            Advance(harmless,.091f);
+            Check(harmless.dashTime>0f&&
+                harmless.invulnerable>0f&&
+                harmless.save.energy<100f,
+                "After harmless contact a legitimate queued dodge still executes once");
+        }
+
         public static void BufferedDodgeKeepsDirectionAndCommitsOnce(Campaign data)
         {
             GameCore g=Fresh(data);g.enemies.Clear();
