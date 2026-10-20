@@ -88,7 +88,7 @@ def main():
         "MONSTERS_LIVE_PRACTICE_AND_DEATH_GEOMETRY_GATE_MISSING")
     assert actor.count("ActorAtlasGeometry.IsAcceptedBossesAtlas(bossSheet)") == 2, (
         "BOSSES_LIVE_AND_DEATH_GEOMETRY_GATE_MISSING")
-    assert actor.count("ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet)") == 2, (
+    assert actor.count("ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet)") == 4, (
         "BRIAR_BEAST_LIVE_AND_DEATH_GEOMETRY_GATE_MISSING")
     assert actor.count("ActorAtlasGeometry.IsAcceptedMossboundRaiderAtlas(mossboundRaiderSheet)") == 2, (
         "MOSSBOUND_LIVE_AND_DEATH_GEOMETRY_GATE_MISSING")
@@ -115,7 +115,7 @@ def main():
         "BOSS_LIVE_AND_DEATH_WALK_GEOMETRY_GATE_MISSING")
     assert actor.count("IsAcceptedWalkMonstersAtlas(monsterWalkSheet)") == 2, (
         "MONSTER_LIVE_AND_DEATH_WALK_GEOMETRY_GATE_MISSING")
-    assert actor.count("IsAcceptedVerticalArcherAtlas(enemyArcherVertical)") == 3, (
+    assert actor.count("IsAcceptedVerticalArcherAtlas(enemyArcherVertical)") == 5, (
         "ARCHER_LIVE_GROUND_AND_DEATH_GEOMETRY_GATE_MISSING")
     for name, expected in (
         ("Npcs", (512, 512)),
