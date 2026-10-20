@@ -13,9 +13,27 @@ import json
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "Assets/Resources/Frontier/Art"
+RUNTIME = ROOT / "Assets/Scripts/Frontier/Runtime/FrontierExpansionUI.cs"
 REPORT = ROOT / ".starfall-checks/sprite-qa/companion-gait.json"
 NAMES = ("Mira", "Ivo", "Sen")
 CELL = 256
+
+
+def inspect_idle_fallback(name):
+    with Image.open(SOURCE / ("Companion" + name + ".png")) as sheet:
+        assert sheet.format == "PNG" and sheet.size == (
+            3 * CELL, 4 * CELL), (
+                "COMPANION_WRONG_ACTION_ATLAS", name, sheet.size)
+        atlas = sheet.convert("RGBA")
+    # The production fallback maps east/north/south idle to cells 0/8/11.
+    # Require each authored full-body cell to exist before accepting that
+    # mapping; the richer Walk* sheet remains the normal production idle.
+    for index in (0, 8, 11):
+        x, y = index % 3 * CELL, index // 3 * CELL
+        body = atlas.crop((x, y, x + CELL, y + CELL)).getchannel("A").getbbox()
+        assert body is not None, (
+            "COMPANION_DIRECTIONAL_IDLE_CELL_MISSING", name, index)
+    return {"idle_cells": [0, 8, 11], "source_size": list(atlas.size)}
 
 
 def inspect(name):
@@ -58,14 +76,20 @@ def inspect(name):
 def main():
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     result = {name: inspect(name) for name in NAMES}
+    idle_fallbacks = {name: inspect_idle_fallback(name) for name in NAMES}
+    runtime = RUNTIME.read_text(encoding="utf-8")
+    assert "int frame = north ? 8 : south ? 11 : 0;" in runtime, (
+        "COMPANION_SOUTH_IDLE_FALLBACK_REGRESSION")
     REPORT.write_text(json.dumps({
         "kind": "actual_original_companion_walk_source",
         "unity_native_verified": False,
         "artist_accepted_new_intermediates": False,
-        "families": result
+        "families": result,
+        "idle_fallbacks": idle_fallbacks
     }, indent=2) + "\n")
     print("PASS original WalkMira, WalkIvo and WalkSen: "
           "36 published full-body contact/stride cells audited")
+    print("PASS all three companion idle fallbacks use original east/north/south cells 0/8/11")
     print("ART_REVIEW_REQUIRED: no fabricated redraws or native Unity PlayMode")
 
 

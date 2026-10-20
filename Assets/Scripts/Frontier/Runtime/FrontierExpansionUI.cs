@@ -77,7 +77,10 @@ namespace Starfall
             ActorAction action = Game.companionAction;
             Point direction = action == null ? Game.companionAim : action.direction;
             bool north = direction.y < -Math.Abs(direction.x), south = direction.y > Math.Abs(direction.x);
-            int frame = north ? 8 : 0;
+            // The 3x4 source atlas has distinct east, north and south
+            // idle cells. If a richer Walk* atlas is unavailable during
+            // import recovery, never face a south-looking companion east.
+            int frame = north ? 8 : south ? 11 : 0;
             if (action != null)
                 frame = north ? (action.released ? 7 : 6) : south ? (action.released ? 10 : 9) : action.released && (action.kind == "command" ||
                     action.kind == "heal") && id != 1 ? 5 :
