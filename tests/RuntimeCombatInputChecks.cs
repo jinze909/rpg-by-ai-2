@@ -159,6 +159,81 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Both actual Q HUD layouts queue during ordinary attack and preserve world aim");
     }
 
+    private static void CanonicalHeroHitRecoversOnSameWholeBody(FrontierRuntime app)
+    {
+        int reviewed=0;
+        string[] equipment={"Vanguard","Ranger","Arcanist"};
+        foreach(int cls in new[]{0,1,2})
+        foreach(Point facing in new[]{
+            new Point(1,0),new Point(-1,0),
+            new Point(0,-1),new Point(0,1)})
+        {
+            Prepare(app,cls);
+            var game=app.Game;game.save.reducedMotion=false;
+            game.SetAim(facing);
+            game.invulnerable=0f;
+            float beforeHealth=game.save.health;
+            var hurt=typeof(GameCore).GetMethod("Hurt",Private);
+            Check(hurt!=null,"The actual C# hero Hurt contact method is required");
+            hurt.Invoke(game,new object[]{9f,"environment",
+                (Point?)new Point(1,0)});
+            Check(game.save.health<beforeHealth&&
+                game.HeroAnimationState==5&&game.playerHitTime>0f,
+                "Real physical damage must enter the single-body Hit reaction");
+            for(int i=0;i<30&&game.playerHitTime>.022f;i++)
+                game.Tick(.02f,new Point());
+            Check(game.HeroAnimationState==5,
+                "The actual 180ms hit recoil must still be visible before its last painted recovery");
+            Set(app,"clock",60f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var prior=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(prior!=null&&prior.texture.name.Contains("_Hit_"),
+                "The active reaction still draws exactly one canonical full-body hit Sprite");
+            for(int i=0;i<5&&game.playerHitTime>0f;i++)
+                game.Tick(.02f,new Point());
+            Set(app,"clock",60.025f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var rest=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(game.playerHitTime==0f&&rest!=null&&
+                rest.texture.name==prior.texture.name&&
+                Math.Abs(rest.uv.x-prior.uv.x)<.00001f,
+                "Damage reaction must leave its original painted sole on screen briefly, never snap or repaint the body");
+            Check(GUI.textureCalls.FindAll(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_")).Count==1,
+                "Hit handoff cannot produce a second blond protagonist");
+            // A real new attack may begin BEFORE the handoff expires.
+            if(facing.x>0)
+            {
+                game.attackCooldown=0f;
+                game.Attack(facing);
+                Set(app,"clock",60.036f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var newBody=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(game.playerAction!=null&&newBody!=null&&
+                    newBody.texture.name.Contains("_Attack_"),
+                    "A new real Attack must instantly interrupt painted Hit->Idle recovery");
+            }
+            else
+            {
+                Set(app,"clock",60.11f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var idle=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(idle!=null&&idle.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    equipment[cls]+"_Idle_"+
+                    (Math.Abs(facing.y)>0f?(facing.y<0?"N":"S"):"E"),
+                    "Bounded Hit recovery must return to authentic equipment-matched Idle");
+            }
+            reviewed++;
+        }
+        Console.WriteLine("PASS "+reviewed+
+            " actual real-damage full-body Hit recovery handoffs across 3 equipment classes/4 facings, source pixels, early Attack interrupt and expiry; NATIVE_UNVERIFIED");
+    }
+
     private static void CanonicalCombatRecoverySettlesWithoutExtraBody(FrontierRuntime app)
     {
         int checkedCases=0;
@@ -2258,7 +2333,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

@@ -270,6 +270,19 @@ namespace Starfall
         private Point heroContactSettleFoot;
         private float heroContactSettleAt=float.NegativeInfinity;
 
+        // Use the ORIGINAL five-frame whole-body Hit recovery (not a
+        // synthetic overpaint) to bridge the 180ms GameCore hit recoil back
+        // into standing idle. Every actual dash, fresh attack, movement,
+        // save switch or reduced-motion toggle cancels this visual handoff.
+        private const float HeroHitSettleSeconds=.055f;
+        private GameCore heroHitSettleOwner;
+        private SaveData heroHitSettleSave;
+        private int heroHitSettleRoom,heroHitSettleEquipment,
+            heroHitSettleFacing,heroHitSettleCell;
+        private Point heroHitSettleFoot;
+        private float heroHitSettleAt=float.NegativeInfinity;
+        private bool heroHitSettleActive;
+
         // A contact transfer is considered live only when the COMPLETE set
         // of 18 seven-cell actions exists: no mixed professions/facings.
         // An incomplete art drop leaves all established six-cell art intact.
@@ -618,9 +631,58 @@ namespace Starfall
             index=Math.Max(0,Math.Min(frames-1,(int)Math.Floor(position+.20f)));
             ApplyHeroContactSettle(moving,facing,ref action,ref frames,
                 ref index,ref position);
+            ApplyHeroHitSettle(moving,facing,ref action,ref frames,
+                ref index,ref position);
             ApplyHeroStopPlant(moving,facing,ref action,ref frames,
                 ref index,ref position);
             return true;
+        }
+
+        private void ApplyHeroHitSettle(bool moving,int facing,
+            ref int action,ref int frames,ref int index,ref float position)
+        {
+            if(drawingOutline)return;
+            bool validClock=!float.IsNaN(clock)&&
+                !float.IsInfinity(clock);
+            if(action==5&&Game.playerHitTime>0f&&
+                !Game.Dying&&Game.playerAction==null&&
+                !Game.save.reducedMotion&&validClock&&
+                frames==5&&index>=3)
+            {
+                heroHitSettleOwner=Game;
+                heroHitSettleSave=Game.save;
+                heroHitSettleRoom=Game.save.room;
+                heroHitSettleEquipment=Game.AppearanceWeapon;
+                heroHitSettleFacing=facing;
+                heroHitSettleFoot=Game.Position;
+                heroHitSettleCell=index;
+                heroHitSettleAt=clock;
+                heroHitSettleActive=true;
+                return;
+            }
+            // No old hit frame may mask a new real state. The source
+            // Hit pose is stationary and does not accompany a moving
+            // player, alternate equipment or a new damaging action.
+            if(action!=0||moving||Game.playerAction!=null||
+                Game.ActuallyMoving||Game.Dying||Game.mode!="world"||
+                Game.save.reducedMotion)
+            {
+                heroHitSettleActive=false;
+                return;
+            }
+            if(!heroHitSettleActive)return;
+            bool same=validClock&&
+                System.Object.ReferenceEquals(heroHitSettleOwner,Game)&&
+                System.Object.ReferenceEquals(heroHitSettleSave,Game.save)&&
+                heroHitSettleRoom==Game.save.room&&
+                heroHitSettleEquipment==Game.AppearanceWeapon&&
+                heroHitSettleFacing==facing&&
+                (Game.Position-heroHitSettleFoot).Length<.10f&&
+                clock>=heroHitSettleAt&&
+                clock-heroHitSettleAt<HeroHitSettleSeconds;
+            if(!same){heroHitSettleActive=false;return;}
+            action=5;frames=5;index=heroHitSettleCell;
+            position=index;
         }
 
         // Only a canonical, whole-body published Sprite may render the player.
