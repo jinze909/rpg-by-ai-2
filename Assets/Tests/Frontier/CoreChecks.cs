@@ -2369,6 +2369,93 @@ namespace Starfall.Tests
                 "A malformed idle cooldown also resets and retires stale objective cues");
             Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
                 "Idle timer recovery cannot create an untelegraphed stock hit");
+
+            // A malformed reaction clock must be repaired BEFORE it enters
+            // Math.Max/Min lock-budget math. Exercise actual patrol windups and
+            // owner-keyed warning cleanup, including the next safe tick.
+            System.Reflection.FieldInfo clockField;
+            foreach (string clockName in new[] {
+                "hitTime", "stun", "releaseTime", "windupDuration" })
+            foreach (float malformed in new[] {
+                float.NaN, float.PositiveInfinity })
+            {
+                heavy.state=1;heavy.timer=.8f;heavy.hitTime=0f;
+                heavy.stun=0f;heavy.releaseTime=0f;heavy.windupDuration=.7f;
+                heavy.flash=.1f;heavy.stagger=0f;heavy.staggerRecovery=0f;
+                heavy.moveTime=.2f;heavy.recoil=new Point(1f,0f);
+                heavy.targetingWayfarer=heavy.targetingReliefCivilian=false;
+                heavy.targetingAfterlightStock=false;
+                heavy.targetingOuterPatrolStock=true;
+                heavy.target=new Point(post.x,post.y);
+                clockField=typeof(Enemy).GetField(clockName);
+                Check(clockField!=null,"The production enemy reaction clock exists: "+clockName);
+                clockField.SetValue(heavy,malformed);
+                Effect warning=new Effect("danger",heavy.target,1f);
+                g.effects.Add(warning);add.Invoke(table,new object[]{heavy,warning});
+                g.Tick(.02f,new Point());
+                Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                    !heavy.targetingOuterPatrolStock&&
+                    !g.effects.Contains(warning),
+                    "Malformed "+clockName+" must cancel the unsafe windup and retract only its own warning");
+                Check(!float.IsNaN(heavy.timer)&&!float.IsInfinity(heavy.timer)&&
+                    !float.IsNaN(heavy.hitTime)&&!float.IsInfinity(heavy.hitTime)&&
+                    !float.IsNaN(heavy.stun)&&!float.IsInfinity(heavy.stun)&&
+                    !float.IsNaN(heavy.releaseTime)&&!float.IsInfinity(heavy.releaseTime)&&
+                    !float.IsNaN(heavy.windupDuration)&&!float.IsInfinity(heavy.windupDuration),
+                    "Reaction-clock repair leaves every action deadline finite");
+                Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                    "Malformed "+clockName+" cannot produce an untelegraphed stock impact");
+                g.Tick(.02f,new Point());
+                Check(!float.IsNaN(heavy.timer)&&!float.IsInfinity(heavy.timer)&&
+                    heavy.state==0,
+                    "A repaired "+clockName+" remains recoverable on the following real world tick");
+            }
+
+            // Cosmetic/poise clocks should be normalized without cancelling a
+            // valid, already-readable windup or changing its real deadline.
+            foreach (string clockName in new[] {
+                "flash", "stagger", "staggerRecovery", "moveTime" })
+            foreach (float malformed in new[] {
+                float.NaN, float.NegativeInfinity })
+            {
+                heavy.state=1;heavy.timer=5f;heavy.hitTime=0f;heavy.stun=0f;
+                heavy.releaseTime=0f;heavy.windupDuration=.7f;
+                heavy.recoil=new Point(1f,0f);
+                heavy.targetingOuterPatrolStock=true;
+                clockField=typeof(Enemy).GetField(clockName);
+                Check(clockField!=null,"The production enemy presentation clock exists: "+clockName);
+                clockField.SetValue(heavy,malformed);
+                g.Tick(.02f,new Point());
+                Check(heavy.state==1&&Math.Abs(heavy.timer-4.98f)<.01f,
+                    "Repairing cosmetic/poise "+clockName+" must not interrupt a valid telegraphed attack");
+                float repaired=(float)clockField.GetValue(heavy);
+                Check(!float.IsNaN(repaired)&&!float.IsInfinity(repaired),
+                    "Cosmetic/poise clock "+clockName+" must remain finite after a real tick");
+                Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                    "Repairing "+clockName+" cannot alter attack release timing or damage");
+            }
+
+            // A malformed recoil vector is just as dangerous as a bad timer:
+            // it must not feed NaN into the real swept collision solver.
+            foreach (Point malformedRecoil in new[] {
+                new Point(float.NaN,0f), new Point(0f,float.PositiveInfinity) })
+            {
+                heavy.state=1;heavy.timer=.8f;heavy.hitTime=.1f;
+                heavy.stun=0f;heavy.releaseTime=0f;heavy.windupDuration=.7f;
+                heavy.recoil=malformedRecoil;
+                heavy.targetingOuterPatrolStock=true;
+                heavy.target=new Point(post.x,post.y);
+                Effect warning=new Effect("danger",heavy.target,1f);
+                g.effects.Add(warning);add.Invoke(table,new object[]{heavy,warning});
+                float x=heavy.x,y=heavy.y;
+                g.Tick(.02f,new Point());
+                Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                    !g.effects.Contains(warning)&&
+                    Math.Abs(heavy.x-x)<.0001f&&Math.Abs(heavy.y-y)<.0001f,
+                    "Malformed recoil must cancel safely before corrupting the actor's swept world position");
+                Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                    "Malformed recoil cannot create a false objective contact");
+            }
         }
 
         public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)

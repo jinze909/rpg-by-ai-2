@@ -914,6 +914,43 @@ namespace Starfall
             enemy.targetingAfterlightStock = enemy.targetingOuterPatrolStock = false;
             RemoveEnemyPendingWarning(enemy);
         }
+        // Repair transient reaction clocks before deriving lock/free time. A NaN
+        // hit/stun/release clock poisons Math.Max/Min and can leave an enemy
+        // permanently unable to move or attack; an invalid windup must also
+        // retract its owner-specific warning before any release is evaluated.
+        private bool RepairEnemyTransientClocks(Enemy enemy)
+        {
+            bool invalidActionClock =
+                !Finite(enemy.timer) || !Finite(enemy.hitTime) ||
+                !Finite(enemy.stun) || !Finite(enemy.releaseTime) ||
+                !Finite(enemy.windupDuration);
+            bool invalidRecoil = !Finite(enemy.recoil.x) ||
+                !Finite(enemy.recoil.y);
+
+            if (!Finite(enemy.flash)) enemy.flash = 0f;
+            if (!Finite(enemy.stagger)) enemy.stagger = 0f;
+            if (!Finite(enemy.staggerRecovery)) enemy.staggerRecovery = 0f;
+            if (!Finite(enemy.moveTime)) enemy.moveTime = 0f;
+            if (!Finite(enemy.hitTime)) enemy.hitTime = 0f;
+            if (!Finite(enemy.stun)) enemy.stun = 0f;
+            if (!Finite(enemy.releaseTime)) enemy.releaseTime = 0f;
+            if (!Finite(enemy.windupDuration)) enemy.windupDuration = 0f;
+            if (invalidRecoil)
+            {
+                enemy.recoil = new Point();
+                enemy.hitTime = 0f;
+                invalidActionClock = true;
+            }
+
+            if (!invalidActionClock) return false;
+            enemy.state = 0;
+            enemy.timer = .22f;
+            enemy.targetingWayfarer = enemy.targetingReliefCivilian = false;
+            enemy.targetingAfterlightStock = enemy.targetingOuterPatrolStock = false;
+            RemoveEnemyPendingWarning(enemy);
+            return true;
+        }
+
         private void RemoveEnemyPendingWarning(Enemy enemy)
         {
             if(enemy==null)return;
@@ -1152,6 +1189,10 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!enemies.Contains(e) || mode != "world") continue;
+                // Sanitize ALL reaction clocks before Math.Max/Min derives the
+                // amount of unlocked AI time. Otherwise one NaN can propagate
+                // through freeDt and turn an ordinary foe into a frozen actor.
+                if (RepairEnemyTransientClocks(e)) continue;
                 // Reactions overlap on one shared simulation clock. When a
                 // 40ms stun ends inside a 50ms tick, only the UNLOCKED 10ms
                 // may advance pursuit or a telegraphed attack. Previously all
@@ -1202,20 +1243,6 @@ namespace Starfall
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
-                // Enemy clocks are transient; every active state needs a
-                // finite timer. NaN in a windup creates an immortal warning,
-                // while NaN in idle recovery prevents the next attack forever.
-                // Normalize either case, clear objective intent and retract
-                // the exact pending cue before the actor can deal any damage.
-                if(!Finite(e.timer))
-                {
-                    e.state=0;
-                    e.timer=.22f;
-                    e.targetingWayfarer=e.targetingReliefCivilian=
-                        e.targetingAfterlightStock=e.targetingOuterPatrolStock=false;
-                    RemoveEnemyPendingWarning(e);
-                    continue;
-                }
                 if (e.state == 1)
                 {
                     // A gate, rising tide or collapsing floor may close
