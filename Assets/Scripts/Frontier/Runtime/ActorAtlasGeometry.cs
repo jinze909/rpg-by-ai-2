@@ -7,6 +7,11 @@ namespace Starfall
     // source checks and native renderer checks must compile the same rules.
     internal static class ActorAtlasGeometry
     {
+        internal static bool IsAcceptedCompanionAtlas(Texture2D sheet)
+        {
+            return sheet != null && sheet.width == 768 && sheet.height == 1024;
+        }
+
         internal static bool IsAcceptedWalkMonstersAtlas(Texture2D sheet)
         {
             return sheet != null && sheet.width == 768 && sheet.height == 576;

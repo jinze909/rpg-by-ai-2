@@ -21,12 +21,18 @@ public static class NativeNonheroCaptureChecks
     {
         // Execute the same geometry gates used by live enemy and corpse
         // selection. A malformed-but-non-null texture must never be accepted.
+        var companionAtlas = new Texture2D(768, 1024, TextureFormat.RGBA32, false);
+        var badCompanionAtlas = new Texture2D(768, 768, TextureFormat.RGBA32, false);
         var walkMonsters = new Texture2D(768, 576, TextureFormat.RGBA32, false);
         var badWalkMonsters = new Texture2D(768, 768, TextureFormat.RGBA32, false);
         var walkBoss = new Texture2D(1536, 1536, TextureFormat.RGBA32, false);
         var badWalkBoss = new Texture2D(1536, 1024, TextureFormat.RGBA32, false);
         var verticalArcher = new Texture2D(576, 384, TextureFormat.RGBA32, false);
         var badVerticalArcher = new Texture2D(576, 576, TextureFormat.RGBA32, false);
+        Require(ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedCompanionAtlas(badCompanionAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedCompanionAtlas(null),
+            "companion base art must reject non-null partial geometry and null resources");
         Require(ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(walkMonsters) &&
                 !ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(badWalkMonsters) &&
                 !ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(null),

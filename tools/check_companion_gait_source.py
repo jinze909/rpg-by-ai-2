@@ -14,6 +14,7 @@ import json
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "Assets/Resources/Frontier/Art"
 RUNTIME = ROOT / "Assets/Scripts/Frontier/Runtime/FrontierExpansionUI.cs"
+GEOMETRY = ROOT / "Assets/Scripts/Frontier/Runtime/ActorAtlasGeometry.cs"
 REPORT = ROOT / ".starfall-checks/sprite-qa/companion-gait.json"
 NAMES = ("Mira", "Ivo", "Sen")
 CELL = 256
@@ -78,6 +79,16 @@ def main():
     result = {name: inspect(name) for name in NAMES}
     idle_fallbacks = {name: inspect_idle_fallback(name) for name in NAMES}
     runtime = RUNTIME.read_text(encoding="utf-8")
+    geometry = GEOMETRY.read_text(encoding="utf-8")
+    assert "internal static bool IsAcceptedCompanionAtlas(Texture2D sheet)" in geometry
+    assert "return sheet != null && sheet.width == 768 && sheet.height == 1024;" in geometry
+    null_fallback = runtime.index(
+        'if (companionSheets == null || id < 0 || id >= companionSheets.Length || companionSheets[id] == null)')
+    geometry_gate = runtime.index(
+        "if (!ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[id]))")
+    first_body = runtime.index("Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);")
+    assert null_fallback < geometry_gate < first_body, (
+        "COMPANION_BASE_ATLAS_GEOMETRY_GATE_ORDER_REGRESSION")
     assert "int frame = north ? 8 : south ? 11 : 0;" in runtime, (
         "COMPANION_SOUTH_IDLE_FALLBACK_REGRESSION")
     assert "companionWalkSheets[id].width==4*256" in runtime and (

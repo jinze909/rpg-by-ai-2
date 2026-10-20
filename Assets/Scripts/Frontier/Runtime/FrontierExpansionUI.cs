@@ -74,6 +74,11 @@ namespace Starfall
             Point p = ScreenPoint(Game.companionPosition); int id = Game.save.companion;
             if (companionSheets == null || id < 0 || id >= companionSheets.Length || companionSheets[id] == null)
             { DrawNpc("companion", Game.companionPosition, id + 8); return; }
+            // A partial but non-null import is not a different character.
+            // Keep the companion's identity rather than indexing a malformed
+            // 3x4 grid or silently replacing Mira/Ivo/Sen with a generic NPC.
+            if (!ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[id]))
+                return;
             ActorAction action = Game.companionAction;
             Point direction = action == null ? Game.companionAim : action.direction;
             bool north = direction.y < -Math.Abs(direction.x), south = direction.y > Math.Abs(direction.x);
