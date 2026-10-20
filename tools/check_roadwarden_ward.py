@@ -17,7 +17,7 @@ def validate(im):
         ink=sum(px[3]>0 for px in pixels)
         assert 390<=ink<=550,("ROADWARDEN_WARD_EMPTY_OR_FILLED",number,ink)
         assert frame.getpixel((32,8))[3]>0,("ROADWARDEN_WARD_MISSING_TOP_ANCHOR",number)
-        assert frame.getpixel((32,52))[3]>0,("ROADWARDEN_WARD_MISSING_BOTTOM_ANCHOR",number)
+        assert frame.getpixel((32,56))[3]>0,("ROADWARDEN_WARD_MISSING_BOTTOM_ANCHOR",number)
     stable=frames[0].getpixel((10,32))
     critical=frames[4].getpixel((10,32))
     assert frames[0].tobytes()!=frames[4].tobytes(),"ROADWARDEN_WARD_MISSING_DAMAGE_STATE"
