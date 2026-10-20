@@ -105,6 +105,7 @@ namespace Starfall.Tests
         [Test] public void BufferedLmbFollowsRealSkillRecoveryWithoutCuttingCast() { CoreChecks.LateAttackAfterSkillKeepsWholeBodyRecovery(Data()); }
         [Test] public void TrueHeroDamageCancelsQueuedFollowupButIgnoredHitsDoNot() { CoreChecks.DamageInterruptsLateAttackButSafeContactDoesNot(Data()); }
         [Test] public void RealDamageInterruptsUnspentDodgeWithoutCreatingGhostMobility() { CoreChecks.RealIncomingHitRetiresUnspentDodgeAndLeavesSafeInput(Data()); }
+        [Test] public void KeyRepeatDoesNotReaimOrRenewPendingDodge() { CoreChecks.RepeatedLateDodgeCannotResetDeadlineOrDirection(Data()); }
         [Test] public void RangedAttackChainsPayOffWithRealProjectileEffects() { CoreChecks.RangedThirdHitsProduceDistinctRealProjectiles(Data()); }
         [Test] public void CompanionSelfTargetFallsBackToFacing() { CoreChecks.ArcherCompanionCannotWasteVolleyOnItsOwnFootTarget(Data()); }
         [Test] public void StarfireExplodesOnNearSideOfWalls() { CoreChecks.StarfireDetonatesOnNearSideOfRealCover(Data()); }

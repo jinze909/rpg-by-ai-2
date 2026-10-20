@@ -122,6 +122,50 @@ namespace Starfall.Tests
                 "After harmless contact a legitimate queued dodge still executes once");
         }
 
+        public static void RepeatedLateDodgeCannotResetDeadlineOrDirection(Campaign data)
+        {
+            foreach(float step in new[]{.01f,.02f,.05f})
+            {
+                GameCore g=Fresh(data);g.enemies.Clear();
+                g.save.energy=100f;
+                g.dashCooldown=.12f;
+                g.Dash(new Point(0,-1));
+                Check(g.DodgeQueued&&g.dashTime<=0&&g.save.energy==100f,
+                    "Initial cooldown-bound dodge must remain an unpaid real intention");
+                var pending=typeof(GameCore).GetField("bufferedDodge",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(pending!=null,"Real private dodge intent must remain observable to the test");
+                object first=pending.GetValue(g);
+                var lifetime=first.GetType().GetField("remaining");
+                float initial=(float)lifetime.GetValue(first);
+                g.Tick(step,new Point());
+                float after=(float)lifetime.GetValue(first);
+                Check(after<initial&&after>0f&&g.DodgeQueued,
+                    "Buffered dodge's original deadline must decay with real gameplay time");
+                g.SetAim(new Point(1f,0f));
+                g.Dash(new Point(0,1));
+                Check(Object.ReferenceEquals(first,pending.GetValue(g))&&
+                    Math.Abs((float)lifetime.GetValue(first)-after)<.00001f,
+                    "Repeated SPACE cannot refresh buffer expiry or replace the initial escape heading");
+                for(int i=0;i<30&&g.dashTime<=0f;i++)
+                    g.Tick(step,new Point());
+                Check(g.dashTime>0f&&!g.DodgeQueued&&
+                    g.save.energy>=79.9f&&g.save.energy<=80.1f,
+                    "Buffered dodge must eventually launch exactly once at true cooldown readiness");
+                Point heading=(Point)typeof(GameCore).GetField(
+                    "dashDirection",System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance).GetValue(g);
+                Check(heading.y<-.99f&&Math.Abs(heading.x)<.01f,
+                    "Actual dash must preserve first physical tap direction, not last auto-repeat");
+                float spent=g.save.energy;
+                Advance(g,.40f);
+                Check(!g.DodgeQueued&&g.dashTime<=0f&&
+                    g.save.energy>=spent,
+                    "Repeated dodge input cannot later fire a second unrequested dash");
+            }
+        }
+
         public static void BufferedDodgeKeepsDirectionAndCommitsOnce(Campaign data)
         {
             GameCore g=Fresh(data);g.enemies.Clear();

@@ -74,6 +74,11 @@ namespace Starfall
         private void QueueLateDodge(Point direction)
         {
             if(dashCooldown > DodgeBufferWindow + .00001f)return;
+            // Key repeat or rapid second taps are NOT another physical
+            // dodge. Retain the initial aim and original 140ms deadline;
+            // a held button must never move the dodge vector at the final
+            // cooldown frame or keep stale immunity queued indefinitely.
+            if(bufferedDodge!=null)return;
             // Latest valid dodge press supersedes earlier buffered attacks
             // or Q. Otherwise a paid skill could fire during dodge cooldown
             // and be cancelled before its actual contact frame.
