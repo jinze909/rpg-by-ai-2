@@ -5000,10 +5000,134 @@ public static class RenderStateChecks
         finally {app.EndVisualReview();Clear();}
     }
 
+
+    public static void VerifyRoadwardenWardSpriteInProduction(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        const string key="Frontier/Art/RoadwardenWard";
+        Texture2D priorOverride=null;
+        bool overridden=Resources.TextureOverrides.TryGetValue(key,out priorOverride);
+        bool reduced=g.save.reducedMotion;
+        int quality=g.save.effectsQuality;
+        float oldClock=Get<float>(app,"clock");
+        string stage="opening";
+        try
+        {
+            WorldObject beacon=Array.Find(g.Map.objects,o=>o.kind=="survey1");
+            Check(beacon!=null,"Mossroot Roadwarden beacon belongs to the real gameplay map");
+            g.save.flags.Add("dispatch_complete");g.save.flags.Add("survey_1");
+            g.save.companion=-1;g.enemies.Clear();
+            g.save.x=beacon.x;g.save.y=beacon.y;
+            g.Talk(beacon);
+            Check(g.conversation!=null,"Original Roadwarden interaction is available in the game");
+            int choice=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="road_trial_start_1");
+            Check(choice>=0,"Completed oath unlocks the original physical defense");
+            g.Choose(choice);g.Close();
+            Check(g.RoadwardenTrialRoom==1&&g.enemies.Count==2,
+                "Actual beacon trial must spawn the first original wave");
+            g.save.reducedMotion=false;g.save.effectsQuality=2;
+            stage="healthy-world";
+            Set(app,"clock",1f);Set(app,"camera",g.Position);
+            Clear();Call(app,"DrawPolishObject",beacon);
+            Texture2D sheet=Get<Texture2D>(app,"roadwardenWardSheet");
+            Check(sheet!=null&&sheet.width==256&&sheet.height==128,
+                "The real world beacon did not load its complete eight-keypose transparent Sprite Sheet");
+            var normal=GUI.textureCalls.Find(t=>t.texture==sheet);
+            Check(normal!=null&&
+                Math.Abs(normal.uv.width-.25f)<.00001f&&
+                Math.Abs(normal.uv.height-.5f)<.00001f&&
+                Math.Abs(normal.uv.y-.5f)<.00001f&&
+                Math.Abs(normal.rect.width-88f)<.001f&&
+                Math.Abs(normal.rect.height-88f)<.001f,
+                "Actual production beacon must paint the healthy authored row behind its original full-detail column");
+            int authoredIndex=GUI.textureCalls.FindIndex(t=>t.texture==sheet);
+            Check(authoredIndex==0&&GUI.textureCalls.Count>1,
+                "The source-painted protective rune must precede, not replace, the mature column in world draw order");
+            stage="authored-animation";
+            Set(app,"clock",1.5f);Clear();Call(app,"DrawPolishObject",beacon);
+            var advanced=GUI.textureCalls.Find(t=>t.texture==sheet);
+            Check(advanced!=null&&Math.Abs(advanced.uv.x-normal.uv.x)>.00001f&&
+                Math.Abs(advanced.rect.x-normal.rect.x)<.001f&&
+                Math.Abs(advanced.rect.y-normal.rect.y)<.001f,
+                "Distinct published source keyposes must animate at one stationary actual beacon root");
+            stage="combat-pressure";
+            Enemy attacker=g.enemies[0],other=g.enemies[1];
+            attacker.x=beacon.x+1.01f;attacker.y=beacon.y;
+            attacker.state=0;attacker.timer=100f;
+            attacker.stun=attacker.hitTime=attacker.releaseTime=0f;
+            other.stun=100f;g.invulnerable=100f;
+            g.hitStop=0f;g.Tick(.05f,new Point());
+            Check(g.RoadwardenWardUnderAttack,
+                "Real enemy contact must own the vulnerable ward's pressure state");
+            Set(app,"clock",2f);Clear();Call(app,"DrawPolishObject",beacon);
+            var attacked=GUI.textureCalls.Find(t=>t.texture==sheet);
+            Check(attacked!=null&&Math.Abs(attacked.uv.y)<.00001f,
+                "Physically draining attacker must switch the live beacon to its painted critical ember row");
+            stage="low-motion";
+            g.save.reducedMotion=true;Clear();Call(app,"DrawPolishObject",beacon);
+            var still=GUI.textureCalls.Find(t=>t.texture==sheet);
+            Check(still!=null&&Math.Abs(still.uv.x)<.00001f&&
+                Math.Abs(still.uv.y)<.00001f,
+                "Reduced motion keeps the original damaged source cell, not a moving or invisible indicator");
+            g.save.reducedMotion=false;g.save.effectsQuality=0;
+            Clear();Call(app,"DrawPolishObject",beacon);
+            var low=GUI.textureCalls.Find(t=>t.texture==sheet);
+            Check(low!=null&&Math.Abs(low.uv.x)<.00001f&&
+                Math.Abs(low.uv.y)<.00001f,
+                "Low effects preserves mandatory damaged-ward recognition without movement");
+            stage="reimport-recovery";
+            g.save.effectsQuality=2;
+            Resources.TextureOverrides[key]=new Texture2D(
+                255,128,TextureFormat.RGBA32,false){name="partial-ward-asset"};
+            Set(app,"clock",5f);Clear();Call(app,"DrawPolishObject",beacon);
+            Check(GUI.textureCalls.Exists(t=>t.texture==sheet),
+                "Invalid Editor reimport must retain the last complete painted ward");
+            var next=new Texture2D(256,128,TextureFormat.RGBA32,false){
+                name="reimported-complete-roadwarden-ward"};
+            Resources.TextureOverrides[key]=next;
+            Set(app,"clock",8f);Clear();Call(app,"DrawPolishObject",beacon);
+            Check(GUI.textureCalls.Exists(t=>t.texture==next),
+                "Complete source art repair must hot-load without leaving the live beacon");
+            Resources.TextureOverrides[key]=sheet;
+            Set(app,"clock",0f);Clear();Call(app,"DrawPolishObject",beacon);
+            Check(GUI.textureCalls.Exists(t=>t.texture==sheet),
+                "Time rewind to a fresh play epoch restores its actual original whole-sheet pixels");
+            stage="withdrawal";
+            g.Close();g.Talk(beacon);
+            choice=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="road_trial_abandon");
+            Check(choice>=0,"Active trial retains the intentional withdraw option");
+            g.Choose(choice);g.Close();
+            Clear();Call(app,"DrawPolishObject",beacon);
+            Check(g.RoadwardenTrialRoom==0&&
+                !GUI.textureCalls.Exists(t=>t.texture==sheet)&&
+                g.save.version==2,
+                "Old stone beacon remains visible without a phantom active Sprite ward after withdrawal; v2 saves unchanged");
+            Console.WriteLine("PASS eight original Roadwarden shield keyposes in actual production world: healthy/pressure, fixed root, accessibility, hot import, death-free withdrawal");
+        }
+        catch(Exception ex)
+        {
+            throw new Exception("ROADWARDEN_WARD_RENDER_STAGE_"+stage+": "+ex,ex);
+        }
+        finally
+        {
+            if(overridden)Resources.TextureOverrides[key]=priorOverride;
+            else Resources.TextureOverrides.Remove(key);
+            Set(app,"roadwardenWardLastCheck",float.NegativeInfinity);
+            Set(app,"roadwardenWardNextCheck",float.NegativeInfinity);
+            Set(app,"roadwardenWardSheet",null);
+            Set(app,"clock",oldClock);
+            g.save.effectsQuality=quality;g.save.reducedMotion=reduced;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();RoadwardenSiphonTethersFollowRealCombatAndAccessibility(app);CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();RoadwardenSiphonTethersFollowRealCombatAndAccessibility(app);VerifyRoadwardenWardSpriteInProduction(app);CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
