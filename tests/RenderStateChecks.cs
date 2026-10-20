@@ -3795,8 +3795,14 @@ public static class RenderStateChecks
             Clear();Call(app,"DrawEnemyWarning",enemy);
             Point east=(Point)Call(app,"ScreenPoint",covered);
             Point upper=(Point)Call(app,"ScreenPoint",exposed);
+            // The authored warning includes two LONG radial boundary
+            // strokes whose alpha is intentionally only 45% of the
+            // dangerous perimeter. Compare real arc segments instead
+            // of accidentally choosing a nearby radial edge.
             Func<Point,GUI.TextureCall> nearest=point=>
-                GUI.textureCalls.Where(c=>c.texture==Texture2D.whiteTexture)
+                GUI.textureCalls.Where(c=>
+                    c.texture==Texture2D.whiteTexture&&
+                    c.rect.width<24f)
                 .OrderBy(c=>Math.Pow(Center(c).x-point.x,2)+
                     Math.Pow(Center(c).y-point.y,2)).First();
             var stone=nearest(east);
