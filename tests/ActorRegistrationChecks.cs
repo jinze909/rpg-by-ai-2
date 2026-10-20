@@ -2943,6 +2943,45 @@ public static class ActorRegistrationChecks
                 Check(Math.Abs((float)Math.Sqrt(dx*dx+dy*dy)-.63f*36f)<.01f,
                     "Queued Q confirmation must stay rooted to canonical hero feet");
             }
+            var directionMarks=render.Where(c=>c.rect.width==4f&&
+                c.rect.height==4f&&
+                Math.Abs(c.color.r-.83f)<.00001f&&
+                Math.Abs(c.color.g-.67f)<.00001f&&
+                Math.Abs(c.color.b-1f)<.00001f&&
+                Math.Abs(c.color.a-.78f)<.00001f).ToArray();
+            Check(directionMarks.Length==8&&
+                game.SkillQueuedDirection.y<-.99f,
+                "The eight forward reticle points must reflect real queued Q aim");
+            Point north=(Point)Call(app,"ScreenPoint",
+                game.Position+new Point(0,-1.05f));
+            foreach(var dot in directionMarks)
+            {
+                float dx=dot.rect.x+2f-north.x;
+                float dy=dot.rect.y+2f-north.y;
+                Check(Math.Abs((float)Math.Sqrt(dx*dx+dy*dy)-.17f*36f)<.01f,
+                    "Queued Q aim reticle must follow real input in world coordinates");
+            }
+            game.Skill(new Point(1,0));
+            Check(game.SkillQueued&&game.SkillQueuedDirection.x>.99f&&
+                game.playerAction==null&&game.save.energy==100f,
+                "Repeated Q changes preview direction without paying or firing early");
+            Clear();
+            var changed=Draw(app,"DrawPlayerActor").Where(c=>
+                c.rect.width==4f&&c.rect.height==4f&&
+                Math.Abs(c.color.r-.83f)<.00001f&&
+                Math.Abs(c.color.g-.67f)<.00001f&&
+                Math.Abs(c.color.b-1f)<.00001f&&
+                Math.Abs(c.color.a-.78f)<.00001f).ToArray();
+            Check(changed.Length==8,
+                "Retargeting should preserve exactly one eight-point Q aim preview");
+            Point east=(Point)Call(app,"ScreenPoint",
+                game.Position+new Point(1.05f,0));
+            foreach(var dot in changed)
+            {
+                float dx=dot.rect.x+2f-east.x,dy=dot.rect.y+2f-east.y;
+                Check(Math.Abs((float)Math.Sqrt(dx*dx+dy*dy)-.17f*36f)<.01f,
+                    "Repeated queued Q must update its reticle to the new player-selected facing");
+            }
             Check(!render.Any(c=>c.rect.width==4f&&
                 Math.Abs(c.color.r-.94f)<.00001f&&
                 Math.Abs(c.color.g-.72f)<.00001f),

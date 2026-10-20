@@ -599,8 +599,19 @@ namespace Starfall
             // hero, including during a genuine Hit reaction, without ever
             // changing the Sprite/Animator action or spending energy.
             if(!drawingOutline&&Game.SkillQueued&&!Game.Dying)
+            {
                 Ring(Game.Position,.63f,
                     new Color(.73f,.56f,1f,.68f),18);
+                // The small forward reticle displays the most recent
+                // player-approved queued Q aim, NOT a fake skill impact.
+                // It remains rooted in world space during Hit/recovery,
+                // and immediately follows genuine Q retargeting without
+                // a second hero body or an invented projectile.
+                Point heading=Game.SkillQueuedDirection;
+                if(heading.Length>.05f)
+                    Ring(Game.Position+heading.Normalized*1.05f,.17f,
+                        new Color(.83f,.67f,1f,.78f),8);
+            }
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline)
                 PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);
