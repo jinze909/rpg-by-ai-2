@@ -162,14 +162,17 @@ namespace Starfall
             // only a queued dodge blocks another press. Neither can spend
             // twice before the authoritative GameCore release boundary.
             bool ready=resourceAvailable&&(cooldown<=0||bufferable)&&
-                !(dodgeSlot&&Game.DodgeQueued)&&!busy&&!Game.Dying;
+                !(dodgeSlot&&Game.DodgeQueued)&&
+                (!dodgeSlot||Game.DodgeRootReady)&&!busy&&!Game.Dying;
             bool compact = CombatHud; float y = compact ? 732 : 699, w = compact ? 78 : 109, h = compact ? 50 : 75;
             bool hit = Button(x, y, w, h, "", false, ready);
             if (ready) { Frame(x,y,w,h,bufferable?new Color(.48f,.78f,1f):mint); Box(x+4,y+h-3,w-8,2,bufferable?new Color(.48f,.78f,1f):mint); }
             else if (queued) Frame(x,y,w,h,new Color(.48f,.78f,1f,.8f));
             float iconX = x + (compact ? key == "SPACE" ? 52 : 41 : key == "SPACE" ? 60 : 39);
             Icon(icon,iconX,y+(compact?4:5),compact?23:31,ready?Color.white:new Color(.62f,.68f,.74f));
-            string state = queued ? Game.L("已排队","QUEUED") :
+            string state = dodgeSlot&&!Game.DodgeRootReady ?
+                Game.L("地形封锁","GROUND BLOCKED") :
+                queued ? Game.L("已排队","QUEUED") :
                 bufferable ? Game.L("可预输入","BUFFER") :
                 cooldown > 0 ? Math.Ceiling(cooldown)+"s" :
                 busy ? Game.L("动作中","In action") :

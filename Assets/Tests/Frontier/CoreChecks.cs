@@ -22,6 +22,55 @@ namespace Starfall.Tests
                 if (g.conversation.choices[i].action == action) { g.Choose(i); return; }
             throw new Exception("Missing action " + action);
         }
+        public static void QueuedDodgeCancelsOnRealSealedFooting(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[18];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] floor=new string('.',18).ToCharArray();
+                    for(int x=0;x<18;x++)
+                        if(x<2||x>=16||y<2||y>=16)floor[x]='#';
+                    rows[y]=new string(floor);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=6.5f,spawnY=8.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=6.5f;g.save.y=8.5f;
+                g.save.energy=100f;g.dashCooldown=.10f;
+                Check(g.DodgeRootReady&&g.CanBufferDodge,
+                    "A physically open floor permits the last 140ms dodge buffer");
+                g.Dash(new Point(1,0));
+                Check(g.DodgeQueued&&g.dashTime==0f&&
+                    g.save.energy==100f,
+                    "The first real late dodge tap queues but neither moves nor pays");
+                char[] sealedFoot=rows[8].ToCharArray();
+                sealedFoot[6]='#';rows[8]=new string(sealedFoot);
+                Check(!g.CanStand(g.Position)&&!g.DodgeRootReady&&
+                    !g.DodgeQueued&&!g.CanBufferDodge,
+                    "A newly sealed foot root must immediately hide pending/available dodge feedback");
+                g.Tick(.05f,new Point());
+                Check(!g.DodgeQueued&&g.dashTime==0f&&
+                    g.save.energy==100f&&g.invulnerable<=0f,
+                    "A wall-sealed queue cannot buy phantom invulnerability, movement or stamina cost");
+                sealedFoot[6]='.';rows[8]=new string(sealedFoot);
+                Check(g.DodgeRootReady&&g.CanBufferDodge,
+                    "Reopened foot terrain restores genuine late-dodge eligibility");
+                g.Dash(new Point(1,0));
+                Check(g.DodgeQueued&&g.save.energy==100f,
+                    "Fresh escape after gate reopening creates a NEW valid intent");
+                g.Tick(.05f,new Point());
+                Check(!g.DodgeQueued&&g.dashTime>0f&&
+                    g.save.energy<82f&&g.save.energy>=80f,
+                    "Reopened buffer must dispatch exactly one real paid dash");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void SealedPursuitRoutesToLegalFrontierAndReopensImmediately(Campaign data)
         {
             // Keep all authored campaign maps and story objects unchanged.

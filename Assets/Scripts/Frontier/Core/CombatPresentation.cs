@@ -97,7 +97,16 @@ namespace Starfall
         private DodgeIntent bufferedDodge;
         // Renderers can display the accepted input without owning its clock
         // or creating a new serialized gameplay state.
-        public bool DodgeQueued { get { return bufferedDodge != null; } }
+        public bool DodgeRootReady
+        {
+            // Match Dash's physical CanStand guard. A tide/gate may have
+            // sealed the previously legal floor since the key was queued.
+            get { return mode=="world"&&!Dying&&CanStand(Position); }
+        }
+        public bool DodgeQueued
+        {
+            get { return bufferedDodge!=null&&DodgeRootReady; }
+        }
         // Snapshot the FIRST accepted defensive tap for world feedback.
         // This is read-only; showing the marker cannot reset its 140ms
         // deadline, change collision, or grant invulnerability.
@@ -109,7 +118,7 @@ namespace Starfall
         public bool CanBufferDodge
         {
             get {
-                return mode=="world" && !Dying && bufferedDodge==null &&
+                return DodgeRootReady && bufferedDodge==null &&
                     dashCooldown>.00001f &&
                     dashCooldown<=DodgeBufferWindow+.00001f &&
                     save.energy >= (Relic(2)?25:20);
@@ -141,6 +150,10 @@ namespace Starfall
         {
             DodgeIntent intent=bufferedDodge;
             if(intent==null)return;
+            // A once-legal queued escape cannot be spent from suddenly
+            // sealed terrain or retain a false blue world marker until its
+            // cooldown expires. The next genuinely legal tap may requeue.
+            if(!DodgeRootReady){ClearBufferedDodge();return;}
             float remaining=intent.remaining;
             intent.remaining-=dt;
             if(dashCooldown<=.00001f&&
