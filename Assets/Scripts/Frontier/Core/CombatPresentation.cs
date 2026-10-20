@@ -24,6 +24,48 @@ namespace Starfall
         public Enemy actor;
         public int room;
         public float life, duration;
+
+        // Keep object-initializer compatibility for existing fixtures and
+        // native presentation harnesses. Production deaths use the validated
+        // constructor below so every new corpse begins with a finite lifetime.
+        public FallenActor() { }
+
+        public FallenActor(Enemy actor, int room, float duration)
+        {
+            if (actor == null) throw new ArgumentNullException("actor");
+            if (room < 0) throw new ArgumentOutOfRangeException("room");
+            if (!IsFinite(duration) || duration <= 0f)
+                throw new ArgumentOutOfRangeException("duration");
+
+            this.actor = actor;
+            this.room = room;
+            this.life = duration;
+            this.duration = duration;
+        }
+
+        public bool IsValid
+        {
+            get
+            {
+                return actor != null && room >= 0 &&
+                    IsFinite(life) && life > 0f &&
+                    IsFinite(duration) && duration > 0f;
+            }
+        }
+
+        public float Progress
+        {
+            get
+            {
+                return IsValid ?
+                    GameCore.Clamp(1f - life / duration, 0f, 1f) : 1f;
+            }
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
+        }
     }
     public sealed partial class GameCore
     {
@@ -645,7 +687,19 @@ namespace Starfall
         {
             playerHitTime = Math.Max(0, playerHitTime - dt); playerFlash = Math.Max(0, playerFlash - dt);
             impactShake = Math.Max(0, impactShake - dt);
-            for(int i=fallen.Count-1;i>=0;i--){FallenActor body=fallen[i];body.life-=dt;if(body.life<=0)fallen.RemoveAt(i);}
+            for (int i = fallen.Count - 1; i >= 0; i--)
+            {
+                FallenActor body = fallen[i];
+                // Corrupt/expired transient corpses must never poison the
+                // world tick or leave NaN lifetimes in the draw list.
+                if (body == null || !body.IsValid)
+                {
+                    fallen.RemoveAt(i);
+                    continue;
+                }
+                body.life -= dt;
+                if (!body.IsValid) fallen.RemoveAt(i);
+            }
             // A late boss-death animation can coincide with the delayed
             // ending prompt. Never open dialogue during a death pose: doing so
             // stops the world-only recovery clock and strands the player dead.

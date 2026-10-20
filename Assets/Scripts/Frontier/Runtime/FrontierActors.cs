@@ -1396,6 +1396,7 @@ namespace Starfall
         }
         private void DrawFallen(FallenActor body)
         {
+            if (body == null || !body.IsValid) return;
             EnemyPaint lastEnemyPaint=null;
             EnemyPaint observed;
             if(!body.actor.boss && enemyPaints.TryGetValue(body.actor,out observed) &&
@@ -1424,7 +1425,7 @@ namespace Starfall
                     !acceptedVerticalArcherBody&&
                     !ActorAtlasGeometry.IsAcceptedMonstersAtlas(monsterSheet)) return;
             }
-            Point p = ScreenPoint(body.actor.Position); float progress = 1 - body.life / body.duration;
+            Point p = ScreenPoint(body.actor.Position); float progress = body.Progress;
             // One bounded, artist-authored whole-Sprite transition length
             // for all mobile Bosses and common foes. Core death/loot time
             // stays unchanged; reduced-motion retains one stable corpse.

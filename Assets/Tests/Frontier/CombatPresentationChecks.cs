@@ -1,8 +1,75 @@
 using System;
+using System.Reflection;
 namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void FallenActorConstructorAndLifetimeGuards(Campaign data)
+        {
+            var actor = new Enemy(9901, 1, 4f, 5f, 100f, false);
+            var corpse = new FallenActor(actor, 2, .65f);
+            Check(ReferenceEquals(corpse.actor, actor) && corpse.room == 2 &&
+                Math.Abs(corpse.life - .65f) < .00001f &&
+                Math.Abs(corpse.duration - .65f) < .00001f &&
+                corpse.IsValid && Math.Abs(corpse.Progress) < .00001f,
+                "FallenActor constructor must retain the killed actor and start at a finite full lifetime");
+
+            corpse.life = .325f;
+            Check(corpse.IsValid && Math.Abs(corpse.Progress - .5f) < .00001f,
+                "FallenActor progress must remain bounded and track the real remaining lifetime");
+
+            bool nullRejected = false;
+            try { new FallenActor(null, 2, .65f); }
+            catch (ArgumentNullException) { nullRejected = true; }
+            Check(nullRejected, "FallenActor constructor must reject a missing actor");
+
+            bool roomRejected = false;
+            try { new FallenActor(actor, -1, .65f); }
+            catch (ArgumentOutOfRangeException) { roomRejected = true; }
+            Check(roomRejected, "FallenActor constructor must reject a negative room");
+
+            foreach (float badDuration in new[] {
+                0f, -.65f, float.NaN, float.PositiveInfinity,
+                float.NegativeInfinity })
+            {
+                bool rejected = false;
+                try { new FallenActor(actor, 2, badDuration); }
+                catch (ArgumentOutOfRangeException) { rejected = true; }
+                Check(rejected, "FallenActor constructor must reject non-positive or non-finite duration");
+            }
+
+            corpse.life = float.NaN;
+            Check(!corpse.IsValid && Math.Abs(corpse.Progress - 1f) < .00001f,
+                "Malformed corpse lifetime must not leak NaN into visual progress");
+
+            var game = Fresh(data, 0);
+            var live = new FallenActor(actor, 0, .65f);
+            game.fallen.Add(null);
+            game.fallen.Add(new FallenActor {
+                actor = null, room = 0, life = .5f, duration = .65f
+            });
+            game.fallen.Add(new FallenActor {
+                actor = actor, room = 0, life = float.NaN, duration = .65f
+            });
+            game.fallen.Add(new FallenActor {
+                actor = actor, room = -1, life = .5f, duration = .65f
+            });
+            game.fallen.Add(live);
+
+            MethodInfo tick = typeof(GameCore).GetMethod("TickVisuals",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(tick != null, "GameCore death-lifetime tick must remain available for regression coverage");
+            tick.Invoke(game, new object[] { .1f });
+            Check(game.fallen.Count == 1 && ReferenceEquals(game.fallen[0], live) &&
+                Math.Abs(live.life - .55f) < .00001f,
+                "GameCore must quarantine malformed corpse entries while advancing valid death lifetime");
+
+            live.life = 0f;
+            tick.Invoke(game, new object[] { .1f });
+            Check(game.fallen.Count == 0,
+                "Expired corpse entries must be retired before a later render can touch them");
+        }
+
         public static void ReliefCivilianInteractionsNeedPhysicalOpenLane(Campaign data)
         {
             MapData previous=data.maps[1];

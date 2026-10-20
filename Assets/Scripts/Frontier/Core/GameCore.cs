@@ -799,7 +799,7 @@ namespace Starfall
             if (!save.reducedMotion) { hitStop = Math.Max(hitStop, technique ? .05f : .025f); impactShake = Math.Max(impactShake, technique ? .12f : profile.weapon == 0 && profile.combo == 2 ? .07f : 0); }
             effects.Add(new Effect("number", e.Position, .7f, (crit ? "! " : "") + ((int)damage)));
             if (e.hp > 0) return;
-            fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
+            fallen.Add(new FallenActor(e, save.room, e.boss ? 1.4f : .65f));
             enemies.Remove(e);
             OnAtlasEchoEnemyDefeated(e);
             OnCommonsRelayEnemyDefeated(e);
