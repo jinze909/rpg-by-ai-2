@@ -600,7 +600,12 @@ namespace Starfall
                 direction=new Point();
             if (mode != "world" || Dying || bufferedSkill != null ||
                 bufferedDodge != null) return;
-            if (ActionTransitionBlocked || attackCooldown > 0)
+            // "Recovery" permits the next buffered Q to join a combo, but
+            // it is NOT permission to replace the current whole-body Cast
+            // or Attack before its authored duration finishes. A late LMB
+            // gets one bounded input intent and fires after the old pose.
+            if (playerAction != null || ActionTransitionBlocked ||
+                attackCooldown > 0)
             { QueueLateAttack(direction); return; }
             ClearBufferedAttack();
             SetAim(direction);

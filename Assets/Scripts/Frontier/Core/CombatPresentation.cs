@@ -38,9 +38,9 @@ namespace Starfall
         // queued direction/target and its original 200ms deadline are owned
         // by GameCore, never by repeated GUI draws or button clicks.
         public bool SkillQueued { get { return bufferedSkill != null; } }
-        // A single late basic-attack press may carry through the tail of its
-        // current swing. The intent is never serialized and spends nothing until
-        // the next swing is actually accepted.
+        // A single late basic-attack press may carry through the tail of a
+        // released LMB or Q. The intent never replaces a still-visible
+        // Attack/Cast body, is never saved, and spends nothing until accepted.
         public const float AttackBufferWindow = .16f;
         // A dodge press in the final cooldown frames should still be a dodge.
         // No stamina, invulnerability or movement begins before Dash() accepts it.
@@ -113,8 +113,10 @@ namespace Starfall
         private void QueueLateAttack(Point direction)
         {
             ActorAction action = playerAction;
-            if (action == null || action.kind != "attack" || !action.released ||
-                playerHitTime > 0 || dashTime > 0 || bufferedSkill != null) return;
+            if (action == null ||
+                (action.kind != "attack" && action.kind != "skill") ||
+                !action.released || playerHitTime > 0 ||
+                dashTime > 0 || bufferedSkill != null) return;
             float untilReady = Math.Max(attackCooldown, Math.Max(0, action.duration - action.elapsed));
             if (untilReady > AttackBufferWindow + .00001f) return;
             Point facing = direction.Length > .05f ? direction.Normalized : aim;

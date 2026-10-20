@@ -4060,6 +4060,80 @@ namespace Starfall.Tests
         }
 
 
+        public static void LateAttackAfterSkillKeepsWholeBodyRecovery(Campaign data)
+        {
+            // The prior LMB path considered Cast recovery "unblocked" and
+            // started a new Attack immediately once attackCooldown hit zero.
+            // That truncated the canonical golden-haired whole-body Cast
+            // and could replace its recovery pixels mid-frame.
+            foreach(float step in new[]{.01f,.02f,.05f})
+            {
+                var g=Quiet(data);g.enemies.Clear();
+                g.Skill(new Point(1,0));
+                ActorAction cast=g.playerAction;
+                Check(cast!=null&&cast.kind=="skill",
+                    "Real Q must create a canonical actor skill action");
+                while(cast.elapsed<cast.duration-.10f&&
+                      g.playerAction==cast)
+                    g.Tick(step,new Point());
+                Check(g.playerAction==cast&&cast.released,
+                    "Q remains visually authoritative through late released recovery");
+                float committedEnergy=g.save.energy;
+                g.Attack(new Point(0,-1));
+                Check(g.playerAction==cast&&
+                    Math.Abs(g.save.energy-committedEnergy)<.0001f,
+                    "LMB in released Q recovery must not cut its body or pay attack energy early");
+                g.SetAim(new Point(-1,0));
+                ActorAction follow=null;
+                for(int i=0;i<70;i++)
+                {
+                    g.Tick(step,new Point());
+                    if(g.playerAction!=cast)
+                    {follow=g.playerAction;break;}
+                }
+                Check(follow!=null&&follow.kind=="attack"&&
+                    follow.direction.y<-.99f&&g.combo==0,
+                    "Buffered Q-to-LMB must begin one authentic attack after the previous complete Cast, using the original LMB direction");
+                Advance(g,.9f);
+                Check(g.playerAction==null&&g.combo==0,
+                    "One late Q-to-LMB tap never repeats as an extra combo attack");
+            }
+
+            var early=Quiet(data);early.enemies.Clear();
+            early.Skill(new Point(1,0));ActorAction original=early.playerAction;
+            Advance(early,.33f);
+            Check(original.released&&early.playerAction==original,
+                "Early Q recovery begins after real skill release");
+            early.Attack(new Point(0,-1));
+            Check(early.playerAction==original,
+                "Even an unbufferable early LMB cannot overwrite source-authored Cast recovery");
+            Advance(early,.7f);
+            Check(early.playerAction==null&&early.combo==0,
+                "Input outside the final 160ms cannot fire a delayed phantom strike");
+
+            var change=Quiet(data);change.enemies.Clear();
+            change.save.flags.Add("weapon_1");
+            change.Skill(new Point(1,0));ActorAction preceding=change.playerAction;
+            Advance(change,.54f);change.Attack(new Point(0,-1));
+            Check(change.playerAction==preceding,
+                "Late Q-to-LMB starts only as a pending intent, not a new actor action");
+            change.Equip(1);
+            Advance(change,.7f);
+            Check(change.playerAction==null&&change.combo==0,
+                "Equipment change cancels buffered Q-to-LMB rather than changing the hero model or spending a phantom attack");
+
+            var dodge=Quiet(data);dodge.enemies.Clear();
+            dodge.Skill(new Point(1,0));
+            Advance(dodge,.54f);dodge.Attack(new Point(0,-1));
+            dodge.Dash(new Point(1,0));
+            Check(dodge.dashTime>0f&&
+                (dodge.playerAction==null||dodge.playerAction.kind!="attack"),
+                "Actual dodge cancels Q-to-LMB and cannot leave a second committed attack");
+            Advance(dodge,.7f);
+            Check(dodge.playerAction==null&&dodge.combo==0,
+                "Canceled queued attack does not reappear after dodge recovery");
+        }
+
         public static void LateBasicAttacksBufferOnceAndRespectCombatProfiles(Campaign data)
         {
             foreach (float step in new[] { .01f, .02f, .03f, .05f })
