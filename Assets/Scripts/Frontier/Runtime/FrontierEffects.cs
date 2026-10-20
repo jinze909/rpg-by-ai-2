@@ -367,6 +367,20 @@ namespace Starfall
             Color color = new Color(1, 1, 1, Math.Min(1, (1 - progress) * 1.7f));
             if (effect.kind == "danger" || effect.kind == "enemyRelease" && effect.variant >= 10)
             { Color theme = BossEffectColor(effect.kind == "danger" ? effect.variant : effect.variant - 10); color.r = theme.r; color.g = theme.g; color.b = theme.b; }
+            if ((effect.kind=="impact"||effect.kind=="spark") &&
+                effect.variant>=1&&effect.variant<=3)
+            {
+                // Only damage-confirmed player technique contacts get
+                // class-specific elemental light. The unchanged approved
+                // Effects.png contact cell keeps its physical pivot,
+                // lifetime and source pixels; ordinary hits remain white.
+                switch(effect.variant)
+                {
+                    case 1: color.r=.98f;color.g=.80f;color.b=.48f;break;
+                    case 2: color.r=.60f;color.g=.91f;color.b=.72f;break;
+                    case 3: color.r=.67f;color.g=.76f;color.b=1f;break;
+                }
+            }
             if (effect.kind == "projectileFade") color.a *= .65f;
             if (effect.kind != "slash" && effect.kind != "impact" && effect.kind != "spark" && effect.kind != "projectileImpact") color.a *= Math.Min(1, progress * 12 + .15f);
             if (IsGroundEffect(effect)) color.a *= effect.kind == "frost" ? .42f : .62f;

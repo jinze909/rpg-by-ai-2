@@ -772,7 +772,16 @@ namespace Starfall
                     L("破势","BREAK")));
             }
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
-            effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact", e.Position, .22f) { direction = e.recoil });
+            // A REAL player technique hit inherits the three professions'
+            // distinct combat element, but only after the authoritative HP,
+            // stagger, critical and cover checks have actually succeeded.
+            // The same original contact painting remains on screen; variant
+            // only tints that Sprite, never invents a second body/hit.
+            int contactElement=technique&&profile.playerOwned?
+                save.profession+1:0;
+            effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact",
+                e.Position, .22f) { direction = e.recoil,
+                variant = contactElement });
             if (!save.reducedMotion) { hitStop = Math.Max(hitStop, technique ? .05f : .025f); impactShake = Math.Max(impactShake, technique ? .12f : profile.weapon == 0 && profile.combo == 2 ? .07f : 0); }
             effects.Add(new Effect("number", e.Position, .7f, (crit ? "! " : "") + ((int)damage)));
             if (e.hp > 0) return;

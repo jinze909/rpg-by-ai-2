@@ -548,6 +548,64 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
+    private static void RealProfessionQHitsTintOnlyDamageConfirmedContact(FrontierRuntime app)
+    {
+        float[,] palette={
+            {.98f,.80f,.48f},
+            {.60f,.91f,.72f},
+            {.67f,.76f,1f}
+        };
+        for(int profession=0;profession<3;profession++)
+        {
+            Prepare(app,profession);
+            GameCore g=app.Game;
+            // All three skills make real physical attacks; a companion's
+            // buff or a future preview must NEVER pretend this contact.
+            g.enemies.Add(new Enemy(91121,0,14f,14f,2000f));
+            g.enemies.Add(new Enemy(91122,2,10f,14f,2000f));
+            g.Skill(new Point(1f,0f));
+            for(int frame=0;frame<16;frame++)g.Tick(.02f,new Point());
+            bool found=false;
+            foreach(Effect contact in g.effects)
+            {
+                if(contact.kind!="impact"&&contact.kind!="spark")
+                    continue;
+                if(profession==1)
+                {
+                    // Ranger creates traveling projectiles, not an
+                    // immediate whole-room hitscan or invented contact.
+                    Check(contact.variant!=2,
+                        "Ranger Q falsely created technique hit before arrows physically arrived");
+                    continue;
+                }
+                Check(contact.variant==profession+1,
+                    "The actually damaged enemy lost its profession-owned technique contact");
+                GUI.textureCalls.Clear();
+                Call(app,"DrawAuthoredEffect",contact);
+                Check(GUI.textureCalls.Exists(c=>
+                    c.texture!=null&&c.texture.name==
+                        "resource:Frontier/Art/Effects"&&
+                    Math.Abs(c.color.r-palette[profession,0])<.0001f&&
+                    Math.Abs(c.color.g-palette[profession,1])<.0001f&&
+                    Math.Abs(c.color.b-palette[profession,2])<.0001f),
+                    "Actual painted impact/spark Sprite did not display its owner technique tint");
+                found=true;
+            }
+            if(profession!=1)Check(found,
+                "True Vanguard/Arcanist Q dealt damage without an authentic contact Sprite");
+        }
+        // Original idle/normal attack effects have no profession tint.
+        Prepare(app,0);
+        var ordinary=app.Game;
+        ordinary.enemies.Add(new Enemy(91125,0,13.5f,14f,2000f));
+        ordinary.Attack(new Point(1f,0f));
+        for(int frame=0;frame<15;frame++)ordinary.Tick(.02f,new Point());
+        Check(ordinary.effects.Exists(e=>
+            (e.kind=="impact"||e.kind=="spark")&&e.variant==0),
+            "Normal physical attacks lost their original neutral impact identity");
+        Console.WriteLine("PASS real three-profession Q combat contacts tint only damage-confirmed approved Sprite impacts, original ordinary attack remains unchanged");
+    }
+
     private static void QueuedAreaTagsOnlyPhysicalLivingEnemies(FrontierRuntime app)
     {
         for(int profession=0;profession<3;profession++)
@@ -2499,7 +2557,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
