@@ -58,6 +58,55 @@ namespace Starfall
         {
             get { return bufferedSkill==null?(Point?)null:bufferedSkill.target; }
         }
+        // The actual Ranger Q launches FIVE independent arrows with
+        // headings -0.30,-0.15,0,+0.15,+0.30 radians. A green
+        // center-only aim ring previously concealed blocked side arrows.
+        // This read-only bitmask predicts cover/range separately for the
+        // same five physical flight rays without creating game projectiles.
+        // Bits 0..4 correspond to the real left-to-right volley ordering.
+        public int SkillQueuedRangerVolleyLaneMask
+        {
+            get {
+                SkillIntent intent=bufferedSkill;
+                if(intent==null||intent.profession!=1||
+                    intent.technique!=0||!intent.target.HasValue||
+                    intent.weapon!=save.weapon||
+                    intent.profession!=save.profession||
+                    intent.style!=Style||
+                    intent.technique!=save.technique||
+                    !CanStand(Position))return 0;
+                Point target=intent.target.Value;
+                if(!Finite(target.x)||!Finite(target.y))return 0;
+                Projectile origin=WeaponShot(Position,intent.weapon,
+                    intent.direction,13f,0f,target);
+                if(origin.blockedAtSpawn ||
+                    ShotBlocked(origin,origin.position))return 0;
+                float depth=(target-origin.position).Length;
+                if(!Finite(depth)||depth<.001f||
+                    depth>13f*origin.life||origin.velocity.Length<.05f)
+                    return 0;
+                int steps=Math.Max(1,(int)Math.Ceiling(depth/.1f));
+                double center=Math.Atan2(origin.velocity.y,
+                    origin.velocity.x);
+                int mask=0;
+                for(int lane=0;lane<5;lane++)
+                {
+                    double angle=center+(lane-2)*.15;
+                    Point heading=new Point((float)Math.Cos(angle),
+                        (float)Math.Sin(angle));
+                    bool clear=true;
+                    for(int step=1;step<=steps;step++)
+                    {
+                        Point point=origin.position+
+                            heading*(depth*step/steps);
+                        if(ShotBlocked(origin,point))
+                        {clear=false;break;}
+                    }
+                    if(clear)mask|=1<<lane;
+                }
+                return mask;
+            }
+        }
         // The Ranger's five-arrow Q commits a central real flight lane from
         // the current EQUIPPED weapon muzzle. A target marker on the far
         // side of a live gate or beyond the projectile's lifetime must not

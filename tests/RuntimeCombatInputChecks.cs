@@ -679,20 +679,45 @@ public static class RuntimeCombatInputChecks
             char[] cells=original.ToCharArray();
             cells[(int)g.Position.x+3]='#';
             g.Map.rows[row]=new string(cells);
-            Check(!g.SkillQueuedRangerLaneClear,
-                "Live test must close an actual arrow-sweep wall between the player and Q target");
+            Check(!g.SkillQueuedRangerLaneClear&&
+                (g.SkillQueuedRangerVolleyLaneMask&4)==0,
+                "Live Q cover must close its real central arrow and physical five-ray preview");
             GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
             Check(marker(new Color(1f,.43f,.40f,.78f))&&
                 !marker(new Color(.83f,.67f,1f,.72f)),
                 "Real DrawPlayerActor must mark occluded queued Ranger Q with coral, not a false clear-lane violet");
             g.Map.rows[row]=original;
-            Check(g.SkillQueuedRangerLaneClear,
-                "The same live Ranger target becomes reachable when actual cover opens");
+            Check(g.SkillQueuedRangerLaneClear&&
+                (g.SkillQueuedRangerVolleyLaneMask&4)!=0,
+                "Real Q center arrow must re-open after the wall is removed");
             GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
             Check(marker(new Color(.83f,.67f,1f,.72f))&&
                 !marker(new Color(1f,.43f,.40f,.78f))&&
                 g.SkillQueued,
                 "Opening real wall restores original violet Ranger target without consuming or re-queuing Q");
+            // One side of the five-shot arc now has a real wall while
+            // the center still reaches the unchanged target. No generic
+            // green-center reticle may hide this actual spread obstruction.
+            string sideOriginal=g.Map.rows[row+1];
+            try
+            {
+                char[] flank=sideOriginal.ToCharArray();
+                flank[(int)g.Position.x+3]='#';
+                g.Map.rows[row+1]=new string(flank);
+                int physicalMask=g.SkillQueuedRangerVolleyLaneMask;
+                Check((physicalMask&4)!=0&&(physicalMask&16)==0,
+                    "Live Ranger volley did not distinguish clear center from blocked outer shot");
+                GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                Point world=(Point)Call(app,"ScreenPoint",target);
+                Check(GUI.textureCalls.Exists(c=>
+                    Math.Abs(c.rect.x-(world.x-13+4*6))<2f&&
+                    Math.Abs(c.rect.y-(world.y-18))<2f&&
+                    Math.Abs(c.color.r-1f)<.001f&&
+                    Math.Abs(c.color.g-.43f)<.001f&&
+                    Math.Abs(c.color.a-.86f)<.001f),
+                    "Production Ranger Q world cue did not mark its blocked outer spread lane");
+            }
+            finally{g.Map.rows[row+1]=sideOriginal;}
         }
         finally{g.Map.rows[row]=original;}
         Console.WriteLine("PASS real queued Ranger Q world target switches coral/violet with live projectile-radius wall collision");

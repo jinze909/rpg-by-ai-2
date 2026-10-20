@@ -838,6 +838,17 @@ namespace Starfall
                         new Color(.83f,.67f,1f,.72f):
                         new Color(1f,.43f,.40f,.78f);
                     Ring(skillTarget.Value,.26f,volleyColor,12);
+                    // Five small pips reflect the ACTUAL spread lanes in
+                    // their firing order, not five invented retargeted
+                    // hit locations. They do not change a projectile's
+                    // damage, muzzle, direction or player resources.
+                    int lanes=Game.SkillQueuedRangerVolleyLaneMask;
+                    Point dotRoot=ScreenPoint(skillTarget.Value);
+                    for(int lane=0;lane<5;lane++)
+                        Box(dotRoot.x-13+lane*6,dotRoot.y-18,4,4,
+                            (lanes&(1<<lane))!=0?
+                            new Color(.83f,.67f,1f,.86f):
+                            new Color(1f,.43f,.40f,.86f));
                 }
                 // A queued default Vanguard/Arcanist Q is an actual
                 // player-centered area strike, NOT the Ranger's targeted
