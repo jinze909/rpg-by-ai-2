@@ -5,6 +5,119 @@ namespace Starfall.Tests
     {
 
 
+
+        public static void RoadwardenArcherDefendsFromRealRangedHeroLane(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[34];
+                for(int y=0;y<34;y++)
+                {
+                    char[] line=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=31)
+                        for(int x=2;x<=31;x++)line[x]='.';
+                    rows[y]=new string(line);
+                }
+                var beacon=new WorldObject{id="survey1",kind="survey1",
+                    name="Beacon",en="Beacon",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{beacon},decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("dispatch_complete");
+                g.save.flags.Add("survey_1");
+                g.Enter(1);g.enemies.Clear();
+                g.invulnerable=300f;
+                g.save.x=12.25f;g.save.y=10.5f;
+                Action(g,"survey1","road_trial_start_1");
+                Check(g.RoadwardenTrialRoom==1&&g.enemies.Count==2,
+                    "Real forest defense must deploy an actual hunter and ranged bowman");
+                Enemy hunter=g.enemies.Find(e=>e.kind==0);
+                Enemy bow=g.enemies.Find(e=>e.kind==1);
+                Check(hunter!=null&&bow!=null,
+                    "Wave one genuinely contains different melee and ranged combat roles");
+                hunter.x=14.5f;hunter.y=10.5f;hunter.state=0;
+                hunter.timer=1f;hunter.stun=0f;hunter.releaseTime=0f;
+                bow.x=16f;bow.y=10.5f;bow.state=0;
+                bow.timer=1f;bow.stun=0f;bow.releaseTime=0f;
+                g.save.x=21.5f;g.save.y=10.5f;
+                g.Tick(.05f,new Point());
+                Check(hunter.x<14.49f&&hunter.moving&&
+                    bow.x>16.01f&&bow.moving&&bow.moveTime>.01f&&
+                    !g.RoadwardenWardUnderAttack,
+                    "First real combat tick sends hunter WEST toward the ward but bowman EAST to establish a moving distance-locked hero shooting lane");
+                // With a player inside the bowman's three-tile dead zone,
+                // physical backstep must move AWAY from that player even
+                // though this is toward neither the original station goal
+                // nor an invented decorative walk pose.
+                hunter.stun=100f;
+                bow.x=16f;bow.y=10.5f;bow.timer=1f;
+                bow.state=0;bow.stun=0;bow.releaseTime=0;
+                g.save.x=14.5f;g.save.y=10.5f;
+                g.Tick(.05f,new Point());
+                Check(bow.backpedaling&&bow.x>16.02f&&bow.moving,
+                    "Station archer retreats from the ACTUAL nearby hero, instead of rushing the station with the hunter");
+                // Player moves back into a safe legitimate arrow lane. A
+                // real attack requires a windup, followed by a flying shot;
+                // no fake hitscan or pre-release missile may appear.
+                g.save.x=20.5f;g.save.y=10.5f;
+                bow.x=16f;bow.y=10.5f;
+                bow.timer=.001f;bow.releaseTime=0f;bow.stun=0f;
+                bow.state=0;bow.hitTime=0f;
+                g.Tick(.05f,new Point());
+                Check(bow.state==1&&
+                    (bow.target-g.Position).Length<.001f&&
+                    !g.projectiles.Exists(p=>p.roadTrialOwned),
+                    "Real Roadwarden archer locks an actual player-targeted bow windup, not the protected survey stone");
+                for(int i=0;i<15;i++)g.Tick(.05f,new Point());
+                Check(g.projectiles.Exists(p=>!p.friendly&&p.roadTrialOwned&&
+                    p.visual=="enemyArrow")&&g.save.version==2,
+                    "True bow release launches the trial-owned traveling arrow, preserving all original projectile physics and v2 saves");
+                // Keep the old, valuable objective pressure mechanic:
+                // a bow enemy already beside the beacon still erodes its
+                // ward, even though its tactical ranged TARGET is the hero.
+                g.projectiles.Clear();
+                bow.x=11.5f;bow.y=10.5f;
+                bow.state=0;bow.timer=100f;
+                bow.stun=bow.releaseTime=bow.hitTime=0f;
+                float before=g.RoadwardenWardIntegrity;
+                g.Tick(.05f,new Point());
+                Check(g.RoadwardenWardUnderAttack&&
+                    g.RoadwardenWardIntegrity<before&&
+                    g.RoadwardenWardSiphonCount==1&&
+                    (g.RoadwardenWardSiphonSource(0)-bow.Position).Length<.001f,
+                    "A genuine bowman physically beside the ward still damages it and drives the one true native world tether");
+                // The second wave replaces the hunter with a breaker. The
+                // bowman's hero-pressure role must survive reinforcement.
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"Trial reinforcement still requires real lethal combat");
+                hit.Invoke(g,new object[]{hunter,99999f,false,null,null});
+                hit.Invoke(g,new object[]{bow,99999f,false,null,null});
+                g.hitStop=0f;g.Tick(.05f,new Point());
+                Check(g.RoadwardenTrialRoom==1&&g.RoadwardenTrialWave==2,
+                    "Two genuine trial kills still spawn the actual second wave");
+                Enemy breaker=g.enemies.Find(e=>e.kind==2);
+                Enemy veteranBow=g.enemies.Find(e=>e.kind==1);
+                Check(breaker!=null&&veteranBow!=null,
+                    "Wave two contains the actual heavy breaker and returning bowman");
+                breaker.x=14.5f;breaker.y=10.5f;breaker.state=0;
+                breaker.timer=1f;breaker.stun=breaker.releaseTime=0f;
+                veteranBow.x=16f;veteranBow.y=10.5f;
+                veteranBow.state=0;veteranBow.timer=1f;
+                veteranBow.stun=veteranBow.releaseTime=0f;
+                g.save.x=21.5f;g.save.y=10.5f;
+                g.Tick(.05f,new Point());
+                Check(breaker.x<14.49f&&veteranBow.x>16.01f&&
+                    breaker.moving&&veteranBow.moving,
+                    "Veteran breaker advances on the station while the real second-wave archer keeps hero-focused ranged spacing");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void RoadwardenFinalLethalContactClearsOnlyItsOwnLiveSurge(Campaign data)
         {
             MapData original=data.maps[1];
