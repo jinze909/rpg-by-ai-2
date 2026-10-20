@@ -80,6 +80,15 @@ def main():
     runtime = RUNTIME.read_text(encoding="utf-8")
     assert "int frame = north ? 8 : south ? 11 : 0;" in runtime, (
         "COMPANION_SOUTH_IDLE_FALLBACK_REGRESSION")
+    assert "if(!publishedWalk)frame=row==1?8:row==2?11:0;" in runtime, (
+        "COMPANION_SMOOTHED_IDLE_FACING_REGRESSION")
+    assert "bool flip=row==0&&direction.x<-.1f;" in runtime, (
+        "COMPANION_HORIZONTAL_ONLY_MIRROR_REGRESSION")
+    assert runtime.count(
+        "Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);") == 2, (
+            "COMPANION_ACTION_FACING_MUST_USE_CANONICAL_ROW_MIRROR")
+    assert "!north&&!(south&&action!=null)" not in runtime, (
+        "COMPANION_SOUTH_IDLE_MUST_NOT_BE_MIRRORED")
     REPORT.write_text(json.dumps({
         "kind": "actual_original_companion_walk_source",
         "unity_native_verified": False,

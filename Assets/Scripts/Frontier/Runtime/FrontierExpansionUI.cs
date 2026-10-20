@@ -123,7 +123,12 @@ namespace Starfall
                 samePresentation&&sameHemisphere&&
                 Math.Abs(Math.Abs(direction.x)-Math.Abs(direction.y))<
                     CurrentWorldVisualLook.companionFacingThreshold)
+            {
                 row=companionLastWalkFacing;
+                // If the richer Walk* atlas is missing during recovery,
+                // keep the base-sheet idle cell in the same smoothed facing.
+                if(!publishedWalk)frame=row==1?8:row==2?11:0;
+            }
             bool flip=row==0&&direction.x<-.1f;
             // Offscreen outline passes must never establish a new gait
             // owner or reset the actual body's running contact phase.
@@ -223,14 +228,12 @@ namespace Starfall
                 }
                 // The original action pose immediately replaces all older
                 // body pixels. Combat clocks, aim and foot pivot are unchanged.
-                Actor(companionSheets[id],3,4,frame,p,192f,tint,
-                    !north&&!(south&&action!=null)&&direction.x<-.1f);
+                Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);
             }
             else
             {
                 if(!drawingOutline)companionWasWalking=false;
-                Actor(companionSheets[id],3,4,frame,p,192f,tint,
-                    !north&&!(south&&action!=null)&&direction.x<-.1f);
+                Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);
             }
         }
         private void DrawHazardWarnings()
