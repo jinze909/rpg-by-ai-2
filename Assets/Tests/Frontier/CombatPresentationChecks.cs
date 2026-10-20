@@ -4213,7 +4213,7 @@ namespace Starfall.Tests
                 g.SetAim(new Point(1f,0f));
                 g.SetAimTarget(new Point(33f,17f));
                 g.Attack(new Point(0f,1f));
-                Check(Object.ReferenceEquals(intent,pending.GetValue(g))&&
+                Check(System.Object.ReferenceEquals(intent,pending.GetValue(g))&&
                     Math.Abs((float)remaining.GetValue(intent)-elapsed)<.00001f,
                     "Repeated held LMB must not replace intent or extend original 160ms deadline");
                 ActorAction next=null;

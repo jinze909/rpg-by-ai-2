@@ -145,7 +145,7 @@ namespace Starfall.Tests
                     "Buffered dodge's original deadline must decay with real gameplay time");
                 g.SetAim(new Point(1f,0f));
                 g.Dash(new Point(0,1));
-                Check(Object.ReferenceEquals(first,pending.GetValue(g))&&
+                Check(System.Object.ReferenceEquals(first,pending.GetValue(g))&&
                     Math.Abs((float)lifetime.GetValue(first)-after)<.00001f,
                     "Repeated SPACE cannot refresh buffer expiry or replace the initial escape heading");
                 for(int i=0;i<30&&g.dashTime<=0f;i++)
