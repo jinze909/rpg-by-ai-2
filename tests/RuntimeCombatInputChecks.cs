@@ -159,6 +159,46 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Both actual Q HUD layouts queue during ordinary attack and preserve world aim");
     }
 
+    private static void QueuedAreaPreviewDrawsRealWorldRadius(FrontierRuntime app)
+    {
+        foreach(int profession in new[]{0,1,2})
+        {
+            Prepare(app,profession);
+            var g=app.Game;
+            g.Attack(new Point(1f,0f));
+            g.Skill(new Point(0f,-1f));
+            Check(g.SkillQueued,
+                "Actual player must own an unpaid Q intent before testing its rendered damage reach");
+            GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            // The actual production Ring draws 32 grounded 4px contour
+            // contacts in this precisely authored translucent violet tint.
+            // Compare the EAST contact to ScreenPoint of the real damage
+            // range instead of trusting a HUD label or property-only test.
+            float reach=profession==0?3.1f:profession==2?4.5f:0f;
+            Point anchor=(Point)Call(app,"ScreenPoint",g.Position);
+            Point edge=(Point)Call(app,"ScreenPoint",
+                g.Position+new Point(reach,0));
+            bool painted=GUI.textureCalls.Exists(c=>
+                Math.Abs(c.color.r-.70f)<.001f&&
+                Math.Abs(c.color.g-.56f)<.001f&&
+                Math.Abs(c.color.b-1f)<.001f&&
+                Math.Abs(c.color.a-.25f)<.001f&&
+                Math.Abs(c.rect.x-(edge.x-2))<2f&&
+                Math.Abs(c.rect.y-(anchor.y-2))<2f);
+            Check(painted==(reach>0f),
+                "Actual world draw must show only the physically correct queued Vanguard/Arcanist area radius, class "+profession);
+            g.Dash(new Point(1f,0f));
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(!GUI.textureCalls.Exists(c=>
+                Math.Abs(c.color.r-.70f)<.001f&&
+                Math.Abs(c.color.g-.56f)<.001f&&
+                Math.Abs(c.color.a-.25f)<.001f),
+                "Real dodge interrupt must remove every stale area contour before the next frame");
+        }
+        Console.WriteLine("PASS live player draw: standard Vanguard/Arcanist Q damage reach, Ranger exclusion and dodge cleanup");
+    }
+
     private static void RiposteHudFollowsRealParryIntentAndUnreleasedContact(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1849,7 +1889,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
