@@ -3343,6 +3343,22 @@ public static class ActorRegistrationChecks
                 Check(marks.Count==step/4,
                     "Canonical blonde hero ground contact must match ONLY original planted Walk frames 2/0");
             }
+            // An 8-tile same-room teleport must not produce a boot print
+            // even when source-authored gait phase advances naturally.
+            // The very next legitimate physical foot plant still can.
+            int beforeTeleport=marks.Count;
+            game.walkDistance+=GameCore.WalkStride*.5f;
+            game.save.x+=8f;
+            game.footContacts++;
+            Call(app,"AdvanceFootfallVisual",.001f);
+            Check(marks.Count==beforeTeleport,
+                "Same-room hero teleport emitted an impossible planted-foot decal");
+            game.walkDistance+=GameCore.WalkStride*.5f;
+            game.save.x+=.19f;
+            game.footContacts++;
+            Call(app,"AdvanceFootfallVisual",.001f);
+            Check(marks.Count==beforeTeleport+1,
+                "Ground contact did not recover after a physical post-teleport stride");
             int painted=marks.Count;
             game.movementDirection=new Point();
             game.walkDistance+=GameCore.WalkStride;

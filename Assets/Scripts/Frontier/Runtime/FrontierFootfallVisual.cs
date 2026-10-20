@@ -25,6 +25,7 @@ namespace Starfall
         private int paintedFootContact = -1, paintedFootRoom = -1;
         private int paintedHeroContactIndex=-1;
         private float paintedHeroWalkDistance;
+        private Point paintedHeroPosition;
         private GameCore paintedHeroOwner;
         // GameCore.Load can replace SaveData without changing the GameCore
         // instance or room. Old physical prints belong to the old journey.
@@ -112,6 +113,7 @@ namespace Starfall
                 paintedHeroSave=Game.save;
                 paintedHeroOwner=Game;
                 paintedHeroWalkDistance=Game.walkDistance;
+                paintedHeroPosition=Game.Position;
                 paintedHeroContactIndex=PlantedFootfallIndex(
                     Game.walkDistance,GameCore.WalkStride);
                 return;
@@ -124,6 +126,7 @@ namespace Starfall
                 paintedHeroSave=Game.save;
                 paintedHeroOwner=Game;
                 paintedHeroWalkDistance=Game.walkDistance;
+                paintedHeroPosition=Game.Position;
                 paintedHeroContactIndex=PlantedFootfallIndex(
                     Game.walkDistance,GameCore.WalkStride);
                 companionRoom=-1;
@@ -146,7 +149,13 @@ namespace Starfall
                 paintedHeroOwner,Game);
             bool continued=Game.walkDistance>=
                 paintedHeroWalkDistance-.0001f;
-            if(sameHero&&continued&&planted>=0&&
+            // A same-room teleport may retain monotonic gait phase. Match
+            // the companion/enemy footprint rule: only genuine bounded
+            // physical travel may leave a painted planted-foot contact.
+            Point currentFoot=Game.Position;
+            float physicalStep=(currentFoot-paintedHeroPosition).Length;
+            bool physicalContact=physicalStep>=.003f&&physicalStep<=.95f;
+            if(sameHero&&continued&&physicalContact&&planted>=0&&
                paintedHeroContactIndex>=0&&
                planted>paintedHeroContactIndex&&
                planted-paintedHeroContactIndex<=2&&
@@ -161,6 +170,7 @@ namespace Starfall
             paintedHeroSave=Game.save;
             paintedHeroContactIndex=planted;
             paintedHeroWalkDistance=Game.walkDistance;
+            paintedHeroPosition=currentFoot;
             paintedFootContact=contacts;
             if(Game.save.effectsQuality>1)
             {
