@@ -563,11 +563,21 @@ namespace Starfall
                 ClearCompanionCornerPlan();return normal;
             }
             Enemy old=companionCornerTarget;
-            bool reusable=old!=null&&
+            bool samePlan=old!=null&&
                 System.Object.ReferenceEquals(companionCornerSave,save)&&
                 companionCornerRoom==save.room&&
                 companionCornerGeneration==companionPresentationGeneration&&
-                (old.Position-companionCornerTargetFoot).Length<.40f&&
+                (old.Position-companionCornerTargetFoot).Length<.40f;
+            // Stop at the FIRST genuinely clear physical arrow lane and
+            // plant the painted boots while the short 220ms auto cadence
+            // expires. Resuming ordinary hero-follow immediately before
+            // target acquisition could put the weapon back into the same
+            // corner and create a loop of aborted attacks. Never freeze
+            // after a moving/dead target, party swap, new save or changed
+            // geometry: only a CURRENT verified projectile line holds us.
+            if(samePlan&&CompanionCornerShotReady(
+                companionPosition,old))return companionPosition;
+            bool reusable=samePlan&&
                 !CompanionCornerShotReady(companionPosition,old)&&
                 (companionCornerGoal-companionPosition).Length>.12f&&
                 (companionCornerGoal-Position).Length<4f&&
