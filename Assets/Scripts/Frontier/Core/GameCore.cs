@@ -1011,6 +1011,33 @@ namespace Starfall
             effect.afterlightWatchOwned = IsAfterlightWatchEnemy(attacker);
             effect.outerPatrolOwned = IsOuterPatrolEnemy(attacker);
         }
+        // Use the precise SAME 0.1-tile swept-radius shot samples that
+        // UpdateProjectiles uses, not the center-only actor sight ray. A bow
+        // hand can clear its immediate muzzle while an arrow clips the
+        // side of a stone pillar farther along its physical flight.
+        // Check the live intended target before starting AND throughout
+        // the windup; enemy logic can seek a new firing lane instead of
+        // wasting repeated full-length draws into cover.
+        private bool EnemyBowFlightLaneClear(Enemy enemy,Point target)
+        {
+            if(enemy==null||enemy.kind!=1||enemy.boss||
+                !Finite(target.x)||!Finite(target.y)||
+                !CanStand(enemy.Position))return false;
+            Point look=target-enemy.Position;
+            if(look.Length<.001f)return false;
+            Projectile shot=WeaponShot(enemy.Position,1,
+                look.Normalized,5f,10f,target);
+            if(shot.blockedAtSpawn||ShotBlocked(shot,shot.position))
+                return false;
+            Point travel=target-shot.position;
+            float range=travel.Length;
+            if(!Finite(range)||range>5f*shot.life)return false;
+            int steps=Math.Max(1,(int)Math.Ceiling(range/.1f));
+            for(int i=1;i<=steps;i++)
+                if(ShotBlocked(shot,shot.position+
+                    travel*(i/(float)steps)))return false;
+            return true;
+        }
         private void UpdateEnemies(float dt)
         {
             tickingEnemies.Clear();tickingEnemies.AddRange(enemies);
@@ -1101,7 +1128,8 @@ namespace Starfall
                     // cycles and must not be canceled by an obsolete target
                     // point unrelated to their radial missile pattern.
                     if (!e.boss && e.kind == 1 &&
-                        !ClearAttackPath(e.Position,e.target))
+                        (!ClearAttackPath(e.Position,e.target)||
+                         !EnemyBowFlightLaneClear(e,e.target)))
                     {
                         e.state=0;
                         // Cancel the missed *long* draw: once cover opens,
@@ -1226,6 +1254,8 @@ namespace Starfall
                     wardAttacker || travelerAttacker || reliefAttacker || escortPatrol || stockRaider || patrolSaboteur ? 1.05f :
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
+                if(visible&&!e.boss&&e.kind==1)
+                    visible=EnemyBowFlightLaneClear(e,pursuit);
                 Point before = e.Position;
                 if (e.kind == 1 && !e.boss && !wardAttacker &&
                     !travelerAttacker && !practicing &&
@@ -1250,7 +1280,9 @@ namespace Starfall
                 if (e.moving) { e.moveTime += travelled.Length; e.Face(e.backpedaling?Position-e.Position:travelled); }
                 delta = Position - e.Position; distance = delta.Length;
                 bool heroInRange = distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
-                    ClearAttackPath(e.Position, Position);
+                    ClearAttackPath(e.Position, Position) &&
+                    (e.boss||e.kind!=1||
+                     EnemyBowFlightLaneClear(e,Position));
                 bool nearTraveler = travelerAttacker && (pursuit - e.Position).Length < 2.2f &&
                     ClearAttackPath(e.Position, pursuit);
                 // Standing in the raider's reach lets the hero draw its attention.
@@ -1261,7 +1293,9 @@ namespace Starfall
                 // target civilians when the hero does not hold the frontline.
                 bool nearCivilian = (reliefAttacker || escortPatrol) &&
                     (pursuit - e.Position).Length < (e.kind == 1 ? 6.5f : 2.1f) &&
-                    ClearAttackPath(e.Position, pursuit);
+                    ClearAttackPath(e.Position, pursuit) &&
+                    (e.kind!=1||e.boss||
+                     EnemyBowFlightLaneClear(e,pursuit));
                 bool strikeCivilian = nearCivilian &&
                     (!heroInRange || distance > 2.2f);
                 bool nearStock=stockRaider&&(pursuit-e.Position).Length<2.2f &&

@@ -609,6 +609,84 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS five real GameCore missile contact ownership paints from existing Effects sprites: hostile, bow, staff, parry, neutral and no false expiry hits");
     }
 
+    private static void EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;
+        int row=-1,col=-1;
+        Point attacker=new Point(),victim=new Point();
+        // Find two legal feet on an authentic straight firing corridor.
+        // Paint a real corner immediately below (not IN) the sight ray.
+        // The centerline must remain clear while the arrow's 0.14-tile
+        // collision footprint strikes the wall beside that line.
+        var lane=typeof(GameCore).GetMethod(
+            "EnemyBowFlightLaneClear",Private);
+        var sight=typeof(GameCore).GetMethod("ClearAttackPath",Private);
+        Check(lane!=null&&sight!=null,
+            "Actual bow radius-sweep firing gate is not in the game core");
+        for(int y=4;y<g.Map.rows.Length-5&&row<0;y++)
+        for(int x=4;x<g.Map.rows[y].Length-9&&row<0;x++)
+        {
+            bool open=true;
+            for(int k=0;k<=6;k++)
+                if(g.Map.rows[y][x+k]!='.'||
+                   g.Map.rows[y+1][x+k]!='.')
+                {open=false;break;}
+            if(!open)continue;
+            Point from=new Point(x+.5f,y+.88f);
+            Point to=new Point(x+5.5f,y+.88f);
+            if(!g.CanStand(from)||!g.CanStand(to))continue;
+            var probe=new Enemy(99211,1,from.x,from.y,90f);
+            if(!(bool)lane.Invoke(g,new object[]{probe,to}))continue;
+            char[] blocked=g.Map.rows[y+1].ToCharArray();
+            char old=blocked[x+2];
+            blocked[x+2]='#';
+            string oldRow=g.Map.rows[y+1];
+            g.Map.rows[y+1]=new string(blocked);
+            bool centerOpen=(bool)sight.Invoke(g,new object[]{from,to});
+            bool shotOpen=(bool)lane.Invoke(g,new object[]{probe,to});
+            g.Map.rows[y+1]=oldRow;
+            if(centerOpen&&!shotOpen)
+            {row=y+1;col=x+2;attacker=from;victim=to;}
+        }
+        Check(row>=0,"No genuine real-world arrow-side-corner corridor found");
+        string original=g.Map.rows[row];
+        try
+        {
+            var enemy=new Enemy(99212,1,attacker.x,attacker.y,90f){
+                timer=.001f
+            };
+            enemy.Face(new Point(1,0));
+            g.enemies.Add(enemy);
+            g.save.x=victim.x;g.save.y=victim.y;
+            char[] wall=original.ToCharArray();wall[col]='#';
+            g.Map.rows[row]=new string(wall);
+            Check((bool)sight.Invoke(g,new object[]{attacker,victim})&&
+                !(bool)lane.Invoke(g,new object[]{enemy,victim}),
+                "Archer cover scenario must be clear for actor LOS but physically block the arrow");
+            g.Tick(.02f,new Point());
+            Check(enemy.state!=1&&!g.projectiles.Exists(p=>!p.friendly),
+                "Archer began a fully telegraphed attack into a known side-wall missile collision");
+            g.Map.rows[row]=original;
+            enemy.timer=0f;enemy.stun=0f;enemy.releaseTime=0f;
+            enemy.x=attacker.x;enemy.y=attacker.y;
+            Check((bool)lane.Invoke(g,new object[]{enemy,victim}),
+                "Removing side-wall obstruction did not free real archer arrow flight");
+            g.Tick(.02f,new Point());
+            Check(enemy.state==1&&enemy.windupDuration>.5f,
+                "Archer did not reacquire a genuine ranged windup when physical flight reopened");
+            g.Map.rows[row]=new string(wall);
+            g.Tick(.02f,new Point());
+            Check(enemy.state==0&&!g.projectiles.Exists(p=>!p.friendly),
+                "A newly closed side wall did not interrupt an unpaid archer warning before shot release");
+            Console.WriteLine("PASS actual enemy bow AI avoids side-wall swept-radius shots, repositions/reacquires an open lane, and cancels locked windups when cover closes");
+        }
+        finally
+        {
+            g.Map.rows[row]=original;
+        }
+    }
+
     private static void MeleeSwordContactStopsAtRealSolidCover(FrontierRuntime app)
     {
         foreach(bool wall in new[]{false,true})
@@ -2803,7 +2881,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
