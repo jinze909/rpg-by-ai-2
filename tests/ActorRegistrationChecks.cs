@@ -901,6 +901,131 @@ public static class ActorRegistrationChecks
     // atlases are loaded by LoadVisuals. An injury-phase Boss used to turn
     // bright white on its lethal frame, even though the unchanged whole-body
     // Sprite and fixed boots were otherwise correctly crossfaded.
+
+    // A cover/HUD outline samples the very same Boss actor at any HP stage,
+    // but NEVER constitutes a finished visible paint. If the Boss is killed
+    // before the next actual body pass, death must continue from the last
+    // real full-body Sprite, not from a preview-only phase or pose.
+    static void BossOutlineCannotRewriteLastLiveBodyOrStage(FrontierRuntime app)
+    {
+        var flags=BindingFlags.Instance|BindingFlags.NonPublic|
+            BindingFlags.Public;
+        var bossField=typeof(FrontierRuntime).GetField("bossPhaseCues",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        Check(bossField!=null,"Use the genuine living Boss weak snapshot cache");
+        foreach(int room in new[]{1,2,5})
+        {
+            app.BeginVisualReview(0,room);
+            var g=app.Game;
+            bool oldMotion=g.save.reducedMotion;
+            int oldQuality=g.save.effectsQuality;
+            try
+            {
+                g.enemies.Clear();
+                g.save.reducedMotion=false;g.save.effectsQuality=2;
+                var boss=new Enemy(97500+room,0,g.Position.x,
+                    g.Position.y,200f,true){
+                    moving=true,moveTime=.65f,
+                    facing=new Point(1,0)
+                };
+                Place(app,boss.Position,new Point(530f,355f));
+                Set(app,"clock",710f+room*4f);
+                Clear();
+                var living=Draw(app,"DrawEnemyActor",boss)
+                    .Where(ActorTexture).FirstOrDefault(t=>
+                        t.texture.name.Contains("/BriarBeast")||
+                        t.texture.name.Contains("/WalkBossA")||
+                        t.texture.name.Contains("/WalkBossB"));
+                Check(living!=null,"A genuine original full-body Boss is visible in room "+room);
+                var lookup=bossField.GetValue(app);
+                var tryGet=lookup.GetType().GetMethod("TryGetValue");
+                object[] key={boss,null};
+                Check((bool)tryGet.Invoke(lookup,key),"Living draw publishes a Boss snapshot");
+                var snapshot=key[1];
+                var fields=new[]{"phase","changedAt","lastVisibleRoom",
+                    "lastVisiblePhase","lastBriarCell","lastBriarFlip",
+                    "lastRegionalSheet","lastRegionalRows",
+                    "lastRegionalFrame","lastRegionalSize",
+                    "lastRegionalFlip","lastRegionalTint"}
+                    .Select(name=>snapshot.GetType().GetField(name,flags))
+                    .ToArray();
+                Check(fields.All(f=>f!=null),"Boss keeps all authoritative live body fields");
+                object[] prior=fields.Select(f=>f.GetValue(snapshot)).ToArray();
+                Check((int)prior[2]==room&&
+                    (int)prior[3]==boss.BossPhase,
+                    "Last painted Boss identity and HP phase belong to this room");
+                // A previous player action can change Boss HP and facing
+                // before the next live repaint. Multiple cover outlines
+                // must not consume the stage-cue or overwrite the exact
+                // last walking source (including the final size and tint).
+                boss.hp=20f;boss.moveTime+=.31f;
+                boss.Face(new Point(-1,0));
+                boss.moving=false;boss.state=1;
+                boss.windupDuration=1f;boss.timer=.6f;
+                Set(app,"clock",711f+room*4f);
+                Set(app,"drawingOutline",true);
+                for(int preview=0;preview<8;preview++)
+                {Clear();Draw(app,"DrawEnemyActor",boss);}
+                for(int field=0;field<fields.Length;field++)
+                    Check(System.Object.Equals(prior[field],
+                        fields[field].GetValue(snapshot)),
+                        "Outline-only Boss phase/whole-body capture mutated "+
+                        fields[field].Name+" before the REAL paint in room "+room);
+                Set(app,"drawingOutline",false);
+                boss.hp=0f;
+                var dead=new FallenActor{
+                    actor=boss,room=room,life=1f,duration=1f
+                };
+                Clear();
+                var corpse=Draw(app,"DrawFallen",dead)
+                    .FirstOrDefault(t=>t.texture==living.texture);
+                Check(corpse!=null&&
+                    Math.Abs(corpse.uv.x-living.uv.x)<.00001f&&
+                    Math.Abs(corpse.uv.y-living.uv.y)<.00001f&&
+                    Math.Abs(corpse.rect.width-living.rect.width)<.001f&&
+                    Math.Abs(corpse.rect.y-living.rect.y)<.001f&&
+                    Math.Abs(corpse.color.g-living.color.g)<.0001f,
+                    "Actual lethal first body must replay the LAST living full-body Boss frame after preview-only HP/facing changes in room "+room);
+                // Independent Boss: a preview that sees phase-three health
+                // must not use up the 320ms flash before any live paint.
+                var phaseBoss=new Enemy(97600+room,0,g.Position.x,
+                    g.Position.y,200f,true){
+                    moving=true,moveTime=.52f,
+                    facing=new Point(1,0)
+                };
+                Set(app,"clock",740f+room*4f);
+                Clear();Draw(app,"DrawEnemyActor",phaseBoss);
+                key=new object[]{phaseBoss,null};
+                Check((bool)tryGet.Invoke(lookup,key),
+                    "Second genuine boss acquired its independent stage cue");
+                snapshot=key[1];
+                var phaseField=fields[0];var changedField=fields[1];
+                phaseBoss.hp=20f;
+                Set(app,"clock",741f+room*4f);
+                Set(app,"drawingOutline",true);
+                for(int preview=0;preview<8;preview++)
+                {Clear();Draw(app,"DrawEnemyActor",phaseBoss);}
+                Check((int)phaseField.GetValue(snapshot)==1&&
+                    float.IsNegativeInfinity((float)changedField.GetValue(snapshot)),
+                    "Preview-only Boss damage must not consume stage transition before live animation");
+                Set(app,"drawingOutline",false);
+                Clear();Draw(app,"DrawEnemyActor",phaseBoss);
+                Check((int)phaseField.GetValue(snapshot)==phaseBoss.BossPhase&&
+                    Math.Abs((float)changedField.GetValue(snapshot)-
+                        (741f+room*4f))<.0001f,
+                    "Actual first full-body repaint must start the still-unspent stage cue at its true visual contact time");
+            }
+            finally
+            {
+                Set(app,"drawingOutline",false);
+                g.save.reducedMotion=oldMotion;
+                g.save.effectsQuality=oldQuality;
+                app.EndVisualReview();Clear();
+            }
+        }
+        Console.WriteLine("PASS BriarBeast and both accepted WalkBoss sources: outline-only phase/pose changes never overwrite lethal body frame or consume still-unshown HP stage cue");
+    }
+
     static void RegionalBossDeathKeepsLivePhasePalette(FrontierRuntime app)
     {
         app.BeginVisualReview(0,2);
@@ -3883,7 +4008,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);CompanionOutlinePassCannotConsumeGaitOrAttack(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);CompanionOutlinePassCannotConsumeGaitOrAttack(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);BossOutlineCannotRewriteLastLiveBodyOrStage(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
