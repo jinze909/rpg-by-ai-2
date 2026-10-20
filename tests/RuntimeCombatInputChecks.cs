@@ -159,6 +159,53 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Both actual Q HUD layouts queue during ordinary attack and preserve world aim");
     }
 
+    private static void ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing(
+        FrontierRuntime app)
+    {
+        string[] classes={"Vanguard","Ranger","Arcanist"};
+        foreach(int cls in new[]{0,1,2})
+        {
+            Prepare(app,cls);
+            var g=app.Game;
+            g.save.weapon=cls;g.playerAction=null;
+            g.playerHitTime=0f;g.playerFlash=0f;
+            g.dashTime=g.deathTime=0f;
+            g.invulnerable=.47f;g.save.reducedMotion=true;
+            float quietAlpha=-1f;
+            foreach(float time in new[]{75f,75.1f,75.2f})
+            {
+                Set(app,"clock",time);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var hero=GUI.textureCalls.FindAll(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(hero.Count==1&&hero[0].texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    classes[cls]+"_Idle_E",
+                    "Reduced Motion must still render exactly one equipped original body");
+                float alpha=hero[0].color.a;
+                if(quietAlpha<0f)quietAlpha=alpha;
+                else Check(Math.Abs(alpha-quietAlpha)<.00001f,
+                    "Reduced Motion invulnerability pulse still strobes the protagonist");
+                Check(alpha>.7f&&alpha<.9f,
+                    "Reduced Motion invulnerability must remain readable, not hide the actor");
+            }
+            g.save.reducedMotion=false;
+            Set(app,"clock",75f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var regularA=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(regularA!=null,"Standard motion hero missing");
+            float first=regularA.color.a;
+            Set(app,"clock",75.1f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var regularB=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(regularB!=null&&Math.Abs(regularB.color.a-first)>.20f,
+                "Standard motion must retain the established invulnerability feedback");
+        }
+        Console.WriteLine("PASS 3 equipment-specific original hero Sprite paths: reduced-motion invulnerability stays steady while ordinary combat feedback remains intact; NATIVE_UNVERIFIED");
+    }
+
     private static void CanonicalHeroHitRecoversOnSameWholeBody(FrontierRuntime app)
     {
         int reviewed=0;
@@ -2363,7 +2410,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

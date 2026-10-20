@@ -873,7 +873,12 @@ namespace Starfall
             Color tint=Game.playerFlash>0 ?
                 new Color(1.5f,1.5f,1.5f) : Color.white;
             if(Game.invulnerable>0&&!Game.Dying&&Game.playerFlash<=0)
-                tint.a=.65f+.35f*(float)Math.Abs(Math.Sin(clock*16));
+                // Preserve the clear physical invulnerability signal, but
+                // never strobe the blonde full-body Sprite at ~16 Hz while
+                // Reduce Motion is enabled. Both formal Animator capture
+                // and source-pixel OnGUI use this exact accessibility tint.
+                tint.a=Game.save.reducedMotion?.82f:
+                    .65f+.35f*(float)Math.Abs(Math.Sin(clock*16));
             int facing=GameCore.DirectionRow(direction);
             bool moving=pose>=2&&pose<=3;
             bool flip=facing==0&&direction.x<-.1f;
