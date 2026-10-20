@@ -1415,7 +1415,12 @@ namespace Starfall
                     if (ShotBlocked(p,next))
                     {
                         dead = true;
-                        if (p.friendly && p.explosive && !p.blockedAtSpawn)
+                        // A projectile already buried at the START of this frame
+                        // (including a gate/tide that sealed around an
+                        // in-flight bolt) cannot mint a free area blast.
+                        // A genuine unblocked bolt striking the NEXT wall
+                        // sample keeps its original near-face explosion.
+                        if (p.friendly && p.explosive && !startedBlocked)
                         {
                             impactRadius = 1.8f;
                             splashTargets.Clear();

@@ -2565,6 +2565,28 @@ namespace Starfall.Tests
                     g.effects.FindAll(e=>e.kind=="projectileFade").Count==1&&
                     !g.effects.Exists(e=>e.kind=="magicImpact"),
                     "A range-expired starfire must retain one quiet fade without a phantom explosion");
+
+                // Simulate a tide/arena wall sealing around a bolt AFTER
+                // its valid muzzle launch. Its stored blockedAtSpawn flag
+                // remains false, but the CURRENT source tile is solid.
+                // This cannot produce a free 1.8-tile splash, even though
+                // an exposed victim is still reachable from the wall edge.
+                g.effects.Clear();g.projectiles.Clear();
+                g.enemies.Clear();g.enemies.Add(exposed);exposed.hp=400f;
+                var sealedBolt=new Projectile{
+                    position=new Point(8.02f,9.5f),
+                    velocity=new Point(20,0),life=1f,damage=70f,
+                    friendly=true,explosive=true,visual="starfire",
+                    blockedAtSpawn=false};
+                Check(g.Blocked(sealedBolt.position.x,sealedBolt.position.y)&&
+                    g.CanStand(exposed.Position)&&!sealedBolt.blockedAtSpawn,
+                    "Tide-sealed starfire regression uses a genuinely buried in-flight source and a live exposed victim");
+                g.projectiles.Add(sealedBolt);
+                g.Tick(.05f,new Point());
+                Check(exposed.hp==400f&&!g.projectiles.Contains(sealedBolt)&&
+                    !g.effects.Exists(e=>e.kind=="magicImpact")&&
+                    g.effects.Exists(e=>e.kind=="projectileImpact"&&e.radius==0f),
+                    "A dynamically sealed starfire bolt must fizzle on its true buried start instead of awarding phantom splash damage");
             }
             finally{data.maps[0]=original;}
         }
