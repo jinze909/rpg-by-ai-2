@@ -29,6 +29,11 @@ public static class NativeHeroCaptureChecks
         var published=(Dictionary<string,Sprite[]>)spritesField.GetValue(app);
         var owned=(HashSet<Sprite>)ownedField.GetValue(app);
         var originals=new Dictionary<string,Texture2D>();
+        // First publish the existing six-cell art. This makes the next
+        // all-18-file import a genuine in-flight ART SWITCH instead of a
+        // first-time initialization.
+        Require(!(bool)gate.Invoke(app,null),
+            "old production source must begin as 6-cell action family");
         var temporaries=new List<Sprite>();
         var imported=new List<Sprite>();
         string[] classes={"Vanguard","Ranger","Arcanist"};
@@ -55,8 +60,14 @@ public static class NativeHeroCaptureChecks
                 Resources.Registered[path]=new Texture2D(7*256,256,
                     TextureFormat.RGBA32,false);
             }
+            clockField.SetValue(app,3f);
+            app.Game.playerAction=new ActorAction{kind="attack"};
+            Require(!(bool)gate.Invoke(app,null)&&
+                published.Count==18&&owned.Count==18,
+                "Native mid-attack import must not destroy original one-body published Sprites");
+            app.Game.playerAction=null;
             Require((bool)gate.Invoke(app,null),
-                "all 18 valid seven-cell sheets did not switch atomically");
+                "all 18 valid seven-cell sheets did not switch after the real source action completed");
             Require(published.Count==0&&owned.Count==0,
                 "six-to-seven-frame family swap retained stale cache owners");
             foreach(var item in temporaries)
@@ -77,9 +88,14 @@ public static class NativeHeroCaptureChecks
                 published.Add(key,new[]{wrapper});
                 Resources.Registered[pair.Key]=pair.Value;
             }
-            clockField.SetValue(app,3f); // exceed the two-second family review
+            clockField.SetValue(app,6f);
+            app.Game.playerAction=new ActorAction{kind="skill"};
+            Require((bool)gate.Invoke(app,null)&&
+                published.Count==18&&owned.Count==18,
+                "Mid-cast withdrawal must not destroy the currently authored whole-body recovery");
+            app.Game.playerAction=null;
             Require(!(bool)gate.Invoke(app,null),
-                "withdrawn action atlas did not roll back the entire family");
+                "Withdrawn action atlas did not safely roll back after Cast ended");
             Require(published.Count==0&&owned.Count==0,
                 "seven-to-six-frame family rollback retained stale owners");
             foreach(var item in temporaries)
