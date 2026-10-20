@@ -590,8 +590,22 @@ namespace Starfall
             // pose as a swing, never animate in reduced-motion, and vanish
             // the instant gameplay consumes or cancels the pending attack.
             if(!drawingOutline&&Game.AttackQueued&&!Game.Dying)
+            {
                 Ring(Game.Position,.56f,
                     new Color(.94f,.72f,.42f,.70f),12);
+                // Display the committed NEXT attack aim, not the current
+                // pointer or the old visible swing. Sword uses a short facing
+                // confirmation; ranged loadouts also show the actual saved
+                // pointer target. Nothing here spawns a shot or a second body.
+                Point followAim=Game.AttackQueuedDirection;
+                if(followAim.Length>.05f)
+                    Ring(Game.Position+followAim.Normalized*.99f,.14f,
+                        new Color(1f,.79f,.48f,.78f),8);
+                Point? followTarget=Game.AttackQueuedTarget;
+                if(Game.save.weapon>0&&followTarget.HasValue)
+                    Ring(followTarget.Value,.23f,
+                        new Color(1f,.79f,.48f,.68f),12);
+            }
             // The accepted, unpaid 200ms Q queue owns its own static
             // violet contact confirmation. Unlike an attack flash, it
             // cannot imply a spell was released before its authoritative

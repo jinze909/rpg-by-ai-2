@@ -125,6 +125,14 @@ namespace Starfall
         // The world cue reads this exact accepted GameCore intent. It never
         // anticipates damage, moves the canonical hero, or extends a queue.
         public bool AttackQueued { get { return bufferedAttack != null; } }
+        // Presentation reads the FIRST accepted held-LMB intent, not the
+        // player's moving cursor. Neither property starts or extends a hit.
+        // Returning an empty value after dispatch/cancellation prevents
+        // stale world reticles across dodge, damage, profile or room changes.
+        public Point AttackQueuedDirection
+        { get { return bufferedAttack==null?new Point():bufferedAttack.direction; } }
+        public Point? AttackQueuedTarget
+        { get { return bufferedAttack==null?(Point?)null:bufferedAttack.target; } }
         private void ClearBufferedAttack() { bufferedAttack = null; }
         private void QueueLateAttack(Point direction)
         {

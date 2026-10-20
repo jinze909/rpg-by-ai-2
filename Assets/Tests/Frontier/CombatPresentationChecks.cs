@@ -4269,9 +4269,15 @@ namespace Starfall.Tests
                     g.Tick(step,new Point());
                 Check(previous.released&&g.playerAction==previous,
                     "Repeated LMB fixture requires real released attack recovery");
+                Point committedTarget=new Point(20f,14f);
+                g.SetAimTarget(committedTarget);
                 g.Attack(new Point(0f,-1f));
                 Check(g.AttackQueued&&g.playerAction==previous,
                     "Original LMB must create a single deferred attack");
+                Check((g.AttackQueuedDirection-new Point(0f,-1f)).Length<.001f&&
+                    g.AttackQueuedTarget.HasValue&&
+                    (g.AttackQueuedTarget.Value-committedTarget).Length<.001f,
+                    "In-game queued attack preview must expose the REAL first accepted aim and pointer without a new action");
                 var pending=typeof(GameCore).GetField("bufferedAttack",
                     System.Reflection.BindingFlags.Instance|
                     System.Reflection.BindingFlags.NonPublic);
@@ -4291,6 +4297,10 @@ namespace Starfall.Tests
                 Check(System.Object.ReferenceEquals(intent,pending.GetValue(g))&&
                     Math.Abs((float)remaining.GetValue(intent)-elapsed)<.00001f,
                     "Repeated held LMB must not replace intent or extend original 160ms deadline");
+                Check((g.AttackQueuedDirection-new Point(0f,-1f)).Length<.001f&&
+                    g.AttackQueuedTarget.HasValue&&
+                    (g.AttackQueuedTarget.Value-committedTarget).Length<.001f,
+                    "Continuous later LMB samples must not swivel the committed ranged target/facing reticle");
                 ActorAction next=null;
                 for(int i=0;i<70;i++)
                 {
@@ -4299,8 +4309,13 @@ namespace Starfall.Tests
                     {next=g.playerAction;break;}
                 }
                 Check(next!=null&&next.kind=="attack"&&
-                    next.direction.y<-.99f&&next.direction.x<.01f,
-                    "One physical follow-up must keep FIRST pressed LMB direction regardless of repeated later taps");
+                    next.direction.y<-.99f&&next.direction.x<.01f&&
+                    next.target.HasValue&&
+                    (next.target.Value-committedTarget).Length<.001f,
+                    "One physical follow-up must keep FIRST pressed LMB aim AND real target regardless of repeated later taps");
+                Check(!g.AttackQueued&&g.AttackQueuedDirection.Length<.001f&&
+                    !g.AttackQueuedTarget.HasValue,
+                    "Committed LMB world marker must vanish immediately after its actual dispatch");
                 Advance(g,.9f);
                 Check(g.playerAction==null&&g.combo==1,
                     "Repeated late taps must dispatch exactly one following hit, never a third ghost swing");
