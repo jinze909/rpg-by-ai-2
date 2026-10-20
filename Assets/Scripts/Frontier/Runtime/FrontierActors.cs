@@ -830,19 +830,21 @@ namespace Starfall
                 if(Game.save.profession==1&&Game.save.technique==0&&
                     skillTarget.HasValue)
                 {
-                    // Violet = an actually clear center flight lane;
-                    // coral = cover/range blocks the committed center
-                    // shot. Neither mark invents a projectile or claims
-                    // every spread arrow will land on that one point.
-                    Color volleyColor=Game.SkillQueuedRangerLaneClear?
-                        new Color(.83f,.67f,1f,.72f):
-                        new Color(1f,.43f,.40f,.78f);
-                    Ring(skillTarget.Value,.26f,volleyColor,12);
-                    // Five small pips reflect the ACTUAL spread lanes in
-                    // their firing order, not five invented retargeted
-                    // hit locations. They do not change a projectile's
-                    // damage, muzzle, direction or player resources.
+                    // Violet means ALL five live spread lanes are clear;
+                    // warm amber warns that center can fire but a side
+                    // projectile will collide with nearby cover; coral
+                    // means even the real center arrow is obstructed.
+                    // Read the same five-ray snapshot once for ring+pips.
                     int lanes=Game.SkillQueuedRangerVolleyLaneMask;
+                    Color volleyColor=(lanes&4)==0?
+                        new Color(1f,.43f,.40f,.78f):
+                        lanes==31?
+                        new Color(.83f,.67f,1f,.72f):
+                        new Color(.98f,.71f,.35f,.77f);
+                    Ring(skillTarget.Value,.26f,volleyColor,12);
+                    // Five small pips show exactly which projectile paths
+                    // reach target depth. No second invented hit location,
+                    // altered collision or animation-timer authority.
                     Point dotRoot=ScreenPoint(skillTarget.Value);
                     for(int lane=0;lane<5;lane++)
                         Box(dotRoot.x-13+lane*6,dotRoot.y-18,4,4,

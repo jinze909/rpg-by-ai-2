@@ -690,11 +690,14 @@ public static class RuntimeCombatInputChecks
             Check(g.SkillQueuedRangerLaneClear&&
                 (g.SkillQueuedRangerVolleyLaneMask&4)!=0,
                 "Real Q center arrow must re-open after the wall is removed");
+            int unobstructed=g.SkillQueuedRangerVolleyLaneMask;
             GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
-            Check(marker(new Color(.83f,.67f,1f,.72f))&&
+            Check(marker(unobstructed==31?
+                    new Color(.83f,.67f,1f,.72f):
+                    new Color(.98f,.71f,.35f,.77f))&&
                 !marker(new Color(1f,.43f,.40f,.78f))&&
                 g.SkillQueued,
-                "Opening real wall restores original violet Ranger target without consuming or re-queuing Q");
+                "Opening real wall must restore a non-red Ranger target, without consuming Q");
             // One side of the five-shot arc now has a real wall while
             // the center still reaches the unchanged target. No generic
             // green-center reticle may hide this actual spread obstruction.
@@ -708,6 +711,9 @@ public static class RuntimeCombatInputChecks
                 Check((physicalMask&4)!=0&&(physicalMask&16)==0,
                     "Live Ranger volley did not distinguish clear center from blocked outer shot");
                 GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                Check(marker(new Color(.98f,.71f,.35f,.77f))&&
+                    !marker(new Color(.83f,.67f,1f,.72f)),
+                    "Partially blocked actual Ranger spread must warn amber, not falsely claim five clear shots");
                 Point world=(Point)Call(app,"ScreenPoint",target);
                 Check(GUI.textureCalls.Exists(c=>
                     Math.Abs(c.rect.x-(world.x-13+4*6))<2f&&
