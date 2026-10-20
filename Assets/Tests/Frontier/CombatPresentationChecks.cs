@@ -1317,16 +1317,22 @@ namespace Starfall.Tests
                 // Even an earned extended side corridor is not a permanent
                 // shooting license. A gate can seal the target lane after
                 // its readable bow draw starts; the unpaid arrow must stop.
-                string openLine=rows[9];
+                Point midpoint=archer.Position+
+                    (target-archer.Position)*.55f;
+                int closedY=(int)Math.Floor(midpoint.y);
+                int closedX=(int)Math.Floor(midpoint.x);
+                string openLine=rows[closedY];
                 char[] gate=openLine.ToCharArray();
-                gate[13]='#';rows[9]=new string(gate);
+                Check(gate[closedX]=='.',
+                    "The pending archer ray has a real currently open center tile to close");
+                gate[closedX]='#';rows[closedY]=new string(gate);
                 Check(g.CanStand(archer.Position)&&g.CanStand(g.Position),
                     "Dynamic mid-windup stone preserves both live actor roots");
                 g.Tick(.02f,new Point());
                 Check(archer.state==0&&
                     !g.projectiles.Exists(p=>!p.friendly),
                     "An actual late closing wall cancels the extended-lane bow windup instead of releasing an invisible shot");
-                rows[9]=openLine;
+                rows[closedY]=openLine;
                 archer.timer=.001f;
                 g.Tick(.05f,new Point());
                 Check(archer.state==1&&g.save.version==2,
