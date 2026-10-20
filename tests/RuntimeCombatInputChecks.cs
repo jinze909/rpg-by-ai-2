@@ -2435,6 +2435,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyPropVaporsInProduction,
             RenderStateChecks.VerifyLivingGardenInProduction,
             RenderStateChecks.VerifyAuthoredProjectileTrailsAndHotImport,
+            RenderStateChecks.VerifyReducedMotionContactEffectsHaveStableSourceScale,
             RenderStateChecks.VerifyCastSigilSourceAndCombatWarning,
             RenderStateChecks.VerifyRelicArtAndWorldIllumination,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,

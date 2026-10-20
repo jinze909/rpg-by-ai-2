@@ -356,8 +356,14 @@ namespace Starfall
                 case "dash": id = 11; size = 38; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
                 default: id = 14; size = 52; break;
             }
-            // Discrete authored texture plus a short, restrained expansion and fade.
-            size *= .8f + progress * .35f;
+            // Source-painted contact FX expand slightly in the normal
+            // animation mode. Reduced Motion previously still animated the
+            // ENTIRE projectile/sword contact image by ~44% in scale, even
+            // though its optional sprite blends were already disabled.
+            // Hold a single legible original Sprite footprint instead;
+            // damage, occlusion, audio and lifecycle clocks never change.
+            size *= Game.save.reducedMotion ? 1f :
+                .8f + progress * .35f;
             Color color = new Color(1, 1, 1, Math.Min(1, (1 - progress) * 1.7f));
             if (effect.kind == "danger" || effect.kind == "enemyRelease" && effect.variant >= 10)
             { Color theme = BossEffectColor(effect.kind == "danger" ? effect.variant : effect.variant - 10); color.r = theme.r; color.g = theme.g; color.b = theme.b; }

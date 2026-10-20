@@ -3926,6 +3926,60 @@ public static class RenderStateChecks
         }
     }
 
+    public static void VerifyReducedMotionContactEffectsHaveStableSourceScale(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        int quality=game.save.effectsQuality;
+        bool reduced=game.save.reducedMotion;
+        try
+        {
+            game.save.effectsQuality=2;
+            foreach(string kind in new[]{
+                "slash","impact","projectileImpact","magicImpact"})
+            {
+                var contact=new Effect(kind,game.Position,.30f){
+                    direction=new Point(1f,0f)};
+                game.save.reducedMotion=true;
+                contact.life=.27f;
+                Clear();Call(app,"DrawAuthoredEffect",contact);
+                var first=GUI.textureCalls.FirstOrDefault(c=>c.texture!=null&&
+                    c.texture.name=="resource:Frontier/Art/Effects");
+                Check(first.texture!=null,
+                    "Missing actual source-painted "+kind+" contact in Reduced Motion");
+                float quietWidth=first.rect.width;
+                contact.life=.03f;
+                Clear();Call(app,"DrawAuthoredEffect",contact);
+                var last=GUI.textureCalls.FirstOrDefault(c=>c.texture!=null&&
+                    c.texture.name=="resource:Frontier/Art/Effects");
+                Check(last.texture!=null&&
+                    Math.Abs(last.rect.width-quietWidth)<.0001f,
+                    "Reduced Motion still enlarges a live authored "+kind+" contact");
+                game.save.reducedMotion=false;
+                contact.life=.27f;
+                Clear();Call(app,"DrawAuthoredEffect",contact);
+                first=GUI.textureCalls.FirstOrDefault(c=>c.texture!=null&&
+                    c.texture.name=="resource:Frontier/Art/Effects");
+                contact.life=.03f;
+                Clear();Call(app,"DrawAuthoredEffect",contact);
+                last=GUI.textureCalls.FirstOrDefault(c=>c.texture!=null&&
+                    c.texture.name=="resource:Frontier/Art/Effects");
+                Check(first.texture!=null&&last.texture!=null&&
+                    last.rect.width>first.rect.width+5f,
+                    "Normal combat incorrectly lost the original "+kind+
+                    " impact expansion after Reduced Motion support");
+            }
+            Console.WriteLine("PASS four LIVE source-painted contact families: Reduced Motion holds image scale while regular combat expansion survives");
+        }
+        finally
+        {
+            game.save.effectsQuality=quality;
+            game.save.reducedMotion=reduced;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyAuthoredProjectileTrailsAndHotImport(
         FrontierRuntime app)
     {
