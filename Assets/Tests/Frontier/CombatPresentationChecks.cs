@@ -3611,7 +3611,14 @@ namespace Starfall.Tests
                 }
                 Check(acquired&&(g.companionPosition-start).Length>.1f&&
                     g.save.version==2,
-                    "A hard-occluded target becomes shootable only AFTER actual ally-side navigation, without any old-save mutation");
+                    "Hard-cover ally shot after real navigation: acquired="+acquired+
+                    ", feetDelta="+(g.companionPosition-start).Length+
+                    ", x="+g.companionPosition.x+
+                    ", y="+g.companionPosition.y+
+                    ", saveV="+g.save.version+
+                    ", facingLane="+lane.Invoke(g,new object[]{
+                        g.companionPosition,1,target})+
+                    ", action="+(g.companionAction==null?"none":g.companionAction.kind));
                 for(int i=0;i<5;i++)g.Tick(.05f,new Point());
                 Check(foe.hp<foe.maxHp||
                     g.projectiles.Exists(p=>p.friendly&&p.visual=="arrow"),
