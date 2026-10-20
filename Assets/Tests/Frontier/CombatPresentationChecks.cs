@@ -1246,15 +1246,15 @@ namespace Starfall.Tests
                 // a first 0.55-tile sidestep. Scan fractional standing
                 // roots on the actual GameCore projectile geometry to
                 // select one deterministic, genuinely extended case.
-                for(int wallColumn=14;wallColumn<=16&&!found;wallColumn++)
+                for(int wallColumn=13;wallColumn<=15&&!found;wallColumn++)
                 for(int n=0;n<=18&&!found;n++)
                 {
                     float y=9.70f+n*.015f;
-                    rows[10]=new string('.',25);
+                    rows[10]=new string('#',2)+new string('.',21)+new string('#',2);
                     char[] rock=rows[10].ToCharArray();
                     rock[wallColumn]='#';rows[10]=new string(rock);
                     Point foot=new Point(10.5f,y);
-                    Point goal=new Point(17.5f,y);
+                    Point goal=new Point(16.5f,y);
                     if(!g.CanStand(foot)||!g.CanStand(goal)||
                         !(bool)sight.Invoke(g,new object[]{foot,goal})||
                         (bool)lane.Invoke(g,new object[]{foot,goal}))
