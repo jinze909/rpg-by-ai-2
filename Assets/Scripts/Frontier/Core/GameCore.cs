@@ -710,7 +710,9 @@ namespace Starfall
             }
             if (save.profession == 0) guardTime = 3;
             float range = save.profession == 2 ? 4.5f : 3.1f;
-            effects.Add(new Effect("burst", Position, .6f) { variant = save.profession, radius = range });
+            effects.Add(new Effect("burst", Position, .6f) {
+                variant = save.profession, radius = range, playerAreaSkill = true
+            });
             foreach (Enemy e in enemies.ToArray())
                 if ((e.Position - Position).Length < range && ClearAttackPath(Position, e.Position)) { ApplyEnemyControl(e,e.boss ? .5f : 1.4f); Hit(e, action.damage * (save.profession == 2 ? 2.3f : 1.9f), true,null,action.impact); }
         }

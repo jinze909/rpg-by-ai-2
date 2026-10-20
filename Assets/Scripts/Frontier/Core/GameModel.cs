@@ -154,6 +154,10 @@ namespace Starfall
         public float life, maxLife, radius, height = -1;
         public Point direction;
         public int variant;
+        // Live Vanguard/Arcanist Q footprint: authored center spark plus
+        // terrain-clipped damage ring. Effects are transient and this flag
+        // never touches the v1/v2 save schema or any imported Sprite.
+        public bool playerAreaSkill;
         // Short-lived boss-reinforcement warnings follow their actual attack
         // owner; stun, Break, or death retracts only this pending cue.
         public int bossSummonCueOwnerId;

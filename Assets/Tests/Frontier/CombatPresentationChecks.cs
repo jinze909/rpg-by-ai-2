@@ -2261,6 +2261,58 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void ReleasedAreaSkillRespectsCoverInDamageAndVisualRange(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[18];
+                for(int y=0;y<18;y++)
+                {
+                    char[] tiles=new string('.',18).ToCharArray();
+                    for(int x=0;x<18;x++)
+                        if(x<2||x>=16||y<2||y>=16||x==8)
+                            tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{id=0,rows=rows,
+                    spawnX=6.5f,spawnY=8.5f,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,2);g.enemies.Clear();
+                g.save.x=6.5f;g.save.y=8.5f;
+                var visible=new Enemy(82101,0,5f,8.5f,400f)
+                    {stun=99f,timer=999f,staggerRecovery=99f};
+                var sheltered=new Enemy(82102,0,10.5f,8.5f,400f)
+                    {stun=99f,timer=999f,staggerRecovery=99f};
+                g.enemies.Add(visible);g.enemies.Add(sheltered);
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(visible.Position)&&
+                    g.CanStand(sheltered.Position),
+                    "AoE release has a legal physical actor on both sides of solid cover");
+                g.Skill(new Point(1f,0f));
+                Advance(g,.30f);
+                Effect cast=g.effects.Find(e=>e.kind=="burst"&&
+                    e.playerAreaSkill&&Math.Abs(e.radius-4.5f)<.001f);
+                Check(cast!=null&&visible.hp<400f&&sheltered.hp==400f,
+                    "One real Arcanist Q tags only its own release burst and hurts only the exposed enemy");
+                Point west=new Point(4.5f,8.5f);
+                Point east=new Point(11f,8.5f);
+                Check(g.PlayerAreaEffectContactVisible(cast,west)&&
+                    !g.PlayerAreaEffectContactVisible(cast,east),
+                    "Post-contact skill footprint cannot promise an eastward hit through a real wall");
+                char[] gate=rows[8].ToCharArray();gate[8]='.';
+                rows[8]=new string(gate);
+                Check(g.PlayerAreaEffectContactVisible(cast,east)&&
+                    g.PlayerAreaEffectContactVisible(cast,west)&&
+                    sheltered.hp==400f,
+                    "An opened gate updates only the remaining visual release outline, never retroactively mints damage");
+                Check(!g.PlayerAreaEffectContactVisible(
+                        new Effect("burst",g.Position,.4f){radius=4.5f},east),
+                    "An unrelated enemy-world burst must not masquerade as the tagged player skill");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void QueuedAreaPreviewRespectsRealCover(Campaign data)
         {
             MapData original=data.maps[0];

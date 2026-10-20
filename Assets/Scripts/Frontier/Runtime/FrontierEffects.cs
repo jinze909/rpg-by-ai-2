@@ -323,7 +323,16 @@ namespace Starfall
                 case "magicImpact": id = 5; size = effect.radius > 0 ? effect.radius * Tile * 2 : 67; break;
                 case "release": id = 13; size = 33; break;
                 case "frost": id = 6; size = 4 * Tile * 2; break;
-                case "burst": id = effect.variant == 0 ? 7 : 5; size = effect.radius > 0 ? effect.radius * Tile * 2 : 145; break;
+                case "burst":
+                    id = effect.variant == 0 ? 7 : 5;
+                    // The accepted 32px source glyph is a CONTACT flash,
+                    // not a full-screen painted damage disc. A centered
+                    // native-pixel-sized flash avoids stamping its source
+                    // artwork across a wall; the accurate outer footprint
+                    // is drawn separately below.
+                    size = effect.playerAreaSkill ? 88f :
+                        effect.radius > 0 ? effect.radius * Tile * 2 : 145;
+                    break;
                 case "heal": id = 13; size = 65; break;
                 case "defeat": id = 15; size = effect.variant == 1 ? 90 : 42; break;
                 case "discover": id = 13; size = 56; break;
@@ -411,7 +420,30 @@ namespace Starfall
             {
                 float radius = effect.kind == "frost" ? 4 : effect.kind == "burst" || effect.kind == "magicImpact" ? effect.radius : effect.radius > 0 ? effect.radius : .4f + progress * 1.3f;
                 Color ring = effect.kind == "frost" || effect.kind == "magicImpact" || effect.kind == "burst" && effect.variant == 2 ? mint : effect.kind == "danger" ? PixelArt.C("#df8a68") : gold;
-                if (radius > 0) Ring(effect.position, radius, new Color(ring.r, ring.g, ring.b, .48f * (1 - progress)), 32);
+                if (radius > 0)
+                {
+                    Color footprint=new Color(ring.r,ring.g,ring.b,
+                        .48f*(1-progress));
+                    if(effect.kind=="burst"&&effect.playerAreaSkill)
+                    {
+                        // Render only the 32 authentic outward spokes
+                        // whose inner contact sample can really see past
+                        // the CURRENT walls. Never show an amber hit-range
+                        // dot through a gate that the skill cannot damage.
+                        for(int i=0;i<32;i++)
+                        {
+                            double angle=i*Math.PI*2/32;
+                            Point unit=new Point((float)Math.Cos(angle),
+                                (float)Math.Sin(angle));
+                            Point sample=effect.position+unit*(radius*.98f);
+                            if(!Game.PlayerAreaEffectContactVisible(effect,
+                                sample))continue;
+                            Point edge=ScreenPoint(effect.position+unit*radius);
+                            Box(edge.x-2,edge.y-2,4,4,footprint);
+                        }
+                    }
+                    else Ring(effect.position,radius,footprint,32);
+                }
             }
             return true;
         }

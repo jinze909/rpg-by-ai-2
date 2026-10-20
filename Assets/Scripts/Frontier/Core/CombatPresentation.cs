@@ -113,6 +113,20 @@ namespace Starfall
                 (point-Position).Length<=radius+.0001f&&
                 ClearAttackPath(Position,point);
         }
+        // The RELEASED Q visual retains its own original contact root
+        // rather than following the hero after movement begins. Its outer
+        // perimeter must use the same live cover test as the actual strike.
+        // Only the tagged player skill uses this: Boss slams and unrelated
+        // danger/frost/rune effects preserve their own art and geometry.
+        public bool PlayerAreaEffectContactVisible(Effect effect,Point point)
+        {
+            return effect!=null&&effect.kind=="burst"&&
+                effect.playerAreaSkill&&effect.radius>0f&&
+                Finite(point.x)&&Finite(point.y)&&
+                CanStand(effect.position)&&
+                (point-effect.position).Length<=effect.radius+.0001f&&
+                ClearAttackPath(effect.position,point);
+        }
         // A single late basic-attack press may carry through the tail of a
         // released LMB or Q. The intent never replaces a still-visible
         // Attack/Cast body, is never saved, and spends nothing until accepted.
