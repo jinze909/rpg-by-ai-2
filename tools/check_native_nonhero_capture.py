@@ -73,6 +73,27 @@ def main():
     assert "DrawSpriteRendererActor(" in actor
     assert "sheet, columns, rows, frame, foot, size," in actor
     assert "if (nativeActorDrawn) return;" in actor
+    # Exact geometry is required for every base actor source as well as the
+    # moving overlays; a non-null partial import cannot become a false body.
+    for method, expression in (
+        ("IsAcceptedMonstersAtlas", "sheet.width == 768 && sheet.height == 384"),
+        ("IsAcceptedBossesAtlas", "sheet.width == 1280 && sheet.height == 2560"),
+        ("IsAcceptedBriarBeastAtlas", "sheet.width == 1280 && sheet.height == 5760"),
+        ("IsAcceptedMossboundRaiderAtlas", "sheet.width == 512 && sheet.height == 768"),
+        ("IsAcceptedCinderstoneGuardAtlas", "sheet.width == 512 && sheet.height == 768"),
+    ):
+        assert "internal static bool " + method + "(Texture2D sheet)" in geometry
+        assert "return sheet != null && " + expression + ";" in geometry
+    assert actor.count("ActorAtlasGeometry.IsAcceptedMonstersAtlas(monsterSheet)") == 3, (
+        "MONSTERS_LIVE_PRACTICE_AND_DEATH_GEOMETRY_GATE_MISSING")
+    assert actor.count("ActorAtlasGeometry.IsAcceptedBossesAtlas(bossSheet)") == 2, (
+        "BOSSES_LIVE_AND_DEATH_GEOMETRY_GATE_MISSING")
+    assert actor.count("ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet)") == 2, (
+        "BRIAR_BEAST_LIVE_AND_DEATH_GEOMETRY_GATE_MISSING")
+    assert actor.count("ActorAtlasGeometry.IsAcceptedMossboundRaiderAtlas(mossboundRaiderSheet)") == 2, (
+        "MOSSBOUND_LIVE_AND_DEATH_GEOMETRY_GATE_MISSING")
+    assert actor.count("ActorAtlasGeometry.IsAcceptedCinderstoneGuardAtlas(cinderstoneGuardSheet)") == 2, (
+        "CINDERSTONE_LIVE_AND_DEATH_GEOMETRY_GATE_MISSING")
     # The original 4x4 Npcs atlas is the sole approved base body for normal
     # residents and the rescue civilian; never sample a partial non-null grid.
     assert "internal static bool IsAcceptedNpcAtlas(Texture2D sheet)" in geometry
@@ -98,6 +119,11 @@ def main():
         "ARCHER_LIVE_GROUND_AND_DEATH_GEOMETRY_GATE_MISSING")
     for name, expected in (
         ("Npcs", (512, 512)),
+        ("Monsters", (768, 384)),
+        ("Bosses", (1280, 2560)),
+        ("BriarBeast", (1280, 5760)),
+        ("MossboundRaider", (512, 768)),
+        ("CinderstoneGuard", (512, 768)),
         ("WalkMonsters", (768, 576)),
         ("WalkBossA", (1536, 1536)),
         ("WalkBossB", (1536, 1536)),

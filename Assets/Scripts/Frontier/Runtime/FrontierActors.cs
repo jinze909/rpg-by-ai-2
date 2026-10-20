@@ -1043,6 +1043,30 @@ namespace Starfall
 
         private void DrawEnemyActor(Enemy e)
         {
+            bool acceptedBriarBody=e.boss && Game.save.room==1 &&
+                ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet);
+            if(e.boss)
+            {
+                if(!acceptedBriarBody &&
+                    !ActorAtlasGeometry.IsAcceptedBossesAtlas(bossSheet)) return;
+            }
+            else if(Game.practicing)
+            {
+                if(!ActorAtlasGeometry.IsAcceptedMonstersAtlas(monsterSheet)) return;
+            }
+            else
+            {
+                bool acceptedMossboundBody=e.kind==0 &&
+                    ActorAtlasGeometry.IsAcceptedMossboundRaiderAtlas(mossboundRaiderSheet);
+                bool acceptedCinderstoneBody=e.kind==2 &&
+                    ActorAtlasGeometry.IsAcceptedCinderstoneGuardAtlas(cinderstoneGuardSheet);
+                bool acceptedVerticalArcherBody=e.kind==1 &&
+                    ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(enemyArcherVertical) &&
+                    Math.Abs(e.facing.y)>Math.Abs(e.facing.x);
+                if(!acceptedMossboundBody&&!acceptedCinderstoneBody&&
+                    !acceptedVerticalArcherBody&&
+                    !ActorAtlasGeometry.IsAcceptedMonstersAtlas(monsterSheet)) return;
+            }
             Point p = ScreenPoint(e.Position); float size = e.boss ? BossCanvasSize(Game.save.room) : e.kind == 2 ? 106 : 96;
             // GameCore-release ground contact paints BEFORE the native
             // whole-body Sprite; original boots, weapons and hit frames win.
@@ -1124,8 +1148,7 @@ namespace Starfall
                 // frame, dimensions and foot pivot. Painting the idle sheet
                 // over a moving boss previously created a second drifting
                 // silhouette whenever a hit-flash outlived the hit pose.
-                if (Game.save.room == 1 && briarBeastSheet != null &&
-                    briarBeastSheet.width == 1280 && briarBeastSheet.height == 5760)
+                if (Game.save.room == 1 && ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet))
                 {
                     // Boss phase, windup and contact use the same GameCore
                     // Sprite in living draws and death handoff.
@@ -1373,6 +1396,28 @@ namespace Starfall
         }
         private void DrawFallen(FallenActor body)
         {
+            bool acceptedBriarBody=body.actor.boss && body.room==1 &&
+                ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet);
+            if(body.actor.boss)
+            {
+                if(!acceptedBriarBody &&
+                    !ActorAtlasGeometry.IsAcceptedBossesAtlas(bossSheet)) return;
+            }
+            else
+            {
+                bool acceptedMossboundBody=body.actor.kind==0 &&
+                    ActorAtlasGeometry.IsAcceptedMossboundRaiderAtlas(mossboundRaiderSheet);
+                bool acceptedCinderstoneBody=body.actor.kind==2 &&
+                    ActorAtlasGeometry.IsAcceptedCinderstoneGuardAtlas(cinderstoneGuardSheet);
+                bool acceptedVerticalArcherBody=body.actor.kind==1 &&
+                    ActorAtlasGeometry.IsAcceptedVerticalArcherAtlas(enemyArcherVertical) &&
+                    (lastEnemyPaint!=null?
+                        lastEnemyPaint.sheet==enemyArcherVertical:
+                        Math.Abs(body.actor.facing.y)>Math.Abs(body.actor.facing.x));
+                if(!acceptedMossboundBody&&!acceptedCinderstoneBody&&
+                    !acceptedVerticalArcherBody&&
+                    !ActorAtlasGeometry.IsAcceptedMonstersAtlas(monsterSheet)) return;
+            }
             Point p = ScreenPoint(body.actor.Position); float progress = 1 - body.life / body.duration;
             // One bounded, artist-authored whole-Sprite transition length
             // for all mobile Bosses and common foes. Core death/loot time
@@ -1424,8 +1469,7 @@ namespace Starfall
                         lastEnemyPaint.tint.a*tint.a*(1f-corpseMix)),
                     lastEnemyPaint.flip);
             if (body.actor.boss && body.room == 1 &&
-                briarBeastSheet != null && briarBeastSheet.width == 1280 &&
-                briarBeastSheet.height == 5760)
+                ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet))
             {
                 // Preserve the FINAL real full-body combat keypose during
                 // the lethal frame, then fade into the 4 authored Death cells.

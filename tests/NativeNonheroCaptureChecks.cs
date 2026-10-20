@@ -21,6 +21,16 @@ public static class NativeNonheroCaptureChecks
     {
         // Execute the same geometry gates used by live enemy and corpse
         // selection. A malformed-but-non-null texture must never be accepted.
+        var monstersAtlas = new Texture2D(768, 384, TextureFormat.RGBA32, false);
+        var badMonstersAtlas = new Texture2D(768, 512, TextureFormat.RGBA32, false);
+        var bossesAtlas = new Texture2D(1280, 2560, TextureFormat.RGBA32, false);
+        var badBossesAtlas = new Texture2D(1280, 2304, TextureFormat.RGBA32, false);
+        var briarAtlas = new Texture2D(1280, 5760, TextureFormat.RGBA32, false);
+        var badBriarAtlas = new Texture2D(1280, 5440, TextureFormat.RGBA32, false);
+        var raiderAtlas = new Texture2D(512, 768, TextureFormat.RGBA32, false);
+        var badRaiderAtlas = new Texture2D(512, 512, TextureFormat.RGBA32, false);
+        var guardAtlas = new Texture2D(512, 768, TextureFormat.RGBA32, false);
+        var badGuardAtlas = new Texture2D(512, 512, TextureFormat.RGBA32, false);
         var npcAtlas = new Texture2D(512, 512, TextureFormat.RGBA32, false);
         var badNpcAtlas = new Texture2D(512, 384, TextureFormat.RGBA32, false);
         var companionAtlas = new Texture2D(768, 1024, TextureFormat.RGBA32, false);
@@ -31,6 +41,26 @@ public static class NativeNonheroCaptureChecks
         var badWalkBoss = new Texture2D(1536, 1024, TextureFormat.RGBA32, false);
         var verticalArcher = new Texture2D(576, 384, TextureFormat.RGBA32, false);
         var badVerticalArcher = new Texture2D(576, 576, TextureFormat.RGBA32, false);
+        Require(ActorAtlasGeometry.IsAcceptedMonstersAtlas(monstersAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedMonstersAtlas(badMonstersAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedMonstersAtlas(null),
+            "Monsters atlas must reject non-null partial geometry and null resources");
+        Require(ActorAtlasGeometry.IsAcceptedBossesAtlas(bossesAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedBossesAtlas(badBossesAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedBossesAtlas(null),
+            "Bosses atlas must reject non-null partial geometry and null resources");
+        Require(ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(badBriarAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(null),
+            "Briar Beast atlas must reject non-null partial geometry and null resources");
+        Require(ActorAtlasGeometry.IsAcceptedMossboundRaiderAtlas(raiderAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedMossboundRaiderAtlas(badRaiderAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedMossboundRaiderAtlas(null),
+            "Mossbound atlas must reject non-null partial geometry and null resources");
+        Require(ActorAtlasGeometry.IsAcceptedCinderstoneGuardAtlas(guardAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedCinderstoneGuardAtlas(badGuardAtlas) &&
+                !ActorAtlasGeometry.IsAcceptedCinderstoneGuardAtlas(null),
+            "Cinderstone atlas must reject non-null partial geometry and null resources");
         Require(ActorAtlasGeometry.IsAcceptedNpcAtlas(npcAtlas) &&
                 !ActorAtlasGeometry.IsAcceptedNpcAtlas(badNpcAtlas) &&
                 !ActorAtlasGeometry.IsAcceptedNpcAtlas(null),
