@@ -2852,6 +2852,71 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS normal/compact HUD clicks queue one real dodge, visibly confirm, retire, and respect cooldown/stamina limits");
     }
 
+    public static void VerifyQueuedAttackWorldCueFollowsRealGameCore(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        bool reduced=g.save.reducedMotion;
+        int quality=g.save.effectsQuality;
+        float opacity=(float)typeof(FrontierRuntime)
+            .GetField("worldActorOpacity",Private).GetValue(app);
+        try
+        {
+            Set(app,"worldActorOpacity",1f);
+            g.enemies.Clear();
+            g.save.energy=100f;
+            g.save.reducedMotion=true;
+            g.save.effectsQuality=1;
+            g.Skill(new Point(1,0));
+            ActorAction oldCast=g.playerAction;
+            Check(oldCast!=null&&oldCast.kind=="skill",
+                "The world attack-confirmation cue must begin with a REAL Q action");
+            for(int i=0;i<11;i++)g.Tick(.05f,new Point());
+            Check(oldCast.released&&g.playerAction==oldCast,
+                "The action still belongs to an actual released canonical Cast");
+            g.Attack(new Point(0,-1));
+            Check(g.AttackQueued&&g.playerAction==oldCast,
+                "Only the real queued attack may paint amber foot confirmation");
+            Clear();
+            var drawings=Draw(app,"DrawPlayerActor");
+            var marks=drawings.Where(c=>c.rect.width==4f&&
+                c.rect.height==4f&&
+                Math.Abs(c.color.r-.94f)<.00001f&&
+                Math.Abs(c.color.g-.72f)<.00001f&&
+                Math.Abs(c.color.b-.42f)<.00001f&&
+                Math.Abs(c.color.a-.70f)<.00001f).ToArray();
+            Check(marks.Length==12,
+                "Twelve real fixed amber input-confirmation points must accompany the source-authored hero body");
+            Point foot=(Point)Call(app,"ScreenPoint",g.Position);
+            foreach(var mark in marks)
+            {
+                float dx=mark.rect.x+2f-foot.x,dy=mark.rect.y+2f-foot.y;
+                Check(Math.Abs((float)Math.Sqrt(dx*dx+dy*dy)-.56f*36f)<.01f,
+                    "A queued attack marker must remain rooted beneath the canonical hero instead of floating beside the contact Sprite");
+            }
+            g.ClearBufferedCombatInputs();
+            Clear();
+            Check(!g.AttackQueued&&!Draw(app,"DrawPlayerActor").Any(c=>
+                c.rect.width==4f&&
+                Math.Abs(c.color.r-.94f)<.00001f&&
+                Math.Abs(c.color.g-.72f)<.00001f),
+                "An interrupted/replaced attack immediately removes its visual queue confirmation");
+            g.Attack(new Point(0,-1));
+            Check(g.AttackQueued,"The authentic released Cast can still accept another last-window LMB");
+            g.mode="pause";
+            Check(!g.AttackQueued,
+                "Pause and conversation transitions must retire the queued attack and its visual indicator");
+            Console.WriteLine("PASS real Q-to-LMB gives 12 planted amber confirmation points, no fake release, respects reduced motion, and vanishes on cancel/pause");
+        }
+        finally
+        {
+            g.save.reducedMotion=reduced;
+            g.save.effectsQuality=quality;
+            Set(app,"worldActorOpacity",opacity);
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyBufferedDodgeWorldCue(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -3440,7 +3505,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }

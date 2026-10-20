@@ -575,6 +575,14 @@ namespace Starfall
             if(!drawingOutline&&Game.DodgeQueued&&!Game.Dying)
                 Ring(Game.Position,.49f,
                     new Color(.48f,.78f,1f,.66f),16);
+            // A real Q-to-LMB (or LMB-to-LMB) buffered press deserves the
+            // same immediate feedback as a queued dodge. Twelve fixed amber
+            // points sit BELOW the one approved complete-body Sprite, never
+            // pose as a swing, never animate in reduced-motion, and vanish
+            // the instant gameplay consumes or cancels the pending attack.
+            if(!drawingOutline&&Game.AttackQueued&&!Game.Dying)
+                Ring(Game.Position,.56f,
+                    new Color(.94f,.72f,.42f,.70f),12);
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline)
                 PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);

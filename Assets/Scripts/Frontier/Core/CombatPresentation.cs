@@ -109,6 +109,9 @@ namespace Starfall
             public int weapon, profession, style, technique;
         }
         private AttackIntent bufferedAttack;
+        // The world cue reads this exact accepted GameCore intent. It never
+        // anticipates damage, moves the canonical hero, or extends a queue.
+        public bool AttackQueued { get { return bufferedAttack != null; } }
         private void ClearBufferedAttack() { bufferedAttack = null; }
         private void QueueLateAttack(Point direction)
         {
