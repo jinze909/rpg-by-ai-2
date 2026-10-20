@@ -62,6 +62,11 @@ namespace Starfall
         }
         private float BossPhaseCueOpacity(Enemy enemy)
         {
+            // Outline/canopy preview passes observe the CURRENT body but
+            // are not a completed living paint. A HP-stage transition
+            // discovered only through an outline must not consume its
+            // actual 320ms flash or alter the corpse's final visible phase.
+            if(drawingOutline)return 0f;
             BossPhaseCue cue = bossPhaseCues.GetValue(enemy,
                 ignored => new BossPhaseCue());
             int phase = enemy.BossPhase;
@@ -1077,13 +1082,17 @@ namespace Starfall
             {
                 // Capture the most recently drawn living HP stage. Lethal
                 // damage mutates hp before the corpse renderer ever runs.
-                BossPhaseCue lastVisible=bossPhaseCues.GetValue(e,
-                    ignored => new BossPhaseCue());
-                lastVisible.lastVisibleRoom=Game.save.room;
-                lastVisible.lastVisiblePhase=e.BossPhase;
-                lastVisible.lastBriarCell=-1;
-                lastVisible.lastBriarFlip=e.VisualFlip;
-                lastVisible.lastRegionalSheet=null;
+                BossPhaseCue lastVisible=null;
+                if(!drawingOutline)
+                {
+                    lastVisible=bossPhaseCues.GetValue(e,
+                        ignored => new BossPhaseCue());
+                    lastVisible.lastVisibleRoom=Game.save.room;
+                    lastVisible.lastVisiblePhase=e.BossPhase;
+                    lastVisible.lastBriarCell=-1;
+                    lastVisible.lastBriarFlip=e.VisualFlip;
+                    lastVisible.lastRegionalSheet=null;
+                }
                 // Keep base body and hit-flash on the identical authored
                 // frame, dimensions and foot pivot. Painting the idle sheet
                 // over a moving boss previously created a second drifting
@@ -1101,8 +1110,11 @@ namespace Starfall
                     ResolveEnemyStopPlant(e,pose,ref liveSheet,
                         ref liveColumns,ref liveRows,ref liveCell,
                         ref liveSize,liveFlip);
-                    lastVisible.lastBriarCell=liveCell;
-                    lastVisible.lastBriarFlip=liveFlip;
+                    if(!drawingOutline)
+                    {
+                        lastVisible.lastBriarCell=liveCell;
+                        lastVisible.lastBriarFlip=liveFlip;
+                    }
                     float paintedBossSize=DrawEnemyAtlasHandoff(
                         e,liveSheet,liveColumns,liveRows,liveCell,
                         p + offset,liveSize,tint,liveFlip,pose);
@@ -1150,14 +1162,16 @@ namespace Starfall
                 // Save the ACTUAL whole-body source selected for this repaint.
                 // A lethal attack can clear moving/state/facing before the
                 // first corpse draw, so reconstructing from dead Enemy is wrong.
-                lastVisible.lastRegionalSheet=visibleBossSheet;
-                lastVisible.lastRegionalRows=visibleBossRows;
-                lastVisible.lastRegionalFrame=visibleBossFrame;
-                // Provisional nominal canvas until the real rooted handoff
-                // returns the exact canvas that appeared in THIS repaint.
-                lastVisible.lastRegionalSize=visibleBossSize;
-                lastVisible.lastRegionalFlip=visibleBossFlip;
-                lastVisible.lastRegionalTint=tint;
+                if(!drawingOutline)
+                {
+                    lastVisible.lastRegionalSheet=visibleBossSheet;
+                    lastVisible.lastRegionalRows=visibleBossRows;
+                    lastVisible.lastRegionalFrame=visibleBossFrame;
+                    // Provisional nominal canvas until real rooted handoff.
+                    lastVisible.lastRegionalSize=visibleBossSize;
+                    lastVisible.lastRegionalFlip=visibleBossFlip;
+                    lastVisible.lastRegionalTint=tint;
+                }
                 float paintedBossSize=DrawEnemyAtlasHandoff(
                     e,visibleBossSheet,visibleBossColumns,visibleBossRows,
                     visibleBossFrame,p + offset,visibleBossSize,tint,
@@ -1167,7 +1181,8 @@ namespace Starfall
                 // must remember the body pixels the player actually saw,
                 // not the not-yet-reached walk atlas's nominal 384px size.
                 // DrawFallen consumes this exact size on its first repaint.
-                lastVisible.lastRegionalSize=paintedBossSize;
+                if(!drawingOutline)
+                    lastVisible.lastRegionalSize=paintedBossSize;
                 float flashAlpha = Math.Max(e.flash / .09f * .86f, phaseCue);
                 if (!drawingOutline && flashAlpha > 0f && visibleBossSheet != null)
                     Actor(art.FlashMask(visibleBossSheet),
