@@ -161,6 +161,7 @@ namespace Starfall.Tests
         [Test] public void SenFrostRetainsLongRecoveryAndBreaksAttacks() { CoreChecks.SenCommandPreservesLongEnemyRecoveryAndCancelsRealWindup(Data()); }
         [Test] public void RealDamageBreakNeverShortensExistingEnemyRecovery() { CoreChecks.DamageEarnedBreakDoesNotShortenExistingRecovery(Data()); }
         [Test] public void DynamicGroundSealingCancelsOnlyOwnEnemyWarning() { CoreChecks.SealedEnemyGroundCancelsOnlyItsOwnCombatWarning(Data()); }
+        [Test] public void EnemyBowCanSeekExtendedWalkableCornerLanes() { CoreChecks.EnemyArcherFindsMultiTileLateralFiringCorridor(Data()); }
         [Test] public void ClosingLineOfSightCancelsOnlyOccludedArcher() { CoreChecks.OccludedArcherLaneCancelsOnlyItsOwnRealArrow(Data()); }
         [Test] public void BlockedArcherWindupMustRetireUntilLaneReopens() { CoreChecks.OccludedEnemyArcherRetiresUnspentAttackAndRecovers(Data()); }
         [Test] public void OrdinaryEnemyBowRejectsBlockedPhysicalMuzzle() { CoreChecks.EnemyArcherCannotCommitAttackFromBuriedBowHand(Data()); }

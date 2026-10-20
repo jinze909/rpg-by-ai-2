@@ -1208,6 +1208,110 @@ namespace Starfall.Tests
                 "Later frost pulse failed to reapply exact 450ms chill after previous stun expired");
         }
 
+
+        public static void EnemyArcherFindsMultiTileLateralFiringCorridor(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('.',25).ToCharArray();
+                    for(int x=0;x<25;x++)
+                        if(x<2||x>=23||y<2||y>=23)tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{id=0,
+                    spawnX=10.5f,spawnY=9.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.room=0;g.mode="world";g.invulnerable=100f;
+                var sight=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var lane=typeof(GameCore).GetMethod("PhysicalBowLaneFromFoot",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var search=typeof(GameCore).GetMethod("ArcherPhysicalCornerSidestep",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(sight!=null&&lane!=null&&search!=null,
+                    "Exercise the original physical missile radius and real AI search, not a synthetic geometry estimate");
+                Point from=new Point(),target=new Point(),heading=new Point();
+                bool found=false;
+                // The last stone just short of an otherwise reachable
+                // victim can keep the arrow's radius in cover even AFTER
+                // a first 0.55-tile sidestep. Scan fractional standing
+                // roots on the actual GameCore projectile geometry to
+                // select one deterministic, genuinely extended case.
+                for(int wallColumn=14;wallColumn<=16&&!found;wallColumn++)
+                for(int n=0;n<=18&&!found;n++)
+                {
+                    float y=9.70f+n*.015f;
+                    rows[10]=new string('.',25);
+                    char[] rock=rows[10].ToCharArray();
+                    rock[wallColumn]='#';rows[10]=new string(rock);
+                    Point foot=new Point(10.5f,y);
+                    Point goal=new Point(17.5f,y);
+                    if(!g.CanStand(foot)||!g.CanStand(goal)||
+                        !(bool)sight.Invoke(g,new object[]{foot,goal})||
+                        (bool)lane.Invoke(g,new object[]{foot,goal}))
+                        continue;
+                    Point north=foot+new Point(0,-.55f);
+                    Point south=foot+new Point(0,.55f);
+                    // The old one-tile-only scanner cannot solve this.
+                    if((bool)lane.Invoke(g,new object[]{north,goal})||
+                       (bool)lane.Invoke(g,new object[]{south,goal}))
+                        continue;
+                    Point candidate=(Point)search.Invoke(g,
+                        new object[]{foot,goal});
+                    if(candidate.Length<.5f)continue;
+                    bool realExtended=false;
+                    for(int ring=2;ring<=4;ring++)
+                    {
+                        Point end=foot+candidate*(ring*.55f);
+                        if((bool)lane.Invoke(g,new object[]{end,goal}))
+                        {realExtended=true;break;}
+                    }
+                    if(!realExtended)continue;
+                    from=foot;target=goal;heading=candidate;found=true;
+                }
+                Check(found,
+                    "The extended bow AI must find a real distant side-foot beyond both previously unusable 0.55-tile shots");
+                Check(Math.Abs(heading.x)<.05f&&
+                    Math.Abs(Math.Abs(heading.y)-1f)<.05f,
+                    "Physical arrow search selects lateral motion instead of blindly crowding cover");
+                for(float step=.10f;step<.55f;step+=.10f)
+                    Check(g.CanStand(from+heading*step),
+                        "Long-range firing search cannot plan through a buried intermediate body");
+                g.save.x=target.x;g.save.y=target.y;
+                var archer=new Enemy(99147,1,from.x,from.y,500f)
+                    {timer=.001f};
+                archer.Face(target-from);g.enemies.Add(archer);
+                g.Tick(.05f,new Point());
+                Check(archer.state==0&&g.CanStand(archer.Position)&&
+                    (archer.Position-from).Length>.015f&&
+                    (archer.Position-from).y*heading.y>0f&&
+                    !g.projectiles.Exists(p=>!p.friendly),
+                    "Actual ranged enemy advances along the safe extended side path without firing early or teleporting");
+                bool acquired=false;
+                for(int tick=0;tick<80;tick++)
+                {
+                    g.Tick(.05f,new Point());
+                    Check(g.CanStand(archer.Position),
+                        "Extended sideways approach must never bury the live enemy body in terrain");
+                    if(archer.state==1){acquired=true;break;}
+                }
+                Check(acquired&&
+                    (bool)lane.Invoke(g,new object[]{archer.Position,target})&&
+                    g.save.version==2,
+                    "Physically swept ordinary bow enemy eventually starts its real telegraphed ranged action only from a genuinely clear arrow lane, without save migration");
+            }
+            finally {data.maps[0]=original;}
+        }
+
         public static void OccludedArcherLaneCancelsOnlyItsOwnRealArrow(Campaign data)
         {
             MapData previous=data.maps[0];
