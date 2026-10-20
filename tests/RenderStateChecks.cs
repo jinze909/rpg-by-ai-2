@@ -3809,7 +3809,12 @@ public static class RenderStateChecks
             var legal=nearest(upper);
             Check(stone.color.r<.60f&&legal.color.r>.8f&&
                 stone.color.a<legal.color.a*.55f,
-                "Actual ordinary melee warning still paints a dangerous full-red arc through solid stone");
+                "Actual ordinary melee warning still paints danger through stone: east="+
+                stone.color.r+","+stone.color.g+","+stone.color.a+
+                " exposed="+legal.color.r+","+legal.color.g+","+legal.color.a+
+                " eastDistance="+(Center(stone).x-east.x)+","+
+                (Center(stone).y-east.y)+" upperDistance="+
+                (Center(legal).x-upper.x)+","+(Center(legal).y-upper.y));
             game.Map.rows[row]=oldRow;
             Check(game.EnemyMeleeWarningSpokeReachable(enemy,covered),
                 "Removing real wall failed to open original melee contact");
