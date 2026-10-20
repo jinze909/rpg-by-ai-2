@@ -3540,6 +3540,72 @@ namespace Starfall.Tests
             finally { data.maps[0] = original; }
         }
 
+        public static void CompanionFiringFlankAvoidsLivingActorBodiesAndEscapesMelee(Campaign data)
+        {
+            MapData old=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,
+                    spawnX=9.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.enemies.Clear();
+                g.save.x=9.5f;g.save.y=10.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                Point start=new Point(10.5f,10.5f);
+                Point foot=new Point(10.5f,12f);
+                var route=typeof(GameCore).GetMethod(
+                    "CompanionCornerWalkable",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(route!=null&&g.CanStand(start)&&g.CanStand(foot)&&
+                    (bool)route.Invoke(g,new object[]{start,foot}),
+                    "The original map has a real traversable one-and-a-half-tile physical ally stride");
+                var blocker=new Enemy(99184,0,10.5f,11.4f,500f){
+                    stun=100f,timer=1000f
+                };
+                g.enemies.Add(blocker);
+                Check(!(bool)route.Invoke(g,new object[]{start,foot}),
+                    "A living normal-sized enemy inside the ally's movement corridor must block the newly planned lateral firing step");
+                blocker.x=13.1f;
+                Check((bool)route.Invoke(g,new object[]{start,foot}),
+                    "Moving the same living foe away from the route must reopen the original exact physical path without a save reload");
+                blocker.x=10.5f;blocker.hp=0f;
+                Check((bool)route.Invoke(g,new object[]{start,foot}),
+                    "A genuinely dead enemy body does not permanently prevent companion side-step navigation");
+                g.enemies.Clear();
+                var boss=new Enemy(99185,0,11.24f,11.2f,500f,true){
+                    stun=100f,timer=1000f
+                };
+                g.enemies.Add(boss);
+                Check(!(bool)route.Invoke(g,new object[]{start,foot}),
+                    "A live regional Boss's broader physical body clearance must stop a side step that would clip its complete Sprite");
+                boss.hp=0f;
+                Check((bool)route.Invoke(g,new object[]{start,foot}),
+                    "A defeated Boss retires only the live physical route obstruction, never leaves an invisible permanent wall");
+                g.enemies.Clear();
+                var touching=new Enemy(99186,0,10.7f,10.5f,500f){
+                    stun=100f,timer=1000f
+                };
+                g.enemies.Add(touching);
+                Check((bool)route.Invoke(g,new object[]{
+                        start,new Point(9.5f,10.5f)})&&
+                    !(bool)route.Invoke(g,new object[]{
+                        start,new Point(11.5f,10.5f)}),
+                    "When an enemy already overlaps the ally's old foot, physical flanking must allow an outward escape but reject walking deeper into that enemy");
+                Check(g.save.version==2,
+                    "Actor-aware tactical route collision must not change established v2 save data");
+            }
+            finally{data.maps[0]=old;}
+        }
+
         public static void CompanionAutoPeeksAroundOccludingPillarWithoutBreakingLeash(Campaign data)
         {
             MapData previous=data.maps[0];
