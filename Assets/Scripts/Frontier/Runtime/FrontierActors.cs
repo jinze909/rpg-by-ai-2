@@ -242,6 +242,10 @@ namespace Starfall
         // attack, projectile, collision, or foot-contact clocks.
         private const float HeroStopPlantSeconds=.075f;
         private GameCore heroGaitOwner;
+        // SaveData is replaced on Load even when GameCore, room, weapon
+        // and foot coordinates are identical. A previous slot's last
+        // running contact is never valid in the next character's Idle.
+        private SaveData heroGaitSave;
         private int heroGaitRoom=-1,heroGaitAppearance=-1,heroGaitFacing=-1;
         private int heroGaitFrame=-1;
         private Point heroGaitPosition;
@@ -372,6 +376,7 @@ namespace Starfall
             int appearance=Game.AppearanceWeapon;
             bool sameContext=validClock&&
                 System.Object.ReferenceEquals(heroGaitOwner,Game)&&
+                System.Object.ReferenceEquals(heroGaitSave,Game.save)&&
                 heroGaitRoom==Game.save.room&&
                 heroGaitAppearance==appearance&&heroGaitFacing==facing&&
                 (Game.Position-heroGaitPosition).Length<1.5f&&
@@ -386,14 +391,16 @@ namespace Starfall
                 heroStopPlantActive=false;
                 if(validClock)
                 {
-                    heroGaitOwner=Game;heroGaitRoom=Game.save.room;
+                    heroGaitOwner=Game;heroGaitSave=Game.save;
+                    heroGaitRoom=Game.save.room;
                     heroGaitAppearance=appearance;heroGaitFacing=facing;
                     heroGaitPosition=Game.Position;heroGaitLastAt=clock;
                     heroGaitFrame=index;heroGaitWasMoving=true;
                 }
                 else
                 {
-                    heroGaitOwner=null;heroGaitLastAt=float.NegativeInfinity;
+                    heroGaitOwner=null;heroGaitSave=null;
+                    heroGaitLastAt=float.NegativeInfinity;
                     heroGaitWasMoving=false;
                 }
                 return;
@@ -442,13 +449,15 @@ namespace Starfall
             heroGaitWasMoving=false;
             if(validClock)
             {
-                heroGaitOwner=Game;heroGaitRoom=Game.save.room;
+                heroGaitOwner=Game;heroGaitSave=Game.save;
+                    heroGaitRoom=Game.save.room;
                 heroGaitAppearance=appearance;heroGaitFacing=facing;
                 heroGaitPosition=Game.Position;heroGaitLastAt=clock;
             }
             else
             {
-                heroGaitOwner=null;heroGaitLastAt=float.NegativeInfinity;
+                heroGaitOwner=null;heroGaitSave=null;
+                    heroGaitLastAt=float.NegativeInfinity;
             }
         }
 

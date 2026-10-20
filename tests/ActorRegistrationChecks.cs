@@ -84,6 +84,59 @@ public static class ActorRegistrationChecks
     // and the whole-body GUI fallback. No root translation or action clock is
     // changed; all classes, cardinal facings, gait phases and interrupts run
     // through the real DrawPlayerActor call.
+    static void HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(FrontierRuntime app)
+    {
+        foreach(bool plantInProgress in new[]{false,true})
+        {
+            app.BeginVisualReview(0,0);
+            var game=app.Game;
+            game.enemies.Clear();
+            game.save.weapon=0;game.save.profession=0;
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=2;
+            game.playerAction=null;
+            game.playerHitTime=game.dashTime=game.deathTime=0f;
+            game.locomotionFacing=Directions[0];
+            game.SetAim(Directions[0]);
+            game.movementDirection=Directions[0];
+            game.walkDistance=GameCore.WalkStride*.375f;
+            float start=930f+(plantInProgress?1f:0f);
+            Set(app,"clock",start);
+            Clear();var running=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+            Check(running.texture.name.EndsWith("Hero_Vanguard_Run_E")&&
+                AtlasFrame(running,4,1)==1,
+                "Saved-slot isolation begins with one genuine in-flight run keypose");
+            if(plantInProgress)
+            {
+                game.movementDirection=new Point();
+                Set(app,"clock",start+.01f);Clear();
+                var planted=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+                Check(planted.texture.name.EndsWith("Hero_Vanguard_Run_E")&&
+                    AtlasFrame(planted,4,1)==2,
+                    "A genuine previously planted stop contact must be active before slot replacement");
+            }
+            int room=game.save.room;
+            Point foot=game.Position;
+            SaveData original=game.save;
+            var next=new SaveData{
+                room=room,x=foot.x,y=foot.y,
+                profession=0,weapon=0,effectsQuality=2,
+                reducedMotion=false
+            };
+            game.Load(next);
+            Check(System.Object.ReferenceEquals(game.save,next)&&
+                !System.Object.ReferenceEquals(original,next)&&
+                game.save.room==room&&
+                (game.Position-foot).Length<.01f,
+                "A real load must replace the same-room SaveData without replacing the GameCore instance or moving hero feet");
+            Set(app,"clock",start+.02f);
+            Clear();var idle=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+            Check(idle.texture.name.EndsWith("Hero_Vanguard_Idle_E"),
+                "Same-room save switch must not inherit an old running gait or previously held stop-plant body");
+        }
+        Console.WriteLine("PASS canonical hero stop-plant state retires on real same-room Load even when GameCore, appearance and foot position match");
+    }
+
     static void HeroWalkStopUsesNextPlantedSourceCell(
         FrontierRuntime app,string folder)
     {
@@ -3505,7 +3558,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
