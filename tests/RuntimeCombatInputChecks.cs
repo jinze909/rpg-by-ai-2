@@ -601,13 +601,21 @@ public static class RuntimeCombatInputChecks
                 Check(!g.effects.Exists(e=>
                     e.kind==(wall?"slash":"projectileImpact")),
                     "A ghost full-body slash or collision spark is displayed on the wrong terrain");
-                Check(Math.Abs(swordContact.position.y-planted.y)<.001f&&
+                // Real attack contact happens AFTER the authored .34-tile
+                // rooted advance in TickMovement/MoveAttackStep. Never
+                // mistake this intended physical step for sprite drift:
+                // the world-space spark is rooted to the hero's ACTUAL
+                // release feet, not the original button-press position.
+                Point actualReleaseRoot=g.Position;
+                Check(Math.Abs(swordContact.position.y-actualReleaseRoot.y)<.001f&&
                     (wall?
                         swordContact.position.x<wallTile&&
-                        swordContact.position.x>planted.x:
-                        Math.Abs(swordContact.position.x-(planted.x+.7f))<.001f),
-                    "Sword contact pivot crossed real stone or drifted on unobstructed ground: blocked="+
-                    wall+" root="+planted.x+","+planted.y+
+                        swordContact.position.x>=actualReleaseRoot.x:
+                        Math.Abs(swordContact.position.x-
+                            (actualReleaseRoot.x+.7f))<.001f),
+                    "Sword contact pivot crossed real stone or drifted from real release foot: blocked="+
+                    wall+" pressRoot="+planted.x+","+planted.y+
+                    " releaseRoot="+actualReleaseRoot.x+","+actualReleaseRoot.y+
                     " contact="+swordContact.position.x+","+swordContact.position.y+
                     " wallTile="+wallTile);
                 GUI.textureCalls.Clear();
