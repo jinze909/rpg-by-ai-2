@@ -1217,9 +1217,9 @@ namespace Starfall.Tests
                 var rows=new string[25];
                 for(int y=0;y<25;y++)
                 {
-                    char[] tiles=new string('.',25).ToCharArray();
-                    for(int x=0;x<25;x++)
-                        if(x<2||x>=23||y<2||y>=23)tiles[x]='#';
+                    char[] tiles=new string('.',50).ToCharArray();
+                    for(int x=0;x<50;x++)
+                        if(x<2||x>=48||y<2||y>=23)tiles[x]='#';
                     rows[y]=new string(tiles);
                 }
                 data.maps[0]=new MapData{id=0,
@@ -1250,7 +1250,7 @@ namespace Starfall.Tests
                 for(int n=0;n<=18&&!found;n++)
                 {
                     float y=9.70f+n*.015f;
-                    rows[10]=new string('#',2)+new string('.',21)+new string('#',2);
+                    rows[10]=new string('#',2)+new string('.',46)+new string('#',2);
                     char[] rock=rows[10].ToCharArray();
                     rock[wallColumn]='#';rows[10]=new string(rock);
                     Point foot=new Point(10.5f,y);
@@ -1283,7 +1283,7 @@ namespace Starfall.Tests
                 Check(Math.Abs(heading.x)<.05f&&
                     Math.Abs(Math.Abs(heading.y)-1f)<.05f,
                     "Physical arrow search selects lateral motion instead of blindly crowding cover");
-                Point outOfRange=new Point(21.5f,from.y);
+                Point outOfRange=new Point(42.5f,from.y);
                 Check((bool)sight.Invoke(g,new object[]{from,outOfRange})&&
                     !(bool)lane.Invoke(g,new object[]{from,outOfRange})&&
                     ((Point)search.Invoke(g,new object[]{from,outOfRange})).Length<.001f,
