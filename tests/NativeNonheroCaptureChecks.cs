@@ -19,6 +19,26 @@ public static class NativeNonheroCaptureChecks
     }
     static void Main()
     {
+        // Execute the same geometry gates used by live enemy and corpse
+        // selection. A malformed-but-non-null texture must never be accepted.
+        var walkMonsters = new Texture2D(768, 576, TextureFormat.RGBA32, false);
+        var badWalkMonsters = new Texture2D(768, 768, TextureFormat.RGBA32, false);
+        var walkBoss = new Texture2D(1536, 1536, TextureFormat.RGBA32, false);
+        var badWalkBoss = new Texture2D(1536, 1024, TextureFormat.RGBA32, false);
+        var verticalArcher = new Texture2D(576, 384, TextureFormat.RGBA32, false);
+        var badVerticalArcher = new Texture2D(576, 576, TextureFormat.RGBA32, false);
+        Require(FrontierRuntime.IsAcceptedWalkMonstersAtlas(walkMonsters) &&
+                !FrontierRuntime.IsAcceptedWalkMonstersAtlas(badWalkMonsters) &&
+                !FrontierRuntime.IsAcceptedWalkMonstersAtlas(null),
+            "WalkMonsters must reject non-null partial geometry and null resources");
+        Require(FrontierRuntime.IsAcceptedRegionalBossWalkAtlas(walkBoss) &&
+                !FrontierRuntime.IsAcceptedRegionalBossWalkAtlas(badWalkBoss) &&
+                !FrontierRuntime.IsAcceptedRegionalBossWalkAtlas(null),
+            "WalkBoss must reject non-null partial geometry and null resources");
+        Require(FrontierRuntime.IsAcceptedVerticalArcherAtlas(verticalArcher) &&
+                !FrontierRuntime.IsAcceptedVerticalArcherAtlas(badVerticalArcher) &&
+                !FrontierRuntime.IsAcceptedVerticalArcherAtlas(null),
+            "vertical archer art must reject non-null partial geometry and null resources");
         var runtime = new FrontierRuntime();
         var method = typeof(FrontierRuntime).GetMethod(
             "DrawSpriteRendererActor", BindingFlags.Instance | BindingFlags.NonPublic);

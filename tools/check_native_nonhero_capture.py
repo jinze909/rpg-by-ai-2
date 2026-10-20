@@ -71,6 +71,30 @@ def main():
     assert "DrawSpriteRendererActor(" in actor
     assert "sheet, columns, rows, frame, foot, size," in actor
     assert "if (nativeActorDrawn) return;" in actor
+    # Live and lethal transitions must share strict accepted source geometry.
+    assert "internal static bool IsAcceptedWalkMonstersAtlas(Texture2D sheet)" in native
+    assert "return sheet != null && sheet.width == 768 && sheet.height == 576;" in native
+    assert "internal static bool IsAcceptedRegionalBossWalkAtlas(Texture2D sheet)" in native
+    assert "return sheet != null && sheet.width == 1536 && sheet.height == 1536;" in native
+    assert "internal static bool IsAcceptedVerticalArcherAtlas(Texture2D sheet)" in native
+    assert "return sheet != null && sheet.width == 576 && sheet.height == 384;" in native
+    assert "IsAcceptedRegionalBossWalkAtlas(bossWalkSheets[atlasIndex])" in actor
+    assert actor.count("HasAcceptedRegionalBossWalkAtlas(walkAtlas)") == 2, (
+        "BOSS_LIVE_AND_DEATH_WALK_GEOMETRY_GATE_MISSING")
+    assert actor.count("IsAcceptedWalkMonstersAtlas(monsterWalkSheet)") == 2, (
+        "MONSTER_LIVE_AND_DEATH_WALK_GEOMETRY_GATE_MISSING")
+    assert actor.count("IsAcceptedVerticalArcherAtlas(enemyArcherVertical)") == 3, (
+        "ARCHER_LIVE_GROUND_AND_DEATH_GEOMETRY_GATE_MISSING")
+    for name, expected in (
+        ("WalkMonsters", (768, 576)),
+        ("WalkBossA", (1536, 1536)),
+        ("WalkBossB", (1536, 1536)),
+        ("EnemyArcherVertical", (576, 384)),
+    ):
+        with Image.open(ART / (name + ".png")) as source:
+            assert source.size == expected, (
+                "NONHERO_WALK_ATLAS_GEOMETRY_REGRESSION", name,
+                source.size, expected)
     # The cue must be pinned to the actual Talk() target, not a moving
     # Nearest() query that can switch to a different same-kind resident.
     core = (ROOT / "Assets/Scripts/Frontier/Core/GameCore.cs").read_text()
