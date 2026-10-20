@@ -372,7 +372,7 @@ namespace Starfall
     }
     public sealed class ActorAction
     {
-        public bool released;
+        public bool released, blockedAtContact;
     }
     public class GameCore
     {

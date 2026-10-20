@@ -270,6 +270,60 @@ public static class RuntimeCombatInputChecks
             " real released combat bodies stop cleanly on immediate Dodge and new Attack inputs without stale costume/pose");
     }
 
+    private static void InvalidPhysicalContactCannotFakeHeroSettle(FrontierRuntime app)
+    {
+        int checkedCases=0;
+        foreach(int equipment in new[]{0,1,2})
+        foreach(bool skill in new[]{false,true})
+        {
+            Prepare(app,equipment);
+            var g=app.Game;g.save.reducedMotion=false;
+            g.SetAim(new Point(1f,0f));
+            if(skill)g.Skill(new Point(1f,0f));
+            else g.Attack(new Point(1f,0f));
+            ActorAction action=g.playerAction;
+            Check(action!=null&&!action.released,
+                "Real physical action must prepare BEFORE its floor becomes obstructed");
+            int row=(int)g.Position.y,col=(int)g.Position.x;
+            string original=g.Map.rows[row];
+            try
+            {
+                char[] stone=original.ToCharArray();
+                stone[col]='#';g.Map.rows[row]=new string(stone);
+                for(int i=0;i<40&&!action.released;i++)
+                    g.Tick(.02f,new Point());
+                Check(action.released&&action.blockedAtContact&&
+                    g.effects.Exists(e=>e.kind=="projectileImpact"),
+                    "Invalid caster footprint must create a genuine blocked contact instead of a successful swing/Q");
+                g.Map.rows[row]=original;
+                for(int i=0;i<45&&g.playerAction!=null&&
+                    action.elapsed<action.duration-.042f;i++)
+                    g.Tick(.02f,new Point());
+                Set(app,"clock",71f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                // The visibly released action itself remains one authored
+                // complete body. Only its FALSE lingering celebration must
+                // vanish after C# finishes the physically failed attempt.
+                for(int i=0;i<7&&g.playerAction!=null;i++)
+                    g.Tick(.02f,new Point());
+                Set(app,"clock",71.025f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var body=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                string label=new[]{"Vanguard","Ranger","Arcanist"}[equipment];
+                Check(g.playerAction==null&&body!=null&&body.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    label+"_Idle_E",
+                    "The failed "+label+(skill?" Q":" LMB")+
+                    " must return directly to a complete painted Idle, without falsely lingering as a successful contact");
+                checkedCases++;
+            }
+            finally {g.Map.rows[row]=original;}
+        }
+        Console.WriteLine("PASS "+checkedCases+
+            " physical blocked Attack/Q actions never mint a visually successful post-contact hero settle");
+    }
+
     private static void QueuedAreaPreviewDrawsRealWorldRadius(FrontierRuntime app)
     {
         foreach(int profession in new[]{0,1,2})
@@ -2182,7 +2236,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

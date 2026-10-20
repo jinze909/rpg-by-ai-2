@@ -11,7 +11,11 @@ namespace Starfall
         public int weapon, equippedWeapon, profession, style, combo, technique;
         public Point direction;
         public Point? target;
-        public bool released, riposteArmed;
+        // The CONTACT pose still plays when stone blocks a swing or shot,
+        // but an unspent, physically impossible release may not generate an
+        // extra completed-attack afterglow when the authoring action ends.
+        // Transient only: never written into v1/v2 saves.
+        public bool released, riposteArmed, blockedAtContact;
         public ImpactProfile impact;
         public float Progress { get { return GameCore.Clamp(elapsed / duration, 0, 1); } }
     }
@@ -405,6 +409,7 @@ namespace Starfall
                 // riposte that did not produce a physical attack.
                 if (!CanStand(Position))
                 {
+                    a.blockedAtContact = true;
                     a.riposteArmed = false;
                     effects.Add(new Effect("projectileImpact", Position, .22f)
                     {
@@ -460,6 +465,7 @@ namespace Starfall
                 }
                 if (ready.Count == 0)
                 {
+                    a.blockedAtContact = true;
                     // A blocked body-side muzzle was never a launched
                     // projectile. Give one local collision spark and keep
                     // the earned riposte window for an actual later release.

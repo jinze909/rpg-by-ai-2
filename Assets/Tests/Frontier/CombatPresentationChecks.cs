@@ -231,8 +231,8 @@ namespace Starfall.Tests
                     blocked[10]='#';rows[10]=new string(blocked);
                     Check(!g.CanStand(g.Position),"Dynamic collision buries the player only AFTER a legal attack starts");
                     Advance(g,abandoned.contact+.02f);
-                    Check(abandoned.released&&!abandoned.riposteArmed&&
-                        foe.hp==foe.maxHp&&g.projectiles.Count==0&&
+                    Check(abandoned.released&&abandoned.blockedAtContact&&
+                        !abandoned.riposteArmed&&foe.hp==foe.maxHp&&g.projectiles.Count==0&&
                         !g.effects.Exists(f=>f.kind=="release"||f.kind=="slash")&&
                         g.effects.Exists(f=>f.kind=="projectileImpact")&&
                         g.riposteTime>0,
@@ -283,7 +283,8 @@ namespace Starfall.Tests
                     char[] tile=rows[10].ToCharArray();
                     tile[10]='#';rows[10]=new string(tile);
                     Advance(g,cast.contact+.02f);
-                    Check(cast.released&&foe.hp==foe.maxHp&&
+                    Check(cast.released&&cast.blockedAtContact&&
+                        foe.hp==foe.maxHp&&
                         g.projectiles.Count==0&&g.skillCooldown>0&&
                         g.effects.Exists(f=>f.kind=="projectileImpact")&&
                         !g.effects.Exists(f=>f.kind=="burst"||f.kind=="release"||f.kind=="frost"),

@@ -489,6 +489,7 @@ namespace Starfall
                 !float.IsInfinity(clock);
             ActorAction live=Game.playerAction;
             if((action==2||action==3)&&live!=null&&live.released&&
+                !live.blockedAtContact&&
                 clockValid&&!Game.save.reducedMotion&&
                 index >= (frames==7?5:frames==6?4:int.MaxValue))
             {

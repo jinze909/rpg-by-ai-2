@@ -702,6 +702,7 @@ namespace Starfall
                           height = WeaponHeight(visualWeapon, action.direction) });
                 else if (blocked != null)
                 {
+                    action.blockedAtContact=true;
                     effects.Add(new Effect("projectileImpact", blocked.position, .22f)
                         { direction = action.direction, height = blocked.height });
                     sound = "guard";
