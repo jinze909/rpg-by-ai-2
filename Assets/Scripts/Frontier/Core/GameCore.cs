@@ -1044,13 +1044,15 @@ namespace Starfall
                     travel*(i/(float)steps)))return false;
             return true;
         }
-        // When a corner clips an arrow's physical radius despite CLEAR
-        // centerline sight, going straight toward the victim does not
-        // unblock the shot and can provoke repeated archer crowding.
-        // Prefer a measured, legally walkable LATERAL firing foot whose
-        // entire original weapon+muzzle+head sweep would be clear.
-        // Never teleport, mutate enemy position in a probe or side-step
-        // around fully opaque walls where existing pathfinding owns route.
+        // When the bow's *physical* radius scrapes a corner despite open
+        // centerline LOS, a half-tile sidestep is not always far enough.
+        // Probe real reachable firing feet along BOTH lateral corridors,
+        // nearest-first, up to 2.2 tiles. A distant valid muzzle is no
+        // license to teleport through a wall or choose an unwalkable goal:
+        // the body must fit at every intermediate foot, and actual movement
+        // still goes through SweepActor below. Never mutate live enemies
+        // or their animation/attack clocks while evaluating a candidate.
+        // Fully opaque LOS remains owned by the normal pursuit pathfinder.
         private Point ArcherPhysicalCornerSidestep(Point from,Point target)
         {
             Point sight=target-from;
@@ -1059,14 +1061,35 @@ namespace Starfall
                 PhysicalBowLaneFromFoot(from,target))return new Point();
             Point direction=sight.Normalized;
             Point side=new Point(-direction.y,direction.x);
-            for(int directionIndex=0;directionIndex<2;directionIndex++)
+            bool positiveOpen=true,negativeOpen=true;
+            for(int ring=1;ring<=4;ring++)
             {
-                Point candidate=directionIndex==0?side:side*-1f;
-                Point foot=from+candidate*.55f;
-                if(CanStand(foot)&&
-                    ClearAttackPath(foot,target)&&
-                    PhysicalBowLaneFromFoot(foot,target))
-                    return candidate;
+                float reach=ring*.55f;
+                for(int sign=0;sign<2;sign++)
+                {
+                    if(sign==0&&!positiveOpen||sign==1&&!negativeOpen)
+                        continue;
+                    Point lateral=sign==0?side:side*-1f;
+                    // Check the ENTIRE newly considered section of the
+                    // side corridor at body-radius resolution; an isolated
+                    // free landing cell behind a one-tile wall is not a route.
+                    bool reachable=true;
+                    float start=(ring-1)*.55f;
+                    for(float step=start+.11f;step<reach+.001f;step+=.11f)
+                        if(!CanStand(from+lateral*Math.Min(step,reach)))
+                        {reachable=false;break;}
+                    if(!reachable)
+                    {
+                        if(sign==0)positiveOpen=false;
+                        else negativeOpen=false;
+                        continue;
+                    }
+                    Point foot=from+lateral*reach;
+                    if(ClearAttackPath(foot,target)&&
+                        PhysicalBowLaneFromFoot(foot,target))
+                        return lateral;
+                }
+                if(!positiveOpen&&!negativeOpen)break;
             }
             return new Point();
         }
