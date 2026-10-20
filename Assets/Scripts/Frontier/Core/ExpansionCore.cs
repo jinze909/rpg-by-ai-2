@@ -493,6 +493,29 @@ namespace Starfall
                 Fits(companionPosition) &&
                 ClearAttackPath(companionPosition,Position);
         }
+        // Automatic companion fire must clear the actual physical arrow
+        // or staff projectile over its entire flight, not just actor LOS
+        // and the 0.8-tile weapon attachment. Manual player-directed
+        // commands intentionally keep their existing independent rules.
+        private bool CompanionAutoFlightLaneClear(Point caster,int weapon,
+            Point target)
+        {
+            if(!CanStand(caster)||!Finite(target.x)||!Finite(target.y))
+                return false;
+            Point travel=target-caster;
+            if(travel.Length<.05f)return false;
+            Projectile shot=WeaponShot(caster,weapon,
+                travel.Normalized,9f,0f,target);
+            if(shot.blockedAtSpawn||ShotBlocked(shot,shot.position))
+                return false;
+            float distance=(target-shot.position).Length;
+            if(!Finite(distance)||distance>9f*shot.life)return false;
+            int steps=Math.Max(1,(int)Math.Ceiling(distance/.1f));
+            for(int i=1;i<=steps;i++)
+                if(ShotBlocked(shot,shot.position+
+                    (target-shot.position)*(i/(float)steps)))return false;
+            return true;
+        }
         private Enemy NearestCompanionThreat()
         {
             Enemy nearest=null;
@@ -541,8 +564,8 @@ namespace Starfall
                 // must not starve a more distant enemy with a clear firing lane.
                 Point aimDirection=delta.Normalized;
                 int weapon=save.companion==1?1:2;
-                if(WeaponShot(companionPosition,weapon,aimDirection,9f,0f,
-                    foe.Position).blockedAtSpawn)
+                if(!CompanionAutoFlightLaneClear(
+                    companionPosition,weapon,foe.Position))
                     continue;
                 best=squared;bestPriority=priority;nearest=foe;
                 bestStockSeconds=priority==0?stockSeconds:float.PositiveInfinity;
@@ -610,9 +633,8 @@ namespace Starfall
                             bool oldValid=locked!=null&&locked.hp>0&&
                                 enemies.Contains(locked)&&oldAim.Length<7f&&
                                 ClearAttackPath(companionPosition,locked.Position)&&
-                                !WeaponShot(companionPosition,
-                                    action.weapon==1?1:2,oldAim.Normalized,
-                                    9f,0f,(Point?)locked.Position).blockedAtSpawn;
+                                CompanionAutoFlightLaneClear(companionPosition,
+                                    action.weapon==1?1:2,locked.Position);
                             // During a real cache defense, an uncovered
                             // committed stock strike can supersede an otherwise
                             // valid lock. Outside that narrow priority rule,
@@ -649,7 +671,9 @@ namespace Starfall
                              locked == null || !enemies.Contains(locked) ||
                              locked.hp <= 0 ||
                              (locked.Position-companionPosition).Length >= 7f ||
-                             !ClearAttackPath(companionPosition,locked.Position)))
+                             (!ClearAttackPath(companionPosition,locked.Position)||
+                              !CompanionAutoFlightLaneClear(companionPosition,
+                                  action.weapon==1?1:2,locked.Position))))
                         {
                             // Retire this *unreleased* contact. Merely
                             // reducing the next attack timer while falling

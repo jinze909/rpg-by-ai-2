@@ -1100,6 +1100,71 @@ namespace Starfall.Tests
                 Advance(auto,.65f);
                 Check(foe.hp<10000f||auto.projectiles.Exists(p=>p.friendly),
                     "The real companion AI can resume and shoot after returning to valid accessible footing");
+
+                // Side-adjacent stone can catch an arrow's 0.14-tile
+                // hit radius while leaving the actor LOS and hand clear.
+                var flank=Fresh(data,1);flank.enemies.Clear();
+                flank.save.flags.Add("companion_1");flank.SelectCompanion(1);
+                flank.save.reducedMotion=true;
+                Point archerFoot=new Point(10.5f,10.88f);
+                Point victimFoot=new Point(15.5f,10.88f);
+                flank.companionPosition=archerFoot;
+                flank.save.x=15.5f;flank.save.y=13.5f;
+                var victim=new Enemy(98704,0,
+                    victimFoot.x,victimFoot.y,10000f){
+                    stun=100f,timer=1000f,staggerRecovery=100f
+                };
+                flank.enemies.Add(victim);
+                var nearest=typeof(GameCore).GetMethod(
+                    "NearestCompanionThreat",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var center=typeof(GameCore).GetMethod(
+                    "ClearAttackPath",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(nearest!=null&&center!=null,
+                    "Production companion targeting and real actor sight checks absent");
+                Check(flank.CanStand(archerFoot)&&flank.CanStand(victimFoot)&&
+                    (bool)center.Invoke(flank,new object[]{
+                        archerFoot,victimFoot})&&
+                    Object.ReferenceEquals(nearest.Invoke(flank,null),victim),
+                    "Genuinely unobstructed target must be available for ally auto-fire");
+                string lower=rows[11];
+                try
+                {
+                    char[] edge=lower.ToCharArray();edge[12]='#';
+                    rows[11]=new string(edge);
+                    Check((bool)center.Invoke(flank,new object[]{
+                            archerFoot,victimFoot})&&
+                        nearest.Invoke(flank,null)==null,
+                        "Ranger ally selected a foe behind side-wall projectile-radius cover");
+                    rows[11]=lower;
+                    var attackTimer=typeof(GameCore).GetField(
+                        "companionAttack",
+                        System.Reflection.BindingFlags.Instance|
+                        System.Reflection.BindingFlags.NonPublic);
+                    attackTimer.SetValue(flank,0f);
+                    flank.Tick(.02f,new Point());
+                    Check(flank.companionAction!=null&&
+                        flank.companionAction.kind=="attack"&&
+                        !flank.companionAction.released,
+                        "Removing arrow collision cover failed to resume a real ally windup");
+                    rows[11]=new string(edge);
+                    Advance(flank,.20f);
+                    Check(flank.projectiles.Count==0&&
+                        (float)attackTimer.GetValue(flank)<=.23f&&
+                        !flank.effects.Exists(e=>e.kind=="release"&&
+                            e.variant==1),
+                        "Wall closure during auto-draw minted a false arrow/release or spent full cooldown");
+                    rows[11]=lower;
+                    Advance(flank,.70f);
+                    Check(victim.hp<10000f||
+                        flank.projectiles.Exists(p=>p.friendly&&
+                            p.visual=="arrow"),
+                        "Reopening side-wall corridor failed to restore actual ally arrow attack");
+                }
+                finally{rows[11]=lower;}
             }
             finally{data.maps[0]=old;}
         }
