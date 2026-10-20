@@ -198,6 +198,21 @@ public static class ActorRegistrationChecks
                 Check(held.texture.name==idleName,
                     "Phase-zero hero idle must not acquire a gait afterimage");
 
+            // A planted WEST run and an EAST idle share the same atlas
+            // row (E). Turning during the 75ms hold must discard the old
+            // western foot plant, not mirror that obsolete whole-body cell.
+            if(heading==1&&planted>=0)
+            {
+                game.locomotionFacing=Directions[0];
+                game.SetAim(Directions[0]);
+                Check(game.VisualFacing.x>.9f,
+                    "Hero gait reversal fixture did not establish real east-facing Idle");
+                Set(app,"clock",stopAt+.05f);Clear();
+                var reversed=Draw(app,"DrawPlayerActor").Single(ActorTexture);
+                Check(reversed.texture.name=="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    classes[outfit]+"_Idle_E"&&reversed.uv.width>0,
+                    "West-to-east stop must cancel the old mirrored Run foot contact");
+            }
             Set(app,"clock",stopAt+.09f);Clear();
             var idle=Draw(app,"DrawPlayerActor").Single(ActorTexture);
             Check(idle.texture.name==idleName&&
@@ -245,7 +260,7 @@ public static class ActorRegistrationChecks
         Check(afterAttack.texture.name==
             "resource:Frontier/HeroAnimator/Canonical/Hero_Vanguard_Idle_E",
             "A completed attack must not resurrect the prior running frame");
-        Console.WriteLine("PASS canonical hero stop-plant continuity: 48 class/facing/gait cases plus reduced-motion and real attack interrupts");
+        Console.WriteLine("PASS canonical hero stop-plant continuity: 48 class/facing/gait cases, 9 west-to-east reversal interrupts, reduced-motion and real attack interrupts");
     }
 
     static void ProductionLoadoutUsesFullBodyHero(FrontierRuntime app)
