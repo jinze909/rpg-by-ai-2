@@ -2126,6 +2126,10 @@ namespace Starfall.Tests
                 Point target=new Point(21,12),direction=(target-g.Position).Normalized;
                 g.SetAimTarget(target);g.Skill(direction);
                 Check(g.playerAction==attack&&g.skillCooldown<=0&&g.save.energy==100,"Queuing Q during preparation or contact cannot cancel the visible attack or spend energy early");
+                Check(g.SkillQueued&&(g.SkillQueuedDirection-direction).Length<.001f&&
+                    g.SkillQueuedTarget.HasValue&&
+                    (g.SkillQueuedTarget.Value-target).Length<.001f,
+                    "Buffered Q world reticle must expose the actual accepted Ranger target without paying for an early cast");
                 g.SetAimTarget(new Point(5,18));g.SetAim(new Point(-1,0));g.save.talents[0]++;
                 ActorAction skill=null;
                 for(int frame=0;frame<100;frame++)
@@ -2151,8 +2155,14 @@ namespace Starfall.Tests
             }
             var latest=Quiet(data,1);latest.Dash(new Point(1,0));latest.Skill(new Point(0,-1));
             Point lastTarget=new Point(20,16);latest.SetAimTarget(lastTarget);latest.Skill(new Point(0,1));
+            Check(latest.SkillQueued&&latest.SkillQueuedTarget.HasValue&&
+                (latest.SkillQueuedTarget.Value-lastTarget).Length<.001f&&
+                (latest.SkillQueuedDirection-new Point(0,1)).Length<.001f,
+                "Explicit second Q moves the REAL queued volley target marker without creating another skill");
             Advance(latest,.2f);
             Check(latest.playerAction!=null&&latest.playerAction.kind=="skill"&&latest.playerAction.direction.y==1&&latest.playerAction.target.HasValue&&(latest.playerAction.target.Value-lastTarget).Length<.001f,"Repeated Q replaces one pending intent with the latest direction and target");
+            Check(!latest.SkillQueued&&!latest.SkillQueuedTarget.HasValue,
+                "Queued skill target marker clears the instant its world action dispatches");
             Advance(latest,4.5f);Check(latest.playerAction==null&&latest.skillCooldown<=0,"A consumed input cannot recast after cooldown");
         }
         public static void BufferedSkillsHaveBoundedLifetimeAndResourceChecks(Campaign data)

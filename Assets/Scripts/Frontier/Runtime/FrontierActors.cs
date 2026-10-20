@@ -635,6 +635,14 @@ namespace Starfall
                 if(heading.Length>.05f)
                     Ring(Game.Position+heading.Normalized*1.05f,.17f,
                         new Color(.83f,.67f,1f,.78f),8);
+                // Only the standard Ranger volley steers its projectiles
+                // toward a world target. Close-range aura skills keep just
+                // the foot cue instead of promising a false area impact.
+                Point? skillTarget=Game.SkillQueuedTarget;
+                if(Game.save.profession==1&&Game.save.technique==0&&
+                    skillTarget.HasValue)
+                    Ring(skillTarget.Value,.26f,
+                        new Color(.83f,.67f,1f,.72f),12);
             }
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline)

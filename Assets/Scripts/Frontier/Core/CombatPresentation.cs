@@ -46,6 +46,14 @@ namespace Starfall
         {
             get { return bufferedSkill==null?new Point():bufferedSkill.direction; }
         }
+        // Ranger's queued volley is aimed at the captured physical world
+        // point. Its foot-forward direction marker alone can appear correct
+        // while its five projectiles actually converge somewhere else.
+        // Expose that exact transient target, never an invented impact.
+        public Point? SkillQueuedTarget
+        {
+            get { return bufferedSkill==null?(Point?)null:bufferedSkill.target; }
+        }
         // A single late basic-attack press may carry through the tail of a
         // released LMB or Q. The intent never replaces a still-visible
         // Attack/Cast body, is never saved, and spends nothing until accepted.
