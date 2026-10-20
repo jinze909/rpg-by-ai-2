@@ -586,8 +586,13 @@ namespace Starfall
             {
                 if(foe==null||foe.hp<=0)continue;
                 Point line=foe.Position-companionPosition;
+                // A short opaque pillar may hide even the centerline
+                // from the CURRENT foot while one reachable sideways
+                // position exposes the genuine physical projectile lane.
+                // Do not require the OLD foot to see around that pillar:
+                // the NEW foot is tested against full actor LOS, swept
+                // arrow collision, stamina-free travel and hero leash.
                 if(line.Length<1f||line.Length>=6.9f||
-                    !ClearAttackPath(companionPosition,foe.Position)||
                     CompanionCornerShotReady(companionPosition,foe))
                     continue;
                 Point side=new Point(-line.y,line.x).Normalized;
