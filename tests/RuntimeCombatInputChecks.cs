@@ -2891,6 +2891,7 @@ public static class RuntimeCombatInputChecks
             ActorRegistrationChecks.VerifyBossMovingFlash,
             ActorRegistrationChecks.VerifyBossWholeBodySizeAcrossIdleRun,
             ActorRegistrationChecks.VerifyEnemySingleBodyHandoffs,
+            ActorRegistrationChecks.VerifyGpuOnlyMonsterHitAndSelectionFallback,
             ActorRegistrationChecks.VerifyResidentAnimation,
             ActorRegistrationChecks.VerifyNpcActionSignalProduction,
             ActorRegistrationChecks.VerifyHeroStopPlantContinuity,

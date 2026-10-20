@@ -2110,6 +2110,72 @@ public static class ActorRegistrationChecks
         }
     }
 
+
+    public static void VerifyGpuOnlyMonsterHitAndSelectionFallback(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        var monsterField=typeof(FrontierRuntime).GetField(
+            "monsterSheet",BindingFlags.Instance|BindingFlags.NonPublic);
+        Check(monsterField!=null,"Production monster renderer uses original loaded whole-body sheet");
+        object original=monsterField.GetValue(app);
+        bool reduced=g.save.reducedMotion;
+        try
+        {
+            g.save.reducedMotion=false;
+            // Synthetic GPU-only ART INPUT for an adversarial import,
+            // not a published replacement of mature Monster sprites.
+            // A newly imported 6x3 sheet has no prepared CPU masks.
+            var source=new Texture2D(384,192,TextureFormat.RGBA32,false)
+                {name="gpu-only-monster-hit-simulation"};
+            source.isReadable=false;
+            var masks=new PixelArt();
+            try
+            {
+                Check(masks.OutlineMask(source)==null&&
+                    masks.FlashMask(source)==null,
+                    "Unreadable monster imports with no published masks must not attempt CPU pixel reads");
+            }
+            finally{masks.Dispose();}
+            monsterField.SetValue(app,source);
+            var foe=new Enemy(99832,1,g.Position.x+1f,
+                g.Position.y+.5f,80f){
+                facing=new Point(1f,0f),flash=.08f,
+                hitTime=.05f
+            };
+            Place(app,foe.Position,new Point(520,370));
+            Set(app,"drawingOutline",false);
+            Clear();
+            var alive=Draw(app,"DrawEnemyActor",foe);
+            Check(alive.Count(t=>System.Object.ReferenceEquals(
+                    t.texture,source))==1&&
+                alive.Any(t=>System.Object.ReferenceEquals(
+                    t.texture,source)&&t.rect.width>0f),
+                "Actual GPU-only monster hit must retain exactly one authored body instead of throwing on its missing optional flash mask");
+            Set(app,"drawingOutline",true);
+            Clear();
+            var marked=Draw(app,"DrawEnemyActor",foe);
+            var selected=marked.Where(t=>System.Object.ReferenceEquals(
+                t.texture,source)).ToArray();
+            Check(selected.Length==1&&
+                Math.Abs(selected[0].color.a-.34f)<.0001f&&
+                Math.Abs(selected[0].rect.x-alive.First(t=>
+                    System.Object.ReferenceEquals(t.texture,source)).rect.x)<.001f&&
+                Math.Abs(selected[0].rect.y-alive.First(t=>
+                    System.Object.ReferenceEquals(t.texture,source)).rect.y)<.001f,
+                "GPU-only monster preview must use the SAME exact whole-body crop and fixed sole with a safe translucent highlight, no old model or invisible selection");
+            Console.WriteLine("PASS actual monster live hit and preview on unreadable GPU-only imported source: complete body, original foot, no missing-mask GetPixels crash or false flash");
+        }
+        finally
+        {
+            monsterField.SetValue(app,original);
+            g.save.reducedMotion=reduced;
+            Set(app,"drawingOutline",false);
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyResidentAnimation(FrontierRuntime app)
     {
         // VISUAL FIDELITY ROLLBACK: the older Npcs.png contains the carefully
@@ -4152,7 +4218,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);CompanionOutlinePassCannotConsumeGaitOrAttack(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);BossOutlineCannotRewriteLastLiveBodyOrStage(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);VerifyGpuOnlyMonsterHitAndSelectionFallback(app);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);CompanionOutlinePassCannotConsumeGaitOrAttack(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);BossOutlineCannotRewriteLastLiveBodyOrStage(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
