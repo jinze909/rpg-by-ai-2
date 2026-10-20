@@ -3823,6 +3823,46 @@ public static class ActorRegistrationChecks
                 for(int i=0;i<fields.Length;i++)
                     Check(System.Object.Equals(initial[i],fields[i].GetValue(app)),
                         "Post-contact cover outline reset a real companion action");
+                // A same-room saved-slot/party-generation switch keeps
+                // the same companion NUMBER and GameCore object. The old
+                // near-diagonal smoothing cannot inherit the previous
+                // profile's full-body source facing even if a preview
+                // happened first.
+                Set(app,"drawingOutline",false);
+                g.companionAction=null;
+                g.companionMoving=true;
+                g.companionAim=new Point(0,-1);
+                g.companionMoveTime=GameCore.WalkStride*1.2f*.375f;
+                Set(app,"clock",400f+id*10f+direction);
+                Clear();var north=Draw(app,"DrawCompanionActor")
+                    .Single(ActorTexture);
+                Check(AtlasFrame(north,4,3)/4==1,
+                    "Companion starts its previous presentation facing north");
+                int previousGeneration=g.companionPresentationGeneration;
+                g.companionPresentationGeneration++;
+                g.companionAim=new Point(.72f,-.69f);
+                Set(app,"drawingOutline",true);
+                Clear();Draw(app,"DrawCompanionActor");
+                Check((int)fields[6].GetValue(app)==previousGeneration,
+                    "A preview cannot adopt the next saved-slot generation early");
+                Set(app,"drawingOutline",false);
+                Clear();var freshEast=Draw(app,"DrawCompanionActor")
+                    .Single(ActorTexture);
+                Check(AtlasFrame(freshEast,4,3)/4==0&&
+                    (int)fields[6].GetValue(app)==g.companionPresentationGeneration,
+                    "Newly selected identical-number companion must walk EAST from its own live facing, not inherit a previous near-diagonal NORTH whole-body sheet");
+                // The SAME owner may legitimately keep its east row as
+                // the aim wobbles across the 45-degree threshold.
+                g.companionAim=new Point(.69f,-.72f);
+                Clear();var stabilized=Draw(app,"DrawCompanionActor")
+                    .Single(ActorTexture);
+                Check(AtlasFrame(stabilized,4,3)/4==0,
+                    "Same-owner north/east wobble still uses authored source-facing hysteresis");
+                g.companionPresentationGeneration++;
+                Clear();var nextNorth=Draw(app,"DrawCompanionActor")
+                    .Single(ActorTexture);
+                Check(AtlasFrame(nextNorth,4,3)/4==1,
+                    "A NEW presentation generation must immediately choose its real north body, even on unchanged GameCore and party ID");
             }
             finally
             {
