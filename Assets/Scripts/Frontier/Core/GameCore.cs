@@ -920,6 +920,13 @@ namespace Starfall
             // damage window. Area slams and behind-the-back lunges cannot
             // be parried by an unrelated global defensive buff.
             if(TryParryRealMelee(source,incoming))return;
+            // A REAL hit interrupts the pending follow-up LMB, not just
+            // the visible body reaction. Otherwise a last-window Q/LMB tap
+            // can survive a full recoil and fire unexpectedly as the hero
+            // regains control. Successful parries, dodges, invulnerable
+            // contact and cosmetic zero-power warnings return above and
+            // correctly preserve the deliberate buffered input.
+            ClearBufferedAttack();
             float multiplier = save.difficulty == 0 ? .45f : save.difficulty == 2 ? 1.4f : 1;
             float armor = (guardTime > 0 ? .45f : 1) * (1 - save.talents[1] * .035f) * (InAbyss ? 1 - save.boons[2] * .12f : 1) * (Relic(5) ? 1.15f : 1);
             playerHitFacing=VisualFacing; playerHitWeapon=AppearanceWeapon;

@@ -4060,6 +4060,54 @@ namespace Starfall.Tests
         }
 
 
+        public static void DamageInterruptsLateAttackButSafeContactDoesNot(Campaign data)
+        {
+            var g=Quiet(data);g.enemies.Clear();
+            g.Skill(new Point(1,0));
+            Advance(g,.54f);
+            ActorAction cast=g.playerAction;
+            Check(cast!=null&&cast.kind=="skill"&&cast.released,
+                "A real completed Q contact remains live through recovery");
+            g.Attack(new Point(0,-1));
+            Check(g.AttackQueued&&g.playerAction==cast,
+                "Authentic late LMB has been accepted without spending attack energy");
+
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hurt!=null,"Production GameCore must own real incoming damage");
+            float before=g.save.health;
+            g.invulnerable=1f;
+            hurt.Invoke(g,new object[]{8f,"shot",null});
+            Check(g.AttackQueued&&Math.Abs(g.save.health-before)<.0001f,
+                "A successfully ignored arrow cannot cancel an unrelated genuine input buffer");
+            // A real hit starts its own single whole-body Hit state and
+            // must retire the previous Cast-to-LMB confirmation immediately.
+            g.invulnerable=0f;
+            hurt.Invoke(g,new object[]{8f,"environment",null});
+            Check(g.save.health<before&&g.playerHitTime>0f&&
+                !g.AttackQueued,
+                "Accepted damage must cancel buffered LMB before painting the hit/recoil body");
+            Advance(g,.9f);
+            Check(g.playerAction==null&&g.combo==0&&
+                !g.AttackQueued,
+                "A hit-interrupted queued attack must never reappear after stun and recovery");
+
+            var harmless=Quiet(data);harmless.enemies.Clear();
+            harmless.Skill(new Point(1,0));Advance(harmless,.54f);
+            harmless.Attack(new Point(0,-1));
+            Check(harmless.AttackQueued,
+                "Invalid incoming damage must be tested with one real accepted pending LMB");
+            hurt.Invoke(harmless,new object[]{0f,"shot",null});
+            hurt.Invoke(harmless,new object[]{-9f,"environment",null});
+            Check(harmless.AttackQueued,
+                "Cosmetic warnings and malformed damage must not silently discard an accepted buffered press");
+            Advance(harmless,.3f);
+            Check(harmless.playerAction!=null&&
+                harmless.playerAction.kind=="attack",
+                "After harmless contacts the original buffered Q-to-LMB executes once at its genuine post-Cast boundary");
+        }
+
         public static void LateAttackAfterSkillKeepsWholeBodyRecovery(Campaign data)
         {
             // The prior LMB path considered Cast recovery "unblocked" and
