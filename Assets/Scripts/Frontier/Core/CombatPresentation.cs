@@ -62,6 +62,11 @@ namespace Starfall
         // Renderers can display the accepted input without owning its clock
         // or creating a new serialized gameplay state.
         public bool DodgeQueued { get { return bufferedDodge != null; } }
+        // Snapshot the FIRST accepted defensive tap for world feedback.
+        // This is read-only; showing the marker cannot reset its 140ms
+        // deadline, change collision, or grant invulnerability.
+        public Point DodgeQueuedDirection
+        { get { return bufferedDodge==null?new Point():bufferedDodge.direction; } }
         // The HUD may offer a real input only in the same late cooldown
         // window as keyboard and gamepad. Never claim that the queue is
         // payable/valid when its GameCore action would reject the click.

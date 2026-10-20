@@ -582,8 +582,18 @@ namespace Starfall
             // Do not animate/swivel character limbs or invent a second dash.
             // Remains readable with reduced-motion accessibility enabled.
             if(!drawingOutline&&Game.DodgeQueued&&!Game.Dying)
+            {
                 Ring(Game.Position,.49f,
                     new Color(.48f,.78f,1f,.66f),16);
+                // A directional cyan marker names the actually committed
+                // escape lane, not any newer stick/key position. It is fixed
+                // under reduced motion and retires with the buffer, before
+                // the real dash begins animating.
+                Point dodgeHeading=Game.DodgeQueuedDirection;
+                if(dodgeHeading.Length>.05f)
+                    Ring(Game.Position+dodgeHeading.Normalized*.85f,.13f,
+                        new Color(.59f,.86f,1f,.82f),8);
+            }
             // A real Q-to-LMB (or LMB-to-LMB) buffered press deserves the
             // same immediate feedback as a queued dodge. Twelve fixed amber
             // points sit BELOW the one approved complete-body Sprite, never

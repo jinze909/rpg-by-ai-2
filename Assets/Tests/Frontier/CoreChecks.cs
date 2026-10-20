@@ -132,6 +132,8 @@ namespace Starfall.Tests
                 g.Dash(new Point(0,-1));
                 Check(g.DodgeQueued&&g.dashTime<=0&&g.save.energy==100f,
                     "Initial cooldown-bound dodge must remain an unpaid real intention");
+                Check((g.DodgeQueuedDirection-new Point(0,-1)).Length<.001f,
+                    "World cue exposes the genuine accepted escape lane before any stamina or immunity starts");
                 var pending=typeof(GameCore).GetField("bufferedDodge",
                     System.Reflection.BindingFlags.Instance|
                     System.Reflection.BindingFlags.NonPublic);
@@ -148,11 +150,15 @@ namespace Starfall.Tests
                 Check(System.Object.ReferenceEquals(first,pending.GetValue(g))&&
                     Math.Abs((float)lifetime.GetValue(first)-after)<.00001f,
                     "Repeated SPACE cannot refresh buffer expiry or replace the initial escape heading");
+                Check((g.DodgeQueuedDirection-new Point(0,-1)).Length<.001f,
+                    "Directional dodge preview may not rotate to a later held key or pointer aim");
                 for(int i=0;i<30&&g.dashTime<=0f;i++)
                     g.Tick(step,new Point());
                 Check(g.dashTime>0f&&!g.DodgeQueued&&
                     g.save.energy>=79.9f&&g.save.energy<=80.1f,
                     "Buffered dodge must eventually launch exactly once at true cooldown readiness");
+                Check(g.DodgeQueuedDirection.Length<.001f,
+                    "Dodge intent marker must retire as soon as the real movement begins");
                 Point heading=(Point)typeof(GameCore).GetField(
                     "dashDirection",System.Reflection.BindingFlags.NonPublic|
                     System.Reflection.BindingFlags.Instance).GetValue(g);
