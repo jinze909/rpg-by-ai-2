@@ -533,6 +533,36 @@ namespace Starfall
                 prior=end;
             }
         }
+        // Draw the exact circle still centered on the GameCore strike,
+        // but fade arcs behind LIVE occluding walls: area damage itself
+        // performs ClearAttackPath from the enemy to its actual victim.
+        // Keep blocked arcs faint instead of silently hiding the entire
+        // warning (including legitimate long-range/offscreen windups).
+        // No wall collision, target or source artwork is modified.
+        private void DrawCoverAwareEnemyAreaArc(Enemy enemy,float radius,
+            Color visible,int segments)
+        {
+            if(radius<=0f||segments<1)return;
+            Point center=enemy.target;
+            float step=(float)(Math.PI*2/segments);
+            Point prev=center+new Point(radius,0);
+            Color behindWall=new Color(.52f,.64f,.67f,visible.a*.30f);
+            for(int i=1;i<=segments;i++)
+            {
+                float angle=i*step;
+                Point next=center+new Point(
+                    (float)Math.Cos(angle)*radius,
+                    (float)Math.Sin(angle)*radius);
+                float midway=(i-.5f)*step;
+                Point sample=center+new Point(
+                    (float)Math.Cos(midway)*radius,
+                    (float)Math.Sin(midway)*radius);
+                DrawWarningStroke(ScreenPoint(prev),ScreenPoint(next),
+                    Game.EnemyAreaWarningSpokeReachable(enemy,sample)?
+                    visible:behindWall);
+                prev=next;
+            }
+        }
         private void DrawTelegraph(Enemy enemy)
         {
             float radius = GameCore.EnemyAreaRadius(enemy);
@@ -543,8 +573,8 @@ namespace Starfall
                 DrawWarningStroke(ScreenPoint(enemy.Position),
                     ScreenPoint(enemy.target),
                     new Color(warning.r,warning.g,warning.b,.18f+progress*.15f));
-            DrawWarningArc(enemy.target,radius,0f,
-                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,.85f),36);
+            DrawCoverAwareEnemyAreaArc(enemy,radius,
+                new Color(warning.r,warning.g,warning.b,.85f),36);
             // The large safety outline remains visible to everybody.
             // The concentric INNER ring formerly expanded for every
             // GameCore tick even in Reduced Motion. Hold a fixed 90%-radius
@@ -554,9 +584,8 @@ namespace Starfall
                 radius*.90f:radius*(.2f+progress*.8f);
             float innerAlpha=Game.save.reducedMotion?
                 .56f:.35f+progress*.35f;
-            DrawWarningArc(enemy.target,innerRadius,0f,
-                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,
-                innerAlpha),24);
+            DrawCoverAwareEnemyAreaArc(enemy,innerRadius,
+                new Color(warning.r,warning.g,warning.b,innerAlpha),24);
             // Old renderer scaled one 32px Effects cell to the COMPLETE
             // attack radius (sometimes 200+ screen pixels), smearing its
             // pixels across scenery and burying the original terrain.

@@ -3763,6 +3763,69 @@ public static class RenderStateChecks
     // This is called from the executable RuntimeCombatInputChecks runner,
     // not merely the offline visual review gallery. It uses the ACTUAL
     // GameCore windup owner and formally rendered warning path.
+    public static void VerifyEnemyAreaWarningHonorsRealWallCover(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        var boss=new Enemy(91311,2,g.Position.x,g.Position.y,400f,true)
+        {
+            state=1,timer=.4f,windupDuration=1.1f,
+            target=g.Position
+        };
+        int row=(int)g.Position.y;
+        string original=g.Map.rows[row];
+        var oldMatrix=GUI.matrix;
+        var oldColor=GUI.color;
+        try
+        {
+            // A single solid wall divides east and west contact spokes
+            // without burying the caster's real feet.
+            char[] closed=original.ToCharArray();
+            closed[(int)g.Position.x+2]='#';
+            g.Map.rows[row]=new string(closed);
+            float radius=GameCore.EnemyAreaRadius(boss);
+            Point east=boss.target+new Point(radius,0f);
+            Point west=boss.target+new Point(-radius,0f);
+            Check(!g.EnemyAreaWarningSpokeReachable(boss,east)&&
+                g.EnemyAreaWarningSpokeReachable(boss,west),
+                "Test must establish a physically blocked east lane and clear west area contact");
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            var sideEast=(Point)Call(app,"ScreenPoint",east);
+            var sideWest=(Point)Call(app,"ScreenPoint",west);
+            Func<Point,GUI.TextureCall> closest=point=>
+                GUI.textureCalls.Where(c=>c.texture==Texture2D.whiteTexture)
+                .OrderBy(c=>Math.Pow(Center(c).x-point.x,2)+
+                    Math.Pow(Center(c).y-point.y,2)).First();
+            var covered=closest(sideEast);
+            var exposed=closest(sideWest);
+            Check(covered.color.r<.60f&&
+                exposed.color.r>.8f&&
+                covered.color.a<exposed.color.a*.55f,
+                "Production Boss warning still paints through stone with full danger-red");
+            Check(GUI.textureCalls.Any(c=>c.texture!=null&&
+                c.texture.name=="resource:Frontier/Art/CastSigils"),
+                "Live cover must not delete the original authored Boss cast sigil");
+            g.Map.rows[row]=original;
+            Check(g.EnemyAreaWarningSpokeReachable(boss,east),
+                "Opening the real wall must restore an actually reachable Boss area spoke");
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            covered=closest(sideEast);
+            Check(covered.color.r>.8f&&covered.color.a>.7f,
+                "Opened Boss danger sector failed to return to full actual damage red");
+            g.save.reducedMotion=true;
+            Clear();Call(app,"DrawEnemyWarning",boss);
+            Check(closest(sideEast).color.r>.8f,
+                "Reduced Motion erased rather than stabilized live reachable danger boundary");
+            Console.WriteLine("PASS real Boss radial warning dims wall-blocked contact sectors and restores them instantly; source-painted cast, native world root and reduced motion retained");
+        }
+        finally
+        {
+            g.Map.rows[row]=original;
+            GUI.matrix=oldMatrix;GUI.color=oldColor;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyCastSigilSourceAndCombatWarning(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);

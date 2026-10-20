@@ -209,6 +209,20 @@ namespace Starfall
                 (point-effect.position).Length<=effect.radius+.0001f&&
                 ClearAttackPath(effect.position,point);
         }
+        // The ACTUAL enemy radial contact checks ClearAttackPath from its
+        // feet to the victim, not from the decorative target circle. A
+        // static full red ring through wall cover falsely signals damage.
+        // Read-only live-cover query for the production windup renderer.
+        public bool EnemyAreaWarningSpokeReachable(Enemy enemy,Point point)
+        {
+            return enemy!=null&&enemy.state==1&&enemy.hp>0f&&
+                (enemy.boss||enemy.kind==2)&&
+                Finite(enemy.x)&&Finite(enemy.y)&&
+                Finite(enemy.target.x)&&Finite(enemy.target.y)&&
+                Finite(point.x)&&Finite(point.y)&&
+                (point-enemy.target).Length<=EnemyAreaRadius(enemy)+.0001f&&
+                ClearAttackPath(enemy.Position,point);
+        }
         // A single late basic-attack press may carry through the tail of a
         // released LMB or Q. The intent never replaces a still-visible
         // Attack/Cast body, is never saved, and spends nothing until accepted.
