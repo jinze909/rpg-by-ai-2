@@ -1992,6 +1992,19 @@ public static class ActorRegistrationChecks
         try
         {
             g.save.reducedMotion=false;g.save.effectsQuality=2;
+            // Reproduce native GPU-only imports in the OFFLINE renderer.
+            // The same source Sprite still paints a full-resolution body
+            // but cannot furnish CPU alpha pixels for a new mask.
+            var unreadable=new Texture2D(32,32,TextureFormat.RGBA32,
+                false){name="never-readable-unpublished-npc"};
+            unreadable.isReadable=false;
+            var isolatedMasks=new PixelArt();
+            try
+            {
+                Check(isolatedMasks.OutlineMask(unreadable)==null,
+                    "A GPU-only Sprite without a published outline must decline CPU GetPixels cleanly");
+            }
+            finally{isolatedMasks.Dispose();}
             foreach(string kind in new[]{"guild","forge"})
             {
                 var npc=new WorldObject{id="outline-speech-"+kind,
@@ -2010,8 +2023,12 @@ public static class ActorRegistrationChecks
                     {
                         Set(app,"clock",1170f+
                             (kind=="guild"?0f:5f)+pass*.35f);
-                        Clear();Draw(app,"DrawNpc",kind,
+                        Clear();
+                        var preview=Draw(app,"DrawNpc",kind,
                             new Point(npc.x,npc.y),-1);
+                        Check(preview.Any(t=>t.rect.width==96f&&
+                            t.rect.height==96f&&t.color.a>0f),
+                            "A real original whole-body resident remains legible during GPU-only outline selection instead of disappearing or crashing");
                     }
                     Check(System.Object.ReferenceEquals(
                         conversationField.GetValue(app),initialConversation)&&
