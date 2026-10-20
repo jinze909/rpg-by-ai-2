@@ -2640,6 +2640,43 @@ namespace Starfall.Tests
                     !g.projectiles.Contains(piercingNearWall),
                     "Piercing arrow must hit both real front-side bodies once, in physical entry order, before wall contact");
 
+                // Enemy projectiles share the same cover-first weakness.
+                // A live shot already overlapping the hero's near-side
+                // hurt circle must not fizzle without damage merely because
+                // its NEXT leading-edge sample touches the wall.
+                g.effects.Clear();g.projectiles.Clear();g.enemies.Clear();
+                g.save.x=7.55f;g.save.y=8.5f;
+                g.save.health=g.save.maxHealth;g.invulnerable=0f;
+                g.save.reducedMotion=true;
+                var wallSideArrow=new Projectile{
+                    position=new Point(7.82f,8.5f),
+                    velocity=new Point(10f,0),life=1f,damage=12f,
+                    friendly=false,visual="enemyArrow",source="shot"};
+                Check(g.CanStand(g.Position)&&
+                    (g.Position-wallSideArrow.position).Length<.38f,
+                    "Hostile cover-edge regression starts on a legal hero root inside the real arrow contact circle");
+                float beforeHealth=g.save.health;
+                g.projectiles.Add(wallSideArrow);g.Tick(.05f,new Point());
+                Check(g.save.health<beforeHealth&&
+                    !g.projectiles.Contains(wallSideArrow)&&
+                    g.effects.Exists(e=>e.kind=="projectileImpact"&&
+                        e.position.x<8f),
+                    "Enemy arrow must deal one real near-side contact before cover consumes its projectile");
+
+                // A second enemy shot cannot punch through that same wall.
+                g.effects.Clear();g.projectiles.Clear();
+                g.save.x=9.5f;g.save.y=8.5f;
+                g.invulnerable=0f;g.playerHitTime=0f;
+                var hiddenHeroShot=new Projectile{
+                    position=new Point(7.82f,8.5f),
+                    velocity=new Point(10f,0),life=1f,damage=12f,
+                    friendly=false,visual="enemyArrow",source="shot"};
+                float shelteredHealth=g.save.health;
+                g.projectiles.Add(hiddenHeroShot);g.Tick(.05f,new Point());
+                Check(g.save.health==shelteredHealth&&
+                    !g.projectiles.Contains(hiddenHeroShot),
+                    "Shared hostile near-wall resolver still stops enemy arrows at cover instead of damaging a hidden hero");
+
                 // Simulate a tide/arena wall sealing around a bolt AFTER
                 // its valid muzzle launch. Its stored blockedAtSpawn flag
                 // remains false, but the CURRENT source tile is solid.

@@ -1372,6 +1372,42 @@ namespace Starfall
                         civicConduitOwned = p.civicConduitOwned,
                         afterlightWatchOwned = p.afterlightWatchOwned });
         }
+        // Share exact hero/escort first-contact and deflection rules across
+        // normal flight samples and a shot's final legal sample before cover.
+        // The returned body hit consumes the hostile shot unless a sword
+        // guard genuinely reflected it. All damage remains in GameCore.
+        private bool TryHostileProjectileBodyContact(Projectile p,
+            out bool civilianHit, out bool reflected)
+        {
+            civilianHit=false;reflected=false;
+            bool heroContact=(Position-p.position).Length<.38f;
+            bool civilianContact=p.reliefMissionOwned &&
+                reliefMissionRoom==save.room &&
+                reliefMissionWave>=1 && reliefMissionWave<=3 &&
+                (p.position-reliefFollowerPosition).Length<.45f;
+            bool civilianFirst=civilianContact&&(!heroContact||
+                ProjectileCircleEntry(p.position,p.velocity,
+                    reliefFollowerPosition,.45f)+.00001f <
+                ProjectileCircleEntry(p.position,p.velocity,Position,.38f));
+            if(civilianFirst)
+            {
+                DamageReliefCivilianArrow(p);
+                civilianHit=true;
+                return true;
+            }
+            if(!heroContact)return false;
+            if(civilianContact)
+            {
+                effects.Add(new Effect("number",Position,.7f,
+                    L("护卫拦截","INTERCEPT")){reliefMissionOwned=true});
+                effects.Add(new Effect("discover",
+                    reliefFollowerPosition,.35f){reliefMissionOwned=true});
+            }
+            reflected=TryDeflectHostileProjectile(p);
+            if(!reflected)
+                Hurt(p.damage,p.source??"shot",p.velocity.Normalized);
+            return true;
+        }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -1466,6 +1502,21 @@ namespace Starfall
                                 break;
                             }
                         }
+                        // Hostile shots can likewise overlap a real hero
+                        // or escorted civilian BEFORE their leading edge
+                        // reaches wall cover. Use the same shared body priority
+                        // and sword-reflection transaction as ordinary flight.
+                        if(!p.friendly&&!startedBlocked)
+                        {
+                            bool civilianAtWall,reflectedAtWall;
+                            if(TryHostileProjectileBodyContact(p,
+                                out civilianAtWall,out reflectedAtWall))
+                            {
+                                civilianImpactProduced=civilianAtWall;
+                                if(reflectedAtWall)dead=false;
+                                break;
+                            }
+                        }
                         // A projectile already buried at the START of this frame
                         // (including a gate/tide that sealed around an
                         // in-flight bolt) cannot mint a free area blast.
@@ -1557,50 +1608,12 @@ namespace Starfall
                     }
                     else
                     {
-                        bool heroContact=(Position-p.position).Length<.38f;
-                        bool civilianContact=p.reliefMissionOwned &&
-                            reliefMissionRoom==save.room &&
-                            reliefMissionWave>=1 && reliefMissionWave<=3 &&
-                            (p.position-reliefFollowerPosition).Length<.45f;
-                        // When the hero and escort occupy overlapping
-                        // hit circles, the old "hero first" if/else let the
-                        // hero absorb a shot that physically met the escort
-                        // first. Sort by front-circle intersection, while
-                        // preserving the player's real interception and
-                        // existing reflection when the hero is closer.
-                        bool civilianFirst=civilianContact&&(!heroContact||
-                            ProjectileCircleEntry(p.position,p.velocity,
-                                reliefFollowerPosition,.45f)+.00001f <
-                            ProjectileCircleEntry(p.position,p.velocity,
-                                Position,.38f));
-                        if(civilianFirst)
+                        bool struckCivilian,reflected;
+                        if(TryHostileProjectileBodyContact(p,
+                            out struckCivilian,out reflected))
                         {
-                            DamageReliefCivilianArrow(p);
-                            civilianImpactProduced = true;
-                            dead=true;
-                        }
-                        else if(heroContact)
-                        {
-                            // The melee intercept already shows a readable
-                            // protective cue. Give a real body-blocked OR
-                            // shield-reflected escort arrow the same feedback,
-                            // but only if it was physically en route to the
-                            // civilian. Never award an intercept for a stray
-                            // arrow, or when the survivor was hit first.
-                            if(civilianContact)
-                            {
-                                effects.Add(new Effect("number",Position,.7f,
-                                    L("护卫拦截","INTERCEPT")){
-                                        reliefMissionOwned=true});
-                                effects.Add(new Effect("discover",
-                                    reliefFollowerPosition,.35f){
-                                        reliefMissionOwned=true});
-                            }
-                            // Reflection keeps the same swept projectile;
-                            // a real frontal interception still wins.
-                            if(TryDeflectHostileProjectile(p))break;
-                            Hurt(p.damage,p.source??"shot",
-                                p.velocity.Normalized);
+                            civilianImpactProduced=struckCivilian;
+                            if(reflected)break; // keep the REAL reflected shot
                             dead=true;
                         }
                     }
