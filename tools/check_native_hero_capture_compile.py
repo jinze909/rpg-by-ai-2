@@ -51,6 +51,19 @@ def prepare_actual_contact_gate():
         "private bool heroGaitWasMoving,heroStopPlantActive;\n"
         "private int heroStopPlantFrame;\n"
         "private float heroStopPlantUntil=float.NegativeInfinity;\n"
+        # Mirror ONLY state shapes, and compile the REAL extracted
+        # ApplyHeroContactSettle/ApplyHeroStopPlant logic unmodified.
+        # Original art, GameCore damage clock and real native renderer
+        # remain the authority in their respective build checks.
+        "private const float HeroContactSettleSeconds=.07f;\n"
+        "private GameCore heroContactSettleOwner;\n"
+        "private NativeProbeSave heroContactSettleSave;\n"
+        "private ActorAction heroContactSettleAction;\n"
+        "private int heroContactSettleRoom,heroContactSettleEquipment,\n"
+        "    heroContactSettleFacing,heroContactSettleBody,\n"
+        "    heroContactSettleFrames,heroContactSettleCell;\n"
+        "private Point heroContactSettleFoot;\n"
+        "private float heroContactSettleAt=float.NegativeInfinity;\n"
         "private bool heroContactFamilyChecked;\n"
         "private bool heroContactFamilyComplete;\n"
         "private float heroContactLastCheckedAt=float.NegativeInfinity;\n"

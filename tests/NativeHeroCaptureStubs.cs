@@ -370,8 +370,15 @@ namespace Starfall
         public int room;
         public bool reducedMotion;
     }
+    public sealed class ActorAction
+    {
+        public bool released;
+    }
     public class GameCore
     {
+        public ActorAction playerAction;
+        public bool Dying;
+        public int PlayerPose;
         public int AppearanceWeapon;
         public string mode="world";
         public NativeProbeSave save=new NativeProbeSave();
