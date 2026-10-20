@@ -3724,16 +3724,126 @@ public static class ActorRegistrationChecks
         }
     }
 
+
+    // Cover silhouettes and OnGUI previews run the same DRAW function as
+    // the physical published companion Sprite. They are observations, not
+    // another tick. Repeated preview passes must leave every transition
+    // field untouched even as a walk stops or an attack begins.
+    static void CompanionOutlinePassCannotConsumeGaitOrAttack(FrontierRuntime app)
+    {
+        string[] names={"Mira","Ivo","Sen"};
+        var flags=BindingFlags.Instance|BindingFlags.NonPublic;
+        string[] stateNames={"companionLastWalkFrame",
+            "companionLastWalkFacing","companionWasWalking",
+            "companionStopTime","companionTrackedAction",
+            "companionAttackStartedFromWalk","companionVisualGeneration"};
+        var fields=stateNames.Select(n=>
+            typeof(FrontierRuntime).GetField(n,flags)).ToArray();
+        Check(fields.All(f=>f!=null),
+            "Production companion animation has instance-owned gait/action state");
+        foreach(int id in new[]{0,1,2})
+        foreach(int direction in new[]{0,1,2,3})
+        {
+            app.BeginVisualReview(0,0);
+            var g=app.Game;
+            g.save.companion=id;
+            g.save.effectsQuality=2;
+            g.save.reducedMotion=false;
+            g.companionAim=Directions[direction];
+            g.companionAction=null;
+            g.companionMoving=true;
+            g.companionMoveTime=GameCore.WalkStride*1.2f*.375f;
+            g.companionPresentationGeneration++;
+            Set(app,"clock",304f+id*16f+direction);
+            try
+            {
+                Set(app,"drawingOutline",false);
+                Clear();
+                var walking=Draw(app,"DrawCompanionActor")
+                    .Single(ActorTexture);
+                Check(AtlasFrame(walking,4,3)%4==1&&
+                    walking.texture.name.EndsWith("/Walk"+names[id]),
+                    "Real companion starts on its original airborne whole-body walk key");
+                var initial=fields.Select(f=>f.GetValue(app)).ToArray();
+                Check((bool)initial[2],
+                    "A real moving paint records the pending foot plant");
+                // Outline arrives on a newer movement sample, and then on
+                // a stopped foot. It must not consume either transition.
+                Set(app,"drawingOutline",true);
+                g.companionMoveTime=GameCore.WalkStride*1.2f*.625f;
+                for(int repeat=0;repeat<3;repeat++)
+                {Clear();Draw(app,"DrawCompanionActor");}
+                g.companionMoving=false;
+                for(int repeat=0;repeat<3;repeat++)
+                {Clear();Draw(app,"DrawCompanionActor");}
+                for(int i=0;i<fields.Length;i++)
+                    Check(Object.Equals(initial[i],fields[i].GetValue(app)),
+                        "Outline mutated live "+stateNames[i]+
+                        " for companion "+names[id]+" facing "+direction);
+                Set(app,"drawingOutline",false);
+                Clear();
+                var stopping=Draw(app,"DrawCompanionActor")
+                    .Single(ActorTexture);
+                Check(stopping.texture.name.EndsWith("/Walk"+names[id])&&
+                    AtlasFrame(stopping,4,3)%4==2&&
+                    !(bool)fields[2].GetValue(app),
+                    "The FIRST real stop paint must land the source foot 1->2 even after six outline previews");
+                // A new walk ends directly in a real command windup.
+                g.companionMoving=true;
+                g.companionAction=null;
+                g.companionMoveTime=GameCore.WalkStride*1.2f*.375f;
+                Clear();Draw(app,"DrawCompanionActor");
+                Check((bool)fields[2].GetValue(app),
+                    "Subsequent actual walking restores the real walk-to-cast transition");
+                var command=new ActorAction{
+                    direction=Directions[direction],kind="command",
+                    elapsed=.025f,contact=.18f,duration=.50f
+                };
+                g.companionMoving=false;
+                g.companionAction=command;
+                initial=fields.Select(f=>f.GetValue(app)).ToArray();
+                Set(app,"drawingOutline",true);
+                for(int repeat=0;repeat<4;repeat++)
+                {Clear();Draw(app,"DrawCompanionActor");}
+                for(int i=0;i<fields.Length;i++)
+                    Check(Object.Equals(initial[i],fields[i].GetValue(app)),
+                        "Outline swallowed the original walk-to-cast "+stateNames[i]);
+                Set(app,"drawingOutline",false);
+                Clear();var casting=Draw(app,"DrawCompanionActor");
+                Check((bool)fields[5].GetValue(app)&&
+                    Object.ReferenceEquals(fields[4].GetValue(app),command)&&
+                    casting.Count(ActorTexture)==1&&
+                    casting.Single(ActorTexture).texture.name.EndsWith(
+                        "/Companion"+names[id]),
+                    "The next actual combat draw starts ONE approved action body from walking, not an outline-modified idle or ghost silhouette");
+                command.released=true;
+                initial=fields.Select(f=>f.GetValue(app)).ToArray();
+                Set(app,"drawingOutline",true);
+                Clear();Draw(app,"DrawCompanionActor");
+                for(int i=0;i<fields.Length;i++)
+                    Check(Object.Equals(initial[i],fields[i].GetValue(app)),
+                        "Post-contact cover outline reset a real companion action");
+            }
+            finally
+            {
+                Set(app,"drawingOutline",false);
+                app.EndVisualReview();Clear();
+            }
+        }
+        Console.WriteLine(
+            "PASS all 3 companions x 4 source facings: repeated walk/stop/cast outlines are read-only, planted full bodies and single action identities survive");
+    }
+
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
-        try { CompanionGaitActuallyPlantsBothFeet(app); }
+        try { CompanionGaitActuallyPlantsBothFeet(app); CompanionOutlinePassCannotConsumeGaitOrAttack(app); }
         finally { app.EndVisualReview(); Clear(); }
     }
     public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { FullBodyHeroProductionFrames(app); ProductionLoadoutUsesFullBodyHero(app); }
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);CompanionOutlinePassCannotConsumeGaitOrAttack(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
