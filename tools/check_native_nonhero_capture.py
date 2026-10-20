@@ -109,7 +109,7 @@ def main():
     # The original 4x4 Npcs atlas is the sole approved base body for normal
     # residents and the rescue civilian; never sample a partial non-null grid.
     assert "internal static bool IsAcceptedNpcAtlas(Texture2D sheet)" in geometry
-    assert "return sheet != null && sheet.width == 512 && sheet.height == 512;" in geometry
+    assert "return HasSquareGrid(sheet, 4, 4);" in geometry
     assert actor.count("ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)") == 1, (
         "NPC_PRODUCTION_ATLAS_GEOMETRY_GATE_MISSING")
     expansion = (RUNTIME / "FrontierExpansionUI.cs").read_text(encoding="utf-8")
@@ -117,11 +117,11 @@ def main():
         "RESCUE_CIVILIAN_ATLAS_GEOMETRY_GATE_MISSING")
     # Live and lethal transitions must share strict accepted source geometry.
     assert "internal static bool IsAcceptedWalkMonstersAtlas(Texture2D sheet)" in geometry
-    assert "return sheet != null && sheet.width == 768 && sheet.height == 576;" in geometry
+    assert "return HasSquareGrid(sheet, 4, 3);" in geometry
     assert "internal static bool IsAcceptedRegionalBossWalkAtlas(Texture2D sheet)" in geometry
-    assert "return sheet != null && sheet.width == 1536 && sheet.height == 1536;" in geometry
+    assert "return HasSquareGrid(sheet, 4, 4);" in geometry
     assert "internal static bool IsAcceptedVerticalArcherAtlas(Texture2D sheet)" in geometry
-    assert "return sheet != null && sheet.width == 576 && sheet.height == 384;" in geometry
+    assert "return HasSquareGrid(sheet, 3, 2);" in geometry
     assert "IsAcceptedRegionalBossWalkAtlas(bossWalkSheets[atlasIndex])" in actor
     assert actor.count("HasAcceptedRegionalBossWalkAtlas(walkAtlas)") == 2, (
         "BOSS_LIVE_AND_DEATH_WALK_GEOMETRY_GATE_MISSING")

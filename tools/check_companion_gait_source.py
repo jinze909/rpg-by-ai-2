@@ -81,7 +81,7 @@ def main():
     runtime = RUNTIME.read_text(encoding="utf-8")
     geometry = GEOMETRY.read_text(encoding="utf-8")
     assert "internal static bool IsAcceptedCompanionAtlas(Texture2D sheet)" in geometry
-    assert "return sheet != null && sheet.width == 768 && sheet.height == 1024;" in geometry
+    assert "return HasSquareGrid(sheet, 3, 4);" in geometry
     null_fallback = runtime.index(
         'if (companionSheets == null || id < 0 || id >= companionSheets.Length || companionSheets[id] == null)')
     geometry_gate = runtime.index(
