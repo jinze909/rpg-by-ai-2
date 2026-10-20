@@ -4182,6 +4182,56 @@ namespace Starfall.Tests
                 "Canceled queued attack does not reappear after dodge recovery");
         }
 
+        public static void RepeatedLateLmbCannotReplaceCommittedDirectionOrDeadline(Campaign data)
+        {
+            foreach(float step in new[]{.01f,.02f,.05f})
+            {
+                var g=Quiet(data);g.enemies.Clear();
+                g.Attack(new Point(1f,0f));
+                ActorAction previous=g.playerAction;
+                while(previous.elapsed<previous.duration-.10f&&
+                      g.playerAction==previous)
+                    g.Tick(step,new Point());
+                Check(previous.released&&g.playerAction==previous,
+                    "Repeated LMB fixture requires real released attack recovery");
+                g.Attack(new Point(0f,-1f));
+                Check(g.AttackQueued&&g.playerAction==previous,
+                    "Original LMB must create a single deferred attack");
+                var pending=typeof(GameCore).GetField("bufferedAttack",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(pending!=null,"Real private buffered LMB intent must exist");
+                object intent=pending.GetValue(g);
+                var remaining=intent.GetType().GetField("remaining");
+                float initial=(float)remaining.GetValue(intent);
+                g.Tick(step,new Point());
+                float elapsed=(float)remaining.GetValue(intent);
+                Check(elapsed<initial&&elapsed>0f,
+                    "Actual Tick must consume, not reset, first tap lifetime");
+                // Changing both cursor and subsequent button direction
+                // cannot rotate the already committed source action.
+                g.SetAim(new Point(1f,0f));
+                g.SetAimTarget(new Point(33f,17f));
+                g.Attack(new Point(0f,1f));
+                Check(Object.ReferenceEquals(intent,pending.GetValue(g))&&
+                    Math.Abs((float)remaining.GetValue(intent)-elapsed)<.00001f,
+                    "Repeated held LMB must not replace intent or extend original 160ms deadline");
+                ActorAction next=null;
+                for(int i=0;i<70;i++)
+                {
+                    g.Tick(step,new Point());
+                    if(g.playerAction!=previous)
+                    {next=g.playerAction;break;}
+                }
+                Check(next!=null&&next.kind=="attack"&&
+                    next.direction.y<-.99f&&next.direction.x<.01f,
+                    "One physical follow-up must keep FIRST pressed LMB direction regardless of repeated later taps");
+                Advance(g,.9f);
+                Check(g.playerAction==null&&g.combo==1,
+                    "Repeated late taps must dispatch exactly one following hit, never a third ghost swing");
+            }
+        }
+
         public static void LateBasicAttacksBufferOnceAndRespectCombatProfiles(Campaign data)
         {
             foreach (float step in new[] { .01f, .02f, .03f, .05f })

@@ -120,6 +120,11 @@ namespace Starfall
                 (action.kind != "attack" && action.kind != "skill") ||
                 !action.released || playerHitTime > 0 ||
                 dashTime > 0 || bufferedSkill != null) return;
+            // A held or repeatedly tapped LMB must not re-open its old
+            // 160ms deadline, steal the first press's direction/target or
+            // queue a second hit. Only explicit Q / Dash / profile changes
+            // may supersede this committed pending action.
+            if (bufferedAttack != null) return;
             float untilReady = Math.Max(attackCooldown, Math.Max(0, action.duration - action.elapsed));
             if (untilReady > AttackBufferWindow + .00001f) return;
             Point facing = direction.Length > .05f ? direction.Normalized : aim;

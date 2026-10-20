@@ -101,6 +101,7 @@ namespace Starfall.Tests
         [Test] public void RootsongRequiresActualTimedForestTones() { CoreChecks.ThornwoodRootsongUsesPhysicalTimingAndPersistentHarmony(Data()); }
         [Test] public void StyleChangesRestartAttackChains() { CoreChecks.StyleChangesRestartCombosButRepeatedStylesPreserveAttacks(Data()); }
         [Test] public void LateAttackBufferHonorsStyleAndWeaponChanges() { CoreChecks.LateBasicAttacksBufferOnceAndRespectCombatProfiles(Data()); }
+        [Test] public void RepeatedBufferedLmbDoesNotRetargetOrExtendItsDeadline() { CoreChecks.RepeatedLateLmbCannotReplaceCommittedDirectionOrDeadline(Data()); }
         [Test] public void BufferedLmbFollowsRealSkillRecoveryWithoutCuttingCast() { CoreChecks.LateAttackAfterSkillKeepsWholeBodyRecovery(Data()); }
         [Test] public void TrueHeroDamageCancelsQueuedFollowupButIgnoredHitsDoNot() { CoreChecks.DamageInterruptsLateAttackButSafeContactDoesNot(Data()); }
         [Test] public void RealDamageInterruptsUnspentDodgeWithoutCreatingGhostMobility() { CoreChecks.RealIncomingHitRetiresUnspentDodgeAndLeavesSafeInput(Data()); }
