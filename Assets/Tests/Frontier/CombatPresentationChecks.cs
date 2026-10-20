@@ -1221,13 +1221,13 @@ namespace Starfall.Tests
                     g.Blocked(9.5f,10.5f),
                     "Real side stone occupies an upward archer's bow hand, not the legal hero or archer feet");
                 g.Tick(.02f,new Point());
-                Check(archer.state==1,
-                    "An ordinary enemy archer can begin a real target-locked windup despite a side-wall muzzle");
-                Advance(g,.70f);
-                Check(archer.state==0&&archer.timer<=.23f&&
-                    g.projectiles.Count==0&&
-                    !g.effects.Exists(f=>f.kind=="enemyRelease"),
-                    "A physical bow embedded in stone cannot spawn phantom hostile arrows, claim a release cue, or consume normal attack recovery");
+                // With actual swept-missile availability checked BEFORE
+                // attacking, a buried bow hand must not claim a locked
+                // warning or start a 650ms cast it cannot finish.
+                Check(archer.state==0&&g.projectiles.Count==0&&
+                    !g.effects.Exists(f=>f.kind=="enemyRelease")&&
+                    !g.effects.Exists(f=>f.kind=="danger"),
+                    "Physically buried enemy bow must not commit an impossible warning or phantom release");
                 char[] open=rows[10].ToCharArray();
                 open[9]='.';rows[10]=new string(open);
                 Advance(g,.25f);
