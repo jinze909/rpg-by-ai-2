@@ -650,8 +650,23 @@ namespace Starfall
                 // inventing a spell release, or obscuring the full-body hero.
                 float areaReach=Game.SkillQueuedAreaReach;
                 if(areaReach>0f)
-                    Ring(Game.Position,areaReach,
-                        new Color(.70f,.56f,1f,.25f),32);
+                {
+                    // Trace only the actual unobstructed contact spokes.
+                    // Do not paint violet damage-range dots through walls:
+                    // the authoritative burst checks ClearAttackPath too.
+                    Color reachTint=new Color(.70f,.56f,1f,.25f);
+                    for(int i=0;i<32;i++)
+                    {
+                        double radians=i*Math.PI*2/32;
+                        Point contact=Game.Position+new Point(
+                            (float)Math.Cos(radians)*areaReach,
+                            (float)Math.Sin(radians)*areaReach);
+                        if(!Game.SkillQueuedAreaContactVisible(contact))
+                            continue;
+                        Point mark=ScreenPoint(contact);
+                        Box(mark.x-2,mark.y-2,4,4,reachTint);
+                    }
+                }
             }
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline)

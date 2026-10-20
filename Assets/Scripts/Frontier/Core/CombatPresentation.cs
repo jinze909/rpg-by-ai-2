@@ -65,9 +65,22 @@ namespace Starfall
                 SkillIntent intent=bufferedSkill;
                 if(intent==null||intent.technique!=0||intent.profession==1||
                     intent.profession!=save.profession||
-                    intent.technique!=save.technique)return 0f;
+                    intent.weapon!=save.weapon||intent.style!=Style||
+                    intent.technique!=save.technique||
+                    !CanStand(Position))return 0f;
                 return intent.profession==2?4.5f:3.1f;
             }
+        }
+        // Damage for the standard area Q uses ClearAttackPath at contact.
+        // A full purple ring through a closed gate promises hits this Q
+        // cannot make. Evaluate exactly that same terrain occlusion for
+        // transient world-space preview points, without spending or ticking.
+        public bool SkillQueuedAreaContactVisible(Point point)
+        {
+            float radius=SkillQueuedAreaReach;
+            return radius>0f&&Finite(point.x)&&Finite(point.y)&&
+                (point-Position).Length<=radius+.0001f&&
+                ClearAttackPath(Position,point);
         }
         // A single late basic-attack press may carry through the tail of a
         // released LMB or Q. The intent never replaces a still-visible

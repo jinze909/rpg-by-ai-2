@@ -2205,6 +2205,52 @@ namespace Starfall.Tests
                 dispatched.playerAction.kind=="skill",
                 "The area preview disappears at the authoritative cast action, not the later contact damage");
         }
+        public static void QueuedAreaPreviewRespectsRealCover(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[22];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('.',22).ToCharArray();
+                    for(int x=0;x<22;x++)
+                        if(x<2||x>=20||y<2||y>=20||x==11)
+                            tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,rows=rows,spawnX=8f,spawnY=10.5f,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,2);g.enemies.Clear();
+                g.save.x=8f;g.save.y=10.5f;
+                g.Attack(new Point(1,0));g.Skill(new Point(1,0));
+                Check(g.SkillQueued&&
+                    Math.Abs(g.SkillQueuedAreaReach-4.5f)<.001f,
+                    "Actual Arcanist Q stores its 4.5-tile reach near a sealed wall");
+                Point open=new Point(6f,10.5f);
+                Point occluded=new Point(12f,10.5f);
+                Check(g.SkillQueuedAreaContactVisible(open)&&
+                    !g.SkillQueuedAreaContactVisible(occluded),
+                    "Queued Q contact map must match actual ClearAttackPath: near-side damage exists, far-side damage does not");
+                // A moving tide/gate may reopen without requiring a second
+                // Q press. Its displayed reach must immediately reflect
+                // the changed physical lane and retain the same input clock.
+                for(int y=7;y<=14;y++)
+                {
+                    char[] wall=rows[y].ToCharArray();wall[11]='.';
+                    rows[y]=new string(wall);
+                }
+                Check(g.SkillQueuedAreaContactVisible(occluded)&&
+                    g.SkillQueuedAreaContactVisible(open),
+                    "Opening real terrain updates Q preview without replacing the committed skill intent");
+                g.save.x=11.5f;
+                Check(g.SkillQueuedAreaReach==0f&&
+                    !g.SkillQueuedAreaContactVisible(open),
+                    "A hero sealed into solid terrain cannot claim an area cast with a false damage outline");
+            }
+            finally{data.maps[0]=original;}
+        }
         public static void BufferedSkillsHaveBoundedLifetimeAndResourceChecks(Campaign data)
         {
             var early=Quiet(data,2);early.Attack(new Point(1,0));early.Skill(new Point(0,-1));Advance(early,1);
