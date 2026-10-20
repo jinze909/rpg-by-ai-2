@@ -432,9 +432,9 @@ namespace Starfall
                         // dot through a gate that the skill cannot damage.
                         for(int i=0;i<32;i++)
                         {
-                            double angle=i*Math.PI*2/32;
-                            Point unit=new Point((float)Math.Cos(angle),
-                                (float)Math.Sin(angle));
+                            double spokeRadians=i*Math.PI*2/32;
+                            Point unit=new Point((float)Math.Cos(spokeRadians),
+                                (float)Math.Sin(spokeRadians));
                             Point sample=effect.position+unit*(radius*.98f);
                             if(!Game.PlayerAreaEffectContactVisible(effect,
                                 sample))continue;
