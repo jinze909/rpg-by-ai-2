@@ -592,6 +592,15 @@ namespace Starfall
             if(!drawingOutline&&Game.AttackQueued&&!Game.Dying)
                 Ring(Game.Position,.56f,
                     new Color(.94f,.72f,.42f,.70f),12);
+            // The accepted, unpaid 200ms Q queue owns its own static
+            // violet contact confirmation. Unlike an attack flash, it
+            // cannot imply a spell was released before its authoritative
+            // ActorAction contact. Draw beneath the SAME one-piece blonde
+            // hero, including during a genuine Hit reaction, without ever
+            // changing the Sprite/Animator action or spending energy.
+            if(!drawingOutline&&Game.SkillQueued&&!Game.Dying)
+                Ring(Game.Position,.63f,
+                    new Color(.73f,.56f,1f,.68f),18);
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline)
                 PropImage("skiff", 0, p.x - 51, p.y - 68, 102, 118);

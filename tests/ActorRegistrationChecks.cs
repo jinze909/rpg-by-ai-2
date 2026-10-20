@@ -2905,6 +2905,76 @@ public static class ActorRegistrationChecks
         Console.WriteLine("PASS normal/compact HUD clicks queue one real dodge, visibly confirm, retire, and respect cooldown/stamina limits");
     }
 
+    public static void VerifyQueuedSkillWorldCueOnlyForActualIntent(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        bool reduced=game.save.reducedMotion;
+        int quality=game.save.effectsQuality;
+        float originalOpacity=(float)typeof(FrontierRuntime)
+            .GetField("worldActorOpacity",Private).GetValue(app);
+        try
+        {
+            Set(app,"worldActorOpacity",1f);
+            game.enemies.Clear();
+            game.save.energy=100f;
+            game.save.reducedMotion=true;
+            game.save.effectsQuality=1;
+            game.playerHitTime=.15f;
+            game.Skill(new Point(0,-1));
+            Check(game.SkillQueued&&game.playerAction==null&&
+                game.save.energy==100f,
+                "A hit-recovery Q must queue one real unpaid skill, not publish its contact");
+            Clear();
+            var render=Draw(app,"DrawPlayerActor");
+            var marks=render.Where(c=>c.rect.width==4f&&
+                c.rect.height==4f&&
+                Math.Abs(c.color.r-.73f)<.00001f&&
+                Math.Abs(c.color.g-.56f)<.00001f&&
+                Math.Abs(c.color.b-1f)<.00001f&&
+                Math.Abs(c.color.a-.68f)<.00001f).ToArray();
+            Check(marks.Length==18,
+                "Exactly 18 violet confirmation points must appear for an authentic buffered Q");
+            Point grounded=(Point)Call(app,"ScreenPoint",game.Position);
+            foreach(var mark in marks)
+            {
+                float dx=mark.rect.x+2f-grounded.x;
+                float dy=mark.rect.y+2f-grounded.y;
+                Check(Math.Abs((float)Math.Sqrt(dx*dx+dy*dy)-.63f*36f)<.01f,
+                    "Queued Q confirmation must stay rooted to canonical hero feet");
+            }
+            Check(!render.Any(c=>c.rect.width==4f&&
+                Math.Abs(c.color.r-.94f)<.00001f&&
+                Math.Abs(c.color.g-.72f)<.00001f),
+                "Q must not draw an ordinary attack's amber confirmation");
+            game.ClearBufferedCombatInputs();
+            Clear();
+            Check(!game.SkillQueued&&!Draw(app,"DrawPlayerActor").Any(c=>
+                c.rect.width==4f&&
+                Math.Abs(c.color.r-.73f)<.00001f&&
+                Math.Abs(c.color.g-.56f)<.00001f),
+                "Canceled or expired Q must immediately retire its world cue");
+            game.Skill(new Point(1,0));
+            Check(game.SkillQueued,
+                "A fresh Q pressed during valid recoil still becomes a genuine queue");
+            game.mode="pause";
+            Clear();
+            Check(!game.SkillQueued&&!Draw(app,"DrawPlayerActor").Any(c=>
+                c.rect.width==4f&&
+                Math.Abs(c.color.r-.73f)<.00001f&&
+                Math.Abs(c.color.g-.56f)<.00001f),
+                "Pausing must clear Q and its contact confirmation together");
+            Console.WriteLine("PASS real deferred Q shows 18 fixed rooted violet pixels through Hit, no phantom spell, and immediate cancel/pause cleanup");
+        }
+        finally
+        {
+            game.save.reducedMotion=reduced;
+            game.save.effectsQuality=quality;
+            Set(app,"worldActorOpacity",originalOpacity);
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyQueuedAttackWorldCueFollowsRealGameCore(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -3558,7 +3628,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
