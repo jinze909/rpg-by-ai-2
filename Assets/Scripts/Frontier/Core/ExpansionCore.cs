@@ -540,31 +540,42 @@ namespace Starfall
         private bool CompanionCornerWalkable(Point from,Point goal)
         {
             Point travel=goal-from;
+            float length=travel.Length;
             if(!Finite(travel.x)||!Finite(travel.y)||
-                travel.Length>2.25f||!Fits(from))return false;
-            int steps=Math.Max(1,(int)Math.Ceiling(travel.Length/.11f));
-            for(int i=1;i<=steps;i++)
+                length>2.25f||!Fits(from))return false;
+            if(length<.0001f)return true;
+            // An entire straight-foot segment has one exact closest
+            // approach to each enemy disk. The previous every-0.11-step
+            // loop repeated an O(enemy count) scan 20+ times PER flank
+            // candidate, and could miss a narrow tangent BETWEEN samples.
+            // Check each live Enemy just once before the tile sweep.
+            float denominator=travel.x*travel.x+travel.y*travel.y;
+            foreach(Enemy foe in enemies)
             {
-                Point foot=from+travel*(i/(float)steps);
-                if(!Fits(foot))return false;
-                // Tile collision alone cannot see a live enemy occupying
-                // the path between this ally and a desired firing lane.
-                // Do not plan a phase-through-enemies combat stride.
-                // Existing close-contact gameplay must still let a
-                // companion step AWAY from an already overlapping foe,
-                // rather than imprisoning its source boots in that spot.
-                foreach(Enemy foe in enemies)
-                {
-                    if(foe==null||foe.hp<=0)continue;
-                    float clearance=foe.boss?.88f:.58f;
-                    float current=(foe.Position-foot).Length;
-                    if(current>=clearance)continue;
-                    float starting=(foe.Position-from).Length;
-                    if(starting>=clearance||
-                        current+.005f<starting)
-                        return false;
-                }
+                if(foe==null||foe.hp<=0)continue;
+                float clearance=foe.boss?.88f:.58f;
+                Point offset=foe.Position-from;
+                float projection=GameCore.Clamp(
+                    (offset.x*travel.x+offset.y*travel.y)/denominator,
+                    0f,1f);
+                Point closest=from+travel*projection;
+                Point separation=foe.Position-closest;
+                if(separation.x*separation.x+
+                    separation.y*separation.y>=clearance*clearance)
+                    continue;
+                float startSq=offset.x*offset.x+
+                    offset.y*offset.y;
+                // If already inside this creature's body disk, a
+                // strictly outward escape is still legitimate: its
+                // closest approach was our ORIGINAL overlapped foot.
+                // Never advance INTO an enemy or pass through its center.
+                if(startSq<clearance*clearance&&projection<=.00001f)
+                    continue;
+                return false;
             }
+            int steps=Math.Max(1,(int)Math.Ceiling(length/.11f));
+            for(int i=1;i<=steps;i++)
+                if(!Fits(from+travel*(i/(float)steps)))return false;
             return true;
         }
         private bool CompanionCornerShotReady(Point foot,Enemy foe)
