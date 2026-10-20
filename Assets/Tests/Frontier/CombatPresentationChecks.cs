@@ -3540,6 +3540,116 @@ namespace Starfall.Tests
             finally { data.maps[0] = original; }
         }
 
+        public static void CompanionAutoPeeksAroundOccludingPillarWithoutBreakingLeash(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[12]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,
+                    spawnX=9.5f,spawnY=12.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.enemies.Clear();
+                g.save.x=9.5f;g.save.y=12.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.save.reducedMotion=true;
+                var start=new Point(10.5f,10.5f);
+                var target=new Point(15.5f,10.5f);
+                g.companionPosition=start;g.companionAction=null;
+                var foe=new Enemy(99173,0,target.x,target.y,10000f){
+                    stun=100f,timer=1000f,staggerRecovery=100f
+                };
+                g.enemies.Add(foe);
+                var flags=System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic;
+                var sight=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+                var lane=typeof(GameCore).GetMethod(
+                    "CompanionAutoFlightLaneClear",flags);
+                var follow=typeof(GameCore).GetMethod(
+                    "CompanionTacticalFollowTarget",flags);
+                var timer=typeof(GameCore).GetField("companionAttack",flags);
+                Check(sight!=null&&lane!=null&&follow!=null&&timer!=null,
+                    "A live ally can inspect the genuine centerline and new physical bow lane");
+                Check(g.CanStand(start)&&g.CanStand(target)&&
+                    !(bool)sight.Invoke(g,new object[]{start,target}),
+                    "A real single-tile upright pillar blocks the initial entire ally-to-enemy centerline");
+                Point ordinary=new Point(8.15f,12.5f);
+                Point peek=(Point)follow.Invoke(g,new object[]{ordinary});
+                Check((peek-ordinary).Length>.5f&&
+                    (peek-start).Length>.5f&&
+                    (peek-start).Length<=2.2f&&
+                    (peek-g.Position).Length<3.65f&&
+                    (bool)sight.Invoke(g,new object[]{peek,target})&&
+                    (bool)lane.Invoke(g,new object[]{peek,1,target}),
+                    "Ivo finds a physically standable short peek around hard cover without abandoning the hero or inventing a shot from stone");
+                timer.SetValue(g,0f);
+                bool acquired=false;
+                for(int frame=0;frame<100;frame++)
+                {
+                    Point before=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    Check((g.companionPosition-before).Length<.38f&&
+                        g.CanStand(g.companionPosition),
+                        "Ally crosses single-stone cover with actual body-safe footsteps, never teleporting");
+                    if(g.companionAction!=null&&
+                       g.companionAction.kind=="attack")
+                    {
+                        acquired=true;
+                        Check((g.companionAction.target.Value-target).Length<.001f&&
+                            (bool)lane.Invoke(g,new object[]{g.companionPosition,1,target}),
+                            "Only the real muzzle's newly exposed full projectile lane may start the first auto windup");
+                        break;
+                    }
+                }
+                Check(acquired&&(g.companionPosition-start).Length>.1f&&
+                    g.save.version==2,
+                    "A hard-occluded target becomes shootable only AFTER actual ally-side navigation, without any old-save mutation");
+                for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+                Check(foe.hp<foe.maxHp||
+                    g.projectiles.Exists(p=>p.friendly&&p.visual=="arrow"),
+                    "The hard-cover peek results in authentic, physically traveling combat damage");
+                // No amount of lateral probing can see through a sealed
+                // complete wall. A fully disconnected pocket must leave
+                // the previous hero-follow order intact instead.
+                for(int y=2;y<=22;y++)
+                {
+                    char[] sealedRow=rows[y].ToCharArray();
+                    sealedRow[12]='#';rows[y]=new string(sealedRow);
+                }
+                g.companionAction=null;
+                g.companionPosition=start;
+                Point sealedGoal=(Point)follow.Invoke(g,new object[]{ordinary});
+                Check((sealedGoal-ordinary).Length<.001f&&
+                    !(bool)lane.Invoke(g,new object[]{start,1,target}),
+                    "Solid full-height barrier has no false sideways firing destination or wall-penetrating arrow");
+                // Even an unsealed firing lane is never permitted to
+                // supersede a player-issued skill or injured Mira's heal.
+                for(int y=2;y<=22;y++)
+                {
+                    char[] clearRow=rows[y].ToCharArray();
+                    clearRow[12]='.';rows[y]=new string(clearRow);
+                }
+                rows[10]=rows[10].Substring(0,12)+"#"+rows[10].Substring(13);
+                g.companionAction=new ActorAction{kind="command",weapon=1,
+                    direction=new Point(1f,0f),contact=.2f,duration=.52f};
+                Check(((Point)follow.Invoke(g,new object[]{ordinary})-ordinary).Length<.001f,
+                    "An issued user command outranks automatic wall-peek movement");
+                g.companionAction=null;g.save.companion=0;
+                g.save.health=g.save.maxHealth*.5f;
+                Check(((Point)follow.Invoke(g,new object[]{ordinary})-ordinary).Length<.001f,
+                    "Injured hero healing and Mira's existing medical task outrank sideways auto combat");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void CompanionAutoCornerFlankFindsPhysicalFiringFoot(Campaign data)
         {
             MapData previous=data.maps[0];
