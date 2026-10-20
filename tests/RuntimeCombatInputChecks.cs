@@ -564,20 +564,23 @@ public static class RuntimeCombatInputChecks
             g.enemies.Add(new Enemy(91121,0,14f,14f,2000f));
             g.enemies.Add(new Enemy(91122,2,10f,14f,2000f));
             g.Skill(new Point(1f,0f));
-            for(int frame=0;frame<16;frame++)g.Tick(.02f,new Point());
+            for(int frame=0;frame<16;frame++)
+            {
+                g.Tick(.02f,new Point());
+                if(frame<3)Check(!g.effects.Exists(e=>
+                    (e.kind=="impact"||e.kind=="spark")&&
+                    e.variant==profession+1),
+                    "A player Q minted a premature technique contact before real release");
+            }
             bool found=false;
             foreach(Effect contact in g.effects)
             {
                 if(contact.kind!="impact"&&contact.kind!="spark")
                     continue;
-                if(profession==1)
-                {
-                    // Ranger creates traveling projectiles, not an
-                    // immediate whole-room hitscan or invented contact.
-                    Check(contact.variant!=2,
-                        "Ranger Q falsely created technique hit before arrows physically arrived");
-                    continue;
-                }
+                // Ranger Q genuinely launches flight projectiles; by
+                // this tick they MAY have arrived and damaged enemies.
+                // Their contact should then share the captured skill's
+                // original green impact, never be mistaken for a fake hit.
                 Check(contact.variant==profession+1,
                     "The actually damaged enemy lost its profession-owned technique contact");
                 GUI.textureCalls.Clear();
@@ -594,6 +597,36 @@ public static class RuntimeCombatInputChecks
             if(profession!=1)Check(found,
                 "True Vanguard/Arcanist Q dealt damage without an authentic contact Sprite");
         }
+        // A genuine Ranger arrow can still be in flight when the player
+        // changes vocation. Its physical damage and green source-owned
+        // contact must not become the new Arcanist's blue.
+        Prepare(app,1);
+        var delayed=app.Game;
+        var distant=new Enemy(91127,0,14f,14f,2000f)
+            {stun=40f,timer=20f};
+        delayed.enemies.Add(distant);
+        delayed.SetAimTarget(distant.Position);
+        delayed.Skill(new Point(1f,0f));
+        bool launched=false;
+        for(int frame=0;frame<25;frame++)
+        {
+            delayed.Tick(.02f,new Point());
+            if(delayed.projectiles.Count>0){launched=true;break;}
+        }
+        Check(launched,
+            "Actual Ranger Q failed to produce a physically flying arrow for hit-ownership test");
+        delayed.save.profession=2;
+        bool preserved=false;
+        for(int frame=0;frame<45;frame++)
+        {
+            delayed.Tick(.02f,new Point());
+            if(delayed.effects.Exists(e=>
+                (e.kind=="impact"||e.kind=="spark")&&e.variant==2))
+            {preserved=true;break;}
+        }
+        Check(preserved&&distant.hp<2000f,
+            "Real Ranger arrow lost its launch-time green profession contact after switching to Arcanist");
+
         // Original idle/normal attack effects have no profession tint.
         Prepare(app,0);
         var ordinary=app.Game;

@@ -8,10 +8,19 @@ namespace Starfall
     public sealed class ImpactProfile
     {
         public readonly int weapon, style, masteryWeapon, combo;
+        // Immutable source profession for VFX ownership after an in-flight
+        // weapon/profession change. Not a SaveData field or a new damage rule.
+        public readonly int profession;
         public readonly float criticalChance;
         public readonly bool playerOwned;
-        public ImpactProfile(int weapon, int style, int masteryWeapon, int combo, float criticalChance, bool playerOwned)
-        { this.weapon=weapon;this.style=style;this.masteryWeapon=masteryWeapon;this.combo=combo;this.criticalChance=criticalChance;this.playerOwned=playerOwned; }
+        public ImpactProfile(int weapon, int style, int masteryWeapon, int combo,
+            float criticalChance, bool playerOwned, int profession=-1)
+        {
+            this.weapon=weapon;this.style=style;
+            this.masteryWeapon=masteryWeapon;this.combo=combo;
+            this.criticalChance=criticalChance;this.playerOwned=playerOwned;
+            this.profession=profession;
+        }
     }
     internal sealed class FrostField
     {
@@ -35,7 +44,8 @@ namespace Starfall
         {
             weapon=(int)Clamp(weapon,0,2);
             return new ImpactProfile(weapon,save.weaponStyles[weapon],save.weapon,attackCombo,
-                Clamp(.06f+save.talents[0]*.025f+(Relic(5)?.12f:0),0,1),playerOwned);
+                Clamp(.06f+save.talents[0]*.025f+(Relic(5)?.12f:0),0,1),
+                playerOwned,playerOwned?save.profession:-1);
         }
         private void RetireFrostVisuals(FrostField field)
         {

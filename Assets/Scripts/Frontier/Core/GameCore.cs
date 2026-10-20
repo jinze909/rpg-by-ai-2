@@ -777,8 +777,9 @@ namespace Starfall
             // stagger, critical and cover checks have actually succeeded.
             // The same original contact painting remains on screen; variant
             // only tints that Sprite, never invents a second body/hit.
-            int contactElement=technique&&profile.playerOwned?
-                save.profession+1:0;
+            int contactElement=technique&&profile.playerOwned&&
+                profile.profession>=0&&profile.profession<=2?
+                profile.profession+1:0;
             effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact",
                 e.Position, .22f) { direction = e.recoil,
                 variant = contactElement });
