@@ -2894,6 +2894,41 @@ public static class ActorRegistrationChecks
                     g.dashCooldown,false,click,.75f,"Low energy",false);
                 Check(count==1&&!g.DodgeQueued,
                     "HUD accepted free early dodge at zero energy");
+                // A real gate can close OVER the current player root.
+                // Both HUD layouts must then disable fresh and late
+                // buffered dodge clicks, and say why the move is unavailable.
+                g.save.energy=100f;g.dashCooldown=.10f;
+                int row=(int)g.Position.y,column=(int)g.Position.x;
+                string openRow=g.Map.rows[row];
+                try
+                {
+                    char[] closed=openRow.ToCharArray();
+                    closed[column]='#';g.Map.rows[row]=new string(closed);
+                    Check(!g.DodgeRootReady&&!g.CanBufferDodge,
+                        "Actual HUD fixture places the playable hero on genuinely sealed ground");
+                    foreach(float cooldown in new[]{.10f,0f})
+                    {
+                        g.dashCooldown=cooldown;
+                        Clear();GUI.queuedClick=new Rect(818f,y,w,h);
+                        Call(app,"ActionSlot",818f,"SPACE","Dodge","shield",
+                            g.dashCooldown,true,click,.75f,"Low energy",false);
+                        Check(count==1&&!g.DodgeQueued&&
+                            GUI.buttonCalls.Count>0&&
+                            !GUI.buttonCalls[GUI.buttonCalls.Count-1].enabled&&
+                            string.Join(",",GUI.commands.ToArray()).Contains(
+                                g.L("地形封锁","GROUND BLOCKED")),
+                            "Sealed ground must disable the live HUD dodge for both final cooldown and ready-now states");
+                    }
+                }
+                finally{g.Map.rows[row]=openRow;}
+                g.dashCooldown=.10f;
+                Check(g.DodgeRootReady&&g.CanBufferDodge,
+                    "A reopened floor restores the live HUD's real buffering eligibility");
+                Clear();GUI.queuedClick=new Rect(818f,y,w,h);
+                Call(app,"ActionSlot",818f,"SPACE","Dodge","shield",
+                    g.dashCooldown,true,click,.75f,"Low energy",false);
+                Check(count==2&&g.DodgeQueued&&g.save.energy==100f,
+                    "Reopened HUD must queue a genuine fresh dodge exactly once without early spending");
             }
             finally
             {
