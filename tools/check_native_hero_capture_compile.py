@@ -40,6 +40,10 @@ def prepare_actual_contact_gate():
         "private float clock;\n"
         "private const float HeroStopPlantSeconds=.075f;\n"
         "private GameCore heroGaitOwner;\n"
+        # The compile-only NativeProbeSave mirrors GameCore.save here.
+        # Keep this owned reference state alongside the REAL extracted
+        # ApplyHeroStopPlant method; never reimplement its save test.
+        "private NativeProbeSave heroGaitSave;\n"
         "private int heroGaitRoom=-1,heroGaitAppearance=-1,heroGaitFacing=-1;\n"
         "private int heroGaitFrame=-1;\n"
         "private Point heroGaitPosition;\n"
