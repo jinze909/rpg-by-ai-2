@@ -102,8 +102,14 @@ namespace Starfall
             // Companion models ALSO use the complete approved Sprite.
             // Retire the old five-part HumanActor neck/body reattachment
             // without changing companion AI, action phase, or facing logic.
+            // A non-null Texture2D can still be a partial/wrong-size
+            // import. Accept only the audited 4x3 grid of 256px cells;
+            // otherwise fall back to the intact original action atlas.
             bool publishedWalk=companionWalkSheets!=null &&
-                id<companionWalkSheets.Length&&companionWalkSheets[id]!=null;
+                id<companionWalkSheets.Length&&
+                companionWalkSheets[id]!=null&&
+                companionWalkSheets[id].width==4*256&&
+                companionWalkSheets[id].height==3*256;
             int row=GameCore.DirectionRow(direction);
             // The first genuine draw of a new character, game instance or
             // companion presentation generation must use THAT actor's own

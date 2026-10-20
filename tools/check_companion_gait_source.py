@@ -80,6 +80,9 @@ def main():
     runtime = RUNTIME.read_text(encoding="utf-8")
     assert "int frame = north ? 8 : south ? 11 : 0;" in runtime, (
         "COMPANION_SOUTH_IDLE_FALLBACK_REGRESSION")
+    assert "companionWalkSheets[id].width==4*256" in runtime and (
+        "companionWalkSheets[id].height==3*256" in runtime), (
+            "COMPANION_WALK_ATLAS_GEOMETRY_FALLBACK_REGRESSION")
     assert "if(!publishedWalk)frame=row==1?8:row==2?11:0;" in runtime, (
         "COMPANION_SMOOTHED_IDLE_FACING_REGRESSION")
     assert "bool flip=row==0&&direction.x<-.1f;" in runtime, (
