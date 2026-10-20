@@ -159,6 +159,64 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Both actual Q HUD layouts queue during ordinary attack and preserve world aim");
     }
 
+    private static void CanonicalCombatRecoverySettlesWithoutExtraBody(FrontierRuntime app)
+    {
+        int checkedCases=0;
+        string[] equipment={"Vanguard","Ranger","Arcanist"};
+        foreach(int profession in new[]{0,1,2})
+        foreach(bool skill in new[]{false,true})
+        foreach(Point face in new[]{
+            new Point(1,0),new Point(-1,0),
+            new Point(0,-1),new Point(0,1)})
+        {
+            Prepare(app,profession);
+            var g=app.Game;g.save.reducedMotion=false;
+            g.SetAim(face);
+            if(skill)g.Skill(face);else g.Attack(face);
+            ActorAction action=g.playerAction;
+            Check(action!=null&&!action.released,
+                "Live combat must start an authored full-body windup");
+            for(int step=0;step<90&&
+                action.elapsed<action.duration-.042f;step++)
+                g.Tick(.02f,new Point());
+            Check(g.playerAction==action&&action.released&&
+                action.elapsed<action.duration,
+                "Action is in the real released late recovery, not a fabricated post-contact pose");
+            Set(app,"clock",31f);
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            var prior=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(prior!=null&&prior.texture.name.Contains("_"+
+                (skill?"Cast":"Attack")+"_"),
+                "Last painted combat recovery retains the actual current equipment's entire body");
+            g.Tick(.05f,new Point());Set(app,"clock",31.025f);
+            Check(g.playerAction==null,
+                "Authoritative C# recovery must complete on schedule, regardless of visual handoff");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            var settle=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(settle!=null&&settle.texture.name==prior.texture.name&&
+                Math.Abs(settle.uv.x-prior.uv.x)<.00001f&&
+                Math.Abs(settle.uv.width-prior.uv.width)<.00001f,
+                "One exact original contact-recovery source cell settles to Idle rather than snapping to another body");
+            Check(GUI.textureCalls.FindAll(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_")).Count==1,
+                "Short handoff may NEVER duplicate the blonde hero body");
+            Set(app,"clock",31.16f);
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            var idle=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(idle!=null&&idle.texture.name==
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                equipment[profession]+"_Idle_"+
+                (Math.Abs(face.y)>0f?(face.y<0?"N":"S"):"E"),
+                "After the bounded settle interval return to the same equipment's real Idle, no permanent recovery lock");
+            checkedCases++;
+        }
+        Console.WriteLine("PASS "+checkedCases+
+            " actual full-body Attack/Cast stationary source recovery->Idle handoffs across 3 equipment sets and 4 facings (no duplicate body, unchanged game contact clock)");
+    }
+
     private static void QueuedAreaPreviewDrawsRealWorldRadius(FrontierRuntime app)
     {
         foreach(int profession in new[]{0,1,2})
@@ -2071,7 +2129,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalCombatRecoverySettlesWithoutExtraBody, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

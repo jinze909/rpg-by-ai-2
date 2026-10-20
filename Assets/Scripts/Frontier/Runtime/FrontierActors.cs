@@ -254,6 +254,22 @@ namespace Starfall
         private int heroStopPlantFrame;
         private float heroStopPlantUntil=float.NegativeInfinity;
 
+        // The last genuine, released source-painted Attack/Cast recovery
+        // is allowed to settle for one restrained world-frame interval.
+        // Keep the SAME entire 256px body; no limb graft, synthetic cell,
+        // second hero, new damaging action or actor-root translation.
+        // Scoped to the exact GameCore, SaveData, room, equipment, facing
+        // and ground pivot, so character swaps / dodges never leak art.
+        private const float HeroContactSettleSeconds=.07f;
+        private GameCore heroContactSettleOwner;
+        private SaveData heroContactSettleSave;
+        private ActorAction heroContactSettleAction;
+        private int heroContactSettleRoom,heroContactSettleEquipment,
+            heroContactSettleFacing,heroContactSettleBody,
+            heroContactSettleFrames,heroContactSettleCell;
+        private Point heroContactSettleFoot;
+        private float heroContactSettleAt=float.NegativeInfinity;
+
         // A contact transfer is considered live only when the COMPLETE set
         // of 18 seven-cell actions exists: no mixed professions/facings.
         // An incomplete art drop leaves all established six-cell art intact.
@@ -461,6 +477,64 @@ namespace Starfall
             }
         }
 
+        // Shared action->Idle handoff for native SpriteRenderer and full
+        // source-body OnGUI. This does NOT delay GameCore's actual action
+        // completion or hide the next real input; it holds only the last
+        // already-rendered recovery cell for <=70ms while stationary.
+        private void ApplyHeroContactSettle(bool moving,int facing,
+            ref int action,ref int frames,ref int index,ref float position)
+        {
+            if(drawingOutline)return;
+            bool clockValid=!float.IsNaN(clock)&&
+                !float.IsInfinity(clock);
+            ActorAction live=Game.playerAction;
+            if((action==2||action==3)&&live!=null&&live.released&&
+                clockValid&&!Game.save.reducedMotion&&
+                index >= (frames==7?5:frames==6?4:int.MaxValue))
+            {
+                heroContactSettleOwner=Game;
+                heroContactSettleSave=Game.save;
+                heroContactSettleAction=live;
+                heroContactSettleRoom=Game.save.room;
+                heroContactSettleEquipment=Game.AppearanceWeapon;
+                heroContactSettleFacing=facing;
+                heroContactSettleBody=action;
+                heroContactSettleFrames=frames;
+                heroContactSettleCell=index;
+                heroContactSettleFoot=Game.Position;
+                heroContactSettleAt=clock;
+                return;
+            }
+            // No handoff from an unreleased windup, defeated character,
+            // defensive reaction or genuine movement. Never replay old
+            // contact art when a different attack is already starting.
+            if(live!=null||action!=0||moving||Game.Dying||
+                Game.save.reducedMotion||Game.PlayerPose>1)
+            {
+                heroContactSettleAction=null;
+                return;
+            }
+            if(heroContactSettleAction==null)return;
+            bool same=clockValid&&
+                System.Object.ReferenceEquals(heroContactSettleOwner,Game)&&
+                System.Object.ReferenceEquals(heroContactSettleSave,Game.save)&&
+                heroContactSettleRoom==Game.save.room&&
+                heroContactSettleEquipment==Game.AppearanceWeapon&&
+                heroContactSettleFacing==facing&&
+                (Game.Position-heroContactSettleFoot).Length<.075f&&
+                clock>=heroContactSettleAt&&
+                clock-heroContactSettleAt<HeroContactSettleSeconds;
+            if(!same)
+            {
+                heroContactSettleAction=null;
+                return;
+            }
+            action=heroContactSettleBody;
+            frames=heroContactSettleFrames;
+            index=heroContactSettleCell;
+            position=index;
+        }
+
         private bool ResolveFullBodyHeroFrame(bool moving,int facing,
             out int action,out int frames,out int index,out float position)
         {
@@ -504,6 +578,8 @@ namespace Starfall
             }
             if(action==1)position%=frames;
             index=Math.Max(0,Math.Min(frames-1,(int)Math.Floor(position+.20f)));
+            ApplyHeroContactSettle(moving,facing,ref action,ref frames,
+                ref index,ref position);
             ApplyHeroStopPlant(moving,facing,ref action,ref frames,
                 ref index,ref position);
             return true;
