@@ -561,6 +561,11 @@ public static class RuntimeCombatInputChecks
                 game.Position.x+distance,game.Position.y,2000f)
                 {stun=40f,timer=40f};
             game.enemies.Add(target);
+            // An authentic hit VFX stays rooted to contact while the enemy
+            // body recoils in UpdateEnemies later in the SAME game tick.
+            // Compare the painted contact to the immutable pre-hit root,
+            // not the now-moved actor body's post-recoil position.
+            Point contactRoot=target.Position;
             game.SetAimTarget(target.Position);
             game.Attack(new Point(1f,0f));
             bool launched=false,damaged=false;
@@ -580,7 +585,7 @@ public static class RuntimeCombatInputChecks
                 damaged=true;
                 Effect contact=game.effects.FindLast(e=>
                     (e.kind=="impact"||e.kind=="spark")&&
-                    (e.position-target.Position).Length<.01f);
+                    (e.position-contactRoot).Length<.03f);
                 Check(contact!=null&&
                     contact.variant==(weapon==0?0:weapon+1),
                     "Actual basic weapon "+weapon+
