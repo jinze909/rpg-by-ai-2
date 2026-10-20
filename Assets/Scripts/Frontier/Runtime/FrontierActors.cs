@@ -1396,6 +1396,12 @@ namespace Starfall
         }
         private void DrawFallen(FallenActor body)
         {
+            EnemyPaint lastEnemyPaint=null;
+            EnemyPaint observed;
+            if(!body.actor.boss && enemyPaints.TryGetValue(body.actor,out observed) &&
+                observed.room==body.room && observed.sheet!=null &&
+                observed.columns>0 && observed.rows>0 && observed.size>0f)
+                lastEnemyPaint=observed;
             bool acceptedBriarBody=body.actor.boss && body.room==1 &&
                 ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet);
             if(body.actor.boss)
@@ -1435,12 +1441,6 @@ namespace Starfall
             }
             tint=RegionalBossPhaseTint(tint,body.actor,body.room,
                 previousBoss!=null?previousBoss.lastVisiblePhase:0);
-            EnemyPaint lastEnemyPaint=null;
-            EnemyPaint observed;
-            if(!body.actor.boss && enemyPaints.TryGetValue(body.actor,out observed) &&
-                observed.room==body.room && observed.sheet!=null &&
-                observed.columns>0 && observed.rows>0 && observed.size>0f)
-                lastEnemyPaint=observed;
             // Freeze death orientation to the last full-body painting; an
             // AI retreat/contact update after HP-zero may turn the Enemy.
             bool corpseFlip=lastEnemyPaint!=null?lastEnemyPaint.flip:
