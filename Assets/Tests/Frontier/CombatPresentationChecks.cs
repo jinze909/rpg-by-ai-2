@@ -3540,6 +3540,108 @@ namespace Starfall.Tests
             finally { data.maps[0] = original; }
         }
 
+        public static void CompanionAutoCornerFlankFindsPhysicalFiringFoot(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==11)cells[12]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,
+                    spawnX=9.5f,spawnY=12.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.enemies.Clear();
+                g.save.x=9.5f;g.save.y=12.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.save.reducedMotion=true;
+                Point start=new Point(10.5f,10.88f);
+                Point target=new Point(15.5f,10.88f);
+                g.companionPosition=start;
+                g.companionAction=null;
+                var foe=new Enemy(99172,0,target.x,target.y,10000f){
+                    stun=100f,timer=1000f,staggerRecovery=100f
+                };
+                g.enemies.Add(foe);
+                var flags=System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance;
+                var sight=typeof(GameCore).GetMethod(
+                    "ClearAttackPath",flags);
+                var flight=typeof(GameCore).GetMethod(
+                    "CompanionAutoFlightLaneClear",flags);
+                var follow=typeof(GameCore).GetMethod(
+                    "CompanionTacticalFollowTarget",flags);
+                var walkable=typeof(GameCore).GetMethod(
+                    "CompanionCornerWalkable",flags);
+                var chosen=typeof(GameCore).GetMethod(
+                    "NearestCompanionThreat",flags);
+                var timer=typeof(GameCore).GetField("companionAttack",flags);
+                Check(sight!=null&&flight!=null&&follow!=null&&
+                    walkable!=null&&chosen!=null&&timer!=null,
+                    "The live companion uses its true physical shot/route tests");
+                Check(g.CanStand(start)&&g.CanStand(target)&&
+                    (bool)sight.Invoke(g,new object[]{start,target})&&
+                    !(bool)flight.Invoke(g,new object[]{start,1,target})&&
+                    chosen.Invoke(g,null)==null,
+                    "Original legal companion body sees an enemy but actual 0.14-tile bow projectile is blocked by a neighboring wall");
+                Point normal=new Point(8.15f,12.5f);
+                Point foot=(Point)follow.Invoke(g,new object[]{normal});
+                Check((foot-start).Length>.35f&&
+                    (foot-start).Length<=2.2f&&
+                    (bool)walkable.Invoke(g,new object[]{start,foot})&&
+                    (bool)flight.Invoke(g,new object[]{foot,1,target})&&
+                    (foot-g.Position).Length<3.7f,
+                    "Genuine companion flank must pick a close walkable physical bow corridor without abandoning the living player");
+                Check((foot-normal).Length>.5f&&g.save.version==2,
+                    "The new foot is a tactical combat destination and never overwrites save or old ordinary follow state");
+                // Run actual 50ms movement and real companion attack
+                // clocks. The body must move along the approved side
+                // corridor rather than teleporting through nearby cover.
+                timer.SetValue(g,0f);
+                float firstDistance=(foot-start).Length;
+                bool shotEarned=false,walked=false;
+                for(int frame=0;frame<90;frame++)
+                {
+                    Point before=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    Point step=g.companionPosition-before;
+                    Check(step.Length<.38f&&g.CanStand(g.companionPosition),
+                        "Companion's side attack must use ordinary swept feet and never teleport through a physical tile");
+                    if(step.Length>.002f)
+                    {
+                        walked=true;
+                        Check(g.companionMoving||g.companionAction!=null,
+                            "Physical side movement must advance the accepted walking animation state");
+                    }
+                    if(g.companionAction!=null&&
+                       g.companionAction.kind=="attack")
+                    {
+                        Check((g.companionAction.target.Value-target).Length<.001f&&
+                            (bool)flight.Invoke(g,new object[]{
+                                g.companionPosition,1,target}),
+                            "Genuine combat begins only when the planted ally's actual arrow lane is physically open");
+                        shotEarned=true;break;
+                    }
+                }
+                Check(shotEarned&&walked&&
+                    (g.companionPosition-start).Length>.05f&&
+                    (g.companionPosition-foot).Length<firstDistance&&
+                    g.save.version==2,
+                    "The originally silenced ranger walks to a valid new firing foot and starts an authentic telegraphed attack, preserving v2 saves");
+                for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+                Check(foe.hp<foe.maxHp||
+                    g.projectiles.Exists(p=>p.friendly&&p.visual=="arrow"),
+                    "Real companion flanking must resolve into a physically traveling arrow, not a decorative reticle or phantom attack");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void CompanionAutoMuzzleObstructionRefundsCadenceAndRetries(Campaign data)
         {
             // A new side-wall can cover Ivo's upper-facing bow HAND even
