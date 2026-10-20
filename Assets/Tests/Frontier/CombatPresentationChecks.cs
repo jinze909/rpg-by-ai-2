@@ -3501,6 +3501,59 @@ namespace Starfall.Tests
             finally {data.maps[3]=previous;}
         }
 
+        public static void PiercingProjectilesContactBodiesInPhysicalEntryOrder(Campaign data)
+        {
+            // Same sweep sample, intentionally REVERSED saved/spawn roster:
+            // a penetrating arrow cannot damage the rear foe before the
+            // physically earlier front body. Both remain alive after impact
+            // so effects and trace order are independently observable.
+            var g=Fresh(data,1);g.Enter(1);g.enemies.Clear();
+            g.save.x=12f;g.save.y=14f;
+            g.save.reducedMotion=true;
+            var rear=new Enemy(94102,0,12.53f,14f,500f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            var front=new Enemy(94101,0,12.45f,14f,500f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            g.enemies.Add(rear);g.enemies.Add(front);
+            var shot=new Projectile{
+                position=new Point(12f,14f),
+                velocity=new Point(20f,0),life=3f,
+                damage=25f,friendly=true,piercing=true,visual="arrow"};
+            g.projectiles.Add(shot);
+            g.Tick(.05f,new Point());
+            Check(rear.hp<500f&&front.hp<500f&&
+                shot.hitActors.Count==2&&shot.hits.Count==2,
+                "One actual swept piercing shot must still damage both overlapping live enemies");
+            Check(shot.hits[0]==front.id&&shot.hits[1]==rear.id,
+                "Penetrating arrows must process the NEAREST physical collision first, even with reverse enemy array order");
+            float frontHp=front.hp,rearHp=rear.hp;
+            g.Tick(.05f,new Point());
+            Check(front.hp==frontHp&&rear.hp==rearHp,
+                "Sorted penetration must retain per-actor one-hit immunity across later flight samples");
+
+            // Radius matters, not just center distance. A boss with a
+            // larger physical hurt circle can enter BEFORE an ordinary foe
+            // whose center is nearer. Order by signed ray-circle entry.
+            var mixed=Fresh(data,1);mixed.Enter(1);
+            mixed.enemies.Clear();mixed.save.reducedMotion=true;
+            mixed.save.x=12f;mixed.save.y=14f;
+            var small=new Enemy(94204,0,12.95f,14f,600f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            var boss=new Enemy(94203,0,13.1f,14f,600f,true)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            mixed.enemies.Add(small);mixed.enemies.Add(boss);
+            var second=new Projectile{
+                position=new Point(12f,14f),
+                velocity=new Point(20f,0),life=3f,
+                damage=24f,friendly=true,piercing=true,visual="arrow"};
+            mixed.projectiles.Add(second);
+            mixed.Tick(.05f,new Point());
+            Check(second.hits.Count==2&&
+                second.hits[0]==boss.id&&second.hits[1]==small.id&&
+                small.hp<600f&&boss.hp<600f,
+                "Piercing order must honor the larger Boss collision circle instead of sorting only by actor center or roster");
+        }
+
         public static void PiercingProjectilesTrackEnemyIdentityAcrossReusedSpawnIds(Campaign data)
         {
             // Numeric enemy IDs are spawn/save slots, NOT the physical

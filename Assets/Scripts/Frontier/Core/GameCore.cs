@@ -1333,6 +1333,29 @@ namespace Starfall
             return along-(float)Math.Sqrt(Math.Max(0f,
                 radius*radius-sideways2));
         }
+        // A penetrating shot can make several genuine hits in the SAME
+        // 0.1-tile sweep slice. Roster order is not collision order: an
+        // enemy serialized later may physically stand in front of a boss
+        // or another opponent. Sort once per flight roster snapshot,
+        // and after a real hit refreshes that snapshot, using the signed
+        // FIRST circle entry (including each actor's true hit radius).
+        // Nonpiercing shots retain their existing earliest-single-target
+        // selection; this does not change projectile damage or flight.
+        private void OrderPiercingContacts(Projectile shot)
+        {
+            if(!shot.piercing||projectileTargets.Count<2)return;
+            projectileTargets.Sort((left,right)=>
+            {
+                float leftEntry=ProjectileCircleEntry(shot.position,
+                    shot.velocity,left.Position,
+                    (left.boss?.9f:.5f)+shot.Radius);
+                float rightEntry=ProjectileCircleEntry(shot.position,
+                    shot.velocity,right.Position,
+                    (right.boss?.9f:.5f)+shot.Radius);
+                return leftEntry.CompareTo(rightEntry);
+            });
+        }
+
         private void AddProjectileFade(Projectile p)
         {
             // Flight expiration or invalid spawn has no genuine contact
@@ -1374,7 +1397,12 @@ namespace Starfall
                 // Capture collision candidates once per flying projectile,
                 // not on every 0.1-tile sweep subdivision. Refresh only
                 // after a real hit changes the possible target roster.
-                if (p.friendly) { projectileTargets.Clear(); projectileTargets.AddRange(enemies); }
+                if (p.friendly)
+                {
+                    projectileTargets.Clear();
+                    projectileTargets.AddRange(enemies);
+                    OrderPiercingContacts(p);
+                }
                 for (int step = 0; step < steps && !dead; step++)
                 {
                     Point next = p.position + p.velocity * (flightDt / steps);
@@ -1468,6 +1496,7 @@ namespace Starfall
                         if (hitAny && !dead && step + 1 < steps)
                         {
                             projectileTargets.Clear(); projectileTargets.AddRange(enemies);
+                            OrderPiercingContacts(p);
                         }
                     }
                     else
