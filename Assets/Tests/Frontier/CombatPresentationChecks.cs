@@ -2583,7 +2583,7 @@ namespace Starfall.Tests
                 g.effects.Clear();g.projectiles.Clear();g.enemies.Clear();
                 var coverFront=new Enemy(77731,0,7.3f,8.5f,400f)
                     {stun=99f,timer=999f,staggerRecovery=99f};
-                var coverBack=new Enemy(77732,0,8.6f,8.5f,400f,true)
+                var coverBack=new Enemy(77732,0,9.5f,8.5f,400f,true)
                     {stun=99f,timer=999f,staggerRecovery=99f};
                 g.enemies.Add(coverBack);g.enemies.Add(coverFront);
                 var grazedArrow=new Projectile{
@@ -2614,7 +2614,7 @@ namespace Starfall.Tests
                 g.projectiles.Add(blockedArrow);g.Tick(.05f,new Point());
                 Check(coverBack.hp==400f&&blockedArrow.hits.Count==0&&
                     !g.projectiles.Contains(blockedArrow),
-                    "First-body wall resolver must not grant contact through terrain to overlapping Boss hurt circles");
+                    "First-body wall resolver must not grant contact to a sheltered Boss across solid cover");
 
                 // Simulate a tide/arena wall sealing around a bolt AFTER
                 // its valid muzzle launch. Its stored blockedAtSpawn flag
