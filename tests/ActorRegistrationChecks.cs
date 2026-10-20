@@ -1967,6 +1967,132 @@ public static class ActorRegistrationChecks
         }
     }
 
+
+    // A scene-cover outline can be drawn BEFORE the dialogue body even
+    // appears in the real depth-sorted pass. Only the first REAL body
+    // paint may start a new speech weight-shift timeline.
+    static void NpcOutlineCannotConsumeUprightDialogueEntry(
+        FrontierRuntime app)
+    {
+        var g=app.Game;
+        var flags=BindingFlags.Instance|BindingFlags.NonPublic;
+        var runtime=typeof(FrontierRuntime);
+        var conversationField=runtime.GetField("npcTrackedConversation",flags);
+        var speakerField=runtime.GetField("npcTrackedInterlocutor",flags);
+        var clockField=runtime.GetField("npcTalkStartedAt",flags);
+        Check(conversationField!=null&&speakerField!=null&&clockField!=null,
+            "NPC speech entrance uses original instance-scoped art state");
+        object previousConversation=conversationField.GetValue(app);
+        object previousSpeaker=speakerField.GetValue(app);
+        object previousStart=clockField.GetValue(app);
+        var savedConversation=g.conversation;
+        var savedSource=g.conversationSource;
+        bool savedMotion=g.save.reducedMotion;
+        int savedEffects=g.save.effectsQuality;
+        try
+        {
+            g.save.reducedMotion=false;g.save.effectsQuality=2;
+            foreach(string kind in new[]{"guild","forge"})
+            {
+                var npc=new WorldObject{id="outline-speech-"+kind,
+                    kind=kind,x=g.Position.x+2f,y=g.Position.y+1f};
+                var current=new Conversation(kind,kind,
+                    "Hello again","Hello again");
+                g.conversation=current;g.conversationSource=npc;
+                Set(app,"clock",1170f+(kind=="guild"?0f:5f));
+                var initialConversation=conversationField.GetValue(app);
+                var initialSpeaker=speakerField.GetValue(app);
+                var initialStart=clockField.GetValue(app);
+                try
+                {
+                    Set(app,"drawingOutline",true);
+                    for(int pass=0;pass<5;pass++)
+                    {
+                        Set(app,"clock",1170f+
+                            (kind=="guild"?0f:5f)+pass*.35f);
+                        Clear();Draw(app,"DrawNpc",kind,
+                            new Point(npc.x,npc.y),-1);
+                    }
+                    Check(System.Object.ReferenceEquals(
+                        conversationField.GetValue(app),initialConversation)&&
+                        System.Object.ReferenceEquals(
+                            speakerField.GetValue(app),initialSpeaker)&&
+                        System.Object.Equals(
+                            clockField.GetValue(app),initialStart),
+                        "Five cover/selection outlines cannot consume or adopt a new NPC conversation timeline");
+                    // The visible body enters much later than its previews,
+                    // but its FIRST official frame must still be upright.
+                    float firstPaint=1190f+(kind=="guild"?0f:5f);
+                    Set(app,"drawingOutline",false);
+                    Set(app,"clock",firstPaint);
+                    Clear();
+                    var first=Draw(app,"DrawNpc",kind,
+                        new Point(npc.x,npc.y),-1)
+                        .Single(t=>t.texture.name=="resource:Frontier/Art/Npcs");
+                    Check(Math.Abs((float)clockField.GetValue(app)-
+                        firstPaint)<.00001f&&
+                        System.Object.ReferenceEquals(
+                            conversationField.GetValue(app),current)&&
+                        Math.Abs(first.matrix.m01)<.00001f&&
+                        Math.Abs(first.matrix.m10)<.00001f,
+                        "First REAL NPC body must start a fresh upright painted entry independent of previews");
+                    Set(app,"clock",firstPaint+.40f);
+                    Clear();
+                    var swaying=Draw(app,"DrawNpc",kind,
+                        new Point(npc.x,npc.y),-1)
+                        .Single(t=>t.texture.name=="resource:Frontier/Art/Npcs");
+                    Check(Math.Abs(swaying.matrix.m01)>.0001f&&
+                        Math.Abs(swaying.uv.x-first.uv.x)<.00001f&&
+                        Math.Abs(swaying.rect.y-first.rect.y)<.001f,
+                        "After the genuine dialogue entry, original full-body NPC must sway from fixed boots without a swapped low-quality cell");
+                    // Another NPC of the same type and another conversation
+                    // cannot alter the first speaker's old genuine phase.
+                    Clear();Draw(app,"DrawNpc",kind,
+                        new Point(npc.x+4f,npc.y),-1);
+                    Check(System.Object.ReferenceEquals(
+                        conversationField.GetValue(app),current)&&
+                        Math.Abs((float)clockField.GetValue(app)-
+                            firstPaint)<.00001f,
+                        "Same-kind bystander stole the pinned NPC's pose clock");
+                    var reopened=new Conversation(kind,kind,
+                        "More dialogue","More dialogue");
+                    g.conversation=reopened;
+                    Set(app,"drawingOutline",true);
+                    Set(app,"clock",firstPaint+1.7f);
+                    Clear();Draw(app,"DrawNpc",kind,
+                        new Point(npc.x,npc.y),-1);
+                    Check(System.Object.ReferenceEquals(
+                        conversationField.GetValue(app),current),
+                        "Outline-only dialogue reentry consumed a second conversation");
+                    Set(app,"drawingOutline",false);
+                    Clear();
+                    var restarted=Draw(app,"DrawNpc",kind,
+                        new Point(npc.x,npc.y),-1)
+                        .Single(t=>t.texture.name=="resource:Frontier/Art/Npcs");
+                    Check(System.Object.ReferenceEquals(
+                        conversationField.GetValue(app),reopened)&&
+                        Math.Abs(restarted.matrix.m01)<.00001f,
+                        "Restarted real NPC dialogue must not arrive mid-sway after a preview-only repaint");
+                }
+                finally {Set(app,"drawingOutline",false);}
+            }
+            Console.WriteLine(
+                "PASS original guild and forge dialogue: repeated cover outlines cannot skip the upright first real full-body frame, swallow a reentry or move foot pivots");
+        }
+        finally
+        {
+            Set(app,"drawingOutline",false);
+            conversationField.SetValue(app,previousConversation);
+            speakerField.SetValue(app,previousSpeaker);
+            clockField.SetValue(app,previousStart);
+            g.conversation=savedConversation;
+            g.conversationSource=savedSource;
+            g.save.reducedMotion=savedMotion;
+            g.save.effectsQuality=savedEffects;
+            Clear();
+        }
+    }
+
     public static void VerifyResidentAnimation(FrontierRuntime app)
     {
         // VISUAL FIDELITY ROLLBACK: the older Npcs.png contains the carefully
@@ -2086,6 +2212,7 @@ public static class ActorRegistrationChecks
             Check(garden.Any(c=>c.texture.name==original),
                 "Unmodified rich source NPCs must stay on the accepted atlas");
             Console.WriteLine("PASS original 16-NPC sprites, pinned dialogue whole-body foot-lean, reduced motion and still bystanders");
+            NpcOutlineCannotConsumeUprightDialogueEntry(app);
         }
         finally
         {
