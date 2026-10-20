@@ -1636,7 +1636,12 @@ namespace Starfall
             // The animation belongs only to the pinned interlocutor. It is
             // disabled in reduced-motion, outline and ordinary bystander
             // views, and cannot shift a foot or dialogue/world hitbox.
-            if(isTalking&&(
+            // Conversation entrance is the first REAL displayed body
+            // frame, not a cover/selection outline. The old preview path
+            // started this presentation clock before the NPC was painted,
+            // so an interposed UI pass could skip the upright talk entry
+            // and make the entire detailed source Sprite snap into a sway.
+            if(isTalking&&!drawingOutline&&(
                 !System.Object.ReferenceEquals(
                     npcTrackedConversation,Game.conversation)||
                 !System.Object.ReferenceEquals(
