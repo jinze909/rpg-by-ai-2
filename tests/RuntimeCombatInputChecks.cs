@@ -198,7 +198,10 @@ public static class RuntimeCombatInputChecks
             Check(settle!=null&&settle.texture.name==prior.texture.name&&
                 Math.Abs(settle.uv.x-prior.uv.x)<.00001f&&
                 Math.Abs(settle.uv.width-prior.uv.width)<.00001f,
-                "One exact original contact-recovery source cell settles to Idle rather than snapping to another body");
+                "One exact source-painted recovery must settle at class "+profession+
+                ", skill "+skill+", facing "+face.x+","+face.y+
+                " (previous "+prior.texture.name+", actual "+
+                (settle==null?"none":settle.texture.name)+")");
             Check(GUI.textureCalls.FindAll(t=>t.texture.name.StartsWith(
                 "resource:Frontier/HeroAnimator/Canonical/Hero_")).Count==1,
                 "Short handoff may NEVER duplicate the blonde hero body");
@@ -215,6 +218,56 @@ public static class RuntimeCombatInputChecks
         }
         Console.WriteLine("PASS "+checkedCases+
             " actual full-body Attack/Cast stationary source recovery->Idle handoffs across 3 equipment sets and 4 facings (no duplicate body, unchanged game contact clock)");
+    }
+
+    private static void CombatSettleNeverMasksNewPhysicalAction(FrontierRuntime app)
+    {
+        int count=0;
+        foreach(int equipment in new[]{0,1,2})
+        foreach(bool skill in new[]{false,true})
+        {
+            Prepare(app,equipment);
+            var g=app.Game;
+            g.save.reducedMotion=false;
+            g.SetAim(new Point(1f,0f));
+            if(skill)g.Skill(new Point(1f,0f));
+            else g.Attack(new Point(1f,0f));
+            var a=g.playerAction;
+            Check(a!=null,"Live action to prime painted settle missing");
+            for(int i=0;i<90&&a.elapsed<a.duration-.042f;i++)
+                g.Tick(.02f,new Point());
+            Set(app,"clock",42f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            g.Tick(.05f,new Point());
+            Set(app,"clock",42.025f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var settled=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(settled!=null&&settled.texture.name.Contains(
+                skill?"_Cast_":"_Attack_"),
+                "A source-painted late contact actually reached visual settling");
+            g.Dash(new Point(0f,-1f));
+            Set(app,"clock",42.035f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var dodge=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(dodge!=null&&dodge.texture.name.Contains("_Dodge_"),
+                "New physical dodge must immediately replace stationary recovery without a stale weapon body");
+            for(int i=0;i<16;i++)g.Tick(.02f,new Point());
+            g.attackCooldown=0;g.save.energy=100;
+            g.Attack(new Point(0f,-1f));
+            Set(app,"clock",42.43f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var fresh=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(g.playerAction!=null&&fresh!=null&&
+                fresh.texture.name=="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    new[]{"Vanguard","Ranger","Arcanist"}[equipment]+"_Attack_N",
+                "Fresh physical attack must select its new facing and the same equipped full body");
+            count++;
+        }
+        Console.WriteLine("PASS "+count+
+            " real released combat bodies stop cleanly on immediate Dodge and new Attack inputs without stale costume/pose");
     }
 
     private static void QueuedAreaPreviewDrawsRealWorldRadius(FrontierRuntime app)
@@ -2129,7 +2182,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalCombatRecoverySettlesWithoutExtraBody, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

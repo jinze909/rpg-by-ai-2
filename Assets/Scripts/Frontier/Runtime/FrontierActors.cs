@@ -509,7 +509,12 @@ namespace Starfall
             // defensive reaction or genuine movement. Never replay old
             // contact art when a different attack is already starting.
             if(live!=null||action!=0||moving||Game.Dying||
-                Game.save.reducedMotion||Game.PlayerPose>1)
+                Game.save.reducedMotion||
+                // Vanguard Q grants a genuine standing guard AFTER Cast.
+                // Pose 9 is a planted guard stance, not a new damaging
+                // attack or active locomotion: finish its source-painted
+                // Cast recovery before returning to the guarded Idle.
+                (Game.PlayerPose>1&&Game.PlayerPose!=9))
             {
                 heroContactSettleAction=null;
                 return;
