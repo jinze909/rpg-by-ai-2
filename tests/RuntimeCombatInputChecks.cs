@@ -300,7 +300,11 @@ public static class RuntimeCombatInputChecks
                 friendly=true,explosive=true,visual="starfire",
                 damage=20f,life=1f};
             g.projectiles.Add(bolt);
-            g.Tick(.15f,new Point());
+            // GameCore deliberately clamps each gameplay tick to 50ms.
+            // Do not assume a 150ms call grants three frames of travel:
+            // actually advance until the real swept bolt meets stone.
+            for(int frame=0;frame<6&&g.projectiles.Contains(bolt);frame++)
+                g.Tick(.05f,new Point());
             Effect impact=g.effects.Find(e=>e.kind=="magicImpact"&&
                 Math.Abs(e.radius-1.8f)<.001f);
             Check(impact!=null&&!g.projectiles.Contains(bolt)&&
