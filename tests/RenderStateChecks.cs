@@ -2089,6 +2089,75 @@ public static class RenderStateChecks
         }
     }
 
+    private static void WorldRayClippingKeepsOriginalGroundedPaintSamples(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        Matrix4x4 oldMatrix=GUI.matrix;
+        Color oldTint=GUI.color;
+        try
+        {
+            Set(app,"camera",g.Position);
+            Point origin=g.Position;
+            Color light=new Color(.47f,.81f,.71f,.58f);
+            Point farLeft=origin+new Point(-65f,0f);
+            Point farRight=origin+new Point(65f,0f);
+            Point a=(Point)Call(app,"ScreenPoint",farLeft);
+            Point b=(Point)Call(app,"ScreenPoint",farRight);
+            float length=(b-a).Length;
+            int originalSamples=Math.Max(1,(int)(length/5f));
+            Check(originalSamples>900,
+                "The expanded-world beam fixture needs far more original world samples than visible viewport pixels");
+            Clear();Call(app,"DrawRay",farLeft,farRight,light);
+            Check(GUI.textureCalls.Count>230&&
+                GUI.textureCalls.Count<310,
+                "Long offscreen-to-offscreen world ray must render its real viewport beam without thousands of offscreen pixel quads");
+            // A cheap clip must never re-phase the actual 5px authored
+            // dotted points when either end of the ray moves offscreen.
+            // Sample the exact center cell from the UNCLIPPED original
+            // calculation and require its ORIGINAL source-pixel position.
+            int centerSample=originalSamples/2;
+            Point center=a+(b-a)*(centerSample/(float)originalSamples);
+            Check(GUI.textureCalls.Exists(call=>
+                object.ReferenceEquals(call.texture,Texture2D.whiteTexture)&&
+                Math.Abs(call.rect.x-(center.x-2f))<.01f&&
+                Math.Abs(call.rect.y-(center.y-2f))<.01f&&
+                Math.Abs(call.color.a-light.a)<.0001f),
+                "World viewport clipping shifted the original full-length beam's pixel phase, tinted it, or broke the precise world root");
+            Clear();Call(app,"DrawRay",farLeft+new Point(0,-90f),
+                farRight+new Point(0,-90f),light);
+            Check(GUI.textureCalls.Count==0,
+                "A wholly invisible remote world light ray still allocated opaque GUI rectangles");
+            Point closeA=origin+new Point(-1f,0f);
+            Point closeB=origin+new Point(1f,0f);
+            a=(Point)Call(app,"ScreenPoint",closeA);
+            b=(Point)Call(app,"ScreenPoint",closeB);
+            int expected=Math.Max(1,(int)((b-a).Length/5f));
+            Clear();Call(app,"DrawRay",closeA,closeB,light);
+            Check(GUI.textureCalls.Count==expected+1,
+                "A short completely visible original ward/light beam lost a source-grounded full-resolution sample");
+            for(int i=0;i<=expected;i++)
+            {
+                Point point=a+(b-a)*(i/(float)expected);
+                var draw=GUI.textureCalls[i];
+                Check(Math.Abs(draw.rect.x-(point.x-2f))<.001f&&
+                    Math.Abs(draw.rect.y-(point.y-2f))<.001f,
+                    "A short visible world ray's original exact 4px beam sample moved: "+i);
+            }
+            Same(GUI.matrix,oldMatrix,
+                "Viewport-clipped light beam modified the world GUI matrix");
+            Same(GUI.color,oldTint,
+                "Viewport-clipped light beam leaked incoming GUI tint");
+            Console.WriteLine("PASS original ray pixels are exact at fixed world feet, offscreen world beams clip to viewport, short signals retain all authored samples");
+        }
+        finally
+        {
+            GUI.matrix=oldMatrix;GUI.color=oldTint;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     private static void AreaWarningsUseTrueDamageCircleAtScreenCorners(
         FrontierRuntime app)
     {
@@ -5134,7 +5203,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();RoadwardenSiphonTethersFollowRealCombatAndAccessibility(app);VerifyRoadwardenWardSpriteInProduction(app);CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();RoadwardenSiphonTethersFollowRealCombatAndAccessibility(app);VerifyRoadwardenWardSpriteInProduction(app);CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);WorldRayClippingKeepsOriginalGroundedPaintSamples(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
