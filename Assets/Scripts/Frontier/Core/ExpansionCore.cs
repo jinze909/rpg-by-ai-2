@@ -525,10 +525,17 @@ namespace Starfall
         private Point companionCornerGoal,companionCornerTargetFoot;
         private SaveData companionCornerSave;
         private int companionCornerRoom=-1,companionCornerGeneration=-1;
+        // The first REAL projectile release starts a brief foot-plant
+        // interval. The post-contact recovery cannot pin Ivo/Sen beside
+        // a stale target for the remainder of a 2.8/6-second auto cadence.
+        private bool companionCornerShotCommitted;
+        private float companionCornerPostShotSeconds;
         private void ClearCompanionCornerPlan()
         {
             companionCornerTarget=null;
             companionCornerSave=null;
+            companionCornerShotCommitted=false;
+            companionCornerPostShotSeconds=0f;
         }
         private bool CompanionCornerWalkable(Point from,Point goal)
         {
@@ -575,8 +582,19 @@ namespace Starfall
             // corner and create a loop of aborted attacks. Never freeze
             // after a moving/dead target, party swap, new save or changed
             // geometry: only a CURRENT verified projectile line holds us.
-            if(samePlan&&CompanionCornerShotReady(
-                companionPosition,old))return companionPosition;
+            if(samePlan&&CompanionCornerShotReady(companionPosition,old))
+            {
+                // While the shot is not yet fired, stay at the physically
+                // earned foot until the real attack timer permits release.
+                // Afterwards allow only a bounded stable source-foot
+                // recovery: never hold a follower motionless for the
+                // remaining multi-second normal attack cooldown.
+                if(!companionCornerShotCommitted||
+                    companionCornerPostShotSeconds>0f)
+                    return companionPosition;
+                ClearCompanionCornerPlan();
+                return normal;
+            }
             bool reusable=samePlan&&
                 !CompanionCornerShotReady(companionPosition,old)&&
                 (companionCornerGoal-companionPosition).Length>.12f&&
@@ -632,6 +650,8 @@ namespace Starfall
             }
             if(candidate==null)return normal;
             companionCornerTarget=candidate;
+            companionCornerShotCommitted=false;
+            companionCornerPostShotSeconds=0f;
             companionCornerTargetFoot=candidate.Position;
             companionCornerGoal=newGoal;
             companionCornerSave=save;
@@ -706,6 +726,8 @@ namespace Starfall
             if (save.companion < 0 || practicing)
             { companionAction = null; companionAutoTarget = null; return; }
             companionCooldown = Math.Max(0, companionCooldown - dt); companionAttack -= dt;
+            companionCornerPostShotSeconds=Math.Max(0f,
+                companionCornerPostShotSeconds-dt);
             if (companionAction != null)
             {
                 ActorAction action = companionAction;
@@ -836,6 +858,22 @@ namespace Starfall
                             else
                             {
                                 projectiles.Add(shot);
+                                if(action.kind=="attack"&&
+                                    System.Object.ReferenceEquals(
+                                        locked,companionCornerTarget)&&
+                                    System.Object.ReferenceEquals(
+                                        companionCornerSave,save)&&
+                                    companionCornerGeneration==
+                                        companionPresentationGeneration&&
+                                    companionCornerRoom==save.room)
+                                {
+                                    // Publish this visual foot-plant ONLY
+                                    // after actual projectile creation. A
+                                    // blocked muzzle or dead foe cannot
+                                    // masquerade as a completed flank.
+                                    companionCornerShotCommitted=true;
+                                    companionCornerPostShotSeconds=.65f;
+                                }
                                 effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, variant = action.weapon == 1 ? 1 : 2, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) });
                                 sound = action.weapon == 1 ? "arrow" : "spell";
                             }
