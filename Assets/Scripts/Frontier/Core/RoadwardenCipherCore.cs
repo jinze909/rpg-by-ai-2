@@ -108,7 +108,14 @@ namespace Starfall
             if(roadTrialRoom==0||save.room!=roadTrialRoom||
                 !IsRoadwardenTrialEnemy(enemy))return;
             int index=enemy.id-(81000+roadTrialRoom*10+roadTrialWave*2);
-            if(index>=0&&index<2)roadTrialConfirmedKills|=1<<index;
+            if(index>=0&&index<2)
+            {
+                roadTrialConfirmedKills|=1<<index;
+                // The last actual combat death cancels pending hazards for
+                // THIS wave immediately, not one simulation tick later.
+                // A dead raider's pincer must never land during handoff.
+                if(roadTrialConfirmedKills==3)ClearRoadwardenTrialWarnings();
+            }
         }
         private float roadTrialSurgeTimer;
         private int roadTrialSurgeCount;
@@ -131,6 +138,13 @@ namespace Starfall
         public bool RoadwardenWardUnderAttack { get { return roadTrialRoom != 0 && roadTrialWardUnderAttack; } }
         // Transient warnings belong to this drill, never to the persistent world.
         private readonly List<Hazard> roadTrialWarnings = new List<Hazard>();
+        private void ClearRoadwardenTrialWarnings()
+        {
+            // Preserve unrelated world hazard instances, even when their
+            // positions and kinds exactly overlap a Roadwarden strike.
+            foreach(Hazard warning in roadTrialWarnings)hazards.Remove(warning);
+            roadTrialWarnings.Clear();
+        }
         public int RoadwardenTrialRoom { get { return roadTrialRoom; } }
         public int RoadwardenTrialWave { get { return roadTrialWave; } }
         public int RoadwardenTrialTotalWaves { get { return roadTrialVeteran ? 3 : 2; } }
@@ -161,8 +175,7 @@ namespace Starfall
                         RemoveEnemyPendingWarning(enemies[i]);
                         enemies.RemoveAt(i);
                     }
-            foreach (Hazard warning in roadTrialWarnings) hazards.Remove(warning);
-            roadTrialWarnings.Clear();
+            ClearRoadwardenTrialWarnings();
             // A stopped drill must not leave its already-fired arrows active.
             // Keep unrelated patrol and player projectiles intact.
             projectiles.RemoveAll(p => p.roadTrialOwned);
