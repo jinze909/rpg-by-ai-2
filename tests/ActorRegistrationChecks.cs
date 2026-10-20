@@ -2165,7 +2165,18 @@ public static class ActorRegistrationChecks
                 Math.Abs(selected[0].rect.y-alive.First(t=>
                     System.Object.ReferenceEquals(t.texture,source)).rect.y)<.001f,
                 "GPU-only monster preview must use the SAME exact whole-body crop and fixed sole with a safe translucent highlight, no old model or invisible selection");
-            Console.WriteLine("PASS actual monster live hit and preview on unreadable GPU-only imported source: complete body, original foot, no missing-mask GetPixels crash or false flash");
+            // A different adversarial import has a non-null Texture2D but
+            // cannot be divided into the approved 6x3 square-cell grid.
+            // Quarantine it before any body, contact shadow, dust or flash
+            // can leave a misleading ghost behind.
+            var malformed = new Texture2D(768, 512, TextureFormat.RGBA32, false)
+                {name="malformed-monster-grid"};
+            monsterField.SetValue(app,malformed);
+            Clear();
+            var rejected=Draw(app,"DrawEnemyActor",foe);
+            Check(rejected.Count==0,
+                "Malformed non-null monster grids must be rejected before painting body, shadow or combat effects");
+            Console.WriteLine("PASS GPU-only scaled 6x3 monster grid stays drawable; malformed grid is quarantined before all paint");
         }
         finally
         {
