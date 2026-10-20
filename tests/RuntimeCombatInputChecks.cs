@@ -548,6 +548,67 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
+    private static void ProjectileWallContactKeepsOriginalSourceLight(FrontierRuntime app)
+    {
+        float[,] palette={
+            {1f,1f,1f},
+            {1f,.47f,.40f},
+            {.60f,.91f,.72f},
+            {.67f,.76f,1f},
+            {.98f,.80f,.48f}
+        };
+        for(int light=0;light<=4;light++)
+        {
+            Prepare(app,0);
+            GameCore g=app.Game;
+            var shot=new Projectile{
+                position=g.Position+new Point(1f,0),
+                velocity=new Point(10f,0f),damage=12f,life=1.5f,
+                friendly=light!=1,blockedAtSpawn=true,
+                visual=light==1?"enemyArrow":
+                    light==3?"starfire":"arrow",
+                source=light==4?"deflected":
+                    light==1?"shot":"attack",
+                impact=light==0||light==1?null:
+                    new ImpactProfile(light==2?1:light==3?2:0,
+                        0,0,0,.1f,true,light==2?1:light==3?2:0)
+            };
+            // The authoritative blocked-at-muzzle transaction still
+            // enters UpdateProjectiles and paints exactly one near-side
+            // contact; do not fabricate a hit while the missile is flying.
+            g.projectiles.Add(shot);
+            g.Tick(.02f,new Point());
+            Effect contact=g.effects.FindLast(e=>
+                e.kind=="projectileImpact"&&
+                (e.position-shot.position).Length<.01f);
+            Check(contact!=null&&contact.variant==light&&
+                !g.projectiles.Contains(shot),
+                "Real GameCore blocked projectile lost its immutable "+
+                "hostile/bow/staff/parry source contact "+light);
+            GUI.textureCalls.Clear();
+            Check((bool)Call(app,"DrawAuthoredEffect",contact)&&
+                GUI.textureCalls.Exists(c=>
+                    c.texture!=null&&
+                    c.texture.name=="resource:Frontier/Art/Effects"&&
+                    Math.Abs(c.color.r-palette[light,0])<.0001f&&
+                    Math.Abs(c.color.g-palette[light,1])<.0001f&&
+                    Math.Abs(c.color.b-palette[light,2])<.0001f),
+                "Original published missile contact Sprite lost source light "+light);
+            // A shot that already expired is a fade, not a fake
+            // physically impactful hit with this glowing palette.
+            g.effects.Clear();
+            g.projectiles.Add(new Projectile{
+                position=g.Position+new Point(1f,0f),
+                velocity=new Point(10f,0f),friendly=true,
+                life=0f,visual="arrow",impact=shot.impact
+            });
+            g.Tick(.02f,new Point());
+            Check(!g.effects.Exists(e=>e.kind=="projectileImpact"),
+                "Expired arrow fabricated a second wall contact glow");
+        }
+        Console.WriteLine("PASS five real GameCore missile contact ownership paints from existing Effects sprites: hostile, bow, staff, parry, neutral and no false expiry hits");
+    }
+
     private static void MeleeSwordContactStopsAtRealSolidCover(FrontierRuntime app)
     {
         foreach(bool wall in new[]{false,true})
@@ -2742,7 +2803,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

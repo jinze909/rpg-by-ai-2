@@ -1382,6 +1382,22 @@ namespace Starfall
             });
         }
 
+        // The final wall/contact spark uses the SAME launch-owned body
+        // identity as the missile and genuine enemy hit, rather than
+        // teleporting visually to a neutral white when it meets stone.
+        // 0=neutral, 1=hostile, 2=bow, 3=staff, 4=sword-deflected.
+        // This transient contact tag never changes damage or SaveData.
+        private static int ProjectileContactLight(Projectile p)
+        {
+            if(!p.friendly)return 1;
+            if(p.source=="deflected")return 4;
+            if(p.impact!=null&&p.impact.playerOwned)
+            {
+                if(p.impact.weapon==1)return 2;
+                if(p.impact.weapon==2)return 3;
+            }
+            return 0;
+        }
         private void AddProjectileFade(Projectile p)
         {
             // Flight expiration or invalid spawn has no genuine contact
@@ -1671,7 +1687,8 @@ namespace Starfall
                         effects.Add(new Effect(!startedBlocked && p.explosive ?
                             "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
-                        variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
+                        variant = ProjectileContactLight(p),
+                        radius = impactRadius, height = p.height,
                         reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
                         mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,

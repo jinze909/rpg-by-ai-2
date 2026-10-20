@@ -381,6 +381,22 @@ namespace Starfall
                     case 3: color.r=.67f;color.g=.76f;color.b=1f;break;
                 }
             }
+            if((effect.kind=="projectileImpact"||
+                effect.kind=="magicImpact")&&
+                effect.variant>=1&&effect.variant<=4)
+            {
+                // The authentic Effects.png contact frame is recolored
+                // ONLY for an actual GameCore missile/wall collision.
+                // Enemy orange, bow green, arcane blue and successful
+                // sword deflection gold agree with each flying source.
+                switch(effect.variant)
+                {
+                    case 1: color.r=1f;color.g=.47f;color.b=.40f;break;
+                    case 2: color.r=.60f;color.g=.91f;color.b=.72f;break;
+                    case 3: color.r=.67f;color.g=.76f;color.b=1f;break;
+                    case 4: color.r=.98f;color.g=.80f;color.b=.48f;break;
+                }
+            }
             if (effect.kind == "projectileFade") color.a *= .65f;
             if (effect.kind != "slash" && effect.kind != "impact" && effect.kind != "spark" && effect.kind != "projectileImpact") color.a *= Math.Min(1, progress * 12 + .15f);
             if (IsGroundEffect(effect)) color.a *= effect.kind == "frost" ? .42f : .62f;
