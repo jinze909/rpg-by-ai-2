@@ -209,6 +209,19 @@ namespace Starfall
                 (point-effect.position).Length<=effect.radius+.0001f&&
                 ClearAttackPath(effect.position,point);
         }
+        // The ordinary enemy's actual melee release requires BOTH the
+        // precise 1.5-tile directional hit arc AND an unobstructed physical
+        // path from the attacker's feet. Keep the renderer read-only and
+        // use that authoritative check for its live wall-aware warning.
+        public bool EnemyMeleeWarningSpokeReachable(Enemy enemy,Point target)
+        {
+            return enemy!=null&&!enemy.boss&&enemy.kind==0&&
+                enemy.state==1&&enemy.hp>0f&&
+                Finite(enemy.x)&&Finite(enemy.y)&&
+                Finite(target.x)&&Finite(target.y)&&
+                InEnemyMeleeArc(enemy,target)&&
+                ClearAttackPath(enemy.Position,target);
+        }
         // The ACTUAL enemy radial contact checks ClearAttackPath from its
         // feet to the victim, not from the decorative target circle. A
         // static full red ring through wall cover falsely signals damage.

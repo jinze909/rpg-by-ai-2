@@ -579,6 +579,58 @@ namespace Starfall
                 prev=next;
             }
         }
+        private void DrawCoverAwareEnemyMeleeArc(Enemy enemy,
+            float start,float sweep,Color visible,int segments)
+        {
+            if(segments<1)return;
+            const float radius=GameCore.EnemyMeleeRadius;
+            float step=sweep/segments;
+            Point previous=enemy.Position+new Point(
+                (float)Math.Cos(start)*radius,
+                (float)Math.Sin(start)*radius);
+            Color cover=new Color(.52f,.64f,.67f,visible.a*.30f);
+            for(int i=1;i<=segments;i++)
+            {
+                float theta=start+i*step;
+                Point next=enemy.Position+new Point(
+                    (float)Math.Cos(theta)*radius,
+                    (float)Math.Sin(theta)*radius);
+                // The warning itself sits ON the exact strict contact
+                // boundary. Probe just INSIDE that radius for the same
+                // physical LOS and melee direction used on hit release.
+                float mid=start+(i-.5f)*step;
+                Point actualProbe=enemy.Position+new Point(
+                    (float)Math.Cos(mid)*(radius-.015f),
+                    (float)Math.Sin(mid)*(radius-.015f));
+                DrawWarningStroke(ScreenPoint(previous),
+                    ScreenPoint(next),
+                    Game.EnemyMeleeWarningSpokeReachable(enemy,actualProbe)?
+                    visible:cover);
+                previous=next;
+            }
+            // Preserve the original narrow wedge boundaries, but never
+            // render a full threatening line through a solid wall.
+            for(int side=-1;side<=1;side+=2)
+            {
+                float theta=side<0?start:start+sweep;
+                Point direction=new Point(
+                    (float)Math.Cos(theta),(float)Math.Sin(theta));
+                Point endpoint=enemy.Position+direction*radius;
+                Point check=enemy.Position+direction*(radius-.015f);
+                // The exact angular boundary is intentionally outside
+                // InEnemyMeleeArc's strict > cosine. Nudge inward by one
+                // half-segment so the boundary follows the nearby
+                // drawable physical arc, not a mathematical equality.
+                float inner=theta+(side<0?1f:-1f)*step*.5f;
+                check=enemy.Position+new Point((float)Math.Cos(inner),
+                    (float)Math.Sin(inner))*(radius-.015f);
+                Color tint=Game.EnemyMeleeWarningSpokeReachable(enemy,check)?
+                    visible:cover;
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(endpoint),
+                    new Color(tint.r,tint.g,tint.b,tint.a*.45f));
+            }
+        }
         private void DrawTelegraph(Enemy enemy)
         {
             float radius = GameCore.EnemyAreaRadius(enemy);
@@ -660,16 +712,8 @@ namespace Starfall
             // The previous 33 disconnected square dots flickered into a
             // jagged, barely legible arc. The new stitched stroke follows the
             // identical GameCore melee cosine/radius and facing.
-            DrawWarningArc(enemy.Position,GameCore.EnemyMeleeRadius,
-                angle-half,half*2f,color,24);
-            for(int side=-1;side<=1;side+=2)
-            {
-                float a=angle+half*side;
-                Point edge=enemy.Position+new Point((float)Math.Cos(a),(float)Math.Sin(a))*GameCore.EnemyMeleeRadius;
-                DrawWarningStroke(ScreenPoint(enemy.Position),
-                    ScreenPoint(edge),
-                    new Color(color.r,color.g,color.b,color.a*.45f));
-            }
+            DrawCoverAwareEnemyMeleeArc(enemy,angle-half,
+                half*2f,color,24);
         }
     }
 }

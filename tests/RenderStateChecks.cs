@@ -3763,6 +3763,68 @@ public static class RenderStateChecks
     // This is called from the executable RuntimeCombatInputChecks runner,
     // not merely the offline visual review gallery. It uses the ACTUAL
     // GameCore windup owner and formally rendered warning path.
+    public static void VerifyOrdinaryMeleeWarningRespectsRealWallCover(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        Point origin=game.Position;
+        var enemy=new Enemy(91326,0,origin.x,origin.y,500f){
+            state=1,timer=.3f,windupDuration=.65f
+        };
+        enemy.Face(new Point(1f,0f));
+        int row=(int)origin.y,col=(int)origin.x+1;
+        string oldRow=game.Map.rows[row];
+        var oldMatrix=GUI.matrix;
+        var oldColor=GUI.color;
+        try
+        {
+            char[] closed=oldRow.ToCharArray();
+            closed[col]='#';
+            game.Map.rows[row]=new string(closed);
+            float reach=GameCore.EnemyMeleeRadius-.015f;
+            Point covered=enemy.Position+new Point(reach,0f);
+            // Angle -1.25 radians is inside the real -acos(-.1)
+            // attack cone, but escapes the east-side wall through
+            // the clear northwest shoulder of the attacker.
+            Point exposed=enemy.Position+new Point(
+                (float)Math.Cos(-1.25f)*reach,
+                (float)Math.Sin(-1.25f)*reach);
+            Check(!game.EnemyMeleeWarningSpokeReachable(enemy,covered)&&
+                game.EnemyMeleeWarningSpokeReachable(enemy,exposed),
+                "Actual melee threat must distinguish stone-blocked east from open upper swing sector");
+            Clear();Call(app,"DrawEnemyWarning",enemy);
+            Point east=(Point)Call(app,"ScreenPoint",covered);
+            Point upper=(Point)Call(app,"ScreenPoint",exposed);
+            Func<Point,GUI.TextureCall> nearest=point=>
+                GUI.textureCalls.Where(c=>c.texture==Texture2D.whiteTexture)
+                .OrderBy(c=>Math.Pow(Center(c).x-point.x,2)+
+                    Math.Pow(Center(c).y-point.y,2)).First();
+            var stone=nearest(east);
+            var legal=nearest(upper);
+            Check(stone.color.r<.60f&&legal.color.r>.8f&&
+                stone.color.a<legal.color.a*.55f,
+                "Actual ordinary melee warning still paints a dangerous full-red arc through solid stone");
+            game.Map.rows[row]=oldRow;
+            Check(game.EnemyMeleeWarningSpokeReachable(enemy,covered),
+                "Removing real wall failed to open original melee contact");
+            Clear();Call(app,"DrawEnemyWarning",enemy);
+            stone=nearest(east);
+            Check(stone.color.r>.8f&&stone.color.a>.3f,
+                "Restored melee danger region was not redrawn in true original warning color");
+            game.save.reducedMotion=true;
+            Clear();Call(app,"DrawEnemyWarning",enemy);
+            Check(nearest(east).color.r>.8f,
+                "Reduced Motion hid a still-physical melee danger sector");
+            Console.WriteLine("PASS live ordinary enemy melee warning clips through real wall cover and reopens physical contact, while preserving full contact cone and reduced-motion cues");
+        }
+        finally
+        {
+            game.Map.rows[row]=oldRow;
+            GUI.matrix=oldMatrix;GUI.color=oldColor;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyEnemyAreaWarningHonorsRealWallCover(FrontierRuntime app)
     {
         Prepare(app);

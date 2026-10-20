@@ -2907,6 +2907,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyLivingGardenInProduction,
             RenderStateChecks.VerifyAuthoredProjectileTrailsAndHotImport,
             RenderStateChecks.VerifyReducedMotionContactEffectsHaveStableSourceScale,
+            RenderStateChecks.VerifyOrdinaryMeleeWarningRespectsRealWallCover,
             RenderStateChecks.VerifyEnemyAreaWarningHonorsRealWallCover,
             RenderStateChecks.VerifyCastSigilSourceAndCombatWarning,
             RenderStateChecks.VerifyRelicArtAndWorldIllumination,
