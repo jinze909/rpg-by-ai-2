@@ -5045,6 +5045,13 @@ public static class RenderStateChecks
             int authoredIndex=GUI.textureCalls.FindIndex(t=>t.texture==sheet);
             Check(authoredIndex==0&&GUI.textureCalls.Count>1,
                 "The source-painted protective rune must precede, not replace, the mature column in world draw order");
+            // Verify the actual Frontier.unity World call graph, not only
+            // an isolated object renderer invoked by reflection. Preserve
+            // authored player/NPC/canopy/stone depth and all combat signals.
+            stage="production-world";
+            Clear();Call(app,"DrawWorld");
+            Check(GUI.textureCalls.Exists(t=>t.texture==sheet),
+                "The playable DrawWorld scene failed to reach the live ward Sprite atlas");
             stage="authored-animation";
             Set(app,"clock",1.5f);Clear();Call(app,"DrawPolishObject",beacon);
             var advanced=GUI.textureCalls.Find(t=>t.texture==sheet);
