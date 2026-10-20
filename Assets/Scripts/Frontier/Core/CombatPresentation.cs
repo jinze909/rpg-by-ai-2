@@ -54,6 +54,21 @@ namespace Starfall
         {
             get { return bufferedSkill==null?(Point?)null:bufferedSkill.target; }
         }
+        // The real default Vanguard/Arcanist Q hits only in a grounded
+        // circular area around the actor (ResolveSkill: 3.1/4.5 tiles).
+        // Return the physical damage reach for a QUEUED standard cast,
+        // not a guessed effect radius for the Ranger volley or alternate
+        // technique. Never advance the simulation by querying the preview.
+        public float SkillQueuedAreaReach
+        {
+            get {
+                SkillIntent intent=bufferedSkill;
+                if(intent==null||intent.technique!=0||intent.profession==1||
+                    intent.profession!=save.profession||
+                    intent.technique!=save.technique)return 0f;
+                return intent.profession==2?4.5f:3.1f;
+            }
+        }
         // A single late basic-attack press may carry through the tail of a
         // released LMB or Q. The intent never replaces a still-visible
         // Attack/Cast body, is never saved, and spends nothing until accepted.

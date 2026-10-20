@@ -2165,6 +2165,46 @@ namespace Starfall.Tests
                 "Queued skill target marker clears the instant its world action dispatches");
             Advance(latest,4.5f);Check(latest.playerAction==null&&latest.skillCooldown<=0,"A consumed input cannot recast after cooldown");
         }
+        public static void QueuedAreaSkillsPreviewTrueDamageReach(Campaign data)
+        {
+            for(int profession=0;profession<3;profession++)
+            {
+                var g=Quiet(data,profession);g.enemies.Clear();
+                g.Attack(new Point(1f,0f));
+                Advance(g,.12f);g.Skill(new Point(0,-1));
+                float expected=profession==0?3.1f:
+                    profession==2?4.5f:0f;
+                Check(g.SkillQueued&&
+                    Math.Abs(g.SkillQueuedAreaReach-expected)<.0001f,
+                    "The live pending Q must preview only its actual Vanguard/Arcanist damage reach, class "+profession);
+                g.Dash(new Point(1f,0f));
+                Check(!g.SkillQueued&&g.SkillQueuedAreaReach==0f,
+                    "Dodge cancels the real area skill and its world preview without spending Q");
+            }
+            foreach(int profession in new[]{0,1,2})
+            {
+                var alternate=Quiet(data,profession);alternate.enemies.Clear();
+                alternate.save.technique=1;
+                alternate.Attack(new Point(1,0));Advance(alternate,.12f);
+                alternate.Skill(new Point(0,-1));
+                Check(alternate.SkillQueued&&
+                    alternate.SkillQueuedAreaReach==0f,
+                    "Alternate technique cannot borrow standard AoE damage-range art");
+            }
+            var dispatched=Quiet(data,2);dispatched.enemies.Clear();
+            dispatched.Attack(new Point(1,0));Advance(dispatched,.18f);
+            dispatched.Skill(new Point(0,-1));
+            Check(dispatched.SkillQueued&&
+                Math.Abs(dispatched.SkillQueuedAreaReach-4.5f)<.0001f,
+                "Queued Arcanist Q initially shows true area radius");
+            for(int frame=0;frame<30&&dispatched.SkillQueued;frame++)
+                dispatched.Tick(.02f,new Point());
+            Check(!dispatched.SkillQueued&&
+                dispatched.SkillQueuedAreaReach==0f&&
+                dispatched.playerAction!=null&&
+                dispatched.playerAction.kind=="skill",
+                "The area preview disappears at the authoritative cast action, not the later contact damage");
+        }
         public static void BufferedSkillsHaveBoundedLifetimeAndResourceChecks(Campaign data)
         {
             var early=Quiet(data,2);early.Attack(new Point(1,0));early.Skill(new Point(0,-1));Advance(early,1);

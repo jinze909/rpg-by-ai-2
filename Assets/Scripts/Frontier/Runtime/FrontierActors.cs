@@ -643,6 +643,15 @@ namespace Starfall
                     skillTarget.HasValue)
                     Ring(skillTarget.Value,.26f,
                         new Color(.83f,.67f,1f,.72f),12);
+                // A queued default Vanguard/Arcanist Q is an actual
+                // player-centered area strike, NOT the Ranger's targeted
+                // volley. Preview the SAME physical damage reach using a
+                // quiet, nonanimated contour, without painting a fake hit,
+                // inventing a spell release, or obscuring the full-body hero.
+                float areaReach=Game.SkillQueuedAreaReach;
+                if(areaReach>0f)
+                    Ring(Game.Position,areaReach,
+                        new Color(.70f,.56f,1f,.25f),32);
             }
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
             if (Game.racing && !drawingOutline)
