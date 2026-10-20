@@ -586,9 +586,41 @@ public static class NativeHeroCaptureChecks
                 ReferenceEquals(heroView.sprite,rebaked[2])&&
                 fallback.destroyed,
                 "Corrected hero art did not restore accepted native contact");
+            // Editor temporarily removes the ENTIRE atlas asset while
+            // reimporting it. The previously accepted entire action is still
+            // live; a painted damage contact must NOT flash to Idle.
+            var oldTexture=Resources.Registered[hotPath];
+            Resources.Registered.Remove(hotPath);
+            Time.frameCount=3904;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                ReferenceEquals(heroView.sprite,rebaked[2])&&
+                heroNative.enabled,
+                "Missing atlas during Editor import incorrectly flashed an active whole-body attack to Idle");
+            Time.frameCount=3905;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                ReferenceEquals(heroView.sprite,rebaked[2]),
+                "Import retry cooldown discarded last accepted attack instead of retaining the whole body");
+            // A half-written/dimensionally malformed replacement is likewise
+            // never allowed to replace the last verified action silhouette.
+            Resources.Registered[hotPath]=new Texture2D(
+                5*256,256,TextureFormat.RGBA32,false);
+            Time.frameCount=4025;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                ReferenceEquals(heroView.sprite,rebaked[2]),
+                "Malformed replacement atlas discarded the last validated full-body action");
+            Resources.Registered[hotPath]=oldTexture;
+            Time.frameCount=4145;
+            Require((bool)draw.Invoke(live,new object[]{
+                new Point(100,140),Color.white,false,0,false})&&
+                ReferenceEquals(heroView.sprite,rebaked[2])&&heroNative.enabled,
+                "Restored valid atlas failed to republish the real animation clip");
         }
         finally
         {
+            Resources.Registered[hotPath]=originalCells[0].texture;
             Resources.RegisteredSprites[hotPath]=originalCells;
             release.Invoke(live,null);
         }

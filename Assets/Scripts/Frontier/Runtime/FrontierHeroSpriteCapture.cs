@@ -368,6 +368,41 @@ namespace Starfall
             }
         }
 
+        // Unity Editor can briefly unpublish a whole PNG during a hot
+        // import even though the last validated Sprite sub-assets remain
+        // alive. Keep those SAME complete, class-owned cells on screen
+        // rather than replacing a live Attack/Cast/Hit with unrelated Idle.
+        // Never reuse a dead Sprite or an atlas whose geometry changed.
+        private bool TryHoldPublishedHeroFrameDuringImport(
+            string key,int frame,int expectedFrames,out Sprite sprite)
+        {
+            sprite=null;
+            Sprite[] previous;
+            if(frame<0||frame>=expectedFrames||
+                !heroPublishedSprites.TryGetValue(key,out previous)||
+                previous==null||previous.Length!=expectedFrames)
+                return false;
+            for(int i=0;i<previous.Length;i++)
+            {
+                Sprite cell=previous[i];
+                if(cell==null||cell.texture==null||
+                    cell.texture.width!=HeroCell*expectedFrames||
+                    cell.texture.height!=HeroCell||
+                    Mathf.Abs(cell.rect.x-i*HeroCell)>.05f||
+                    Mathf.Abs(cell.rect.y)>.05f||
+                    Mathf.Abs(cell.rect.width-HeroCell)>.05f||
+                    Mathf.Abs(cell.rect.height-HeroCell)>.05f||
+                    Mathf.Abs(cell.pixelsPerUnit-
+                        CanonicalHeroSpriteFactory.PixelsPerUnit)>.05f||
+                    Vector2.Distance(cell.pivot,new Vector2(
+                        CanonicalHeroSpriteFactory.FootX,
+                        HeroCell-CanonicalHeroSpriteFactory.FootTop))>.05f)
+                    return false;
+            }
+            sprite=previous[frame];
+            return true;
+        }
+
         private bool TryUsePublishedHeroFrame(int profession, int action,
             int facing, int frame, int expectedFrames, out Sprite sprite)
         {
@@ -379,7 +414,9 @@ namespace Starfall
                 HeroLiveActions[action] + "_" + HeroLiveFacings[facing];
             int retryAt;
             if(heroPublishedUnavailable.TryGetValue(key,out retryAt)&&
-                Time.frameCount<retryAt)return false;
+                Time.frameCount<retryAt)
+                return TryHoldPublishedHeroFrameDuringImport(
+                    key,frame,expectedFrames,out sprite);
             Sprite[] cells;
             bool cached=heroPublishedSprites.TryGetValue(key,out cells);
             int nextReview;
@@ -400,7 +437,8 @@ namespace Starfall
                         Debug.LogWarning(
                             "Starfall rejected malformed canonical hero atlas: "+
                             key+" (size/frames mismatch). Will retry.");
-                    return false;
+                    return TryHoldPublishedHeroFrameDuringImport(
+                        key,frame,expectedFrames,out sprite);
                 }
                 heroPublishedUnavailable.Remove(key);
                 // Prefer the EXACT shipped imported Sprite sub-assets used
