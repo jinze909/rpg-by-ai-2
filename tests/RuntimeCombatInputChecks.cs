@@ -554,15 +554,32 @@ public static class RuntimeCombatInputChecks
         {
             Prepare(app,0);
             GameCore g=app.Game;
-            g.save.x=12.55f;
-            g.save.y=14f;
             g.save.weapon=0;
-            int row=(int)g.Position.y;
+            // Find a genuinely open physical contact channel in the live
+            // town map. A named floor tile is not necessarily clear:
+            // static building colliders can occupy space over its art.
+            Point planted=new Point();
+            int row=-1,wallTile=-1;
+            for(int y=4;y<g.Map.rows.Length-4&&row<0;y++)
+            for(int x=4;x<g.Map.rows[y].Length-4&&row<0;x++)
+            {
+                if(g.Map.rows[y][x]!='.'||
+                    g.Map.rows[y][x+1]!='.')continue;
+                Point foot=new Point(x+.55f,y+.5f);
+                if(!g.CanStand(foot))continue;
+                bool clear=true;
+                for(int sub=1;sub<=12;sub++)
+                    if(g.Blocked(foot.x+.7f*sub/12f,foot.y))
+                    {clear=false;break;}
+                if(clear){planted=foot;row=y;wallTile=x+1;}
+            }
+            Check(row>=0,"No genuine free original sword contact lane exists in test town");
+            g.save.x=planted.x;g.save.y=planted.y;
             string original=g.Map.rows[row];
             try
             {
                 char[] cells=original.ToCharArray();
-                cells[13]=wall?'#':'.';
+                cells[wallTile]=wall?'#':'.';
                 g.Map.rows[row]=new string(cells);
                 Check(g.CanStand(g.Position),
                     "Near-wall sword test must keep the actual hero on legal ground");
@@ -584,12 +601,15 @@ public static class RuntimeCombatInputChecks
                 Check(!g.effects.Exists(e=>
                     e.kind==(wall?"slash":"projectileImpact")),
                     "A ghost full-body slash or collision spark is displayed on the wrong terrain");
-                Check(Math.Abs(swordContact.position.y-14f)<.001f&&
+                Check(Math.Abs(swordContact.position.y-planted.y)<.001f&&
                     (wall?
-                        swordContact.position.x<13f&&
-                        swordContact.position.x>12.55f:
-                        Math.Abs(swordContact.position.x-13.25f)<.001f),
-                    "Sword contact pivot crossed real stone or drifted on unobstructed ground");
+                        swordContact.position.x<wallTile&&
+                        swordContact.position.x>planted.x:
+                        Math.Abs(swordContact.position.x-(planted.x+.7f))<.001f),
+                    "Sword contact pivot crossed real stone or drifted on unobstructed ground: blocked="+
+                    wall+" root="+planted.x+","+planted.y+
+                    " contact="+swordContact.position.x+","+swordContact.position.y+
+                    " wallTile="+wallTile);
                 GUI.textureCalls.Clear();
                 Check((bool)Call(app,"DrawAuthoredEffect",swordContact)&&
                     GUI.textureCalls.Exists(c=>c.texture!=null&&
