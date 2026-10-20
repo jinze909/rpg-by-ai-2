@@ -3,6 +3,95 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void RoadwardenWardPressureAndWarningRearmRespectRealFooting(Campaign data)
+        {
+            MapData original=data.maps[1];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[1]=new MapData{id=1,spawnX=original.spawnX,
+                    spawnY=original.spawnY,rows=rows,
+                    objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("dispatch_complete");
+                g.save.flags.Add("survey_1");
+                g.Enter(1);g.enemies.Clear();g.invulnerable=180f;
+                WorldObject station=Object(g,"survey1");
+                g.save.x=station.x;g.save.y=station.y;
+                Action(g,station.kind,"road_trial_start_1");
+                var actors=g.enemies.FindAll(e=>e.id>=81000&&e.id<81100);
+                Check(g.RoadwardenTrialRoom==1&&actors.Count==2,
+                    "The real forest defense is live with both original trial attackers");
+                var ward=typeof(GameCore).GetField("roadTrialWard",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                var warning=typeof(GameCore).GetField("roadTrialWardWarning",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                var trialTick=typeof(GameCore).GetMethod("TickRoadwardenTrial",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(ward!=null&&warning!=null&&trialTick!=null,
+                    "Real live ward, warning tier and objective combat transaction are available");
+                Enemy raider=actors[0],other=actors[1];
+                // The gate closes only around the raider's *source* foot:
+                // ClearAttackPath skips its origin and can still see the
+                // beacon, so centerline-only ward pressure is a false hit.
+                raider.x=(float)Math.Floor(station.x)+1.01f;
+                raider.y=station.y;raider.state=0;raider.timer=100f;
+                raider.stun=0;raider.hitTime=0;raider.releaseTime=0;
+                other.stun=100f;
+                ward.SetValue(g,70f);
+                Check(g.CanStand(raider.Position),
+                    "Initially open legal raid footing can physically pressure the beacon");
+                trialTick.Invoke(g,new object[]{.05f});
+                Check(g.RoadwardenWardIntegrity<70f,
+                    "An active and physically positioned raider drains the true beacon ward");
+                ward.SetValue(g,70f);
+                int x=(int)Math.Floor(raider.x),y=(int)Math.Floor(raider.y);
+                char[] cells=rows[y].ToCharArray();char old=cells[x];
+                cells[x]='#';rows[y]=new string(cells);
+                Check(!g.CanStand(raider.Position)&&g.CanStand(new Point(station.x,station.y)),
+                    "Dynamic stone seals only the attacker's entire foot, never the beacon");
+                trialTick.Invoke(g,new object[]{.05f});
+                Check(Math.Abs(g.RoadwardenWardIntegrity-70f)<.0001f&&
+                    !g.RoadwardenWardUnderAttack&&g.RoadwardenTrialRoom==1,
+                    "A trapped raider cannot invisibly siphon ward integrity through a newly closed gate");
+                cells[x]=old;rows[y]=new string(cells);
+                // A real one-per-wave terminal repair should re-arm the
+                // 30% critical alert, without replaying the 65% warning
+                // while the shield is still below that threshold.
+                ward.SetValue(g,28f);warning.SetValue(g,2);
+                g.save.energy=100f;g.Close();
+                Action(g,station.kind,"road_trial_repair");
+                Check(Math.Abs(g.RoadwardenWardIntegrity-53f)<.0001f&&
+                    g.save.energy==65f&&(int)warning.GetValue(g)==1,
+                    "An actual paid beacon repair re-arms only the newly recovered critical warning tier");
+                ward.SetValue(g,30.05f);g.Close();
+                trialTick.Invoke(g,new object[]{.05f});
+                Check((int)warning.GetValue(g)==2&&
+                    g.RoadwardenWardIntegrity<=30f,
+                    "The second real critical breach warns again after repairing the beacon");
+                // A new real wave can restore the shield over both thresholds
+                // and must reset the notification state for later enemies.
+                ward.SetValue(g,69f);
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(hit!=null,"Genuine wave victory requires the shipped lethal Hit transaction");
+                foreach(Enemy attacker in actors)
+                    hit.Invoke(g,new object[]{attacker,99999f,false,null,null});
+                g.hitStop=0;g.Tick(.05f,new Point());
+                Check(g.RoadwardenTrialRoom==1&&g.RoadwardenTrialWave==2&&
+                    g.RoadwardenWardIntegrity>=86f&&
+                    (int)warning.GetValue(g)==0&&
+                    !g.Has("road_trial_1")&&g.save.version==2,
+                    "Only real deaths deploy wave two; its ward refill re-arms both warnings without premature reward or save migration");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void RoadwardenTwoRealDefendersAvoidSealedPocketAndFriendlyActors(Campaign data)
         {
             MapData original=data.maps[1];

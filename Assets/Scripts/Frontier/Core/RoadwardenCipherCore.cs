@@ -117,6 +117,11 @@ namespace Starfall
         // The ward is a real, vulnerable objective, not a second health bar
         // persisted in saves. Leaving, losing, or loading restarts it cleanly.
         private float roadTrialWard;
+        // The warning tier is re-armed whenever a real repair or newly
+        // deployed wave restores the ward above a previously warned tier.
+        // Otherwise a second 65%/30% breach can arrive silently.
+        private int RoadwardenWardSeverity()
+        { return roadTrialWard <= 30f ? 2 : roadTrialWard <= 65f ? 1 : 0; }
         private bool roadTrialWardUnderAttack;
         private int roadTrialWardWarning;
         private int roadTrialRepairedWave;
@@ -214,6 +219,7 @@ namespace Starfall
                 }
                 save.energy -= 35;
                 roadTrialWard = Math.Min(100, roadTrialWard + 25);
+                roadTrialWardWarning = RoadwardenWardSeverity();
                 roadTrialRepairedWave = roadTrialWave;
                 Point ward = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position);
                 effects.Add(new Effect("heal", ward, .55f)); sound = "heal"; revision++;
@@ -408,6 +414,11 @@ namespace Starfall
             Point anchor = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position);
             foreach (Enemy attacker in enemies)
                 if (IsRoadwardenTrialEnemy(attacker) && attacker.hp > 0 &&
+                    // ClearAttackPath checks after the firing root. A gate
+                    // can engulf a raider's actual body while the remaining
+                    // centerline to the beacon is clear. Such a buried body
+                    // cannot physically contest the ward.
+                    CanStand(attacker.Position) &&
                     attacker.stun <= 0 && attacker.hitTime <= 0 &&
                     attacker.state != 1 && attacker.releaseTime <= 0 &&
                     (attacker.Position - anchor).Length < 1.7f &&
@@ -426,7 +437,7 @@ namespace Starfall
                         "Beacon ward shattered! Defense failed; regroup and try again.");
                     return;
                 }
-                int threshold = roadTrialWard <= 30 ? 2 : roadTrialWard <= 65 ? 1 : 0;
+                int threshold = RoadwardenWardSeverity();
                 if (threshold > roadTrialWardWarning)
                 {
                     roadTrialWardWarning = threshold;
@@ -469,6 +480,7 @@ namespace Starfall
                 roadTrialWaveDeferred=false;
                 projectiles.RemoveAll(p=>p.roadTrialOwned);
                 roadTrialWard=Math.Min(100f,roadTrialWard+18f);
+                roadTrialWardWarning=RoadwardenWardSeverity();
                 roadTrialWardUnderAttack=false;
                 roadTrialSurgeTimer=1.25f;
                 if(roadTrialWave==2)roadTrialSurgeCount=0;
