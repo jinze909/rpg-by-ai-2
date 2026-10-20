@@ -43,6 +43,13 @@ namespace Starfall
             string key = "flash_" + source.name.Replace("/", "_").Replace(":", "_"); Texture2D t;
             if (cache.TryGetValue(key, out t)) return t;
             if (PreparedMask(source, "flash", key, out t)) return t;
+            // A runtime-only source (or republished native SpriteImport)
+            // may be GPU-readable but intentionally not CPU-readable.
+            // The real hit body below is already painted with its own
+            // GameCore-authored frame; skip this OPTIONAL overlaid flash
+            // rather than crashing combat, replacing its actor identity,
+            // or requiring all mature Source PNGs to enable Read/Write.
+            if(!source.isReadable)return null;
             Begin(source.width, source.height); Color[] original = source.GetPixels();
             for (int i = 0; i < original.Length; i++) pixels[i] = new Color(1, 1, 1, original[i].a);
             return End(key);
