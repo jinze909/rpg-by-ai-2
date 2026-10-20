@@ -4004,6 +4004,40 @@ public static class RenderStateChecks
                 intensity.SetValue(look,originalAlpha);
                 rate.SetValue(look,originalRate);
             }
+            // An incoming archer's original painted arrow filament must
+            // share its actual hostile head's phase/theme tint; the player
+            // must never mistake a red enemy missile for a friendly white one.
+            // A real parry changes ownership without inventing any new shot.
+            var enemyArrow=new Projectile{
+                position=arrow.position,velocity=new Point(-10f,0f),
+                age=.24f,visual="enemyArrow",friendly=false,theme=7};
+            Clear();Call(app,"DrawProjectileVisual",enemyArrow);
+            Check(GUI.textureCalls.Count==4&&
+                GUI.textureCalls[0].texture.name==
+                    "resource:Frontier/Art/ProjectileTrails"&&
+                Math.Abs(GUI.textureCalls[0].color.r-
+                    GUI.textureCalls[3].color.r)<.00001f&&
+                Math.Abs(GUI.textureCalls[0].color.g-
+                    GUI.textureCalls[3].color.g)<.00001f&&
+                Math.Abs(GUI.textureCalls[0].color.b-
+                    GUI.textureCalls[3].color.b)<.00001f&&
+                (GUI.textureCalls[0].color.r<.999f||
+                 GUI.textureCalls[0].color.g<.999f||
+                 GUI.textureCalls[0].color.b<.999f),
+                "Incoming enemy arrow filament lost actual hostile projectile theme tint");
+            enemyArrow.friendly=true;
+            enemyArrow.trailResetAt=.23f;
+            Clear();Call(app,"DrawProjectileVisual",enemyArrow);
+            Check(GUI.textureCalls.Count==1,
+                "Parried arrow retained an impossible inbound full-length trail");
+            enemyArrow.age=.34f;
+            Clear();Call(app,"DrawProjectileVisual",enemyArrow);
+            Check(GUI.textureCalls.Count==4&&
+                Math.Abs(GUI.textureCalls[0].color.r-1f)<.00001f&&
+                Math.Abs(GUI.textureCalls[0].color.g-1f)<.00001f&&
+                Math.Abs(GUI.textureCalls[0].color.b-1f)<.00001f&&
+                Math.Abs(GUI.textureCalls[3].color.r-1f)<.00001f,
+                "Parried friendly outbound arrow retains hostile filament coloring");
             var magic=new Projectile{
                 position=arrow.position,velocity=new Point(0,-10f),
                 age=.24f,visual="starfire",friendly=true,explosive=true};

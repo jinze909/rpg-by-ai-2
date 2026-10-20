@@ -252,9 +252,13 @@ namespace Starfall
                         Math.Max(0f,projectile.age-
                             projectile.trailResetAt)*
                             CurrentWorldVisualLook.projectileTrailFrameRate+i)%4;
-                    Color trailTint=new Color(
-                        arrow?1f:tint.r,arrow?1f:tint.g,
-                        arrow?1f:tint.b,
+                    // Hostile archers must retain their faction/elemental
+                    // telegraph on the SAME physical missile and its original
+                    // painted tail. White trails on every enemyArrow formerly
+                    // made dangerous inbound arrows look like allied shots.
+                    // Parried shots become friendly in GameCore, so both head
+                    // and trailing filament now change color together.
+                    Color trailTint=new Color(tint.r,tint.g,tint.b,
                         CurrentWorldVisualLook.projectileTrailAlpha/i*fade);
                     if(authoredTail!=null)
                         Atlas(authoredTail,4,2,(arrow?0:4)+paintedFrame,
