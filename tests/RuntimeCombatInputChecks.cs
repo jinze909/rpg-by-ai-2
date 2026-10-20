@@ -2023,10 +2023,32 @@ public static class RuntimeCombatInputChecks
                 "Actual player draw did not switch to fully imported action art");
             installed.Remove(root+actions[17]);
             Set(app,"clock",10f);
+            Check((bool)Call(app,"HasCompleteHeroContactArt")&&
+                app.Game.playerAction!=null,
+                "A real in-flight Attack must retain its entire seven-cell body even when a file vanishes mid-pose");
+            Check(cache.ContainsKey(actions[0])&&
+                (bool)Call(app,"HasCompleteHeroContactArt"),
+                "Repeated IMGUI calls must not tear down the in-flight imported hero Sprite");
+            app.Game.playerAction=null;
+            Set(app,"clock",10.2f);
             Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
-                "Broken contact family must atomically return to six cells");
+                "After the real action ends, incomplete art must roll the entire family back to six frames");
             Check(!cache.ContainsKey(actions[0]),
-                "Rollback retained a stale seven-frame render atlas");
+                "Rollback must invalidate every retired seven-frame render cache");
+            app.Game.attackCooldown=0f;
+            app.Game.Attack(new Point(1f,0f));
+            Check(app.Game.playerAction!=null,
+                "The next actual hero Attack starts on the already published six-frame family");
+            for(int i=0;i<18;i++)
+                installed[root+actions[i]]=new Texture2D(7*256,256,
+                    TextureFormat.RGBA32,false){name="staged-again:"+actions[i]};
+            Set(app,"clock",13f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "Completing all 18 imports cannot swap the middle of a real six-frame attack");
+            app.Game.playerAction=null;
+            Set(app,"clock",13.15f);
+            Check((bool)Call(app,"HasCompleteHeroContactArt"),
+                "First safe idle boundary publishes all 18 new seven-frame whole bodies together");
             Console.WriteLine(
                 "PASS 18-contact all-or-none hot-import, real game draw and safe reimport rollback");
         }

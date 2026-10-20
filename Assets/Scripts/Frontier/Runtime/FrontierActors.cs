@@ -276,15 +276,33 @@ namespace Starfall
         private bool heroContactFamilyChecked;
         private bool heroContactFamilyComplete;
         private float heroContactLastCheckedAt=float.NegativeInfinity;
+        // Real six/seven-frame family publication waits until an already
+        // rendered Attack/Cast's last source contact and recovery finish.
+        // No half-action Sprite switch after an Editor hot-reimport.
+        private bool heroContactFamilyPending;
+        private ActorAction heroContactFamilyDeferredAction;
 
         private bool HasCompleteHeroContactArt()
         {
             // Art release is atomic for all equipment/directions. Recover
             // after Editor reimport without a scene restart, but never query
             // 18 Resources files on every IMGUI repaint.
-            if(heroContactFamilyChecked && clock>=heroContactLastCheckedAt &&
+            bool sameDeferredAction=heroContactFamilyPending&&
+                Game!=null&&Game.playerAction!=null&&
+                System.Object.ReferenceEquals(Game.playerAction,
+                    heroContactFamilyDeferredAction);
+            bool settling=heroContactFamilyPending&&
+                Game!=null&&Game.playerAction==null&&
+                heroContactSettleAction!=null&&
+                clock>=heroContactSettleAt&&
+                clock-heroContactSettleAt<HeroContactSettleSeconds;
+            if(sameDeferredAction||settling)
+                return heroContactFamilyComplete;
+            if(heroContactFamilyChecked&&!heroContactFamilyPending&&
+                clock>=heroContactLastCheckedAt&&
                 clock-heroContactLastCheckedAt<2f)
                 return heroContactFamilyComplete;
+            bool previouslyChecked=heroContactFamilyChecked;
             heroContactFamilyChecked=true;
             heroContactLastCheckedAt=clock;
             bool complete=true;
@@ -302,6 +320,18 @@ namespace Starfall
                     }
             if(complete!=heroContactFamilyComplete)
             {
+                ActorAction active=Game==null?null:Game.playerAction;
+                if(previouslyChecked&&!heroContactFamilyPending&&
+                    active!=null&&
+                    (active.kind=="attack"||active.kind=="skill"))
+                {
+                    // Accept a staged complete family, but keep ALL old
+                    // cells alive until this exact gameplay action retires.
+                    // Next distinct action may immediately publish it.
+                    heroContactFamilyPending=true;
+                    heroContactFamilyDeferredAction=active;
+                    return heroContactFamilyComplete;
+                }
                 // Never destroy an in-flight GPU target or imported Sprite.
                 // Only invalidate references; cached RenderTextures retire
                 // through the existing previous-frame eviction policy.
@@ -338,6 +368,8 @@ namespace Starfall
                         }
             }
             heroContactFamilyComplete=complete;
+            heroContactFamilyPending=false;
+            heroContactFamilyDeferredAction=null;
             return complete;
         }
 

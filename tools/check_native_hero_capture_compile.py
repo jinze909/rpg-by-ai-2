@@ -67,6 +67,8 @@ def prepare_actual_contact_gate():
         "private bool heroContactFamilyChecked;\n"
         "private bool heroContactFamilyComplete;\n"
         "private float heroContactLastCheckedAt=float.NegativeInfinity;\n"
+        "private bool heroContactFamilyPending;\n"
+        "private ActorAction heroContactFamilyDeferredAction;\n"
         "private readonly Dictionary<string,Texture2D> fullBodyHeroSheetCache = "
         "new Dictionary<string,Texture2D>();\n"
         "private static readonly string[] FullHeroClasses = "
