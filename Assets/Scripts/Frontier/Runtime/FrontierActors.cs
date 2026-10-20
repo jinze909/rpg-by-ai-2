@@ -247,6 +247,7 @@ namespace Starfall
         // running contact is never valid in the next character's Idle.
         private SaveData heroGaitSave;
         private int heroGaitRoom=-1,heroGaitAppearance=-1,heroGaitFacing=-1;
+        private bool heroGaitMirrored;
         private int heroGaitFrame=-1;
         private Point heroGaitPosition;
         private float heroGaitLastAt=float.NegativeInfinity;
@@ -267,6 +268,7 @@ namespace Starfall
         private int heroContactSettleRoom,heroContactSettleEquipment,
             heroContactSettleFacing,heroContactSettleBody,
             heroContactSettleFrames,heroContactSettleCell;
+        private bool heroContactSettleMirrored;
         private Point heroContactSettleFoot;
         private float heroContactSettleAt=float.NegativeInfinity;
 
@@ -279,10 +281,13 @@ namespace Starfall
         private SaveData heroHitSettleSave;
         private int heroHitSettleRoom,heroHitSettleEquipment,
             heroHitSettleFacing,heroHitSettleCell;
+        private bool heroHitSettleMirrored;
         private Point heroHitSettleFoot;
         private float heroHitSettleAt=float.NegativeInfinity;
         private bool heroHitSettleActive;
 
+        // East and west share a source row but NOT a facing contract. Cancel
+        // painted Hit, contact and gait handoffs on a physical E/W reversal.
         // A contact transfer is considered live only when the COMPLETE set
         // of 18 seven-cell actions exists: no mixed professions/facings.
         // An incomplete art drop leaves all established six-cell art intact.
@@ -440,6 +445,7 @@ namespace Starfall
                 System.Object.ReferenceEquals(heroGaitSave,Game.save)&&
                 heroGaitRoom==Game.save.room&&
                 heroGaitAppearance==appearance&&heroGaitFacing==facing&&
+                heroGaitMirrored==(facing==0&&Game.VisualFacing.x<-.1f)&&
                 (Game.Position-heroGaitPosition).Length<1.5f&&
                 clock>=heroGaitLastAt;
             if(heroStopPlantActive&&
@@ -455,6 +461,7 @@ namespace Starfall
                     heroGaitOwner=Game;heroGaitSave=Game.save;
                     heroGaitRoom=Game.save.room;
                     heroGaitAppearance=appearance;heroGaitFacing=facing;
+                    heroGaitMirrored=facing==0&&Game.VisualFacing.x<-.1f;
                     heroGaitPosition=Game.Position;heroGaitLastAt=clock;
                     heroGaitFrame=index;heroGaitWasMoving=true;
                 }
@@ -513,6 +520,7 @@ namespace Starfall
                 heroGaitOwner=Game;heroGaitSave=Game.save;
                     heroGaitRoom=Game.save.room;
                 heroGaitAppearance=appearance;heroGaitFacing=facing;
+                heroGaitMirrored=facing==0&&Game.VisualFacing.x<-.1f;
                 heroGaitPosition=Game.Position;heroGaitLastAt=clock;
             }
             else
@@ -544,6 +552,7 @@ namespace Starfall
                 heroContactSettleRoom=Game.save.room;
                 heroContactSettleEquipment=Game.AppearanceWeapon;
                 heroContactSettleFacing=facing;
+                heroContactSettleMirrored=facing==0&&Game.VisualFacing.x<-.1f;
                 heroContactSettleBody=action;
                 heroContactSettleFrames=frames;
                 heroContactSettleCell=index;
@@ -572,6 +581,7 @@ namespace Starfall
                 heroContactSettleRoom==Game.save.room&&
                 heroContactSettleEquipment==Game.AppearanceWeapon&&
                 heroContactSettleFacing==facing&&
+                heroContactSettleMirrored==(facing==0&&Game.VisualFacing.x<-.1f)&&
                 (Game.Position-heroContactSettleFoot).Length<.075f&&
                 clock>=heroContactSettleAt&&
                 clock-heroContactSettleAt<HeroContactSettleSeconds;
@@ -654,6 +664,7 @@ namespace Starfall
                 heroHitSettleRoom=Game.save.room;
                 heroHitSettleEquipment=Game.AppearanceWeapon;
                 heroHitSettleFacing=facing;
+                heroHitSettleMirrored=facing==0&&Game.VisualFacing.x<-.1f;
                 heroHitSettleFoot=Game.Position;
                 heroHitSettleCell=index;
                 heroHitSettleAt=clock;
@@ -677,6 +688,7 @@ namespace Starfall
                 heroHitSettleRoom==Game.save.room&&
                 heroHitSettleEquipment==Game.AppearanceWeapon&&
                 heroHitSettleFacing==facing&&
+                heroHitSettleMirrored==(facing==0&&Game.VisualFacing.x<-.1f)&&
                 (Game.Position-heroHitSettleFoot).Length<.10f&&
                 clock>=heroHitSettleAt&&
                 clock-heroHitSettleAt<HeroHitSettleSeconds;

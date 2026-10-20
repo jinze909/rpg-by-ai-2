@@ -203,6 +203,22 @@ public static class RuntimeCombatInputChecks
             Check(GUI.textureCalls.FindAll(c=>c.texture.name.StartsWith(
                 "resource:Frontier/HeroAnimator/Canonical/Hero_")).Count==1,
                 "Hit handoff cannot produce a second blond protagonist");
+            // A W-to-E turn reuses the same source atlas row, but must
+            // invalidate the old west-facing full-body Hit handoff.
+            if(facing.x<0)
+            {
+                game.SetAim(new Point(1,0));
+                Check(game.VisualFacing.x>.9f,
+                    "Damage recovery turn setup did not change actual east aim");
+                Set(app,"clock",60.036f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var turned=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(turned!=null&&turned.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    equipment[cls]+"_Idle_E",
+                    "E/W reversal must cancel stale Hit even on the shared E atlas row");
+            }
             // A real new attack may begin BEFORE the handoff expires.
             if(facing.x>0)
             {
@@ -280,6 +296,20 @@ public static class RuntimeCombatInputChecks
             Check(GUI.textureCalls.FindAll(t=>t.texture.name.StartsWith(
                 "resource:Frontier/HeroAnimator/Canonical/Hero_")).Count==1,
                 "Short handoff may NEVER duplicate the blonde hero body");
+            if(face.x<0)
+            {
+                g.SetAim(new Point(1,0));
+                Check(g.VisualFacing.x>.9f,
+                    "Contact recovery turn setup did not change actual east aim");
+                Set(app,"clock",31.037f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var turned=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(turned!=null&&turned.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    equipment[profession]+"_Idle_E",
+                    "E/W reversal must cancel prior Attack/Cast instead of mirroring recovery");
+            }
             Set(app,"clock",31.16f);
             GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
             var idle=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
