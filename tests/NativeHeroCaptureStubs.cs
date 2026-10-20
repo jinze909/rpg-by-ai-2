@@ -384,6 +384,10 @@ namespace Starfall
         public string mode="world";
         public NativeProbeSave save=new NativeProbeSave();
         public Point Position;
+        // The real GameCore derives its facing from aim, movement, live
+        // action and Hit snapshots; the compile-only probe exposes the
+        // required API without implementing or simulating that gameplay.
+        public Point VisualFacing;
     }
     // Real FrontierRuntime is a multi-file partial; provide only members
     // defined elsewhere, never fake the new native capture method.
