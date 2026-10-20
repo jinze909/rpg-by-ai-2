@@ -41,6 +41,10 @@ namespace Starfall.Tests
                     decor=new Decoration[0]};
                 var g=Fresh(data);g.enemies.Clear();
                 g.save.x=6.5f;g.save.y=8.5f;
+                // Fresh world entry grants an unrelated 1s spawn safety
+                // window. Remove it before testing that a sealed queue
+                // creates NO new dodge invulnerability.
+                g.invulnerable=0f;
                 g.save.energy=100f;g.dashCooldown=.10f;
                 Check(g.DodgeRootReady&&g.CanBufferDodge,
                     "A physically open floor permits the last 140ms dodge buffer");
