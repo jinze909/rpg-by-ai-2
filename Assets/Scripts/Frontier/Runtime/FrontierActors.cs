@@ -1634,6 +1634,7 @@ namespace Starfall
 
         private void DrawNpc(string kind, Point position, int id = -1)
         {
+            if (!ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)) return;
             Point p = ScreenPoint(position);
             DrawActorContactShadow(p,34,13,7,.78f);
             bool occludes = Math.Abs(position.x - Game.save.x) < .85f &&

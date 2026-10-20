@@ -73,6 +73,15 @@ def main():
     assert "DrawSpriteRendererActor(" in actor
     assert "sheet, columns, rows, frame, foot, size," in actor
     assert "if (nativeActorDrawn) return;" in actor
+    # The original 4x4 Npcs atlas is the sole approved base body for normal
+    # residents and the rescue civilian; never sample a partial non-null grid.
+    assert "internal static bool IsAcceptedNpcAtlas(Texture2D sheet)" in geometry
+    assert "return sheet != null && sheet.width == 512 && sheet.height == 512;" in geometry
+    assert actor.count("ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)") == 1, (
+        "NPC_PRODUCTION_ATLAS_GEOMETRY_GATE_MISSING")
+    expansion = (RUNTIME / "FrontierExpansionUI.cs").read_text(encoding="utf-8")
+    assert expansion.count("ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)") == 2, (
+        "RESCUE_CIVILIAN_ATLAS_GEOMETRY_GATE_MISSING")
     # Live and lethal transitions must share strict accepted source geometry.
     assert "internal static bool IsAcceptedWalkMonstersAtlas(Texture2D sheet)" in geometry
     assert "return sheet != null && sheet.width == 768 && sheet.height == 576;" in geometry
@@ -88,6 +97,7 @@ def main():
     assert actor.count("IsAcceptedVerticalArcherAtlas(enemyArcherVertical)") == 3, (
         "ARCHER_LIVE_GROUND_AND_DEATH_GEOMETRY_GATE_MISSING")
     for name, expected in (
+        ("Npcs", (512, 512)),
         ("WalkMonsters", (768, 576)),
         ("WalkBossA", (1536, 1536)),
         ("WalkBossB", (1536, 1536)),

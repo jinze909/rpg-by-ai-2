@@ -279,7 +279,8 @@ namespace Starfall
         { return hazard.glasswindOwned ? PixelArt.C("#ffb76c") : hazard.kind == "glass" ? gold : hazard.kind == "bell" ? PixelArt.C("#9bd8f5") : hazard.kind == "root" ? PixelArt.C("#82d9a3") : hazard.kind == "rift" ? PixelArt.C("#b9a1d1") : PixelArt.C("#d59583"); }
         private void DrawRescueSurvivorActor()
         {
-            if (!Game.ReliefCivilianVisible) return;
+            if (!Game.ReliefCivilianVisible ||
+                !ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)) return;
             Point p = ScreenPoint(Game.reliefFollowerPosition);
             bool walking = Game.ReliefEscortActive && Game.reliefFollowerMoving &&
                 !Game.save.reducedMotion;
@@ -312,6 +313,7 @@ namespace Starfall
         private void DrawRootedCivilianBody(Point foot,float lean,
             Color tint,bool flip)
         {
+            if (!ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)) return;
             Matrix4x4 original=GUI.matrix;
             try
             {
