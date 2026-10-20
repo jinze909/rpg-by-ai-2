@@ -849,6 +849,20 @@ namespace Starfall
             Point follow = CompanionTacticalFollowTarget(
                 CompanionOutpostGuardTarget());
             Point delta = follow - companionPosition;
+            // The NORMAL party follow tolerates a 0.3-tile stopping
+            // distance. A bow's real 0.14-tile swept radius can still hit
+            // a pillar with 0.2 tiles remaining. That tolerance caused
+            // the new hard-cover flank to walk 0.89 tiles, stop in view
+            // of the enemy, and NEVER reach its physically tested muzzle
+            // foot. Finish only the specifically verified tactical goal
+            // within 0.055 tiles; ordinary following keeps its original
+            // 0.3-tile stop, preserving crowding and companion spacing.
+            bool pursuingFiringFoot=companionCornerTarget!=null&&
+                System.Object.ReferenceEquals(companionCornerSave,save)&&
+                companionCornerRoom==save.room&&
+                companionCornerGeneration==companionPresentationGeneration&&
+                (follow-companionCornerGoal).Length<.001f;
+            float stoppingDistance=pursuingFiringFoot?.055f:.3f;
             if (!Fits(companionPosition))
             {
                 companionPosition = follow; // Recovery only, never catch-up warp.
@@ -856,7 +870,7 @@ namespace Starfall
                 // the source contact phase at the valid planted root.
                 companionMoveTime = 0f;
             }
-            else if (delta.Length > .3f)
+            else if (delta.Length > stoppingDistance)
             {
                 Point heading = DirectionTo(companionPosition, follow), before = companionPosition;
                 Point next = SweepActor(before, heading * Math.Min(delta.Length, dt * (Speed + 1)));
