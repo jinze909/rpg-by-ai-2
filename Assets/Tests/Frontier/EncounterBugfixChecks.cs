@@ -110,8 +110,11 @@ namespace Starfall.Tests
                 Check(g.CanStand(raider.Position),
                     "Initially open legal raid footing can physically pressure the beacon");
                 trialTick.Invoke(g,new object[]{.05f});
-                Check(g.RoadwardenWardIntegrity<70f,
-                    "An active and physically positioned raider drains the true beacon ward");
+                Check(g.RoadwardenWardIntegrity<70f&&
+                    g.RoadwardenWardSiphonCount==1&&
+                    (g.RoadwardenWardSiphonSource(0)-raider.Position).Length<.0001f&&
+                    (g.RoadwardenWardSiphonTarget-new Point(station.x,station.y)).Length<.0001f,
+                    "Only the actual physically draining raider publishes its current live world-rooted ward siphon");
                 ward.SetValue(g,70f);
                 int x=(int)Math.Floor(raider.x),y=(int)Math.Floor(raider.y);
                 char[] cells=rows[y].ToCharArray();char old=cells[x];
@@ -120,6 +123,7 @@ namespace Starfall.Tests
                     "Dynamic stone seals only the attacker's entire foot, never the beacon");
                 trialTick.Invoke(g,new object[]{.05f});
                 Check(Math.Abs(g.RoadwardenWardIntegrity-70f)<.0001f&&
+                    g.RoadwardenWardSiphonCount==0&&
                     !g.RoadwardenWardUnderAttack&&g.RoadwardenTrialRoom==1,
                     "A trapped raider cannot invisibly siphon ward integrity through a newly closed gate");
                 cells[x]=old;rows[y]=new string(cells);

@@ -110,6 +110,9 @@ namespace Starfall
             int index=enemy.id-(81000+roadTrialRoom*10+roadTrialWave*2);
             if(index>=0&&index<2)
             {
+                // An actor removed by Hit cannot keep a visible siphon in
+                // the fraction of a frame before the next world tick.
+                roadTrialSiphoners.Remove(enemy);
                 roadTrialConfirmedKills|=1<<index;
                 // The last actual combat death cancels pending hazards for
                 // THIS wave immediately, not one simulation tick later.
@@ -132,6 +135,18 @@ namespace Starfall
         private bool roadTrialWardUnderAttack;
         private int roadTrialWardWarning;
         private int roadTrialRepairedWave;
+        // Presentation uses the SAME actors that actually drained integrity
+        // in the most recent simulation tick, never a second visual guess
+        // about distance/line of sight. Transient only; v1/v2 saves untouched.
+        private readonly List<Enemy> roadTrialSiphoners = new List<Enemy>(2);
+        public int RoadwardenWardSiphonCount
+        { get { return roadTrialRoom == save.room ? roadTrialSiphoners.Count : 0; } }
+        public Point RoadwardenWardSiphonSource(int index)
+        { return roadTrialSiphoners[index].Position; }
+        public Point RoadwardenWardSiphonTarget
+        { get { return roadTrialRoom == save.room ?
+            ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
+            Position; } }
         public bool RoadwardenWardRepairAvailable
         { get { return roadTrialRoom != 0 && roadTrialWard < 99.9f && roadTrialRepairedWave != roadTrialWave; } }
         public float RoadwardenWardIntegrity { get { return roadTrialRoom == 0 ? 0 : roadTrialWard; } }
@@ -187,6 +202,7 @@ namespace Starfall
             roadTrialWaveDeferred = false;
             roadTrialWard = 0; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
             roadTrialRepairedWave = 0;
+            roadTrialSiphoners.Clear();
         }
         private string RoadwardenSurgeHint(int region, bool english)
         {
@@ -286,6 +302,7 @@ namespace Starfall
         {
             Point[] positions;
             if (!TryRoadwardenTrialFeet(out positions)) return false;
+            roadTrialSiphoners.Clear();
             roadTrialConfirmedKills=0;
             for (int slot = 0; slot < 2; slot++)
             {
@@ -406,6 +423,7 @@ namespace Starfall
         private void TickRoadwardenTrial(float dt)
         {
             if (roadTrialRoom == 0) return;
+            roadTrialSiphoners.Clear();
             if (save.room != roadTrialRoom || Dying || practicing) { ResetRoadwardenTrial(); return; }
             // A cleared wave requires both physical deaths. An unconfirmed
             // despawn aborts this attempt before advancing its reward state.
@@ -436,7 +454,10 @@ namespace Starfall
                     attacker.state != 1 && attacker.releaseTime <= 0 &&
                     (attacker.Position - anchor).Length < 1.7f &&
                     ClearAttackPath(attacker.Position, anchor))
+                {
                     pressure += attacker.kind == 2 ? 1.3f : 1;
+                    roadTrialSiphoners.Add(attacker);
+                }
             roadTrialWardUnderAttack = pressure > 0;
             if (roadTrialWardUnderAttack)
             {
