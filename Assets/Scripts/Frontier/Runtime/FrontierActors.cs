@@ -183,7 +183,24 @@ namespace Starfall
         }
         private void Actor(Texture2D sheet, int columns, int rows, int frame, Point foot, float size, Color color, bool flip = false, float angle = 0)
         {
-            if (drawingOutline && sheet != null) { sheet = art.OutlineMask(sheet); color = new Color(1,.56f,.35f,.9f); }
+            if (drawingOutline && sheet != null)
+            {
+                Texture2D outline = art.OutlineMask(sheet);
+                if(outline != null)
+                {
+                    sheet=outline;
+                    color=new Color(1f,.56f,.35f,.9f);
+                }
+                else
+                {
+                    // On imported GPU-only NPCs without a published mask,
+                    // draw ONE lightly highlighted instance of the SAME
+                    // approved full-body Sprite. No GetPixels exception,
+                    // opaque orange replacement, old character atlas,
+                    // extra pose, rigging or shifted planted-foot anchor.
+                    color=new Color(1f,.65f,.40f,.34f);
+                }
+            }
 #if UNITY_5_3_OR_NEWER
             // Formal SpriteRenderer/Animator capture is ONLY for approved
             // entire living/corpse character atlases. Flash/outline masks,
