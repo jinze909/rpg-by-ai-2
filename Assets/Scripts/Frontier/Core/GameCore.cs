@@ -1056,10 +1056,17 @@ namespace Starfall
         private Point ArcherPhysicalCornerSidestep(Point from,Point target)
         {
             Point sight=target-from;
-            if(sight.Length<.1f||
-                !ClearAttackPath(from,target)||
-                PhysicalBowLaneFromFoot(from,target))return new Point();
+            if(sight.Length<.1f||!CanStand(from)||
+                !ClearAttackPath(from,target))return new Point();
             Point direction=sight.Normalized;
+            // A hero outside this weapon's actual flight lifetime must be
+            // pursued forward, NOT trigger up to eight expensive side-lane
+            // traces. Preserve the true muzzle offset rather than assuming
+            // that visible centerline distance equals arrow travel range.
+            Projectile travel=WeaponShot(from,1,direction,5f,10f,target);
+            if((target-travel.position).Length>5f*travel.life||
+                PhysicalBowLaneFromFoot(from,target))
+                return new Point();
             Point side=new Point(-direction.y,direction.x);
             bool positiveOpen=true,negativeOpen=true;
             for(int ring=1;ring<=4;ring++)
