@@ -553,13 +553,18 @@ namespace Starfall
             foreach(Enemy foe in enemies)
             {
                 if(foe==null||foe.hp<=0)continue;
+                // NaN coordinates poison the projection and make every
+                // comparison false, accidentally turning one invalid actor
+                // into a permanent invisible wall for every flank candidate.
+                Point enemyFoot=foe.Position;
+                if(!Finite(enemyFoot.x)||!Finite(enemyFoot.y))continue;
                 float clearance=foe.boss?.88f:.58f;
-                Point offset=foe.Position-from;
+                Point offset=enemyFoot-from;
                 float projection=GameCore.Clamp(
                     (offset.x*travel.x+offset.y*travel.y)/denominator,
                     0f,1f);
                 Point closest=from+travel*projection;
-                Point separation=foe.Position-closest;
+                Point separation=enemyFoot-closest;
                 if(separation.x*separation.x+
                     separation.y*separation.y>=clearance*clearance)
                     continue;

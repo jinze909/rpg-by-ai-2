@@ -3594,6 +3594,10 @@ namespace Starfall.Tests
                 blocker.x=11.082f;
                 Check((bool)route.Invoke(g,new object[]{start,foot}),
                     "Moving the same foe three thousandths of a tile outside the genuine .58-unit collision disk must reopen a physical tangent route");
+                blocker.x=float.NaN;
+                Check((bool)route.Invoke(g,new object[]{start,foot}),
+                    "A non-finite enemy foot cannot poison exact segment projection into a phantom wall");
+                blocker.x=10.5f;
                 g.enemies.Clear();
                 var boss=new Enemy(99185,0,11.24f,11.2f,500f,true){
                     stun=100f,timer=1000f
