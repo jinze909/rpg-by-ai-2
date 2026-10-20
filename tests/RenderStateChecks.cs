@@ -3782,7 +3782,13 @@ public static class RenderStateChecks
             closed[col]='#';
             game.Map.rows[row]=new string(closed);
             float reach=GameCore.EnemyMeleeRadius-.015f;
-            Point covered=enemy.Position+new Point(reach,0f);
+            // Sample inside the obstructed east-southeast sector,
+            // not at angle zero: the 0° wall-corner boundary has one
+            // correctly OPEN upper arc and one BLOCKED lower arc.
+            float blockedAngle=.38f;
+            Point covered=enemy.Position+new Point(
+                (float)Math.Cos(blockedAngle)*reach,
+                (float)Math.Sin(blockedAngle)*reach);
             // Angle -1.25 radians is inside the real -acos(-.1)
             // attack cone, but escapes the east-side wall through
             // the clear northwest shoulder of the attacker.
