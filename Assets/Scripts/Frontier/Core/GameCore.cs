@@ -1177,6 +1177,14 @@ namespace Starfall
                 // Beacon attackers advance on the ward instead of blindly following
                 // the hero. Their normal attacks still target the hero if in range.
                 bool wardAttacker = roadTrialRoom == save.room && IsRoadwardenTrialEnemy(e);
+                // The defender drill contains a hunter AND a bowman.
+                // Only the hunter storms the station. The bowman covers it
+                // by fighting the real player at physical arrow distance;
+                // following the station itself forced every longbow to
+                // crowd the beacon and aim its corner-search at a prop.
+                // The existing ward-pressure rule still applies if this
+                // archer truly reaches the beacon under its own movement.
+                bool wardBow=wardAttacker&&e.kind==1&&!e.boss;
                 bool travelerAttacker = wayfarerEncounterRoom == save.room && IsWayfarerEnemy(e);
                 bool reliefAttacker = reliefMissionRoom == save.room &&
                     (reliefMissionWave == 1 || reliefMissionWave == 2) && IsReliefMissionEnemy(e);
@@ -1189,7 +1197,8 @@ namespace Starfall
                 bool stockRaider=IsAfterlightWatchEnemy(e)&&e.kind!=1;
                 bool patrolSaboteur=IsOuterPatrolEnemy(e)&&e.kind!=1;
                 Point pursuit = patrolSaboteur ? outerPatrolPost : stockRaider ? AfterlightPoint(save.room,"outlet") :
-                    wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
+                    wardAttacker ? (wardBow ? Position :
+                        ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)) :
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
@@ -1357,14 +1366,15 @@ namespace Starfall
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
-                float desired = (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
+                float desired = wardBow ? 4.5f :
+                    (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
                     wardAttacker || travelerAttacker || reliefAttacker || escortPatrol || stockRaider || patrolSaboteur ? 1.05f :
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 if(visible&&!e.boss&&e.kind==1)
                     visible=EnemyBowFlightLaneClear(e,pursuit);
                 Point before = e.Position;
-                if (e.kind == 1 && !e.boss && !wardAttacker &&
+                if (e.kind == 1 && !e.boss && (!wardAttacker||wardBow) &&
                     !travelerAttacker && !practicing &&
                     (reliefAttacker || escortPatrol ? distance < 3.4f : distance < 3f) &&
                     (visible || reliefAttacker || escortPatrol))
