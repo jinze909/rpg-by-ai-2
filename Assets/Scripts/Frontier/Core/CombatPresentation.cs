@@ -166,6 +166,21 @@ namespace Starfall
                 (point-Position).Length<=radius+.0001f&&
                 ClearAttackPath(Position,point);
         }
+        // Current-world-only prediction of an ACTUAL Standard Vanguard /
+        // Arcanist Q target. It does not start or spend a cast; the final
+        // strike still reevaluates enemies and cover at real GameCore contact.
+        // This shares the exact strict radius and ClearAttackPath checks
+        // used by ResolveSkill, so a glowing marker cannot promise damage
+        // through stone or on a corpse.
+        public bool SkillQueuedAreaWouldHit(Enemy target)
+        {
+            float radius=SkillQueuedAreaReach;
+            return radius>0f&&target!=null&&target.hp>0f&&
+                enemies.Contains(target)&&
+                Finite(target.x)&&Finite(target.y)&&
+                (target.Position-Position).Length<radius&&
+                ClearAttackPath(Position,target.Position);
+        }
         // The RELEASED Q visual retains its own original contact root
         // rather than following the hero after movement begins. Its outer
         // perimeter must use the same live cover test as the actual strike.

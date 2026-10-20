@@ -548,6 +548,64 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
+    private static void QueuedAreaTagsOnlyPhysicalLivingEnemies(FrontierRuntime app)
+    {
+        for(int profession=0;profession<3;profession++)
+        {
+            Prepare(app,profession);
+            var g=app.Game;
+            Enemy east=new Enemy(88114,0,14.4f,14f,90f);
+            Enemy west=new Enemy(88115,0,10.0f,14f,90f);
+            g.enemies.Add(east);g.enemies.Add(west);
+            g.Attack(new Point(1f,0f));
+            g.Skill(new Point(0f,-1f));
+            Check(g.SkillQueued,
+                "Actual area test requires a deferred unpaid Q cast");
+            Func<Enemy,bool> painted=enemy=>{
+                Point screen=(Point)Call(app,"ScreenPoint",enemy.Position);
+                return GUI.textureCalls.Exists(c=>
+                    Math.Abs(c.color.r-.96f)<.001f&&
+                    Math.Abs(c.color.g-.76f)<.001f&&
+                    Math.Abs(c.color.b-.34f)<.001f&&
+                    Math.Abs(c.color.a-.54f)<.001f&&
+                    Math.Abs(c.rect.x-(screen.x+.42f*32f-2f))<2f&&
+                    Math.Abs(c.rect.y-(screen.y-2f))<2f);
+            };
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            bool area=profession!=1;
+            Check(painted(east)==area&&painted(west)==area,
+                "Only Vanguard and Arcanist may outline living, visible, in-range enemies with real area Q");
+            if(area)
+            {
+                int y=(int)g.Position.y;
+                string original=g.Map.rows[y];
+                try
+                {
+                    char[] terrain=original.ToCharArray();
+                    terrain[(int)g.Position.x+1]='#';
+                    g.Map.rows[y]=new string(terrain);
+                    Check(!g.SkillQueuedAreaWouldHit(east)&&
+                        g.SkillQueuedAreaWouldHit(west),
+                        "Area Q target prediction must share live occlusion with actual strike");
+                    GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                    Check(!painted(east)&&painted(west),
+                        "Enemy outline cannot remain beyond a newly shut real wall");
+                    g.Map.rows[y]=original;
+                    east.hp=0f;
+                    GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                    Check(!painted(east)&&painted(west),
+                        "Defeated enemy is still shown as a payable Q contact");
+                    g.Dash(new Point(1f,0f));
+                    GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                    Check(!painted(east)&&!painted(west),
+                        "Dodge must retire all pending Q enemy target previews");
+                }
+                finally {g.Map.rows[y]=original;}
+            }
+        }
+        Console.WriteLine("PASS both standard melee/mage Q abilities preview only actual living reachable enemies; live walls, deaths, Ranger exclusion and Dodge cancellation use real game draw");
+    }
+
     private static void ReleasedAreaVfxStopsAtActualWorldCover(FrontierRuntime app)
     {
         foreach(int profession in new[]{0,2})
@@ -2441,7 +2499,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

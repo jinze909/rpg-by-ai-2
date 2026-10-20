@@ -875,6 +875,15 @@ namespace Starfall
                         Point mark=ScreenPoint(contact);
                         Box(mark.x-2,mark.y-2,4,4,reachTint);
                     }
+                    // Highlight only living, actually visible enemies in
+                    // this queued area's CURRENT physical damage footprint.
+                    // Static floor-level outlines add tactical readability
+                    // without painting another hero, a premature hit, or
+                    // altering the future contact/damage transaction.
+                    Color candidate=new Color(.96f,.76f,.34f,.54f);
+                    foreach(Enemy enemy in Game.enemies)
+                        if(Game.SkillQueuedAreaWouldHit(enemy))
+                            Ring(enemy.Position,.42f,candidate,12);
                 }
             }
             DrawActorContactShadow(p,44,16,Game.WalkFrame,.94f);
