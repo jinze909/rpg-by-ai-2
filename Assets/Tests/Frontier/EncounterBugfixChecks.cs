@@ -4,6 +4,70 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+
+        public static void RoadwardenFinalLethalContactClearsOnlyItsOwnLiveSurge(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                string[] rows=new string[34];
+                for(int y=0;y<34;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=31)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                var beacon=new WorldObject{id="survey1",kind="survey1",
+                    name="Beacon",en="Beacon",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{beacon},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("dispatch_complete");
+                g.save.flags.Add("survey_1");
+                g.Enter(1);g.enemies.Clear();g.invulnerable=180f;
+                g.save.x=12.25f;g.save.y=10.5f;
+                Action(g,beacon.kind,"road_trial_start_1");
+                var raiders=g.enemies.FindAll(e=>e.id>=81000&&e.id<81100);
+                Check(g.RoadwardenTrialRoom==1&&raiders.Count==2,
+                    "Actual Roadwarden defense fields both first-wave attackers");
+                var surge=typeof(GameCore).GetMethod("SpawnRoadwardenSurge",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(surge!=null&&hit!=null,
+                    "Use production-authored strike and genuine lethal combat methods");
+                var ambient=new Hazard {position=g.Position,
+                    radius=.65f,timer=50f,damage=2f,kind="root"};
+                g.hazards.Add(ambient);
+                surge.Invoke(g,new object[0]);
+                Check(g.hazards.Count==4&&g.hazards.Contains(ambient),
+                    "A real regional three-cue pincer coexists with an unrelated, identically typed hazard");
+                hit.Invoke(g,new object[]{raiders[0],99999f,false,null,null});
+                Check(g.hazards.Count==4&&g.hazards.Contains(ambient),
+                    "The first genuine raider death does not pre-empt a still-active partner's strike");
+                hit.Invoke(g,new object[]{raiders[1],99999f,false,null,null});
+                Check(g.hazards.Count==1&&g.hazards[0]==ambient&&
+                    g.RoadwardenTrialRoom==1&&!g.Has("road_trial_1"),
+                    "The second real lethal hit immediately retracts exactly the wave-owned pincer, without deleting ambient danger or granting quest rewards");
+                g.hitStop=0f;g.Close();g.Tick(.05f,new Point());
+                Check(g.RoadwardenTrialRoom==1&&g.RoadwardenTrialWave==2&&
+                    g.hazards.Count==1&&g.hazards[0]==ambient&&
+                    g.save.version==2,
+                    "The next real reinforcement wave cannot inherit old trial circles, while unrelated world hazard and old saves remain");
+                g.Close();
+                Action(g,beacon.kind,"road_trial_abandon");
+                Check(g.RoadwardenTrialRoom==0&&
+                    g.hazards.Contains(ambient)&&
+                    !g.Has("road_trial_1"),
+                    "Authentic beacon withdrawal continues to preserve non-trial hazards and first-clear rewards");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void RoadwardenWardPressureAndWarningRearmRespectRealFooting(Campaign data)
         {
             MapData original=data.maps[1];
