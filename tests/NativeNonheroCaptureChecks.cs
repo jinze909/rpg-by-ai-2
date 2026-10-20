@@ -22,6 +22,7 @@ public static class NativeNonheroCaptureChecks
         // Execute the same geometry gates used by live enemy and corpse
         // selection. A malformed-but-non-null texture must never be accepted.
         var monstersAtlas = new Texture2D(768, 384, TextureFormat.RGBA32, false);
+        var gpuOnlyMonstersAtlas = new Texture2D(384, 192, TextureFormat.RGBA32, false);
         var badMonstersAtlas = new Texture2D(768, 512, TextureFormat.RGBA32, false);
         var bossesAtlas = new Texture2D(1280, 2560, TextureFormat.RGBA32, false);
         var badBossesAtlas = new Texture2D(1280, 2304, TextureFormat.RGBA32, false);
@@ -42,9 +43,10 @@ public static class NativeNonheroCaptureChecks
         var verticalArcher = new Texture2D(576, 384, TextureFormat.RGBA32, false);
         var badVerticalArcher = new Texture2D(576, 576, TextureFormat.RGBA32, false);
         Require(ActorAtlasGeometry.IsAcceptedMonstersAtlas(monstersAtlas) &&
+                ActorAtlasGeometry.IsAcceptedMonstersAtlas(gpuOnlyMonstersAtlas) &&
                 !ActorAtlasGeometry.IsAcceptedMonstersAtlas(badMonstersAtlas) &&
                 !ActorAtlasGeometry.IsAcceptedMonstersAtlas(null),
-            "Monsters atlas must reject non-null partial geometry and null resources");
+            "Monsters atlas must preserve a complete downscaled 6x3 GPU-only grid and reject malformed geometry");
         Require(ActorAtlasGeometry.IsAcceptedBossesAtlas(bossesAtlas) &&
                 !ActorAtlasGeometry.IsAcceptedBossesAtlas(badBossesAtlas) &&
                 !ActorAtlasGeometry.IsAcceptedBossesAtlas(null),

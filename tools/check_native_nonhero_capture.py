@@ -73,17 +73,29 @@ def main():
     assert "DrawSpriteRendererActor(" in actor
     assert "sheet, columns, rows, frame, foot, size," in actor
     assert "if (nativeActorDrawn) return;" in actor
-    # Exact geometry is required for every base actor source as well as the
-    # moving overlays; a non-null partial import cannot become a false body.
+    # Runtime imports may be downscaled, but every selected cell must still
+    # be a complete square in the approved grid. Shipped PNG sizes are pinned
+    # exactly by the source-art audit below.
+    assert "private static bool HasSquareGrid(Texture2D sheet, int columns, int rows)" in geometry
+    assert "sheet.width >= columns * 32" in geometry
+    assert "sheet.height >= rows * 32" in geometry
+    assert "sheet.width % columns == 0" in geometry
+    assert "sheet.height % rows == 0" in geometry
+    assert "sheet.width / columns == sheet.height / rows" in geometry
     for method, expression in (
-        ("IsAcceptedMonstersAtlas", "sheet.width == 768 && sheet.height == 384"),
-        ("IsAcceptedBossesAtlas", "sheet.width == 1280 && sheet.height == 2560"),
-        ("IsAcceptedBriarBeastAtlas", "sheet.width == 1280 && sheet.height == 5760"),
-        ("IsAcceptedMossboundRaiderAtlas", "sheet.width == 512 && sheet.height == 768"),
-        ("IsAcceptedCinderstoneGuardAtlas", "sheet.width == 512 && sheet.height == 768"),
+        ("IsAcceptedMonstersAtlas", "HasSquareGrid(sheet, 6, 3)"),
+        ("IsAcceptedBossesAtlas", "HasSquareGrid(sheet, 4, 8)"),
+        ("IsAcceptedBriarBeastAtlas", "HasSquareGrid(sheet, 4, 18)"),
+        ("IsAcceptedMossboundRaiderAtlas", "HasSquareGrid(sheet, 4, 6)"),
+        ("IsAcceptedCinderstoneGuardAtlas", "HasSquareGrid(sheet, 4, 6)"),
+        ("IsAcceptedNpcAtlas", "HasSquareGrid(sheet, 4, 4)"),
+        ("IsAcceptedCompanionAtlas", "HasSquareGrid(sheet, 3, 4)"),
+        ("IsAcceptedWalkMonstersAtlas", "HasSquareGrid(sheet, 4, 3)"),
+        ("IsAcceptedRegionalBossWalkAtlas", "HasSquareGrid(sheet, 4, 4)"),
+        ("IsAcceptedVerticalArcherAtlas", "HasSquareGrid(sheet, 3, 2)"),
     ):
         assert "internal static bool " + method + "(Texture2D sheet)" in geometry
-        assert "return sheet != null && " + expression + ";" in geometry
+        assert "return " + expression + ";" in geometry
     assert actor.count("ActorAtlasGeometry.IsAcceptedMonstersAtlas(monsterSheet)") == 3, (
         "MONSTERS_LIVE_PRACTICE_AND_DEATH_GEOMETRY_GATE_MISSING")
     assert actor.count("ActorAtlasGeometry.IsAcceptedBossesAtlas(bossSheet)") == 2, (
