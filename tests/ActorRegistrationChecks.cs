@@ -3777,7 +3777,7 @@ public static class ActorRegistrationChecks
                 for(int repeat=0;repeat<3;repeat++)
                 {Clear();Draw(app,"DrawCompanionActor");}
                 for(int i=0;i<fields.Length;i++)
-                    Check(Object.Equals(initial[i],fields[i].GetValue(app)),
+                    Check(System.Object.Equals(initial[i],fields[i].GetValue(app)),
                         "Outline mutated live "+stateNames[i]+
                         " for companion "+names[id]+" facing "+direction);
                 Set(app,"drawingOutline",false);
@@ -3806,12 +3806,12 @@ public static class ActorRegistrationChecks
                 for(int repeat=0;repeat<4;repeat++)
                 {Clear();Draw(app,"DrawCompanionActor");}
                 for(int i=0;i<fields.Length;i++)
-                    Check(Object.Equals(initial[i],fields[i].GetValue(app)),
+                    Check(System.Object.Equals(initial[i],fields[i].GetValue(app)),
                         "Outline swallowed the original walk-to-cast "+stateNames[i]);
                 Set(app,"drawingOutline",false);
                 Clear();var casting=Draw(app,"DrawCompanionActor");
                 Check((bool)fields[5].GetValue(app)&&
-                    Object.ReferenceEquals(fields[4].GetValue(app),command)&&
+                    System.Object.ReferenceEquals(fields[4].GetValue(app),command)&&
                     casting.Count(ActorTexture)==1&&
                     casting.Single(ActorTexture).texture.name.EndsWith(
                         "/Companion"+names[id]),
@@ -3821,7 +3821,7 @@ public static class ActorRegistrationChecks
                 Set(app,"drawingOutline",true);
                 Clear();Draw(app,"DrawCompanionActor");
                 for(int i=0;i<fields.Length;i++)
-                    Check(Object.Equals(initial[i],fields[i].GetValue(app)),
+                    Check(System.Object.Equals(initial[i],fields[i].GetValue(app)),
                         "Post-contact cover outline reset a real companion action");
             }
             finally
