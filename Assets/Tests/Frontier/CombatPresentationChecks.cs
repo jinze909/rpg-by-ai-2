@@ -3580,6 +3580,20 @@ namespace Starfall.Tests
                 blocker.x=10.5f;blocker.hp=0f;
                 Check((bool)route.Invoke(g,new object[]{start,foot}),
                     "A genuinely dead enemy body does not permanently prevent companion side-step navigation");
+                // The legacy .11 tile discrete actor probes miss this
+                // hairline overlap: at the midpoint of two adjacent
+                // 1.5/14-tile steps, the closest sampled distance is
+                // sqrt(.579^2+.05357^2) > .58. The TRUE nearest
+                // point on the continuous foot path is only .579 away.
+                // An exact segment-vs-actor test must reject the route.
+                blocker.hp=500f;
+                blocker.x=11.079f;
+                blocker.y=11.410714f;
+                Check(!(bool)route.Invoke(g,new object[]{start,foot}),
+                    "A living enemy only .579 units away from the continuous foot segment must obstruct flank travel even when every sampled 0.11-tile waypoint misses its body radius");
+                blocker.x=11.082f;
+                Check((bool)route.Invoke(g,new object[]{start,foot}),
+                    "Moving the same foe three thousandths of a tile outside the genuine .58-unit collision disk must reopen a physical tangent route");
                 g.enemies.Clear();
                 var boss=new Enemy(99185,0,11.24f,11.2f,500f,true){
                     stun=100f,timer=1000f
