@@ -127,6 +127,20 @@ namespace Starfall
                 (point-effect.position).Length<=effect.radius+.0001f&&
                 ClearAttackPath(effect.position,point);
         }
+        // Fireball splash is occluded by the very same ClearAttackPath as
+        // its real damage, unlike an ambient light bloom or cosmetic spark.
+        // Magic impact origins can sit 0.28 tiles from stone, where the
+        // HERO'S larger standable footprint would be irrelevant; validate
+        // projectile origin against its own point obstruction instead.
+        public bool MagicSplashVisualContactVisible(Effect effect,Point point)
+        {
+            return effect!=null&&effect.kind=="magicImpact"&&
+                effect.radius>0f&&Finite(effect.position.x)&&
+                Finite(effect.position.y)&&Finite(point.x)&&
+                Finite(point.y)&&!Blocked(effect.position.x,effect.position.y)&&
+                (point-effect.position).Length<=effect.radius+.0001f&&
+                ClearAttackPath(effect.position,point);
+        }
         // A single late basic-attack press may carry through the tail of a
         // released LMB or Q. The intent never replaces a still-visible
         // Attack/Cast body, is never saved, and spends nothing until accepted.

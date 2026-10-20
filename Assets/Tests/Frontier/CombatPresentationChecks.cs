@@ -2784,6 +2784,14 @@ namespace Starfall.Tests
                 Check(g.effects.Exists(e=>e.kind=="magicImpact"&&
                     Math.Abs(e.radius-1.8f)<.001f&&e.position.x<8f),
                     "Wall contact must generate the real 1.8-tile impact on the near face");
+                Effect actualSplash=g.effects.Find(e=>
+                    e.kind=="magicImpact"&&e.radius>0f);
+                Check(actualSplash!=null&&
+                    g.MagicSplashVisualContactVisible(actualSplash,
+                        actualSplash.position+new Point(-1.2f,0f))&&
+                    !g.MagicSplashVisualContactVisible(actualSplash,
+                        actualSplash.position+new Point(1.2f,0f)),
+                    "The same real fireball that damaged only the exposed side must draw no splash footprint through solid wall");
                 int effects=g.effects.FindAll(e=>e.kind=="magicImpact").Count;
                 for(int i=0;i<5;i++)g.Tick(.05f,new Point());
                 Check(g.effects.FindAll(e=>e.kind=="magicImpact").Count<=effects,

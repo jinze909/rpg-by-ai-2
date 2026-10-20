@@ -320,7 +320,14 @@ namespace Starfall
                     id = progress < .32f ? 3 : 4;
                     size = 35; break;
                 case "projectileFade": id = effect.variant; size = 26; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
-                case "magicImpact": id = 5; size = effect.radius > 0 ? effect.radius * Tile * 2 : 67; break;
+                case "magicImpact":
+                    id=5;
+                    // Solid cover limits damage, so a giant Effects.png disc
+                    // must not extend across that wall. Preserve the source
+                    // impact glyph locally and let the physical splash
+                    // perimeter below describe the actual visible blast.
+                    size=effect.radius>0?80f:67f;
+                    break;
                 case "release": id = 13; size = 33; break;
                 case "frost": id = 6; size = 4 * Tile * 2; break;
                 case "burst":
@@ -424,20 +431,23 @@ namespace Starfall
                 {
                     Color footprint=new Color(ring.r,ring.g,ring.b,
                         .48f*(1-progress));
-                    if(effect.kind=="burst"&&effect.playerAreaSkill)
+                    if(effect.kind=="burst"&&effect.playerAreaSkill||
+                        effect.kind=="magicImpact"&&effect.radius>0f)
                     {
-                        // Render only the 32 authentic outward spokes
-                        // whose inner contact sample can really see past
-                        // the CURRENT walls. Never show an amber hit-range
-                        // dot through a gate that the skill cannot damage.
+                        // The SAME actual cover rule clips both full-body
+                        // class Q shockwaves and real starfire splash. Keep
+                        // each source-authored center contact, but never
+                        // draw an outer range dot through impenetrable rock.
                         for(int i=0;i<32;i++)
                         {
                             double spokeRadians=i*Math.PI*2/32;
                             Point unit=new Point((float)Math.Cos(spokeRadians),
                                 (float)Math.Sin(spokeRadians));
                             Point sample=effect.position+unit*(radius*.98f);
-                            if(!Game.PlayerAreaEffectContactVisible(effect,
-                                sample))continue;
+                            bool visible=effect.kind=="magicImpact"?
+                                Game.MagicSplashVisualContactVisible(effect,sample):
+                                Game.PlayerAreaEffectContactVisible(effect,sample);
+                            if(!visible)continue;
                             Point edge=ScreenPoint(effect.position+unit*radius);
                             Box(edge.x-2,edge.y-2,4,4,footprint);
                         }
