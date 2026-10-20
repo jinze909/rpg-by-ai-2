@@ -4920,10 +4920,90 @@ public static class RenderStateChecks
         }
     }
 
+
+    static void RoadwardenSiphonTethersFollowRealCombatAndAccessibility(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        string stage="start";
+        try
+        {
+            GameCore g=app.Game;
+            g.save.flags.Add("dispatch_complete");
+            g.save.flags.Add("survey_1");
+            g.save.companion=-1;
+            g.enemies.Clear();
+            WorldObject beacon=Array.Find(g.Map.objects,o=>o.kind=="survey1");
+            Check(beacon!=null,"Production forest beacon exists for an actual live defense");
+            g.save.x=beacon.x;g.save.y=beacon.y;
+            g.Talk(beacon);
+            Check(g.conversation!=null,"The real beacon exposes its gameplay interaction");
+            int choice=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="road_trial_start_1");
+            Check(choice>=0,"Actual finished dispatch oath unlocks the beacon defense");
+            g.Choose(choice);g.Close();
+            var raiders=g.enemies.FindAll(x=>x.id>=81000&&x.id<81100);
+            Check(g.RoadwardenTrialRoom==1&&raiders.Count==2,
+                "The original live trial spawns two valid world enemies");
+            Enemy source=raiders[0],other=raiders[1];
+            source.x=beacon.x+1.01f;source.y=beacon.y;
+            source.state=0;source.timer=100f;
+            source.stun=0;source.hitTime=0;source.releaseTime=0;
+            other.stun=100f;g.invulnerable=90f;g.hitStop=0;
+            stage="live-pressure";
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenWardSiphonCount==1&&
+                g.RoadwardenWardUnderAttack,
+                "A living reachable raider really drains ward; its non-attacking partner does not");
+            Set(app,"camera",g.Position);Set(app,"clock",2.45f);
+            Clear();Call(app,"DrawRoadwardenWardSiphons");
+            int painted=GUI.textureCalls.Count;
+            Point root=(Point)Call(app,"ScreenPoint",g.RoadwardenWardSiphonSource(0));
+            Check(painted>5&&
+                Math.Abs(GUI.textureCalls[0].rect.x-(root.x-2f))<.01f&&
+                Math.Abs(GUI.textureCalls[0].rect.y-(root.y-2f))<.01f,
+                "Visible original pixel tether begins at the exact live enemy foot, not a fabricated HUD source");
+            stage="accessibility";
+            g.save.reducedMotion=true;
+            Clear();Call(app,"DrawRoadwardenWardSiphons");
+            Check(GUI.textureCalls.Count==painted-1,
+                "Reduced motion preserves the source-to-ward threat line but removes the traveling glint");
+            g.save.reducedMotion=false;
+            g.save.effectsQuality=0;
+            Clear();Call(app,"DrawRoadwardenWardSiphons");
+            Check(GUI.textureCalls.Count==painted-1,
+                "Low effects keeps the readable, unmoving gameplay-critical ward link");
+            stage="interruption";
+            g.save.effectsQuality=2;
+            source.stun=10f;g.Tick(.05f,new Point());
+            Check(g.RoadwardenWardSiphonCount==0&&!g.RoadwardenWardUnderAttack,
+                "The actual stunned raider no longer drains the ward");
+            Clear();Call(app,"DrawRoadwardenWardSiphons");
+            Check(GUI.textureCalls.Count==0,
+                "Stun removes every phantom world tether without waiting for its old attack pose");
+            stage="lethal-contact";
+            source.stun=0f;source.state=0;source.timer=100f;
+            source.hitTime=0f;source.releaseTime=0f;
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenWardSiphonCount==1,
+                "Recovered physical attacker resumes its real link after the stun ends");
+            var kill=typeof(GameCore).GetMethod("Hit",Private);
+            Check(kill!=null,"Original lethal Hit transaction is required");
+            kill.Invoke(g,new object[]{source,99999f,false,null,null});
+            Check(g.RoadwardenWardSiphonCount==0,
+                "A true combat death immediately retires its tether before another simulation tick");
+            Clear();Call(app,"DrawRoadwardenWardSiphons");
+            Check(GUI.textureCalls.Count==0&&g.save.version==2,
+                "Dead enemy never paints a beacon siphon and legacy save schema is unchanged");
+            Console.WriteLine("PASS genuine Roadwarden shield pressure drives world-rooted pixel tethers, accessible static cue, stun and death cleanup");
+        }
+        catch(Exception ex){throw new Exception("ROADWARDEN_VFX_STAGE_"+stage+": "+ex,ex);}
+        finally {app.EndVisualReview();Clear();}
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();RoadwardenSiphonTethersFollowRealCombatAndAccessibility(app);CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
