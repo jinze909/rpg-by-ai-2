@@ -2227,18 +2227,30 @@ namespace Starfall.Tests
                 Point target=new Point(10.5f,8.5f);
                 g.SetAimTarget(target);
                 g.Attack(new Point(1f,0f));
+                float attackPaidEnergy=g.save.energy;
                 g.Skill(new Point(1f,0f));
                 Check(g.SkillQueued&&g.SkillQueuedTarget.HasValue&&
                     (g.SkillQueuedTarget.Value-target).Length<.001f&&
                     !g.SkillQueuedRangerLaneClear,
                     "A Ranger volley cannot claim its genuine center lane crosses a solid gate");
-                Check(g.projectiles.Count==0&&g.save.energy==100f,
+                Check(g.projectiles.Count==0&&g.save.energy==attackPaidEnergy,
                     "A range/cover preview cannot mint early missiles or charge the deferred Q");
                 char[] gate=rows[8].ToCharArray();gate[8]='.';
                 rows[8]=new string(gate);
                 Check(g.SkillQueuedRangerLaneClear&&g.SkillQueued&&
                     (g.SkillQueuedTarget.Value-target).Length<.001f,
                     "Opening the actual flight corridor updates the same already committed Q target");
+                // No actual projectile can fly farther than its finite
+                // lifetime, even through an unobstructed empty corridor.
+                Point distant=new Point(90f,8.5f);
+                g.SetAimTarget(distant);g.Skill(new Point(1f,0f));
+                Check(!g.SkillQueuedRangerLaneClear&&
+                    g.SkillQueuedTarget.HasValue&&
+                    (g.SkillQueuedTarget.Value-distant).Length<.001f,
+                    "Committed Ranger Q warns when its real finite flight lifetime cannot reach the live target");
+                g.SetAimTarget(target);g.Skill(new Point(1f,0f));
+                Check(g.SkillQueuedRangerLaneClear,
+                    "Explicit retarget back inside real range restores a valid center lane");
                 gate[8]='#';rows[8]=new string(gate);
                 Check(!g.SkillQueuedRangerLaneClear,
                     "Closing the gate again immediately retracts an unsafe center shot claim");

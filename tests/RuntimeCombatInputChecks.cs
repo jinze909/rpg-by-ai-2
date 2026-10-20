@@ -231,6 +231,51 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
+    private static void QueuedRangerVolleyMarksLiveObstructedTarget(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;
+        Point target=g.Position+new Point(5.5f,0f);
+        g.SetAimTarget(target);
+        g.Attack(new Point(1f,0f));
+        g.Skill(new Point(1f,0f));
+        Check(g.SkillQueued&&g.SkillQueuedTarget.HasValue&&
+            (g.SkillQueuedTarget.Value-target).Length<.001f,
+            "The actual Ranger draw starts with a real unpaid Q target");
+        int row=(int)g.Position.y;
+        string original=g.Map.rows[row];
+        Point edge=(Point)Call(app,"ScreenPoint",target+new Point(.26f,0f));
+        Func<Color,bool> marker=tint=>GUI.textureCalls.Exists(c=>
+            Math.Abs(c.color.r-tint.r)<.001f&&
+            Math.Abs(c.color.g-tint.g)<.001f&&
+            Math.Abs(c.color.b-tint.b)<.001f&&
+            Math.Abs(c.color.a-tint.a)<.001f&&
+            Math.Abs(c.rect.x-(edge.x-2))<2f&&
+            Math.Abs(c.rect.y-(edge.y-2))<2f);
+        try
+        {
+            char[] cells=original.ToCharArray();
+            cells[(int)g.Position.x+3]='#';
+            g.Map.rows[row]=new string(cells);
+            Check(!g.SkillQueuedRangerLaneClear,
+                "Live test must close an actual arrow-sweep wall between the player and Q target");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(marker(new Color(1f,.43f,.40f,.78f))&&
+                !marker(new Color(.83f,.67f,1f,.72f)),
+                "Real DrawPlayerActor must mark occluded queued Ranger Q with coral, not a false clear-lane violet");
+            g.Map.rows[row]=original;
+            Check(g.SkillQueuedRangerLaneClear,
+                "The same live Ranger target becomes reachable when actual cover opens");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(marker(new Color(.83f,.67f,1f,.72f))&&
+                !marker(new Color(1f,.43f,.40f,.78f))&&
+                g.SkillQueued,
+                "Opening real wall restores original violet Ranger target without consuming or re-queuing Q");
+        }
+        finally{g.Map.rows[row]=original;}
+        Console.WriteLine("PASS real queued Ranger Q world target switches coral/violet with live projectile-radius wall collision");
+    }
+
     private static void RiposteHudFollowsRealParryIntentAndUnreleasedContact(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -1921,7 +1966,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
