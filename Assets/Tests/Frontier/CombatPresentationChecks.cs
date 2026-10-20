@@ -3763,9 +3763,41 @@ namespace Starfall.Tests
                 g.companionAction=null;
                 Point planted=g.companionPosition;
                 Point held=(Point)follow.Invoke(g,new object[]{normal});
+                var committedField=typeof(GameCore).GetField(
+                    "companionCornerShotCommitted",flags);
+                var settlingField=typeof(GameCore).GetField(
+                    "companionCornerPostShotSeconds",flags);
+                var plannedField=typeof(GameCore).GetField(
+                    "companionCornerTarget",flags);
+                Check(committedField!=null&&settlingField!=null&&
+                    plannedField!=null,
+                    "The real side shot owns a transient release-triggered foot settle rather than a permanent static guard");
                 Check((held-planted).Length<.001f&&
-                    (bool)flight.Invoke(g,new object[]{planted,1,target}),
-                    "Completed flank must keep original source boots planted on the actually open bow corridor across automatic recovery");
+                    (bool)flight.Invoke(g,new object[]{planted,1,target})&&
+                    (bool)committedField.GetValue(g)&&
+                    (float)settlingField.GetValue(g)>0f,
+                    "Completed REAL arrow contact must hold the original planted boots briefly through recovery");
+                // Ordinary auto cadence is multiple seconds, but the ally
+                // must not stand at the old corner for ALL of it. Advance
+                // the live game's actual Tick and require a restored
+                // follow step while that same enemy is STILL alive.
+                bool returned=false;
+                for(int frame=0;frame<30;frame++)
+                {
+                    Point previousFoot=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    if(plannedField.GetValue(g)==null&&
+                       (g.companionPosition-previousFoot).Length>.001f)
+                    {
+                        returned=true;
+                        break;
+                    }
+                }
+                Check(returned&&foe.hp>0f&&g.save.version==2,
+                    "Successful flank must retire after real short recoil and resume actual hero-following during its long cooldown, without requiring enemy death");
+                // A new attempt may legitimately acquire a fresh position;
+                // this final identity check instead probes an actual slain
+                // foe and demands the ordinary noncombat route.
                 foe.hp=0f;
                 Point released=(Point)follow.Invoke(g,new object[]{normal});
                 Check((released-normal).Length<.001f,
