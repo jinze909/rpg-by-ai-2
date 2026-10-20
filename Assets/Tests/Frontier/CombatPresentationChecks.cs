@@ -2205,6 +2205,50 @@ namespace Starfall.Tests
                 dispatched.playerAction.kind=="skill",
                 "The area preview disappears at the authoritative cast action, not the later contact damage");
         }
+        public static void QueuedRangerVolleyReportsLiveObstruction(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[18];
+                for(int y=0;y<18;y++)
+                {
+                    char[] tiles=new string('.',18).ToCharArray();
+                    for(int x=0;x<18;x++)
+                        if(x<2||x>=16||y<2||y>=16||x==8)
+                            tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,rows=rows,spawnX=6.5f,spawnY=8.5f,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.enemies.Clear();
+                g.save.x=6.5f;g.save.y=8.5f;
+                Point target=new Point(10.5f,8.5f);
+                g.SetAimTarget(target);
+                g.Attack(new Point(1f,0f));
+                g.Skill(new Point(1f,0f));
+                Check(g.SkillQueued&&g.SkillQueuedTarget.HasValue&&
+                    (g.SkillQueuedTarget.Value-target).Length<.001f&&
+                    !g.SkillQueuedRangerLaneClear,
+                    "A Ranger volley cannot claim its genuine center lane crosses a solid gate");
+                Check(g.projectiles.Count==0&&g.save.energy==100f,
+                    "A range/cover preview cannot mint early missiles or charge the deferred Q");
+                char[] gate=rows[8].ToCharArray();gate[8]='.';
+                rows[8]=new string(gate);
+                Check(g.SkillQueuedRangerLaneClear&&g.SkillQueued&&
+                    (g.SkillQueuedTarget.Value-target).Length<.001f,
+                    "Opening the actual flight corridor updates the same already committed Q target");
+                gate[8]='#';rows[8]=new string(gate);
+                Check(!g.SkillQueuedRangerLaneClear,
+                    "Closing the gate again immediately retracts an unsafe center shot claim");
+                g.Dash(new Point(1f,0f));
+                Check(!g.SkillQueued&&!g.SkillQueuedRangerLaneClear,
+                    "Cancelling a Q also clears its blocked-range status without changing damage or saves");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void QueuedAreaPreviewRespectsRealCover(Campaign data)
         {
             MapData original=data.maps[0];

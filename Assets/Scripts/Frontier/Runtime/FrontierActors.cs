@@ -641,8 +641,16 @@ namespace Starfall
                 Point? skillTarget=Game.SkillQueuedTarget;
                 if(Game.save.profession==1&&Game.save.technique==0&&
                     skillTarget.HasValue)
-                    Ring(skillTarget.Value,.26f,
-                        new Color(.83f,.67f,1f,.72f),12);
+                {
+                    // Violet = an actually clear center flight lane;
+                    // coral = cover/range blocks the committed center
+                    // shot. Neither mark invents a projectile or claims
+                    // every spread arrow will land on that one point.
+                    Color volleyColor=Game.SkillQueuedRangerLaneClear?
+                        new Color(.83f,.67f,1f,.72f):
+                        new Color(1f,.43f,.40f,.78f);
+                    Ring(skillTarget.Value,.26f,volleyColor,12);
+                }
                 // A queued default Vanguard/Arcanist Q is an actual
                 // player-centered area strike, NOT the Ranger's targeted
                 // volley. Preview the SAME physical damage reach using a

@@ -54,6 +54,37 @@ namespace Starfall
         {
             get { return bufferedSkill==null?(Point?)null:bufferedSkill.target; }
         }
+        // The Ranger's five-arrow Q commits a central real flight lane from
+        // the current EQUIPPED weapon muzzle. A target marker on the far
+        // side of a live gate or beyond the projectile's lifetime must not
+        // promise an unobstructed volley. This read-only probe uses the same
+        // WeaponShot / ShotBlocked radius sweep as actual combat, and cannot
+        // create a projectile, damage or consume a second input.
+        public bool SkillQueuedRangerLaneClear
+        {
+            get {
+                SkillIntent intent=bufferedSkill;
+                if(intent==null||intent.profession!=1||intent.technique!=0||
+                    !intent.target.HasValue||intent.weapon!=save.weapon||
+                    intent.profession!=save.profession||
+                    intent.style!=Style||intent.technique!=save.technique||
+                    !CanStand(Position))return false;
+                Point target=intent.target.Value;
+                if(!Finite(target.x)||!Finite(target.y))return false;
+                Projectile probe=WeaponShot(Position,intent.weapon,
+                    intent.direction,13f,0f,target);
+                if(probe.blockedAtSpawn||
+                    ShotBlocked(probe,probe.position))return false;
+                Point travel=target-probe.position;
+                float range=travel.Length;
+                if(!Finite(range)||range>13f*probe.life)return false;
+                int steps=Math.Max(1,(int)Math.Ceiling(range/.1f));
+                for(int i=1;i<=steps;i++)
+                    if(ShotBlocked(probe,probe.position+
+                        travel*(i/(float)steps)))return false;
+                return true;
+            }
+        }
         // The real default Vanguard/Arcanist Q hits only in a grounded
         // circular area around the actor (ResolveSkill: 3.1/4.5 tiles).
         // Return the physical damage reach for a QUEUED standard cast,
