@@ -281,6 +281,57 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS real released Vanguard/Arcanist AoE VFX keeps a painted center contact and live wall-clipped outer range");
     }
 
+    private static void ExplosiveWallSplashDrawsOnlyPhysicalNearSide(FrontierRuntime app)
+    {
+        Prepare(app,2);
+        GameCore g=app.Game;
+        g.projectiles.Clear();g.effects.Clear();g.enemies.Clear();
+        g.save.x=12f;g.save.y=14f;
+        int row=(int)g.Position.y,blockX=14;
+        string original=g.Map.rows[row];
+        try
+        {
+            char[] blocked=original.ToCharArray();
+            blocked[blockX]='#';g.Map.rows[row]=new string(blocked);
+            Check(g.CanStand(g.Position)&&g.Blocked(14.5f,14.5f),
+                "Authentic starfire cover test uses solid stone ahead of a legal source");
+            var bolt=new Projectile{
+                position=g.Position,velocity=new Point(20f,0f),
+                friendly=true,explosive=true,visual="starfire",
+                damage=20f,life=1f};
+            g.projectiles.Add(bolt);
+            g.Tick(.15f,new Point());
+            Effect impact=g.effects.Find(e=>e.kind=="magicImpact"&&
+                Math.Abs(e.radius-1.8f)<.001f);
+            Check(impact!=null&&!g.projectiles.Contains(bolt)&&
+                impact.position.x<14f,
+                "The actual Starfall projectile must first collide on the REAL near wall face");
+            Point east=(Point)Call(app,"ScreenPoint",
+                impact.position+new Point(impact.radius,0f));
+            Point west=(Point)Call(app,"ScreenPoint",
+                impact.position+new Point(-impact.radius,0f));
+            Func<Point,bool> dot=screen=>GUI.textureCalls.Exists(c=>
+                Math.Abs(c.rect.width-4f)<.01f&&
+                Math.Abs(c.rect.height-4f)<.01f&&
+                Math.Abs(c.rect.x-(screen.x-2f))<2f&&
+                Math.Abs(c.rect.y-(screen.y-2f))<2f);
+            GUI.textureCalls.Clear();
+            Check((bool)Call(app,"DrawAuthoredEffect",impact),
+                "Production renderer must display the real magic hit");
+            Check(!dot(east)&&dot(west),
+                "A REAL starfire splash must retain near-side feedback without drawing through stone");
+            Check(GUI.textureCalls.Exists(c=>c.rect.width>=60f&&
+                c.rect.width<=95f),
+                "The source-painted starfire impact stays a compact contact glyph rather than a wall-piercing blurry disc");
+            g.Map.rows[row]=original;
+            GUI.textureCalls.Clear();Call(app,"DrawAuthoredEffect",impact);
+            Check(dot(east)&&dot(west),
+                "Opening the gate must restore both physically clear impact perimeter spokes");
+        }
+        finally{g.Map.rows[row]=original;}
+        Console.WriteLine("PASS actual source-painted Starfall explosion uses a near-wall contact and dynamic 1.8-tile line-of-sight splash ring");
+    }
+
     private static void QueuedRangerVolleyMarksLiveObstructedTarget(FrontierRuntime app)
     {
         Prepare(app,1);
@@ -2016,7 +2067,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
