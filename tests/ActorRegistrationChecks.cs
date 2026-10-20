@@ -2174,7 +2174,7 @@ public static class ActorRegistrationChecks
             monsterField.SetValue(app,malformed);
             Clear();
             var rejected=Draw(app,"DrawEnemyActor",foe);
-            Check(rejected.Count==0,
+            Check(rejected.Count()==0,
                 "Malformed non-null monster grids must be rejected before painting body, shadow or combat effects");
             Console.WriteLine("PASS GPU-only scaled 6x3 monster grid stays drawable; malformed grid is quarantined before all paint");
         }
