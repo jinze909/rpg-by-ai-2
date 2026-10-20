@@ -2576,6 +2576,46 @@ namespace Starfall.Tests
                     !g.effects.Exists(e=>e.kind=="magicImpact"),
                     "A range-expired starfire must retain one quiet fade without a phantom explosion");
 
+                // Cover-adjacent body collision: the shot is still outside
+                // solid terrain at x=7.82, but its NEXT radius sample touches
+                // the x=8 wall. An ordinary arrow must not lose the actual
+                // near-side enemy contact that already precedes that wall.
+                g.effects.Clear();g.projectiles.Clear();g.enemies.Clear();
+                var coverFront=new Enemy(77731,0,7.3f,8.5f,400f)
+                    {stun=99f,timer=999f,staggerRecovery=99f};
+                var coverBack=new Enemy(77732,0,8.6f,8.5f,400f,true)
+                    {stun=99f,timer=999f,staggerRecovery=99f};
+                g.enemies.Add(coverBack);g.enemies.Add(coverFront);
+                var grazedArrow=new Projectile{
+                    position=new Point(7.82f,8.5f),
+                    velocity=new Point(10f,0),life=1f,damage=24f,
+                    friendly=true,visual="arrow"};
+                Check(!g.Blocked(grazedArrow.position.x,grazedArrow.position.y)&&
+                    g.CanStand(coverFront.Position)&&g.CanStand(coverBack.Position)&&
+                    (coverFront.Position-grazedArrow.position).Length<
+                        .5f+grazedArrow.Radius,
+                    "Near-wall arrow fixture begins in a real exposed body's hit circle and outside solid cover");
+                g.projectiles.Add(grazedArrow);g.Tick(.05f,new Point());
+                Check(coverFront.hp<400f&&coverBack.hp==400f&&
+                    grazedArrow.hits.Count==1&&grazedArrow.hits[0]==coverFront.id&&
+                    !g.projectiles.Contains(grazedArrow)&&
+                    g.effects.Exists(e=>e.kind=="projectileImpact"&&
+                        e.position.x<8f),
+                    "Wall-leading-edge collision cannot eat an earlier real exposed body hit or damage a sheltered Boss");
+                // The exposed enemy is absent in this second shot. Even
+                // though the large Boss circle intersects the near wall,
+                // cover still prevents a body hit across solid stone.
+                g.effects.Clear();g.projectiles.Clear();g.enemies.Clear();
+                g.enemies.Add(coverBack);
+                var blockedArrow=new Projectile{
+                    position=new Point(7.82f,8.5f),
+                    velocity=new Point(10f,0),life=1f,damage=24f,
+                    friendly=true,visual="arrow"};
+                g.projectiles.Add(blockedArrow);g.Tick(.05f,new Point());
+                Check(coverBack.hp==400f&&blockedArrow.hits.Count==0&&
+                    !g.projectiles.Contains(blockedArrow),
+                    "First-body wall resolver must not grant contact through terrain to overlapping Boss hurt circles");
+
                 // Simulate a tide/arena wall sealing around a bolt AFTER
                 // its valid muzzle launch. Its stored blockedAtSpawn flag
                 // remains false, but the CURRENT source tile is solid.

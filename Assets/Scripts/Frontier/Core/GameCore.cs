@@ -1415,6 +1415,43 @@ namespace Starfall
                     if (ShotBlocked(p,next))
                     {
                         dead = true;
+                        // The leading edge can touch a wall AFTER the arrow
+                        // is already inside an exposed enemy's hurt circle.
+                        // Resolve that genuine front-side body contact at
+                        // the last legal flight sample BEFORE consuming a
+                        // non-explosive, nonpiercing arrow on stone. Otherwise
+                        // cover steals a hit that physically happened first.
+                        // A target behind cover still fails ClearAttackPath.
+                        if(p.friendly&&!p.explosive&&!p.piercing&&!startedBlocked)
+                        {
+                            Enemy firstBody=null;
+                            float firstEntry=float.MaxValue;
+                            foreach(Enemy candidate in projectileTargets)
+                            {
+                                if(candidate.hp<=0||p.hitActors.Contains(candidate))
+                                    continue;
+                                float radius=(candidate.boss?.9f:.5f)+p.Radius;
+                                if((candidate.Position-p.position).Length>=radius||
+                                    !ClearAttackPath(p.position,candidate.Position))
+                                    continue;
+                                float entry=ProjectileCircleEntry(p.position,
+                                    p.velocity,candidate.Position,radius);
+                                if(entry<firstEntry)
+                                {firstEntry=entry;firstBody=candidate;}
+                            }
+                            if(firstBody!=null)
+                            {
+                                p.hitActors.Add(firstBody);
+                                p.hits.Add(firstBody.id);
+                                Hit(firstBody,p.damage,p.technique,
+                                    p.velocity.Normalized,p.impact);
+                                if(projectiles.Contains(p)&&p.slowing)
+                                    ApplyEnemyControl(firstBody,.45f);
+                                // The existing projectileImpact below is
+                                // rooted at the previous unblocked sample.
+                                break;
+                            }
+                        }
                         // A projectile already buried at the START of this frame
                         // (including a gate/tide that sealed around an
                         // in-flight bolt) cannot mint a free area blast.
