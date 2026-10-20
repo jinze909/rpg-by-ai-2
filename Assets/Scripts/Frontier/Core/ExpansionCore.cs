@@ -516,6 +516,114 @@ namespace Starfall
                     (target-shot.position)*(i/(float)steps)))return false;
             return true;
         }
+        // One short, genuine foot route for the ally's next AUTO shot.
+        // The previous AI retried a forever-blocked bow hand every 220ms,
+        // even where one safe sideways stride would open a real arrow lane.
+        // This is an INSTANCE-ONLY combat order: never write a companion
+        // firing position to SaveData v2, or inherit it across party swaps.
+        private Enemy companionCornerTarget;
+        private Point companionCornerGoal,companionCornerTargetFoot;
+        private SaveData companionCornerSave;
+        private int companionCornerRoom=-1,companionCornerGeneration=-1;
+        private void ClearCompanionCornerPlan()
+        {
+            companionCornerTarget=null;
+            companionCornerSave=null;
+        }
+        private bool CompanionCornerWalkable(Point from,Point goal)
+        {
+            Point travel=goal-from;
+            if(!Finite(travel.x)||!Finite(travel.y)||
+                travel.Length>2.25f||!Fits(from))return false;
+            int steps=Math.Max(1,(int)Math.Ceiling(travel.Length/.11f));
+            for(int i=1;i<=steps;i++)
+                if(!Fits(from+travel*(i/(float)steps)))return false;
+            return true;
+        }
+        private bool CompanionCornerShotReady(Point foot,Enemy foe)
+        {
+            if(foe==null||foe.hp<=0||!enemies.Contains(foe)||
+                !Fits(foot))return false;
+            Point delta=foe.Position-foot;
+            return delta.Length>.2f&&delta.Length<7f&&
+                ClearAttackPath(foot,foe.Position)&&
+                CompanionAutoFlightLaneClear(foot,
+                    save.companion==1?1:2,foe.Position);
+        }
+        private Point CompanionTacticalFollowTarget(Point normal)
+        {
+            // Never leave an assigned cache-guard post, abandon a wounded
+            // hero needing Mira, cross a distant leash, or interrupt a
+            // player-authored command to chase a lateral firing pose.
+            if(save.companion<0||OuterPatrolCompanionGuarding||
+                save.companion==0&&save.health<save.maxHealth*.8f||
+                companionAction!=null||!Fits(companionPosition)||
+                (Position-companionPosition).Length>3.6f)
+            {
+                ClearCompanionCornerPlan();return normal;
+            }
+            Enemy old=companionCornerTarget;
+            bool reusable=old!=null&&
+                System.Object.ReferenceEquals(companionCornerSave,save)&&
+                companionCornerRoom==save.room&&
+                companionCornerGeneration==companionPresentationGeneration&&
+                (old.Position-companionCornerTargetFoot).Length<.40f&&
+                !CompanionCornerShotReady(companionPosition,old)&&
+                (companionCornerGoal-companionPosition).Length>.12f&&
+                (companionCornerGoal-Position).Length<4f&&
+                CompanionCornerWalkable(companionPosition,companionCornerGoal)&&
+                CompanionCornerShotReady(companionCornerGoal,old);
+            if(reusable)return companionCornerGoal;
+            ClearCompanionCornerPlan();
+            // An existing usable target outranks all sideways exploration.
+            // A solid body-blocking wall is not the same failure as a
+            // 0.14-unit radius arrow scraping a nearby corner.
+            if(NearestCompanionThreat()!=null)return normal;
+            Enemy candidate=null;
+            Point newGoal=new Point();
+            float best=float.PositiveInfinity;
+            foreach(Enemy foe in enemies)
+            {
+                if(foe==null||foe.hp<=0)continue;
+                Point line=foe.Position-companionPosition;
+                if(line.Length<1f||line.Length>=6.9f||
+                    !ClearAttackPath(companionPosition,foe.Position)||
+                    CompanionCornerShotReady(companionPosition,foe))
+                    continue;
+                Point side=new Point(-line.y,line.x).Normalized;
+                for(int ring=1;ring<=4;ring++)
+                {
+                    float reach=ring*.55f;
+                    for(int sign=0;sign<2;sign++)
+                    {
+                        Point foot=companionPosition+
+                            side*(sign==0?reach:-reach);
+                        if((foot-Position).Length>3.65f||
+                            !CompanionCornerWalkable(companionPosition,foot)||
+                            !CompanionCornerShotReady(foot,foe))
+                            continue;
+                        // Prefer a shorter truly swept walk and nearest
+                        // actual threat. Identical scores are deterministic
+                        // across ticks; the saved candidate prevents
+                        // positive/negative side oscillation in mid-gait.
+                        float score=reach+line.Length*.04f;
+                        if(score<best)
+                        {
+                            best=score;candidate=foe;newGoal=foot;
+                        }
+                    }
+                    if(candidate==foe)break;
+                }
+            }
+            if(candidate==null)return normal;
+            companionCornerTarget=candidate;
+            companionCornerTargetFoot=candidate.Position;
+            companionCornerGoal=newGoal;
+            companionCornerSave=save;
+            companionCornerRoom=save.room;
+            companionCornerGeneration=companionPresentationGeneration;
+            return newGoal;
+        }
         private Enemy NearestCompanionThreat()
         {
             Enemy nearest=null;
@@ -723,7 +831,8 @@ namespace Starfall
                 { companionAction = null; companionAutoTarget = null; }
                 return; // Plant the feet while drawing a bow or casting.
             }
-            Point follow = CompanionOutpostGuardTarget();
+            Point follow = CompanionTacticalFollowTarget(
+                CompanionOutpostGuardTarget());
             Point delta = follow - companionPosition;
             if (!Fits(companionPosition))
             {
