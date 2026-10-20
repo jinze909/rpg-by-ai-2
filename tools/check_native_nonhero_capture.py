@@ -73,6 +73,12 @@ def main():
     assert "DrawSpriteRendererActor(" in actor
     assert "sheet, columns, rows, frame, foot, size," in actor
     assert "if (nativeActorDrawn) return;" in actor
+    # Death paint must quarantine invalid transient records before touching
+    # their actor reference, and consume the bounded lifetime progress.
+    assert "if (body == null || !body.IsValid) return;" in actor, (
+        "FALLEN_ACTOR_INVALID_RECORD_GUARD_MISSING")
+    assert "float progress = body.Progress;" in actor, (
+        "FALLEN_ACTOR_BOUNDED_PROGRESS_MISSING")
     # Runtime imports may be downscaled, but every selected cell must still
     # be a complete square in the approved grid. Shipped PNG sizes are pinned
     # exactly by the source-art audit below.
