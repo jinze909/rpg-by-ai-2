@@ -231,6 +231,56 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
+    private static void ReleasedAreaVfxStopsAtActualWorldCover(FrontierRuntime app)
+    {
+        foreach(int profession in new[]{0,2})
+        {
+            Prepare(app,profession);
+            GameCore g=app.Game;
+            g.save.x=12f;g.save.y=14f;
+            g.SetAim(new Point(1f,0f));
+            g.Skill(new Point(1f,0f));
+            for(int frame=0;frame<16;frame++)g.Tick(.02f,new Point());
+            Effect burst=g.effects.Find(e=>e.kind=="burst"&&
+                e.playerAreaSkill);
+            Check(burst!=null&&burst.radius>3f&&g.playerAction!=null&&
+                g.playerAction.released,
+                "Real Vanguard/Arcanist Q must own the ACTUAL released area effect on its contact frame");
+            float radius=burst.radius;
+            Point east=(Point)Call(app,"ScreenPoint",burst.position+
+                new Point(radius,0f));
+            Point west=(Point)Call(app,"ScreenPoint",burst.position+
+                new Point(-radius,0f));
+            Func<Point,bool> mark=screen=>GUI.textureCalls.Exists(c=>
+                Math.Abs(c.rect.width-4f)<.01f&&
+                Math.Abs(c.rect.height-4f)<.01f&&
+                Math.Abs(c.rect.x-(screen.x-2f))<2f&&
+                Math.Abs(c.rect.y-(screen.y-2f))<2f);
+            int y=(int)g.Position.y,blockX=(int)g.Position.x+2;
+            string old=g.Map.rows[y];
+            try
+            {
+                char[] tiles=old.ToCharArray();
+                tiles[blockX]='#';g.Map.rows[y]=new string(tiles);
+                GUI.textureCalls.Clear();
+                Check((bool)Call(app,"DrawAuthoredEffect",burst),
+                    "Production source atlas must render an actual released Q contact");
+                Check(!mark(east)&&mark(west),
+                    "Released Q damage footprint cannot claim a wall-hidden east lane and must retain the real west arc");
+                Check(GUI.textureCalls.Exists(c=>
+                    c.rect.width>=60f&&c.rect.width<=105f),
+                    "The published source VFX must stay a compact contact painting rather than scaling 32px pixels across the entire combat arena");
+                g.Map.rows[y]=old;
+                GUI.textureCalls.Clear();
+                Call(app,"DrawAuthoredEffect",burst);
+                Check(mark(east)&&mark(west),
+                    "The same authentic released Q FX must show both legal directions after a real gate opens");
+            }
+            finally{g.Map.rows[y]=old;}
+        }
+        Console.WriteLine("PASS real released Vanguard/Arcanist AoE VFX keeps a painted center contact and live wall-clipped outer range");
+    }
+
     private static void QueuedRangerVolleyMarksLiveObstructedTarget(FrontierRuntime app)
     {
         Prepare(app,1);
@@ -1966,7 +2016,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, QueuedAreaPreviewDrawsRealWorldRadius, ReleasedAreaVfxStopsAtActualWorldCover, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
