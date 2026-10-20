@@ -1415,6 +1415,22 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!projectiles.Contains(p)) continue;
+                // A malformed live projectile must not poison the swept
+                // collision clock, overflow its subdivision count or draw
+                // a phantom impact at a NaN world coordinate. Keep finite
+                // stationary contact projectiles valid (mission mechanics
+                // use them), but reject nonphysical speed and damage before
+                // touching life, effects, enemies or any quest ownership.
+                float speed=p.velocity.Length;
+                if(!Finite(p.position.x)||!Finite(p.position.y)||
+                    !Finite(p.velocity.x)||!Finite(p.velocity.y)||
+                    !Finite(speed)||speed>256f||
+                    !Finite(p.life)||!Finite(p.age)||
+                    !Finite(p.damage)||p.damage<0f)
+                {
+                    projectiles.Remove(p);
+                    continue;
+                }
                 // TickAction and UpdateEnemies can release mid-frame. They
                 // must not borrow the entire earlier world-time interval for
                 // projectile velocity, expiry, contact or reflection.

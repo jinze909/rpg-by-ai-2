@@ -2327,6 +2327,56 @@ namespace Starfall.Tests
             Advance(struck, .1f); Check(foeHit.hp == 999 && struck.PlayerPose == 10 && !struck.playerAction.released, "Recoil cannot conceal a pending damage event");
             Advance(struck, .25f); Check(foeHit.hp < 999 && struck.playerAction.released && struck.PlayerPose == 5, "After recoil the visible swing resumes before contact");
         }
+        public static void MalformedLiveProjectilesCannotCorruptCombat(Campaign data)
+        {
+            var g=Fresh(data,1);g.Enter(1);g.enemies.Clear();
+            g.save.x=12f;g.save.y=14f;g.save.reducedMotion=true;
+            var target=new Enemy(86731,0,13.5f,14f,400f)
+                {stun=99f,timer=999f,staggerRecovery=99f};
+            Check(g.CanStand(target.Position),
+                "Malformed-projectile regression uses a real walkable enemy foot");
+            g.enemies.Add(target);
+            var bad=new[]{
+                new Projectile{position=target.Position,
+                    velocity=new Point(float.NaN,10f),
+                    friendly=true,visual="arrow",damage=300f},
+                new Projectile{position=target.Position,
+                    velocity=new Point(float.PositiveInfinity,0f),
+                    friendly=true,visual="arrow",damage=300f},
+                new Projectile{position=target.Position,
+                    velocity=new Point(400f,0f),
+                    friendly=true,visual="arrow",damage=300f},
+                new Projectile{position=new Point(float.NaN,14f),
+                    velocity=new Point(1f,0f),
+                    friendly=true,visual="arrow",damage=300f},
+                new Projectile{position=target.Position,
+                    velocity=new Point(1f,0f),life=float.NaN,
+                    friendly=true,visual="arrow",damage=300f},
+                new Projectile{position=target.Position,
+                    velocity=new Point(1f,0f),
+                    friendly=true,visual="arrow",damage=float.PositiveInfinity}
+            };
+            foreach(var malformed in bad)g.projectiles.Add(malformed);
+            // Stationary but FINITE projectile contacts exist in genuine
+            // scripted combat; do not suppress that gameplay when rejecting
+            // corrupt speed samples.
+            var valid=new Projectile{position=target.Position,
+                velocity=new Point(0f,0f),friendly=true,
+                visual="arrow",life=1f,damage=20f};
+            g.projectiles.Add(valid);
+            g.Tick(.01f,new Point());
+            Check(target.hp<400f&&valid.hits.Count==1&&
+                valid.hits[0]==target.id&&!g.projectiles.Contains(valid),
+                "Valid stationary scripted shot still deals its single real hit");
+            Check(g.projectiles.Count==0&&
+                Array.TrueForAll(bad,p=>p.hits.Count==0)&&
+                g.effects.FindAll(e=>e.kind=="projectileImpact").Count==1,
+                "Nonfinite positions, life, damage or velocities and unphysical speed cannot hit, stall or invent impact visuals");
+            float after=target.hp;
+            g.Tick(.05f,new Point());
+            Check(target.hp==after&&g.projectiles.Count==0,
+                "Malformed shots cannot resume later after a normal world tick");
+        }
         public static void ProjectilesAndEnemyContact(Campaign data)
         {
             var g = Fresh(data, 1); g.Enter(1); g.enemies.Clear(); g.save.reducedMotion = true;
