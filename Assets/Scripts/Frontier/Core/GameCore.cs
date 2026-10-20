@@ -1044,29 +1044,45 @@ namespace Starfall
                     travel*(i/(float)steps)))return false;
             return true;
         }
-        // When the bow's *physical* radius scrapes a corner despite open
-        // centerline LOS, a half-tile sidestep is not always far enough.
-        // Probe real reachable firing feet along BOTH lateral corridors,
-        // nearest-first, up to 2.2 tiles. A distant valid muzzle is no
-        // license to teleport through a wall or choose an unwalkable goal:
-        // the body must fit at every intermediate foot, and actual movement
-        // still goes through SweepActor below. Never mutate live enemies
-        // or their animation/attack clocks while evaluating a candidate.
-        // Fully opaque LOS remains owned by the normal pursuit pathfinder.
-        private Point ArcherPhysicalCornerSidestep(Point from,Point target)
+        // A real archer's source-painted walking stride cannot look
+        // intentional when the AI changes its intended firing foot on every
+        // 50ms tick. Keep an instance-owned, transient lateral destination.
+        // Never serialize it or share it through an enemy spawn ID: restored
+        // foes and fresh waves can reuse IDs without inheriting old routes.
+        private sealed class ArcherCornerPlan
+        {
+            internal SaveData save;
+            internal int room=-1;
+            internal Point target,goal;
+            internal bool active;
+        }
+        private readonly ConditionalWeakTable<Enemy,ArcherCornerPlan>
+            archerCornerPlans=new ConditionalWeakTable<Enemy,ArcherCornerPlan>();
+
+        private bool ArcherWalkCorridorClear(Point from,Point goal)
+        {
+            Point travel=goal-from;
+            if(!Finite(travel.x)||!Finite(travel.y)||
+                travel.Length>2.25f||!CanStand(from))return false;
+            int steps=Math.Max(1,(int)Math.Ceiling(travel.Length/.11f));
+            for(int i=1;i<=steps;i++)
+                if(!CanStand(from+travel*(i/(float)steps)))return false;
+            return true;
+        }
+
+        // When the bow's physical radius scrapes a wall despite an open
+        // centerline, search up to 2.2 tiles of actual walkable lateral
+        // ground. Return a validated DESTINATION, not just an arrow heading
+        // that may reverse itself when the enemy walks by half a tile.
+        private Point ArcherPhysicalCornerGoal(Point from,Point target)
         {
             Point sight=target-from;
             if(sight.Length<.1f||!CanStand(from)||
                 !ClearAttackPath(from,target))return new Point();
             Point direction=sight.Normalized;
-            // A hero outside this weapon's actual flight lifetime must be
-            // pursued forward, NOT trigger up to eight expensive side-lane
-            // traces. Preserve the true muzzle offset rather than assuming
-            // that visible centerline distance equals arrow travel range.
             Projectile travel=WeaponShot(from,1,direction,5f,10f,target);
             if((target-travel.position).Length>5f*travel.life||
-                PhysicalBowLaneFromFoot(from,target))
-                return new Point();
+                PhysicalBowLaneFromFoot(from,target))return new Point();
             Point side=new Point(-direction.y,direction.x);
             bool positiveOpen=true,negativeOpen=true;
             for(int ring=1;ring<=4;ring++)
@@ -1077,28 +1093,57 @@ namespace Starfall
                     if(sign==0&&!positiveOpen||sign==1&&!negativeOpen)
                         continue;
                     Point lateral=sign==0?side:side*-1f;
-                    // Check the ENTIRE newly considered section of the
-                    // side corridor at body-radius resolution; an isolated
-                    // free landing cell behind a one-tile wall is not a route.
-                    bool reachable=true;
-                    float start=(ring-1)*.55f;
-                    for(float step=start+.11f;step<reach+.001f;step+=.11f)
-                        if(!CanStand(from+lateral*Math.Min(step,reach)))
-                        {reachable=false;break;}
-                    if(!reachable)
+                    Point foot=from+lateral*reach;
+                    // Reject disconnected free destinations: the real
+                    // body must fit at every intermediate physical point.
+                    if(!ArcherWalkCorridorClear(from,foot))
                     {
                         if(sign==0)positiveOpen=false;
                         else negativeOpen=false;
                         continue;
                     }
-                    Point foot=from+lateral*reach;
                     if(ClearAttackPath(foot,target)&&
                         PhysicalBowLaneFromFoot(foot,target))
-                        return lateral;
+                        return foot;
                 }
                 if(!positiveOpen&&!negativeOpen)break;
             }
             return new Point();
+        }
+
+        // Preserve the original two-Point direct probe/test contract.
+        private Point ArcherPhysicalCornerSidestep(Point from,Point target)
+        {
+            Point goal=ArcherPhysicalCornerGoal(from,target);
+            return goal.Length<.01f||(goal-from).Length<.1f?
+                new Point():(goal-from).Normalized;
+        }
+
+        private Point ArcherFollowCornerPlan(Enemy enemy,Point target)
+        {
+            ArcherCornerPlan plan=archerCornerPlans.GetValue(enemy,
+                ignored=>new ArcherCornerPlan());
+            Point from=enemy.Position;
+            bool sameOwner=plan.active&&plan.room==save.room&&
+                Object.ReferenceEquals(plan.save,save)&&
+                (target-plan.target).Length<.48f;
+            // A gate, changed target or formerly obstructed muzzle can
+            // invalidate the intended destination before a shot is earned.
+            if(sameOwner&&(plan.goal-from).Length>.09f&&
+                ArcherWalkCorridorClear(from,plan.goal)&&
+                ClearAttackPath(plan.goal,target)&&
+                PhysicalBowLaneFromFoot(plan.goal,target))
+                return (plan.goal-from).Normalized;
+            plan.active=false;
+            Point next=ArcherPhysicalCornerGoal(from,target);
+            if(next.Length<.01f||(next-from).Length<.09f)
+                return new Point();
+            plan.save=save;
+            plan.room=save.room;
+            plan.target=target;
+            plan.goal=next;
+            plan.active=true;
+            return (next-from).Normalized;
         }
         private void UpdateEnemies(float dt)
         {
@@ -1343,8 +1388,7 @@ namespace Starfall
                     Point heading=DirectionTo(e.Position,pursuit);
                     if(e.kind==1&&!e.boss&&!visible)
                     {
-                        Point lateral=ArcherPhysicalCornerSidestep(
-                            e.Position,pursuit);
+                        Point lateral=ArcherFollowCornerPlan(e,pursuit);
                         if(lateral.Length>.1f)heading=lateral;
                     }
                     Point p = e.Position + heading * freeDt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
