@@ -512,6 +512,33 @@ namespace Starfall
             effects.Add(new Effect("number", Position + new Point(0, -.8f),
                 .65f, L("反击释放！", "RIPOSTE RELEASE")));
         }
+        // Follow the REAL sword contact ray in short physical substeps.
+        // The hero can be planted legally while the next 0.7-tile
+        // sword contact is on the far side of a moving gate or stone.
+        // Never publish a full-volume airborne slash beyond that wall:
+        // show a compact authored collision spark at its last free point.
+        // Enemy hit tests remain the original individual LOS transaction.
+        private Point SwordVfxContact(Point root,Point direction,
+            out bool stoppedAtCover)
+        {
+            stoppedAtCover=false;
+            Point forward=direction.Length>.05f?
+                direction.Normalized:aim.Normalized;
+            const float reach=.7f;
+            const int subdivisions=12;
+            Point lastFree=root;
+            for(int i=1;i<=subdivisions;i++)
+            {
+                Point contact=root+forward*(reach*i/subdivisions);
+                if(Blocked(contact.x,contact.y))
+                {
+                    stoppedAtCover=true;
+                    break;
+                }
+                lastFree=contact;
+            }
+            return lastFree;
+        }
         private void ReleaseAttack(ActorAction a)
         {
             if (a.weapon > 0)
@@ -576,9 +603,16 @@ namespace Starfall
                 return;
             }
             CommitRiposte(a);
-            sound = "attack";
-            effects.Add(new Effect("slash", Position + a.direction * .7f, .22f)
-                { direction = a.direction, variant = a.combo });
+            bool swordHitsCover;
+            Point swordContact=SwordVfxContact(Position,a.direction,
+                out swordHitsCover);
+            sound=swordHitsCover?"guard":"attack";
+            if(swordHitsCover)
+                effects.Add(new Effect("projectileImpact",
+                    swordContact,.22f){direction=a.direction});
+            else
+                effects.Add(new Effect("slash",swordContact,.22f)
+                    {direction=a.direction,variant=a.combo});
             foreach (Enemy e in enemies.ToArray())
             {
                 Point d = e.Position - Position;

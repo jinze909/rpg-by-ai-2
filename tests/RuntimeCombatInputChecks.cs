@@ -548,6 +548,59 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
+    private static void MeleeSwordContactStopsAtRealSolidCover(FrontierRuntime app)
+    {
+        foreach(bool wall in new[]{false,true})
+        {
+            Prepare(app,0);
+            GameCore g=app.Game;
+            g.save.x=12.55f;
+            g.save.y=14f;
+            g.save.weapon=0;
+            int row=(int)g.Position.y;
+            string original=g.Map.rows[row];
+            try
+            {
+                char[] cells=original.ToCharArray();
+                cells[13]=wall?'#':'.';
+                g.Map.rows[row]=new string(cells);
+                Check(g.CanStand(g.Position),
+                    "Near-wall sword test must keep the actual hero on legal ground");
+                g.Attack(new Point(1f,0f));
+                bool released=false;
+                for(int frame=0;frame<25;frame++)
+                {
+                    g.Tick(.02f,new Point());
+                    if(g.effects.Exists(e=>e.kind=="slash"||
+                        e.kind=="projectileImpact"))
+                    {released=true;break;}
+                }
+                Check(released,
+                    "Actual GameCore sword swing never reached an authored contact frame");
+                Effect swordContact=g.effects.Find(e=>
+                    e.kind==(wall?"projectileImpact":"slash"));
+                Check(swordContact!=null,
+                    "Sword VFX did not switch between original slash and wall impact");
+                Check(!g.effects.Exists(e=>
+                    e.kind==(wall?"slash":"projectileImpact")),
+                    "A ghost full-body slash or collision spark is displayed on the wrong terrain");
+                Check(Math.Abs(swordContact.position.y-14f)<.001f&&
+                    (wall?
+                        swordContact.position.x<13f&&
+                        swordContact.position.x>12.55f:
+                        Math.Abs(swordContact.position.x-13.25f)<.001f),
+                    "Sword contact pivot crossed real stone or drifted on unobstructed ground");
+                GUI.textureCalls.Clear();
+                Check((bool)Call(app,"DrawAuthoredEffect",swordContact)&&
+                    GUI.textureCalls.Exists(c=>c.texture!=null&&
+                        c.texture.name=="resource:Frontier/Art/Effects"),
+                    "Real wall-safe sword contact failed to render original published Effects art");
+            }
+            finally{g.Map.rows[row]=original;}
+        }
+        Console.WriteLine("PASS actual sword LMB resolves full original slash on legal 0.7-tile contact, blocked near-side painted collision on stone, live map and true Sprite path");
+    }
+
     private static void RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap(FrontierRuntime app)
     {
         foreach(int weapon in new[]{0,1,2})
@@ -2661,7 +2714,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
