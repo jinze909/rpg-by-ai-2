@@ -2244,6 +2244,10 @@ namespace Starfall.Tests
                 Check(g.SkillQueuedAreaContactVisible(occluded)&&
                     g.SkillQueuedAreaContactVisible(open),
                     "Opening real terrain updates Q preview without replacing the committed skill intent");
+                // Close the gate around the hero only AFTER confirming
+                // that the same live queued Q could reach through it.
+                char[] sealedRow=rows[10].ToCharArray();
+                sealedRow[11]='#';rows[10]=new string(sealedRow);
                 g.save.x=11.5f;
                 Check(g.SkillQueuedAreaReach==0f&&
                     !g.SkillQueuedAreaContactVisible(open),

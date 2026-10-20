@@ -196,7 +196,39 @@ public static class RuntimeCombatInputChecks
                 Math.Abs(c.color.a-.25f)<.001f),
                 "Real dodge interrupt must remove every stale area contour before the next frame");
         }
-        Console.WriteLine("PASS live player draw: standard Vanguard/Arcanist Q damage reach, Ranger exclusion and dodge cleanup");
+        // Draw through the production Sprite/OnGUI fallback at a real
+        // wall. The contour to the EAST is occluded; the WEST spoke
+        // remains visible without changing the same Q intent or pose.
+        Prepare(app,2);
+        var live=app.Game;
+        live.Attack(new Point(1f,0f));
+        live.Skill(new Point(0f,-1f));
+        string original=live.Map.rows[14];
+        try
+        {
+            char[] terrain=original.ToCharArray();
+            terrain[14]='#';live.Map.rows[14]=new string(terrain);
+            Check(live.SkillQueued&&live.CanStand(live.Position),
+                "Production cover-test hero stays on legal foot terrain with a real queued Q");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Point east=(Point)Call(app,"ScreenPoint",live.Position+new Point(4.5f,0f));
+            Point west=(Point)Call(app,"ScreenPoint",live.Position+new Point(-4.5f,0f));
+            Func<Point,bool> marker=screen=>GUI.textureCalls.Exists(c=>
+                Math.Abs(c.color.r-.70f)<.001f&&
+                Math.Abs(c.color.g-.56f)<.001f&&
+                Math.Abs(c.color.b-1f)<.001f&&
+                Math.Abs(c.color.a-.25f)<.001f&&
+                Math.Abs(c.rect.x-(screen.x-2))<2f&&
+                Math.Abs(c.rect.y-(screen.y-2))<2f);
+            Check(!marker(east)&&marker(west),
+                "Actual queued Q must not render through a real wall while keeping its reachable rear arc");
+            live.Map.rows[14]=original;
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(marker(east)&&marker(west)&&live.SkillQueued,
+                "Opening the same real wall restores Q's eastern contour without re-queuing the action");
+        }
+        finally{live.Map.rows[14]=original;}
+        Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
     }
 
     private static void RiposteHudFollowsRealParryIntentAndUnreleasedContact(FrontierRuntime app)
