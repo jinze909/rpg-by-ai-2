@@ -560,6 +560,9 @@ namespace Starfall
             // Sort scenery and actors by their ground position, for proper overlap.
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);
             DrawOrderedWorld();
+            // Authoritative enemy-to-ward pressure above the depth pass,
+            // distinct from damage telegraphs and unowned ambient effects.
+            DrawRoadwardenWardSiphons();
             // Timed hazards are an active GAMEPLAY warning, never floor
             // decoration. Render their lean outlines after solid scenery
             // and actor bodies, before flying projectiles and impacts.

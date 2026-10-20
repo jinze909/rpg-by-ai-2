@@ -164,6 +164,40 @@ namespace Starfall
             if (o.kind.StartsWith("cache")) { bool found = Game.Has("cache_" + Game.save.room); PropImage("cache", 0, p.x - 26, p.y - 42, 52, 61, found ? muted : Color.white); return true; }
             return false;
         }
+        // Roadwarden ward pressure is no longer an invisible drain hidden
+        // behind a distant HUD. Link precisely the GameCore-confirmed
+        // siphoning enemies to the world beacon, using the existing lean
+        // pixel-line language. This is not an independently guessed enemy
+        // proximity query: a real stun, death or stone wall instantly retires
+        // its pressure and next simulation tick retires its visible tether.
+        // In reduced-motion/low-FX modes the fixed line remains legible;
+        // only the little traveling highlight is removed.
+        private void DrawRoadwardenWardSiphons()
+        {
+            if(Game == null || Game.mode != "world" ||
+                Game.RoadwardenTrialRoom == 0 ||
+                Game.RoadwardenTrialRoom != Game.save.room ||
+                drawingOutline)return;
+            Point ward=Game.RoadwardenWardSiphonTarget;
+            int count=Game.RoadwardenWardSiphonCount;
+            for(int i=0;i<count;i++)
+            {
+                Point source=Game.RoadwardenWardSiphonSource(i);
+                Point delta=ward-source;
+                if(delta.Length<.01f || delta.Length>4f)continue;
+                Color tether=PixelArt.C(Game.RoadwardenTrialVeteran ?
+                    "#bc9ced" : "#efab73");
+                tether.a=.64f;
+                DrawRay(source,ward,tether);
+                if(Game.save.reducedMotion||Game.save.effectsQuality==0)
+                    continue;
+                float phase=clock*1.7f+i*.37f;
+                phase-=(float)Math.Floor(phase);
+                Point glint=ScreenPoint(source+delta*phase);
+                Box(glint.x-3f,glint.y-3f,6f,6f,
+                    PixelArt.C("#ffe6b2"));
+            }
+        }
         private void DrawPolishWorld()
         {
             if (Game.mode != "world") return;
