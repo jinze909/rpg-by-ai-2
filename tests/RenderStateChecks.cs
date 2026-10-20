@@ -5070,6 +5070,92 @@ public static class RenderStateChecks
     }
 
 
+
+    private static void RoadwardenTrialCombatRolesAreGroundedAndReadable(
+        FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var g=app.Game;
+        bool motion=g.save.reducedMotion;
+        int fx=g.save.effectsQuality;
+        try
+        {
+            var beacon=Array.Find(g.Map.objects,o=>o.kind=="survey1");
+            Check(beacon!=null,"The original world contains its real Roadwarden beacon");
+            g.save.flags.Add("dispatch_complete");
+            g.save.flags.Add("survey_1");
+            g.enemies.Clear();g.save.companion=-1;
+            g.save.x=beacon.x;g.save.y=beacon.y;
+            g.Talk(beacon);
+            int choice=Array.FindIndex(g.conversation.choices,
+                v=>v.action=="road_trial_start_1");
+            Check(choice>=0,"The production dialogue has the original guarded defense");
+            g.Choose(choice);g.Close();
+            Check(g.RoadwardenTrialRoom==1&&g.enemies.Count==2,
+                "The real defense is active for role markers");
+            g.save.reducedMotion=true;g.save.effectsQuality=0;
+            Set(app,"camera",g.Position);
+            Enemy hunter=g.enemies.Find(e=>e.kind==0);
+            Enemy archer=g.enemies.Find(e=>e.kind==1);
+            Check(hunter!=null&&archer!=null,
+                "The actual first wave contains both combat jobs");
+            Color meleeColor=PixelArt.C("#e6a06c");
+            Color bowColor=PixelArt.C("#8bd6eb");
+            Clear();Call(app,"DrawEnemyActor",hunter);
+            Check(GUI.textureCalls.Count(t=>t.rect.width==4f&&
+                t.rect.height==4f&&
+                Math.Abs(t.color.r-meleeColor.r)<.0001f&&
+                Math.Abs(t.color.g-meleeColor.g)<.0001f&&
+                Math.Abs(t.color.b-meleeColor.b)<.0001f)>=16,
+                "Original full-body ward hunter must keep its source-foot amber signal even at reduced motion and no FX");
+            Clear();Call(app,"DrawEnemyActor",archer);
+            Check(GUI.textureCalls.Count(t=>t.rect.width==4f&&
+                t.rect.height==4f&&
+                Math.Abs(t.color.r-bowColor.r)<.0001f&&
+                Math.Abs(t.color.g-bowColor.g)<.0001f&&
+                Math.Abs(t.color.b-bowColor.b)<.0001f)>=16,
+                "Actual distance-fighting bowman's sole marker must be cyan without replacing its original authored body");
+            var hit=typeof(GameCore).GetMethod("Hit",Private);
+            Check(hit!=null,"Wave change requires real damage, not an invented role preview");
+            hit.Invoke(g,new object[]{hunter,99999f,false,null,null});
+            hit.Invoke(g,new object[]{archer,99999f,false,null,null});
+            g.hitStop=0f;g.invulnerable=100f;
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialWave==2&&g.enemies.Count==2,
+                "One complete real first-wave victory deploys its actual follow-up");
+            Enemy breaker=g.enemies.Find(e=>e.kind==2);
+            Check(breaker!=null,"Second wave actually includes the armored breaker");
+            Color breakerColor=PixelArt.C("#cd9deb");
+            Clear();Call(app,"DrawEnemyActor",breaker);
+            Check(GUI.textureCalls.Count(t=>t.rect.width==4f&&
+                t.rect.height==4f&&
+                Math.Abs(t.color.r-breakerColor.r)<.0001f&&
+                Math.Abs(t.color.g-breakerColor.g)<.0001f&&
+                Math.Abs(t.color.b-breakerColor.b)<.0001f)>=16,
+                "The real advancing heavy enemy must own a distinct violet full-body foot marker");
+            g.Close();g.Talk(beacon);
+            choice=Array.FindIndex(g.conversation.choices,
+                v=>v.action=="road_trial_abandon");
+            Check(choice>=0,"Original beacon retains true retreat option");
+            g.Choose(choice);g.Close();
+            Clear();Call(app,"DrawEnemyActor",archer);
+            Check(g.RoadwardenTrialRoom==0&&
+                GUI.textureCalls.Count(t=>t.rect.width==4f&&
+                    t.rect.height==4f&&
+                    Math.Abs(t.color.r-bowColor.r)<.0001f&&
+                    Math.Abs(t.color.g-bowColor.g)<.0001f&&
+                    Math.Abs(t.color.b-bowColor.b)<.0001f)==0,
+                "Abandoned encounter cannot leave phantom active defense-role pixels, even on a reused numeric enemy ID");
+            Console.WriteLine("PASS actual hunter, ranger and breaker combat roles paint distinct pixel-grounded markers across real Roadwarden waves without changing complete-body art");
+        }
+        finally
+        {
+            Set(app,"drawingOutline",false);
+            g.save.reducedMotion=motion;g.save.effectsQuality=fx;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyRoadwardenWardSpriteInProduction(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -5203,7 +5289,7 @@ public static class RenderStateChecks
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
-        try {TideVisualSurfaceConsistency();RoadwardenSiphonTethersFollowRealCombatAndAccessibility(app);VerifyRoadwardenWardSpriteInProduction(app);CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);WorldRayClippingKeepsOriginalGroundedPaintSamples(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
+        try {TideVisualSurfaceConsistency();RoadwardenSiphonTethersFollowRealCombatAndAccessibility(app);RoadwardenTrialCombatRolesAreGroundedAndReadable(app);VerifyRoadwardenWardSpriteInProduction(app);CoverOcclusionIncludesEveryLiveActor(app);WholeWorldPropsFoliageHasOneStableRoot(app);WorldCanopyPaintedRootsMatchActualTerrain(app);VerifyCanopyWhispersInProduction(app);VerifyRuinSigilsInProduction(app);GroundFoliageKeepsSourcePixelsAndRoot(app);StaticSceneryPreservesOriginalSpriteWithoutGpuActorCapture(app);WorldLightsRemainAnchoredToDetailedProps(app);StoneRoadBordersPreserveRichPublishedPixels(app);ShorelineEdgesUsePublishedWaterPixels(app);ShorelineUsesOriginalWaterArtAndHonorsSettings(app);PaintedImpactFlourishRunsInWorld(app);SlashWholeEffectFramesHaveOneContactPivot(app,folder);AuthoredHitContactCrossfadePreservesWorldPivot(app);MagicImpactHasARealContactLightAndStableAnchor(app);CombatWarningUsesConnectedTrueRadiusGeometry(app);ProjectileTrailsGrowWithoutFramePopping(app);AttackWarningsRemainReadableThroughWorldCover(app);OffscreenRangedLanesStillWarnAcrossLiveViewport(app);DistantWarningStrokesClipWithoutMovingHitLanes(app);WorldRayClippingKeepsOriginalGroundedPaintSamples(app);AreaWarningsUseTrueDamageCircleAtScreenCorners(app);LiveHazardOutlinesStayAboveActorsAndClipAtView(app);AtmosphericMotesUseOriginalWorldAnchoredArt(app);DryShoalDetailsFollowActualTide(app);OrientedCoastlineRetainsApprovedWaterArt(app,folder);OriginalCampfireFlameGetsRootedEmbers(app,folder);AuthoredRelicGlintsStayOnActualDetailedWorldProps(app,folder);WaterKeepsItsHandPaintedTextureAcrossTides(app);RootedRescueSurvivorHasOneGroundedSprite(app);GroundedActorsHaveContinuousAcceptedSoftShadows(app);EditableWorldVisualResourceDrivesLiveRender(app);CanonicalHeroFallbackRecoversAfterPartialArtReimport(app);Hotbar(app,folder);Geometry(app,folder);WorldMapRasterUsesOneDrawAndUpdatesBuiltBridges(app);BridgeAndSealMinimapsMatchPhysicalCollision(app);CourierStatusIsVisibleEvenOutsideFarshore(app);CourierPackShowsRealPhysicalDamage(app);PublicRefugeChoicesHaveRealWorldVisualFeedback(app);CivicServiceOverlayFollowsRealHeroAndRevertsAfterFailure(app);ChapterTenVisualSitesAndSecurityHUD(app);ChapterElevenLiveValvePhaseAndFullHUD(app);RestoresState(app);Console.WriteLine("PASS Ready/cooldown/energy/casting/dodge/death/consumable/companion hotbar states at 1x and 2x DPI; enabled and disabled click dispatch; GUI state isolation");}
         finally {app.EndVisualReview();Screen.width=width;Screen.height=height;GUI.matrix=matrix;GUI.color=color;GUI.enabled=enabled;GUI.pixelsPerPoint=dpi;GUI.queuedClick=null;Input.mousePosition=mouse;Clear();Call(app,"Resize");}
     }
 }
