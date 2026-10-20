@@ -667,6 +667,9 @@ public static class RuntimeCombatInputChecks
             g.Tick(.02f,new Point());
             Check(enemy.state!=1&&!g.projectiles.Exists(p=>!p.friendly),
                 "Archer began a fully telegraphed attack into a known side-wall missile collision");
+            Check(enemy.y<attacker.y-.005f&&
+                enemy.x<attacker.x+.005f&&g.CanStand(enemy.Position),
+                "Enemy archer failed to step SIDEWAYS to a physically shootable footing and instead kept walking into the same arrow-blocking corner");
             g.Map.rows[row]=original;
             enemy.timer=0f;enemy.stun=0f;enemy.releaseTime=0f;
             enemy.x=attacker.x;enemy.y=attacker.y;

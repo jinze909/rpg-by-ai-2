@@ -1020,12 +1020,18 @@ namespace Starfall
         // wasting repeated full-length draws into cover.
         private bool EnemyBowFlightLaneClear(Enemy enemy,Point target)
         {
-            if(enemy==null||enemy.kind!=1||enemy.boss||
-                !Finite(target.x)||!Finite(target.y)||
-                !CanStand(enemy.Position))return false;
-            Point look=target-enemy.Position;
+            return enemy!=null&&enemy.kind==1&&!enemy.boss&&
+                PhysicalBowLaneFromFoot(enemy.Position,target);
+        }
+        // For selecting a NEW real firing foot, evaluate the same arrow
+        // footprint without mutating another enemy actor's live position.
+        private bool PhysicalBowLaneFromFoot(Point foot,Point target)
+        {
+            if(!Finite(target.x)||!Finite(target.y)||
+                !CanStand(foot))return false;
+            Point look=target-foot;
             if(look.Length<.001f)return false;
-            Projectile shot=WeaponShot(enemy.Position,1,
+            Projectile shot=WeaponShot(foot,1,
                 look.Normalized,5f,10f,target);
             if(shot.blockedAtSpawn||ShotBlocked(shot,shot.position))
                 return false;
@@ -1037,6 +1043,32 @@ namespace Starfall
                 if(ShotBlocked(shot,shot.position+
                     travel*(i/(float)steps)))return false;
             return true;
+        }
+        // When a corner clips an arrow's physical radius despite CLEAR
+        // centerline sight, going straight toward the victim does not
+        // unblock the shot and can provoke repeated archer crowding.
+        // Prefer a measured, legally walkable LATERAL firing foot whose
+        // entire original weapon+muzzle+head sweep would be clear.
+        // Never teleport, mutate enemy position in a probe or side-step
+        // around fully opaque walls where existing pathfinding owns route.
+        private Point ArcherPhysicalCornerSidestep(Point from,Point target)
+        {
+            Point sight=target-from;
+            if(sight.Length<.1f||
+                !ClearAttackPath(from,target)||
+                PhysicalBowLaneFromFoot(from,target))return new Point();
+            Point direction=sight.Normalized;
+            Point side=new Point(-direction.y,direction.x);
+            for(int directionIndex=0;directionIndex<2;directionIndex++)
+            {
+                Point candidate=directionIndex==0?side:side*-1f;
+                Point foot=from+candidate*.55f;
+                if(CanStand(foot)&&
+                    ClearAttackPath(foot,target)&&
+                    PhysicalBowLaneFromFoot(foot,target))
+                    return candidate;
+            }
+            return new Point();
         }
         private void UpdateEnemies(float dt)
         {
@@ -1273,7 +1305,19 @@ namespace Starfall
                 }
                 if (!e.backpedaling && (distance > desired || !visible))
                 {
-                    Point p = e.Position + DirectionTo(e.Position, pursuit) * freeDt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
+                    // Actual archer missile LOS may be shut by a corner
+                    // beside an otherwise perfectly open walking ray.
+                    // Evaluate alternate legal shooting feet BEFORE
+                    // committing pursuit: moving directly nearer simply
+                    // repeats a blocked shot or eventually backpedals.
+                    Point heading=DirectionTo(e.Position,pursuit);
+                    if(e.kind==1&&!e.boss&&!visible)
+                    {
+                        Point lateral=ArcherPhysicalCornerSidestep(
+                            e.Position,pursuit);
+                        if(lateral.Length>.1f)heading=lateral;
+                    }
+                    Point p = e.Position + heading * freeDt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
                     Point swept = SweepActor(e.Position, p - e.Position); e.x = swept.x; e.y = swept.y;
                 }
                 Point travelled = e.Position - before; e.moving = travelled.Length > .001f;
