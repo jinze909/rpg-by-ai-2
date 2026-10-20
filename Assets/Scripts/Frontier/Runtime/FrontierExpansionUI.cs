@@ -114,9 +114,11 @@ namespace Starfall
                     CurrentWorldVisualLook.companionFacingThreshold)
                 row=companionLastWalkFacing;
             bool flip=row==0&&direction.x<-.1f;
-            if(companionVisualId!=id ||
+            // Offscreen outline passes must never establish a new gait
+            // owner or reset the actual body's running contact phase.
+            if(!drawingOutline&&(companionVisualId!=id ||
                 !System.Object.ReferenceEquals(companionVisualOwner,Game) ||
-                companionVisualGeneration!=Game.companionPresentationGeneration)
+                companionVisualGeneration!=Game.companionPresentationGeneration))
             {
                 companionVisualOwner=Game;
                 companionVisualGeneration=Game.companionPresentationGeneration;
@@ -128,7 +130,7 @@ namespace Starfall
                 companionTrackedAction=null;
                 companionAttackStartedFromWalk=false;
             }
-            if(action!=companionTrackedAction)
+            if(!drawingOutline&&action!=companionTrackedAction)
             {
                 // An in-flight command is not the same as ordinary idle.
                 // Keep one stance for its entire actual GameCore action;
@@ -147,9 +149,12 @@ namespace Starfall
                 int step=GameCore.GaitFrame(Game.companionMoveTime,
                     GameCore.WalkStride*
                         CurrentWorldVisualLook.companionStrideDistanceFactor);
-                companionLastWalkFrame=step;
-                companionLastWalkFacing=row;
-                companionWasWalking=true;
+                if(!drawingOutline)
+                {
+                    companionLastWalkFrame=step;
+                    companionLastWalkFacing=row;
+                    companionWasWalking=true;
+                }
                 Actor(companionWalkSheets[id],4,3,row*4+step,
                     p,192f,tint,flip);
             }
@@ -161,13 +166,17 @@ namespace Starfall
                 // When stopping on an airborne key (1/3), briefly resolve
                 // to its nearest planted contact (0/2). Never jump from an
                 // airborne foot to an unrelated body/face in one repaint.
-                if(companionWasWalking)
+                if(companionWasWalking&&!drawingOutline)
                 {
                     companionWasWalking=false;
                     companionStopTime=clock;
                 }
+                // A silhouette preview may run before or after the real
+                // repaint. It samples the SAME next planted source cell
+                // but does not consume the body-owned stop transition.
                 int finish=companionLastWalkFacing==row?
-                    CompanionStopPose(clock-companionStopTime):0;
+                    CompanionStopPose(companionWasWalking?0f:
+                        clock-companionStopTime):0;
                 Actor(companionWalkSheets[id],4,3,
                     row*4+finish,p,192f,tint,flip);
             }
@@ -185,7 +194,7 @@ namespace Starfall
                 // Preserve gait readability only with genuine source-painted
                 // contact DIRT at the original planted foot. Exactly ONE
                 // authored full-body action Sprite remains on the stage.
-                companionWasWalking=false;
+                if(!drawingOutline)companionWasWalking=false;
                 float duration=Math.Min(
                     CurrentWorldVisualLook.companionAttackPlantSeconds,
                     action.contact*.42f);
@@ -210,7 +219,7 @@ namespace Starfall
             }
             else
             {
-                companionWasWalking=false;
+                if(!drawingOutline)companionWasWalking=false;
                 Actor(companionSheets[id],3,4,frame,p,192f,tint,
                     !north&&!(south&&action!=null)&&direction.x<-.1f);
             }
