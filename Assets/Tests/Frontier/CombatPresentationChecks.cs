@@ -1296,6 +1296,35 @@ namespace Starfall.Tests
                     {timer=.001f};
                 archer.Face(target-from);g.enemies.Add(archer);
                 g.Tick(.05f,new Point());
+                // The first genuine movement Tick must publish an actor-
+                // instance-owned destination. The current running foot is
+                // never allowed to inherit a recycled spawn ID's plan.
+                var cacheField=typeof(GameCore).GetField(
+                    "archerCornerPlans",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(cacheField!=null,"Extended ranged AI owns real transient per-enemy foot plans");
+                object cache=cacheField.GetValue(g);
+                var lookup=cache.GetType().GetMethod("TryGetValue");
+                object[] planArguments={archer,null};
+                Check((bool)lookup.Invoke(cache,planArguments),
+                    "The live archer saved its physically verified side destination after moving");
+                object plan=planArguments[1];
+                var privateFields=System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Public;
+                var planType=plan.GetType();
+                var goalField=planType.GetField("goal",privateFields);
+                var activeField=planType.GetField("active",privateFields);
+                var targetField=planType.GetField("target",privateFields);
+                Check(goalField!=null&&activeField!=null&&targetField!=null,
+                    "The archer's real route plan contains goal, activity and target");
+                Point committedFoot=(Point)goalField.GetValue(plan);
+                Check((bool)activeField.GetValue(plan)&&
+                    (committedFoot-from).Length>.55f&&
+                    g.CanStand(committedFoot)&&
+                    (bool)lane.Invoke(g,new object[]{committedFoot,target}),
+                    "Real lateral pursuit must commit an extended, standable and physically shootable destination");
                 Check(archer.state==0&&archer.moving&&archer.moveTime>0f&&
                     g.CanStand(archer.Position)&&
                     (archer.Position-from).Length>.015f&&
@@ -1306,6 +1335,9 @@ namespace Starfall.Tests
                 for(int tick=0;tick<80;tick++)
                 {
                     g.Tick(.05f,new Point());
+                    if(archer.state==0&&(bool)activeField.GetValue(plan))
+                        Check(((Point)goalField.GetValue(plan)-committedFoot).Length<.001f,
+                            "Lateral attacker must retain its original approved firing foot across real walk frames, not flip between aim directions each Tick");
                     Check(g.CanStand(archer.Position),
                         "Extended sideways approach must never bury the live enemy body in terrain");
                     if(archer.state==1){acquired=true;break;}
@@ -1337,6 +1369,27 @@ namespace Starfall.Tests
                 g.Tick(.05f,new Point());
                 Check(archer.state==1&&g.save.version==2,
                     "After the true side firing corridor reopens, the original ranged enemy immediately earns a new telegraphed aim");
+                // Preserve the same Enemy instance, then move its target
+                // beyond genuine projectile flight lifetime. A stale
+                // intermediate walk plan must NEVER keep guiding it.
+                var follow=typeof(GameCore).GetMethod("ArcherFollowCornerPlan",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(follow!=null,"Actual live AI uses the retained-plan mover");
+                Point farAway=new Point(42.5f,archer.y);
+                Point obsoleteHeading=(Point)follow.Invoke(g,
+                    new object[]{archer,farAway});
+                Check(obsoleteHeading.Length<.01f&&
+                    !(bool)activeField.GetValue(plan),
+                    "When the target moves past true bow flight range the previously active side-foot route must retire immediately");
+                var replacement=new Enemy(archer.id,1,from.x,from.y,100f);
+                Point newActorHeading=(Point)follow.Invoke(g,
+                    new object[]{replacement,target});
+                object[] separatePlan={replacement,null};
+                Check(newActorHeading.Length>.5f&&
+                    (bool)lookup.Invoke(cache,separatePlan)&&
+                    !Object.ReferenceEquals(plan,separatePlan[1]),
+                    "A respawned foe reusing the same numeric ID cannot inherit an older actor's lateral attack route");
             }
             finally {data.maps[0]=original;}
         }
