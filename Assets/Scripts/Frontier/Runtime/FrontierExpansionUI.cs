@@ -102,6 +102,14 @@ namespace Starfall
             bool publishedWalk=companionWalkSheets!=null &&
                 id<companionWalkSheets.Length&&companionWalkSheets[id]!=null;
             int row=GameCore.DirectionRow(direction);
+            // The first genuine draw of a new character, game instance or
+            // companion presentation generation must use THAT actor's own
+            // direction. Previous smoothing inspected only numeric party ID
+            // and could reuse a north-facing silhouette on a newly loaded
+            // near-diagonal east walk, even after the generation was reset.
+            bool samePresentation=companionVisualId==id&&
+                System.Object.ReferenceEquals(companionVisualOwner,Game)&&
+                companionVisualGeneration==Game.companionPresentationGeneration;
             // Avoid north/east sheet flip-flop at 45-degree pathfinding
             // boundaries, but NEVER preserve a south facing when heading
             // north (or the reverse). A distinct actual direction wins.
@@ -109,16 +117,14 @@ namespace Starfall
                 (companionLastWalkFacing==1&&direction.y<0f)||
                 (companionLastWalkFacing==2&&direction.y>0f);
             if(action==null&&Game.companionMoving&&
-                companionVisualId==id&&sameHemisphere&&
+                samePresentation&&sameHemisphere&&
                 Math.Abs(Math.Abs(direction.x)-Math.Abs(direction.y))<
                     CurrentWorldVisualLook.companionFacingThreshold)
                 row=companionLastWalkFacing;
             bool flip=row==0&&direction.x<-.1f;
             // Offscreen outline passes must never establish a new gait
             // owner or reset the actual body's running contact phase.
-            if(!drawingOutline&&(companionVisualId!=id ||
-                !System.Object.ReferenceEquals(companionVisualOwner,Game) ||
-                companionVisualGeneration!=Game.companionPresentationGeneration))
+            if(!drawingOutline&&!samePresentation)
             {
                 companionVisualOwner=Game;
                 companionVisualGeneration=Game.companionPresentationGeneration;
