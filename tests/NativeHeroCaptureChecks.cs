@@ -114,8 +114,9 @@ public static class NativeHeroCaptureChecks
                 "six-to-seven-frame family swap retained stale cache owners");
             foreach(var item in temporaries)
                 Require(item.destroyed,"runtime-owned Sprite leaked after publish");
-            foreach(var item in originalSpriteSets.Values.SelectMany(x=>x))
-                Require(!item.destroyed,"atomic publish destroyed imported Animator Sprite");
+            foreach(var set in originalSpriteSets.Values)
+                foreach(var item in set)
+                    Require(!item.destroyed,"atomic publish destroyed imported Animator Sprite");
             temporaries.Clear();
 
             foreach(var pair in originals)
@@ -145,9 +146,10 @@ public static class NativeHeroCaptureChecks
             foreach(var item in temporaries)
                 Require(item.destroyed,
                     "runtime-owned Sprite leaked after all-or-none rollback");
-            foreach(var item in originalSpriteSets.Values.SelectMany(x=>x))
-                Require(!item.destroyed,
-                    "contact rollback destroyed shared imported Hero Sprite");
+            foreach(var set in originalSpriteSets.Values)
+                foreach(var item in set)
+                    Require(!item.destroyed,
+                        "contact rollback destroyed shared imported Hero Sprite");
         }
         finally
         {
