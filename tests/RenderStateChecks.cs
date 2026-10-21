@@ -5286,12 +5286,14 @@ public static class RenderStateChecks
         }
     }
 
-    public static void VerifyMalformedTransientRecordsAreSkippedBeforeWorldSort(FrontierRuntime app)
+    public static void VerifyMalformedTransientRecordsAreSkippedByProductionDrawGuards(FrontierRuntime app)
     {
         Prepare(app);
+        var game=app.Game;
+        var originalDecor=game.Map.decor;
+        var originalObjects=game.Map.objects;
         try
         {
-            var game=app.Game;
             game.mode="world";game.enemies.Clear();game.projectiles.Clear();
             game.effects.Clear();game.fallen.Clear();game.save.companion=-1;
             Point foot=game.Position;
@@ -5325,15 +5327,33 @@ public static class RenderStateChecks
             game.effects.Add(new Effect("slash",
                 new Point(float.NaN,foot.y),.5f));
             game.effects.Add(new Effect("impact",foot,.5f) {life=float.NaN});
+
+            // Exercise the actual depth-sort loop without unrelated HUD/prop
+            // text rendering. Preserve and restore the live map arrays exactly.
+            game.Map.decor=new Decoration[0];
+            game.Map.objects=new WorldObject[0];
             Clear();
             Call(app,"DrawCombatEffect",(object)null);
             Call(app,"DrawCombatEffect",new Effect("slash",
                 new Point(float.NaN,foot.y),.5f));
+            Call(app,"DrawAuthoredImpactFlourish",(object)null);
+            Call(app,"DrawAuthoredImpactFlourish",new Effect("slash",
+                new Point(float.NaN,foot.y),.5f));
             Call(app,"DrawOrderedWorld");
-            Console.WriteLine("PASS production world sort skips malformed/out-of-room corpses and invalid effect records before dereference");
+
+            // The separate canopy-overlap path also traverses the corpse list;
+            // prove its identity/room guards, not just the depth-sort guards.
+            Decoration remoteCover=new Decoration {
+                kind="tree",x=foot.x+1000f,y=foot.y+1000f
+            };
+            Check(!(bool)Call(app,"WorldCoverOverlapsActor",remoteCover),
+                "Canopy occlusion skips null, invalid and foreign-room corpses");
+            Console.WriteLine("PASS production draw guards skip malformed/out-of-room corpses and invalid effects before dereference");
         }
         finally
         {
+            game.Map.decor=originalDecor;
+            game.Map.objects=originalObjects;
             app.EndVisualReview();
             Clear();
         }
