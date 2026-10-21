@@ -239,9 +239,27 @@ namespace Starfall
         public static bool Exists(int slot)
         {
             string path = PathFor(slot);
-            return File.Exists(path) || File.Exists(path + ".bak") ||
-                File.Exists(path + ".tmp") || File.Exists(path + ".precommit") ||
-                StagingPaths(path).Length > 0;
+            // "Continue" must mean at least one COMPLETE recoverable save,
+            // not merely a filename left by a crash during the first write.
+            // Validate the primary and every legacy/new transaction candidate
+            // with the same checksum/schema rules used by Read().
+            var candidates = new List<string> { path };
+            candidates.AddRange(RecoveryPaths(path));
+            foreach (string candidate in candidates)
+            {
+                if (!File.Exists(candidate)) continue;
+                try
+                {
+                    Decode(File.ReadAllText(candidate));
+                    return true;
+                }
+                catch
+                {
+                    // Ignore partial or corrupt copies; a later verified
+                    // backup/stage in the same slot may still be recoverable.
+                }
+            }
+            return false;
         }
         // Fallback for platforms/filesystems without File.Replace. Never
         // DELETE the only primary save before installing its replacement:

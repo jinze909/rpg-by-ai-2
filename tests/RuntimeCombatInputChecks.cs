@@ -1789,6 +1789,13 @@ public static class RuntimeCombatInputChecks
                 warning == "Recovered interrupted save.",
                 "A flushed staging candidate remains loadable when no primary, backup or legacy temp exists.");
             System.IO.File.Delete(stageOnly);
+            System.IO.File.WriteAllText(stageOnly, "{partial");
+            Check(!SaveStore.Exists(2),
+                "A partial stage-only file cannot falsely enable Continue when no valid save exists.");
+            restored = SaveStore.Read(2, out warning);
+            Check(restored == null && warning != null,
+                "A partial first-write stage cannot be loaded as a default character.");
+            System.IO.File.Delete(stageOnly);
 
             var invalidCandidate = new SaveData { version = 2, coins = 90,
                 inventory = new int[7] };
