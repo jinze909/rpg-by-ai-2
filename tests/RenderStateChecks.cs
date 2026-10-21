@@ -5289,6 +5289,9 @@ public static class RenderStateChecks
     public static void VerifyMalformedTransientRecordsAreSkippedByProductionDrawGuards(FrontierRuntime app)
     {
         Prepare(app);
+        // Initialize the actual GUI styles while the reviewed world is still
+        // intact; the isolated direct depth-pass below does not need HUD setup.
+        Draw(app);
         var game=app.Game;
         var originalDecor=game.Map.decor;
         var originalObjects=game.Map.objects;
@@ -5339,10 +5342,9 @@ public static class RenderStateChecks
             Call(app,"DrawAuthoredImpactFlourish",(object)null);
             Call(app,"DrawAuthoredImpactFlourish",new Effect("slash",
                 new Point(float.NaN,foot.y),.5f));
-            // OnGUI initializes the production text styles before it enters
-            // the sorted world pass; the test has emptied only map arrays to
-            // isolate malformed transient records from unrelated prop content.
-            Draw(app);
+            // Invoke the production depth-sort pass directly so the HUD
+            // cannot depend on map content intentionally removed for isolation.
+            Call(app,"DrawOrderedWorld");
 
             // The separate canopy-overlap path also traverses the corpse list;
             // prove its identity/room guards, not just the depth-sort guards.
