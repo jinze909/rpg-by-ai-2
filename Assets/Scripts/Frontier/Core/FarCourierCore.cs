@@ -13,6 +13,19 @@ namespace Starfall
         private float courierIntegrity;
         private bool courierPatched,courierIntegrityWarning;
         private bool courierGuardSpent,courierRaided;
+        // Earned only when BOTH actual bridge pursuers die through GameCore.Hit.
+        // Never persisted until the original parcel reaches the far refuge.
+        private int courierConfirmedRaiderKills;
+        public bool FarCourierSecuredInFlight
+        {get{return FarCourierActive&&courierRaided&&courierConfirmedRaiderKills==3;}}
+        public bool FarCourierSecured(int room)
+        {return room>=0&&room<8&&Has("far_courier_secured_"+room);}
+        private void OnFarCourierEnemyDefeated(Enemy enemy)
+        {
+            if(!FarCourierActive||!IsFarCourierRaider(enemy))return;
+            int index=enemy.id-(90100+save.room*2);
+            if(index>=0&&index<2)courierConfirmedRaiderKills|=1<<index;
+        }
         // Mission-owned IDs use a reserved range, never ordinary spawn IDs.
         private bool IsFarCourierRaider(Enemy foe)
         {return foe!=null&&foe.id>=90100&&foe.id<90116;}
@@ -25,12 +38,45 @@ namespace Starfall
                 return n;
             }
         }
+        // Prefer the two original authored ambush locations. If a map's
+        // collision has changed, find a reachable nearby tile rather than
+        // silently deleting an otherwise playable bridge encounter.
+        private bool FindCourierRaiderPosition(Point authored,Point other,
+            bool second,out Point chosen)
+        {
+            for(int radius=0;radius<=5;radius++)
+                for(int dy=-radius;dy<=radius;dy++)
+                    for(int dx=-radius;dx<=radius;dx++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                        Point p=authored+new Point(dx,dy);
+                        if(!CanStand(p)||(p-Position).Length<2.2f||
+                            (second&&(p-other).Length<2.6f)||
+                            enemies.Exists(e=>(e.Position-p).Length<1.8f))continue;
+                        if(radius>0&&NavigationPath(p).Count==0)continue;
+                        chosen=p;return true;
+                    }
+            chosen=new Point();return false;
+        }
         private void SpawnFarCourierRaiders()
         {
             if(courierRaided||!FarCourierActive)return;
+            // Never half-deploy a wave: choose BOTH reachable placements
+            // before mutating the enemy roster or its owned telegraphs.
+            // Older Unity-compatible C# compilers require explicit assignment
+            // even when the second out parameter is guarded by short-circuiting.
+            Point melee=new Point(),archer=new Point();
+            bool ready=FindCourierRaiderPosition(
+                new Point(111.5f,57.5f),new Point(),false,out melee);
+            if(ready)ready=FindCourierRaiderPosition(
+                new Point(114.5f,59.5f),melee,true,out archer);
             courierRaided=true;
-            Point melee=new Point(111.5f,57.5f),archer=new Point(114.5f,59.5f);
-            if(!CanStand(melee)||!CanStand(archer))return;
+            if(!ready)
+            {
+                Notify("桥南巡逻位置被阻断。救援包仍可沿安全道路绕行送达。",
+                    "Raider approach is blocked. You can still carry the parcel through the safe crossing.");
+                return;
+            }
             int id=90100+save.room*2;
             enemies.Add(CreatePlacedEnemy(id,0,melee,36+save.room*5));
             enemies.Add(CreatePlacedEnemy(id+1,1,archer,31+save.room*5));
@@ -82,6 +128,7 @@ namespace Starfall
             projectiles.RemoveAll(shot=>shot.courierOwned);
             effects.RemoveAll(effect=>effect.courierOwned);
             courierRoom=-1;courierRaided=false;
+            courierConfirmedRaiderKills=0;
             courierWalked=courierElapsed=courierIntegrity=courierGuardLeft=0;
             courierCrossed=courierStamped=courierPatched=
                 courierIntegrityWarning=courierGuardSpent=false;
@@ -183,10 +230,16 @@ namespace Starfall
             bool ready=courierCrossed&&courierStamped&&courierWalked>=17&&
                 (Position-courierLast).Length<.65f&&courierElapsed<95;
             Dialog(o.name,o.en,ready?
-                "封条完整！这份物资确实经由居民修好的桥面送达，而不是只在交接簿上写了一个数字。":
+                "封条完整！这份物资确实经由居民修好的桥面送达。"+
+                    (FarCourierSecuredInFlight?
+                        "你亲自击败了两名劫匪，交接时还能领取一次性安全护送奖金。":
+                        "你选择谨慎绕过追兵，仍可正常交付全部物资。"):
                 "救援包仍在，但需要从北向南经过新桥，并在中途居民检查台核验封条。",
                 ready?
-                "The seal is intact. Your parcel truly crossed the civilian bridge instead of arriving only on a paper manifest.":
+                "The parcel truly crossed the civilian bridge."+
+                    (FarCourierSecuredInFlight?
+                        " You defeated both real raiders; a one-time secure-route bonus is available at delivery.":
+                        " You avoided the pursuers and can still complete the full delivery."):
                 "You must cross the real bridge on foot AND obtain a seal from the community checkpoint.",
                 C(ready?"亲手交接救援包":"查看运送条件",
                     ready?"Hand over supplies":"Review delivery route","far_courier_deliver"),
@@ -262,10 +315,13 @@ namespace Starfall
             if(action=="far_courier_start")
             {
                 if(FarCourierActive||(Position-new Point(bridge.x,bridge.y)).Length>2.2f)return true;
-                if(CivicResponseActive||TideSalvageActive)
+                // Reuse the same comprehensive live-field exclusion as
+                // resting and the minecart/frost mission pickup. A second
+                // transport clock must never mask the current quest objective.
+                if(FieldWorkPreventsRest)
                 {
-                    Notify("当前还有居民服务或潮滩打捞行动。先完成或明确取消，再领取救援包。",
-                        "Finish or explicitly cancel the active civilian service or tide salvage before carrying another parcel.");
+                    Notify("仍有进行中的现场行动。先完成或在原地点明确取消，再领取救援包。",
+                        "Another field mission is active. Finish it or cancel at its original station before collecting a parcel.");
                     return true;
                 }
                 if(!SafeTravel)
@@ -274,6 +330,7 @@ namespace Starfall
                 courierWalked=courierElapsed=0;
                 courierIntegrity=100;courierCrossed=courierStamped=false;
                 courierPatched=courierIntegrityWarning=courierGuardSpent=courierRaided=false;
+                courierConfirmedRaiderKills=0;
                 courierGuardLeft=0;
                 revision++;sound="quest";
                 Notify("救援包已背上：95秒内步行过桥并送到避险棚！",
@@ -286,14 +343,27 @@ namespace Starfall
                 !courierCrossed||!courierStamped||courierWalked<17||courierElapsed>=95)return true;
             if(!SafeTravel)
             {Notify("避险棚附近仍有敌人。","Hostiles threaten the shelter.");return true;}
+            bool secured=FarCourierSecuredInFlight;
             ResetFarCourier();
-            Flag("far_courier_"+room);save.coins+=25;save.shards++;
-            AddXp(38);revision++;sound="reward";
+            Flag("far_courier_"+room);CreditCoins(25);CreditShards(1);
+            AddXp(38);
+            if(secured)
+            {
+                Flag("far_courier_secured_"+room);
+                CreditCoins(10);AddXp(15);
+            }
+            revision++;sound="reward";
             if(FarCourierDeliveredCount==8&&!Has("far_courier_all"))
-            {Flag("far_courier_all");save.skillPoints++;revision++;}
-            RecordMoment("第 "+(room+1)+" 份居民救援包通过真正的山脊步行路线到达公共避险棚。",
-                "A civilian parcel reached a distant public refuge by the actual rebuilt footbridge.");
-            Notify("救援包已交接：硬币25、碎片1、经验38！",
+            {Flag("far_courier_all");CreditSkillPoints(1);revision++;}
+            RecordMoment("第 "+(room+1)+" 份居民救援包通过真正的山脊步行路线到达公共避险棚。"+
+                    (secured?"两名追兵确实被击败，这条补给路已被护卫清理。":""),
+                "A civilian parcel reached the public refuge on foot."+
+                    (secured?" Both pursuing raiders were truly defeated; the road was secured.":""));
+            Notify(secured?
+                "救援包与安全护送完成：硬币35、碎片1、经验53！":
+                "救援包已交接：硬币25、碎片1、经验38！",
+                secured?
+                "Secure delivery! +35 coins, +1 shard, +53 XP!":
                 "Parcel delivered: +25 coins, +1 shard, +38 XP!");
             return true;
         }

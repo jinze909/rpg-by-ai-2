@@ -66,7 +66,7 @@ namespace UnityEngine
         { return new Matrix4x4 {m00=a.m00*b.m00+a.m01*b.m10,m01=a.m00*b.m01+a.m01*b.m11,m03=a.m00*b.m03+a.m01*b.m13+a.m03,m10=a.m10*b.m00+a.m11*b.m10,m11=a.m10*b.m01+a.m11*b.m11,m13=a.m10*b.m03+a.m11*b.m13+a.m13}; }
         public Vector3 MultiplyPoint3x4(Vector3 p) {return new Vector3(m00*p.x+m01*p.y+m03,m10*p.x+m11*p.y+m13,p.z);}
     }
-    public enum KeyCode {J,Space,Q,E,F,H,I,T,Z,B,C,G,N,Tab,K,M,Escape,F1,Return,R,LeftArrow,RightArrow,UpArrow,DownArrow,LeftShift,RightShift,W=110,A,S,D,JoystickButton0=30,JoystickButton1,JoystickButton2,JoystickButton3,JoystickButton4,JoystickButton5,JoystickButton6,JoystickButton7,Alpha1=100,Alpha2,Alpha3,Alpha4,Alpha5}
+    public enum KeyCode {J,Space,Q,E,F,H,I,T,Z,B,C,G,N,Tab,K,M,Escape,F1,Return,R,LeftArrow,RightArrow,UpArrow,DownArrow,LeftShift,RightShift,W=110,A,S,D,V,X,Y,JoystickButton0=30,JoystickButton1,JoystickButton2,JoystickButton3,JoystickButton4,JoystickButton5,JoystickButton6,JoystickButton7,Alpha1=100,Alpha2,Alpha3,Alpha4,Alpha5}
     public static class Input {public static HashSet<KeyCode> keys=new HashSet<KeyCode>(),held=new HashSet<KeyCode>();public static HashSet<int> buttons=new HashSet<int>();public static Dictionary<string,float> axes=new Dictionary<string,float>();public static Vector3 mousePosition; public static float GetAxisRaw(string a){float v;return axes.TryGetValue(a,out v)?v:0;}public static bool GetMouseButton(int b){return buttons.Contains(b);}public static bool GetKey(KeyCode k){return held.Contains(k);}public static bool GetKeyDown(KeyCode k){return keys.Contains(k);}public static void Clear(){keys.Clear();held.Clear();buttons.Clear();axes.Clear();}}
     public static class Mathf {public static float Min(float a,float b){return Math.Min(a,b);}public static float Max(float a,float b){return Math.Max(a,b);}public static float Exp(float a){return (float)Math.Exp(a);}public static float Sin(float a){return (float)Math.Sin(a);}public static float Clamp01(float a){return Math.Max(0,Math.Min(1,a));}public static float Lerp(float a,float b,float t){return a+(b-a)*Clamp01(t);} }
     public enum TextAnchor {UpperLeft,MiddleCenter}
@@ -98,6 +98,11 @@ namespace UnityEngine
     public static class Debug {public static void LogWarning(object o){Console.Error.WriteLine(o);}public static void LogError(object o){Console.Error.WriteLine(o);}public static void Log(object o){Console.WriteLine(o);} }
     public static class Resources
     {
+        // Offline-only asset import sandbox: exercises a complete 18-file
+        // sprite release without touching accepted on-disk source art.
+        public static readonly Dictionary<string,Texture2D> TextureOverrides =
+            new Dictionary<string,Texture2D>();
+        public static int weatherWispImportLoads;
         public static T Load<T>(string p) where T:class
         {
             if(typeof(T)==typeof(TextAsset)) {
@@ -107,6 +112,10 @@ namespace UnityEngine
                 return new TextAsset {text="campaign"} as T;
             }
             if(typeof(T)==typeof(Texture2D)) {
+                if(p=="Frontier/Art/WeatherWisps")weatherWispImportLoads++;
+                Texture2D candidate;
+                if(TextureOverrides.TryGetValue(p,out candidate))
+                    return candidate as T;
                 string path="Assets/Resources/"+p+".png";
                 if(!File.Exists(path))return null;
                 var header=File.ReadAllBytes(path); int w=(header[16]<<24)|(header[17]<<16)|(header[18]<<8)|header[19],h=(header[20]<<24)|(header[21]<<16)|(header[22]<<8)|header[23];
@@ -184,6 +193,7 @@ class LayoutHarness
         // Mandatory nonhero CI must execute the real boss draw method too:
         // phase thresholds, matched flash atlas cells and the GameCore clock.
         ActorRegistrationChecks.VerifyBossMovingFlash(app);
+        RenderStateChecks.VerifyMalformedTransientRecordsAreSkippedByProductionDrawGuards(app);
         return 0;
 #elif CONTINUITY_ONLY
         ActorRegistrationChecks.Run(app,args[0]);RuntimeContinuityChecks.Run(app,args[0]);return 0;

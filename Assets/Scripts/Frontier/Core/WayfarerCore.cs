@@ -10,12 +10,52 @@ namespace Starfall
         private float wayfarerIntegrity;
         private bool wayfarerWarned;
         private bool wayfarerAidUsed;
+        // An empty enemy list is not evidence that both travelers' raiders
+        // died in player combat. Keep confirmations transient, like the ambush.
+        private int wayfarerConfirmedKills;
+        private void OnWayfarerEnemyDefeated(Enemy enemy)
+        {
+            if(wayfarerEncounterRoom==0 || save.room!=wayfarerEncounterRoom ||
+                !IsWayfarerEnemy(enemy))return;
+            int index=enemy.id-(82000+wayfarerEncounterRoom*10);
+            if(index>=0&&index<2)wayfarerConfirmedKills|=1<<index;
+        }
         public int WayfarerEncounterRoom { get { return wayfarerEncounterRoom; } }
         public float WayfarerIntegrity { get { return wayfarerIntegrity; } }
         private static bool IsWayfarerEnemy(Enemy e) { return e != null && e.id >= 82000 && e.id < 82100; }
         private void ResetWayfarerEncounter()
-        { wayfarerEncounterRoom = 0; wayfarerIntegrity = 0; wayfarerWarned = wayfarerAidUsed = false; }
+        {
+            // Retire a rescue's own raiders, inbound arrows and warnings
+            // on cancellation, failure, restart and save reload.
+            enemies.RemoveAll(IsWayfarerEnemy);
+            projectiles.RemoveAll(p => p.wayfarerOwned);
+            effects.RemoveAll(e => e.wayfarerOwned);
+            wayfarerEncounterRoom = 0; wayfarerIntegrity = 0;
+            wayfarerWarned = wayfarerAidUsed = false;
+            wayfarerConfirmedKills = 0;
+        }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
+        private bool WayfarerFinalRewardPending
+        {
+            get { return Has("wayfarer_1") && Has("wayfarer_2") &&
+                Has("wayfarer_3") && !Has("wayfarer_complete"); }
+        }
+        private bool ClaimWayfarerFinalReward()
+        {
+            if (!WayfarerFinalRewardPending) return false;
+            // A completed rescue is durable independently of its promised
+            // tangible stew. Never mark the one-time final bonus paid before
+            // there is room in the real v2 inventory.
+            if (!HasInventoryRoom(6, 1)) return false;
+            Flag("wayfarer_complete");
+            CreditSkillPoints(1); CreditInventory(6, 1);
+            RecordMoment("三段归途重归安全：技能点1、炖汤1。",
+                "All three roadside journeys secured: 1 talent point and 1 stew.");
+            Notify("三位旅人平安出发！额外技能点1、炖汤1。",
+                "All three travelers safe! Bonus: 1 talent point and 1 stew.");
+            TrackQuest("wayfarers"); sound = "reward";
+            return true;
+        }
         private bool TalkWayfarer(WorldObject o)
         {
             if (!o.kind.StartsWith("wayfarer")) return false;
@@ -52,15 +92,21 @@ namespace Starfall
                 string responseEn = Has("wayfarer_defended_" + room) ? defendedEn[room] :
                     Has("wayfarer_supplied_" + room) ? suppliedEn[room] :
                     "Thanks to you, I can travel again.";
+                bool rewardPending = WayfarerFinalRewardPending;
                 Dialog(o.name, o.en, responseZh +
+                    (rewardPending ? " 三位旅人已经平安，请在背包留出一份炖汤的空间，再回来领取共同的奖励。" : "") +
                     (room==3&&MineConvoyComplete?
                         " 南侧矿棚最后一班矿工已经平安归来，矿工不再需要军用货运许可。":"")+
                     " 其他旅人也许还在等待救援。" + FloodArchiveWayfarerNote(false),
                     responseEn +
                     (room==3&&MineConvoyComplete?
                         " The last-shift miners returned safely; they no longer need a military cargo permit.":"")+
-                    " Others may still be stranded." + FloodArchiveWayfarerNote(true),
-                    C("旅途平安", "Safe travels", "close"));
+                    " Others may still be stranded." +
+                    (rewardPending ? " All three travelers are safe. Free one stew slot and return to claim their shared reward." : "") +
+                    FloodArchiveWayfarerNote(true),
+                    rewardPending ? C("领取三人共同的补给", "Claim the travelers' shared supplies", "wayfarer_reward") :
+                        C("旅途平安", "Safe travels", "close"),
+                    C("稍后再见", "See you later", "close"));
                 return true;
             }
             if (wayfarerEncounterRoom == room)
@@ -90,14 +136,29 @@ namespace Starfall
                 C("稍后再说", "Prepare first", "close"));
             return true;
         }
+        // Old dialogue choices may still be clickable after a gate
+        // closes. Donations, field medicine, withdrawals and the shared
+        // one-time stew are real NPC handovers, not radial telekinesis.
+        private bool CanReachWayfarer(Point npc)
+        { return PhysicalRefugeReach(npc,2.1001f); }
         private bool ChooseWayfarer(string action)
         {
+            if (action == "wayfarer_reward")
+            {
+                if (!WayfarerFinalRewardPending || save.room < 1 ||
+                    save.room > 3 || Dying || practicing) return true;
+                Point source = ObjectPoint(save.room, "wayfarer" + save.room,
+                    new Point(-100, -100));
+                if (!CanReachWayfarer(source)) return true;
+                ClaimWayfarerFinalReward();
+                return true;
+            }
             if (action == "wayfarer_aid")
             {
                 if (wayfarerEncounterRoom == 0 || save.room != wayfarerEncounterRoom ||
                     wayfarerAidUsed || wayfarerIntegrity >= 100 || Dying || practicing) return true;
                 Point aidTarget = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
-                if ((Position - aidTarget).Length > 2.1f) return true;
+                if (!CanReachWayfarer(aidTarget)) return true;
                 int item = WayfarerItem(wayfarerEncounterRoom);
                 if (save.inventory[item] < 1)
                 {
@@ -106,14 +167,18 @@ namespace Starfall
                 save.inventory[item]--;
                 wayfarerIntegrity = Math.Min(100, wayfarerIntegrity + 35);
                 wayfarerAidUsed = true; sound = "reward"; revision++;
-                effects.Add(new Effect("discover", aidTarget, .5f));
+                effects.Add(new Effect("discover", aidTarget, .5f) {
+                    wayfarerOwned = true });
                 Notify("紧急援助成功！旅人最多恢复35点安全度（每次伏击限一次）。",
                     "Field aid applied! Restored up to 35 safety (once per ambush).");
                 return true;
             }
             if (action == "wayfarer_abandon")
             {
-                if (wayfarerEncounterRoom != 0)
+                if (wayfarerEncounterRoom != 0 &&
+                    save.room==wayfarerEncounterRoom &&
+                    CanReachWayfarer(ObjectPoint(save.room,
+                        "wayfarer"+save.room,new Point(-100,-100))))
                 {
                     enemies.RemoveAll(IsWayfarerEnemy);
                     ResetWayfarerEncounter(); revision++;
@@ -130,7 +195,7 @@ namespace Starfall
                 wayfarerEncounterRoom != 0 || roadTrialRoom != 0 ||
                 atlasEchoRoom != 0 || practicing || Dying) return true;
             Point npc = ObjectPoint(room, "wayfarer" + room, new Point(-100, -100));
-            if ((Position - npc).Length > 2.1f) return true;
+            if (!CanReachWayfarer(npc)) return true;
             if (donation)
             {
                 int item = WayfarerItem(room);
@@ -146,20 +211,8 @@ namespace Starfall
             {
                 Notify("先清理附近的普通敌人。", "Clear nearby patrols first."); return true;
             }
-            var positions = new List<Point>();
-            for (int radius = 3; radius <= 7 && positions.Count < 2; radius++)
-            for (int dx = -radius; dx <= radius && positions.Count < 2; dx++)
-            for (int dy = -radius; dy <= radius && positions.Count < 2; dy++)
-            {
-                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
-                Point p = new Point(npc.x + dx, npc.y + dy);
-                if (!CanStand(p) || (p - Position).Length < 2.7f ||
-                    positions.Exists(other => (other - p).Length < 3) ||
-                    enemies.Exists(e => (e.Position - p).Length < 2.1f) ||
-                    NavigationPath(p).Count == 0) continue;
-                positions.Add(p);
-            }
-            if (positions.Count != 2)
+            Point[] positions;
+            if (!TryWayfarerAmbushFeet(npc,out positions))
             {
                 Notify("附近没有足够安全的战斗空间；可选择物资救助。",
                     "Not enough clear space for an ambush; try donating supplies.");
@@ -168,17 +221,49 @@ namespace Starfall
             wayfarerEncounterRoom = room;
             wayfarerIntegrity = 100;
             wayfarerWarned = wayfarerAidUsed = false;
+            wayfarerConfirmedKills = 0;
             for (int slot = 0; slot < 2; slot++)
             {
                 var e = new Enemy(82000 + room * 10 + slot, slot == 0 ? 0 : 2,
                     positions[slot].x, positions[slot].y, 50 + room * 16);
                 // Reserved high IDs must never become multi-hour opening cooldowns.
                 e.timer = .9f + slot * .3f; enemies.Add(e);
-                effects.Add(new Effect("discover", positions[slot], .6f));
+                effects.Add(new Effect("discover", positions[slot], .6f) {
+                    wayfarerOwned = true });
             }
             TrackQuest("wayfarers"); sound = "quest"; revision++;
             Notify("守住旅人安全度！敌人会冲向旅人，拦截并击退他们。",
                 "Protect the traveler! Raiders will rush them; intercept and defeat both.");
+            return true;
+        }
+        // Test candidate actor roots against a FULL walkable local route to
+        // the genuine civilian. NavigationPath can legally return a partial
+        // fallback toward unreachable shore tiles and cannot justify a
+        // real hostile spawn. Validate both raiders before changing flags.
+        private bool TryWayfarerAmbushFeet(Point civilian,out Point[] result)
+        {
+            result=null;
+            if(!CanStand(civilian))return false;
+            var positions=new List<Point>();
+            for(int radius=3;radius<=7&&positions.Count<2;radius++)
+            for(int dx=-radius;dx<=radius&&positions.Count<2;dx++)
+            for(int dy=-radius;dy<=radius&&positions.Count<2;dy++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point foot=civilian+new Point(dx,dy);
+                if(!CanStand(foot)||
+                   (foot-Position).Length<2.7f||
+                   (save.companion>=0 &&
+                    (foot-companionPosition).Length<1.55f)||
+                   positions.Exists(p=>(p-foot).Length<3f)||
+                   enemies.Exists(e=>e.hp>0&&
+                        (e.Position-foot).Length<2.1f)||
+                   !ActorHasLocalRoute(foot,civilian,12))
+                    continue;
+                positions.Add(foot);
+            }
+            if(positions.Count!=2)return false;
+            result=positions.ToArray();
             return true;
         }
         // The player can physically bodyguard a committed traveler strike.
@@ -200,8 +285,10 @@ namespace Starfall
             if (attacker.kind == 2
                 ? (Position - attacker.target).Length >= radius
                 : !InEnemyMeleeArc(attacker, Position)) return false;
-            effects.Add(new Effect("number", Position, .7f, L("护卫拦截", "INTERCEPT")));
-            effects.Add(new Effect("discover", traveler, .35f));
+            effects.Add(new Effect("number", Position, .7f, L("护卫拦截", "INTERCEPT")) {
+                wayfarerOwned = true });
+            effects.Add(new Effect("discover", traveler, .35f) {
+                wayfarerOwned = true });
             return true;
         }
         // A traveler is a real defendable objective, not a passive kill counter.
@@ -214,7 +301,11 @@ namespace Starfall
             if ((attacker.Position - npc).Length > 2.2f || !ClearAttackPath(attacker.Position, npc)) return;
             if (InterceptWayfarerStrike(attacker, npc)) return;
             wayfarerIntegrity = Math.Max(0, wayfarerIntegrity - (attacker.kind == 2 ? 24 : 18));
-            effects.Add(new Effect("danger", npc, .35f) { radius = .55f });
+            // The area warning belongs to enemy windup, before contact.
+            // On an ACTUAL civilian hit show a brief impact, not a new
+            // red prediction that lingers after damage has landed.
+            effects.Add(new Effect("burst", npc, .24f) {
+                radius = .55f, wayfarerOwned = true });
             if (wayfarerIntegrity <= 0)
             {
                 enemies.RemoveAll(IsWayfarerEnemy);
@@ -234,8 +325,27 @@ namespace Starfall
             if (wayfarerEncounterRoom == 0) return;
             if (save.room != wayfarerEncounterRoom || Dying || practicing)
             { ResetWayfarerEncounter(); return; }
-            if (enemies.Exists(IsWayfarerEnemy)) return;
-            int room = wayfarerEncounterRoom; ResetWayfarerEncounter(); CompleteWayfarer(room, true);
+            int first=82000+wayfarerEncounterRoom*10;
+            bool anyStillAlive=false;
+            // Validate BOTH authored identities before waiting for either.
+            // Previously a surviving first raider made this method return
+            // early, letting the second quietly disappear without a real
+            // lethal hit and leaving the rescue in a broken active state.
+            for(int i=0;i<2;i++)
+            {
+                bool present=enemies.Exists(e=>e.id==first+i&&e.hp>0);
+                if(!present&&(wayfarerConfirmedKills&(1<<i))==0)
+                {
+                    ResetWayfarerEncounter();revision++;
+                    Notify("伏击者异常离场，尚未确认真正击败。救援可免费重试。",
+                        "A raider vanished without defeat. Retry the traveler defense for free.");
+                    return;
+                }
+                if(present)anyStillAlive=true;
+            }
+            if(anyStillAlive)return;
+            int room = wayfarerEncounterRoom;
+            ResetWayfarerEncounter(); CompleteWayfarer(room, true);
         }
         private void CompleteWayfarer(int room, bool defended = false)
         {
@@ -249,16 +359,14 @@ namespace Starfall
                 save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 4);
             else
                 Reputation(room == 1 ? 2 : room == 2 ? 1 : 0, 1);
-            save.coins += 20; save.shards++; AddXp(25); revision++;
+            CreditCoins(20); CreditShards(1); AddXp(25); revision++;
             RecordMoment("帮助第 " + room + " 位失联旅人：获得20硬币、1碎片、25经验。",
                 "Helped traveler " + room + ": 20 coins, 1 shard, 25 XP.");
-            if (Has("wayfarer_1") && Has("wayfarer_2") && Has("wayfarer_3") && !Has("wayfarer_complete"))
+            if (WayfarerFinalRewardPending)
             {
-                Flag("wayfarer_complete"); save.skillPoints++; save.inventory[6]++;
-                RecordMoment("三段归途重归安全：技能点1、炖汤1。",
-                    "All three roadside journeys secured: 1 talent point and 1 stew.");
-                Notify("三位旅人平安出发！额外技能点1、炖汤1。",
-                    "All three travelers safe! Bonus: 1 talent point and 1 stew.");
+                if (!ClaimWayfarerFinalReward())
+                    Notify("三位旅人都已获救。炖汤背包已满；腾出一格后与任一旅人交谈领取最终奖励。",
+                        "All three travelers are safe. Your stew stack is full; free one slot and speak to any rescued traveler to claim the final reward.");
             }
             else Notify(defended ?
                     "守护成功！20硬币、1碎片、25经验；当前武器熟练度+4。" :

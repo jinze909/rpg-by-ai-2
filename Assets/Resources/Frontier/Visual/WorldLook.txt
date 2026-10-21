@@ -6,9 +6,32 @@
 treeSwayDegrees=0.80
 palmSwayDegrees=1.35
 snowpineSwayDegrees=0.24
+# Full authored ground grass/flower sprites, rooted at their planted foot.
+# Pebbles, snow debris and fixed world props do not rotate.
+groundFoliageSwayDegrees=0.65
 # Fractional alpha of a source-pixel water sample; not an opaque tile overlay.
 waterGlintAlpha=0.12
 waterGlintRate=0.89
+# Eight original 24x16 transparent concentric water-ripple poses:
+# first row temperate teal, second row cold blue. Sparse fixed world-cell
+# placement; never overpaints banks, replaces TerrainVariants, or affects tides.
+waterRippleAlpha=0.21
+waterRippleFrameRate=4.4
+# Existing source-painted TerrainVariants coastline wash: direction-specific
+# banks, bounded tangential travel, softened corners and no new artwork.
+shorelineWashAlpha=0.10
+shorelineTravelPixels=1.50
+
+# Existing hand-painted Effects.png atmosphere (not procedural square art).
+# Mote alpha stays below character and combat highlight opacity.
+# Wind controls are world-space fractions of a tile; no scene-wide teleport.
+# Bounds in FrontierWorldVisualLook prevent overwhelming action readability.
+ambientMoteDayAlpha=0.13
+ambientMoteNightAlpha=0.21
+snowMoteWindX=0.13
+desertMoteWindX=0.16
+coastMoteLift=0.12
+
 # Ambient light stays secondary to the detailed painted lamp/roof/metal pixels.
 lampRadius=114
 nightLightAlpha=0.29
@@ -24,3 +47,133 @@ escortHitLeanDegrees=1.35
 # Whole-Sprite combat readability; bounds enforced at runtime.
 combatWarningStrokePixels=1.80
 projectileTrailFadeDistance=0.18
+# Original eight painted 24px cells: arrow filaments versus magic plasma.
+# They are visual-only, bounded and honor real projectile reflection reset.
+projectileTrailAlpha=0.42
+projectileTrailFrameRate=9.0
+# Portion of REAL hit lifetime used to overlap illustrated spark and debris.
+# Does not change damage/contact timing, Sprite pixels or low-FX motion.
+hitContactBlendFraction=0.16
+# Whole, source-authored sword slash cell 0 -> cell 1 overlap. This is
+# presentation-only: the GameCore damage/contact clock remains unchanged.
+slashBridgeFraction=0.18
+# Supplemental hand-painted full source Sprite intensity for contact art.
+# Never changes the original Effects.png or simulation hit/contact timing.
+impactFlourishAlpha=0.58
+# Fraction of the real corpse lifetime used to hand off one accepted
+# WHOLE body Sprite to another while preserving the original foot pivot.
+# It cannot extend death/loot time and is skipped under reduced-motion.
+deathPoseBlendFraction=0.24
+# Front-most timed hazard warning: translucent outline preserves character
+# identity while the timer stays near full readability on crowded maps.
+# These tune the ACTUAL combat world, never any GameCore damage radius.
+hazardRingAlpha=0.80
+hazardCountdownAlpha=0.94
+
+# Original 256px full-body Mira/Ivo/Sen gait art direction.
+# Per-step world-distance, next-contact timing, diagonal-facing stability,
+# and walk-to-action foot plant. These never manipulate torso/legs separately.
+companionStrideDistanceFactor=1.20
+companionFootfallSeconds=0.075
+companionFacingThreshold=0.15
+companionAttackPlantSeconds=0.065
+
+# Material-aware grounded foot contacts; the EXISTING detailed Effects.png
+# is sampled at an actual GameCore footstep (not synthesized walk frames).
+# Short, low-opacity, depth-sorted, capped at twelve live marks.
+# Reduced-motion / low-FX disables them and the saved player is untouched.
+footfallAlpha=0.26
+footfallLifetime=0.32
+
+# Campfire live decoration: the accepted illustrated FieldProps flame
+# remains unchanged. Two already-painted Effects.png cells add optional,
+# rooted floating embers; never trigger combat, physics or an Animator.
+emberFlickerAlpha=0.20
+emberLiftPixels=7.0
+# Four 24x32 connected whole-flame paintings on top of the unchanged
+# detailed FieldProps fire. No extra campfire object, AI, physics or save data.
+campfireFlameAlpha=0.70
+campfireFlameFrameRate=5.0
+# Eight separate 32x48 source-painted smoke and arcane vapor poses:
+# row zero floats from real FieldProps fire; row one from altar/engine.
+# They never replace accepted pixel art or change a real world object.
+propVaporAlpha=0.38
+propVaporFrameRate=3.8
+
+# Four hand-directed 24px source-painted crystalline light poses. These
+# decorate original mature FieldProps crystal/obelisk/mirror/altar bodies
+# without changing interaction, terrain or their actual sprite identity.
+relicShimmerAlpha=0.24
+relicShimmerRate=3.8
+
+# Grounded soft world-space illumination from original art.Glow for
+# reflective ore and mirrors, independent of the painted 24px glint.
+# At daytime glow is attenuated rather than washed across entire rooms.
+relicHaloRadius=83
+relicHaloAlpha=0.18
+
+# Whole-actor presentation transition ONLY: approved Bosses 320px/WalkBoss
+# 384px canvases interpolate around the same ground foot; GameCore combat
+# and action clocks are never prolonged. A SINGLE current source body
+# eases the canvas over 0.07-0.15s, with no previous helmet/weapon ghost.
+nonheroAtlasHandoffSeconds=0.120
+# Hold a stopped walker's next painted foot contact before returning to Idle.
+# Independent from whole-body atlas size easing above.
+nonheroStopPlantSeconds=0.080
+# Two quiet ORIGINAL Effects.png sources on HP stage change. This affects
+# visual alpha only, not hit timing, Boss identity or saved HP thresholds.
+bossPhaseMoteAlpha=0.26
+
+# Two original 4-frame 24x20 transparent pixel-symbol rows. The speech
+# bubble belongs ONLY to the pinned interlocutor; the warning belongs
+# ONLY to a genuinely endangered/rescued civilian. Bodies never replaced.
+npcSignalSpeechAlpha=0.70
+npcSignalDangerAlpha=0.78
+npcSignalFrameRate=4.0
+
+# Original 16 full-body Npcs.png portraits begin each new conversation
+# upright, then ease their planted-foot speech lean into motion (seconds).
+# No face, torso, waist rigging or NPC interaction timing changes.
+npcTalkEntrySeconds=0.18
+
+# Four authored 32x12 transparent wave crests along REAL shoreline
+# edges. Original TerrainVariants pixels remain beneath every frame.
+# Subtle material-only visual detail, no tides/collision/save changes.
+shoreFoamAlpha=0.19
+shoreFoamFrameRate=3.6
+
+# Replaces the previous massive stretched 32px Boss/elite telegraph fill
+# with a 4x2 set of original hand-painted 32px attack-target glyphs. The
+# precise world-radius warning ring remains unchanged and always visible.
+castSigilAlpha=0.68
+castSigilBossPixels=58
+
+# Three-biome (deciduous/palm/frost) 24-frame original illustrated
+# canopy glints use a rooted 32px overlay on each EXISTING WorldProps tree.
+# The body stays intact. Low FX and Reduced Motion omit added movement.
+canopyWhisperAlpha=0.53
+canopyWhisperFrameRate=5.5
+
+# Original two-palette 4-frame ancient masonry rune art. Static under
+# Reduced Motion, optional at low FX, always behind foreground actors.
+# The accepted full illustrated WorldProps ruin remains unchanged.
+ruinSigilAlpha=0.42
+ruinSigilFrameRate=3.5
+
+# Three original material-specific enemy/Boss contact dust families:
+# moss leaves, ember grit and cold arcane shards, beneath whole actor bodies.
+# Driven ONLY by GameCore Enemy.releaseTime. No new gameplay hit radius.
+enemyReleaseDustAlpha=0.48
+enemyReleaseDustSeam=0.18
+
+# The ORIGINAL garden/soil WorldProps stays intact. Only planted plots
+# add a 4-frame original seedling/blossom transparent foliage paint, rooted
+# to the same scene foot. Harvest, timers and SaveData remain GameCore-owned.
+gardenLivingAlpha=0.62
+gardenLivingFrameRate=3.2
+
+# Original leaf/ember/crystal 3x4 hit-reaction sparks are synchronized to
+# actual Enemy.hitTime only. Rendered over the SAME fully-authored body,
+# never as a new attack, projectile, stun or altered gameplay hurtbox.
+enemyHitSparkAlpha=0.66
+enemyHitSparkSeam=0.16

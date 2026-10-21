@@ -22,6 +22,59 @@ namespace Starfall.Tests
                 if (g.conversation.choices[i].action == action) { g.Choose(i); return; }
             throw new Exception("Missing action " + action);
         }
+        public static void QueuedDodgeCancelsOnRealSealedFooting(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[18];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] floor=new string('.',18).ToCharArray();
+                    for(int x=0;x<18;x++)
+                        if(x<2||x>=16||y<2||y>=16)floor[x]='#';
+                    rows[y]=new string(floor);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=6.5f,spawnY=8.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=6.5f;g.save.y=8.5f;
+                // Fresh world entry grants an unrelated 1s spawn safety
+                // window. Remove it before testing that a sealed queue
+                // creates NO new dodge invulnerability.
+                g.invulnerable=0f;
+                g.save.energy=100f;g.dashCooldown=.10f;
+                Check(g.DodgeRootReady&&g.CanBufferDodge,
+                    "A physically open floor permits the last 140ms dodge buffer");
+                g.Dash(new Point(1,0));
+                Check(g.DodgeQueued&&g.dashTime==0f&&
+                    g.save.energy==100f,
+                    "The first real late dodge tap queues but neither moves nor pays");
+                char[] sealedFoot=rows[8].ToCharArray();
+                sealedFoot[6]='#';rows[8]=new string(sealedFoot);
+                Check(!g.CanStand(g.Position)&&!g.DodgeRootReady&&
+                    !g.DodgeQueued&&!g.CanBufferDodge,
+                    "A newly sealed foot root must immediately hide pending/available dodge feedback");
+                g.Tick(.05f,new Point());
+                Check(!g.DodgeQueued&&g.dashTime==0f&&
+                    g.save.energy==100f&&g.invulnerable<=0f,
+                    "A wall-sealed queue cannot buy phantom invulnerability, movement or stamina cost");
+                sealedFoot[6]='.';rows[8]=new string(sealedFoot);
+                Check(g.DodgeRootReady&&g.CanBufferDodge,
+                    "Reopened foot terrain restores genuine late-dodge eligibility");
+                g.Dash(new Point(1,0));
+                Check(g.DodgeQueued&&g.save.energy==100f,
+                    "Fresh escape after gate reopening creates a NEW valid intent");
+                g.Tick(.05f,new Point());
+                Check(!g.DodgeQueued&&g.dashTime>0f&&
+                    g.save.energy<82f&&g.save.energy>=80f,
+                    "Reopened buffer must dispatch exactly one real paid dash");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void SealedPursuitRoutesToLegalFrontierAndReopensImmediately(Campaign data)
         {
             // Keep all authored campaign maps and story objects unchanged.
@@ -77,6 +130,220 @@ namespace Starfall.Tests
                     "Opening a direct bridge immediately replaces the detour without stale navigation");
             }
             finally { data.maps[0] = original; }
+        }
+
+        public static void RealIncomingHitRetiresUnspentDodgeAndLeavesSafeInput(Campaign data)
+        {
+            GameCore g=Fresh(data);g.enemies.Clear();
+            g.save.energy=100f;g.invulnerable=0f;
+            g.dashCooldown=.10f;
+            g.Dash(new Point(0,-1));
+            Check(g.DodgeQueued&&g.dashTime<=0f&&
+                Math.Abs(g.save.energy-100f)<.001f,
+                "Queued late dodge must hold stamina until a real accepted mobility action");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hurt!=null,"Production Hero Hurt transaction must exist");
+            g.invulnerable=1f;
+            hurt.Invoke(g,new object[]{7f,"shot",null});
+            Check(g.DodgeQueued&&g.dashTime<=0f,
+                "An avoided arrow cannot cancel an accepted cooldown-buffered dodge");
+            g.invulnerable=0f;
+            float health=g.save.health;
+            hurt.Invoke(g,new object[]{7f,"environment",null});
+            Check(g.save.health<health&&g.playerHitTime>0f&&
+                !g.DodgeQueued&&g.dashTime<=0f,
+                "Genuine damage immediately retires unspent dodge before displaying Hit/recoil");
+            float stamina=g.save.energy;
+            Advance(g,.2f);
+            Check(g.dashTime<=0f&&!g.DodgeQueued&&
+                g.save.energy>=stamina,
+                "Recovery and cooldown completion cannot start a ghost dodge or spend stamina");
+
+            GameCore harmless=Fresh(data);harmless.enemies.Clear();
+            harmless.save.energy=100f;
+            harmless.dashCooldown=.09f;
+            harmless.Dash(new Point(0,-1));
+            hurt.Invoke(harmless,new object[]{0f,"environment",null});
+            Check(harmless.DodgeQueued,
+                "Zero-power warnings cannot consume defensive input");
+            Advance(harmless,.091f);
+            Check(harmless.dashTime>0f&&
+                harmless.invulnerable>0f&&
+                harmless.save.energy<100f,
+                "After harmless contact a legitimate queued dodge still executes once");
+        }
+
+        public static void RepeatedLateDodgeCannotResetDeadlineOrDirection(Campaign data)
+        {
+            foreach(float step in new[]{.01f,.02f,.05f})
+            {
+                GameCore g=Fresh(data);g.enemies.Clear();
+                g.save.energy=100f;
+                g.dashCooldown=.12f;
+                g.Dash(new Point(0,-1));
+                Check(g.DodgeQueued&&g.dashTime<=0&&g.save.energy==100f,
+                    "Initial cooldown-bound dodge must remain an unpaid real intention");
+                Check((g.DodgeQueuedDirection-new Point(0,-1)).Length<.001f,
+                    "World cue exposes the genuine accepted escape lane before any stamina or immunity starts");
+                var pending=typeof(GameCore).GetField("bufferedDodge",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(pending!=null,"Real private dodge intent must remain observable to the test");
+                object first=pending.GetValue(g);
+                var lifetime=first.GetType().GetField("remaining");
+                float initial=(float)lifetime.GetValue(first);
+                g.Tick(step,new Point());
+                float after=(float)lifetime.GetValue(first);
+                Check(after<initial&&after>0f&&g.DodgeQueued,
+                    "Buffered dodge's original deadline must decay with real gameplay time");
+                g.SetAim(new Point(1f,0f));
+                g.Dash(new Point(0,1));
+                Check(System.Object.ReferenceEquals(first,pending.GetValue(g))&&
+                    Math.Abs((float)lifetime.GetValue(first)-after)<.00001f,
+                    "Repeated SPACE cannot refresh buffer expiry or replace the initial escape heading");
+                Check((g.DodgeQueuedDirection-new Point(0,-1)).Length<.001f,
+                    "Directional dodge preview may not rotate to a later held key or pointer aim");
+                for(int i=0;i<30&&g.dashTime<=0f;i++)
+                    g.Tick(step,new Point());
+                Check(g.dashTime>0f&&!g.DodgeQueued&&
+                    g.save.energy>=79.9f&&g.save.energy<=80.1f,
+                    "Buffered dodge must eventually launch exactly once at true cooldown readiness");
+                Check(g.DodgeQueuedDirection.Length<.001f,
+                    "Dodge intent marker must retire as soon as the real movement begins");
+                Point heading=(Point)typeof(GameCore).GetField(
+                    "dashDirection",System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance).GetValue(g);
+                Check(heading.y<-.99f&&Math.Abs(heading.x)<.01f,
+                    "Actual dash must preserve first physical tap direction, not last auto-repeat");
+                float spent=g.save.energy;
+                Advance(g,.40f);
+                Check(!g.DodgeQueued&&g.dashTime<=0f&&
+                    g.save.energy>=spent,
+                    "Repeated dodge input cannot later fire a second unrequested dash");
+            }
+        }
+
+        public static void BufferedDodgeKeepsDirectionAndCommitsOnce(Campaign data)
+        {
+            GameCore g=Fresh(data);g.enemies.Clear();
+            g.save.x=12;g.save.y=14;g.save.energy=100;
+            g.dashCooldown=.10f;
+            g.Dash(new Point(0,-1));
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Early valid dodge cannot spend stamina or start invulnerability");
+            g.SetAim(new Point(1,0));
+            g.Tick(.04f,new Point());
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Queued dodge started before actual cooldown completion");
+            Advance(g,.061f);
+            Check(g.dashTime>.17f&&g.invulnerable>.30f&&
+                Math.Abs(g.save.energy-80f)<.001f,
+                "Exactly one buffered dodge must start on cooldown readiness");
+            Point savedDirection=(Point)typeof(GameCore).GetField(
+                "dashDirection",System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic).GetValue(g);
+            Check(savedDirection.y<-.99f&&Math.Abs(savedDirection.x)<.01f,
+                "Deferred dodge must use original input, not later aim direction");
+            g.Tick(.02f,new Point());
+            Check(g.save.energy>80f&&g.save.energy<82f,
+                "Buffered dodge may not double charge energy on later ticks");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.Attack(new Point(1,0));
+            Check(g.playerAction!=null,"Dodge interrupt requires actual attack");
+            g.dashCooldown=.07f;
+            g.Dash(new Point(0,1));
+            Check(g.playerAction!=null,
+                "Queued cooldown dodge cancelled original windup too early");
+            Advance(g,.071f);
+            Check(g.dashTime>.17f&&g.playerAction==null,
+                "Ready buffered dodge must cancel attack and begin real mobility");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.09f;g.Dash(new Point(-1,0));
+            g.mode="inventory";g.mode="world";
+            Advance(g,.10f);
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Closing menu must retire previously buffered dodge");
+            g.dashCooldown=.45f;g.Dash(new Point(-1,0));
+            Advance(g,.46f);
+            Check(g.dashTime<=0f,
+                "Dodge input well outside last 140ms cannot execute later");
+            g.save.energy=0;g.dashCooldown=.09f;
+            g.Dash(new Point(-1,0));
+            g.save.energy=100;Advance(g,.10f);
+            Check(g.dashTime<=0f&&g.save.energy==100f,
+                "Dodge input without enough energy cannot create a future free action");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.08f;g.Dash(new Point(0,-1));
+            g.Attack(new Point(1,0));
+            Check(g.playerAction==null&&g.save.energy==100,
+                "Held basic attack cannot spend resources before a queued dodge");
+            Advance(g,.081f);
+            Check(g.dashTime>.17f&&g.save.energy>=80f&&
+                g.save.energy<80.1f,
+                "Waiting dodge must outrank a simultaneous ordinary attack");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.09f;g.Dash(new Point(0,-1));
+            g.Skill(new Point(1,0));
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                g.save.energy==60,
+                "Newer deliberate Q must override queued dodge without double payment");
+            Advance(g,.10f);
+            Check(g.dashTime<=0&&g.playerAction!=null&&
+                g.playerAction.kind=="skill",
+                "A superseded dodge cannot cancel a newer skill windup");
+
+            g=Fresh(data);g.enemies.Clear();g.save.energy=100;
+            g.dashCooldown=.09f;g.Dash(new Point(0,-1));
+            g.ClearBufferedCombatInputs();
+            Advance(g,.10f);
+            Check(g.dashTime<=0f&&g.save.energy==100,
+                "Application pause/focus must retire all queued combat inputs");
+        }
+
+        public static void BufferedSkillRepeatCannotExtendOrRetargetIntent(Campaign data)
+        {
+            var g=Fresh(data,1);g.enemies.Clear();
+            g.save.energy=100;g.playerHitTime=.55f;
+            g.Skill(new Point(0,-1));
+            Check(g.SkillQueued&&g.playerAction==null&&g.save.energy==100,
+                "A Q pressed during real hit recovery must queue without paying early");
+            Advance(g,.12f);
+            g.SetAim(new Point(1,0));
+            g.Skill(new Point(1,0));
+            Check(g.SkillQueued&&g.playerAction==null,
+                "Repeated Q cannot force a premature skill through hit recoil");
+            Advance(g,.09f);
+            Check(!g.SkillQueued&&g.playerAction==null&&g.save.energy==100,
+                "Repeated Q cannot extend the original 200ms input window");
+            Advance(g,.4f);
+            Check(g.playerAction==null&&g.skillCooldown<=0&&g.save.energy==100,
+                "Expired buffered Q cannot become a free delayed spell");
+
+            g=Fresh(data,1);g.enemies.Clear();g.save.energy=100;
+            g.Dash(new Point(-1,0));
+            g.Skill(new Point(0,-1));
+            Check(g.SkillQueued&&g.save.energy==80,
+                "Dodge then Q must preserve energy until Q is actually accepted");
+            Advance(g,.06f);
+            Point latestTarget=new Point(21,17);
+            g.SetAimTarget(latestTarget);
+            g.Skill(new Point(1,0));
+            Advance(g,.15f);
+            Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                g.playerAction.direction.x>.99f&&
+                Math.Abs(g.playerAction.direction.y)<.01f&&
+                g.playerAction.target.HasValue&&
+                (g.playerAction.target.Value-latestTarget).Length<.001f&&
+                !g.SkillQueued&&g.skillCooldown>0,
+                "Repeated Q must retarget the existing queue, without moving its deadline");
+            Check(g.save.energy>=40&&g.save.energy<45,
+                "Queued Q commits its cost once, not on every repeated press");
         }
 
         public static void ClassesAndPause(Campaign data)
@@ -313,8 +580,20 @@ namespace Starfall.Tests
                 if (room == 3) { g.Talk(Object(g, "ore")); Action(g, "engine", "engine"); }
                 Check(g.GateOpen, "Chapter gate");
                 AwaitArenaOpening(g); // Hit stop pauses the same opening clock; wait for actual collision.
-                g.save.x = 28; g.save.y = 10; Action(g, "shrine", "boss"); Combat(g, true);
-                Check(g.Has("boss_" + room), "Guardian defeated");
+                // The original direct test teleport (28,10) places the
+                // hero's full-body footprint partly in room 2's water
+                // even though its CENTER tile is dry. Full campaign QA
+                // must fight from valid ground like actual player input.
+                g.save.x = 28.5f; g.save.y = 10.5f;
+                Check(g.CanStand(g.Position),
+                    "Complete campaign boss setup must place the real hero footprint on legal dry ground");
+                Action(g, "shrine", "boss"); Combat(g, true);
+                Check(g.Has("boss_" + room),
+                    "Guardian defeated: room=" + room + " profession=" + profession +
+                    " actualRoom=" + g.save.room + " dying=" + g.Dying +
+                    " mode=" + g.mode + " health=" + g.save.health +
+                    " enemies=" + g.enemies.Count + " state=" +
+                    (g.enemies.Count > 0 ? g.enemies[0].id.ToString() : "empty"));
                 if (room < 4) { Action(g, "shrine", "goto0"); Action(g, "guild", "deliver"); Check(g.save.stage == room, "Core delivered"); }
             }
             for (int frame=0; frame<200 && g.mode=="world"; frame++) g.Tick(.02f,new Point());
@@ -702,7 +981,16 @@ namespace Starfall.Tests
                 for(int frame=0;frame<10;frame++)g.Tick(.02f,new Point());
                 Check(g.OuterPatrolDone(room)&&g.save.coins==coins+14,
                     "Both true lethal Hit transactions award the single defense reward");
-                GameCore reload=new GameCore(data,g.save);
+                // Recreate the persisted v2 state as a separate slot object.
+                // The loader sanitizes its OWN save in place. Passing the
+                // active g.save aliases the running hero and a locked-region
+                // recovery can move that hero away from this watchpost.
+                var persisted = new SaveData {
+                    version=g.save.version, room=g.save.room, stage=g.save.stage,
+                    x=g.save.x, y=g.save.y, coins=g.save.coins,
+                    flags=new List<string>(g.save.flags)
+                };
+                GameCore reload=new GameCore(data,persisted);
                 Check(reload.save.version==2&&reload.OuterPatrolDone(room),
                     "Defended watchposts persist with original v2 flags");
                 g.Talk(o);
@@ -710,6 +998,2278 @@ namespace Starfall.Tests
                     "Completed post remains readable, never starts a duplicating fight");
                 g.Close();
                 Check(g.save.coins==coins+14,"Repeating a defended post cannot farm rewards");
+            }
+        }
+
+        public static void CompanionPartySwapCannotInheritAnotherAllysDefenseOrder(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("companion_1");
+            g.save.flags.Add("companion_2");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Real guard trial can start at the physical cache");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"The live siege exposes the original guard order");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Original Ivo guard foot remains active before party switch");
+            Point postFoot=g.OuterPatrolCompanionGuardPosition;
+            g.SelectCompanion(1);
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.OuterPatrolCompanionGuardPosition-postFoot).Length<.001f,
+                "Repeating same ally selection cannot cancel a valid order");
+            Point safe=new Point();bool found=false;
+            for(int dx=-11;dx<=11&&!found;dx++)
+            for(int dy=-11;dy<=11&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-new Point(post.x,post.y)).Length>11f)continue;
+                g.save.x=p.x;g.save.y=p.y;
+                if(g.SafeTravel){safe=p;found=true;}
+            }
+            Check(found,"Real cache map includes a legal safe party-swap foot");
+            g.save.x=safe.x;g.save.y=safe.y;
+            g.SelectCompanion(2);
+            Check(g.save.companion==2&&g.OuterPatrolActive&&
+                !g.OuterPatrolCompanionGuarding&&
+                !g.OuterPatrolMedicRallying&&g.save.version==2,
+                "New Sen party member cannot inherit Ivo's planted stock order");
+            var stored=typeof(GameCore).GetField("outerPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(stored!=null&&
+                ((Point)stored.GetValue(g)).Length<.001f,
+                "Retired tactical waypoint is cleared, not orphaned in the world");
+            // The new actor joined the party at the player's actual
+            // distant safe foot. Returning the hero to the post does NOT
+            // teleport this other actor. Give the real world simulation time
+            // to walk the companion toward the watch before assigning a
+            // NEW physically reachable defensive position.
+            g.save.x=post.x;g.save.y=post.y;
+            g.invulnerable=100f;
+            foreach(Enemy foe in g.enemies)foe.stun=12f;
+            for(int frame=0;frame<520&&g.OuterPatrolActive&&
+                (g.companionPosition-new Point(post.x,post.y)).Length>3.5f;frame++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolActive&&g.CanStand(g.companionPosition)&&
+                (g.companionPosition-new Point(post.x,post.y)).Length<4f,
+                "New companion physically rejoins the genuine post after a party swap");
+            g.Talk(post);
+            guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"New companion may receive a real fresh watch order");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.CanStand(g.OuterPatrolCompanionGuardPosition),
+                "New party member can actually be stationed again from post");
+        }
+
+        public static void RealStationedCompanionHasTwoFinitePhysicalStockGuards(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"The physical cache offers its real veteran siege");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"The real fighting party can plant a cache guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.OuterPatrolGuardBlocksLeft==2&&g.OuterPatrolFlawlessEligible,
+                "New siege has two finite, unused guard contacts");
+            Point foot=g.OuterPatrolCompanionGuardPosition;
+            Check(g.CanStand(foot),
+                "Original guard target is a physically valid tile");
+            // The other companion movement tests exercise SweepActor. This
+            // focused contact test places its actor at that already-verified
+            // legal endpoint to drive 3 real enemy contact releases.
+            g.companionPosition=foot;
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null,"Ordinary melee attacker really exists");
+            bool positioned=false;
+            for(float dx=-2f;dx<=2f&&!positioned;dx+=.5f)
+            for(float dy=-2f;dy<=2f&&!positioned;dy+=.5f)
+            {
+                Point candidate=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(candidate)||
+                    (candidate-new Point(post.x,post.y)).Length>2.2f||
+                    (candidate-foot).Length>2f||
+                    (candidate-foot).Length<.8f)
+                    continue;
+                melee.x=candidate.x;melee.y=candidate.y;
+                positioned=true;
+            }
+            Check(positioned,"Actual cache has a physical melee/guard contact foot");
+            Point observer=new Point();bool found=false;
+            for(int dx=-10;dx<=10&&!found;dx++)
+            for(int dy=-10;dy<=10&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-new Point(post.x,post.y)).Length>11f||
+                    (p-melee.Position).Length<4.5f)continue;
+                observer=p;found=true;
+            }
+            Check(found,"Defender can physically observe from out of melee");
+            g.save.x=observer.x;g.save.y=observer.y;
+            var release=typeof(GameCore).GetMethod("DamageOuterPatrolStock",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var able=typeof(GameCore).GetMethod("OuterPatrolCompanionCanIntercept",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(release!=null&&able!=null,"Actual production stock hit path exists");
+            melee.targetingOuterPatrolStock=true;
+            if(!(bool)able.Invoke(g,new object[]{melee}))
+            {
+                // An authored post may have a narrow gate: search a legal
+                // raider contact foot only through truly connected paths.
+                var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(clear!=null,"Use original physical melee LOS");
+                positioned=false;
+                for(float dx=-2f;dx<=2f&&!positioned;dx+=.25f)
+                for(float dy=-2f;dy<=2f&&!positioned;dy+=.25f)
+                {
+                    Point p=new Point(post.x+dx,post.y+dy);
+                    if(!g.CanStand(p)||
+                        (p-new Point(post.x,post.y)).Length>2.2f||
+                        (p-foot).Length>2.2f||
+                        !(bool)clear.Invoke(g,new object[]{p,foot})||
+                        !(bool)clear.Invoke(g,new object[]{
+                            p,new Point(post.x,post.y)}))continue;
+                    melee.x=p.x;melee.y=p.y;positioned=true;
+                }
+                Check(positioned,"Valid full melee strike exists on authored cache terrain");
+            }
+            Check((bool)able.Invoke(g,new object[]{melee})&&
+                g.OuterPatrolGuardReady,
+                "Living posted ally can physically reach a real melee stock strike");
+            var exposed=typeof(GameCore).GetMethod(
+                "CompanionCacheContactImminent",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(exposed!=null,"Test the real auto-fire emergency priority path");
+            melee.state=1;
+            Check(!(bool)exposed.Invoke(g,new object[]{melee}),
+                "Already blocked stock threat cannot steal urgent ally target");
+            float stock=g.OuterPatrolIntegrity;
+            release.Invoke(g,new object[]{melee});
+            Check(g.OuterPatrolGuardBlocksLeft==1&&g.OuterPatrolIntegrity==stock&&
+                !g.OuterPatrolFlawlessEligible,
+                "First real intercepted attack consumes finite ally guard and disqualifies no-aid medal");
+            release.Invoke(g,new object[]{melee});
+            Check(g.OuterPatrolGuardBlocksLeft==0&&g.OuterPatrolIntegrity==stock,
+                "Second intercepted stock strike consumes final finite contact");
+            Check(!g.OuterPatrolGuardReady&&
+                (bool)exposed.Invoke(g,new object[]{melee}),
+                "Depleted guard exposes real incoming cache hit to auto-fire priority");
+            release.Invoke(g,new object[]{melee});
+            Check(g.OuterPatrolGuardBlocksLeft==0&&g.OuterPatrolIntegrity<stock,
+                "Third genuine melee release reaches stock without free bodyguard");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&g.OuterPatrolGuardBlocksLeft==0&&
+                g.save.version==2,"Withdrawal clears unsaved limited guard state");
+        }
+
+        public static void GuardMedicPhysicallyRalliesToCriticalHeroAndReturnsToStock(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.companion=0;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Medical guard uses a real watchpost defense");
+            g.Choose(start);
+            foreach(Enemy foe in g.enemies)foe.stun=20f;
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Mira can be physically assigned to watch stock");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Medical support guard is a valid active tactical order");
+            Point foot=g.OuterPatrolCompanionGuardPosition;
+            Point remote=new Point();bool found=false;
+            for(int dx=-9;dx<=9&&!found;dx++)
+            for(int dy=-9;dy<=9&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-foot).Length<7f||
+                    (p-new Point(post.x,post.y)).Length>10f)
+                    continue;
+                remote=p;found=true;
+            }
+            Check(found,"Real regional defense ring has a separate walkable rescue point");
+            g.save.x=remote.x;g.save.y=remote.y;
+            g.save.health=g.save.maxHealth*.25f;
+            var helper=typeof(GameCore).GetMethod("CompanionOutpostGuardTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(helper!=null,"Actual escort goal is selected by live game logic");
+            Point medicTarget=(Point)helper.Invoke(g,null);
+            Check((medicTarget-foot).Length>1f&&
+                g.OuterPatrolCompanionGuarding&&g.OuterPatrolMedicRallying,
+                "Critically injured remote hero draws Mira from her watch foot");
+            float before=(g.companionPosition-medicTarget).Length;
+            for(int i=0;i<90&&g.OuterPatrolActive;i++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.companionPosition-medicTarget).Length<before-.1f,
+                "Medic walks toward physical rescue point, never heals globally");
+            g.save.health=g.save.maxHealth;
+            Point returnFoot=(Point)helper.Invoke(g,null);
+            Check((returnFoot-foot).Length<.01f&&
+                g.OuterPatrolCompanionGuarding&&!g.OuterPatrolMedicRallying,
+                "After real recovery medic resumes original protected post");
+            float gap=(g.companionPosition-foot).Length;
+            for(int tick=0;tick<60&&g.OuterPatrolActive;tick++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.companionPosition-foot).Length<=gap+.02f,
+                "Recovery truly resumes walking to the ORIGINAL guard foot");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolCompanionGuarding&&
+                !g.OuterPatrolActive,
+                "Withdrawal removes emergency medic and guard states");
+        }
+
+        public static void GuardChoosesRealClearMuzzleCoverageAtEveryRegionalCache(Campaign data)
+        {
+            var select=typeof(GameCore).GetMethod(
+                "TryOuterPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var score=typeof(GameCore).GetMethod(
+                "OuterPatrolGuardFiringLanes",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(select!=null&&score!=null,
+                "Test real guard placement and actual physically swept muzzle");
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                Check(post!=null,"Map has a real rescue watch in room "+room);
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.enemies.Clear();
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.companion=1;
+                g.companionPosition=new Point(post.x,post.y);
+                g.save.flags.Add("outer_cache_"+room);
+                g.Talk(post);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_start");
+                Check(start>=0,"Regional raid can start with a true supply cache");
+                g.Choose(start);
+                Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                    "Physical guard coverage test uses real enemy positions");
+                Point[] original={
+                    new Point(0f,2.5f),new Point(-2.5f,0f),
+                    new Point(2.5f,0f),new Point(0f,-2.5f),
+                    new Point(-1.7f,1.7f),new Point(1.7f,1.7f),
+                    new Point(-1.7f,-1.7f),new Point(1.7f,-1.7f)
+                };
+                var reachable=typeof(GameCore).GetMethod(
+                    "ActorHasLocalRoute",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                int maximum=-1;
+                foreach(Point offset in original)
+                {
+                    Point candidate=new Point(post.x+offset.x,post.y+offset.y);
+                    if(!g.CanStand(candidate)||
+                        (candidate-g.Position).Length<1.15f||
+                        g.enemies.Exists(e=>e.hp>0&&
+                            (e.Position-candidate).Length<1.2f)||
+                        !(bool)reachable.Invoke(g,new object[]{
+                            g.companionPosition,candidate,10}))continue;
+                    int value=(int)score.Invoke(g,new object[]{candidate});
+                    if(value>maximum)maximum=value;
+                }
+                Check(maximum>=0,
+                    "There is a legal reachable guard foot in region "+room);
+                object[] args={null};
+                bool chosen=(bool)select.Invoke(g,args);
+                Check(chosen,"Guard placement finds a real reachable foot");
+                Point landing=(Point)args[0];
+                Check(g.CanStand(landing)&&
+                    (int)score.Invoke(g,new object[]{landing})==maximum,
+                    "Guard aims from maximum genuine projectile coverage, region "+room);
+            }
+        }
+
+        public static void GuardRangerMovesFromWalkableBlindFootToPhysicalFiringLane(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Actual watch encounter is interactable");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Real ranged guard order was accepted");
+            var score=typeof(GameCore).GetMethod("OuterPatrolGuardFiringLanes",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var route=typeof(GameCore).GetMethod("ActorHasLocalRoute",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var target=typeof(GameCore).GetMethod("CompanionOutpostGuardTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var foot=typeof(GameCore).GetField("outerPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var clock=typeof(GameCore).GetField("outerPatrolGuardRouteCheck",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(score!=null&&route!=null&&target!=null&&foot!=null&&clock!=null,
+                "Exercise the original shooting and local path APIs");
+            int best=(int)score.Invoke(g,new object[]{g.OuterPatrolCompanionGuardPosition});
+            Check(best>0,"Current real post guard can fire on initial raiders");
+            Point blind=new Point();bool found=false;
+            for(int dx=-10;dx<=10&&!found;dx++)
+            for(int dy=-10;dy<=10&&!found;dy++)
+            {
+                Point probe=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(probe)||
+                   (probe-g.OuterPatrolCompanionGuardPosition).Length<3f||
+                   (int)score.Invoke(g,new object[]{probe})>0||
+                   !(bool)route.Invoke(g,new object[]{
+                       probe,g.OuterPatrolCompanionGuardPosition,10}))continue;
+                blind=probe;found=true;
+            }
+            Check(found,"Real map contains a walkable but blind defender tile");
+            g.companionPosition=blind;
+            foot.SetValue(g,blind);
+            clock.SetValue(g,0f);
+            Point before=g.companionPosition;
+            Point better=(Point)target.Invoke(g,null);
+            Check(g.OuterPatrolCompanionGuarding&&
+                (better-blind).Length>.5f&&
+                (int)score.Invoke(g,new object[]{better})>0&&
+                (g.companionPosition-before).Length<.001f,
+                "Blind but walkable guard relocates target to real firing lane without warping");
+            Check(g.save.version==2&&g.projectiles.Count==0,
+                "Firing-lane discovery never spawns fake arrows or changes old saves");
+        }
+
+        public static void GuardReplansBlockedWorldRouteWithoutWarpingOrOrphanOrders(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Real ranged guard is initially stationed");
+            var field=typeof(GameCore).GetField("outerPatrolCompanionGuardFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var clock=typeof(GameCore).GetField("outerPatrolGuardRouteCheck",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var target=typeof(GameCore).GetMethod("CompanionOutpostGuardTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var route=typeof(GameCore).GetMethod("ActorHasLocalRoute",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(field!=null&&clock!=null&&target!=null&&route!=null,
+                "Test live connectedness, not a fake route flag");
+            Point stranded=new Point();bool found=false;
+            for(int radius=12;radius<=20&&!found;radius++)
+            for(int dx=-radius;dx<=radius&&!found;dx++)
+            for(int dy=-radius;dy<=radius&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-g.companionPosition).Length<11f||
+                    (bool)route.Invoke(g,new object[]{
+                        g.companionPosition,p,10}))continue;
+                stranded=p;found=true;
+            }
+            Check(found,"Real world has walkable but locally disconnected foot");
+            Point actorBefore=g.companionPosition;
+            field.SetValue(g,stranded);clock.SetValue(g,0f);
+            Point updated=(Point)target.Invoke(g,null);
+            Check(g.OuterPatrolCompanionGuarding&&
+                (updated-stranded).Length>1f&&g.CanStand(updated)&&
+                (bool)route.Invoke(g,new object[]{
+                    g.companionPosition,updated,10})&&
+                (g.companionPosition-actorBefore).Length<.001f,
+                "Closed route replans to reachable guard position without teleporting actor");
+            Check((g.OuterPatrolCompanionGuardPosition-updated).Length<.01f,
+                "World guard marker reads recovered actual reachable destination");
+            // A tide-covered or sealed ORIGINAL waypoint must not
+            // prematurely abandon a useful guard when another REAL
+            // connected shooting foot still exists in the same region.
+            field.SetValue(g,new Point(-20f,-20f));
+            Point relocated=(Point)target.Invoke(g,null);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.CanStand(relocated)&&
+                (relocated-new Point(-20f,-20f)).Length>1f&&
+                (g.companionPosition-actorBefore).Length<.001f,
+                "Blocked stock foot chooses genuine alternate without warping");
+            // If even the companion itself is buried in invalid terrain,
+            // there is no legal local source from which to certify a route.
+            // Retire the command rather than keeping a phantom guard.
+            field.SetValue(g,new Point(-20f,-20f));
+            g.companionPosition=new Point(-20f,-20f);
+            target.Invoke(g,null);
+            Check(!g.OuterPatrolCompanionGuarding,
+                "No physically reachable guard position safely resumes following");
+        }
+
+        public static void RealCompanionGuardsSuppliesWithoutWarpingOrPersisting(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            Check(post!=null,"Regional relief post exists on physical map");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_0");
+            g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            Check(g.CanStand(g.companionPosition),
+                "Guard begins at a genuine unblocked companion foot");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Watchpost has a genuine active defense");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"The physical watchpost offers a live companion guard order");
+            Point before=g.companionPosition;
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding&&
+                g.CanStand(g.OuterPatrolCompanionGuardPosition)&&
+                (g.companionPosition-before).Length<.001f,
+                "Guard command picks legal foot but never teleports ally");
+            Point destination=g.OuterPatrolCompanionGuardPosition;
+            // The player can intercept the second raider without dragging
+            // the ranged guard away from the vulnerable stock.
+            g.save.x=post.x+5f;g.save.y=post.y;
+            float distBefore=(g.companionPosition-destination).Length;
+            for(int tick=0;tick<90&&g.OuterPatrolActive;tick++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolCompanionGuarding&&
+                (g.companionPosition-destination).Length<distBefore+.05f&&
+                (g.companionPosition-new Point(post.x,post.y)).Length<5f,
+                "Guard follows a physical local stock waypoint, not the distant hero");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Follow option exists while guard is active");
+            g.Choose(guard);
+            Check(!g.OuterPatrolCompanionGuarding,
+                "Player can restore original ordinary companion follow behavior");
+            // Independent guard order can be given again in the same siege,
+            // but it must disappear on withdrawal and save round-trip.
+            g.Talk(post);
+            guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Guard can be reassigned by an actual valid local order");
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&!g.OuterPatrolCompanionGuarding,
+                "Leaving a siege retires ephemeral guard orders");
+            SaveData slot=new SaveData {
+                version=2,room=0,x=post.x,y=post.y,
+                flags=new List<string>(g.save.flags)
+            };
+            GameCore reload=new GameCore(data,slot);
+            Check(!reload.OuterPatrolCompanionGuarding&&
+                reload.save.version==2,
+                "v2 slots never persist a transient tactical guard command");
+        }
+
+        // Older tests asserted "stock windup" on spawned approach actors
+        // several meters outside actual melee reach, while the hero was
+        // standing in the way. These helpers instead select an AUTHENTIC
+        // standable, unobstructed contact plus a real bow muzzle lane.
+        private static Point PlaceShootableCacheContact(GameCore g,
+            WorldObject post,Enemy attacker,Enemy avoid)
+        {
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+            var shot=typeof(GameCore).GetMethod("WeaponShot",flags);
+            Check(clear!=null&&shot!=null,
+                "Use existing combat path and projectile muzzle geometry");
+            Point cache=new Point(post.x,post.y);
+            for(float dx=-2f;dx<=2f;dx+=.25f)
+            for(float dy=-2f;dy<=2f;dy+=.25f)
+            {
+                Point p=cache+new Point(dx,dy);
+                Point aim=p-g.companionPosition;
+                if(!g.CanStand(p)||(p-cache).Length>2.2f||
+                    aim.Length<1.4f||aim.Length>=6.5f||
+                    avoid!=null&&(p-avoid.Position).Length<1.15f||
+                    !(bool)clear.Invoke(g,new object[]{p,cache})||
+                    !(bool)clear.Invoke(g,new object[]{
+                        g.companionPosition,p}))
+                    continue;
+                Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                    g.companionPosition,1,aim.Normalized,9f,0f,(Point?)p});
+                if(probe.blockedAtSpawn)continue;
+                attacker.x=p.x;attacker.y=p.y;
+                return p;
+            }
+            throw new Exception(
+                "No genuine walkable stock contact with a clear original ally bow muzzle");
+        }
+        private static void MoveToRealUncoveredStockObserver(GameCore g,
+            WorldObject post,Enemy one,Enemy two)
+        {
+            Point cache=new Point(post.x,post.y);
+            for(int dx=-10;dx<=10;dx++)
+            for(int dy=-10;dy<=10;dy++)
+            {
+                Point p=cache+new Point(dx,dy);
+                if(!g.CanStand(p)||(p-cache).Length>11f||
+                    (p-one.Position).Length<3.5f||
+                    two!=null&&(p-two.Position).Length<3.5f)
+                    continue;
+                g.save.x=p.x;g.save.y=p.y;
+                return;
+            }
+            throw new Exception("No real physical safe observer for outpost warning");
+        }
+
+        public static void CompanionInterceptsLiveHeavyWindupBeforeIdleCacheRaider(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.companion=1;
+            g.companionPosition=new Point(post.x,post.y);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"An actual veteran three-raider cache siege is available");
+            g.Choose(start);
+            Check(g.OuterPatrolVeteranActive&&g.enemies.Count==3,
+                "Threat priority exercises three authentic enemy bodies");
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "Live cache contains both melee raider and heavy slammer");
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(select!=null,"Exercise actual bow ally target-selection code");
+            Enemy first=(Enemy)select.Invoke(g,null);
+            Check(first==melee||first==heavy,
+                "Real sabotage-capable actor outranks wandering ranged raider");
+            // Prove both actual muzzle lanes are legal before asserting any
+            // priority; a blocked shot must never beat an available one.
+            var shot=typeof(GameCore).GetMethod("WeaponShot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(shot!=null,"Real ally projectile sweep is available");
+            Point vectorM=(melee.Position-g.companionPosition).Normalized;
+            Point vectorH=(heavy.Position-g.companionPosition).Normalized;
+            Projectile probeM=(Projectile)shot.Invoke(g,new object[]{
+                g.companionPosition,1,vectorM,9f,0f,(Point?)melee.Position});
+            Projectile probeH=(Projectile)shot.Invoke(g,new object[]{
+                g.companionPosition,1,vectorH,9f,0f,(Point?)heavy.Position});
+            Check(!probeM.blockedAtSpawn&&!probeH.blockedAtSpawn,
+                "Both actual enemy targets have a valid muzzle lane");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
+            heavy.state=1;heavy.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==heavy,
+                "Heavy actually threatens uncovered stock from its physical contact range");
+            Check((Enemy)select.Invoke(g,null)==heavy,
+                "Imminent heavy hit wins ally's target over idle melee attacker");
+            heavy.targetingOuterPatrolStock=false;
+            PlaceShootableCacheContact(g,post,melee,heavy);
+            MoveToRealUncoveredStockObserver(g,post,melee,heavy);
+            melee.state=1;melee.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "The ordinary melee attacker also has a real uncovered strike lane");
+            Check((Enemy)select.Invoke(g,null)==melee,
+                "Threat priority follows the currently committed raider");
+            g.enemies.Remove(heavy);
+            Check((Enemy)select.Invoke(g,null)==melee,
+                "Another registered attacker vanishing never creates a phantom target");
+        }
+
+        public static void OutpostWarningsTrackActualCommittedRaiderNotPhantomThreat(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null&&
+                g.OuterPatrolIncomingStockThreat==null,
+                "Idle enemies never create counterfeit supply warnings");
+            // During a real defense the hero can intercept in melee range.
+            // Observe genuine stock threats from a legal but distant post
+            // foot, then move inside the raider's actual attack lane to
+            // verify the same warning retracts BEFORE genuine release.
+            Point observer=new Point();bool foundObserver=false;
+            for(int dx=-10;dx<=10&&!foundObserver;dx++)
+            for(int dy=-10;dy<=10&&!foundObserver;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if(!g.CanStand(p)||
+                    (p-new Point(post.x,post.y)).Length>11f||
+                    (p-melee.Position).Length<3.5f||
+                    (p-heavy.Position).Length<3.5f)continue;
+                observer=p;foundObserver=true;
+            }
+            Check(foundObserver,
+                "Actual watch map provides a legal defender observation foot");
+            g.save.x=observer.x;g.save.y=observer.y;
+            melee.state=1;melee.timer=.8f;
+            melee.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==melee&&
+                Math.Abs(g.OuterPatrolIncomingStockSeconds-.8f)<.01f&&
+                !g.OuterPatrolIncomingStockHeavy,
+                "Active real melee stock windup produces grounded timing");
+            g.save.x=melee.x;g.save.y=melee.y;
+            Check(g.OuterPatrolIncomingStockThreat==null&&
+                g.OuterPatrolIncomingStockSeconds<0f,
+                "Hero physically entering an already aimed swing cancels false stock-hit alarm");
+            g.save.x=observer.x;g.save.y=observer.y;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "Warning resumes if the physical defender abandons interception");
+            // The initial heavy spawn is a valid approach, not yet a
+            // legal contact foot. Move this controlled integration fixture
+            // to an actually walkable, unobstructed melee range BEFORE
+            // asserting that a stock-hit telegraph is truthful.
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(clear!=null,"Verify the physical stock strike lane");
+            bool contactFoot=false;
+            for(float dx=-2f;dx<=2f&&!contactFoot;dx+=.5f)
+            for(float dy=-2f;dy<=2f&&!contactFoot;dy+=.5f)
+            {
+                Point candidate=new Point(post.x+dx,post.y+dy);
+                if((candidate-new Point(post.x,post.y)).Length>2.2f||
+                    (candidate-melee.Position).Length<1.1f||
+                    !g.CanStand(candidate)||
+                    !(bool)clear.Invoke(g,new object[]{
+                        candidate,new Point(post.x,post.y)}))
+                    continue;
+                heavy.x=candidate.x;heavy.y=candidate.y;
+                contactFoot=true;
+            }
+            Check(contactFoot,"Actual map supplies an honest second stock contact foot");
+            heavy.state=1;heavy.timer=.28f;
+            heavy.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==heavy&&
+                g.OuterPatrolIncomingStockHeavy,
+                "Warning follows the earliest genuine heavy contact");
+            heavy.stun=.8f;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "Stunned heavy cannot falsely warn of an imminent contact");
+            heavy.stun=0f;heavy.targetingOuterPatrolStock=false;
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "Heavy aimed elsewhere cannot counterfeit cache impact");
+            melee.hp=0f;
+            Check(g.OuterPatrolIncomingStockThreat==null&&
+                g.OuterPatrolIncomingStockSeconds<0f,
+                "Dead or canceled raiders instantly retract warning");
+            // The observer is deliberately away from the cache during
+            // warning verification. Return to its real interactable foot
+            // before opening the withdrawal dialogue; Talk cannot create
+            // an out-of-range conversation by design.
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&
+                g.OuterPatrolIncomingStockThreat==null,
+                "Leaving real siege removes all pending stock cues");
+        }
+
+        public static void CompanionCancelledAutoContactNeverFiresAtDeadOrLostTarget(Campaign data)
+        {
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.companion=1;
+            g.save.x=data.maps[0].spawnX;
+            g.save.y=data.maps[0].spawnY;
+            g.companionPosition=g.Position;
+            Point foot=new Point();bool found=false;
+            var shot=typeof(GameCore).GetMethod("WeaponShot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var target=typeof(GameCore).GetField("companionAutoTarget",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var next=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var tick=typeof(GameCore).GetMethod("TickCompanion",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(shot!=null&&target!=null&&next!=null&&tick!=null,
+                "Test existing physical companion production release");
+            for(int dx=-5;dx<=5&&!found;dx++)
+            for(int dy=-5;dy<=5&&!found;dy++)
+            {
+                Point p=g.companionPosition+new Point(dx,dy);
+                Point delta=p-g.companionPosition;
+                if(delta.Length<2f||delta.Length>5f||!g.CanStand(p))
+                    continue;
+                Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                    g.companionPosition,1,delta.Normalized,9f,0f,(Point?)p});
+                if(probe.blockedAtSpawn)continue;
+                foot=p;found=true;
+            }
+            Check(found,"Original town terrain has a genuine clear ally bow lane");
+            Enemy foe=new Enemy(920601,0,foot.x,foot.y,30f);
+            g.enemies.Add(foe);
+            Point aim=(foe.Position-g.companionPosition).Normalized;
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=aim,target=foe.Position
+            };
+            target.SetValue(g,foe);next.SetValue(g,2.8f);
+            // During the already-paid bow draw the hero killed the mark.
+            foe.hp=0f;
+            int effects=g.effects.Count;
+            tick.Invoke(g,new object[]{.17f});
+            Check(g.companionAction.released&&g.projectiles.Count==0&&
+                g.effects.Count==effects&&
+                (float)next.GetValue(g)<=.22f,
+                "A dead auto-target cannot emit a phantom arrow or muzzle flash");
+
+            // Test an occluded/stale release separately from death:
+            // moving out of the real seven-unit attack envelope should
+            // never still shoot toward the former locked position.
+            foe.hp=30f;foe.x=foot.x+20f;
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=aim,target=foot
+            };
+            target.SetValue(g,foe);next.SetValue(g,2.8f);
+            tick.Invoke(g,new object[]{.17f});
+            Check(g.projectiles.Count==0&&g.effects.Count==effects&&
+                (float)next.GetValue(g)<=.22f,
+                "A target escaping physical range cancels old arrow release");
+
+            // A subsequent genuinely shootable foe remains available,
+            // without consuming a second false 2.8s cooldown.
+            foe.x=foot.x;foe.y=foot.y;
+            g.companionAction=null;next.SetValue(g,0f);
+            tick.Invoke(g,new object[]{.02f});
+            Check(g.companionAction!=null&&
+                g.companionAction.kind=="attack"&&
+                (Enemy)target.GetValue(g)==foe,
+                "Short retry locks a freshly reachable, living target");
+            tick.Invoke(g,new object[]{.16f});
+            Check(g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "A recovered original bow release still creates a real arrow");
+        }
+
+        public static void GuardedAllyRetargetsWhenLockedMuzzleBecomesBlocked(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"Real watchpost offers the veteran defense");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Ranger can take the physical guard order");
+            g.Choose(guard);
+            Check(g.OuterPatrolCompanionGuarding,
+                "Release-time retargeting runs only under a real guard order");
+            Point guardFoot=g.OuterPatrolCompanionGuardPosition;
+            g.enemies.Clear();g.projectiles.Clear();
+
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+            var shot=typeof(GameCore).GetMethod("WeaponShot",flags);
+            var tick=typeof(GameCore).GetMethod("TickCompanion",flags);
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",flags);
+            var target=typeof(GameCore).GetField("companionAutoTarget",flags);
+            var cooldown=typeof(GameCore).GetField("companionAttack",flags);
+            Check(clear!=null&&shot!=null&&tick!=null&&select!=null&&
+                target!=null&&cooldown!=null,
+                "Exercise real path, muzzle, target and release APIs");
+
+            // The post's preferred guard foot is intentionally an open firing
+            // lane. Find a nearby REAL walkable corner for the adversarial
+            // case, rather than assuming the best guard tile has a blocked
+            // muzzle. A live guard order remains active while the ally is
+            // physically walking back to that saved post.
+            List<Point> origins=new List<Point>();
+            for(float dx=-8f;dx<=8f;dx+=.5f)
+            for(float dy=-8f;dy<=8f;dy+=.5f)
+            {
+                Point candidate=guardFoot+new Point(dx,dy);
+                if(!g.CanStand(candidate))continue;
+                bool nearBlockedTile=false;
+                for(int sx=-1;sx<=1&&!nearBlockedTile;sx++)
+                for(int sy=-1;sy<=1;sy++)
+                {
+                    if(sx==0&&sy==0)continue;
+                    if(!g.CanStand(candidate+new Point(sx*.7f,sy*.7f)))
+                    {nearBlockedTile=true;break;}
+                }
+                if(nearBlockedTile)origins.Add(candidate);
+            }
+            origins.Sort((a,b)=>(a-guardFoot).Length.CompareTo((b-guardFoot).Length));
+            Point origin=new Point(),first=new Point(),alternate=new Point(),
+                corner=new Point();
+            bool foundLayout=false;
+            List<Point> open=new List<Point>();
+            List<Point> muzzleBlocked=new List<Point>();
+            foreach(Point candidateOrigin in origins)
+            {
+                open.Clear();muzzleBlocked.Clear();
+                for(float dx=-6.5f;dx<=6.5f;dx+=.5f)
+                for(float dy=-6.5f;dy<=6.5f;dy+=.5f)
+                {
+                    Point p=candidateOrigin+new Point(dx,dy);
+                    float distance=(p-candidateOrigin).Length;
+                    if(distance<1.4f||distance>=6.9f||!g.CanStand(p)||
+                        !(bool)clear.Invoke(g,new object[]{candidateOrigin,p}))
+                        continue;
+                    Projectile probe=(Projectile)shot.Invoke(g,new object[]{
+                        candidateOrigin,1,(p-candidateOrigin).Normalized,
+                        9f,0f,(Point?)p});
+                    if(probe.blockedAtSpawn)muzzleBlocked.Add(p);
+                    else open.Add(p);
+                }
+                if(open.Count<2||muzzleBlocked.Count==0)continue;
+                open.Sort((a,b)=>(a-candidateOrigin).Length.CompareTo(
+                    (b-candidateOrigin).Length));
+                Point candidateFirst=open[0],candidateAlternate=new Point(),
+                    candidateCorner=new Point();
+                bool foundAlternate=false,foundCorner=false;
+                float firstDistance=(candidateFirst-candidateOrigin).Length;
+                foreach(Point p in open)
+                    if((p-candidateOrigin).Length>=firstDistance+1f&&
+                        (p-candidateFirst).Length>=1.25f)
+                    {candidateAlternate=p;foundAlternate=true;break;}
+                foreach(Point p in muzzleBlocked)
+                    if((p-candidateOrigin).Length<6.9f&&
+                        (p-candidateFirst).Length>1f&&
+                        (p-candidateAlternate).Length>1.25f)
+                    {candidateCorner=p;foundCorner=true;break;}
+                if(foundAlternate&&foundCorner)
+                {
+                    origin=candidateOrigin;first=candidateFirst;
+                    alternate=candidateAlternate;corner=candidateCorner;
+                    foundLayout=true;break;
+                }
+            }
+            Check(foundLayout,
+                "Find a real walkable origin with both a valid backup and a clear-feet/blocked-muzzle corner");
+            g.companionPosition=origin;
+
+            Enemy primary=new Enemy(920610,0,first.x,first.y,30f);
+            Enemy backup=new Enemy(920611,0,alternate.x,alternate.y,30f);
+            g.enemies.Add(primary);g.enemies.Add(backup);
+            Check((Enemy)select.Invoke(g,null)==primary,
+                "Automatic target selection chooses the nearest genuinely shootable foe");
+            target.SetValue(g,primary);cooldown.SetValue(g,2.8f);
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(primary.Position-origin).Normalized,
+                target=primary.Position
+            };
+
+            primary.x=corner.x;primary.y=corner.y;
+            Point blockedAim=primary.Position-origin;
+            Projectile blockedProbe=(Projectile)shot.Invoke(g,new object[]{
+                origin,1,blockedAim.Normalized,9f,0f,(Point?)primary.Position});
+            Check((bool)clear.Invoke(g,new object[]{origin,primary.Position})&&
+                blockedProbe.blockedAtSpawn,
+                "Locked foe keeps clear foot LOS while its real muzzle becomes blocked");
+            tick.Invoke(g,new object[]{.17f});
+            Check(g.companionAction!=null&&g.companionAction.released&&
+                (Enemy)target.GetValue(g)==backup&&
+                g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "Prepared shot redirects at release to the valid backup instead of wasting its contact");
+            Check(g.companionAction.target.HasValue&&
+                (g.companionAction.target.Value-backup.Position).Length<.01f,
+                "Released projectile target and live aim stay on the replacement foe");
+
+            // Ordinary field combat uses the same release-time muzzle
+            // recovery, without relying on an active outpost guard order.
+            GameCore field=new GameCore(data);field.mode="world";
+            field.save.room=0;field.save.companion=1;
+            field.save.x=data.maps[0].spawnX;field.save.y=data.maps[0].spawnY;
+            field.companionPosition=origin;
+            field.enemies.Clear();field.projectiles.Clear();
+            Enemy fieldPrimary=new Enemy(920612,0,first.x,first.y,30f);
+            Enemy fieldBackup=new Enemy(920613,0,alternate.x,alternate.y,30f);
+            field.enemies.Add(fieldPrimary);field.enemies.Add(fieldBackup);
+            var fieldTarget=typeof(GameCore).GetField("companionAutoTarget",flags);
+            var fieldCooldown=typeof(GameCore).GetField("companionAttack",flags);
+            var fieldTick=typeof(GameCore).GetMethod("TickCompanion",flags);
+            Check(fieldTarget!=null&&fieldCooldown!=null&&fieldTick!=null,
+                "Ordinary companion combat exposes its production release state");
+            fieldTarget.SetValue(field,fieldPrimary);
+            fieldCooldown.SetValue(field,2.8f);
+            field.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(fieldPrimary.Position-origin).Normalized,
+                target=fieldPrimary.Position
+            };
+            fieldPrimary.x=corner.x;fieldPrimary.y=corner.y;
+            fieldTick.Invoke(field,new object[]{.17f});
+            Check(field.companionAction!=null&&field.companionAction.released&&
+                (Enemy)fieldTarget.GetValue(field)==fieldBackup&&
+                field.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "Ordinary field auto-fire reuses its prepared contact on the legal backup");
+            Check(field.companionAction.target.HasValue&&
+                (field.companionAction.target.Value-fieldBackup.Position).Length<.01f,
+                "Field release updates aim and projectile target together");
+
+            // A foe can die after the companion has committed its draw.
+            // The release must reacquire a living, actually shootable backup
+            // instead of firing at the dead foe's stale coordinates.
+            GameCore fieldKilled=new GameCore(data);fieldKilled.mode="world";
+            fieldKilled.save.room=0;fieldKilled.save.companion=1;
+            fieldKilled.companionPosition=origin;
+            fieldKilled.enemies.Clear();fieldKilled.projectiles.Clear();
+            Enemy doomed=new Enemy(920614,0,first.x,first.y,30f);
+            Enemy survivor=new Enemy(920615,0,alternate.x,alternate.y,30f);
+            fieldKilled.enemies.Add(doomed);fieldKilled.enemies.Add(survivor);
+            fieldTarget.SetValue(fieldKilled,doomed);
+            fieldCooldown.SetValue(fieldKilled,2.8f);
+            fieldKilled.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(doomed.Position-origin).Normalized,
+                target=doomed.Position
+            };
+            fieldKilled.enemies.Remove(doomed);
+            fieldTick.Invoke(fieldKilled,new object[]{.17f});
+            Check(fieldKilled.companionAction!=null&&
+                fieldKilled.companionAction.released&&
+                (Enemy)fieldTarget.GetValue(fieldKilled)==survivor&&
+                fieldKilled.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "Ordinary field auto-fire reacquires a living backup when its locked foe dies mid-windup");
+            Check(fieldKilled.companionAction.target.HasValue&&
+                (fieldKilled.companionAction.target.Value-survivor.Position).Length<.01f,
+                "Target death cannot leave the replacement arrow aimed at stale coordinates");
+
+            // Automatic recovery must never rewrite an explicit user order.
+            // Move its marked foe into the same muzzle-only corner after the
+            // command starts: the command still fires along the captured aim.
+            GameCore manual=new GameCore(data);manual.mode="world";
+            manual.save.room=0;manual.save.companion=1;
+            manual.companionPosition=origin;
+            manual.enemies.Clear();manual.projectiles.Clear();
+            Enemy commanded=new Enemy(920616,0,first.x,first.y,30f);
+            Enemy bystander=new Enemy(920617,0,alternate.x,alternate.y,30f);
+            manual.enemies.Add(commanded);manual.enemies.Add(bystander);
+            manual.SetAimTarget(first);
+            manual.CommandCompanion();
+            Check(manual.companionAction!=null&&
+                manual.companionAction.kind=="command"&&
+                manual.companionAction.target.HasValue,
+                "Player command captures its explicit world target");
+            Point explicitTarget=manual.companionAction.target.Value;
+            commanded.x=corner.x;commanded.y=corner.y;
+            tick.Invoke(manual,new object[]{.21f});
+            Check(manual.companionAction.released&&
+                manual.companionAction.target.HasValue&&
+                (manual.companionAction.target.Value-explicitTarget).Length<.01f&&
+                manual.projectiles.Count==3&&
+                manual.projectiles.TrueForAll(p=>p.friendly&&!p.blockedAtSpawn)&&
+                target.GetValue(manual)==null,
+                "Automatic retargeting never steals an explicit volley or changes its captured aim");
+        }
+
+        public static void GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.companion=1;
+            g.save.x=post.x;g.save.y=post.y;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"Veteran defense is offered at the real post");
+            g.Choose(start);
+            g.Talk(post);
+            int guard=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_guard");
+            Check(guard>=0,"Ranger can guard stock during real siege");
+            g.Choose(guard);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,"Both live melee and heavy exist");
+            var selection=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var tick=typeof(GameCore).GetMethod("TickCompanion",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var target=typeof(GameCore).GetField("companionAutoTarget",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var cooldown=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(selection!=null&&tick!=null&&target!=null&&cooldown!=null,
+                "Regress actual automatic draw, target and released projectile");
+            // Both shots must be possible before measuring target priority.
+            Enemy available=(Enemy)selection.Invoke(g,null);
+            Check(available==melee||available==heavy,
+                "Registered stock raider is shootable through a real muzzle");
+            Enemy alternate=available==melee?heavy:melee;
+            Check(!alternate.targetingOuterPatrolStock,
+                "Secondary saboteur starts without a telegraphed stock hit");
+            cooldown.SetValue(g,0f);
+            tick.Invoke(g,new object[]{.02f});
+            Check(g.companionAction!=null&&
+                g.companionAction.kind=="attack"&&
+                (Enemy)target.GetValue(g)==available,
+                "A real ally starts a planted, automatic bow windup");
+            // Other live raider commits after bow drawing began; retarget
+            // before physical release instead of firing into old stock lane.
+            // The guard has already exhausted its finite two real body
+            // contacts (tested by the genuine three-hit stock test).
+            // This validates urgent auto-fire against an UNGUARDED lane.
+            var blocks=typeof(GameCore).GetField("outerPatrolGuardBlocksLeft",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(blocks!=null,"Finite bodyguard shield is registered");
+            blocks.SetValue(g,0);
+            PlaceShootableCacheContact(g,post,alternate,available);
+            MoveToRealUncoveredStockObserver(g,post,alternate,available);
+            alternate.state=1;alternate.targetingOuterPatrolStock=true;
+            Check(g.OuterPatrolIncomingStockThreat==alternate,
+                "The late alternative has a real unprotected and visible stock strike");
+            tick.Invoke(g,new object[]{.16f});
+            Check(g.companionAction.released&&
+                (Enemy)target.GetValue(g)==alternate&&
+                g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "One genuine released projectile changes to urgent stock attacker");
+            Check((g.companionAction.target.Value-alternate.Position).Length<.01f,
+                "Prepared shot's direction and target both follow actual threat");
+
+            // A second genuine stock attack can become more urgent while
+            // the companion is already committed to another stock attacker.
+            // Being a valid target is not enough: choose the earlier release.
+            PlaceShootableCacheContact(g,post,alternate,available);
+            PlaceShootableCacheContact(g,post,available,alternate);
+            MoveToRealUncoveredStockObserver(g,post,alternate,available);
+            alternate.state=1;alternate.targetingOuterPatrolStock=true;
+            available.state=1;available.targetingOuterPatrolStock=true;
+            alternate.timer=.9f;available.timer=.12f;
+            Check(g.OuterPatrolIncomingStockThreat==available,
+                "The second unguarded stock strike has the earlier real deadline");
+            target.SetValue(g,alternate);
+            cooldown.SetValue(g,2.8f);
+            g.companionAction=new ActorAction {
+                kind="attack",weapon=1,duration=.42f,contact=.16f,
+                damage=12f,direction=(alternate.Position-
+                    g.companionPosition).Normalized,target=alternate.Position
+            };
+            tick.Invoke(g,new object[]{.17f});
+            Check(g.companionAction.released&&
+                (Enemy)target.GetValue(g)==available&&
+                g.projectiles.Exists(p=>p.friendly&&!p.blockedAtSpawn),
+                "A faster stock strike supersedes an already-valid slower stock lock");
+            Check((g.companionAction.target.Value-available.Position).Length<.01f,
+                "Emergency retarget updates the real projectile aim and target together");
+        }
+
+        public static void CompanionPrioritizesSoonestAuthenticStockStrike(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"A real veteran cache defense can be started");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "Both authentic stock-raiding enemy classes exist");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            PlaceShootableCacheContact(g,post,melee,heavy);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
+            heavy.state=1;heavy.targetingOuterPatrolStock=true;
+            melee.state=1;melee.targetingOuterPatrolStock=true;
+            Enemy near=(heavy.Position-g.companionPosition).Length<
+                (melee.Position-g.companionPosition).Length?heavy:melee;
+            Enemy far=near==heavy?melee:heavy;
+            near.timer=.9f;far.timer=.12f;
+            Check(g.OuterPatrolIncomingStockThreat==far,
+                "Real stock-warning selector confirms the farther strike lands first");
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(select!=null,"Use the production companion target selector");
+            Check((Enemy)select.Invoke(g,null)==far,
+                "Companion chooses earliest real stock contact over the nearer slower raider");
+            near.timer=far.timer=.4f;
+            Check((Enemy)select.Invoke(g,null)==near,
+                "Equal imminent contact times retain nearest-target tie breaking");
+            near.timer=-.02f;far.timer=-.15f;
+            Check((Enemy)select.Invoke(g,null)==far,
+                "A farther but already-overdue stock hit outranks a less-overdue nearby raider");
+        }
+
+        public static void OuterPatrolWarningSelectsFiniteEarliestThreatAndStableTie(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"A real veteran cache warning can be exercised");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "Real melee and heavy stock attackers are present");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            PlaceShootableCacheContact(g,post,melee,heavy);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
+            heavy.state=melee.state=1;
+            heavy.targetingOuterPatrolStock=melee.targetingOuterPatrolStock=true;
+            heavy.timer=float.NaN;melee.timer=.2f;
+            // Put the malformed timer first to prove it cannot poison the
+            // warning selector before a later authentic finite threat.
+            g.enemies.Remove(heavy);g.enemies.Insert(0,heavy);
+            Check(g.OuterPatrolIncomingStockThreat==melee,
+                "A NaN attack clock cannot hide the next real stock impact");
+            Check(Math.Abs(g.OuterPatrolIncomingStockSeconds-.2f)<.001f,
+                "Incoming-stock HUD exposes a finite countdown for a real strike");
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(select!=null,"Use the production companion threat selector");
+            Check((Enemy)select.Invoke(g,null)==melee,
+                "An invalid stock timer cannot monopolize the companion's target priority");
+            heavy.timer=float.PositiveInfinity;
+            Check(g.OuterPatrolIncomingStockThreat==melee&&
+                (Enemy)select.Invoke(g,null)==melee,
+                "Infinite stock timers are excluded from both warnings and emergency target priority");
+
+            // Equal deadlines use physical distance to the protected stock,
+            // then favor the heavy if both are at the same distance. Reorder
+            // the live actors so list insertion order cannot choose the HUD.
+            heavy.timer=melee.timer=.2f;
+            Point cache=new Point(post.x,post.y);
+            Point h=heavy.Position-cache,m=melee.Position-cache;
+            float hd=h.x*h.x+h.y*h.y,md=m.x*m.x+m.y*m.y;
+            Enemy expected=Math.Abs(hd-md)<.0001f?heavy:(hd<md?heavy:melee);
+            Enemy other=expected==heavy?melee:heavy;
+            g.enemies.Remove(other);g.enemies.Remove(expected);
+            g.enemies.Insert(0,other);g.enemies.Insert(1,expected);
+            Check(g.OuterPatrolIncomingStockThreat==expected,
+                "Equal-deadline warnings choose the nearest physical stock contact independent of list order");
+            Check(g.OuterPatrolIncomingStockHeavy==(expected.kind==2),
+                "Heavy warning metadata matches the deterministically selected threat");
+
+            Enemy fartherCache=Math.Abs(hd-md)<.0001f?melee:
+                (hd>md?heavy:melee);
+            Enemy nearerCache=fartherCache==heavy?melee:heavy;
+            fartherCache.timer=-.15f;nearerCache.timer=-.02f;
+            Check(g.OuterPatrolIncomingStockThreat==fartherCache&&
+                g.OuterPatrolIncomingStockSeconds==0f,
+                "Raw negative deadlines prioritize an overdue strike while the HUD clamps its display to zero");
+        }
+
+        public static void OuterPatrolInvalidWindupsRecoverAndRetractWarnings(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"A real cache defense starts the recovery test");
+            g.Choose(start);
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Enemy heavy=Array.Find(g.enemies.ToArray(),e=>e.kind==2);
+            Check(melee!=null&&heavy!=null,
+                "The real patrol enemy roster is available");
+            PlaceShootableCacheContact(g,post,heavy,melee);
+            MoveToRealUncoveredStockObserver(g,post,heavy,melee);
+            g.save.companion=-1;
+            foreach(Enemy foe in g.enemies)
+            {
+                if(foe==heavy)continue;
+                foe.state=0;foe.timer=5f;
+                foe.targetingWayfarer=foe.targetingReliefCivilian=
+                    foe.targetingAfterlightStock=foe.targetingOuterPatrolStock=false;
+            }
+            heavy.state=1;heavy.timer=float.NaN;
+            heavy.targetingOuterPatrolStock=true;
+            heavy.target=new Point(post.x,post.y);
+            float integrity=g.OuterPatrolIntegrity;
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var pendingField=typeof(GameCore).GetField("rescueWindupEffects",flags);
+            Check(pendingField!=null,
+                "The real pending-windup warning registry is available");
+            object table=pendingField.GetValue(g);
+            var add=table.GetType().GetMethod("Add");
+            Check(add!=null,"Pending warning ownership can be registered");
+            Effect nanWarning=new Effect("danger",heavy.target,1f);
+            g.effects.Add(nanWarning);
+            add.Invoke(table,new object[]{heavy,nanWarning});
+            g.Tick(.02f,new Point());
+            Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                !heavy.targetingOuterPatrolStock,
+                "A NaN windup recovers into a short safe reacquisition instead of becoming immortal");
+            Check(!g.effects.Contains(nanWarning),
+                "The invalid enemy's stale danger warning is removed by owner identity");
+            Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                "Invalid enemy clocks cannot cause an untelegraphed stock hit");
+
+            heavy.state=1;heavy.timer=float.PositiveInfinity;
+            heavy.targetingOuterPatrolStock=true;
+            Effect infiniteWarning=new Effect("danger",heavy.target,1f);
+            g.effects.Add(infiniteWarning);
+            add.Invoke(table,new object[]{heavy,infiniteWarning});
+            g.Tick(.02f,new Point());
+            Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                !heavy.targetingOuterPatrolStock&&
+                !g.effects.Contains(infiniteWarning),
+                "An infinite windup also retires its target lock and warning cleanly");
+            Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                "Neither malformed clock can bypass the real stock-contact checks");
+
+            // Idle cooldowns use the same transient clock and must recover too;
+            // otherwise an enemy silently stops attacking for the rest of combat.
+            heavy.state=0;heavy.timer=float.NaN;
+            heavy.targetingOuterPatrolStock=true;
+            Effect idleWarning=new Effect("danger",heavy.target,1f);
+            g.effects.Add(idleWarning);
+            add.Invoke(table,new object[]{heavy,idleWarning});
+            g.Tick(.02f,new Point());
+            Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                !heavy.targetingOuterPatrolStock&&!g.effects.Contains(idleWarning),
+                "A malformed idle cooldown also resets and retires stale objective cues");
+            Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                "Idle timer recovery cannot create an untelegraphed stock hit");
+
+            // A malformed reaction clock must be repaired BEFORE it enters
+            // Math.Max/Min lock-budget math. Exercise actual patrol windups and
+            // owner-keyed warning cleanup, including the next safe tick.
+            System.Reflection.FieldInfo clockField;
+            foreach (string clockName in new[] {
+                "hitTime", "stun", "releaseTime", "windupDuration" })
+            foreach (float malformed in new[] {
+                float.NaN, float.PositiveInfinity })
+            {
+                heavy.state=1;heavy.timer=.8f;heavy.hitTime=0f;
+                heavy.stun=0f;heavy.releaseTime=0f;heavy.windupDuration=.7f;
+                heavy.flash=.1f;heavy.stagger=0f;heavy.staggerRecovery=0f;
+                heavy.moveTime=.2f;heavy.recoil=new Point(1f,0f);
+                heavy.targetingWayfarer=heavy.targetingReliefCivilian=false;
+                heavy.targetingAfterlightStock=false;
+                heavy.targetingOuterPatrolStock=true;
+                heavy.target=new Point(post.x,post.y);
+                clockField=typeof(Enemy).GetField(clockName);
+                Check(clockField!=null,"The production enemy reaction clock exists: "+clockName);
+                clockField.SetValue(heavy,malformed);
+                Effect warning=new Effect("danger",heavy.target,1f);
+                g.effects.Add(warning);add.Invoke(table,new object[]{heavy,warning});
+                g.Tick(.02f,new Point());
+                Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                    !heavy.targetingOuterPatrolStock&&
+                    !g.effects.Contains(warning),
+                    "Malformed "+clockName+" must cancel the unsafe windup and retract only its own warning");
+                Check(!float.IsNaN(heavy.timer)&&!float.IsInfinity(heavy.timer)&&
+                    !float.IsNaN(heavy.hitTime)&&!float.IsInfinity(heavy.hitTime)&&
+                    !float.IsNaN(heavy.stun)&&!float.IsInfinity(heavy.stun)&&
+                    !float.IsNaN(heavy.releaseTime)&&!float.IsInfinity(heavy.releaseTime)&&
+                    !float.IsNaN(heavy.windupDuration)&&!float.IsInfinity(heavy.windupDuration),
+                    "Reaction-clock repair leaves every action deadline finite");
+                Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                    "Malformed "+clockName+" cannot produce an untelegraphed stock impact");
+                g.Tick(.02f,new Point());
+                Check(!float.IsNaN(heavy.timer)&&!float.IsInfinity(heavy.timer)&&
+                    heavy.state==0,
+                    "A repaired "+clockName+" remains recoverable on the following real world tick");
+            }
+
+            // Cosmetic/poise clocks should be normalized without cancelling a
+            // valid, already-readable windup or changing its real deadline.
+            foreach (string clockName in new[] {
+                "flash", "stagger", "staggerRecovery", "moveTime" })
+            foreach (float malformed in new[] {
+                float.NaN, float.NegativeInfinity })
+            {
+                heavy.state=1;heavy.timer=5f;heavy.hitTime=0f;heavy.stun=0f;
+                heavy.releaseTime=0f;heavy.windupDuration=.7f;
+                heavy.recoil=new Point(1f,0f);
+                heavy.targetingOuterPatrolStock=true;
+                clockField=typeof(Enemy).GetField(clockName);
+                Check(clockField!=null,"The production enemy presentation clock exists: "+clockName);
+                clockField.SetValue(heavy,malformed);
+                g.Tick(.02f,new Point());
+                Check(heavy.state==1&&Math.Abs(heavy.timer-4.98f)<.01f,
+                    "Repairing cosmetic/poise "+clockName+" must not interrupt a valid telegraphed attack");
+                float repaired=(float)clockField.GetValue(heavy);
+                Check(!float.IsNaN(repaired)&&!float.IsInfinity(repaired),
+                    "Cosmetic/poise clock "+clockName+" must remain finite after a real tick");
+                Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                    "Repairing "+clockName+" cannot alter attack release timing or damage");
+            }
+
+            // A malformed recoil vector is just as dangerous as a bad timer:
+            // it must not feed NaN into the real swept collision solver.
+            foreach (Point malformedRecoil in new[] {
+                new Point(float.NaN,0f), new Point(0f,float.PositiveInfinity) })
+            {
+                heavy.state=1;heavy.timer=.8f;heavy.hitTime=.1f;
+                heavy.stun=0f;heavy.releaseTime=0f;heavy.windupDuration=.7f;
+                heavy.recoil=malformedRecoil;
+                heavy.targetingOuterPatrolStock=true;
+                heavy.target=new Point(post.x,post.y);
+                Effect warning=new Effect("danger",heavy.target,1f);
+                g.effects.Add(warning);add.Invoke(table,new object[]{heavy,warning});
+                float x=heavy.x,y=heavy.y;
+                g.Tick(.02f,new Point());
+                Check(heavy.state==0&&Math.Abs(heavy.timer-.22f)<.001f&&
+                    !g.effects.Contains(warning)&&
+                    Math.Abs(heavy.x-x)<.0001f&&Math.Abs(heavy.y-y)<.0001f,
+                    "Malformed recoil must cancel safely before corrupting the actor's swept world position");
+                Check(Math.Abs(g.OuterPatrolIntegrity-integrity)<.001f,
+                    "Malformed recoil cannot create a false objective contact");
+            }
+        }
+
+        public static void CompanionPrioritizesRealOutpostSaboteursOverPassingFoes(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.save.x=post.x;g.save.y=post.y;
+            g.enemies.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"An eligible real watchpost can start combat");
+            g.Choose(start);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "Raider priority depends on a genuine live defense");
+            Enemy saboteur=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(saboteur!=null,"A cache saboteur has a genuine world body");
+            g.save.companion=1;
+            g.companionPosition=new Point(post.x,post.y);
+            var chooser=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(chooser!=null,"Actual companion targeting is exercised");
+            Enemy picked=(Enemy)chooser.Invoke(g,null);
+            Check(picked==saboteur,
+                "A visible melee stock saboteur beats a ranged raid distractor");
+            // An unrelated foe even closer to Ivo should not draw the
+            // bodyguard away from the cache while the defense is live.
+            Enemy decoy=new Enemy(8111,0,post.x+.3f,post.y,30f);
+            g.enemies.Add(decoy);
+            picked=(Enemy)chooser.Invoke(g,null);
+            Check(picked==saboteur,
+                "Cache defense prioritizes its actual protected objective");
+            g.enemies.Remove(decoy);
+            // When the actual attack is obstructed, do not aim forever
+            // through a closed wall: the standard line/muzzle validation
+            // must still choose a legal unrelated enemy.
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            Check(abort>=0,"The defended physical post offers withdrawal");
+            g.Choose(abort);
+            g.enemies.Add(decoy);
+            Check((Enemy)chooser.Invoke(g,null)==decoy,
+                "After the real defense is withdrawn auto targeting remains normal");
+        }
+
+        public static void VeteranFlawlessMedalsRequireRealThreeKillsAndAreEarnableOnReplay(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Flawless medals rely on genuine Hit transactions");
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.enemies.Clear();g.projectiles.Clear();
+                g.save.level=25;g.save.xp=0;
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.flags.Add("outer_cache_"+room);
+                g.save.flags.Add("outer_patrol_done_"+room);
+                g.save.inventory[0]=6;g.save.inventory[4]=4;
+                int coins=g.save.coins,shards=g.save.shards;
+                // Eight-region mastery reward is independent of initial
+                // eight-veteran bonuses and ordinary XP leveling.
+                if(room==7)
+                    for(int i=0;i<7;i++)
+                    {
+                        g.save.flags.Add("outer_patrol_done_"+i);
+                        g.save.flags.Add("outer_patrol_veteran_"+i);
+                        g.save.flags.Add("outer_patrol_flawless_"+i);
+                    }
+                int talent=g.save.skillPoints;
+                g.Talk(post);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(start>=0,"Veteran fight is physically offered");
+                g.Choose(start);
+                Check(g.OuterPatrolFlawlessEligible,
+                    "Clean challenge is eligible at untouched 100% stock");
+                g.Talk(post);
+                int brace=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_brace");
+                Check(brace>=0,"Veteran post allows voluntary protective cover");
+                g.Choose(brace);
+                Check(!g.OuterPatrolFlawlessEligible,
+                    "Deploying tactical cover forfeits this run's no-assist medal");
+                Enemy[] foes=g.enemies.ToArray();
+                foreach(Enemy e in foes)
+                {
+                    hit.Invoke(g,new object[]{e,10000f,true,null,null});
+                    for(int i=0;i<12;i++)g.Tick(.02f,new Point());
+                }
+                Check(g.OuterPatrolVeteranDone(room)&&
+                    !g.OuterPatrolFlawlessDone(room),
+                    "Three genuine kills with a barricade pay base win but not a medal");
+                g.Talk(post);
+                start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                g.Choose(start);
+                Check(g.OuterPatrolFlawlessEligible,
+                    "Replay has a fresh honest no-assist challenge");
+                foes=g.enemies.ToArray();
+                foreach(Enemy e in foes)
+                {
+                    hit.Invoke(g,new object[]{e,10000f,true,null,null});
+                    for(int i=0;i<12;i++)g.Tick(.02f,new Point());
+                }
+                Check(g.OuterPatrolFlawlessDone(room)&&
+                    !g.OuterPatrolActive&&g.save.coins==coins+26&&
+                    g.save.shards==shards+2,
+                    "Clean real replay awards permanent medal without duplicate first-clear loot");
+                if(room==7)
+                    Check(g.OuterPatrolFlawlessWins==8&&
+                        g.Has("outer_patrol_flawless_all")&&
+                        g.save.skillPoints==talent+2,
+                        "Genuine eighth veteran and eighth flawless each grant one skill point");
+                else Check(g.save.skillPoints==talent,
+                    "Partial flawless collection cannot farm talent points");
+                SaveData persisted=new SaveData{
+                    version=2,room=g.save.room,stage=g.save.stage,
+                    x=g.save.x,y=g.save.y,
+                    presentationVersion=g.save.presentationVersion,
+                    flags=new List<string>(g.save.flags),
+                    trackedQuest="outer_watch_flawless"
+                };
+                GameCore reload=new GameCore(data,persisted);
+                Check(reload.save.version==2&&
+                    reload.OuterPatrolFlawlessDone(room)&&
+                    reload.save.trackedQuest=="outer_watch_flawless",
+                    "New mastery medal is an ordinary legacy-compatible v2 flag and journal");
+                g.Talk(post);
+                start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                g.Choose(start);
+                foes=g.enemies.ToArray();
+                foreach(Enemy e in foes)
+                {
+                    hit.Invoke(g,new object[]{e,10000f,true,null,null});
+                    for(int i=0;i<12;i++)g.Tick(.02f,new Point());
+                }
+                Check(g.OuterPatrolFlawlessDone(room)&&
+                    g.save.coins==coins+26&&g.save.shards==shards+2,
+                    "Third full authentic clean win cannot repeat rewards");
+            }
+        }
+
+        public static void FlawlessFieldCareActuallyImprovesSafeTickAndStopsDuringRaids(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.flags.Add("outer_patrol_veteran_0");
+            g.save.health=45f;g.save.energy=30f;
+            Check(g.OuterPatrolRefuge,"Defended post is a real place of recovery");
+            g.Tick(.05f,new Point());
+            float veteranHp=g.save.health-45f;
+            float veteranEnergy=g.save.energy-30f;
+            g.save.flags.Add("outer_patrol_flawless_0");
+            g.save.health=45f;g.save.energy=30f;
+            g.Tick(.05f,new Point());
+            float flawlessHp=g.save.health-45f;
+            float flawlessEnergy=g.save.energy-30f;
+            Check(flawlessHp>veteranHp+.025f&&
+                flawlessEnergy>veteranEnergy+.05f,
+                "Real 50ms game tick grants strictly better local care after medal");
+            g.enemies.Add(new Enemy(9911,0,post.x+.7f,post.y,32f));
+            g.save.health=45f;g.save.energy=30f;
+            Check(!g.OuterPatrolRefuge,
+                "Real nearby raider disables medal-powered refuge care");
+            g.Tick(.05f,new Point());
+            float blockedHp=g.save.health;
+            float blockedEnergy=g.save.energy;
+            // The hero has native combat energy regeneration even with no
+            // refuge. Compare the SAME real threat with and without the medal
+            // instead of incorrectly requiring all regeneration to stop.
+            g.save.flags.Remove("outer_patrol_flawless_0");
+            g.save.health=45f;g.save.energy=30f;
+            g.Tick(.05f,new Point());
+            Check(blockedHp<=45f&&g.save.health<=45f&&
+                Math.Abs(blockedEnergy-g.save.energy)<.01f,
+                "A hostile raider suppresses medal care without removing ordinary stamina recovery");
+            g.save.flags.Add("outer_patrol_flawless_0");
+            g.enemies.Clear();
+            g.save.x=post.x+20f;g.save.y=post.y+20f;
+            Check(!g.OuterPatrolRefuge,
+                "Flawless reward never grants region-wide free healing");
+            GameCore reloaded=new GameCore(data,new SaveData{
+                version=2,room=0,x=post.x,y=post.y,
+                flags=new List<string>(g.save.flags),
+                presentationVersion=g.save.presentationVersion
+            });
+            Check(reloaded.OuterPatrolFlawlessDone(0)&&
+                reloaded.OuterPatrolRefuge,
+                "Old v2 save retains the field care upgrade without new fields");
+        }
+
+        public static void LateLiveInterceptionProtectsCacheOnRealEnemyRelease(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_cache_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Defend an actual supply cache");
+            g.Choose(start);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "An authentic raid has two real enemy actors");
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null&&(melee.Position-new Point(post.x,post.y)).Length<=2.35f,
+                "Raid melee attacker starts at genuine contact range");
+            // The target lock and telegraph are already committed to stock.
+            // A defender enters AFTER the windup began but BEFORE the
+            // real release, so it must still be possible to block the cache.
+            melee.state=1;melee.timer=.02f;
+            melee.target=new Point(post.x,post.y);
+            melee.targetingOuterPatrolStock=true;
+            melee.Face(melee.target-melee.Position);
+            melee.stun=0f;melee.releaseTime=0f;
+            float before=g.OuterPatrolIntegrity;
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity==before,
+                "Defender arriving during authentic attack windup intercepts its stock hit");
+            Check(g.effects.Exists(e=>e.kind=="number"&&
+                e.outerPatrolOwned&&e.text.Contains(
+                    g.save.english?"INTERCEPTED":"拦截成功")),
+                "Actual blocked release gives localized, owned readable combat feedback");
+            // The SAME attacker and identical release must damage an
+            // unobstructed physical store once the hero leaves the lane.
+            Point retreat=new Point();bool found=false;
+            for(int dx=-10;dx<=10&&!found;dx++)
+            for(int dy=-10;dy<=10&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if((p-new Point(post.x,post.y)).Length>10f||
+                    (p-melee.Position).Length<5f||!g.CanStand(p))continue;
+                retreat=p;found=true;
+            }
+            Check(found,"Find genuine unoccupied map floor away from melee");
+            g.save.x=retreat.x;g.save.y=retreat.y;
+            melee.state=1;melee.timer=.02f;
+            melee.target=new Point(post.x,post.y);
+            melee.targetingOuterPatrolStock=true;
+            melee.Face(melee.target-melee.Position);
+            melee.stun=0f;melee.releaseTime=0f;
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity<before,
+                "With no defender in range, an identical real contact damages stock");
+            // Ordinary regional defense and old saves retain their original
+            // one-time reward/failure flags; this is transient interception.
+            Check(!g.OuterPatrolDone(0)&&g.save.version==2,
+                "Interception is not a forged victory or a save schema migration");
+        }
+
+        public static void VeteranBarricadeSpendsRealSuppliesAndAbsorbsReleasedStockHits(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.inventory[0]=8;g.save.inventory[4]=4;
+            // The ordinary first-time encounter must not pretend that a
+            // veteran barricade is a usable menu command.
+            GameCore ordinary=new GameCore(data);ordinary.mode="world";
+            ordinary.save.room=0;ordinary.enemies.Clear();
+            ordinary.save.x=post.x;ordinary.save.y=post.y;
+            ordinary.save.flags.Add("outer_cache_0");
+            ordinary.save.inventory[0]=8;ordinary.save.inventory[4]=4;
+            ordinary.Talk(post);
+            int normal=Array.FindIndex(ordinary.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            ordinary.Choose(normal);
+            ordinary.Talk(post);
+            Check(Array.FindIndex(ordinary.conversation.choices,
+                c=>c.action=="outer_watch_brace")<0,
+                "Standard two-raider raid never advertises veteran-only cover");
+            ordinary.Close();
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"Completed relief post offers actual veteran raid");
+            g.Choose(start);
+            Check(g.OuterPatrolVeteranActive&&g.OuterPatrolBraceIntegrity==0&&
+                g.OuterPatrolBraceAvailable,"Veteran assault offers an unused physical brace");
+            g.Talk(post);
+            int brace=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_brace");
+            Check(brace>=0,"Barricade is a genuine post interaction");
+            g.Choose(brace);
+            Check(g.OuterPatrolBraceIntegrity==48f&&
+                g.OuterPatrolBraceStanding&&
+                g.OuterPatrolBraceHitFlash==0f&&
+                !g.OuterPatrolBraceAvailable&&
+                g.save.inventory[0]==6&&g.save.inventory[4]==3,
+                "First barricade spends two real timber and one spare part");
+            g.Talk(post);
+            brace=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_brace");
+            Check(brace<0,"An already built barricade is not offered again");
+            var invoke=typeof(GameCore).GetMethod("ChooseOuterPatrol",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(invoke!=null,"Old cached attack menu is still defended");
+            invoke.Invoke(g,new object[]{"outer_watch_brace"});
+            Check(g.save.inventory[0]==6&&g.save.inventory[4]==3,
+                "Forged cached brace choice cannot buy a second barricade");
+            // A private handler call bypasses Choose(index)'s automatic
+            // Close(); restore gameplay mode before advancing real AI time.
+            g.Close();
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null,"Veteran raid owns an authentic melee stock attacker");
+            Point safe=new Point();bool found=false;
+            for(int radius=7;radius<=10&&!found;radius++)
+            for(int dx=-radius;dx<=radius&&!found;dx++)
+            for(int dy=-radius;dy<=radius&&!found;dy++)
+            {
+                Point p=new Point(post.x+dx,post.y+dy);
+                if((p-new Point(post.x,post.y)).Length>11f||
+                    (p-melee.Position).Length<6f||!g.CanStand(p))
+                    continue;
+                safe=p;found=true;
+            }
+            Check(found,"A real walkable observation foot exists near cache");
+            g.save.x=safe.x;g.save.y=safe.y;
+            float stock=g.OuterPatrolIntegrity;
+            for(int frame=0;frame<1100&&g.OuterPatrolActive&&
+                g.OuterPatrolBraceIntegrity==48f;frame++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolBraceIntegrity<48f,
+                "Unintercepted real raider winds up and releases into the barricade");
+            Check(g.OuterPatrolBraceStanding&&g.OuterPatrolBraceHitFlash>0f,
+                "A real stock contact drives visible barricade impact feedback");
+            Check(g.OuterPatrolIntegrity==stock,
+                "A real stock strike first consumes physical cover, not protected cache HP");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            brace=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_brace");
+            Check(brace<0,"Broken or damaged used cover stays unavailable");
+            invoke.Invoke(g,new object[]{"outer_watch_brace"});
+            Check(g.save.inventory[0]==6&&g.save.inventory[4]==3,
+                "A damaged cover cannot be re-purchased during same siege");
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&g.OuterPatrolBraceIntegrity==0f&&
+                !g.OuterPatrolBraceStanding&&g.OuterPatrolBraceHitFlash==0f,
+                "Withdrawal retires live barricade artwork cues and attackers");
+            GameCore restored=new GameCore(data,g.save);
+            Check(!restored.OuterPatrolActive&&restored.OuterPatrolBraceIntegrity==0&&
+                restored.save.version==2,"Old v2 saves never persist temporary cover");
+        }
+
+        public static void VeteranReliefDefenseHasThreeRealKillsOneTimeRewardAndSafeReplay(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Use genuine combat Hit, not fake victory flags");
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                Check(post!=null,"Veteran post is authored in room "+room);
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.enemies.Clear();g.projectiles.Clear();
+                // Isolate the distinct veteran "eight defended" talent
+                // from ordinary XP level-ups caused by four-to-six real
+                // kill/reward transactions in this same integration test.
+                // Level 25 begins at zero XP, far from its next threshold.
+                g.save.level=25;g.save.xp=0;
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.flags.Add("outer_cache_"+room);
+                g.save.flags.Add("outer_patrol_done_"+room);
+                int coins=g.save.coins;
+                // Final veteran clear must really award exactly one talent
+                // after *eight* regional victories, never before.
+                if(room==7)
+                    for(int previous=0;previous<7;previous++)
+                    {
+                        g.save.flags.Add("outer_patrol_done_"+previous);
+                        g.save.flags.Add("outer_patrol_veteran_"+previous);
+                    }
+                int talents=g.save.skillPoints;
+                g.Talk(post);
+                Check(g.conversation!=null,
+                    "Veteran battle is offered at a physical post in region "+room);
+                int veteran=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(veteran>=0,
+                    "Already guarded supply depot offers actual veteran combat");
+                g.Choose(veteran);
+                Check(g.OuterPatrolActive&&g.OuterPatrolVeteranActive&&
+                    g.OuterPatrolTime>109f&&g.enemies.Count==3,
+                    "Veteran raid spawns three genuine enemy bodies and a full cache clock");
+                Enemy[] raiders=g.enemies.ToArray();
+                Check(raiders[0].kind==0&&raiders[1].kind==1&&
+                    raiders[2].kind==2&&raiders[2].hp>raiders[0].hp,
+                    "Veteran squad has melee, real ranged, and tougher slammer");
+                int shard=g.save.shards;
+                hit.Invoke(g,new object[]{raiders[0],10000f,true,null,null});
+                for(int n=0;n<12;n++)g.Tick(.02f,new Point());
+                hit.Invoke(g,new object[]{raiders[1],10000f,true,null,null});
+                for(int n=0;n<12;n++)g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolVeteranDone(room)&&g.OuterPatrolActive,
+                    "Two kills cannot counterfeit a three-member veteran victory");
+                hit.Invoke(g,new object[]{raiders[2],10000f,true,null,null});
+                for(int n=0;n<15;n++)g.Tick(.02f,new Point());
+                Check(g.OuterPatrolVeteranDone(room)&&
+                    !g.OuterPatrolActive&&g.save.coins==coins+26&&
+                    g.save.shards==shard+2,
+                    "Three genuine lethal transactions award exactly one veteran clear");
+                Check(room==7?
+                    g.OuterPatrolVeteranWins==8&&
+                    g.Has("outer_patrol_veteran_all")&&
+                    g.save.skillPoints==talents+1:
+                    g.save.skillPoints==talents,
+                    "Exactly the eighth genuine regional veteran win awards the extra talent");
+                // Loading a NEW hero may sanitize an otherwise locked
+                // region. Don't alias the current active hero's SaveData:
+                // this check must not teleport the current challenger.
+                SaveData persisted=new SaveData {
+                    version=g.save.version, room=g.save.room,
+                    stage=g.save.stage,x=g.save.x,y=g.save.y,
+                    flags=new List<string>(g.save.flags)
+                };
+                GameCore reloaded=new GameCore(data,persisted);
+                Check(reloaded.save.version==2&&
+                    reloaded.OuterPatrolVeteranDone(room)&&
+                    !reloaded.OuterPatrolVeteranActive,
+                    "Veteran clear persists in existing v2 flags with no transient raid leak");
+                g.Talk(post);
+                Check(g.conversation!=null,"Completed veteran post "+
+                    room+" remains physically interactable");
+                veteran=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(veteran>=0,"Veteran combat remains playable after victory");
+                g.Choose(veteran);
+                Check(g.OuterPatrolVeteranActive&&g.enemies.Count==3,
+                    "Replay actually spawns combat again, not a free menu reward");
+                Enemy[] replay=g.enemies.ToArray();
+                foreach(Enemy raider in replay)
+                {
+                    hit.Invoke(g,new object[]{raider,10000f,true,null,null});
+                    for(int n=0;n<12;n++)g.Tick(.02f,new Point());
+                }
+                Check(!g.OuterPatrolActive&&g.save.coins==coins+26&&
+                    g.save.shards==shard+2,
+                    "Actual lethal veteran replay produces no duplicate coins or shards");
+                g.Talk(post);
+                veteran=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_veteran");
+                Check(veteran>=0,"Veteran post stays replayable after a full second victory");
+                g.Choose(veteran);
+                Check(g.OuterPatrolVeteranActive&&g.enemies.Count==3,
+                    "A third veteran attempt still creates a real three-raider fight");
+                g.enemies.Clear();g.Tick(.02f,new Point());
+                Check(!g.OuterPatrolActive&&g.save.coins==coins+26,
+                    "Interrupted subsequent attempts cannot farm a reward");
+            }
+        }
+
+        public static void VeteranOutpostJournalTracksTrueRegionalFlagsAndLiveObjective(Campaign data)
+        {
+            GameCore g=new GameCore(data);g.mode="world";
+            QuestGuide q=g.GetQuest("outer_watch_veteran");
+            Check(q.locked&&!q.complete&&q.steps.Count==8,
+                "New quest is dormant until a real ordinary supply defense");
+            g.save.flags.Add("outer_patrol_done_0");
+            q=g.GetQuest("outer_watch_veteran");
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            Check(!q.locked&&!q.complete&&q.room==0&&
+                (q.target-new Point(post.x,post.y)).Length<.1f,
+                "Journal points to the actual unlocked region-zero veteran post");
+            g.save.flags.Add("outer_patrol_veteran_0");
+            q=g.GetQuest("outer_watch_veteran");
+            Check(q.steps[0].done&&q.Progress>.12f&&
+                !q.complete,"Genuine permanent veteran flag advances the tracked quest");
+            for(int room=1;room<8;room++)
+            {
+                g.save.flags.Add("outer_patrol_done_"+room);
+                g.save.flags.Add("outer_patrol_veteran_"+room);
+            }
+            q=g.GetQuest("outer_watch_veteran");
+            Check(q.complete&&q.Progress==1f,
+                "All eight persisted veteran victories complete the in-game quest");
+            SaveData persisted=new SaveData {
+                version=2,room=0,trackedQuest="outer_watch_veteran",
+                // Preserve modern v2 journal presentation. A fresh
+                // presentationVersion=0 correctly migrates a LEGACY UI
+                // and resets old tracking, as the original game requires.
+                presentationVersion=g.save.presentationVersion,
+                flags=new List<string>(g.save.flags)
+            };
+            GameCore restored=new GameCore(data,persisted);
+            Check(restored.save.trackedQuest=="outer_watch_veteran"&&
+                restored.GetQuest("outer_watch_veteran").complete,
+                "Legacy v2 journal selection survives loading a separate slot");
+
+            // A real running siege should outrank the tracked objective
+            // while retaining that tracked quest for the next safe moment.
+            GameCore siege=new GameCore(data);siege.mode="world";
+            siege.save.room=0;siege.enemies.Clear();
+            siege.save.x=post.x;siege.save.y=post.y;
+            siege.save.flags.Add("outer_cache_0");
+            siege.save.trackedQuest="outer_watch_veteran";
+            siege.Talk(post);
+            int start=Array.FindIndex(siege.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Real outpost is combat-ready");
+            siege.Choose(start);
+            Point? marker=siege.NavigationTarget();
+            Check(siege.OuterPatrolActive&&marker.HasValue&&
+                (marker.Value-new Point(post.x,post.y)).Length<.1f&&
+                siege.save.trackedQuest=="outer_watch_veteran",
+                "World objective marker tracks live cache without rewriting saved quest");
+        }
+
+        public static void OuterPatrolCacheDefenseUsesRealTimedStockCombat(Campaign data)
+        {
+            // The existing eight-map witness proves physically playable roots.
+            // Here a real melee unit must telegraph, wind up and reach the
+            // actual store instead of magically draining it or only chasing
+            // a distant hero. Old v2 flags stay unaltered on withdrawal.
+            int room=0;
+            WorldObject post=Array.Find(data.maps[room].objects,
+                o=>o.kind=="outerwatch");
+            Check(post!=null,"Canal has a real physical relief watchpost");
+            GameCore g=new GameCore(data);
+            g.save.room=room;g.enemies.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_"+room);
+            g.save.inventory[0]=5;g.save.inventory[2]=5;
+            int coins=g.save.coins;
+            g.Talk(post);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(action>=0,"Recovered supplies permit a genuine timed siege");
+            g.Choose(action);
+            Check(g.OuterPatrolActive&&g.OuterPatrolTime>=94f&&
+                g.OuterPatrolIntegrity==100f,
+                "New relief siege has real unsaved clock and full cache integrity");
+            Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
+            Check(melee!=null,"A real melee attacker targets the defended cache");
+            // Position hero on a legal tile outside melee interception range.
+            // The attacker must walk toward the post, not passively drain HP.
+            Point safe=new Point();bool found=false;
+            for(int radius=7;radius<=10&&!found;radius++)
+            for(int x=-radius;x<=radius&&!found;x++)
+            for(int y=-radius;y<=radius&&!found;y++)
+            {
+                Point candidate=new Point(post.x+x,post.y+y);
+                if((candidate-new Point(post.x,post.y)).Length>11f||
+                    (candidate-melee.Position).Length<6f||!g.CanStand(candidate))
+                    continue;
+                safe=candidate;found=true;
+            }
+            Check(found,"Find an actual legal bodyguard withdrawal foot");
+            g.save.x=safe.x;g.save.y=safe.y;
+            float before=g.OuterPatrolIntegrity;
+            for(int frame=0;frame<1250&&g.OuterPatrolActive&&
+                    g.OuterPatrolIntegrity==before;frame++)
+                g.Tick(.02f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity<before,
+                "Unintercepted raider actually completes a timed attack against supplies");
+            float damaged=g.OuterPatrolIntegrity;
+            // Only the physically present guard can apply the once-per-run
+            // emergency patch. Do not touch permanent cache flag.
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            Check(g.conversation!=null,"Live outpost can report raid integrity");
+            int patch=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_patch");
+            Check(patch>=0,"The ongoing defense offers a player-choice repair");
+            g.Choose(patch);
+            Check(g.OuterPatrolIntegrity>damaged&&g.OuterPatrolIntegrity<=100f&&
+                g.save.inventory[0]==4&&g.save.inventory[2]==4,
+                "First legitimate cache patch spends real supplies and repairs durability");
+            g.Talk(post);
+            patch=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_patch");
+            Check(patch>=0,"Patch choice remains visible but is single-use");
+            g.Choose(patch);
+            Check(g.save.inventory[0]==4&&g.save.inventory[2]==4,
+                "Repeating a cached UI action cannot spend a second repair");
+            g.Talk(post);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_abort");
+            Check(abort>=0,"The post allows explicit safe withdrawal");
+            g.Choose(abort);
+            Check(!g.OuterPatrolActive&&g.enemies.Count==0&&
+                !g.OuterPatrolDone(room)&&g.save.coins==coins&&
+                g.OuterCacheRecovered(room),
+                "Aborted physical siege retires attackers, pays no false reward and preserves v2 cache");
+            GameCore reload=new GameCore(data,g.save);
+            Check(!reload.OuterPatrolActive&&reload.OuterCacheRecovered(room)&&
+                !reload.OuterPatrolDone(room),
+                "Transient siege pressure never contaminates legacy save slots");
+        }
+
+        public static void OuterPatrolRealTimeoutAndPerimeterDoNotForgeWins(Campaign data)
+        {
+            // Timeout is a real world clock, not a local-wall-clock task.
+            // Stun actual raiders only to isolate the countdown from their
+            // otherwise-tested genuine melee pressure.
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);
+            g.save.room=0;g.enemies.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.flags.Add("outer_cache_0");
+            int coins=g.save.coins;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Eligible physical outpost offers a real defense");
+            g.Choose(start);
+            foreach(Enemy attacker in g.enemies)attacker.stun=120f;
+            for(int i=0;i<1860;i++)g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolTime>1f&&
+                g.OuterPatrolTime<3f&&g.OuterPatrolIntegrity==100f,
+                "Combat clock advances on genuine simulation time without phantom supply damage");
+            for(int i=0;i<80&&g.OuterPatrolActive;i++)
+                g.Tick(.05f,new Point());
+            Check(!g.OuterPatrolActive&&g.enemies.Count==0&&
+                !g.OuterPatrolDone(0)&&g.save.coins==coins&&
+                g.OuterCacheRecovered(0),
+                "Real timeout retires only its raiders with no forged reward or lost v2 cache");
+            g.Talk(post);
+            start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Timed-out cache defense can be started again");
+            g.Choose(start);
+            Point away=new Point();bool found=false;
+            for(int y=1;y<g.Map.rows.Length-1&&!found;y++)
+            for(int x=1;x<g.Map.rows[y].Length-1&&!found;x++)
+            {
+                Point p=new Point(x+.5f,y+.5f);
+                if(g.CanStand(p)&&(p-new Point(post.x,post.y)).Length>13f)
+                {away=p;found=true;}
+            }
+            Check(found,"Map has legal ground beyond the outpost perimeter");
+            g.save.x=away.x;g.save.y=away.y;
+            g.Tick(.05f,new Point());
+            Check(!g.OuterPatrolActive&&g.enemies.Count==0&&
+                !g.OuterPatrolDone(0)&&g.save.coins==coins,
+                "Leaving the physical defense radius interrupts the run without paying");
+            // The v2 save must never record ephemeral siege HP or clock.
+            var reload=new GameCore(data,g.save);
+            Check(!reload.OuterPatrolActive&&reload.OuterPatrolDone(0)==false&&
+                reload.OuterCacheRecovered(0),
+                "Pre-existing cache survives both failure paths without schema migration");
+        }
+
+        public static void DefendedOuterCachesBecomeRealSafeFieldRefuges(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    x=>x.kind=="outerwatch");
+                Check(post!=null,"Each region has an authored supply post");
+                GameCore g=new GameCore(data);g.mode="world";g.save.room=room;
+                g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.health=Math.Min(g.save.maxHealth-25f,45f);
+                g.save.energy=21f;
+                Check(!g.OuterPatrolRefuge,
+                    "An unprotected outpost must not give free field treatment");
+                g.save.flags.Add("outer_patrol_done_"+room);
+                Check(g.OuterPatrolRefuge,
+                    "Only a legitimately defended reachable outpost becomes a refuge");
+                float hp=g.save.health, energy=g.save.energy;
+                g.Tick(.05f,new Point());
+                Check(g.save.health>hp+.06f&&g.save.energy>energy,
+                    "Defended outpost actually replenishes finite combat resources");
+                // The status comes from the original v2 flag, not a
+                // separate migration or untracked runtime counter.
+                GameCore reload=new GameCore(data,g.save);
+                reload.save.room=room;reload.enemies.Clear();
+                reload.projectiles.Clear();reload.hazards.Clear();
+                reload.save.x=post.x;reload.save.y=post.y;
+                Check(reload.save.version==2&&reload.OuterPatrolRefuge,
+                    "Reloaded legacy save retains a physically usable outpost");
+                // A real pursuer forces the field medic to stand down.
+                Enemy pursuer=new Enemy(9000,0,post.x+.4f,post.y+.4f,30);
+                g.enemies.Add(pursuer);
+                Check(!g.OuterPatrolRefuge,
+                    "A nearby actual enemy suppresses the otherwise active treatment");
+                g.enemies.Clear();
+                g.save.flags.Remove("outer_patrol_done_"+room);
+                Check(!g.OuterPatrolRefuge,
+                    "Removing a victory flag immediately removes its local benefit");
+            }
+        }
+
+        public static void DefendedOutpostRoutesRespectLiveProgressAndSafeLanding(Campaign data)
+        {
+            WorldObject[] posts=new WorldObject[8];
+            for(int i=0;i<8;i++)
+                posts[i]=Array.Find(data.maps[i].objects,o=>o.kind=="outerwatch");
+            GameCore g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.save.x=posts[0].x;g.save.y=posts[0].y;
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            g.save.stage=3;
+            g.save.flags.Add("outer_patrol_done_0");
+            g.save.flags.Add("outer_patrol_done_1");
+            int coin=g.save.coins;
+            g.Talk(posts[0]);
+            int routes=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_routes");
+            Check(routes>=0,"Defended outpost offers a usable travel board");
+            g.Choose(routes);
+            int west=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_ring_0");
+            Check(west>=0,"Travel board has a real regional route selection");
+            g.Choose(west);
+            int target=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_to_1");
+            Check(target>=0,"Another genuinely defended reachable region appears");
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_to_2")<0,
+                "Unsecured outposts cannot be selected to skip defense");
+            g.Choose(target);
+            Check(g.save.room==1&&g.CanStand(g.Position)&&
+                g.OuterPatrolDone(0)&&g.OuterPatrolDone(1)&&
+                g.save.coins==coin,
+                "Existing map Enter and walkable landing preserve rewards and flags");
+            GameCore reloaded=new GameCore(data,g.save);
+            Check(reloaded.save.version==2&&reloaded.OuterPatrolDone(1),
+                "Fast travel introduces no new save schema or unlock reset");
+
+            g.save.x=posts[1].x;g.save.y=posts[1].y;
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            g.Talk(posts[1]);
+            routes=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_routes");
+            g.Choose(routes);
+            // The safe outpost menu may remain open while a real raider
+            // arrives. Stale travel actions must be reauthenticated.
+            Enemy attacker=new Enemy(9111,0,posts[1].x+1f,posts[1].y,40f);
+            g.enemies.Add(attacker);
+            west=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_ring_0");
+            g.Choose(west);
+            Check(g.save.room==1&&g.save.coins==coin,
+                "An arriving enemy blocks cached route selections");
+            g.enemies.Clear();
+            g.mode="world";
+            // A forged/replayed link to a mission-locked region is not
+            // authorized by the old SaveData win flag alone.
+            var choose=typeof(GameCore).GetMethod("ChooseOuterPatrol",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Live gameplay owns a guarded route handler");
+            choose.Invoke(g,new object[]{"outer_watch_to_6"});
+            Check(g.save.room==1,
+                "Unsecured destination cannot bypass physical campaign travel");
+            g.save.flags.Add("outer_patrol_done_6");
+            choose.Invoke(g,new object[]{"outer_watch_to_6"});
+            Check(g.save.room==1,
+                "A won-but-locked region still cannot bypass its campaign entry");
+        }
+
+        public static void DefendedDesertAndHighlandPostsShelterAgainstActualWeather(Campaign data)
+        {
+            for(int room=6;room<=7;room++)
+            {
+                WorldObject post=Array.Find(data.maps[room].objects,
+                    o=>o.kind=="outerwatch");
+                Check(post!=null&&post.x>70f,
+                    "The field refuge is out on the real exposed regional ring");
+                GameCore g=new GameCore(data);g.mode="world";
+                g.save.room=room;g.save.x=post.x;g.save.y=post.y;
+                g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+                g.save.teaUntil=0f;
+                g.save.heat=room==6?65f:0f;
+                g.save.cold=room==7?65f:0f;
+                float initial=room==6?g.save.heat:g.save.cold;
+                g.save.flags.Add("outer_patrol_done_"+room);
+                Check(g.OuterPatrolRefuge,
+                    "Defended station offers physical local shelter");
+                g.Tick(.05f,new Point());
+                float cooled=room==6?g.save.heat:g.save.cold;
+                Check(cooled<initial,
+                    "Real safe outpost suppresses and reduces local heat/cold buildup");
+                // The shelter depends on a previously won v2 combat flag.
+                // Removing it re-exposes the desert/snow as before.
+                g.save.flags.Remove("outer_patrol_done_"+room);
+                if(room==6)g.save.heat=initial;
+                else g.save.cold=initial;
+                g.Tick(.05f,new Point());
+                float exposed=room==6?g.save.heat:g.save.cold;
+                Check(exposed>initial,
+                    "Undeveloped outpost has no free regional weather immunity");
+                // Existing combat-threat logic must also suppress refuge.
+                g.save.flags.Add("outer_patrol_done_"+room);
+                g.enemies.Add(new Enemy(8810,0,post.x+1f,post.y,30f));
+                Check(!g.OuterPatrolRefuge,
+                    "A true close raider reopens survival pressure even at a rescued post");
             }
         }
 
@@ -1361,6 +3921,77 @@ namespace Starfall.Tests
             Check(reserve.save.energy >= startEnergy + 8.4f &&
                 reserve.save.energy < startEnergy + 8.7f,
                 "Emergency-road charter adds +3 per second to real frame-by-frame stamina recovery");
+        }
+
+        public static void RidgeCrossingRejectsLiveEscortAndRemoteCombatThreats(Campaign data)
+        {
+            var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+            g.save.flags.Add("ridge_seen_0_0");
+            g.save.flags.Add("ridge_seen_0_1");
+            WorldObject north=Object(g,"ridgemarker");
+            WorldObject east=null,west=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.id=="ridge_route_0_0")east=o;
+                if(o.id=="ridge_route_0_1")west=o;
+            }
+            Check(north!=null&&east!=null&&west!=null&&g.RidgeLinked(0),
+                "Original linked ridge uses two distinct real map marker objects");
+            g.save.x=west.x;g.save.y=west.y;g.save.energy=95;
+            float energy=g.save.energy;
+            var choose=typeof(GameCore).GetMethod("ChooseRidge",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Original world crossing has an authoritative action handler");
+            var shot=new Projectile{position=new Point(east.x,east.y),
+                velocity=new Point(1,0),damage=8,life=12,friendly=false,source="shot"};
+            g.projectiles.Add(shot);
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
+                g.save.energy==energy,
+                "Incoming live enemy projectile at the destination forbids unsafe remote travel");
+            g.projectiles.Remove(shot);
+            var warning=new Hazard{position=new Point(east.x,east.y),
+                radius=1.2f,timer=4f,damage=15,kind="rift"};
+            g.hazards.Add(warning);
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
+                g.save.energy==energy,
+                "A still-armed delayed blast at the landing also blocks ridge travel");
+            g.hazards.Remove(warning);
+            var enemy=new Enemy(92921,0,east.x+1,east.y,70){timer=90};
+            g.enemies.Add(enemy);
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
+                g.save.energy==energy,
+                "An actual hostile defender at destination blocks shortcut traversal");
+            g.enemies.Clear();
+            choose.Invoke(g,new object[]{"ridge_travel"});
+            Check((g.Position-new Point(east.x,east.y)).Length<.01f&&
+                g.save.energy==energy-12,
+                "Once the far end is truly safe, the original paid crossing still works");
+
+            // A separate original Noll course is a genuine field mission,
+            // even when ordinary enemies and both ridge endpoints are safe.
+            var training=Fresh(data,0);training.Enter(0);training.enemies.Clear();
+            training.save.flags.Add("ridge_seen_0_0");
+            training.save.flags.Add("ridge_seen_0_1");
+            WorldObject forge=Object(training,"forge");
+            training.save.x=forge.x;training.save.y=forge.y;
+            Advance(training,1.1f);training.save.energy=100;
+            Action(training,"forge","swordlesson_start");
+            Check(training.SwordLessonActive,
+                "The actual blacksmith opens a timed class-only projectile lesson");
+            training.save.x=west.x;training.save.y=west.y;
+            energy=training.save.energy;
+            choose.Invoke(training,new object[]{"ridge_travel"});
+            Check(training.SwordLessonActive&&
+                (training.Position-new Point(west.x,west.y)).Length<.01f&&
+                training.save.energy==energy,
+                "Even a temporarily nearby shortcut cannot bypass or erase a running live training clock");
+            training.PrepareSave();var copy=new GameCore(data,CloneSave(training.save));
+            Check(copy.save.version==2&&copy.RidgeLinked(0)&&!copy.SwordLessonActive,
+                "SaveData v2 preserves the earned linked route without serializing timed drills");
         }
 
     }

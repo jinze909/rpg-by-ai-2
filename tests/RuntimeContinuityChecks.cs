@@ -82,6 +82,165 @@ public static class RuntimeContinuityChecks
         Prepare(app);ClearDraw();Call(app,"DrawProjectileVisual",new Projectile{position=app.Game.Position,velocity=new Point(12,0),friendly=true,visual="arrow"});Check(GUI.textureCalls.Count==1,"A newborn missile does not already have a full trail behind its bow");
         Console.WriteLine("PASS Fixed roots, independent canopy wind, common pixel grid, age-driven trails and contact-driven quiet footsteps (offline geometry/audio)");
     }
+
+    // Actual Frontier.unity runtime now paints grounded contact sprites in
+    // the world depth pass. Tests drive REAL GameCore walk distance/contacts,
+    // never a mocked free-running animation or save file modification.
+    static void GroundedMaterialFootfalls(FrontierRuntime app,string folder)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        Set(app,"camera",game.Position);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        var field=app.GetType().GetField("footfallMarks",Private);
+        Check(field!=null,"Material footfall scene producer missing");
+        var marks=(System.Collections.IList)field.GetValue(app);
+        Check(marks.Count==0,"Stationary actor generated phantom dust");
+        int initialContacts=game.footContacts;
+        for(int i=0;i<160;i++)
+        {
+            game.Tick(.02f,new Point(1,0));
+            Call(app,"AdvanceFootfallVisual",.02f);
+        }
+        Check(game.footContacts>initialContacts&&marks.Count>0&&
+              marks.Count<=12,
+            "Movement-driven world-footprint budget or GameCore contacts broken");
+        object drawn=marks[marks.Count-1];
+        var paintType=drawn.GetType();
+        var at=(Point)paintType.GetField("position",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        var surface=(string)paintType.GetField("surface",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        Check(surface=="grass"||surface=="stone"||surface=="sand"||
+              surface=="snow"||surface=="wood",
+            "Footsteps must use real terrain, not arbitrary visual variants");
+        ClearDraw();
+        Call(app,"DrawFootfallMark",drawn);
+        var calls=GUI.textureCalls.ToArray();
+        Check(calls.Length==1&&calls[0].texture.name==
+            "resource:Frontier/Art/Effects"&&calls[0].color.a>.005f&&
+            calls[0].color.a<=.45f,
+            "Paint source must remain low-alpha ORIGINAL accepted Effects.png");
+        float screenX=calls[0].rect.x, screenY=calls[0].rect.y;
+        // Prove the real Frontier.unity depth-sorted production traversal
+        // includes the SAME painted source cell. A direct DrawFootfallMark
+        // preview alone would not establish that the actual game draws it.
+        ClearDraw();
+        Call(app,"OnGUI");
+        int cell=(int)paintType.GetField("variant",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        bool mirrored=(bool)paintType.GetField("alternate",
+            BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn);
+        var worldContact=GUI.textureCalls.Find(c=>
+            c.texture.name=="resource:Frontier/Art/Effects"&&
+            Math.Abs(c.rect.width-(surface=="snow"?24f:26f))<.001f&&
+            Math.Abs(c.rect.height-(surface=="snow"?18f:13f))<.001f&&
+            Math.Abs(c.uv.x-(cell%4+(mirrored?1:0))/4f)<.00001f&&
+            Math.Abs(c.uv.width-(mirrored?-.25f:.25f))<.00001f&&
+            Math.Abs(c.uv.y-(1f-(cell/4+1)/4f))<.00001f);
+        Check(worldContact!=null,
+            "Accepted rooted footstep source omitted from real ordered world draw");
+        GUI.Export(folder,"review-integrated-world-footfalls");
+        Set(app,"camera",game.Position+new Point(1,0));
+        ClearDraw();Call(app,"DrawFootfallMark",drawn);
+        Check(GUI.textureCalls.Count==1&&
+            Math.Abs(GUI.textureCalls[0].rect.x-screenX+36f)<.01f&&
+            Math.Abs(GUI.textureCalls[0].rect.y-screenY)<.01f&&
+            ((Point)paintType.GetField("position",
+                BindingFlags.Instance|BindingFlags.NonPublic).GetValue(drawn)-at).Length<.001f,
+            "Dust must remain planted in the world while camera moves");
+        game.save.reducedMotion=true;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,"Reduced motion left fading ground ghosts behind");
+        ClearDraw();Call(app,"DrawFootfallMark",drawn);
+        Check(GUI.textureCalls.Count==0,
+            "Accessibility mode must suppress contact motion completely");
+        game.save.reducedMotion=false;
+        game.save.effectsQuality=0;
+        for(int i=0;i<80;i++)
+        {
+            game.Tick(.02f,new Point(1,0));
+            Call(app,"AdvanceFootfallVisual",.02f);
+        }
+        Check(marks.Count==0,"Low-effects mode incorrectly allocates VFX");
+        game.save.effectsQuality=2;
+        game.mode="pause";
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,"Paused menu must never retain dust sprites");
+        Console.WriteLine("PASS GameCore-driven terrain foot contacts, source-illustrated world sprites, planted camera root, FX budget, reduced motion and pause");
+    }
+
+
+    static void NonheroGroundContactTracking(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.effectsQuality=2;
+        game.save.reducedMotion=false;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        var field=app.GetType().GetField("footfallMarks",Private);
+        var marks=(System.Collections.IList)field.GetValue(app);
+        // Companion movement is measured from its own world position;
+        // merely toggling an Animator gait flag cannot generate dust.
+        game.save.companion=0;
+        game.companionPosition=new Point(12,14);
+        game.companionMoving=true;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        game.companionPosition=new Point(12.25f,14);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,"Companion foot animation spawned dust without a contact");
+        game.companionPosition=new Point(12.53f,14);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==1,"Companion failed to plant a real traveled footstep");
+        object buddy=marks[0];
+        var type=buddy.GetType();
+        var coord=type.GetField("position",Private);
+        var strength=type.GetField("intensity",Private);
+        Check(((Point)coord.GetValue(buddy)-game.companionPosition).Length<.001f&&
+            Math.Abs((float)strength.GetValue(buddy)-.84f)<.001f,
+            "Companion planted contact at protagonist instead of own boots");
+        game.companionMoving=false;
+        game.companionPosition=new Point(13.12f,14);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==1,
+            "Stopped companion spawned a phantom gait/teleport footstep");
+        // Newly spawned two enemies with identical numeric IDs must own
+        // separate weak-keyed travel histories and real world anchors.
+        var first=new Enemy(99955,0,14,14,100){moving=true};
+        var second=new Enemy(99955,2,18,14,100){moving=true};
+        game.enemies.Clear();
+        game.enemies.Add(first);game.enemies.Add(second);
+        Call(app,"AdvanceFootfallVisual",.02f);
+        first.x+=.25f;second.x+=.24f;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==1,"Enemy pre-contact falsely displayed gait dust");
+        first.x+=.24f;second.x+=.24f;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==3,
+            "Different enemies with matching numeric ID shared contact history");
+        int x0=0,x1=0;
+        foreach(object mark in marks)
+        {
+            Point position=(Point)coord.GetValue(mark);
+            if((position-first.Position).Length<.001f)x0++;
+            if((position-second.Position).Length<.001f)x1++;
+        }
+        Check(x0==1&&x1==1,
+            "Enemy marks must remain at individual source feet");
+        first.state=1;first.x+=.52f;
+        second.hp=0f;second.x+=.52f;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==3,
+            "Boss windup or corpse generated extra decorative steps");
+        game.save.reducedMotion=true;
+        Call(app,"AdvanceFootfallVisual",.02f);
+        Check(marks.Count==0,
+            "Reduced motion must clear ALL enemy and companion contact FX");
+        Console.WriteLine("PASS world-rooted moving companion and two same-ID enemies, no idle/windup/death ghosts, correct anchors and accessibility");
+    }
+
     static void HudReadability(FrontierRuntime app,string folder)
     {
         Point[] pixels={new Point(220,100),new Point(1210,90),new Point(470,775),new Point(620,85),new Point(180,159)};
@@ -251,7 +410,7 @@ public static class RuntimeContinuityChecks
     }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }

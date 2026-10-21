@@ -13,7 +13,12 @@ namespace UnityEngine
     public class Object
     {
         public string name;
-        public static void Destroy(Object value) { }
+        // Native-conditional probe only: track Destroy ownership so LRU
+        // tests can distinguish a retired Sprite.Create wrapper from a
+        // Unity-owned imported Resources Sprite, without running the Editor.
+        public bool destroyed;
+        public static void Destroy(Object value)
+        { if (value != null) value.destroyed = true; }
         // Unity gives every live atlas its own instance identity. Returning
         // a constant hid real cache collisions in multi-atlas probes.
         private static int nextInstanceId;
@@ -37,6 +42,8 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component, new()
         {
             T component = new T();
+            // Unity Components share the GameObject Transform.
+            component.transform = transform;
             var sprite = component as SpriteRenderer;
             if (sprite != null) attachedSprite = sprite;
             var animator = component as Animator;
@@ -47,7 +54,16 @@ namespace UnityEngine
     public class Transform
     {
         public Vector3 position, localPosition, localScale;
+        public Quaternion localRotation;
         public void SetParent(Transform target, bool preserveWorldPosition) { }
+    }
+    public struct Quaternion
+    {
+        // This offline probe only models the z-axis tilt, not Unity geometry.
+        public float zAngle;
+        public static Quaternion identity { get { return new Quaternion(); } }
+        public static Quaternion Euler(float x,float y,float z)
+        { return new Quaternion { zAngle=z }; }
     }
     public struct Vector2
     {
@@ -70,6 +86,7 @@ namespace UnityEngine
         public float r,g,b,a;
         public Color(float r,float g,float b,float a=1f)
         {this.r=r;this.g=g;this.b=b;this.a=a;}
+        public static Color white { get { return new Color(1f,1f,1f,1f); } }
     }
     public struct Rect
     {
@@ -84,7 +101,13 @@ namespace UnityEngine
     public enum SpriteMeshType { FullRect }
     public enum RenderTextureFormat { ARGB32 }
     public enum CameraClearFlags { SolidColor }
-    public class Texture : Object { }
+    public class Texture : Object
+    {
+        // Unity 2022.3 exposes the source upload revision on Texture.
+        // Simulate a same-object Apply/reimport without replacing Sprites.
+        public uint updateCount { get; private set; }
+        public void IncrementUpdateCount() { updateCount++; }
+    }
     public class Texture2D : Texture
     {
         public int width,height;
@@ -106,7 +129,10 @@ namespace UnityEngine
         public static Sprite Create(Texture2D texture,Rect rect,Vector2 pivot,
             float pixelsPerUnit,uint extrude,SpriteMeshType meshType)
         {
-            return new Sprite { texture=texture,rect=rect,pivot=pivot,
+            // Unity accepts NORMALIZED Sprite.Create pivots but exposes
+            // Sprite.pivot in source PIXELS, not 0..1 coordinates.
+            return new Sprite { texture=texture,rect=rect,
+                pivot=new Vector2(pivot.x*rect.width,pivot.y*rect.height),
                 pixelsPerUnit=pixelsPerUnit };
         }
     }
@@ -119,14 +145,28 @@ namespace UnityEngine
         public readonly int width,height;
         public RenderTexture(int width,int height,int depth,RenderTextureFormat format)
         { this.width=width; this.height=height; }
+        public static bool InjectCreateFailureOnce;
         public bool IsCreated() { return created; }
-        public void Create() { created=true; }
+        public bool Create()
+        {
+            // Unity's bool-returning RenderTexture.Create can reject GPU
+            // allocation without throwing. Model that real failure signal.
+            if (InjectCreateFailureOnce)
+            {
+                InjectCreateFailureOnce=false;
+                created=false;
+                return false;
+            }
+            created=true;
+            return true;
+        }
         public void Release() { created=false; releaseCount++; }
     }
     public class Behaviour : Component { public bool enabled; }
     public class SpriteRenderer : Behaviour
     {
         public Sprite sprite;
+        public Color color;
         public bool flipX;
         public int sortingOrder;
     }
@@ -143,6 +183,8 @@ namespace UnityEngine
         public float lastNormalizedSample;
         public int sampleCount;
         public static bool InjectWrongSpriteOnce;
+        public static bool InjectOverscaledHeroOnce;
+        public static bool InjectRotatedFadedHeroOnce;
         private int action, facing, pose;
         private static readonly string[] Actions =
             { "Idle","Run","Attack","Cast","Dodge","Hit","Death" };
@@ -195,6 +237,22 @@ namespace UnityEngine
                 else targetRenderer.sprite=actorFrames[selected];
                 return;
             }
+            if(InjectOverscaledHeroOnce)
+            {
+                InjectOverscaledHeroOnce=false;
+                targetRenderer.transform.localScale =
+                    new Vector3(1.8f,1.8f,1f);
+            }
+            if(InjectRotatedFadedHeroOnce)
+            {
+                InjectRotatedFadedHeroOnce=false;
+                targetRenderer.transform.localRotation=Quaternion.Euler(0f,0f,42f);
+                // A stale m_LocalPosition curve shifts the REAL source
+                // feet without changing either imported Sprite or pivot.
+                targetRenderer.transform.localPosition=
+                    new Vector3(1.5f,2.75f,-.3f);
+                targetRenderer.color=new Color(.3f,.6f,.1f,.15f);
+            }
             string key="Frontier/HeroAnimator/Canonical/Hero_"+
                 runtimeAnimatorController.className+"_"+Actions[action]+"_"+
                 Faces[facing];
@@ -208,7 +266,7 @@ namespace UnityEngine
                 InjectWrongSpriteOnce=false;
                 targetRenderer.sprite=Sprite.Create(
                     new Texture2D(256,256,TextureFormat.RGBA32,false),
-                    new Rect(0,0,256,256),new Vector2(128,16),128f,0,
+                    new Rect(0,0,256,256),new Vector2(.5f,.0625f),128f,0,
                     SpriteMeshType.FullRect);
             }
             else targetRenderer.sprite=frames[slot];
@@ -242,6 +300,9 @@ namespace UnityEngine
             new Dictionary<string,Object>();
         public static readonly Dictionary<string,Sprite[]> RegisteredSprites =
             new Dictionary<string,Sprite[]>();
+        // Count actual import scans separately from native-Animator samples.
+        public static readonly Dictionary<string,int> LoadAllCounts =
+            new Dictionary<string,int>();
         public static T Load<T>(string path) where T : Object
         {
             Object found;
@@ -249,6 +310,9 @@ namespace UnityEngine
         }
         public static T[] LoadAll<T>(string path) where T : Object
         {
+            int calls;
+            LoadAllCounts.TryGetValue(path,out calls);
+            LoadAllCounts[path]=calls+1;
             Sprite[] sprites;
             if(typeof(T)==typeof(Sprite) &&
                 RegisteredSprites.TryGetValue(path,out sprites))
@@ -267,8 +331,10 @@ namespace UnityEngine
         public static Color color;
         public static readonly List<Texture> DrawnTextures =
             new List<Texture>();
+        public static readonly List<Rect> DrawnRects =
+            new List<Rect>();
         public static void DrawTexture(Rect target,Texture image)
-        { DrawnTextures.Add(image); }
+        { DrawnTextures.Add(image); DrawnRects.Add(target); }
     }
     public static class Time { public static int frameCount; }
     public static class Mathf
@@ -295,11 +361,33 @@ namespace Starfall
     {
         public float x,y;
         public Point(float x,float y){this.x=x;this.y=y;}
+        public float Length { get { return (float)Math.Sqrt(x*x+y*y); } }
+        public static Point operator -(Point a,Point b)
+        { return new Point(a.x-b.x,a.y-b.y); }
+    }
+    public sealed class NativeProbeSave
+    {
+        public int room;
+        public bool reducedMotion;
+    }
+    public sealed class ActorAction
+    {
+        public string kind;
+        public bool released, blockedAtContact;
     }
     public class GameCore
     {
+        public ActorAction playerAction;
+        public bool Dying;
+        public int PlayerPose;
         public int AppearanceWeapon;
         public string mode="world";
+        public NativeProbeSave save=new NativeProbeSave();
+        public Point Position;
+        // The real GameCore derives its facing from aim, movement, live
+        // action and Hit snapshots; the compile-only probe exposes the
+        // required API without implementing or simulating that gameplay.
+        public Point VisualFacing;
     }
     // Real FrontierRuntime is a multi-file partial; provide only members
     // defined elsewhere, never fake the new native capture method.

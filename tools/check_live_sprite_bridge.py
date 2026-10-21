@@ -18,6 +18,33 @@ def check():
     engine = (RUNTIME / "FrontierHeroSpriteCapture.cs").read_text()
     compositor = (RUNTIME / "CanonicalHeroSpriteFactory.cs").read_text()
     actor = (RUNTIME / "FrontierActors.cs").read_text()
+    enemy_visuals = (RUNTIME / "FrontierEnemyAtlasHandoff.cs").read_text()
+    def check_stop_plant_quality_contract(source):
+        match = re.search(
+            r"bool quietIdle=pose==0&&finiteClock&&(?P<gate>[^;]+);",
+            source, re.S)
+        assert match, "ENEMY_STOP_PLANT_QUIET_IDLE_GATE_MISSING"
+        gate = match.group("gate")
+        assert "!Game.save.reducedMotion" in gate, (
+            "STOP_PLANT_MUST_RESPECT_REDUCED_MOTION")
+        assert "effectsQuality" not in gate, (
+            "STOP_PLANT_IS_CORE_LOCOMOTION_NOT_OPTIONAL_VFX")
+    check_stop_plant_quality_contract(enemy_visuals)
+    corrupted_stop_plant_prefix = enemy_visuals.replace(
+        "!Game.Dying&&enemy.hp>0f",
+        "Game.save.effectsQuality>0&&!Game.Dying&&enemy.hp>0f", 1)
+    corrupted_stop_plant_suffix = enemy_visuals.replace(
+        "!Game.Dying&&enemy.hp>0f",
+        "!Game.Dying&&Game.save.effectsQuality>0&&enemy.hp>0f", 1)
+    for corrupted_stop_plant in (
+            corrupted_stop_plant_prefix, corrupted_stop_plant_suffix):
+        try:
+            check_stop_plant_quality_contract(corrupted_stop_plant)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError(
+                "UNSAFE_VISUAL_CI: effects quality can disable the enemy stop-plant")
     game = (RUNTIME / "FrontierRuntime.cs").read_text()
     editor = (ROOT / "Assets/Scripts/Frontier/Editor/StarfallHeroAnimatorBuilder.cs").read_text()
     native = (ROOT / "Assets/Scripts/Frontier/Editor/StarfallCanonicalHeroProductionBuilder.cs").read_text()
@@ -117,20 +144,27 @@ def check():
     def audit_hidden_gait(core_code, locomotion_code):
         assert "walkDistance = 0f;" in core_code, (
             "HERO_ACTION_STARTS_WITH_OLD_STRIDE")
-        section = locomotion_code.split("bool translating = actual.Length")[1]
-        section = section.split("private void MoveAttackStep")[0]
-        assert "if (playerAction == null)" in section, (
-            "INVISIBLE_WALK_FRAMES_ADVANCE_DURING_ATTACK_RECOVERY")
-        assert "walkDistance += actual.Length;" in section
-        assert "footContacts +=" in section
-        assert "if (playerAction == null || PlayerPhase == ActionPhase.Recovery)" not in section
+        section = locomotion_code.split("private void TickMovement(", 1)[1]
+        section = section.split("private void MoveAttackStep(", 1)[0]
+        compact = re.sub(r"\s+", "", section)
+        # Real recoil and input displacement are separate now. The actual
+        # walking phase MUST sample input-only 'walking', never the recoil
+        # delta, and may only advance inside the null-action guard.
+        assert "movementDirection=walking;" in compact, (
+            "HERO_RECOIL_MUST_NOT_BECOME_RUNNING_GAIT")
+        assert re.search(
+            r"if\s*\(\s*playerAction\s*==\s*null\s*\)\s*"
+            r"\{\s*int before.*?walkDistance\s*\+=\s*walking\.Length;",
+            section, re.S), "INVISIBLE_WALK_FRAMES_ADVANCE_DURING_ATTACK_RECOVERY"
+        assert "footContacts+=" in compact
+        assert "if(playerAction==null||PlayerPhase==ActionPhase.Recovery)" not in compact
     audit_hidden_gait(core, continuity)
     for code, locomotion_code in (
         (core.replace("walkDistance = 0f;", "walkDistance = walkDistance;", 1),
          continuity),
         (core, continuity.replace(
-            "if (playerAction == null)\n                {",
-            "if (playerAction == null || PlayerPhase == ActionPhase.Recovery)\n                {", 1)),
+            "if(playerAction==null)\n                {",
+            "if(playerAction==null||PlayerPhase==ActionPhase.Recovery)\n                {", 1)),
     ):
         try:
             audit_hidden_gait(code, locomotion_code)
@@ -138,10 +172,84 @@ def check():
             pass
         else:
             raise AssertionError("UNSAFE_VISUAL_CI: invisible moving attack gait accepted")
+    # Static ground tiles are NOT characters. The world renderer must not
+    # allocate a SpriteRenderer/RenderTexture for every scattered 23px tuft;
+    # original UVs render directly while dynamic bosses/NPCs/companions
+    # still require the whole-body native actor path.
+    environment = (RUNTIME / "FrontierEnvironment.cs").read_text()
+    ground = environment.split("private void DrawGroundDetail(")[1]
+    ground = ground.split("private void DrawRootedPlant(")[0]
+    assert "Atlas(detailSheet,4,4,id,sourceBounds," in ground, (
+        "GROUND_DETAIL_LOST_DIRECT_SOURCE_ATLAS_PATH")
+    assert "if(drawingOutline)" in ground and (
+        "Actor(detailSheet,4,4,id,foot,size," in ground), (
+        "GROUND_DETAIL_OUTLINE_MASK_FALLBACK_LOST")
+    assert ground.index("Actor(detailSheet,4,4,id,foot,size,") < (
+        ground.index("Atlas(detailSheet,4,4,id,sourceBounds,")), (
+        "GROUND_LITTER_USES_NATIVE_ACTOR_GPU_CAPTURE_IN_WORLD_PATH")
+    assert "GuiGeometry.RotateAroundPivot(canvas," in ground and (
+        "groundFoliageSwayDegrees" in ground), (
+        "LIVING_GROUND_FOLIAGE_LOST_ROOTED_WIND")
+    # Environment-only still props (including 9 planted herbs per garden)
+    # must not allocate an offscreen actor GPU RenderTexture per static tile.
+    props = environment.split("private bool DrawFieldProp(")[1]
+    assert "DrawStaticFieldSprite(fieldProps,id,foot," in props
+    assert "DrawStaticFieldSprite(detailSheet,id,foot," in props
+    assert "DrawStaticFieldSprite(fieldProps,6," in props
+    assert "Actor(fieldProps," not in props and "Actor(detailSheet," not in props, (
+        "STATIC_SCENERY_REENTERED_ACTOR_GPU_CAPTURE")
+    painter = environment.split("private void DrawStaticFieldSprite(")[1]
+    painter = painter.split("private bool DrawFieldProp(")[0]
+    assert "if(drawingOutline)" in painter and (
+        "Actor(sheet,4,4,id,foot,size,tint);" in painter), (
+        "STATIC_PROP_OUTLINE_CONTOUR_GUARD_REMOVED")
+    assert "Atlas(sheet,4,4,id,new Rect(foot.x-size*.5f," in painter and (
+        "foot.y-size*120f/128f,size,size" in painter), (
+        "STATIC_PROP_ORIGINAL_ATLAS_FOOT_REGISTRATION_LOST")
     # Native PlayMode contract must target Frontier.unity, not only a
     # preview prefab or a spare SpriteRenderer. Native runner remains
     # NATIVE_UNVERIFIED until Unity 2022.3 actually executes these checks.
     native_qa = (ROOT / "Assets/Tests/PlayMode/VisualPlayModeTests.cs").read_text()
+    native_probe = (ROOT / "Assets/Tests/PlayMode/NativeActorGameViewProbe.cs").read_text()
+    def check_native_stop_plant_scene_contract(source, probe):
+        required_source = (
+            'string[] sources={"WalkMonsters","WalkBossA","MossboundRaider",',
+            'int[] columns={4,4,4,4,4,4,4,3},rows={3,4,6,6,18,8,4,4};',
+            'new[]{0,4,6,columns[family]*rows[family]-1}',
+            'Assert.AreSame(sprite,probe.capturedSprite,',
+            'Assert.AreEqual(atlas.height-',
+            'Assert.IsFalse(probe.capturedFlip,',
+        )
+        for item in required_source:
+            assert item in source, ("NATIVE_STOP_PLANT_SCENE_COVERAGE_LOST", item)
+        required_probe = (
+            "public int columns,rows,frame;",
+            "public bool flip;",
+            "public Sprite capturedSprite;",
+            "public bool capturedFlip;",
+            "frame,new Point(128,128)",
+            "capturedSprite=renderer.sprite;",
+            "capturedFlip=renderer.flipX;",
+        )
+        for item in required_probe:
+            assert item in probe, ("NATIVE_STOP_PLANT_GAMEVIEW_PROBE_LOST", item)
+    nonhero_start = native_qa.index(
+        "public IEnumerator RealFrontierSceneRendersNonheroWholeBodyPixels()")
+    nonhero_end = native_qa.index(
+        "public IEnumerator NativeWalkingAndPlantedAttackTransitions()", nonhero_start)
+    native_nonhero_scene = native_qa[nonhero_start:nonhero_end]
+    check_native_stop_plant_scene_contract(native_nonhero_scene, native_probe)
+    for item in ('"WalkMonsters","WalkBossA"',
+                 'new[]{0,4,6,columns[family]*rows[family]-1}',
+                 'Assert.AreSame(sprite,probe.capturedSprite,'):
+        try:
+            check_native_stop_plant_scene_contract(
+                native_nonhero_scene.replace(item, "/* corrupted stop-plant QA */", 1),
+                native_probe)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("UNSAFE_CI: native stop-plant frame coverage removed")
     def check_native_scene_contract(source):
         required = (
             "ProductionFrontierSceneUsesTheLiveThreeClassHeroPath",
@@ -157,6 +265,58 @@ def check():
             assert item in source, ("NATIVE_PRODUCTION_SCENE_COVERAGE_LOST",item)
         assert "Assert.Ignore(" not in source, (
             "NATIVE_ANIMATOR_MISSING_MUST_NOT_BE_IGNORED")
+    # The production scene must explicitly serialize the runtime, not rely
+    # solely on RuntimeInitializeOnLoadMethod to create a hidden bootstrap.
+    production_scene = (ROOT / "Assets/Scenes/Frontier.unity").read_text()
+    def check_production_scene_wiring(source):
+        required_scene = (
+            "m_Name: Starfall Frontier Runtime",
+            "guid: 16d54181515d5dd1ab56d8585bf2b304",
+            "useSpriteRendererHero: 1",
+            "useSpriteRendererActors: 1",
+            "- {fileID: 740000002}",
+        )
+        for item in required_scene:
+            assert item in source, ("FRONTIER_SCENE_RUNTIME_WIRING_MISSING", item)
+    check_production_scene_wiring(production_scene)
+    for item in ("m_Name: Starfall Frontier Runtime",
+                 "useSpriteRendererHero: 1",
+                 "useSpriteRendererActors: 1"):
+        try:
+            check_production_scene_wiring(
+                production_scene.replace(item, "/* removed production scene wiring */", 1))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError(
+                "UNSAFE_VISUAL_CI: missing serialized Frontier production runtime accepted")
+    def check_single_frontier_runtime_contract(source):
+        names = (
+            "ProductionFrontierSceneUsesTheLiveThreeClassHeroPath",
+            "ActualFrontierSceneAttackAndSkillContactFramesKeepOneBody",
+            "RealFrontierSceneRendersNonheroWholeBodyPixels",
+        )
+        for name in names:
+            start = source.index("public IEnumerator " + name + "()")
+            next_test = source.find("public IEnumerator ", start + 1)
+            method = source[start:] if next_test < 0 else source[start:next_test]
+            assert "var runtimes = Object.FindObjectsOfType<FrontierRuntime>();" in method, (
+                "FRONTIER_SCENE_RUNTIME_COUNT_NOT_CHECKED", name)
+            assert "Assert.AreEqual(1, runtimes.Length," in method, (
+                "FRONTIER_SCENE_DUPLICATE_RUNTIME_NOT_REJECTED", name)
+            assert "app = runtimes[0];" in method, (
+                "FRONTIER_SCENE_RUNTIME_LOOKUP_NOT_FROM_VERIFIED_SET", name)
+    check_single_frontier_runtime_contract(native_qa)
+    corrupted_runtime_count = native_qa.replace(
+        "Assert.AreEqual(1, runtimes.Length,",
+        "Assert.AreEqual(0, runtimes.Length,", 1)
+    try:
+        check_single_frontier_runtime_contract(corrupted_runtime_count)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(
+            "UNSAFE_VISUAL_CI: duplicate Frontier runtime bootstrap would be accepted")
     # Imported Animator missing must hard-fail in its own separate native
     # clip test, which lives OUTSIDE the production idle-scene method.
     assert "Native Animator MISSING: production PlayMode must FAIL" in native_qa
@@ -392,9 +552,28 @@ def check():
         assert "Actor(original" not in fallback
         assert "Actor(source" not in preview
         assert '"Hero_"+FullHeroClasses[profession]+"_Idle_S"' in preview
-        assert "Resources.Load<Texture2D>" in preview
-        assert capture.count("heroCaptureRenderer.sprite=canonical;") == 2, (
-            "BOTH_NATIVE_CLIP_AND_DIRECT_FRAME_MUST_BIND_SAME_CANONICAL_BODY")
+        # The whole-body world fallback and the inventory MUST share
+        # one validated reimport-aware resource reader. Requiring a direct
+        # Resources.Load within the preview itself falsely rejected safe
+        # centralization and could not catch stale cached player costumes.
+        reader=actor_code[actor_code.index("private Texture2D PublishedFullBodyHeroAtlas("):
+                          actor_code.index("private bool ResolveFullBodyHeroFrame(")]
+        assert "PublishedFullBodyHeroAtlas(key,1)" in preview
+        assert "PublishedFullBodyHeroAtlas(key,frames)" in fallback
+        assert "PublishedFullBodyHeroAtlas(idleKey,1)" in fallback
+        assert 'Resources.Load<Texture2D>' in reader
+        assert '"Frontier/HeroAnimator/Canonical/"+key' in reader
+        assert 'candidate.width==expectedWidth' in reader
+        assert 'candidate.height==256' in reader
+        assert "fullBodyHeroSheetCache[key]=candidate;" in reader
+        assert "fullBodyHeroRecheckAt[key]=clock+2.5f;" in reader
+        # Three disjoint production paths must source the SAME verified
+        # canonical body: invalid-clip rejection, verified Animator sampling,
+        # and direct Controller-unavailable fallback. This third binding
+        # closes a real hot-import race where a single same-rect new Sprite
+        # could bypass whole-family validation and repaint the pending GPU.
+        assert capture.count("heroCaptureRenderer.sprite=canonical;") == 3, (
+            "ALL_THREE_NATIVE_OUTCOMES_MUST_BIND_VALIDATED_CANONICAL_BODY")
         assert "if(available)" in capture
         assert "if(!TryUsePublishedHeroFrame(equipment,0,facing," in capture
         assert "HeroSpriteMatchesPublishedFrame(" in capture
@@ -428,6 +607,12 @@ def check():
          actor,engine.replace(
              "heroPublishedUnavailable.Remove(key);",
              "/* permanent-missing */",1),core),
+        ("accept_truncated_hot_import",
+         actor.replace("candidate.width==expectedWidth",
+             "candidate.width>0",1),engine,core),
+        ("disconnect_preview_from_canonical_reader",
+         actor.replace("PublishedFullBodyHeroAtlas(key,1)",
+             "LoadOldUnreviewedAvatar(key)",1),engine,core),
     ):
         try:
             check_combat_identity(corrupt_actor,corrupt_engine,corrupt_core)
@@ -455,12 +640,23 @@ def check():
         "heroCaptureRenderer.sprite=canonical;",
         "heroRejectedNativeClips.Clear()",
         "bool recentlyRejected =",
-        "bool nativeReady=available && !recentlyRejected &&",
-        "TryUseProductionHeroClip(facing);",
-        "heroControllerRetryAt = Time.frameCount + 120;",
+        "bool nativeReady=available &&",
+        "!heroPublishedIncomplete.Contains(",
+        "HeroLiveProfessions[equipment]",
+        "HeroLiveActions[action]",
+        "HeroLiveFacings[facing]",
+        "!recentlyRejected && TryUseProductionHeroClip(facing);",
+        "heroPublishedIncomplete.Add(key);",
+        "heroPublishedIncomplete.Remove(key);",
+        "heroPublishedRecheckAt[key]=Time.frameCount+180;",
+        "heroOwnedPublishedSprites.Remove(old)",
+        "heroControllerRetryAt=Time.frameCount+",
+        "(heroProductionReady?180:120);",
+        "if(controller!=null)",
+        "if(heroProductionReady)",
         "Time.frameCount >= heroControllerRetryAt",
         "heroCaptureAnimator.runtimeAnimatorController = null;",
-        "heroProductionReady = controller != null;",
+        "heroProductionReady=true;",
     ]:
         assert mark in engine, "Missing native Animator pixel-parity fallback: " + mark
     assert "bool available=TryUsePublishedHeroFrame(equipment,action," in engine
@@ -597,7 +793,8 @@ def check():
         "Production hero must default to unified SpriteRenderer; F8 opt-out retained")
     assert "if(!useSpriteRendererHero||drawingOutline||" in engine
     assert "if(heroCaptureBroken)" in engine
-    assert "if(Time.frameCount < heroCaptureRetryAt)return false;" in engine
+    assert "if(Time.frameCount < heroCaptureRetryAt &&" in engine
+    assert "Time.frameCount >= heroCaptureRetryAt-120)return false;" in engine
     assert "heroCaptureRetryAt = Time.frameCount + 120;" in engine
     assert "if(!captured)" in actor and "DrawWholeBodyHeroOnGUI" in actor
     assert "KeyCode.F8" in game and "else ReleaseHeroCapture();" in game

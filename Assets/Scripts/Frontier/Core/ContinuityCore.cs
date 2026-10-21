@@ -87,60 +87,78 @@ namespace Starfall
         { if (Finite(direction.x) && Finite(direction.y) && direction.Length > .05f) aim = direction.Normalized; }
         private void ResetContinuity()
         { walkDistance = gateOpeningTime = 0; footContacts = 0; locomotionFacing = aim; aimTarget=null; }
-        private void TickMovement(float dt, Point movement, Point? explicitAim)
+        private void TickMovement(float dt, Point movement, Point? explicitAim,
+            float hitLockedDt)
         {
-            Point start = Position; bool wasDashing = dashTime > 0;
-            if (explicitAim.HasValue) SetAim(explicitAim.Value);
-            else if (movement.Length > .1f && (playerAction == null || PlayerPhase == ActionPhase.Recovery)) SetAim(movement);
-            if (dashTime > 0)
+            Point start=Position;
+            bool wasDashing=dashTime>0;
+            if(explicitAim.HasValue)SetAim(explicitAim.Value);
+            else if(movement.Length>.1f &&
+                (playerAction==null||PlayerPhase==ActionPhase.Recovery))
+                SetAim(movement);
+
+            Point movementStart=start;
+            if(dashTime>0)
             {
-                // Consume only the remaining dash interval: a coarse final tick
-                // must not add extra travel beyond the authored 0.18 seconds.
-                float dashStep = Math.Min(dt, dashTime);
-                dashTime = Math.Max(0, dashTime - dt);
-                // Avoid a phantom sub-microsecond dash tick from float rounding:
-                // the final visible translation must also finish the dodge.
-                if (dashTime < .00001f) dashTime = 0;
-                Move(dashDirection * dashStep * 15);
+                // Use only the remaining dash interval on the final frame.
+                float dashStep=Math.Min(dt,dashTime);
+                dashTime=Math.Max(0f,dashTime-dt);
+                if(dashTime<.00001f)dashTime=0f;
+                Move(dashDirection*dashStep*15f);
             }
-            else if (playerHitTime > 0) Move(playerRecoil * dt * recoilSpeed);
             else
             {
-                MobilityRule mobility = PlayerMobility;
-                if (mobility == MobilityRule.Full || mobility == MobilityRule.Reduced) Move(movement * dt * Speed * (mobility == MobilityRule.Reduced ? .7f : 1));
-                if (mobility == MobilityRule.AttackMovement)
+                // Hit recoil and player control are disjoint slices of the
+                // SAME frame. Previous TickVisuals consumed the hit timer
+                // first, granting an unearned entire tick of walking/swing
+                // and suppressing the last frame of actual knockback.
+                float locked=Math.Min(dt,Math.Max(0f,hitLockedDt));
+                if(locked>0f)
+                    Move(playerRecoil*locked*recoilSpeed);
+                movementStart=Position;
+                float freeDt=dt-locked;
+                if(freeDt>.000001f)
                 {
-                    ActorAction a = playerAction;
-                    // The authored sword contact moves the body forward. Sweep
-                    // every step; it cannot cross gates, trees or wall corners.
-                    float previous = Clamp(a.elapsed / Math.Max(.01f, a.contact), 0, 1);
-                    float next = Clamp((a.elapsed + dt) / Math.Max(.01f, a.contact), 0, 1);
-                    float step = (a.kind == "skill" ? .45f : a.combo == 2 ? .42f : .34f) * (next * next - previous * previous);
-                    MoveAttackStep(a.direction * step);
+                    MobilityRule mobility=PlayerMobility;
+                    if(mobility==MobilityRule.Full||
+                       mobility==MobilityRule.Reduced)
+                        Move(movement*freeDt*Speed*
+                            (mobility==MobilityRule.Reduced?.7f:1f));
+                    if(mobility==MobilityRule.AttackMovement)
+                    {
+                        ActorAction action=playerAction;
+                        float previous=Clamp(action.elapsed/
+                            Math.Max(.01f,action.contact),0,1);
+                        float next=Clamp((action.elapsed+freeDt)/
+                            Math.Max(.01f,action.contact),0,1);
+                        float stride=(action.kind=="skill"?.45f:
+                            action.combo==2?.42f:.34f)*
+                            (next*next-previous*previous);
+                        MoveAttackStep(action.direction*stride);
+                    }
                 }
             }
-            Point actual = Position - start;
-            movementDirection = actual;
-            // The final dodge tick still draws moving legs after dashTime reaches zero.
-            // Carry the dodge heading into that frame instead of an older walk heading.
-            if (wasDashing && dashTime <= 0 && actual.Length > .001f)
-                locomotionFacing = dashDirection;
-            bool translating = actual.Length > .001f && !wasDashing &&
-                playerHitTime <= 0 && (playerAction == null ||
-                PlayerPhase == ActionPhase.Recovery);
-            if (translating)
+            Point actual=Position-start;
+            // Only input-driven translation is locomotion. A final recoil
+            // sample may move the world root, but must not make the hero
+            // snap into Run, change walk facing or invent a footstep.
+            Point walking=wasDashing?actual:Position-movementStart;
+            movementDirection=walking;
+            if(wasDashing&&dashTime<=0f&&actual.Length>.001f)
+                locomotionFacing=dashDirection;
+            bool translating=walking.Length>.001f&&!wasDashing&&
+                playerHitTime<=0f&&(playerAction==null||
+                    PlayerPhase==ActionPhase.Recovery);
+            if(translating)
             {
-                // The *world root* can move during recovery while the complete
-                // authored Attack/Cast body stays visibly planted. Do NOT
-                // advance an INVISIBLE Run animation or emit footsteps from
-                // unanimated legs; that phase previously reappeared suddenly
-                // at an arbitrary foot position when the action ended.
-                locomotionFacing = actual.Normalized;
-                if (playerAction == null)
+                locomotionFacing=walking.Normalized;
+                if(playerAction==null)
                 {
-                    int before = (int)Math.Floor(walkDistance / (WalkStride / 2));
-                    walkDistance += actual.Length;
-                    footContacts += (int)Math.Floor(walkDistance / (WalkStride / 2)) - before;
+                    int before=(int)Math.Floor(
+                        walkDistance/(WalkStride/2f));
+                    walkDistance+=walking.Length;
+                    footContacts+=(int)Math.Floor(
+                        walkDistance/(WalkStride/2f))-before;
                 }
             }
         }
@@ -170,22 +188,51 @@ namespace Starfall
         }
         public static float WeaponHeight(int weapon, Point direction)
         { return DirectionRow(direction) == 0 ? weapon == 1 ? 36 : 35 : DirectionRow(direction) == 1 ? weapon == 1 ? 35 : 65 : weapon == 1 ? 32 : 82; }
+        // A public hearth/field refuge is a physical service, not a
+        // radius-only global buff through a wall. Share E's near-side
+        // .55-tile endpoint margin so authored wall-mounted instruments
+        // still work when approached from their actual usable side.
+        private bool PhysicalRefugeReach(Point site,float radius)
+        {
+            Point delta=site-Position;
+            float distance=delta.Length;
+            if(distance>=radius)return false;
+            Point contact=distance>.55f?
+                site-delta.Normalized*.55f:Position;
+            return ClearAttackPath(Position,contact);
+        }
         public static float BossEmissionHeight(int room)
         { return room==1?64:room==2?68:room==3?80:room==4?72:room==5?50:room==6?94:room==7?78:102; }
         public static Point AimFromWeapon(Point feet,int weapon,Point target)
         { Point direction=(target-feet).Normalized;return (target-WeaponOrigin(feet,weapon,direction)).Normalized; }
         private Projectile WeaponShot(Point feet, int weapon, Point direction, float speed, float damage, Point? target=null)
         {
-            var shot = new Projectile { position = feet, velocity = direction.Normalized * speed, damage = damage, height = WeaponHeight(weapon, direction) };
+            var shot = new Projectile { position = feet, velocity = direction.Normalized * speed, damage = damage,
+                height = WeaponHeight(weapon, direction),
+                // Select the actual collision radius before muzzle sweep,
+                // instead of treating every not-yet-named projectile as a
+                // point and making the arrow head overlap solid scenery.
+                visual = weapon == 1 ? "arrow" : "starfire" };
             shot.launchHeight=shot.height;shot.flightHeight=weapon==2?39:shot.height;
             Point attachment = WeaponOrigin(feet, weapon, direction), delta = attachment - feet;
             int steps = Math.Max(1, (int)Math.Ceiling(delta.Length / .04f));
-            // An extended bow/staff cannot spawn a missile beyond a thin wall.
-            // Keep its first wall contact for the impact, even at point blank.
-            for (int i = 1; i <= steps; i++)
+            // The muzzle and the later flight MUST share the same full
+            // projectile footprint. Thin wall edges must stop the leading
+            // edge, not just the center after it has pierced the wall.
+            // The origin is the HERO'S center; the actual bow/staff release
+            // is farther forward at the hand. A nearby wall *behind* the
+            // character can overlap a staff-sized orb at its theoretical
+            // feet and wrongly cancel a perfectly clear outward cast.
+            // Sweep the physical radius after half a tile of attachment
+            // travel. Always check the center from the FIRST step so a
+            // wall directly ahead cannot be tunneled through.
+            for (int i = 1; i <= steps && !shot.blockedAtSpawn; i++)
             {
                 Point next = feet + delta * (i / (float)steps);
-                if (Blocked(next.x, next.y)) { shot.blockedAtSpawn = true; break; }
+                bool pastBody = (next - feet).Length >= .5f;
+                if (Blocked(next.x, next.y) ||
+                    pastBody && ShotBlocked(shot, next))
+                { shot.blockedAtSpawn = true; break; }
                 shot.position = next;
             }
             if(target.HasValue&&(target.Value-shot.position).Length>.01f)shot.velocity=(target.Value-shot.position).Normalized*speed;

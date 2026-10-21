@@ -129,22 +129,54 @@ namespace Starfall
                 ActionSlot(470, ControlKey("F", "LB"), Game.L("炖汤", "Stew") + " " + Game.save.inventory[6], "stew", 0, Game.save.inventory[6] > 0 && !Game.practicing, () => Game.Eat());
                 ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", 0, Game.save.tea > 0 && !Game.practicing, () => Game.DrinkTea());
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
-                ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(Game.aim), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
+                ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(HudDodgeDirection()), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
                 Text(25, 725, 302, 24, Game.save.coins + Game.L(" 硬币  ·  ", " coins  ·  ") + WeaponName(Game.save.weapon), 13, paper); Text(25, 752, 302, 23, controllerUsed ? Game.L("X 攻击 · B 互动 · 凉茶在背包使用", "X attack · B interact · tea from inventory") : Game.L("J / 左键攻击 · E 互动", "J / click attack · E interact"), 12, muted);
                 if (Button(972, 718, 130, 52, Game.L("手帐  ", "Journal  ") + ControlKey("TAB", "VIEW"))) OpenMenu("journal"); if (Button(1114, 718, 142, 52, Game.L("菜单  ", "Menu  ") + ControlKey("ESC", "START"))) { OpenMenu("pause"); Save(); }
             }
             Enemy boss = Game.enemies.Find(e => e.boss); if (boss != null && world) { Panel(383, 612, 514, 64, new Color(.04f, .065f, .11f, .93f), PixelArt.C("#7b666d")); Text(403, 622, 474, 28, Game.L(Game.CurrentBoss.name, Game.CurrentBoss.en) + "  /  " + boss.BossPhase, 16, gold, TextAnchor.MiddleCenter); Bar(403, 656, 474, boss.hp / boss.maxHp, PixelArt.C("#d28b86"), 5); Bar(403, 666, 474, boss.stagger / 95, mint, 3); }
             else if (world && Game.fallen.Exists(f => f.actor.boss)) { Panel(383, 612, 514, 64, new Color(.04f, .065f, .11f, .93f), gold); Text(403, 622, 474, 28, Game.L("守护者已倒下", "Guardian defeated"), 20, gold, TextAnchor.MiddleCenter); Text(403, 653, 474, 23, Game.L("战利品已收取 · 前往祭坛继续旅程", "Loot secured · continue at the altar"), 13, paper, TextAnchor.MiddleCenter); }
         }
+        private Point HudDodgeDirection()
+        {
+            // Match movement-first Space/A dodging, not the independently
+            // aimed mouse cursor. Knockback, casts and rooted attack lunges
+            // cannot secretly steer a HUD dodge.
+            Point actual=Game.movementDirection;
+            bool voluntary=Game.dashTime<=0&&Game.playerHitTime<=0&&
+                (Game.playerAction==null||
+                 Game.PlayerPhase==ActionPhase.Recovery);
+            return voluntary&&actual.Length>.001f?
+                actual.Normalized:Game.aim;
+        }
         private void ActionSlot(float x, string key, string label, string icon, float cooldown, bool resourceAvailable, Action act, float duration = 1, string unavailable = null, bool busy = false)
         {
-            bool ready = resourceAvailable && cooldown <= 0 && !busy && !Game.Dying;
+            // A real dodge can be queued during its last 140ms cooldown.
+            // Match the keyboard/gamepad window; do not extend the window
+            // for Q, consumables, companions, or any other action slot.
+            bool dodgeSlot=icon=="shield";
+            bool skillSlot=icon=="sword"||icon=="bow"||icon=="staff";
+            bool queued=(dodgeSlot&&Game.DodgeQueued)||
+                (skillSlot&&Game.SkillQueued);
+            bool bufferable=dodgeSlot&&Game.CanBufferDodge;
+            // The pending Q remains clickable for legitimate aim retarget;
+            // only a queued dodge blocks another press. Neither can spend
+            // twice before the authoritative GameCore release boundary.
+            bool ready=resourceAvailable&&(cooldown<=0||bufferable)&&
+                !(dodgeSlot&&Game.DodgeQueued)&&
+                (!dodgeSlot||Game.DodgeRootReady)&&!busy&&!Game.Dying;
             bool compact = CombatHud; float y = compact ? 732 : 699, w = compact ? 78 : 109, h = compact ? 50 : 75;
             bool hit = Button(x, y, w, h, "", false, ready);
-            if (ready) { Frame(x,y,w,h,mint); Box(x+4,y+h-3,w-8,2,mint); }
+            if (ready) { Frame(x,y,w,h,bufferable?new Color(.48f,.78f,1f):mint); Box(x+4,y+h-3,w-8,2,bufferable?new Color(.48f,.78f,1f):mint); }
+            else if (queued) Frame(x,y,w,h,new Color(.48f,.78f,1f,.8f));
             float iconX = x + (compact ? key == "SPACE" ? 52 : 41 : key == "SPACE" ? 60 : 39);
             Icon(icon,iconX,y+(compact?4:5),compact?23:31,ready?Color.white:new Color(.62f,.68f,.74f));
-            string state = cooldown > 0 ? Math.Ceiling(cooldown)+"s" : busy ? Game.L("动作中","In action") : !resourceAvailable&&unavailable!=null ? unavailable : label;
+            string state = dodgeSlot&&!Game.DodgeRootReady ?
+                Game.L("地形封锁","GROUND BLOCKED") :
+                queued ? Game.L("已排队","QUEUED") :
+                bufferable ? Game.L("可预输入","BUFFER") :
+                cooldown > 0 ? Math.Ceiling(cooldown)+"s" :
+                busy ? Game.L("动作中","In action") :
+                !resourceAvailable&&unavailable!=null ? unavailable : label;
             Text(x+3,y+(compact?26:41),w-6,compact?19:27,state,compact?10:11,ready?paper:muted,TextAnchor.MiddleCenter);
             Text(x+5,y+6,key=="SPACE"?45:32,19,key,compact?9:10,ready?gold:muted);
             if(cooldown>0) Bar(x+4,y+h-3,w-8,1-cooldown/Math.Max(.01f,duration),gold,2);

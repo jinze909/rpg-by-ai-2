@@ -101,12 +101,41 @@ namespace Starfall
                 if (x + 1 < Game.Map.rows[y].Length && Game.Map.rows[y][x + 1] != '#') Box(p.x + Tile - 2, p.y, 2, Tile, new Color(.06f, .09f, .13f, .42f));
                 return;
             }
-            if (!WaterSurface(tile)) return;
-            Color foam = new Color(.73f, .83f, .72f, .62f), edge = new Color(.12f, .28f, .36f, .6f);
-            if (y > 0 && !WaterSurface(Game.Map.rows[y - 1][x])) { Box(p.x, p.y, Tile, 4, edge); Box(p.x + 2, p.y + 4, Tile - 4, 1, foam); }
-            if (y + 1 < Game.Map.rows.Length && !WaterSurface(Game.Map.rows[y + 1][x])) { Box(p.x, p.y + Tile - 4, Tile, 4, edge); Box(p.x + 2, p.y + Tile - 5, Tile - 4, 1, foam); }
-            if (x > 0 && !WaterSurface(Game.Map.rows[y][x - 1])) { Box(p.x, p.y, 4, Tile, edge); Box(p.x + 4, p.y + 2, 1, Tile - 4, foam); }
-            if (x + 1 < Game.Map.rows[y].Length && !WaterSurface(Game.Map.rows[y][x + 1])) { Box(p.x + Tile - 4, p.y, 4, Tile, edge); Box(p.x + Tile - 5, p.y + 2, 1, Tile - 4, foam); }
+            if (!WaterSurface(tile) || terrainVariants == null) return;
+            // The previous flat 4px dark bars + 1px lime foam painted over
+            // every rich water tile, even when motion FX were disabled.
+            // Use only ORIGINAL water material pixels from the published
+            // TerrainVariants.png bottom row. The static edge remains
+            // visible with reduced motion and at every effects quality.
+            int variant=(PreparedTileSeed(x,y)/7)%4;
+            bool north=y>0 && !WaterSurface(Game.Map.rows[y-1][x]);
+            bool south=y+1<Game.Map.rows.Length &&
+                !WaterSurface(Game.Map.rows[y+1][x]);
+            bool west=x>0 && !WaterSurface(Game.Map.rows[y][x-1]);
+            bool east=x+1<Game.Map.rows[y].Length &&
+                !WaterSurface(Game.Map.rows[y][x+1]);
+            if (!north&&!south&&!west&&!east) return;
+            float sourceX=variant*48f;
+            Color old=GUI.color;
+            try
+            {
+                // Cropped 48px hand-painted wave highlights instead of a
+                // new coarse material. Source UVs remain pixel-aligned.
+                GUI.color=new Color(.87f,.96f,1f,.54f*worldActorOpacity);
+                Rect horizontal=new Rect(
+                    (sourceX+7f)/192f,17f/192f,34f/192f,4f/192f);
+                Rect vertical=new Rect(
+                    (sourceX+20f)/192f,7f/192f,4f/192f,30f/192f);
+                if(north)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,Tile-2,4),terrainVariants,horizontal);
+                if(south)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+Tile-5,Tile-2,4),terrainVariants,horizontal);
+                if(west)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,4,Tile-2),terrainVariants,vertical);
+                if(east)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+Tile-5,p.y+1,4,Tile-2),terrainVariants,vertical);
+            }
+            finally { GUI.color=old; }
         }
         private bool WaterSurface(char tile) { return tile == '~' || tile == '%' && Game.save.room == 5 && !Game.LowTide; }
         private void PropImage(string kind, int variant, float x, float y, float w, float h, Color? tint = null)
@@ -132,15 +161,22 @@ namespace Starfall
         {
             if (Game.save.effectsQuality==0 || opacity<=.001f) return;
             bool signal=kind=="outerrelay";
-            bool cool=signal||kind=="crystal"||kind=="root";
+            // Only reflective ore and mirror objects receive a NEW
+            // small diffuse relay halo; existing source-painted map props
+            // and approved glow textures retain their identity.
+            bool reflective=kind=="ore"||kind=="mirror";
+            bool cool=signal||reflective||kind=="crystal"||kind=="root";
             float height=kind=="lighthouse"?1.95f:
                 kind=="lamp"?1.12f:
                 kind=="crystal"?.65f:
+                kind=="ore"?.66f:
+                kind=="mirror"?.70f:
                 kind=="root"?.45f:
                 kind=="fire"||kind=="campfire"||kind=="brazier"?.28f:.52f;
             Point flame=anchor-new Point(0,height);
             float radius=kind=="lighthouse"?178:
                 kind=="lamp"?CurrentWorldVisualLook.lampRadius:
+                reflective?CurrentWorldVisualLook.relicHaloRadius:
                 cool?106:96;
             // Continuous, world-seeded flame rhythm. Animation never moves
             // the light's attachment, so neighbouring actors do not strobe
@@ -156,6 +192,9 @@ namespace Starfall
             float alpha=(Game.Night?CurrentWorldVisualLook.nightLightAlpha:
                 CurrentWorldVisualLook.dayLightAlpha)*opacity*flicker;
             if(signal)alpha=.27f*opacity*flicker;
+            if(reflective)
+                alpha=CurrentWorldVisualLook.relicHaloAlpha*opacity*flicker*
+                    (Game.Night?1f:.44f);
             halo.a=alpha;
             Light(flame,radius,halo);
             if(Game.save.effectsQuality>=2)
@@ -173,6 +212,7 @@ namespace Starfall
             {
                 foreach (var d in Game.Map.decor)
                     if ((d.kind=="lamp"||d.kind=="lighthouse"||d.kind=="crystal"||
+                         d.kind=="ore"||d.kind=="mirror"||
                          d.kind=="root"||d.kind=="fire") && WorldDrawable(d.x,d.y,180,180))
                     {
                         DrawWorldEmitter(new Point(d.x,d.y),d.kind,
@@ -183,7 +223,9 @@ namespace Starfall
                 {
                     bool warm=o.kind=="campfire"||o.kind=="brazier"&&Game.Has("warm_"+o.id);
                     bool signal=o.kind=="outerrelay"&&Game.OuterRelayRestored(Game.save.room);
-                    if(!(warm||signal)||!WorldDrawable(o.x,o.y,180,180))continue;
+                    bool reflective=o.kind=="ore"||o.kind=="mirror";
+                    if(!(warm||signal||reflective)||
+                        !WorldDrawable(o.x,o.y,180,180))continue;
                     DrawWorldEmitter(new Point(o.x,o.y),
                         signal?"outerrelay":o.kind,
                         FadeWorldProp(o.x,o.y),
@@ -196,6 +238,7 @@ namespace Starfall
         }
         private void DrawCombatEffect(Effect e)
         {
+            if (!ValidEffectForDraw(e)) return;
             if (DrawAuthoredEffect(e)) return;
             Point p = ScreenPoint(e.position); float progress = 1 - e.life / e.maxLife;
             if (e.kind == "number" || e.kind == "break") { Text(p.x - 59, p.y - 54 - progress * 22, 120, 32, e.text, 19, ink, TextAnchor.MiddleCenter); Text(p.x - 60, p.y - 55 - progress * 22, 120, 32, e.text, 19, gold, TextAnchor.MiddleCenter); }

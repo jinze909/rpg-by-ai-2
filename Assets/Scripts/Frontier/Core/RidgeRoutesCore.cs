@@ -31,13 +31,13 @@ namespace Starfall
             }
             if(!linkedBefore&&RidgeLinked(room))
             {
-                save.coins+=20;save.shards++;
+                CreditCoins(20);CreditShards(1);
                 AddXp(24);revision++;sound="reward";
                 RecordMoment("第五圈的南北两座旧标记终于被共同标记，居民可以安全地在两条偏远巡路间往返。",
                     "Both remote ridge markers were surveyed by foot, enabling a civilian route across the outer wilderness.");
                 if(RidgeLinkedCount==8&&!Has("ridge_all_linked"))
                 {
-                    Flag("ridge_all_linked");save.skillPoints++;revision++;
+                    Flag("ridge_all_linked");CreditSkillPoints(1);revision++;
                 }
             }
             string[] zh={
@@ -99,9 +99,13 @@ namespace Starfall
                 "ridge_route_"+room+"_1":"ridge_route_"+room+"_0";
             foreach(WorldObject o in Map.objects)if(o.id==targetId){end=o;break;}
             if(end==null)return true;
-            if(!SafeTravel)
+            // Remote ridge travel is a physical transport just like the
+            // rebuilt public ferry. It must never skip a live convoy clock,
+            // rescue follower, duel wave or chapter calibration.
+            if(FieldWorkPreventsRest||!SafeTravel)
             {
-                Notify("战斗中不能使用巡路捷径。","The ridge crossing is unavailable during combat.");
+                Notify("战斗或现场行动期间无法离开巡路。请先完成或在原地点取消任务。",
+                    "Ridge transfer is blocked by combat or live fieldwork. Finish or cancel the active mission first.");
                 return true;
             }
             if(save.energy<12)
@@ -110,14 +114,15 @@ namespace Starfall
                 return true;
             }
             Point destination=new Point(end.x,end.y);
-            if(!CanStand(destination))return true;
-            foreach(Enemy enemy in enemies)
-                if(enemy.hp>0&&(enemy.Position-destination).Length<5f)
-                {
-                    Notify("另一端有敌人守候，暂时不能安全通过。",
-                        "Hostile creatures block the far end of this crossing.");
-                    return true;
-                }
+            // The same world-space safety checks prevent the player from
+            // materializing inside an active projectile or warned explosion,
+            // including encounter-owned hazards invisible at the departure.
+            if(!SafeRegionalLanding(destination))
+            {
+                Notify("巡路另一端有敌人、飞行攻击或尚未释放的危险；请等待通道安全。",
+                    "Enemies, live projectiles or warned impacts block the far end of the ridge crossing.");
+                return true;
+            }
             save.x=end.x;save.y=end.y;save.energy-=12;
             revision++;sound="reward";
             Notify("安全穿越已经连通的偏远高地路。","Crossed the restored ridge way.");

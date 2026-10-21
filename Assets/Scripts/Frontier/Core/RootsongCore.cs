@@ -37,6 +37,11 @@ namespace Starfall
                     ClearAttackPath(position,enemy.Position))return true;
             return false;
         }
+        // A root's puzzle and field skill require real near-side access.
+        // Revalidate at button commit; the world may change after Talk.
+        private bool CanReachRootsongStone(WorldObject stone)
+        { return stone!=null&&PhysicalRefugeReach(
+            new Point(stone.x,stone.y),1.8001f); }
         private bool RootsongPulse(string action)
         {
             if(!action.StartsWith("rootsongpulse_",StringComparison.Ordinal))return false;
@@ -44,7 +49,7 @@ namespace Starfall
             if(!int.TryParse(action.Substring("rootsongpulse_".Length),out stage))return true;
             WorldObject stone=RootsongStone(stage);
             if(!RootsongComplete||stone==null||Dying||practicing||save.room!=1||
-                (Position-new Point(stone.x,stone.y)).Length>1.8f)return true;
+                !CanReachRootsongStone(stone))return true;
             if(RootsongPulseCooldown>0)
             {
                 Notify("古根正在回声，稍后才能再次回应。","This root is still recovering its resonance.");
@@ -66,8 +71,10 @@ namespace Starfall
             {
                 if(enemy.hp<=0||(enemy.Position-origin).Length>=4.1f||
                     !ClearAttackPath(origin,enemy.Position))continue;
-                enemy.state=0;
-                enemy.stun=Math.Max(enemy.stun,enemy.boss?.3f:1.2f);
+                // Share the exact authoritative interruption transaction
+                // used by frost/Break. Otherwise a raider's committed civilian
+                // target and its still-red warning survive a Rootguard pulse.
+                ApplyEnemyControl(enemy,enemy.boss?.3f:1.2f);
                 enemy.timer=Math.Max(enemy.timer,enemy.boss?.4f:.75f);
                 interrupted++;
             }
@@ -110,7 +117,7 @@ namespace Starfall
             if(o.kind!="rootsonestone")return false;
             int step=0;
             for(int i=1;i<=3;i++)if(o.id=="rootsong_"+i)step=i;
-            if(step==0||save.room!=1||(Position-new Point(o.x,o.y)).Length>1.8f)return true;
+            if(step==0||save.room!=1||!CanReachRootsongStone(o))return true;
             if(!Has("scout_saved"))
             {
                 RootsongDialog(o,L("先救回密林侦察员，才能听懂树根里藏着的平民归途。",
@@ -172,7 +179,7 @@ namespace Starfall
             WorldObject stone=RootsongStone(step);
             if(stone==null||save.room!=1||!Has("scout_saved")||Dying||practicing||
                 RootsongProgress+1!=step||
-                (Position-new Point(stone.x,stone.y)).Length>1.8f)return true;
+                !CanReachRootsongStone(stone))return true;
             if(!RootsongOpen(step))
             {
                 Notify("绿光窗口已经结束。等待下一次根鸣。","The green window closed. Wait for the next pulse.");
@@ -192,7 +199,7 @@ namespace Starfall
             if(step==3)
             {
                 Flag("rootsong_complete");
-                save.coins+=45;save.shards+=2;AddXp(75);
+                CreditCoins(45);CreditShards(2);AddXp(75);
                 RecordMoment("密林的庇护、摆渡与归乡三声重新合唱，古根旁终于有了安全的休憩地。",
                     "The three forest voices of shelter, ferry and homecoming now make safe resting roots.");
                 Notify("三声归一！硬币 +45、碎片 +2、经验 +75；古树附近安全时额外恢复耐力。",
@@ -213,7 +220,8 @@ namespace Starfall
             {
                 if(!RootsongComplete||save.room!=1)return false;
                 foreach(WorldObject o in Map.objects)
-                    if(o.kind=="rootsonestone"&&(Position-new Point(o.x,o.y)).Length<3.1f)return true;
+                    if(o.kind=="rootsonestone"&&
+                        PhysicalRefugeReach(new Point(o.x,o.y),3.1f))return true;
                 return false;
             }
         }

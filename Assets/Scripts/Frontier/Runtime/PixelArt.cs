@@ -43,6 +43,13 @@ namespace Starfall
             string key = "flash_" + source.name.Replace("/", "_").Replace(":", "_"); Texture2D t;
             if (cache.TryGetValue(key, out t)) return t;
             if (PreparedMask(source, "flash", key, out t)) return t;
+            // A runtime-only source (or republished native SpriteImport)
+            // may be GPU-readable but intentionally not CPU-readable.
+            // The real hit body below is already painted with its own
+            // GameCore-authored frame; skip this OPTIONAL overlaid flash
+            // rather than crashing combat, replacing its actor identity,
+            // or requiring all mature Source PNGs to enable Read/Write.
+            if(!source.isReadable)return null;
             Begin(source.width, source.height); Color[] original = source.GetPixels();
             for (int i = 0; i < original.Length; i++) pixels[i] = new Color(1, 1, 1, original[i].a);
             return End(key);
@@ -52,6 +59,15 @@ namespace Starfall
             string key = "outline_" + source.name.Replace("/", "_").Replace(":", "_"); Texture2D t;
             if (cache.TryGetValue(key, out t)) return t;
             if (PreparedMask(source, "outline", key, out t)) return t;
+            // Unity normally imports the 16 detailed original NPC bodies
+            // as GPU-only textures. GetPixels() on an unreadable atlas
+            // throws and aborts the entire outline/selection repaint.
+            // Never reimport accepted artwork as CPU-readable or fabricate
+            // a second low-resolution Sprite just to make an outline.
+            // Actor() retains the same complete body with a restrained
+            // translucent highlight until an artist-approved exact-size
+            // outline asset is installed and picked up by PreparedMask.
+            if(!source.isReadable)return null;
             Begin(source.width, source.height); Color[] original = source.GetPixels();
             int[] neighbours = { -2, 2, -source.width * 2, source.width * 2, -source.width - 1, -source.width + 1, source.width - 1, source.width + 1 };
             for (int y = 2; y < source.height - 2; y++) for (int x = 2; x < source.width - 2; x++)

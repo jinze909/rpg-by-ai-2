@@ -159,6 +159,1202 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Both actual Q HUD layouts queue during ordinary attack and preserve world aim");
     }
 
+    private static void ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing(
+        FrontierRuntime app)
+    {
+        string[] classes={"Vanguard","Ranger","Arcanist"};
+        foreach(int cls in new[]{0,1,2})
+        {
+            Prepare(app,cls);
+            var g=app.Game;
+            g.save.weapon=cls;g.playerAction=null;
+            g.playerHitTime=0f;g.playerFlash=0f;
+            g.dashTime=g.deathTime=0f;
+            g.invulnerable=.47f;g.save.reducedMotion=true;
+            float quietAlpha=-1f;
+            foreach(float time in new[]{75f,75.1f,75.2f})
+            {
+                Set(app,"clock",time);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var hero=GUI.textureCalls.FindAll(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(hero.Count==1&&hero[0].texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    classes[cls]+"_Idle_E",
+                    "Reduced Motion must still render exactly one equipped original body");
+                float alpha=hero[0].color.a;
+                if(quietAlpha<0f)quietAlpha=alpha;
+                else Check(Math.Abs(alpha-quietAlpha)<.00001f,
+                    "Reduced Motion invulnerability pulse still strobes the protagonist");
+                Check(alpha>.7f&&alpha<.9f,
+                    "Reduced Motion invulnerability must remain readable, not hide the actor");
+            }
+            g.save.reducedMotion=false;
+            Set(app,"clock",75f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var regularA=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(regularA!=null,"Standard motion hero missing");
+            float first=regularA.color.a;
+            Set(app,"clock",75.1f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var regularB=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(regularB!=null&&Math.Abs(regularB.color.a-first)>.20f,
+                "Standard motion must retain the established invulnerability feedback");
+        }
+        Console.WriteLine("PASS 3 equipment-specific original hero Sprite paths: reduced-motion invulnerability stays steady while ordinary combat feedback remains intact; NATIVE_UNVERIFIED");
+    }
+
+    private static void CanonicalHeroHitRecoversOnSameWholeBody(FrontierRuntime app)
+    {
+        int reviewed=0;
+        string[] equipment={"Vanguard","Ranger","Arcanist"};
+        foreach(int cls in new[]{0,1,2})
+        foreach(Point facing in new[]{
+            new Point(1,0),new Point(-1,0),
+            new Point(0,-1),new Point(0,1)})
+        {
+            Prepare(app,cls);
+            var game=app.Game;game.save.reducedMotion=false;
+            game.SetAim(facing);
+            game.invulnerable=0f;
+            float beforeHealth=game.save.health;
+            var hurt=typeof(GameCore).GetMethod("Hurt",Private);
+            Check(hurt!=null,"The actual C# hero Hurt contact method is required");
+            hurt.Invoke(game,new object[]{9f,"environment",
+                (Point?)new Point(1,0)});
+            Check(game.save.health<beforeHealth&&
+                game.HeroAnimationState==5&&game.playerHitTime>0f,
+                "Real physical damage must enter the single-body Hit reaction");
+            for(int i=0;i<30&&game.playerHitTime>.022f;i++)
+                game.Tick(.02f,new Point());
+            Check(game.HeroAnimationState==5,
+                "The actual 180ms hit recoil must still be visible before its last painted recovery");
+            Set(app,"clock",60f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var prior=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(prior!=null&&prior.texture.name.Contains("_Hit_"),
+                "The active reaction still draws exactly one canonical full-body hit Sprite");
+            for(int i=0;i<5&&game.playerHitTime>0f;i++)
+                game.Tick(.02f,new Point());
+            Set(app,"clock",60.025f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var rest=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(game.playerHitTime==0f&&rest!=null&&
+                rest.texture.name==prior.texture.name&&
+                Math.Abs(rest.uv.x-prior.uv.x)<.00001f,
+                "Damage reaction must leave its original painted sole on screen briefly, never snap or repaint the body");
+            Check(GUI.textureCalls.FindAll(c=>c.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_")).Count==1,
+                "Hit handoff cannot produce a second blond protagonist");
+            // A W-to-E turn reuses the same source atlas row, but must
+            // invalidate the old west-facing full-body Hit handoff.
+            if(facing.x<0)
+            {
+                game.SetAim(new Point(1,0));
+                Check(game.VisualFacing.x>.9f,
+                    "Damage recovery turn setup did not change actual east aim");
+                Set(app,"clock",60.036f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var turned=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(turned!=null&&turned.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    equipment[cls]+"_Idle_E",
+                    "E/W reversal must cancel stale Hit even on the shared E atlas row");
+            }
+            // A real new attack may begin BEFORE the handoff expires.
+            if(facing.x>0)
+            {
+                game.attackCooldown=0f;
+                game.Attack(facing);
+                Set(app,"clock",60.036f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var newBody=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(game.playerAction!=null&&newBody!=null&&
+                    newBody.texture.name.Contains("_Attack_"),
+                    "A new real Attack must instantly interrupt painted Hit->Idle recovery");
+            }
+            else
+            {
+                Set(app,"clock",60.11f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var idle=GUI.textureCalls.Find(c=>c.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(idle!=null&&idle.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    equipment[cls]+"_Idle_"+
+                    (Math.Abs(facing.y)>0f?(facing.y<0?"N":"S"):"E"),
+                    "Bounded Hit recovery must return to authentic equipment-matched Idle");
+            }
+            reviewed++;
+        }
+        Console.WriteLine("PASS "+reviewed+
+            " actual real-damage full-body Hit recovery handoffs across 3 equipment classes/4 facings, source pixels, early Attack interrupt and expiry; NATIVE_UNVERIFIED");
+    }
+
+    private static void CanonicalCombatRecoverySettlesWithoutExtraBody(FrontierRuntime app)
+    {
+        int checkedCases=0;
+        string[] equipment={"Vanguard","Ranger","Arcanist"};
+        foreach(int profession in new[]{0,1,2})
+        foreach(bool skill in new[]{false,true})
+        foreach(Point face in new[]{
+            new Point(1,0),new Point(-1,0),
+            new Point(0,-1),new Point(0,1)})
+        {
+            Prepare(app,profession);
+            var g=app.Game;g.save.reducedMotion=false;
+            g.SetAim(face);
+            if(skill)g.Skill(face);else g.Attack(face);
+            ActorAction action=g.playerAction;
+            Check(action!=null&&!action.released,
+                "Live combat must start an authored full-body windup");
+            for(int step=0;step<90&&
+                action.elapsed<action.duration-.042f;step++)
+                g.Tick(.02f,new Point());
+            Check(g.playerAction==action&&action.released&&
+                action.elapsed<action.duration,
+                "Action is in the real released late recovery, not a fabricated post-contact pose");
+            Set(app,"clock",31f);
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            var prior=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(prior!=null&&prior.texture.name.Contains("_"+
+                (skill?"Cast":"Attack")+"_"),
+                "Last painted combat recovery retains the actual current equipment's entire body");
+            g.Tick(.05f,new Point());Set(app,"clock",31.025f);
+            Check(g.playerAction==null,
+                "Authoritative C# recovery must complete on schedule, regardless of visual handoff");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            var settle=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(settle!=null&&settle.texture.name==prior.texture.name&&
+                Math.Abs(settle.uv.x-prior.uv.x)<.00001f&&
+                Math.Abs(settle.uv.width-prior.uv.width)<.00001f,
+                "One exact source-painted recovery must settle at class "+profession+
+                ", skill "+skill+", facing "+face.x+","+face.y+
+                " (previous "+prior.texture.name+", actual "+
+                (settle==null?"none":settle.texture.name)+")");
+            Check(GUI.textureCalls.FindAll(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_")).Count==1,
+                "Short handoff may NEVER duplicate the blonde hero body");
+            if(face.x<0)
+            {
+                g.SetAim(new Point(1,0));
+                Check(g.VisualFacing.x>.9f,
+                    "Contact recovery turn setup did not change actual east aim");
+                Set(app,"clock",31.037f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var turned=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                Check(turned!=null&&turned.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    equipment[profession]+"_Idle_E",
+                    "E/W reversal must cancel prior Attack/Cast instead of mirroring recovery");
+            }
+            Set(app,"clock",31.16f);
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            var idle=GUI.textureCalls.Find(t=>t.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(idle!=null&&idle.texture.name==
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                equipment[profession]+"_Idle_"+
+                (Math.Abs(face.y)>0f?(face.y<0?"N":"S"):"E"),
+                "After the bounded settle interval return to the same equipment's real Idle, no permanent recovery lock");
+            checkedCases++;
+        }
+        Console.WriteLine("PASS "+checkedCases+
+            " actual full-body Attack/Cast stationary source recovery->Idle handoffs across 3 equipment sets and 4 facings (no duplicate body, unchanged game contact clock)");
+    }
+
+    private static void CombatSettleNeverMasksNewPhysicalAction(FrontierRuntime app)
+    {
+        int count=0;
+        foreach(int equipment in new[]{0,1,2})
+        foreach(bool skill in new[]{false,true})
+        {
+            Prepare(app,equipment);
+            var g=app.Game;
+            g.save.reducedMotion=false;
+            g.SetAim(new Point(1f,0f));
+            if(skill)g.Skill(new Point(1f,0f));
+            else g.Attack(new Point(1f,0f));
+            var a=g.playerAction;
+            Check(a!=null,"Live action to prime painted settle missing");
+            for(int i=0;i<90&&a.elapsed<a.duration-.042f;i++)
+                g.Tick(.02f,new Point());
+            Set(app,"clock",42f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            g.Tick(.05f,new Point());
+            Set(app,"clock",42.025f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var settled=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(settled!=null&&settled.texture.name.Contains(
+                skill?"_Cast_":"_Attack_"),
+                "A source-painted late contact actually reached visual settling");
+            g.Dash(new Point(0f,-1f));
+            Set(app,"clock",42.035f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var dodge=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(dodge!=null&&dodge.texture.name.Contains("_Dodge_"),
+                "New physical dodge must immediately replace stationary recovery without a stale weapon body");
+            for(int i=0;i<16;i++)g.Tick(.02f,new Point());
+            g.attackCooldown=0;g.save.energy=100;
+            g.Attack(new Point(0f,-1f));
+            Set(app,"clock",42.43f);GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            var fresh=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+            Check(g.playerAction!=null&&fresh!=null&&
+                fresh.texture.name=="resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    new[]{"Vanguard","Ranger","Arcanist"}[equipment]+"_Attack_N",
+                "Fresh physical attack must select its new facing and the same equipped full body");
+            count++;
+        }
+        Console.WriteLine("PASS "+count+
+            " real released combat bodies stop cleanly on immediate Dodge and new Attack inputs without stale costume/pose");
+    }
+
+    private static void InvalidPhysicalContactCannotFakeHeroSettle(FrontierRuntime app)
+    {
+        int checkedCases=0;
+        foreach(int equipment in new[]{0,1,2})
+        foreach(bool skill in new[]{false,true})
+        {
+            Prepare(app,equipment);
+            var g=app.Game;g.save.reducedMotion=false;
+            g.SetAim(new Point(1f,0f));
+            if(skill)g.Skill(new Point(1f,0f));
+            else g.Attack(new Point(1f,0f));
+            ActorAction action=g.playerAction;
+            Check(action!=null&&!action.released,
+                "Real physical action must prepare BEFORE its floor becomes obstructed");
+            int row=(int)g.Position.y,col=(int)g.Position.x;
+            string original=g.Map.rows[row];
+            try
+            {
+                char[] stone=original.ToCharArray();
+                stone[col]='#';g.Map.rows[row]=new string(stone);
+                for(int i=0;i<40&&!action.released;i++)
+                    g.Tick(.02f,new Point());
+                Check(action.released&&action.blockedAtContact&&
+                    g.effects.Exists(e=>e.kind=="projectileImpact"),
+                    "Invalid caster footprint must create a genuine blocked contact instead of a successful swing/Q");
+                g.Map.rows[row]=original;
+                for(int i=0;i<45&&g.playerAction!=null&&
+                    action.elapsed<action.duration-.042f;i++)
+                    g.Tick(.02f,new Point());
+                Set(app,"clock",71f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                // The visibly released action itself remains one authored
+                // complete body. Only its FALSE lingering celebration must
+                // vanish after C# finishes the physically failed attempt.
+                for(int i=0;i<7&&g.playerAction!=null;i++)
+                    g.Tick(.02f,new Point());
+                Set(app,"clock",71.025f);GUI.textureCalls.Clear();
+                Call(app,"DrawPlayerActor");
+                var body=GUI.textureCalls.Find(x=>x.texture.name.StartsWith(
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"));
+                string label=new[]{"Vanguard","Ranger","Arcanist"}[equipment];
+                Check(g.playerAction==null&&body!=null&&body.texture.name==
+                    "resource:Frontier/HeroAnimator/Canonical/Hero_"+
+                    label+"_Idle_E",
+                    "The failed "+label+(skill?" Q":" LMB")+
+                    " must return directly to a complete painted Idle, without falsely lingering as a successful contact");
+                checkedCases++;
+            }
+            finally {g.Map.rows[row]=original;}
+        }
+        Console.WriteLine("PASS "+checkedCases+
+            " physical blocked Attack/Q actions never mint a visually successful post-contact hero settle");
+    }
+
+    private static void QueuedAreaPreviewDrawsRealWorldRadius(FrontierRuntime app)
+    {
+        foreach(int profession in new[]{0,1,2})
+        {
+            Prepare(app,profession);
+            var g=app.Game;
+            g.Attack(new Point(1f,0f));
+            g.Skill(new Point(0f,-1f));
+            Check(g.SkillQueued,
+                "Actual player must own an unpaid Q intent before testing its rendered damage reach");
+            GUI.textureCalls.Clear();
+            Call(app,"DrawPlayerActor");
+            // The actual production Ring draws 32 grounded 4px contour
+            // contacts in this precisely authored translucent violet tint.
+            // Compare the EAST contact to ScreenPoint of the real damage
+            // range instead of trusting a HUD label or property-only test.
+            float reach=profession==0?3.1f:profession==2?4.5f:0f;
+            Point anchor=(Point)Call(app,"ScreenPoint",g.Position);
+            Point edge=(Point)Call(app,"ScreenPoint",
+                g.Position+new Point(reach,0));
+            bool painted=GUI.textureCalls.Exists(c=>
+                Math.Abs(c.color.r-.70f)<.001f&&
+                Math.Abs(c.color.g-.56f)<.001f&&
+                Math.Abs(c.color.b-1f)<.001f&&
+                Math.Abs(c.color.a-.25f)<.001f&&
+                Math.Abs(c.rect.x-(edge.x-2))<2f&&
+                Math.Abs(c.rect.y-(anchor.y-2))<2f);
+            Check(painted==(reach>0f),
+                "Actual world draw must show only the physically correct queued Vanguard/Arcanist area radius, class "+profession);
+            g.Dash(new Point(1f,0f));
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(!GUI.textureCalls.Exists(c=>
+                Math.Abs(c.color.r-.70f)<.001f&&
+                Math.Abs(c.color.g-.56f)<.001f&&
+                Math.Abs(c.color.a-.25f)<.001f),
+                "Real dodge interrupt must remove every stale area contour before the next frame");
+        }
+        // Draw through the production Sprite/OnGUI fallback at a real
+        // wall. The contour to the EAST is occluded; the WEST spoke
+        // remains visible without changing the same Q intent or pose.
+        Prepare(app,2);
+        var live=app.Game;
+        live.Attack(new Point(1f,0f));
+        live.Skill(new Point(0f,-1f));
+        string original=live.Map.rows[14];
+        try
+        {
+            char[] terrain=original.ToCharArray();
+            terrain[14]='#';live.Map.rows[14]=new string(terrain);
+            Check(live.SkillQueued&&live.CanStand(live.Position),
+                "Production cover-test hero stays on legal foot terrain with a real queued Q");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Point east=(Point)Call(app,"ScreenPoint",live.Position+new Point(4.5f,0f));
+            Point west=(Point)Call(app,"ScreenPoint",live.Position+new Point(-4.5f,0f));
+            Func<Point,bool> marker=screen=>GUI.textureCalls.Exists(c=>
+                Math.Abs(c.color.r-.70f)<.001f&&
+                Math.Abs(c.color.g-.56f)<.001f&&
+                Math.Abs(c.color.b-1f)<.001f&&
+                Math.Abs(c.color.a-.25f)<.001f&&
+                Math.Abs(c.rect.x-(screen.x-2))<2f&&
+                Math.Abs(c.rect.y-(screen.y-2))<2f);
+            Check(!marker(east)&&marker(west),
+                "Actual queued Q must not render through a real wall while keeping its reachable rear arc");
+            live.Map.rows[14]=original;
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(marker(east)&&marker(west)&&live.SkillQueued,
+                "Opening the same real wall restores Q's eastern contour without re-queuing the action");
+        }
+        finally{live.Map.rows[14]=original;}
+        Console.WriteLine("PASS live player draw: exact damage-reach AoE, real-wall clipping, reopening and dodge cleanup");
+    }
+
+    private static void ProjectileWallContactKeepsOriginalSourceLight(FrontierRuntime app)
+    {
+        float[,] palette={
+            {1f,1f,1f},
+            {1f,.47f,.40f},
+            {.60f,.91f,.72f},
+            {.67f,.76f,1f},
+            {.98f,.80f,.48f}
+        };
+        for(int light=0;light<=4;light++)
+        {
+            Prepare(app,0);
+            GameCore g=app.Game;
+            var shot=new Projectile{
+                position=g.Position+new Point(1f,0),
+                velocity=new Point(10f,0f),damage=12f,life=1.5f,
+                friendly=light!=1,blockedAtSpawn=true,
+                visual=light==1?"enemyArrow":
+                    light==3?"starfire":"arrow",
+                source=light==4?"deflected":
+                    light==1?"shot":"attack",
+                impact=light==0||light==1?null:
+                    new ImpactProfile(light==2?1:light==3?2:0,
+                        0,0,0,.1f,true,light==2?1:light==3?2:0)
+            };
+            // The authoritative blocked-at-muzzle transaction still
+            // enters UpdateProjectiles and paints exactly one near-side
+            // contact; do not fabricate a hit while the missile is flying.
+            g.projectiles.Add(shot);
+            g.Tick(.02f,new Point());
+            Effect contact=g.effects.FindLast(e=>
+                e.kind=="projectileImpact"&&
+                (e.position-shot.position).Length<.01f);
+            Check(contact!=null&&contact.variant==light&&
+                !g.projectiles.Contains(shot),
+                "Real GameCore blocked projectile lost its immutable "+
+                "hostile/bow/staff/parry source contact "+light);
+            GUI.textureCalls.Clear();
+            Check((bool)Call(app,"DrawAuthoredEffect",contact)&&
+                GUI.textureCalls.Exists(c=>
+                    c.texture!=null&&
+                    c.texture.name=="resource:Frontier/Art/Effects"&&
+                    Math.Abs(c.color.r-palette[light,0])<.0001f&&
+                    Math.Abs(c.color.g-palette[light,1])<.0001f&&
+                    Math.Abs(c.color.b-palette[light,2])<.0001f),
+                "Original published missile contact Sprite lost source light "+light);
+            // A shot that already expired is a fade, not a fake
+            // physically impactful hit with this glowing palette.
+            g.effects.Clear();
+            g.projectiles.Add(new Projectile{
+                position=g.Position+new Point(1f,0f),
+                velocity=new Point(10f,0f),friendly=true,
+                life=0f,visual="arrow",impact=shot.impact
+            });
+            g.Tick(.02f,new Point());
+            Check(!g.effects.Exists(e=>e.kind=="projectileImpact"),
+                "Expired arrow fabricated a second wall contact glow");
+        }
+        Console.WriteLine("PASS five real GameCore missile contact ownership paints from existing Effects sprites: hostile, bow, staff, parry, neutral and no false expiry hits");
+    }
+
+    private static void EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;
+        int row=-1,col=-1;
+        Point attacker=new Point(),victim=new Point();
+        // Find two legal feet on an authentic straight firing corridor.
+        // Paint a real corner immediately below (not IN) the sight ray.
+        // The centerline must remain clear while the arrow's 0.14-tile
+        // collision footprint strikes the wall beside that line.
+        var lane=typeof(GameCore).GetMethod(
+            "EnemyBowFlightLaneClear",Private);
+        var sight=typeof(GameCore).GetMethod("ClearAttackPath",Private);
+        Check(lane!=null&&sight!=null,
+            "Actual bow radius-sweep firing gate is not in the game core");
+        for(int y=4;y<g.Map.rows.Length-5&&row<0;y++)
+        for(int x=4;x<g.Map.rows[y].Length-9&&row<0;x++)
+        {
+            bool open=true;
+            for(int k=0;k<=6;k++)
+                if(g.Map.rows[y][x+k]!='.'||
+                   g.Map.rows[y+1][x+k]!='.')
+                {open=false;break;}
+            if(!open)continue;
+            Point from=new Point(x+.5f,y+.88f);
+            Point to=new Point(x+5.5f,y+.88f);
+            if(!g.CanStand(from)||!g.CanStand(to))continue;
+            var probe=new Enemy(99211,1,from.x,from.y,90f);
+            if(!(bool)lane.Invoke(g,new object[]{probe,to}))continue;
+            char[] blocked=g.Map.rows[y+1].ToCharArray();
+            char old=blocked[x+2];
+            blocked[x+2]='#';
+            string oldRow=g.Map.rows[y+1];
+            g.Map.rows[y+1]=new string(blocked);
+            bool centerOpen=(bool)sight.Invoke(g,new object[]{from,to});
+            bool shotOpen=(bool)lane.Invoke(g,new object[]{probe,to});
+            g.Map.rows[y+1]=oldRow;
+            if(centerOpen&&!shotOpen)
+            {row=y+1;col=x+2;attacker=from;victim=to;}
+        }
+        Check(row>=0,"No genuine real-world arrow-side-corner corridor found");
+        string original=g.Map.rows[row];
+        try
+        {
+            var enemy=new Enemy(99212,1,attacker.x,attacker.y,90f){
+                timer=.001f
+            };
+            enemy.Face(new Point(1,0));
+            g.enemies.Add(enemy);
+            g.save.x=victim.x;g.save.y=victim.y;
+            char[] wall=original.ToCharArray();wall[col]='#';
+            g.Map.rows[row]=new string(wall);
+            Check((bool)sight.Invoke(g,new object[]{attacker,victim})&&
+                !(bool)lane.Invoke(g,new object[]{enemy,victim}),
+                "Archer cover scenario must be clear for actor LOS but physically block the arrow");
+            g.Tick(.02f,new Point());
+            Check(enemy.state!=1&&!g.projectiles.Exists(p=>!p.friendly),
+                "Archer began a fully telegraphed attack into a known side-wall missile collision");
+            Check(enemy.y<attacker.y-.005f&&
+                enemy.x<attacker.x+.005f&&g.CanStand(enemy.Position),
+                "Enemy archer failed to step SIDEWAYS to a physically shootable footing and instead kept walking into the same arrow-blocking corner");
+            g.Map.rows[row]=original;
+            enemy.timer=0f;enemy.stun=0f;enemy.releaseTime=0f;
+            enemy.x=attacker.x;enemy.y=attacker.y;
+            Check((bool)lane.Invoke(g,new object[]{enemy,victim}),
+                "Removing side-wall obstruction did not free real archer arrow flight");
+            g.Tick(.02f,new Point());
+            Check(enemy.state==1&&enemy.windupDuration>.5f,
+                "Archer did not reacquire a genuine ranged windup when physical flight reopened");
+            g.Map.rows[row]=new string(wall);
+            g.Tick(.02f,new Point());
+            Check(enemy.state==0&&!g.projectiles.Exists(p=>!p.friendly),
+                "A newly closed side wall did not interrupt an unpaid archer warning before shot release");
+            Console.WriteLine("PASS actual enemy bow AI avoids side-wall swept-radius shots, repositions/reacquires an open lane, and cancels locked windups when cover closes");
+        }
+        finally
+        {
+            g.Map.rows[row]=original;
+        }
+    }
+
+    private static void MeleeSwordContactStopsAtRealSolidCover(FrontierRuntime app)
+    {
+        foreach(bool wall in new[]{false,true})
+        {
+            Prepare(app,0);
+            GameCore g=app.Game;
+            g.save.weapon=0;
+            // Find a genuinely open physical contact channel in the live
+            // town map. A named floor tile is not necessarily clear:
+            // static building colliders can occupy space over its art.
+            Point planted=new Point();
+            int row=-1,wallTile=-1;
+            for(int y=4;y<g.Map.rows.Length-4&&row<0;y++)
+            for(int x=4;x<g.Map.rows[y].Length-4&&row<0;x++)
+            {
+                if(g.Map.rows[y][x]!='.'||
+                    g.Map.rows[y][x+1]!='.')continue;
+                Point foot=new Point(x+.55f,y+.5f);
+                if(!g.CanStand(foot))continue;
+                bool clear=true;
+                for(int sub=1;sub<=12;sub++)
+                    if(g.Blocked(foot.x+.7f*sub/12f,foot.y))
+                    {clear=false;break;}
+                if(clear){planted=foot;row=y;wallTile=x+1;}
+            }
+            Check(row>=0,"No genuine free original sword contact lane exists in test town");
+            g.save.x=planted.x;g.save.y=planted.y;
+            string original=g.Map.rows[row];
+            try
+            {
+                char[] cells=original.ToCharArray();
+                cells[wallTile]=wall?'#':'.';
+                g.Map.rows[row]=new string(cells);
+                Check(g.CanStand(g.Position),
+                    "Near-wall sword test must keep the actual hero on legal ground");
+                g.Attack(new Point(1f,0f));
+                bool released=false;
+                for(int frame=0;frame<25;frame++)
+                {
+                    g.Tick(.02f,new Point());
+                    if(g.effects.Exists(e=>e.kind=="slash"||
+                        e.kind=="projectileImpact"))
+                    {released=true;break;}
+                }
+                Check(released,
+                    "Actual GameCore sword swing never reached an authored contact frame");
+                Effect swordContact=g.effects.Find(e=>
+                    e.kind==(wall?"projectileImpact":"slash"));
+                Check(swordContact!=null,
+                    "Sword VFX did not switch between original slash and wall impact");
+                Check(!g.effects.Exists(e=>
+                    e.kind==(wall?"slash":"projectileImpact")),
+                    "A ghost full-body slash or collision spark is displayed on the wrong terrain");
+                // Real attack contact happens AFTER the authored .34-tile
+                // rooted advance in TickMovement/MoveAttackStep. Never
+                // mistake this intended physical step for sprite drift:
+                // the world-space spark is rooted to the hero's ACTUAL
+                // release feet, not the original button-press position.
+                Point actualReleaseRoot=g.Position;
+                Check(Math.Abs(swordContact.position.y-actualReleaseRoot.y)<.001f&&
+                    (wall?
+                        swordContact.position.x<wallTile&&
+                        swordContact.position.x>=actualReleaseRoot.x:
+                        Math.Abs(swordContact.position.x-
+                            (actualReleaseRoot.x+.7f))<.001f),
+                    "Sword contact pivot crossed real stone or drifted from real release foot: blocked="+
+                    wall+" pressRoot="+planted.x+","+planted.y+
+                    " releaseRoot="+actualReleaseRoot.x+","+actualReleaseRoot.y+
+                    " contact="+swordContact.position.x+","+swordContact.position.y+
+                    " wallTile="+wallTile);
+                GUI.textureCalls.Clear();
+                Check((bool)Call(app,"DrawAuthoredEffect",swordContact)&&
+                    GUI.textureCalls.Exists(c=>c.texture!=null&&
+                        c.texture.name=="resource:Frontier/Art/Effects"),
+                    "Real wall-safe sword contact failed to render original published Effects art");
+            }
+            finally{g.Map.rows[row]=original;}
+        }
+        Console.WriteLine("PASS actual sword LMB resolves full original slash on legal 0.7-tile contact, blocked near-side painted collision on stone, live map and true Sprite path");
+    }
+
+    private static void RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap(FrontierRuntime app)
+    {
+        foreach(int weapon in new[]{0,1,2})
+        {
+            Prepare(app,weapon);
+            GameCore game=app.Game;
+            game.save.weapon=weapon;
+            game.save.profession=weapon;
+            float distance=weapon==0?1.30f:3.3f;
+            var target=new Enemy(92110+weapon,0,
+                game.Position.x+distance,game.Position.y,2000f)
+                {stun=40f,timer=40f};
+            game.enemies.Add(target);
+            // An authentic hit VFX stays rooted to contact while the enemy
+            // body recoils in UpdateEnemies later in the SAME game tick.
+            // Compare the painted contact to the immutable pre-hit root,
+            // not the now-moved actor body's post-recoil position.
+            Point contactRoot=target.Position;
+            game.SetAimTarget(target.Position);
+            game.Attack(new Point(1f,0f));
+            bool launched=false,damaged=false;
+            for(int frame=0;frame<120;frame++)
+            {
+                game.Tick(.02f,new Point());
+                if(weapon>0&&!launched&&game.projectiles.Count>0)
+                {
+                    launched=true;
+                    // The physical missile must keep its source weapon's
+                    // hit light, even though GameCore's future avatar
+                    // now displays a different equipped full-body class.
+                    game.save.weapon=0;
+                    game.save.profession=0;
+                }
+                if(target.hp>=2000f)continue;
+                damaged=true;
+                Effect contact=game.effects.FindLast(e=>
+                    (e.kind=="impact"||e.kind=="spark")&&
+                    (e.position-contactRoot).Length<.03f);
+                Check(contact!=null&&
+                    contact.variant==(weapon==0?0:weapon+1),
+                    "Actual basic weapon "+weapon+
+                    " lost its physical source-colored impact after the projectile flew");
+                GUI.textureCalls.Clear();
+                Call(app,"DrawAuthoredEffect",contact);
+                Color expected=weapon==1?
+                    new Color(.60f,.91f,.72f):
+                    new Color(.67f,.76f,1f);
+                if(weapon>0)
+                    Check(GUI.textureCalls.Exists(c=>
+                        c.texture!=null&&c.texture.name==
+                        "resource:Frontier/Art/Effects"&&
+                        Math.Abs(c.color.r-expected.r)<.0001f&&
+                        Math.Abs(c.color.g-expected.g)<.0001f&&
+                        Math.Abs(c.color.b-expected.b)<.0001f),
+                        "Real bow/staff contact did not reuse its original painted element");
+                else
+                    Check(GUI.textureCalls.Exists(c=>
+                        c.texture!=null&&c.texture.name==
+                        "resource:Frontier/Art/Effects"&&
+                        Math.Abs(c.color.r-1f)<.0001f&&
+                        Math.Abs(c.color.g-1f)<.0001f&&
+                        Math.Abs(c.color.b-1f)<.0001f),
+                        "Physical sword impact no longer retains classic neutral artwork");
+                break;
+            }
+            Check(damaged&&(weapon==0||launched),
+                "Genuine sword/bow/staff basic attack did not reach actual target through authoritative flight");
+        }
+        Console.WriteLine("PASS actual sword, bow and starstaff basic attacks keep original white/green/blue source-painted physical hit contacts after midflight equipment change");
+    }
+
+    private static void RealProfessionQHitsTintOnlyDamageConfirmedContact(FrontierRuntime app)
+    {
+        float[,] palette={
+            {.98f,.80f,.48f},
+            {.60f,.91f,.72f},
+            {.67f,.76f,1f}
+        };
+        for(int profession=0;profession<3;profession++)
+        {
+            Prepare(app,profession);
+            GameCore g=app.Game;
+            // All three skills make real physical attacks; a companion's
+            // buff or a future preview must NEVER pretend this contact.
+            g.enemies.Add(new Enemy(91121,0,14f,14f,2000f));
+            g.enemies.Add(new Enemy(91122,2,10f,14f,2000f));
+            g.Skill(new Point(1f,0f));
+            for(int frame=0;frame<16;frame++)
+            {
+                g.Tick(.02f,new Point());
+                if(frame<3)Check(!g.effects.Exists(e=>
+                    (e.kind=="impact"||e.kind=="spark")&&
+                    e.variant==profession+1),
+                    "A player Q minted a premature technique contact before real release");
+            }
+            bool found=false;
+            foreach(Effect contact in g.effects)
+            {
+                if(contact.kind!="impact"&&contact.kind!="spark")
+                    continue;
+                // Ranger Q genuinely launches flight projectiles; by
+                // this tick they MAY have arrived and damaged enemies.
+                // Their contact should then share the captured skill's
+                // original green impact, never be mistaken for a fake hit.
+                Check(contact.variant==profession+1,
+                    "The actually damaged enemy lost its profession-owned technique contact");
+                GUI.textureCalls.Clear();
+                Call(app,"DrawAuthoredEffect",contact);
+                Check(GUI.textureCalls.Exists(c=>
+                    c.texture!=null&&c.texture.name==
+                        "resource:Frontier/Art/Effects"&&
+                    Math.Abs(c.color.r-palette[profession,0])<.0001f&&
+                    Math.Abs(c.color.g-palette[profession,1])<.0001f&&
+                    Math.Abs(c.color.b-palette[profession,2])<.0001f),
+                    "Actual painted impact/spark Sprite did not display its owner technique tint");
+                found=true;
+            }
+            if(profession!=1)Check(found,
+                "True Vanguard/Arcanist Q dealt damage without an authentic contact Sprite");
+        }
+        // A genuine Ranger arrow can still be in flight when the player
+        // changes vocation. Its physical damage and green source-owned
+        // contact must not become the new Arcanist's blue.
+        Prepare(app,1);
+        var delayed=app.Game;
+        var distant=new Enemy(91127,0,14f,14f,2000f)
+            {stun=40f,timer=20f};
+        delayed.enemies.Add(distant);
+        delayed.SetAimTarget(distant.Position);
+        delayed.Skill(new Point(1f,0f));
+        bool launched=false;
+        for(int frame=0;frame<25;frame++)
+        {
+            delayed.Tick(.02f,new Point());
+            if(delayed.projectiles.Count>0){launched=true;break;}
+        }
+        Check(launched,
+            "Actual Ranger Q failed to produce a physically flying arrow for hit-ownership test");
+        delayed.save.profession=2;
+        bool preserved=false;
+        for(int frame=0;frame<45;frame++)
+        {
+            delayed.Tick(.02f,new Point());
+            if(delayed.effects.Exists(e=>
+                (e.kind=="impact"||e.kind=="spark")&&e.variant==2))
+            {preserved=true;break;}
+        }
+        Check(preserved&&distant.hp<2000f,
+            "Real Ranger arrow lost its launch-time green profession contact after switching to Arcanist");
+
+        // Original idle/normal attack effects have no profession tint.
+        Prepare(app,0);
+        var ordinary=app.Game;
+        ordinary.enemies.Add(new Enemy(91125,0,13.5f,14f,2000f));
+        ordinary.Attack(new Point(1f,0f));
+        for(int frame=0;frame<15;frame++)ordinary.Tick(.02f,new Point());
+        Check(ordinary.effects.Exists(e=>
+            (e.kind=="impact"||e.kind=="spark")&&e.variant==0),
+            "Normal physical attacks lost their original neutral impact identity");
+        Console.WriteLine("PASS real three-profession Q combat contacts tint only damage-confirmed approved Sprite impacts, original ordinary attack remains unchanged");
+    }
+
+    private static void QueuedAreaTagsOnlyPhysicalLivingEnemies(FrontierRuntime app)
+    {
+        for(int profession=0;profession<3;profession++)
+        {
+            Prepare(app,profession);
+            var g=app.Game;
+            Enemy east=new Enemy(88114,0,14.4f,14f,90f);
+            Enemy west=new Enemy(88115,0,10.0f,14f,90f);
+            g.enemies.Add(east);g.enemies.Add(west);
+            g.Attack(new Point(1f,0f));
+            g.Skill(new Point(0f,-1f));
+            Check(g.SkillQueued,
+                "Actual area test requires a deferred unpaid Q cast");
+            Func<Enemy,bool> painted=enemy=>{
+                Point screen=(Point)Call(app,"ScreenPoint",enemy.Position);
+                return GUI.textureCalls.Exists(c=>
+                    Math.Abs(c.color.r-.96f)<.001f&&
+                    Math.Abs(c.color.g-.76f)<.001f&&
+                    Math.Abs(c.color.b-.34f)<.001f&&
+                    Math.Abs(c.color.a-.54f)<.001f&&
+                    Math.Abs(c.rect.x-(screen.x+.42f*32f-2f))<2f&&
+                    Math.Abs(c.rect.y-(screen.y-2f))<2f);
+            };
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            bool area=profession!=1;
+            Check(painted(east)==area&&painted(west)==area,
+                "Only Vanguard and Arcanist may outline living, visible, in-range enemies with real area Q");
+            if(area)
+            {
+                int y=(int)g.Position.y;
+                string original=g.Map.rows[y];
+                try
+                {
+                    char[] terrain=original.ToCharArray();
+                    terrain[(int)g.Position.x+1]='#';
+                    g.Map.rows[y]=new string(terrain);
+                    Check(!g.SkillQueuedAreaWouldHit(east)&&
+                        g.SkillQueuedAreaWouldHit(west),
+                        "Area Q target prediction must share live occlusion with actual strike");
+                    GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                    Check(!painted(east)&&painted(west),
+                        "Enemy outline cannot remain beyond a newly shut real wall");
+                    g.Map.rows[y]=original;
+                    east.hp=0f;
+                    GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                    Check(!painted(east)&&painted(west),
+                        "Defeated enemy is still shown as a payable Q contact");
+                    g.Dash(new Point(1f,0f));
+                    GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                    Check(!painted(east)&&!painted(west),
+                        "Dodge must retire all pending Q enemy target previews");
+                }
+                finally {g.Map.rows[y]=original;}
+            }
+        }
+        Console.WriteLine("PASS both standard melee/mage Q abilities preview only actual living reachable enemies; live walls, deaths, Ranger exclusion and Dodge cancellation use real game draw");
+    }
+
+    private static void ReleasedAreaVfxStopsAtActualWorldCover(FrontierRuntime app)
+    {
+        foreach(int profession in new[]{0,2})
+        {
+            Prepare(app,profession);
+            GameCore g=app.Game;
+            g.save.x=12f;g.save.y=14f;
+            g.SetAim(new Point(1f,0f));
+            g.Skill(new Point(1f,0f));
+            for(int frame=0;frame<16;frame++)g.Tick(.02f,new Point());
+            Effect burst=g.effects.Find(e=>e.kind=="burst"&&
+                e.playerAreaSkill);
+            Check(burst!=null&&burst.radius>3f&&g.playerAction!=null&&
+                g.playerAction.released,
+                "Real Vanguard/Arcanist Q must own the ACTUAL released area effect on its contact frame");
+            float radius=burst.radius;
+            Point east=(Point)Call(app,"ScreenPoint",burst.position+
+                new Point(radius,0f));
+            Point west=(Point)Call(app,"ScreenPoint",burst.position+
+                new Point(-radius,0f));
+            Func<Point,bool> mark=screen=>GUI.textureCalls.Exists(c=>
+                Math.Abs(c.rect.width-4f)<.01f&&
+                Math.Abs(c.rect.height-4f)<.01f&&
+                Math.Abs(c.rect.x-(screen.x-2f))<2f&&
+                Math.Abs(c.rect.y-(screen.y-2f))<2f);
+            int y=(int)g.Position.y,blockX=(int)g.Position.x+2;
+            string old=g.Map.rows[y];
+            try
+            {
+                char[] tiles=old.ToCharArray();
+                tiles[blockX]='#';g.Map.rows[y]=new string(tiles);
+                GUI.textureCalls.Clear();
+                Check((bool)Call(app,"DrawAuthoredEffect",burst),
+                    "Production source atlas must render an actual released Q contact");
+                Check(!mark(east)&&mark(west),
+                    "Released Q damage footprint cannot claim a wall-hidden east lane and must retain the real west arc");
+                Check(GUI.textureCalls.Exists(c=>
+                    c.rect.width>=60f&&c.rect.width<=105f),
+                    "The published source VFX must stay a compact contact painting rather than scaling 32px pixels across the entire combat arena");
+                g.Map.rows[y]=old;
+                GUI.textureCalls.Clear();
+                Call(app,"DrawAuthoredEffect",burst);
+                Check(mark(east)&&mark(west),
+                    "The same authentic released Q FX must show both legal directions after a real gate opens");
+            }
+            finally{g.Map.rows[y]=old;}
+        }
+        Console.WriteLine("PASS real released Vanguard/Arcanist AoE VFX keeps a painted center contact and live wall-clipped outer range");
+    }
+
+    private static void ExplosiveWallSplashDrawsOnlyPhysicalNearSide(FrontierRuntime app)
+    {
+        Prepare(app,2);
+        GameCore g=app.Game;
+        g.projectiles.Clear();g.effects.Clear();g.enemies.Clear();
+        g.save.x=12f;g.save.y=14f;
+        int row=(int)g.Position.y,blockX=14;
+        string original=g.Map.rows[row];
+        try
+        {
+            char[] blocked=original.ToCharArray();
+            blocked[blockX]='#';g.Map.rows[row]=new string(blocked);
+            Check(g.CanStand(g.Position)&&g.Blocked(14.5f,14.5f),
+                "Authentic starfire cover test uses solid stone ahead of a legal source");
+            var bolt=new Projectile{
+                position=g.Position,velocity=new Point(20f,0f),
+                friendly=true,explosive=true,visual="starfire",
+                damage=20f,life=1f};
+            g.projectiles.Add(bolt);
+            // GameCore deliberately clamps each gameplay tick to 50ms.
+            // Do not assume a 150ms call grants three frames of travel:
+            // actually advance until the real swept bolt meets stone.
+            for(int frame=0;frame<6&&g.projectiles.Contains(bolt);frame++)
+                g.Tick(.05f,new Point());
+            Effect impact=g.effects.Find(e=>e.kind=="magicImpact"&&
+                Math.Abs(e.radius-1.8f)<.001f);
+            Check(impact!=null&&!g.projectiles.Contains(bolt)&&
+                impact.position.x<14f,
+                "The actual Starfall projectile must first collide on the REAL near wall face");
+            Point east=(Point)Call(app,"ScreenPoint",
+                impact.position+new Point(impact.radius,0f));
+            Point west=(Point)Call(app,"ScreenPoint",
+                impact.position+new Point(-impact.radius,0f));
+            Func<Point,bool> dot=screen=>GUI.textureCalls.Exists(c=>
+                Math.Abs(c.rect.width-4f)<.01f&&
+                Math.Abs(c.rect.height-4f)<.01f&&
+                Math.Abs(c.rect.x-(screen.x-2f))<2f&&
+                Math.Abs(c.rect.y-(screen.y-2f))<2f);
+            GUI.textureCalls.Clear();
+            Check((bool)Call(app,"DrawAuthoredEffect",impact),
+                "Production renderer must display the real magic hit");
+            Check(!dot(east)&&dot(west),
+                "A REAL starfire splash must retain near-side feedback without drawing through stone");
+            Check(GUI.textureCalls.Exists(c=>c.rect.width>=60f&&
+                c.rect.width<=95f),
+                "The source-painted starfire impact stays a compact contact glyph rather than a wall-piercing blurry disc");
+            g.Map.rows[row]=original;
+            GUI.textureCalls.Clear();Call(app,"DrawAuthoredEffect",impact);
+            Check(dot(east)&&dot(west),
+                "Opening the gate must restore both physically clear impact perimeter spokes");
+        }
+        finally{g.Map.rows[row]=original;}
+        Console.WriteLine("PASS actual source-painted Starfall explosion uses a near-wall contact and dynamic 1.8-tile line-of-sight splash ring");
+    }
+
+    private static void QueuedRangerVolleyMarksLiveObstructedTarget(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;
+        Point target=g.Position+new Point(5.5f,0f);
+        g.SetAimTarget(target);
+        g.Attack(new Point(1f,0f));
+        g.Skill(new Point(1f,0f));
+        Check(g.SkillQueued&&g.SkillQueuedTarget.HasValue&&
+            (g.SkillQueuedTarget.Value-target).Length<.001f,
+            "The actual Ranger draw starts with a real unpaid Q target");
+        int row=(int)g.Position.y;
+        string original=g.Map.rows[row];
+        Point edge=(Point)Call(app,"ScreenPoint",target+new Point(.26f,0f));
+        Func<Color,bool> marker=tint=>GUI.textureCalls.Exists(c=>
+            Math.Abs(c.color.r-tint.r)<.001f&&
+            Math.Abs(c.color.g-tint.g)<.001f&&
+            Math.Abs(c.color.b-tint.b)<.001f&&
+            Math.Abs(c.color.a-tint.a)<.001f&&
+            Math.Abs(c.rect.x-(edge.x-2))<2f&&
+            Math.Abs(c.rect.y-(edge.y-2))<2f);
+        try
+        {
+            char[] cells=original.ToCharArray();
+            cells[(int)g.Position.x+3]='#';
+            g.Map.rows[row]=new string(cells);
+            Check(!g.SkillQueuedRangerLaneClear&&
+                (g.SkillQueuedRangerVolleyLaneMask&4)==0,
+                "Live Q cover must close its real central arrow and physical five-ray preview");
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(marker(new Color(1f,.43f,.40f,.78f))&&
+                !marker(new Color(.83f,.67f,1f,.72f)),
+                "Real DrawPlayerActor must mark occluded queued Ranger Q with coral, not a false clear-lane violet");
+            g.Map.rows[row]=original;
+            Check(g.SkillQueuedRangerLaneClear&&
+                (g.SkillQueuedRangerVolleyLaneMask&4)!=0,
+                "Real Q center arrow must re-open after the wall is removed");
+            int unobstructed=g.SkillQueuedRangerVolleyLaneMask;
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(marker(unobstructed==31?
+                    new Color(.83f,.67f,1f,.72f):
+                    new Color(.98f,.71f,.35f,.77f))&&
+                !marker(new Color(1f,.43f,.40f,.78f))&&
+                g.SkillQueued,
+                "Opening real wall must restore a non-red Ranger target, without consuming Q");
+            // One side of the five-shot arc now has a real wall while
+            // the center still reaches the unchanged target. No generic
+            // green-center reticle may hide this actual spread obstruction.
+            string sideOriginal=g.Map.rows[row+1];
+            try
+            {
+                char[] flank=sideOriginal.ToCharArray();
+                flank[(int)g.Position.x+3]='#';
+                g.Map.rows[row+1]=new string(flank);
+                int physicalMask=g.SkillQueuedRangerVolleyLaneMask;
+                Check((physicalMask&4)!=0&&(physicalMask&16)==0,
+                    "Live Ranger volley did not distinguish clear center from blocked outer shot");
+                GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+                Check(marker(new Color(.98f,.71f,.35f,.77f))&&
+                    !marker(new Color(.83f,.67f,1f,.72f)),
+                    "Partially blocked actual Ranger spread must warn amber, not falsely claim five clear shots");
+                Point world=(Point)Call(app,"ScreenPoint",target);
+                Check(GUI.textureCalls.Exists(c=>
+                    Math.Abs(c.rect.x-(world.x-13+4*6))<2f&&
+                    Math.Abs(c.rect.y-(world.y-18))<2f&&
+                    Math.Abs(c.color.r-1f)<.001f&&
+                    Math.Abs(c.color.g-.43f)<.001f&&
+                    Math.Abs(c.color.a-.86f)<.001f),
+                    "Production Ranger Q world cue did not mark its blocked outer spread lane");
+            }
+            finally{g.Map.rows[row+1]=sideOriginal;}
+        }
+        finally{g.Map.rows[row]=original;}
+        Console.WriteLine("PASS real queued Ranger Q world target switches coral/violet with live projectile-radius wall collision");
+    }
+
+    private static void RiposteHudFollowsRealParryIntentAndUnreleasedContact(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.save.english=false;g.save.energy=100;
+        g.invulnerable=0;g.Dash(new Point(1,0));
+        var hurt=typeof(GameCore).GetMethod("Hurt",Private);
+        Check(hurt!=null&&g.perfectDodgeArmed,
+            "Real Dodge and enemy hurt contact route must be available");
+        hurt.Invoke(g,new object[]{10f,"lunge",(Point?)new Point(-1,0)});
+        Check(g.riposteTime>1.4f&&!g.perfectDodgeArmed,
+            "True enemy contact inside real dodge invulnerability awards the timed counter");
+        Set(app,"combatHudTime",0f);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("反击就绪"))&&
+            GUI.buttonCalls.Exists(c=>Math.Abs(c.rect.x-430)<.5f&&
+                Math.Abs(c.rect.y-732)<.5f),
+            "Actual Chinese compact HUD shows earned counter even with no nearby enemies, without blocking Q");
+        g.save.english=true;g.save.teaUntil=g.save.totalTime+35f;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("RIPOSTE READY"))&&
+            GUI.commands.Exists(c=>c.Contains("Tea ward")),
+            "English counter HUD coexists with physical climate badge");
+        var y=(float)typeof(FrontierRuntime).GetProperty("CounterHudY",Private)
+            .GetValue(app,null);
+        var toastY=(float)typeof(FrontierRuntime).GetProperty("CombatToastY",Private)
+            .GetValue(app,null);
+        Check(y==136f&&toastY>=y+27f,
+            "Climate and riposte panels never overlap each other or the actual combat toast");
+        g.dashTime=g.dashCooldown=g.attackCooldown=0;
+        g.Attack(new Point(1,0));
+        ActorAction swing=g.playerAction;
+        Check(swing!=null&&swing.riposteArmed,
+            "A real attack accepts an earned counter and holds the original contact clock");
+        g.riposteTime=.001f;
+        g.Tick(.02f,new Point());
+        Check(g.riposteTime<=0&&swing.riposteArmed&&!swing.released,
+            "The earned release stays armed even after its preparation outlasts the original countdown");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("RIPOSTE CHARGED"))&&
+            !GUI.commands.Exists(c=>c.Contains("RIPOSTE READY")),
+            "Actual English HUD never hides a committed-but-unreleased counter windup");
+        for(int i=0;i<60&&!swing.released;i++)g.Tick(.02f,new Point());
+        Check(swing.released&&!swing.riposteArmed,
+            "The real action releases its stored bonus through production combat frames");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains("RIPOSTE READY"))&&
+            !GUI.commands.Exists(c=>c.Contains("RIPOSTE CHARGED")),
+            "No stale earned counter panel survives a genuine spent-contact frame");
+        Console.WriteLine("PASS production combat HUD tracks actual earned and charged riposte across language, climate and contact");
+    }
+
+    private static void ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.enemies.Clear();g.save.english=false;
+        g.invulnerable=100;g.save.reducedMotion=true;
+        var sight=typeof(GameCore).GetMethod("ClearAttackPath",Private);
+        Check(sight!=null,"Real Boss summon visual test uses the current production LOS");
+        Point hero=new Point(),bossFoot=new Point();bool found=false;
+        for(int y=4;y<g.Map.rows.Length-4&&!found;y++)
+        for(int x=4;x<g.Map.rows[y].Length-4&&!found;x++)
+        {
+            Point p=new Point(x+.5f,y+.5f),b=p+new Point(-3,0);
+            if(g.CanStand(p)&&g.CanStand(b)&&
+                (bool)sight.Invoke(g,new object[]{b,p}))
+            {hero=p;bossFoot=b;found=true;}
+        }
+        Check(found,"A real playable town scene contains a visible legal Boss/player pair");
+        g.save.x=hero.x;g.save.y=hero.y;
+        Set(app,"camera",hero);
+        var boss=new Enemy(99201,3,bossFoot.x,bossFoot.y,999,true)
+            {hp=190,cycle=2,timer=0,stagger=94};
+        g.enemies.Add(boss);
+        g.Tick(.02f,new Point());
+        Check(boss.state==1&&g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "Production Boss AI commits the next third-cycle support windup");
+        GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();
+        Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("正在呼叫增援")),
+            "Real runtime GameView paints the upcoming summoning cue in Chinese above the active Boss, not merely in Core state");
+        var hit=typeof(GameCore).GetMethod("Hit",Private);
+        hit.Invoke(g,new object[]{boss,5f,false,(Point?)new Point(1,0),null});
+        Check(boss.hp>0&&boss.state==0&&
+            !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "Actual combat Break interrupts the summoning Boss and retracts the pending message");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(s=>s.Contains("正在呼叫增援")),
+            "Real runtime paints no stale announcement for a canceled summon");
+        g.save.english=true;boss.stun=0;boss.hitTime=0;boss.releaseTime=0;boss.timer=0;
+        g.Tick(.05f,new Point());
+        Check(boss.state==1&&g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "Real second Boss attack starts after consuming actual impact hit-stop");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("CALLING REINFORCEMENTS!")),
+            "Production runtime re-renders a genuine English support call after the original attack recovers");
+        for(int k=0;k<65&&boss.cycle<3;k++)g.Tick(.02f,new Point());
+        Check(boss.cycle==3&&g.enemies.Count==2&&
+            !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id),
+            "The announced support is actually born only after timed Boss release");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(s=>s.Contains("CALLING REINFORCEMENTS!")),
+            "A fulfilled support call also retires its real-world warning");
+        Console.WriteLine("PASS actual bilingual Boss support cue, selective live Break retraction and real combat summon in FrontierRuntime.OnGUI");
+    }
+
+    private static void CivicReserveCombatHudTracksGenuineReceiverObjective(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;
+        g.save.stage=3;g.save.ending=3;g.save.english=false;
+        foreach (string flag in new[]{
+            "afterlight_started","afterlight_complete","afterlight_done_1",
+            "afterlight_steward_1","afterlight_reserve_1",
+            "afterlight_plan_1_watch"})
+            if(!g.Has(flag))g.save.flags.Add(flag);
+        g.Enter(1);g.enemies.Clear();
+        WorldObject receiver=null;
+        foreach(WorldObject o in g.Map.objects)
+            if(o.kind=="afterlightoutlet1"){receiver=o;break;}
+        Check(receiver!=null,"Published Thornwood public receiver actually exists");
+        g.save.x=receiver.x;g.save.y=receiver.y;
+        g.Talk(receiver);
+        Check(g.conversation!=null,"The rebuilt public receiver opens real dialogue");
+        int start=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="afterlight_watch_start_1"){start=i;break;}
+        Check(start>=0,"Public stock provides an authentic defense start choice");
+        g.Choose(start);
+        Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+            g.AfterlightWatchStock==100f&&g.AfterlightWatchTime==100f,
+            "Real siege starts with complete timed receiver objective");
+
+        // The hero and camera may move away from the receiver. A genuinely
+        // live siege must keep its status in the combat layout itself, even
+        // with the ordinary combat HUD grace timer at zero.
+        Set(app,"combatHudTime",0f);
+        Set(app,"camera",new Point(13,14));
+        GUI.commands.Clear();GUI.textureCalls.Clear();GUI.buttonCalls.Clear();
+        Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("公共储备防卫 · 第1/2")),
+            "Real combat HUD exposes the active wave instead of hiding it at the offscreen station");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("设施耐久 100%"))),
+            "Real HUD shows the actual live objective percentage");
+        Check(GUI.buttonCalls.Exists(c=>Math.Abs(c.rect.x-430)<.5f&&
+            Math.Abs(c.rect.y-732)<.5f),
+            "Civic-defense HUD retains the actual compact combat skill input instead of blocking Q");
+
+        var integrity=typeof(GameCore).GetField("afterlightWatchStock",
+            Private);
+        var patched=typeof(GameCore).GetField("afterlightWatchPatched",
+            Private);
+        Check(integrity!=null&&patched!=null,
+            "Real civilian stock and one-use repair availability are produced by GameCore");
+        integrity.SetValue(g,22.5f);
+        g.save.inventory[0]=2;g.save.inventory[2]=2;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("设施耐久 23% · 抢修 E"))),
+            "Critical objective turns into a readable 23%-integrity prompt with a truthful E repair hint");
+
+        g.save.english=true;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("STOCK INTEGRITY 23% · PATCH E"))),
+            "Active English combat HUD reports the identical real stock condition");
+        patched.SetValue(g,true);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains(GUI.S("STOCK INTEGRITY 23%")))&&
+            !GUI.commands.Exists(c=>c.Contains(GUI.S("STOCK INTEGRITY 23% · PATCH E"))),
+            "Consumed repair is never falsely advertised as available");
+        g.save.english=false;
+        g.save.x=receiver.x;g.save.y=receiver.y;
+        g.Talk(receiver);
+        int abort=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="afterlight_watch_abort_1"){abort=i;break;}
+        Check(abort>=0,"Public receiver supports actual on-site siege withdrawal");
+        g.Choose(abort);
+        g.enemies.Clear();
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains("公共储备防卫 · 第")),
+            "No stale combat HUD after a real withdrawal");
+        Console.WriteLine("PASS actual civic stock siege draws bilingual offscreen HUD, honest patch hints, input-safe compact controls and cleanup");
+    }
+
     private static void MenuAndApplicationPauseDiscardIntent(FrontierRuntime app)
     {
         foreach (string boundary in new[] { "pause", "inventory", "application", "focus" })
@@ -1408,17 +2604,317 @@ public static class RuntimeCombatInputChecks
             " actual sword/impact/projectile effect lifetimes switch between authored Effects.png paintings without root drift");
     }
 
+    private static void AtomicHeroContactImportRecovery(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var installed=Resources.TextureOverrides;
+        var cache=(System.Collections.Generic.Dictionary<string,Texture2D>)
+            typeof(FrontierRuntime).GetField(
+                "fullBodyHeroSheetCache",Private).GetValue(app);
+        var actions=new System.Collections.Generic.List<string>();
+        const string root="Frontier/HeroAnimator/Canonical/";
+        foreach(string profession in new[]{"Vanguard","Ranger","Arcanist"})
+        foreach(string action in new[]{"Attack","Cast"})
+        foreach(string face in new[]{"E","N","S"})
+            actions.Add("Hero_"+profession+"_"+action+"_"+face);
+        try
+        {
+            installed.Clear();cache.Clear();
+            Set(app,"heroContactFamilyChecked",false);
+            Set(app,"clock",1f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "Existing six-frame hero art cannot masquerade as new contacts");
+            for(int i=0;i<17;i++)
+                installed[root+actions[i]]=new Texture2D(7*256,256,
+                    TextureFormat.RGBA32,false){name="staged:"+actions[i]};
+            Set(app,"clock",4f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "17-of-18 import must not switch any class to seven frames");
+            // A live scene may still hold the older six-cell texture.
+            // Completing the final import must remove stale entries.
+            cache[actions[0]]=new Texture2D(6*256,256,
+                TextureFormat.RGBA32,false){name="stale-six-cell"};
+            installed[root+actions[17]]=new Texture2D(7*256,256,
+                TextureFormat.RGBA32,false){name="staged:"+actions[17]};
+            Set(app,"clock",7f);
+            Check((bool)Call(app,"HasCompleteHeroContactArt"),
+                "Complete contact family never became live after Unity reimport");
+            Check(!cache.ContainsKey(actions[0]),
+                "Seven-frame switch reused stale six-cell cached art");
+            app.Game.SetAim(new Point(1,0));
+            app.Game.Attack(new Point(1,0));
+            GUI.textureCalls.Clear();Call(app,"DrawPlayerActor");
+            Check(GUI.textureCalls.Exists(t=>t.texture.name==
+                    "staged:Hero_Vanguard_Attack_E"),
+                "Actual player draw did not switch to fully imported action art");
+            installed.Remove(root+actions[17]);
+            Set(app,"clock",10f);
+            Check((bool)Call(app,"HasCompleteHeroContactArt")&&
+                app.Game.playerAction!=null,
+                "A real in-flight Attack must retain its entire seven-cell body even when a file vanishes mid-pose");
+            Check(cache.ContainsKey(actions[0])&&
+                (bool)Call(app,"HasCompleteHeroContactArt"),
+                "Repeated IMGUI calls must not tear down the in-flight imported hero Sprite");
+            app.Game.playerAction=null;
+            Set(app,"clock",10.2f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "After the real action ends, incomplete art must roll the entire family back to six frames");
+            Check(!cache.ContainsKey(actions[0]),
+                "Rollback must invalidate every retired seven-frame render cache");
+            app.Game.attackCooldown=0f;
+            app.Game.Attack(new Point(1f,0f));
+            Check(app.Game.playerAction!=null,
+                "The next actual hero Attack starts on the already published six-frame family");
+            for(int i=0;i<18;i++)
+                installed[root+actions[i]]=new Texture2D(7*256,256,
+                    TextureFormat.RGBA32,false){name="staged-again:"+actions[i]};
+            Set(app,"clock",13f);
+            Check(!(bool)Call(app,"HasCompleteHeroContactArt"),
+                "Completing all 18 imports cannot swap the middle of a real six-frame attack");
+            app.Game.playerAction=null;
+            Set(app,"clock",13.15f);
+            Check((bool)Call(app,"HasCompleteHeroContactArt"),
+                "First safe idle boundary publishes all 18 new seven-frame whole bodies together");
+            Console.WriteLine(
+                "PASS 18-contact all-or-none hot-import, real game draw and safe reimport rollback");
+        }
+        finally
+        {
+            installed.Clear();cache.Clear();
+            Set(app,"heroContactFamilyChecked",false);
+            Set(app,"heroContactFamilyComplete",false);
+            Set(app,"heroContactLastCheckedAt",float.NegativeInfinity);
+            app.EndVisualReview();
+        }
+    }
+
+    private static void RejectedRegionLoadReturnsToRealInn(FrontierRuntime app)
+    {
+        Campaign world = CampaignFixture.Create();
+        var game = new GameCore(world);
+        game.NewGame(0); game.Close();
+        // A new hero cannot enter the final citadel, even if legacy save
+        // coordinates happen to be legal floor tiles in the home town.
+        SaveData slot = game.save;
+        slot.room = 4; slot.x = 12; slot.y = 14; slot.coins = 73;
+        slot.snapshotRoom = 4; slot.worldEnemies = new EnemyRecord[] { new EnemyRecord() };
+        game.Load(slot);
+        Check(game.save.room == 0 &&
+            Math.Abs(game.save.x - world.maps[0].spawnX) < .0001f &&
+            Math.Abs(game.save.y - world.maps[0].spawnY) < .0001f,
+            "Locked-region save must respawn at the real inn, not an old world coordinate");
+        Check(game.save.snapshotRoom == -1 && game.save.worldEnemies == null &&
+            game.save.coins == 73,
+            "Rejected region must retire stale enemy snapshot but preserve economy");
+        // A corrupt region index previously collapsed to town before the
+        // locked-room check, retaining the same invalid source coordinates.
+        slot = game.save;
+        slot.room = int.MaxValue; slot.x = 12; slot.y = 14;
+        slot.snapshotRoom = 4; slot.worldEnemies = new EnemyRecord[] { new EnemyRecord() };
+        game.Load(slot);
+        Check(game.save.room == 0 &&
+            Math.Abs(game.save.x - world.maps[0].spawnX) < .0001f &&
+            Math.Abs(game.save.y - world.maps[0].spawnY) < .0001f &&
+            game.save.snapshotRoom == -1 && game.save.worldEnemies == null,
+            "Out-of-range region must be treated as a rejected placement too");
+        // Legal saves must not be forced back to their spawn each load.
+        slot = game.save;
+        slot.room = 0; slot.x = 12; slot.y = 14;
+        game.Load(slot);
+        Check(game.save.room == 0 &&
+            Math.Abs(game.save.x - 12) < .0001f &&
+            Math.Abs(game.save.y - 14) < .0001f,
+            "Valid walkable town saves must retain their exact player position");
+        Console.WriteLine("PASS locked/out-of-range saved region returns to inn without stale enemies or lost items");
+    }
+
+    private static void LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;g.mode="world";
+        g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+        var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+        Check(post!=null,"Y key uses a real authored relief watch");
+        g.save.x=post.x;g.save.y=post.y;
+        g.save.flags.Add("outer_cache_0");
+        g.save.flags.Add("outer_patrol_done_0");
+        g.save.companion=1;
+        g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+        Check(g.CanStand(g.companionPosition),
+            "The physical ranger has a legal start foot");
+        g.Talk(post);
+        int start=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_veteran");
+        Check(start>=0,"A real veteran siege is available at this post");
+        g.Choose(start);
+        Point allyBefore=g.companionPosition;
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(g.OuterPatrolCompanionGuarding&&
+            g.CanStand(g.OuterPatrolCompanionGuardPosition)&&
+            (g.companionPosition-allyBefore).Length<1f,
+            "Pressing Y places a tactical guard waypoint without warping ally");
+        Point guardFoot=g.OuterPatrolCompanionGuardPosition;
+        g.save.x=post.x+6f;g.save.y=post.y;
+        Point beforeRecall=g.companionPosition;
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(!g.OuterPatrolCompanionGuarding&&
+            (g.companionPosition-beforeRecall).Length<1f,
+            "Defender recalls from the live perimeter without teleport");
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(!g.OuterPatrolCompanionGuarding,
+            "Remote keyboard Y cannot PLACE a new outpost guard");
+        g.save.x=post.x;g.save.y=post.y;
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(g.OuterPatrolCompanionGuarding&&
+            g.CanStand(g.OuterPatrolCompanionGuardPosition),
+            "Local Y can physically reassign a reachable outpost guard");
+        g.Talk(post);
+        Input.keys.Add(KeyCode.Y);Update(app);
+        Check(g.OuterPatrolCompanionGuarding,
+            "Keyboard Y cannot bypass a paused dialogue input context");
+        g.Close();
+        g.Talk(post);
+        int abort=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_abort");
+        Check(abort>=0,"Original withdrawal remains reachable");
+        g.Choose(abort);
+        Check(!g.OuterPatrolActive&&!g.OuterPatrolCompanionGuarding,
+            "Original withdrawal clears real keyboard tactical state");
+        Console.WriteLine("PASS actual Y keyboard companion guard/follow uses walkable stock waypoint");
+    }
+
+    private static void LiveXKeyPatchCannotRepairRemoteOrTwice(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.mode="world";
+        g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+        var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+        Check(post!=null,"Real regional post exists in shipped game");
+        g.save.x=post.x;g.save.y=post.y;
+        g.save.flags.Add("outer_cache_0");
+        g.save.inventory[0]=5;g.save.inventory[2]=5;
+        g.Talk(post);
+        int start=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_start");
+        Check(start>=0,"Unwon real cache challenge offers genuine defense");
+        g.Choose(start);
+        Check(g.OuterPatrolRaidersRemaining==2&&
+            !g.OuterPatrolPatchAvailable,"Full stock cannot be patched");
+
+        Point retreat=new Point();bool found=false;
+        for(int dx=-10;dx<=10&&!found;dx++)
+        for(int dy=-10;dy<=10&&!found;dy++)
+        {
+            Point p=new Point(post.x+dx,post.y+dy);
+            if(!g.CanStand(p)||
+                (p-new Point(post.x,post.y)).Length>10f||
+                (p-new Point(post.x-2f,post.y)).Length<5f)continue;
+            retreat=p;found=true;
+        }
+        Check(found,"Shipped map provides a real safe observation foot");
+        g.save.x=retreat.x;g.save.y=retreat.y;
+        for(int i=0;i<1000&&g.OuterPatrolActive&&
+                g.OuterPatrolIntegrity==100f;i++)
+            g.Tick(.02f,new Point());
+        Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity<100f&&
+            g.OuterPatrolPatchAvailable,
+            "Real timed raider attacks eventually damage physical stores");
+
+        float damaged=g.OuterPatrolIntegrity;
+        Input.keys.Add(KeyCode.X);Update(app);
+        Check(g.save.inventory[0]==5&&g.save.inventory[2]==5,
+            "X cannot buy an emergency repair from a distant location");
+        g.save.x=post.x;g.save.y=post.y;
+        Input.keys.Add(KeyCode.X);Update(app);
+        Check(g.OuterPatrolIntegrity>damaged&&
+            g.save.inventory[0]==4&&g.save.inventory[2]==4,
+            "Real runtime X input repairs damaged cache with one real timber and herb");
+        Input.keys.Add(KeyCode.X);Update(app);
+        Check(g.save.inventory[0]==4&&g.save.inventory[2]==4&&
+            !g.OuterPatrolPatchAvailable,
+            "Repeated X key cannot duplicate one-use healing or spend resources");
+        Console.WriteLine("PASS live X repair respects damage, physical range and one-use stock");
+    }
+
+    private static void LiveVKeyBarricadeUsesRealOutpostGuard(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;g.mode="world";
+        g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+        var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+        Check(post!=null,"Input test targets a real playable outer cache post");
+        g.save.x=post.x;g.save.y=post.y;
+        g.save.flags.Add("outer_cache_0");
+        g.save.flags.Add("outer_patrol_done_0");
+        g.save.inventory[0]=7;g.save.inventory[4]=3;
+        g.Talk(post);
+        int veteran=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_watch_veteran");
+        Check(veteran>=0,"A finished watchpost offers the live veteran siege");
+        g.Choose(veteran);
+        Check(g.OuterPatrolVeteranActive&&g.OuterPatrolBraceIntegrity==0f,
+            "Real veteran fight starts with no prepaid barricade");
+
+        g.save.x=post.x+6f;g.save.y=post.y;
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.OuterPatrolBraceIntegrity==0f&&
+            g.save.inventory[0]==7&&g.save.inventory[4]==3,
+            "Real keyboard V cannot build cover remotely from outside the post");
+
+        g.save.x=post.x;g.save.y=post.y;
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.OuterPatrolBraceStanding&&
+            g.OuterPatrolBraceIntegrity==48f&&
+            g.save.inventory[0]==5&&g.save.inventory[4]==2,
+            "Keyboard V directly buys and places one genuine 48-HP stock barrier");
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.OuterPatrolBraceIntegrity==48f&&
+            g.save.inventory[0]==5&&g.save.inventory[4]==2,
+            "Repeated keyboard activation cannot pay/build the same barricade twice");
+        g.Talk(post);
+        Input.keys.Add(KeyCode.V);Update(app);
+        Check(g.save.inventory[0]==5&&g.save.inventory[4]==2,
+            "Keyboard cannot bypass dialog-mode action restrictions");
+        g.Close();
+        Console.WriteLine("PASS keyboard V constructs only one nearby real veteran barricade");
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, MenuAndApplicationPauseDiscardIntent,
+        Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,
             ActorRegistrationChecks.VerifyBossMovingFlash,
+            ActorRegistrationChecks.VerifyBossWholeBodySizeAcrossIdleRun,
+            ActorRegistrationChecks.VerifyEnemySingleBodyHandoffs,
+            ActorRegistrationChecks.VerifyGpuOnlyMonsterHitAndSelectionFallback,
             ActorRegistrationChecks.VerifyResidentAnimation,
+            ActorRegistrationChecks.VerifyNpcActionSignalProduction,
+            ActorRegistrationChecks.VerifyHeroStopPlantContinuity,
+            ActorRegistrationChecks.VerifyEnemyStopPlantContinuity,
+            ActorRegistrationChecks.VerifyCompanionGaitContinuity,
+            ActorRegistrationChecks.VerifyOriginalEnemyReleaseDust,
+            ActorRegistrationChecks.VerifyAuthoredEnemyHitSparks,
+            ActorRegistrationChecks.VerifyMaterialGroundContactFrames,
+            ActorRegistrationChecks.VerifyBufferedDodgeWorldCue,
+            ActorRegistrationChecks.VerifyDodgeHudEarlyClick,
+            ActorRegistrationChecks.VerifyQueuedSkillHudSingleDispatch,
+            RenderStateChecks.VerifyLiveVisualLookResource,
+            RenderStateChecks.VerifyPaintedShorelineFoamInLiveWorld,
+            RenderStateChecks.VerifyOriginalWaterRippleArtAndLiveTide,
+            RenderStateChecks.VerifyPaintedCampfireFlamesInProduction,
+            RenderStateChecks.VerifyPropVaporsInProduction,
+            RenderStateChecks.VerifyLivingGardenInProduction,
+            RenderStateChecks.VerifyAuthoredProjectileTrailsAndHotImport,
+            RenderStateChecks.VerifyReducedMotionContactEffectsHaveStableSourceScale,
+            RenderStateChecks.VerifyOrdinaryMeleeWarningRespectsRealWallCover,
+            RenderStateChecks.VerifyEnemyAreaWarningHonorsRealWallCover,
+            RenderStateChecks.VerifyCastSigilSourceAndCombatWarning,
+            RenderStateChecks.VerifyRelicArtAndWorldIllumination,
             RealMovingSpellCompositesAndBossFrames, HeroActionAccentsFollowRealDirectionalWeaponMount,
             AllEquippedBodiesRemainCanonicalDuringAttackAndSkill,
             CanonicalHeroNeverDependsOnLegacyPlayerImports,
@@ -1429,7 +2925,7 @@ public static class RuntimeCombatInputChecks
             RecoveryWalkingRestoresEquippedDrawing,
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
-            RenderStateChecks.MapRasterRegression, SaveRecoveryUsesNewestVerifiedCopy,
+            RenderStateChecks.MapRasterRegression, RejectedRegionLoadReturnsToRealInn, SaveRecoveryUsesNewestVerifiedCopy,
             PortableSaveCommitNeverLosesLastGoodPrimary,
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
@@ -1443,7 +2939,13 @@ public static class RuntimeCombatInputChecks
             try { test(app); }
             catch (Exception error)
             {
-                failures++; Console.WriteLine("FAIL " + test.Method.Name + ": " + (error.InnerException ?? error).Message);
+                // Reflection-based production render tests may nest multiple
+                // TargetInvocationExceptions. Always retain the ORIGINAL
+                // failing source/stack rather than one unhelpful wrapper.
+                Exception root=error;
+                while(root.InnerException!=null)root=root.InnerException;
+                failures++;
+                Console.WriteLine("FAIL "+test.Method.Name+": "+root.ToString());
             }
         }
         Call(app, "OnDestroy");

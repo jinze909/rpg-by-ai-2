@@ -57,13 +57,21 @@ namespace Starfall
                     throw new InvalidDataException("Save checksum mismatch.");
                 json = envelope.payload;
             }
-            // Both historical unwrapped v1/v2 files and present-day envelopes
-            // require these original top-level fields. Reject a plausible
-            // default character synthesized from a partial JSON object.
-            if (!RootField(json, "version") || !RootField(json, "inventory"))
-                throw new InvalidDataException("Missing save schema fields.");
+            // All historical v1/v2 Unity saves serialize these base fields.
+            // A *valid JSON fragment* containing only version + inventory
+            // previously passed and silently replaced quests, location and
+            // money with defaults. Reject it before loading or saving over a
+            // recoverable .bak/.tmp. Do not require newer expansion fields.
+            string[] required = { "version", "inventory", "flags",
+                "room", "x", "y", "health", "coins" };
+            foreach (string field in required)
+                if (!RootField(json, field))
+                    throw new InvalidDataException("Missing save schema field: " + field);
             SaveData value = JsonUtility.FromJson<SaveData>(json);
-            if (value == null || (value.version != 1 && value.version != 2) || value.inventory == null || value.inventory.Length != 8) throw new InvalidDataException("Invalid save schema.");
+            if (value == null || (value.version != 1 && value.version != 2) ||
+                value.inventory == null || value.inventory.Length != 8 ||
+                value.flags == null)
+                throw new InvalidDataException("Invalid save schema.");
             return value;
         }
         public static SaveData Read(out string warning) { return Read(-1, out warning); }
@@ -148,6 +156,10 @@ namespace Starfall
                 Directory.CreateDirectory(Application.persistentDataPath); string path = PathFor(slot), temp = path + ".tmp";
                 value.savedAtUtc = DateTime.UtcNow.ToString("o"); string payload = JsonUtility.ToJson(value);
                 string json = JsonUtility.ToJson(new SaveEnvelope { payload = payload, checksum = Checksum(payload) }, true);
+                // Validate BEFORE FileMode.Create truncates a crash-recovered
+                // .tmp that might be the only remaining good save. The
+                // existing post-flush disk verification still runs below.
+                Decode(json);
                 using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
                 { byte[] bytes = Encoding.UTF8.GetBytes(json); stream.Write(bytes, 0, bytes.Length); stream.Flush(true); }
                 Decode(File.ReadAllText(temp));

@@ -67,12 +67,50 @@ jobs:
         run: python3 tools/check_native_hero_capture_compile.py
       - name: Reconstruct actual three-class action frame traces into GPU-free review filmstrips
         run: python3 tools/render_hero_gameplay_traces.py
+      - name: Source-pixel QA - companion gait and leg movement across all directions
+        run: python3 tools/check_companion_gait_source.py
       - name: Sprite animation QA - original hero, Boss cues and remastered PNGs
         run: python3 tools/check_visual_sprites.py
+      - name: Verify 24 original canopy glint frames and depth-sorted real tree production
+        run: python3 tools/check_canopy_whispers.py
+      - name: Verify new world-weather pixel art, Unity source GUID and actual scene wiring
+        run: python3 tools/check_weather_wisps.py
+      - name: Hard-gate original animated ruin masonry glyphs and real sorted scene rendering
+        run: python3 tools/check_ruin_sigils.py
+      - name: Verify authored relic glow sprites, Unity importer and production scene
+        run: python3 tools/check_relic_shimmer.py
+      - name: Verify painted shoreline foam atlas and installed Unity scene use
+        run: python3 tools/check_shoreline_foam.py
+      - name: Validate eight original warm/cold water ripple sprites and active scene rendering
+        run: python3 tools/check_water_ripples.py
+      - name: Hard-gate original campfire full-flame keyposes and real field prop renderer
+        run: python3 tools/check_campfire_flames.py
+      - name: Hard-gate eight original stable and critical Roadwarden ward rune Sprite keyposes
+        run: python3 tools/check_roadwarden_ward.py
+      - name: Validate 8 original warm and arcane vapors in real world props
+        run: python3 tools/check_prop_vapors.py
+      - name: Gate original growing and blooming Moonherb sprites in world
+        run: python3 tools/check_garden_living.py
+      - name: Verify eight original projectile trail poses and live flight wiring
+        run: python3 tools/check_projectile_trails.py
+      - name: Verify painted Boss and elite runic target sprites and production attack warnings
+        run: python3 tools/check_cast_sigils.py
+      - name: Verify NPC dialogue and rescue signals are hand-painted and wired
+        run: python3 tools/check_npc_action_signals.py
+      - name: Verify 12-frame original sword, projectile and magic contact pixel art
+        run: python3 tools/check_impact_flourish.py
+      - name: Gate 12 original enemy and Boss grounded release effects in production
+        run: python3 tools/check_enemy_release_dust.py
+      - name: Gate 12 original combat hit reaction sprites and real source
+        run: python3 tools/check_enemy_hit_sparks.py
+      - name: Audit original terrain contact paintings in live world
+        run: python3 tools/check_ground_contact_frames.py
       - name: Enforce single-class waist/palette/proportion QA for all Sprite cells
         run: python3 tools/check_hero_whole_body_integrity.py
       - name: Hard-fail real installed full-body connectedness, boots, gold identity and Sprite GUID regressions
         run: python3 tools/check_hero_production_anatomy.py
+      - name: Audit north-facing Attack proportions for all three canonical outfits
+        run: python3 tools/check_hero_north_attack_scale.py
       - name: Audit production Sprite continuity and emit offline frame comparison GIFs
         run: python3 tools/check_hero_runtime_continuity.py
       - name: Require byte-exact source-authored hero animations with zero body warps

@@ -1814,5 +1814,80 @@ namespace Starfall.Tests
             Check(restored.NearActiveFieldStation(7, 4.2f),
                 "The environment shelter works again when a player revisits after loading");
         }
+        public static void FarshoreStationNetworkRewardsStayWithinOriginalSaveCaps(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report" })
+                g.save.flags.Add(flag);
+            g.save.coins = 999995; g.save.shards = 99998;
+            g.save.skillPoints = 99; g.save.tea = 998;
+            g.Enter(5); g.enemies.Clear();
+            var harbor = Object(g, "fieldstation5");
+            g.save.x = harbor.x; g.save.y = harbor.y;
+            g.save.totalTime = 0;
+            g.save.inventory[0] = 4; g.save.inventory[4] = 4;
+            Action(g, harbor.kind, "fieldstation_repair_5");
+            Check(g.Has("fieldstation_5") && g.save.coins == 999999 &&
+                g.save.shards == 99999,
+                "Real Mistport repair completes without exceeding v2 coin and shard limits");
+
+            g.Enter(6); g.enemies.Clear();
+            var desert = Object(g, "fieldstation6");
+            g.save.x = desert.x; g.save.y = desert.y;
+            g.save.inventory[1] = 4; g.save.inventory[4] = 4;
+            g.save.flags.Add("mirrors_lit");
+            Action(g, desert.kind, "fieldstation_repair_6");
+            Check(g.Has("fieldstation_6") && g.save.coins == 999999 &&
+                g.save.shards == 99999,
+                "Real desert station remains repairable at maximum saved currency");
+
+            g.Enter(7); g.enemies.Clear();
+            var highland = Object(g, "fieldstation7");
+            g.save.x = highland.x; g.save.y = highland.y;
+            g.save.inventory[0] = 4; g.save.inventory[2] = 4;
+            g.save.flags.Add("warm_brazier0");
+            Action(g, highland.kind, "fieldstation_repair_7");
+            Check(g.Has("fieldstation_complete") &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.skillPoints == 99 && g.save.tea == 999,
+                "Actual three-station network completes with bounded currency, talent points, and tea");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.Has("fieldstation_complete") &&
+                restored.save.coins == 999999 && restored.save.shards == 99999 &&
+                restored.save.skillPoints == 99 && restored.save.tea == 999,
+                "Fully constructed network and every capped resource survive existing v2 save reload");
+        }
+
+        public static void FarshoreReliefConstructionCapsOneTimeMilestoneBonuses(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            g.save.frontierEnding = 1;
+            foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report",
+                "fieldstation_6", "fieldstation_survey_6",
+                "farshore_relief_5", "farshore_relief_7" })
+                g.save.flags.Add(flag);
+            g.Enter(6); g.enemies.Clear();
+            var station = Object(g, "fieldstation6");
+            g.save.x = station.x; g.save.y = station.y;
+            g.save.coins = 999999; g.save.shards = 99999;
+            g.save.skillPoints = 99; g.save.tea = 998;
+            g.save.inventory[1] = 4; g.save.inventory[2] = 3;
+            Action(g, station.kind, "fieldstation_relief_6");
+            Check(g.Has("farshore_relief_6") && g.Has("farshore_relief_complete") &&
+                g.save.inventory[1] == 2 && g.save.inventory[2] == 2 &&
+                g.save.coins == 999999 && g.save.shards == 99999 &&
+                g.save.skillPoints == 99 && g.save.tea == 999,
+                "Real final relief construction consumes materials, upgrades the live refuge, and bounds its completion bonuses");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.Has("farshore_relief_complete") && loaded.save.coins == 999999 &&
+                loaded.save.shards == 99999 && loaded.save.skillPoints == 99 &&
+                loaded.save.tea == 999,
+                "Farshore civic upgrade and its cap-safe rewards persist through a full save roundtrip");
+        }
+
     }
 }

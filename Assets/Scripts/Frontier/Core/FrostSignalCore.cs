@@ -8,6 +8,19 @@ namespace Starfall
         public int FrostSignalStage { get; private set; }
         public float FrostSignalTime { get; private set; }
         public float FrostSignalFlame { get; private set; }
+        // Short-lived protection, intentionally absent from v1/v2 SaveData.
+        public float FrostSignalWindbreakTime { get; private set; }
+        private int frostSignalConfirmedKills;
+        private void OnFrostSignalEnemyDefeated(Enemy enemy)
+        {
+            if (FrostSignalStage != 2 || save.room != 7 ||
+                !IsFrostSignalEnemy(enemy)) return;
+            int index = enemy.id - 91400;
+            if (index >= 0 && index < 2)
+                frostSignalConfirmedKills |= 1 << index;
+        }
+        private bool FrostSignalGuardsDefeated
+        { get { return frostSignalConfirmedKills == 3; } }
         public bool FrostSignalActive { get { return FrostSignalStage>0; } }
         public bool FrostSignalComplete { get { return Has("frostsignal_complete"); } }
         public int FrostSignalOutcome
@@ -27,18 +40,68 @@ namespace Starfall
             projectiles.RemoveAll(p=>p.frostSignalOwned);
             hazards.RemoveAll(h=>h.frostSignalOwned);
             effects.RemoveAll(e=>e.frostSignalOwned);
-            FrostSignalStage=0;FrostSignalTime=FrostSignalFlame=0;
+            FrostSignalStage=0;frostSignalConfirmedKills=0;
+            FrostSignalTime=FrostSignalFlame=FrostSignalWindbreakTime=0;
+        }
+        // The authored switchyard positions are preferred, not permission to
+        // materialize a raider inside the player, companion or a living enemy.
+        // Keep alternates local to the real ambush rather than teleporting a
+        // quest guard to a disconnected location elsewhere on the map.
+        private static readonly Point[] frostSignalGuardOffsets={
+            new Point(0f,0f),new Point(0f,1.5f),
+            new Point(-1.5f,0f),new Point(1.5f,0f),
+            new Point(0f,-1.5f),new Point(-1.5f,1.5f),
+            new Point(1.5f,1.5f),new Point(-1.5f,-1.5f),
+            new Point(1.5f,-1.5f),
+            // A solid one-tile moat around an otherwise walkable pocket
+            // makes every 1.5-tile fallback touch the surrounding wall.
+            // Local 2.5-tile candidates can still reach the active battle
+            // without spawning guards at a distant unrelated world location.
+            new Point(0f,2.5f),new Point(0f,-2.5f),
+            new Point(-2.5f,0f),new Point(2.5f,0f)
+        };
+        private bool TryFrostSignalGuardFoot(Point origin,Point other,
+            bool hasOther,out Point result)
+        {
+            foreach(Point offset in frostSignalGuardOffsets)
+            {
+                Point foot=origin+offset;
+                if(!CanStand(foot) ||
+                    (foot-Position).Length<1.25f ||
+                    (save.companion>=0 &&
+                     (foot-companionPosition).Length<1.25f) ||
+                    (hasOther && (foot-other).Length<1.25f) ||
+                    // A legal isolated tile behind solid scenery makes the
+                    // timed two-guard fight impossible. Require a genuine
+                    // local four-neighbor route from guard to player, just
+                    // as Boss reinforcements do, before committing either ID.
+                    !BossSummonHasLocalRoute(foot,Position))continue;
+                bool occupied=false;
+                foreach(Enemy e in enemies)
+                    if(e.hp>0&&(foot-e.Position).Length<1.25f)
+                    {occupied=true;break;}
+                if(occupied)continue;
+                result=foot;return true;
+            }
+            result=new Point();return false;
         }
         private bool SpawnFrostSignalGuards()
         {
-            Point[] posts={new Point(62.5f,41.5f),new Point(65.5f,42.5f)};
-            foreach(Point p in posts)if(!CanStand(p))return false;
+            Point[] desired={new Point(62.5f,41.5f),new Point(65.5f,42.5f)};
+            Point first,second;
+            // Validate BOTH feet before adding EITHER guard. A crowded
+            // junction remains retryable, without a half-spawned encounter.
+            if(!TryFrostSignalGuardFoot(desired[0],new Point(),false,out first) ||
+               !TryFrostSignalGuardFoot(desired[1],first,true,out second))
+                return false;
+            Point[] posts={first,second};
             for(int i=0;i<posts.Length;i++)
             {
                 Enemy e=new Enemy(91400+i,i==0?0:2,
                     posts[i].x,posts[i].y,i==0?95:112);
                 e.timer=.7f+i*.25f;enemies.Add(e);
             }
+            frostSignalConfirmedKills=0;
             return true;
         }
         private void TickFrostSignal(float dt)
@@ -46,13 +109,34 @@ namespace Starfall
             if(!FrostSignalActive)return;
             if(save.room!=7||Dying||practicing)
             {ResetFrostSignal();revision++;return;}
+            if (FrostSignalStage == 2)
+            {
+                for (int index = 0; index < 2; index++)
+                {
+                    if ((frostSignalConfirmedKills & (1 << index)) != 0 ||
+                        enemies.Exists(e => e.id == 91400 + index)) continue;
+                    ResetFrostSignal(); revision++;
+                    Notify("巡防守卫异常离场，未确认击败。火种返回西部站，可重新尝试。",
+                        "A guard vanished without defeat. The ember was returned to the west post; retry for free.");
+                    return;
+                }
+            }
             FrostSignalTime-=dt;
-            float drain=.65f+(save.cold>=60?.65f:0f);
+            float severeCold=save.cold>=60?.65f:0f;
+            float drain=.65f+severeCold;
             if(FrostSignalStage==2)
                 foreach(Enemy enemy in enemies)
                     if(IsFrostSignalEnemy(enemy)&&enemy.hp>0&&
-                        (enemy.Position-Position).Length<5f)drain+=.58f;
-            FrostSignalFlame=Math.Max(0,FrostSignalFlame-dt*drain);
+                        (enemy.Position-Position).Length<5f&&
+                        // The carried fire is threatened by real adjacent
+                        // combat, not a guard sealed behind solid stone.
+                        ClearAttackPath(enemy.Position,Position))
+                        drain+=.58f;
+            // Shield only the remaining fraction of this simulation frame.
+            float protectedDt=Math.Min(dt,FrostSignalWindbreakTime);
+            FrostSignalWindbreakTime=Math.Max(0,FrostSignalWindbreakTime-dt);
+            FrostSignalFlame=Math.Max(0,FrostSignalFlame-dt*drain+
+                protectedDt*severeCold*.8f);
             if(FrostSignalTime<=0||FrostSignalFlame<=0)
             {
                 ResetFrostSignal();revision++;
@@ -60,12 +144,18 @@ namespace Starfall
                     "The ember burned out. Return to the source to retry; already used resources are not refunded.");
             }
         }
+        // The live ember and one-time civilian outcome belong to
+        // physical mountain posts. Revalidate the near-side path when an
+        // opened dialogue is actually committed after terrain changes.
+        private bool CanReachFrostSignalPost(WorldObject site)
+        { return site!=null && PhysicalRefugeReach(
+            new Point(site.x,site.y),1.8001f); }
         private bool TalkFrostSignal(WorldObject o)
         {
             if(o.kind!="frostsignal")return false;
             int at=0;for(int i=1;i<=3;i++)if(o.id=="frostsignal_"+i)at=i;
             if(at==0||save.room!=7||
-                (Position-new Point(o.x,o.y)).Length>1.8f)return true;
+                !CanReachFrostSignalPost(o))return true;
             if(!Has("boss_7"))
             {
                 Dialog(o.name,o.en,
@@ -121,7 +211,8 @@ namespace Starfall
                     Notify("此处已完成交接，沿原路继续。",
                         "This junction is complete. Continue along the road.");return true;
                 }
-                if(enemies.Exists(IsFrostSignalEnemy))
+                if(enemies.Exists(IsFrostSignalEnemy) ||
+                    !FrostSignalGuardsDefeated)
                 {
                     Dialog(o.name,o.en,
                         "转折台仍被两名旧守卫占据。保护身上余火，在真实战斗中解决守卫。",
@@ -129,10 +220,11 @@ namespace Starfall
                         C("继续战斗","Fight the guards","close"));return true;
                 }
                 Dialog(o.name,o.en,
-                    "余温 "+FrostSignalFlame.ToString("0")+"。消耗月光草一株可回升35；耗费20耐力能回升22；也可不消耗物资直接护送。",
-                    "Ember "+FrostSignalFlame.ToString("0")+". Burn one Moonherb for +35, spend 20 energy for +22, or conserve both and carry onward.",
+                    "余温 "+FrostSignalFlame.ToString("0")+"。月光草可回升35，20耐力可回升22；或消耗20耐力加固火种，接下来25秒抵御80%的严寒额外损耗。也可保留补给。",
+                    "Ember "+FrostSignalFlame.ToString("0")+". Moonherb adds 35 flame, 20 energy adds 22, or spend 20 energy to shield 80% of severe-cold loss for the next 25s. You may conserve supplies.",
                     C("月光草1 · 余温+35","Moonherb · +35 flame","frostsignal_herb"),
                     C("耐力20 · 余温+22","20 energy · +22 flame","frostsignal_energy"),
+                    C("耐力20 · 防风护火25秒","20 energy · 25s windbreak","frostsignal_windbreak"),
                     C("不补充，继续","Conserve supplies","frostsignal_free"));return true;
             }
             if(at==3&&FrostSignalStage==3)
@@ -157,7 +249,7 @@ namespace Starfall
             {
                 if(FrostSignalActive||FrostSignalComplete||!Has("boss_7")||
                     FieldWorkPreventsRest||!SafeTravel||
-                    (Position-new Point(west.x,west.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(west))return true;
                 FrostSignalStage=1;FrostSignalTime=100;FrostSignalFlame=85;
                 Flag("frostsignal_started");revision++;sound="quest";
                 Notify("火种已领取。沿旧山道前往转折台，击败守卫。",
@@ -167,16 +259,24 @@ namespace Starfall
             if(action=="frostsignal_abort")
             {
                 if(!FrostSignalActive||
-                    (Position-new Point(west.x,west.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(west))return true;
                 ResetFrostSignal();revision++;
                 Notify("余火归还。可以重新取火。",
                     "The ember is returned. Another attempt is available.");
                 return true;
             }
-            if(action=="frostsignal_herb"||action=="frostsignal_energy"||action=="frostsignal_free")
+            if(action=="frostsignal_herb"||action=="frostsignal_energy"||
+                action=="frostsignal_windbreak"||action=="frostsignal_free")
             {
                 if(FrostSignalStage!=2||enemies.Exists(IsFrostSignalEnemy)||
-                    (Position-new Point(mid.x,mid.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(mid))return true;
+                if (!FrostSignalGuardsDefeated)
+                {
+                    ResetFrostSignal(); revision++;
+                    Notify("转折台守卫未被确认击败。回西部岗重新取火。",
+                        "Switchyard guards were not confirmed defeated. Restart from the west station.");
+                    return true;
+                }
                 if(action=="frostsignal_herb")
                 {
                     if(save.inventory[2]<1){Notify("月光草不足。","You need one Moonherb.");return true;}
@@ -187,19 +287,27 @@ namespace Starfall
                     if(save.energy<20){Notify("需要20耐力。","You need 20 energy.");return true;}
                     save.energy-=20;FrostSignalFlame=Math.Min(100,FrostSignalFlame+22);
                 }
+                if(action=="frostsignal_windbreak")
+                {
+                    if(save.energy<20){Notify("需要20耐力来加固火种。","Need 20 energy to bank the flame.");return true;}
+                    save.energy-=20;
+                    FrostSignalWindbreakTime=25f;
+                }
                 FrostSignalStage=3;revision++;sound="reward";
-                Notify("转折台开放，携带余火去南侧暖站。",
-                    "Junction cleared. Carry the ember south to the civilian hearth.");
+                Notify(action=="frostsignal_windbreak"?
+                    "火种已防风加固25秒！沿山道前往南侧暖站。":"转折台开放，携带余火去南侧暖站。",
+                    action=="frostsignal_windbreak"?
+                    "The ember is sheltered for 25s! Carry it south.":"Junction cleared. Carry the ember south to the civilian hearth.");
                 return true;
             }
             if(action=="frostsignal_clinic"||action=="frostsignal_guides")
             {
                 if(FrostSignalStage!=3||FrostSignalComplete||
-                    (Position-new Point(end.x,end.y)).Length>1.8f)return true;
+                    !CanReachFrostSignalPost(end))return true;
                 float quality=FrostSignalFlame;
                 ResetFrostSignal();
                 Flag(action);Flag("frostsignal_complete");
-                save.coins+=quality>=50?65:55;save.shards+=2;AddXp(85);
+                CreditCoins(quality>=50?65:55);CreditShards(2);AddXp(85);
                 revision++;sound="reward";
                 RecordMoment(action=="frostsignal_clinic"?
                     "霜钟高原居民重新点燃了公共火种，让寒夜里受伤的人找到疗养处。":
@@ -220,7 +328,7 @@ namespace Starfall
                 if(!FrostSignalComplete||save.room!=7)return false;
                 foreach(WorldObject o in Map.objects)
                     if(o.kind=="frostsignal"&&
-                        (Position-new Point(o.x,o.y)).Length<3.2f)return true;
+                        PhysicalRefugeReach(new Point(o.x,o.y),3.2f))return true;
                 return false;
             }
         }

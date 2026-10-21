@@ -93,5 +93,76 @@ namespace Starfall.Tests
             Check(!saved.SwordLessonActive&&saved.save.version==2,
                 "Failed old-save reload never revives a spent practice timer");
         }
+        public static void NollAdvancedFiveArrowCourseGrantsOneTimeTalentAndReplaysSafely(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            var noll=Object(g,"forge");
+            g.save.x=noll.x;g.save.y=noll.y;
+            g.save.flags.Add("swordlesson_complete");
+            Advance(g,1.1f);g.save.energy=100;
+            // A high-level tester isolates the course reward from the
+            // game's independent level-up threshold.
+            g.save.level=20;g.save.xp=0;
+            int skill=g.save.skillPoints,coins=g.save.coins,xp=g.save.xp;
+            g.Talk(noll);
+            Check(NollChoice(g,"swordlesson_veteran_start")&&
+                g.SwordLessonActive&&g.SwordLessonVeteran&&
+                g.SwordLessonTarget==5&&g.SwordLessonTime==42,
+                "Noll launches five genuine live arrows in a separate timed course");
+            int reflected=0;
+            for(int frame=0;frame<840&&g.SwordLessonActive;frame++)
+            {
+                if(g.skillCooldown<=0&&g.guardTime<.7f&&g.save.energy>=40)
+                    g.Skill(new Point(1,0));
+                g.Tick(.05f,new Point());
+                reflected=Math.Max(reflected,g.SwordLessonHits);
+            }
+            Check(g.SwordLessonVeteranComplete&&!g.SwordLessonActive&&
+                reflected>=4&&g.save.skillPoints==skill+1&&
+                g.save.coins==coins&&g.save.xp==xp+75,
+                "Five Q-guard contacts: earned="+g.SwordLessonVeteranComplete+
+                " active="+g.SwordLessonActive+" hits="+reflected+
+                " skill="+g.save.skillPoints+"/"+(skill+1)+
+                " xp="+g.save.xp+"/"+(xp+75));
+            g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&saved.SwordLessonComplete&&
+                saved.SwordLessonVeteranComplete&&!saved.SwordLessonActive,
+                "Advanced completion persists as an ordinary legacy v2 flag");
+            // A surviving physical arrow or Q cooldown is not a new safe
+            // training window. Let the original battlefield settle first.
+            Advance(g,4f);g.save.energy=100;
+            // A post-clear retry can happen after healing, not necessarily
+            // with the residual health lost to the preceding real volley.
+            g.save.health=g.save.maxHealth;
+            // The real drill's missed arrows can recoil the player several
+            // steps away from Noll. Dialogue is not a remote training trigger.
+            // Walk the real player body back to the original forge.
+            Point forge=new Point(noll.x,noll.y);
+            for(int step=0;step<200&&(g.Position-forge).Length>1.2f;step++)
+            {
+                Point delta=forge-g.Position;
+                g.Tick(.05f,delta.Normalized);
+            }
+            Check((g.Position-forge).Length<=1.8f,
+                "Replay requires physically returning to Noll after arrow recoil");
+            g.Talk(noll);
+            bool offered=NollChoice(g,"swordlesson_veteran_start");
+            Check(offered&&g.SwordLessonActive,
+                "Safe expert replay: offered="+offered+" active="+g.SwordLessonActive+
+                " hp="+g.save.health+" energy="+g.save.energy+
+                " room="+g.save.room+" mode="+g.mode+
+                " safe="+g.SafeTravel+" dying="+g.Dying+
+                " profession="+g.save.profession+" weapon="+g.save.weapon);
+            for(int frame=0;frame<840&&g.SwordLessonActive;frame++)
+            {
+                if(g.skillCooldown<=0&&g.guardTime<.7f&&g.save.energy>=40)
+                    g.Skill(new Point(1,0));
+                g.Tick(.05f,new Point());
+            }
+            Check(!g.SwordLessonActive&&g.save.skillPoints==skill+1&&
+                g.save.coins==coins&&g.save.xp==xp+75,
+                "Replaying advanced practice never farms money, talents or experience");
+        }
+
     }
 }

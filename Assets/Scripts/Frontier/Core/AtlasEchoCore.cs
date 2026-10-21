@@ -5,6 +5,16 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int atlasEchoRoom, atlasEchoCycle;
+        // Clearing the scripted enemy roster is not equivalent to a kill.
+        // Only the authoritative lethal Hit path may record a victory.
+        // Transient by design; unfinished save slots still safely restart.
+        private bool atlasEchoKillConfirmed;
+        private void OnAtlasEchoEnemyDefeated(Enemy enemy)
+        {
+            if (atlasEchoRoom == 3 && save.room == 3 &&
+                IsAtlasEchoEnemy(enemy))
+                atlasEchoKillConfirmed = true;
+        }
         private float atlasEchoPulseTime, atlasEchoOpenTime;
         private Point atlasEchoOpenBearing;
         public int AtlasEchoRoom { get { return atlasEchoRoom; } }
@@ -14,8 +24,11 @@ namespace Starfall
         private void ResetAtlasEcho()
         {
             enemies.RemoveAll(IsAtlasEchoEnemy);
+            projectiles.RemoveAll(p => p.atlasEchoOwned);
+            effects.RemoveAll(e => e.atlasEchoOwned);
             hazards.RemoveAll(h => h.atlasEchoOwned);
             atlasEchoRoom = atlasEchoCycle = 0;
+            atlasEchoKillConfirmed = false;
             atlasEchoPulseTime = atlasEchoOpenTime = 0;
             atlasEchoOpenBearing = new Point();
         }
@@ -101,16 +114,24 @@ namespace Starfall
             Enemy elite = enemies.Find(IsAtlasEchoEnemy);
             if (elite == null)
             {
+                // Enemy disappearance can be caused by collision repair,
+                // a separate encounter cleanup, or corrupted runtime state.
+                // Never grant the elite's first-clear reward unless real
+                // lethal combat was acknowledged before it left the roster.
+                bool genuinelyDefeated = atlasEchoKillConfirmed;
                 ResetAtlasEcho();
-                if (!Has("archive_echo_complete"))
+                if (genuinelyDefeated && !Has("archive_echo_complete"))
                 {
-                    Flag("archive_echo_complete"); save.coins += 85; save.shards += 5;
+                    Flag("archive_echo_complete"); CreditCoins(85); CreditShards(5);
                     AddXp(90); revision++; sound = "reward";
                     RecordMoment("平息测绘师的回声，旧路罗盘终于复原。",
                         "Silenced the surveyor's echo and restored the old route compass.");
                     Notify("回声试炼完成：85硬币、5碎片、90经验。",
                         "Echo cleared: +85 coins, +5 shards, +90 XP.");
                 }
+                else if (!genuinelyDefeated)
+                    Notify("回声守卫未被确认击败。本轮已撤销，可重新挑战。",
+                        "The echo guardian left without a confirmed defeat. The trial was reset and can be retried.");
                 return;
             }
             atlasEchoPulseTime -= dt;

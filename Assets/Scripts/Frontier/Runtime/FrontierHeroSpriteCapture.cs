@@ -26,6 +26,8 @@ namespace Starfall
         {
             internal RenderTexture texture;
             internal int lastUsedFrame;
+            internal bool sourceDirty;
+            internal uint sourceUpdateCount;
         }
         private const int MaxCachedHeroFrames = 48;
         private readonly Dictionary<string, HeroCaptureEntry> heroCapturedFrames =
@@ -44,6 +46,15 @@ namespace Starfall
         // corrected canonical texture resumes without forcing an F8 toggle.
         private readonly Dictionary<string,int> heroPublishedUnavailable =
             new Dictionary<string,int>();
+        // A complete canonical art import can change while a real GameView
+        // session stays open. Revalidate at bounded 180-frame intervals;
+        // old captured RenderTextures are immutable and remain queued-safe.
+        private readonly Dictionary<string,int> heroPublishedRecheckAt =
+            new Dictionary<string,int>();
+        // A partial SpriteImporter family must not let Animator play
+        // individually valid-looking cells from mixed asset generations.
+        private readonly HashSet<string> heroPublishedIncomplete =
+            new HashSet<string>();
         // An imported Animator can exist while its override still references
         // another class, stale clip or wrong direction. Never repeatedly
         // sample a known-mismatched native clip during this play session.
@@ -57,6 +68,29 @@ namespace Starfall
         // hero onto the fallback lane for the entire gameplay session.
         // RenderTexture/driver recovery is attempted only after cooldown.
         private int heroCaptureRetryAt;
+        private int heroCaptureObservedFrame=-1;
+        private void RefreshHeroCaptureEpoch()
+        {
+            int current=Time.frameCount;
+            if(heroCaptureObservedFrame>=0 &&
+               current<heroCaptureObservedFrame)
+            {
+                // New Play/replay frame-count epoch. The previous session's
+                // GPU pose pixels can be stale and their future-dated targets
+                // cannot otherwise be reclaimed by the 48-frame budget.
+                foreach(HeroCaptureEntry entry in heroCapturedFrames.Values)
+                {
+                    entry.lastUsedFrame=-1;
+                    entry.sourceDirty=true;
+                }
+                heroPublishedUnavailable.Clear();
+                heroPublishedRecheckAt.Clear();
+                heroRejectedNativeClips.Clear();
+                heroControllerRetryAt=0;
+                heroCaptureBroken=false;
+            }
+            heroCaptureObservedFrame=current;
+        }
         private int heroCaptureProfession = -1;
         private bool heroProductionReady;
         // Unity may finish importing the production .controller after the
@@ -88,11 +122,13 @@ namespace Starfall
             if(!useSpriteRendererHero||drawingOutline||
                 Game==null||Game.mode=="title")
                 return false;
+            RefreshHeroCaptureEpoch();
             if(heroCaptureBroken)
             {
-                // Keep showing the SAME full-body published OnGUI Sprite
-                // during cooldown. Do not spam GPU allocations each repaint.
-                if(Time.frameCount < heroCaptureRetryAt)return false;
+                // Preserve full-body fallback after a real GPU failure,
+                // but don't inherit a retry deadline from an older epoch.
+                if(Time.frameCount < heroCaptureRetryAt &&
+                   Time.frameCount >= heroCaptureRetryAt-120)return false;
                 heroCaptureBroken=false;
             }
             if(Event.current.type!=EventType.Repaint)return true;
@@ -114,8 +150,11 @@ namespace Starfall
                 bool recentlyRejected =
                     heroRejectedNativeClips.TryGetValue(nativeClipKey,
                         out rejectedUntil) && Time.frameCount < rejectedUntil;
-                bool nativeReady=available && !recentlyRejected &&
-                    TryUseProductionHeroClip(facing);
+                bool nativeReady=available &&
+                    !heroPublishedIncomplete.Contains(
+                        "Hero_"+HeroLiveProfessions[equipment]+"_"+
+                        HeroLiveActions[action]+"_"+HeroLiveFacings[facing]) &&
+                    !recentlyRejected && TryUseProductionHeroClip(facing);
                 if(nativeReady)
                 {
                     // Animator never owns independent damage time.
@@ -150,7 +189,18 @@ namespace Starfall
                                 "and retrying the Animator after cooldown.");
                     }
                     else
+                    {
+                        // An Animator may pick a freshly imported Sprite
+                        // BEFORE the entire six-cell published family has
+                        // passed its next bounded integrity review. Equal
+                        // geometry alone cannot prove a complete new atlas.
+                        // Drive the formal Animator timeline, but render
+                        // the exact WHOLE canonical cell selected from the
+                        // last atomically validated family. New source art
+                        // becomes visible only after full revalidation.
+                        heroCaptureRenderer.sprite=canonical;
                         heroRejectedNativeClips.Remove(nativeClipKey);
+                    }
                 }
                 else
                 {
@@ -172,6 +222,50 @@ namespace Starfall
                                 "(old Player model is forbidden).");
                     }
                 }
+                // A native Animator clip may contain a stale Transform scale
+                // curve (or inherit the previous action's scale). Sprite
+                // identity/rect/pivot checks alone cannot detect this: the
+                // right 256px body can still render 1.5x larger on Attack_N.
+                // Capture only the approved 1:1 root, after Animator.Update,
+                // for every profession and facing. Never rescale the source
+                // artwork, boots or the actual game-world actor position.
+                heroCaptureRoot.transform.localScale =
+                    new Vector3(1f,1f,1f);
+                // Old Animator object curves can rotate or fade a correct
+                // whole-body Sprite without changing its atlas rect/pivot.
+                // Neutralize the capture rig AFTER native sampling.
+                heroCaptureRoot.transform.localRotation = Quaternion.identity;
+                // Animator owns the BODY Sprite, never the camera-space rig.
+                // Even a correctly validated single Sprite can look torn,
+                // enlarged, tilted, or floating when old clips animate the
+                // CHILD transform rather than the capture root. Reset those
+                // curves AFTER Animator.Update, so no sampled action leaks
+                // stale m_LocalPosition/m_LocalScale/m_LocalRotation into
+                // the next class, facing or attack/contact frame.
+                heroCaptureRenderer.transform.localPosition =
+                    new Vector3(0f,0f,0f);
+                heroCaptureRenderer.transform.localScale =
+                    new Vector3(1f,1f,1f);
+                heroCaptureRenderer.transform.localRotation =
+                    Quaternion.identity;
+                heroCaptureRenderer.color = Color.white;
+                // Renderer and Animator share this transform. A stale
+                // m_LocalPosition curve can shift the sampled hero 1-2 feet
+                // relative to the GameCore boot anchor even at correct scale.
+                // The offscreen root is deliberately remote from world play;
+                // never move or modify the actual hero world position.
+                heroCaptureRoot.transform.position =
+                    new Vector3(9000f,9000f,0f);
+                heroCaptureCamera.transform.localScale =
+                    new Vector3(1f,1f,1f);
+                heroCaptureCamera.transform.localRotation = Quaternion.identity;
+                heroCaptureCamera.transform.localPosition =
+                    new Vector3(0f,
+                        (CanonicalHeroSpriteFactory.FootTop-HeroCell*.5f)/
+                        CanonicalHeroSpriteFactory.PixelsPerUnit,-10f);
+                heroCaptureCamera.orthographicSize =
+                    HeroCell/(2f*CanonicalHeroSpriteFactory.PixelsPerUnit);
+                heroCaptureCamera.aspect=1f;
                 heroCaptureRenderer.flipX = flip;
                 // An E->W flip or windup->contact transition within a
                 // single GUI repaint must never overwrite an earlier queued
@@ -194,16 +288,36 @@ namespace Starfall
                     // Record ownership before GPU allocation: release also
                     // cleans up a failed Create or Render.
                     heroCapturedFrames.Add(captureKey, entry);
-                    entry.texture.Create();
+                    if (!entry.texture.Create() || !entry.texture.IsCreated())
+                        throw new InvalidOperationException(
+                            "Hero source-pose GPU target creation failed");
                     needsRender = true;
                 }
                 else
                 {
-                    entry.lastUsedFrame = Time.frameCount;
-                    if (!entry.texture.IsCreated())
+                    // Never overwrite a source texture already submitted
+                    // earlier in the SAME IMGUI repaint: opposite facings
+                    // and weapon contacts need immutable queued GPU pixels.
+                    bool alreadySubmitted=entry.lastUsedFrame==Time.frameCount;
+                    // Unity 2022.3 Texture.updateCount catches same-object
+                    // pixel Apply() without waiting for a full 180-frame
+                    // importer scan. Both left/right body captures retain
+                    // independent revisions and remain queued-safe.
+                    if(entry.sourceUpdateCount!=capturedSprite.texture.updateCount)
+                        entry.sourceDirty=true;
+                    entry.lastUsedFrame=Time.frameCount;
+                    if(!entry.texture.IsCreated())
                     {
-                        entry.texture.Create();
-                        needsRender = true;
+                        if(!entry.texture.Create() || !entry.texture.IsCreated())
+                            throw new InvalidOperationException(
+                                "Hero source-pose GPU target recovery failed");
+                        entry.sourceDirty=false;
+                        needsRender=true;
+                    }
+                    else if(entry.sourceDirty&&!alreadySubmitted)
+                    {
+                        entry.sourceDirty=false;
+                        needsRender=true;
                     }
                 }
                 heroCaptureTexture = entry.texture;
@@ -217,7 +331,11 @@ namespace Starfall
                 if (needsRender)
                 {
                     heroCaptureCamera.targetTexture = heroCaptureTexture;
-                    try { heroCaptureCamera.Render(); }
+                    try
+                    {
+                        heroCaptureCamera.Render();
+                        entry.sourceUpdateCount=capturedSprite.texture.updateCount;
+                    }
                     finally { heroCaptureCamera.targetTexture = null; }
                 }
                 Color old = GUI.color;
@@ -250,6 +368,41 @@ namespace Starfall
             }
         }
 
+        // Unity Editor can briefly unpublish a whole PNG during a hot
+        // import even though the last validated Sprite sub-assets remain
+        // alive. Keep those SAME complete, class-owned cells on screen
+        // rather than replacing a live Attack/Cast/Hit with unrelated Idle.
+        // Never reuse a dead Sprite or an atlas whose geometry changed.
+        private bool TryHoldPublishedHeroFrameDuringImport(
+            string key,int frame,int expectedFrames,out Sprite sprite)
+        {
+            sprite=null;
+            Sprite[] previous;
+            if(frame<0||frame>=expectedFrames||
+                !heroPublishedSprites.TryGetValue(key,out previous)||
+                previous==null||previous.Length!=expectedFrames)
+                return false;
+            for(int i=0;i<previous.Length;i++)
+            {
+                Sprite cell=previous[i];
+                if(cell==null||cell.texture==null||
+                    cell.texture.width!=HeroCell*expectedFrames||
+                    cell.texture.height!=HeroCell||
+                    Mathf.Abs(cell.rect.x-i*HeroCell)>.05f||
+                    Mathf.Abs(cell.rect.y)>.05f||
+                    Mathf.Abs(cell.rect.width-HeroCell)>.05f||
+                    Mathf.Abs(cell.rect.height-HeroCell)>.05f||
+                    Mathf.Abs(cell.pixelsPerUnit-
+                        CanonicalHeroSpriteFactory.PixelsPerUnit)>.05f||
+                    Vector2.Distance(cell.pivot,new Vector2(
+                        CanonicalHeroSpriteFactory.FootX,
+                        HeroCell-CanonicalHeroSpriteFactory.FootTop))>.05f)
+                    return false;
+            }
+            sprite=previous[frame];
+            return true;
+        }
+
         private bool TryUsePublishedHeroFrame(int profession, int action,
             int facing, int frame, int expectedFrames, out Sprite sprite)
         {
@@ -261,10 +414,17 @@ namespace Starfall
                 HeroLiveActions[action] + "_" + HeroLiveFacings[facing];
             int retryAt;
             if(heroPublishedUnavailable.TryGetValue(key,out retryAt)&&
-                Time.frameCount<retryAt)return false;
+                Time.frameCount<retryAt)
+                return TryHoldPublishedHeroFrameDuringImport(
+                    key,frame,expectedFrames,out sprite);
             Sprite[] cells;
-            if (!heroPublishedSprites.TryGetValue(key, out cells))
+            bool cached=heroPublishedSprites.TryGetValue(key,out cells);
+            int nextReview;
+            if(!cached ||
+               !heroPublishedRecheckAt.TryGetValue(key,out nextReview) ||
+               Time.frameCount>=nextReview)
             {
+                Sprite[] previous=cached?cells:null;
                 Texture2D atlas = Resources.Load<Texture2D>(
                     "Frontier/HeroAnimator/Canonical/" + key);
                 // Reject stale or truncated publishers atomically. Never
@@ -277,7 +437,8 @@ namespace Starfall
                         Debug.LogWarning(
                             "Starfall rejected malformed canonical hero atlas: "+
                             key+" (size/frames mismatch). Will retry.");
-                    return false;
+                    return TryHoldPublishedHeroFrameDuringImport(
+                        key,frame,expectedFrames,out sprite);
                 }
                 heroPublishedUnavailable.Remove(key);
                 // Prefer the EXACT shipped imported Sprite sub-assets used
@@ -310,24 +471,91 @@ namespace Starfall
                     matched++;
                 }
                 if (matched == expectedFrames)
-                    cells = candidates; // Shared Unity-owned imported assets.
+                {
+                    // A complete Editor SpriteImporter reimport may change
+                    // pixels IN PLACE while imported Sprite IDs stay equal.
+                    // Invalidate only that validated source family's GPU
+                    // poses; defer actual repaint until queued draws finish.
+                    // Never recapture after a partial-family rejection.
+                    if(previous!=null)
+                        foreach(Sprite old in previous)
+                            if(old!=null)
+                            {
+                                string spriteId=old.GetInstanceID().ToString();
+                                HeroCaptureEntry cachedTarget;
+                                if(heroCapturedFrames.TryGetValue(
+                                    spriteId+":left",out cachedTarget))
+                                    cachedTarget.sourceDirty=true;
+                                if(heroCapturedFrames.TryGetValue(
+                                    spriteId+":right",out cachedTarget))
+                                    cachedTarget.sourceDirty=true;
+                            }
+                    cells = candidates; // Unity-owned imported sub-assets.
+                    heroPublishedIncomplete.Remove(key);
+                }
                 else
                 {
                     // Controlled whole-frame fallback, not limb synthesis.
-                    // Keep ownership of ONLY these new Sprite wrappers, and
-                    // never destroy a shared Texture2D from Resources.
-                    cells = new Sprite[expectedFrames];
-                    for (int i = 0; i < cells.Length; i++)
+                    // During long partial imports, a repeatedly re-created
+                    // Sprite has a NEW ID and unnecessarily forces a fresh
+                    // GPU capture, even though every pixel is unchanged.
+                    // Keep the same valid, runtime-owned whole-body source
+                    // until an actually complete Unity atlas replaces it.
+                    bool reusable=previous!=null &&
+                        previous.Length==expectedFrames &&
+                        heroPublishedIncomplete.Contains(key);
+                    if(reusable)
+                        for(int i=0;i<previous.Length;i++)
+                        {
+                            Sprite old=previous[i];
+                            if(old==null ||
+                               !heroOwnedPublishedSprites.Contains(old) ||
+                               old.texture!=atlas ||
+                               Mathf.Abs(old.rect.x-i*HeroCell)>.05f ||
+                               Mathf.Abs(old.rect.y)>.05f ||
+                               Mathf.Abs(old.rect.width-HeroCell)>.05f ||
+                               Mathf.Abs(old.rect.height-HeroCell)>.05f ||
+                               Mathf.Abs(old.pixelsPerUnit-
+                                   CanonicalHeroSpriteFactory.PixelsPerUnit)>.05f ||
+                               Vector2.Distance(old.pivot,new Vector2(
+                                   CanonicalHeroSpriteFactory.FootX,
+                                   HeroCell-CanonicalHeroSpriteFactory.FootTop))>.05f)
+                            {
+                                reusable=false;break;
+                            }
+                        }
+                    heroPublishedIncomplete.Add(key);
+                    if(reusable)cells=previous;
+                    else
                     {
-                        cells[i] = Sprite.Create(atlas,
-                            new Rect(i * HeroCell, 0, HeroCell, HeroCell),
-                            CanonicalHeroSpriteFactory.FootPivot,
-                            CanonicalHeroSpriteFactory.PixelsPerUnit, 0,
-                            SpriteMeshType.FullRect);
-                        heroOwnedPublishedSprites.Add(cells[i]);
+                        cells = new Sprite[expectedFrames];
+                        for (int i = 0; i < cells.Length; i++)
+                        {
+                            cells[i] = Sprite.Create(atlas,
+                                new Rect(i * HeroCell, 0, HeroCell, HeroCell),
+                                CanonicalHeroSpriteFactory.FootPivot,
+                                CanonicalHeroSpriteFactory.PixelsPerUnit, 0,
+                                SpriteMeshType.FullRect);
+                            heroOwnedPublishedSprites.Add(cells[i]);
+                        }
                     }
                 }
-                heroPublishedSprites.Add(key, cells);
+                // In a second import, replace only after the complete
+                // source grid/controlled source-cell fallback exists. An
+                // older GUI draw already has its own captured GPU pixels.
+                // Only our temporary Sprite.Create wrappers are disposed;
+                // never release SpriteImporter/Resources assets.
+                if(previous!=null&&!ReferenceEquals(previous,cells))
+                    foreach(Sprite old in previous)
+                        if(old!=null&&heroOwnedPublishedSprites.Remove(old))
+                        {
+                            if(heroCaptureRenderer!=null&&
+                                heroCaptureRenderer.sprite==old)
+                                heroCaptureRenderer.sprite=null;
+                            Destroy(old);
+                        }
+                heroPublishedSprites[key]=cells;
+                heroPublishedRecheckAt[key]=Time.frameCount+180;
             }
             if (frame < 0 || frame >= cells.Length) return false;
             sprite = cells[frame];
@@ -367,18 +595,36 @@ namespace Starfall
                 heroControllerRetryAt = 0;
                 heroCaptureAnimator.runtimeAnimatorController = null;
             }
-            if (!heroProductionReady && Time.frameCount >= heroControllerRetryAt)
+            if (Time.frameCount >= heroControllerRetryAt)
             {
                 RuntimeAnimatorController controller =
                     Resources.Load<RuntimeAnimatorController>(
                         "Frontier/HeroAnimator/Production" +
                         HeroLiveProfessions[profession]);
-                heroCaptureAnimator.runtimeAnimatorController = controller;
-                heroProductionReady = controller != null;
-                // No per-repaint Resources calls when a controller is absent;
-                // once Unity imports it, native Animator playback resumes
-                // without changing the equipped class or restarting the game.
-                heroControllerRetryAt = Time.frameCount + 120;
+                if(controller!=null)
+                {
+                    if(heroCaptureAnimator.runtimeAnimatorController!=controller)
+                    {
+                        // A DIFFERENT equipped profession already owns its
+                        // own Sprite-cache keys. Switching the Animator
+                        // outfit is NOT an asset hot-reimport and must never
+                        // rewrite a cached combat contact during a return to
+                        // that profession. Only invalidate on a republished
+                        // Controller for the SAME current profession.
+                        if(heroProductionReady)
+                        {
+                            heroRejectedNativeClips.Clear();
+                            foreach(HeroCaptureEntry entry in heroCapturedFrames.Values)
+                                entry.sourceDirty=true;
+                        }
+                        heroCaptureAnimator.runtimeAnimatorController=controller;
+                    }
+                    heroProductionReady=true;
+                }
+                // Retain the last valid graph during a partial import;
+                // refresh accepted graphs at most once per 180 frames.
+                heroControllerRetryAt=Time.frameCount+
+                    (heroProductionReady?180:120);
             }
             if (!heroProductionReady) return false;
             if (!heroCaptureAnimator.enabled) heroCaptureAnimator.enabled = true;
@@ -390,25 +636,32 @@ namespace Starfall
         // commands can still point at any of their render textures.
         private void EvictUnusedHeroCapture()
         {
-            if (heroCapturedFrames.Count < MaxCachedHeroFrames) return;
-            string oldestKey = null;
-            int oldestFrame = int.MaxValue;
-            foreach (var pair in heroCapturedFrames)
-                if (pair.Value.lastUsedFrame < Time.frameCount &&
-                    pair.Value.lastUsedFrame < oldestFrame)
-                {
-                    oldestKey = pair.Key;
-                    oldestFrame = pair.Value.lastUsedFrame;
-                }
-            if (oldestKey == null) return;
-            RenderTexture old = heroCapturedFrames[oldestKey].texture;
-            heroCapturedFrames.Remove(oldestKey);
-            if (heroCaptureCamera != null &&
-                heroCaptureCamera.targetTexture == old)
-                heroCaptureCamera.targetTexture = null;
-            if (heroCaptureTexture == old) heroCaptureTexture = null;
-            old.Release();
-            Destroy(old);
+            // A busy frame can safely queue over 48 different poses.
+            // On its NEXT frame, reclaim all surplus prior-frame textures
+            // rather than only one: a one-at-a-time eviction allowed a
+            // permanent 84-target cache after a crowded cast/battle.
+            while(heroCapturedFrames.Count>=MaxCachedHeroFrames)
+            {
+                string oldestKey=null;
+                int oldestFrame=int.MaxValue;
+                foreach(var pair in heroCapturedFrames)
+                    if(pair.Value.lastUsedFrame<Time.frameCount &&
+                       pair.Value.lastUsedFrame<oldestFrame)
+                    {
+                        oldestKey=pair.Key;
+                        oldestFrame=pair.Value.lastUsedFrame;
+                    }
+                // Never destroy an image already queued this repaint.
+                if(oldestKey==null)break;
+                RenderTexture old=heroCapturedFrames[oldestKey].texture;
+                heroCapturedFrames.Remove(oldestKey);
+                if(heroCaptureCamera!=null &&
+                   heroCaptureCamera.targetTexture==old)
+                    heroCaptureCamera.targetTexture=null;
+                if(heroCaptureTexture==old)heroCaptureTexture=null;
+                old.Release();
+                Destroy(old);
+            }
         }
 
         private void EnsureHeroCapture()
@@ -463,6 +716,8 @@ namespace Starfall
             heroOwnedPublishedSprites.Clear();
             heroPublishedSprites.Clear();
             heroPublishedUnavailable.Clear();
+            heroPublishedRecheckAt.Clear();
+            heroPublishedIncomplete.Clear();
             heroRejectedNativeClips.Clear();
             if (heroCaptureCamera != null) heroCaptureCamera.targetTexture = null;
             if (heroCaptureRoot != null) Destroy(heroCaptureRoot);
@@ -478,6 +733,7 @@ namespace Starfall
             heroCaptureAnimator = null;
             heroCaptureRoot = null;
             heroCaptureTexture = null;
+            heroCaptureObservedFrame=-1;
             heroCaptureProfession = -1;
             heroProductionReady = false;
             heroControllerRetryAt = 0;

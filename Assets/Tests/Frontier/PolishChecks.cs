@@ -54,6 +54,185 @@ namespace Starfall.Tests
                 g.StartPractice(); g.Enter(1); Check(!g.practicing && g.save.room == 1, "Travel cleanly ends practice");
             }
         }
+        public static void ExplorationSealCannotBeActivatedThroughRealWall(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] wall=rows[10].ToCharArray();
+                wall[11]='#';rows[10]=new string(wall);
+                WorldObject hidden=new WorldObject{id="hidden",kind="seal1",
+                    name="Blocked seal",en="Blocked seal",x=12.25f,y=10.5f};
+                WorldObject reachable=new WorldObject{id="reachable",kind="seal1",
+                    name="Near-side seal",en="Near-side seal",x=10.5f,y=12.5f};
+                data.maps[0]=new MapData {id=0,spawnX=10.5f,
+                    spawnY=10.5f,rows=rows,objects=new[]{hidden},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.flags.Add("core_1");
+                g.save.x=10.5f;g.save.y=10.5f;
+                Check(g.CanStand(g.Position)&&
+                    g.CanStand(new Point(hidden.x,hidden.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "The hero and seal stand on legal floors, but a real wall separates their interaction lanes");
+                g.UseExplorationAbility();
+                Check(!g.Has("seal_0")&&
+                    !g.effects.Exists(e=>e.kind=="discover"),
+                    "Pressing R through a solid wall cannot open a route or publish a false discovery");
+                data.maps[0].objects=new[]{hidden,reachable};
+                g.UseExplorationAbility();
+                Check(g.Has("seal_0")&&
+                    g.effects.Exists(e=>e.kind=="discover"&&
+                        (e.position-new Point(reachable.x,reachable.y)).Length<.001f),
+                    "With two nearby seals, R chooses the reachable fixture instead of the closer one behind cover");
+                g.save.flags.Remove("seal_0");g.effects.Clear();
+                data.maps[0].objects=new[]{hidden};
+                wall[11]='.';rows[10]=new string(wall);
+                g.UseExplorationAbility();
+                Check(g.Has("seal_0")&&g.effects.Exists(e=>
+                    e.kind=="discover"&&
+                    (e.position-new Point(hidden.x,hidden.y)).Length<.001f),
+                    "Opening the same wall immediately permits the original seal without resetting the world");
+                Check(g.save.version==2,
+                    "Real seal reachability changes no old save fields, permanent core abilities or asset IDs");
+            }
+            finally { data.maps[0]=original; }
+        }
+
+        public static void PhysicalFieldRefugesDoNotHealAcrossDynamicSolidWall(Campaign data)
+        {
+            // Test all four already-shipped permanent civic shelters through
+            // their ACTUAL GameCore properties and frame-based stat recovery.
+            int[] rooms={1,2,3,7};
+            string[] kinds={"rootsonestone","floodarchive","mineconvoy","frostsignal"};
+            string[] flags={"rootsong_complete","floodarchive_public",
+                "mineconvoy_complete","frostsignal_complete"};
+            for(int i=0;i<rooms.Length;i++)
+            {
+                int room=rooms[i];
+                MapData original=data.maps[room];
+                try
+                {
+                    var rows=new string[25];
+                    for(int y=0;y<25;y++)
+                    {
+                        char[] cells=new string('#',25).ToCharArray();
+                        if(y>=2&&y<=22)
+                            for(int x=2;x<=22;x++)cells[x]='.';
+                        if(y==10)cells[11]='#';
+                        rows[y]=new string(cells);
+                    }
+                    var station=new WorldObject{
+                        id=room==3?"mineconvoy_3":"refuge-test",
+                        kind=kinds[i],name="Protected service",
+                        en="Protected service",x=12.5f,y=10.5f};
+                    data.maps[room]=new MapData{id=room,
+                        spawnX=10.5f,spawnY=10.5f,
+                        rows=rows,objects=new[]{station},
+                        decor=new Decoration[0]};
+                    var g=Fresh(data);
+                    g.save.stage=3;g.save.flags.Add("desert_report");
+                    g.Enter(room);g.enemies.Clear();
+                    g.save.flags.Add(flags[i]);
+                    // A completed Frostchime run grants either clinic HP
+                    // or roadwarden stamina. The HP assertion below must
+                    // explicitly unlock the CLINIC outcome, not only mark
+                    // the mission complete.
+                    if(room==7)g.save.flags.Add("frostsignal_clinic");
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.save.health=40;g.save.energy=0;
+                    g.save.cold=40;
+                    Check(g.CanStand(g.Position)&&
+                        g.CanStand(new Point(station.x,station.y))&&
+                        g.Blocked(11.5f,10.5f),
+                        "Living hero and civic refuge must have legal ground separated by genuine impassable stone");
+                    bool blocked=room==1?g.RootsongRefuge:
+                        room==2?g.FloodArchiveRefuge:
+                        room==3?g.MineConvoyRefuge:g.FrostSignalRefuge;
+                    Check(!blocked,
+                        "A completed public service must not activate a remote health, stamina or warmth radius through stone");
+                    g.Tick(.05f,new Point());
+                    Check(Math.Abs(g.save.health-40)<.0001f,
+                        "The actual world tick must not restore health through the closed wall");
+                    float blockedEnergy=g.save.energy;
+                    char[] opened=rows[10].ToCharArray();
+                    opened[11]='.';rows[10]=new string(opened);
+                    bool clear=room==1?g.RootsongRefuge:
+                        room==2?g.FloodArchiveRefuge:
+                        room==3?g.MineConvoyRefuge:g.FrostSignalRefuge;
+                    Check(clear&&g.save.version==2,
+                        "Removing that wall immediately exposes the already-unlocked refuge without new save fields");
+                    g.save.health=40;g.save.energy=0;
+                    g.Tick(.05f,new Point());
+                    if(room==1)
+                        Check(g.save.energy>blockedEnergy+.08f,
+                            "Rootsong physical contact grants its genuine stamina recovery above baseline regeneration");
+                    else
+                        Check(g.save.health>40.04f,
+                            "A legitimately reached public clinic/shelter restores actual player HP on the world tick");
+                    if(room==7)
+                        Check(g.save.cold<40,
+                            "A physically reached Frostchime hearth now provides genuine protection from cold");
+                }
+                finally {data.maps[room]=original;}
+            }
+        }
+
+        public static void DesertShadeRequiresPhysicalContactAcrossLiveWall(Campaign data)
+        {
+            // NearKind powers actual heat protection AND other resident
+            // stations. This checks one world tick before/after opening a
+            // real barrier without any new story flag or save migration.
+            MapData previous=data.maps[6];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[11]='#';
+                    rows[y]=new string(cells);
+                }
+                WorldObject shade=new WorldObject{id="shade-test",
+                    kind="shade",name="Shade canopy",en="Shade canopy",
+                    x=12.5f,y=10.5f};
+                data.maps[6]=new MapData{id=6,
+                    spawnX=10.5f,spawnY=10.5f,rows=rows,
+                    objects=new[]{shade},decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.save.stage=3;
+                // Region 6 is gated by the original harbor report, while
+                // the desert report unlocks region 7, not this climate map.
+                g.save.flags.Add("harbor_report");
+                g.Enter(6);g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.teaUntil=0;g.save.heat=40f;
+                Check(g.save.room==6&&g.CanStand(g.Position)&&
+                    g.CanStand(new Point(shade.x,shade.y))&&
+                    g.Blocked(11.5f,10.5f),
+                    "A genuine desert shade exists nearby but behind a full wall with valid standing feet");
+                g.Tick(.05f,new Point());
+                Check(g.save.heat>40.04f,
+                    "An inaccessible canopy cannot grant free desert cooling through a sealed wall");
+                char[] open=rows[10].ToCharArray();
+                open[11]='.';rows[10]=new string(open);
+                g.Tick(.05f,new Point());
+                Check(g.save.heat<40f&&g.save.version==2,
+                    "Opening the same route makes the real nearby shade immediately reduce heat without changing save schema");
+            }
+            finally{data.maps[6]=previous;}
+        }
+
         public static void ExplorationPowersAndDiscoveries(Campaign data)
         {
             var g = Unlocked(data); g.save.flags.RemoveAll(f => f.StartsWith("core_") || f.StartsWith("seal_") || f.StartsWith("cache_"));
@@ -166,9 +345,12 @@ namespace Starfall.Tests
             arrow.life=2;arrow.damage=0;
             Check(g.SafeTravel,"Harmless preview projectiles do not create false travel danger");
             arrow.damage=12;arrow.position=new Point(16,12);
-            Check(g.SafeTravel,"Active arrow at the exact four-tile boundary remains outside danger radius");
+            arrow.velocity=new Point(6,0);
+            Check(g.SafeTravel,"Outgoing arrow at exact four-tile boundary is outside danger radius and cannot turn back");
+            arrow.velocity=new Point(-6,0);
+            Check(!g.SafeTravel,"Incoming arrow at exact boundary can cross the real safe zone before the next travel");
             arrow.position=new Point(15.99f,12);
-            Check(!g.SafeTravel,"Approaching arrow is blocked with the same radius as local enemies");
+            Check(!g.SafeTravel,"Approaching arrow already inside boundary is blocked with the same radius as local enemies");
             g.projectiles.Clear();
             var watch=Fresh(data);watch.save.stage=4;
             watch.save.flags.Add("exp_intro");

@@ -39,7 +39,10 @@ namespace Starfall.Tests
             yield return new WaitForEndOfFrame();
             Assert.IsTrue(scene.IsValid() && scene.isLoaded);
             Assert.AreEqual("Frontier", SceneManager.GetActiveScene().name);
-            app = Object.FindObjectOfType<FrontierRuntime>();
+            var runtimes = Object.FindObjectsOfType<FrontierRuntime>();
+            Assert.AreEqual(1, runtimes.Length,
+                "Frontier scene and bootstrap must resolve to exactly one runtime");
+            app = runtimes[0];
             Assert.NotNull(app,
                 "Actual Frontier scene must boot production FrontierRuntime");
             Assert.NotNull(app.Game,
@@ -99,7 +102,10 @@ namespace Starfall.Tests
             yield return null;
             yield return new WaitForEndOfFrame();
             Assert.IsTrue(scene.isLoaded);
-            app = Object.FindObjectOfType<FrontierRuntime>();
+            var runtimes = Object.FindObjectsOfType<FrontierRuntime>();
+            Assert.AreEqual(1, runtimes.Length,
+                "Frontier scene and bootstrap must resolve to exactly one runtime");
+            app = runtimes[0];
             Assert.IsNotNull(app,"Live FrontierRuntime must boot in production scene");
             Assert.IsNotNull(app.Game);
             var flags = System.Reflection.BindingFlags.NonPublic |
@@ -586,6 +592,152 @@ namespace Starfall.Tests
             }
         }
 
+
+        // Runs ONLY inside licensed Unity PlayMode with the real Frontier.unity
+        // scene loaded. The offline C# stubs cannot establish GPU visibility.
+        // Unlike atlas-only import tests, exercise the actual scene's private
+        // shared SpriteRenderer -> Camera -> RenderTexture actor production
+        // method using four accepted, whole-body families.
+        [UnityTest] public IEnumerator RealFrontierSceneRendersNonheroWholeBodyPixels()
+        {
+#if UNITY_EDITOR
+            // Exercise the exact source cells used by stop-plant selection
+            // through the real Frontier scene's SpriteRenderer + Animator GPU path.
+            var scene=EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Scenes/Frontier.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            host=null;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Assert.IsTrue(scene.IsValid()&&scene.isLoaded);
+            Assert.AreEqual("Frontier",SceneManager.GetActiveScene().name);
+            var runtimes = Object.FindObjectsOfType<FrontierRuntime>();
+            Assert.AreEqual(1, runtimes.Length,
+                "Frontier scene and bootstrap must resolve to exactly one runtime");
+            app = runtimes[0];
+            Assert.NotNull(app,"Production scene did not boot FrontierRuntime");
+            Assert.NotNull(app.Game,"Production Campaign did not initialize");
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var type=typeof(FrontierRuntime);
+            Assert.IsTrue((bool)type.GetField(
+                "useSpriteRendererActors",flags).GetValue(app),
+                "Scene must enable nonhero SpriteRenderer production bridge");
+            var cachedSprites=type.GetField("actorFrameSprites",flags);
+            var cachedCaptures=type.GetField("actorCapturedFrames",flags);
+            // Includes the production walk atlases, accepted detailed enemies,
+            // the 3-phase Boss and other full-body objects. Every 4-column
+            // family samples both planted cells (row 1, columns 0 and 2).
+            string[] sources={"WalkMonsters","WalkBossA","MossboundRaider",
+                "CinderstoneGuard","BriarBeast","Bosses","Npcs","CompanionMira"};
+            int[] columns={4,4,4,4,4,4,4,3},rows={3,4,6,6,18,8,4,4};
+            for(int family=0;family<sources.Length;family++)
+            {
+                Texture2D atlas=Resources.Load<Texture2D>(
+                    "Frontier/Art/"+sources[family]);
+                Assert.NotNull(atlas,"Accepted production art missing: "+sources[family]);
+                Assert.AreEqual(0,atlas.width%columns[family]);
+                Assert.AreEqual(0,atlas.height%rows[family]);
+                int width=atlas.width/columns[family];
+                int height=atlas.height/rows[family];
+                var probeHost=new GameObject("Starfall GPU actor probe "+
+                    sources[family]);
+                var probe=probeHost.AddComponent<NativeActorGameViewProbe>();
+                probe.runtime=app;probe.atlas=atlas;
+                probe.columns=columns[family];probe.rows=rows[family];
+                int[] frames=columns[family]==4?
+                    new[]{0,4,6,columns[family]*rows[family]-1}:
+                    new[]{0,columns[family]*rows[family]-1};
+                try
+                {
+                    foreach(int frame in frames)
+                    {
+                        probe.frame=frame;probe.flip=false;
+                        probe.completed=false;probe.drawn=false;
+                        probe.failure=null;probe.capturedSprite=null;
+                        probe.capturedFlip=false;
+                        for(int attempt=0;attempt<8&&!probe.completed;attempt++)
+                        {
+                            yield return null;
+                            yield return new WaitForEndOfFrame();
+                        }
+                        Assert.IsTrue(probe.completed,
+                            "Native OnGUI/Repaint never submitted "+sources[family]+"/"+frame);
+                        Assert.IsNull(probe.failure,
+                            "Native whole-body capture threw for "+sources[family]+"/"+frame);
+                        Assert.IsTrue(probe.drawn,
+                            "Native actor path fell back in actual GameView: "+sources[family]+"/"+frame);
+                        string key=atlas.GetInstanceID()+":"+
+                            columns[family]+":"+rows[family]+":"+frame;
+                        var sprites=(System.Collections.IDictionary)
+                            cachedSprites.GetValue(app);
+                        var captures=(System.Collections.IDictionary)
+                            cachedCaptures.GetValue(app);
+                        var sprite=sprites[key] as Sprite;
+                        Assert.NotNull(sprite,
+                            "Actual GameView did not capture authored source: "+sources[family]+"/"+frame);
+                        Assert.AreSame(atlas,sprite.texture,
+                            "Captured Sprite used a different actor identity");
+                        Assert.AreEqual(frame%columns[family]*width,
+                            sprite.rect.x,.05f,"Wrong source-cell X: "+sources[family]+"/"+frame);
+                        Assert.AreEqual(atlas.height-
+                            (frame/columns[family]+1)*height,
+                            sprite.rect.y,.05f,"Wrong source-cell Y: "+sources[family]+"/"+frame);
+                        Assert.AreEqual(width,sprite.rect.width,.05f);
+                        Assert.AreEqual(height,sprite.rect.height,.05f);
+                        Assert.AreEqual(height,sprite.pixelsPerUnit,.05f);
+                        Assert.AreEqual(width*.5f,sprite.pivot.x,.05f);
+                        Assert.AreEqual(height*8f/128f,sprite.pivot.y,.05f);
+                        Assert.AreSame(sprite,probe.capturedSprite,
+                            "Actual Animator changed the requested source cell: "+sources[family]+"/"+frame);
+                        Assert.IsFalse(probe.capturedFlip,
+                            "Unexpected mirrored actor source: "+sources[family]+"/"+frame);
+                        var entry=captures[key+":normal"];
+                        Assert.NotNull(entry,
+                            "GPU target missing from native capture cache: "+sources[family]+"/"+frame);
+                        var gpu=(RenderTexture)entry.GetType().GetField(
+                            "texture",flags).GetValue(entry);
+                        Assert.NotNull(gpu);
+                        Assert.IsTrue(gpu.IsCreated());
+                        int pixels=Mathf.Max(128,Mathf.Max(width,height));
+                        Assert.AreEqual(pixels,gpu.width,
+                            "Painted whole-body source was downsampled");
+                        Assert.AreEqual(pixels,gpu.height);
+                        var previous=RenderTexture.active;
+                        var readback=new Texture2D(pixels,pixels,
+                            TextureFormat.RGBA32,false);
+                        try
+                        {
+                            RenderTexture.active=gpu;
+                            readback.ReadPixels(new Rect(0,0,pixels,pixels),
+                                0,0,false);
+                            readback.Apply(false,false);
+                            bool visible=false;
+                            foreach(Color32 color in readback.GetPixels32())
+                                if(color.a>16) {visible=true;break;}
+                            Assert.IsTrue(visible,
+                                "Native GPU body rendered fully transparent: "+sources[family]+"/"+frame);
+                        }
+                        finally
+                        {
+                            RenderTexture.active=previous;
+                            Object.Destroy(readback);
+                        }
+                        yield return null;
+                    }
+                }
+                finally
+                {
+                    Object.Destroy(probeHost);
+                }
+                yield return null;
+            }
+#else
+            Assert.Fail("Native production scene GPU verification requires Unity Editor");
+            yield break;
+#endif
+        }
+
         [UnityTest] public IEnumerator NativeWalkingAndPlantedAttackTransitions()
         {
             string folder=Path.GetFullPath(Path.Combine(Application.dataPath,"../docs/native-captures"));Directory.CreateDirectory(folder);
@@ -622,5 +774,7 @@ namespace Starfall.Tests
             }
         }
     }
+
+
 }
 #endif

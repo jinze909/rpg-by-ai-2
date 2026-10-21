@@ -121,6 +121,20 @@ namespace Starfall.EditorTools
                         clip = new AnimationClip { frameRate = 12f };
                         AssetDatabase.CreateAsset(clip,clipPath);
                     }
+                // Keep existing .anim GUIDs but strip every legacy
+                // Transform scale/position and foreign object curve.
+                // Dynamic monsters, bosses and NPCs must use only their
+                // published full-body SpriteRenderer.m_Sprite sequence.
+                foreach(EditorCurveBinding stale in
+                        AnimationUtility.GetCurveBindings(clip))
+                    AnimationUtility.SetEditorCurve(clip,stale,null);
+                foreach(EditorCurveBinding stale in
+                        AnimationUtility.GetObjectReferenceCurveBindings(clip))
+                    if(stale.path!="" ||
+                        stale.type!=typeof(SpriteRenderer) ||
+                        stale.propertyName!="m_Sprite")
+                        AnimationUtility.SetObjectReferenceCurve(
+                            clip,stale,null);
                     // Every row uses four independent accepted complete-body
                     // source cells; no Animator-owned gameplay transitions.
                     ObjectReferenceKeyframe[] frames = new ObjectReferenceKeyframe[5];
@@ -149,6 +163,10 @@ namespace Starfall.EditorTools
                     ObjectReferenceKeyframe[] curve = AnimationUtility.GetObjectReferenceCurve(
                         clip,new EditorCurveBinding {path="",type=typeof(SpriteRenderer),
                             propertyName="m_Sprite"});
+                    if (AnimationUtility.GetCurveBindings(clip).Length!=0 ||
+                        AnimationUtility.GetObjectReferenceCurveBindings(clip).Length!=1)
+                        throw new InvalidOperationException(
+                            "Nonhero Animator still changes Transform scale: " + clipPath);
                     if (curve == null || curve.Length != 5)
                         throw new InvalidOperationException("Missing native Actor curve: " + clipPath);
                     for (int k = 0; k < 5; k++)

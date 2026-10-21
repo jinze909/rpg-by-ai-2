@@ -12,11 +12,17 @@ namespace Starfall
         private readonly List<Rect> worldOverlayRegions = new List<Rect>(8);
         private static readonly Rect CombatJournalButton=new Rect(1185,58,65,24);
         private bool CombatClimate { get { return Game.save.room == 6 || Game.save.room == 7 || Game.save.teaUntil > Game.save.totalTime; } }
-        private float CombatToastY { get { return CombatClimate ? 135 : 108; } }
+        private bool CounterHud
+        { get { return Game.riposteTime > .001f ||
+            (Game.playerAction!=null&&Game.playerAction.riposteArmed); } }
+        private float CounterHudY { get { return CombatClimate ? 136 : 103; } }
+        private float CombatToastY
+        { get { return CombatClimate ? (CounterHud ? 170 : 135) :
+            (CounterHud ? 137 : 108); } }
         private bool HasLiveBoss { get {foreach(Enemy e in Game.enemies)if(e.boss)return true;return false;} }
         private bool HasFallenBoss { get {foreach(FallenActor f in Game.fallen)if(f.actor.boss)return true;return false;} }
         private bool CombatHud
-        { get {if(Game.mode!="world")return false;if(combatHudTime>0||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
+        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||Game.OuterPatrolActive||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
         private static bool Contains(Rect r, Point p) { return p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height; }
         private static bool Overlap(Rect a, Rect b) { return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y; }
         private Rect ActorBounds(Point feet, bool boss = false)
@@ -51,8 +57,10 @@ namespace Starfall
                 rects.Add(new Rect(20, 20, 260, 77)); rects.Add(new Rect(1030, 22, 230, 70));
                 rects.Add(new Rect(426, 730, 428, 54)); rects.Add(new Rect(1134, 746, 126, 36));
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
+                if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
-                if (HasLiveBoss || HasFallenBoss) rects.Add(new Rect(380, 22, 520, 65));
+                if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive || Game.OuterPatrolActive)
+                    rects.Add(new Rect(380, 22, 520, 65));
             }
             else
             {
@@ -145,6 +153,22 @@ namespace Starfall
                 Panel(20,103,260,26,new Color(.045f,.08f,.13f,.45f),new Color(mint.r,mint.g,mint.b,.3f));
                 Text(30,107,240,20,Game.save.teaUntil>Game.save.totalTime?Game.L("凉茶保护 · ","Tea ward · ")+(int)(Game.save.teaUntil-Game.save.totalTime)+"s":Game.save.room==6?Game.L("炎热 ","Heat ")+(int)Game.save.heat+"%":Game.L("寒冷 ","Cold ")+(int)Game.save.cold+"%",12,Game.save.heat>75||Game.save.cold>75?gold:mint);
             }
+            if (CounterHud)
+            {
+                // A real dodge/parry earned this opening. Keep the countdown
+                // legible beside climate and toast rather than hiding it
+                // behind the standard exploration HUD during a brief lull.
+                float y=CounterHudY;
+                bool armed=Game.playerAction!=null&&
+                    Game.playerAction.riposteArmed;
+                Panel(20,y,260,27,new Color(.075f,.09f,.12f,.68f),
+                    new Color(gold.r,gold.g,gold.b,.68f));
+                Text(30,y+3,242,21,
+                    armed ? Game.L("反击已蓄力 · 命中释放","RIPOSTE CHARGED · RELEASE TO STRIKE") :
+                        Game.L("反击就绪 · ","RIPOSTE READY · ")+
+                        Math.Ceiling(Game.riposteTime*10f)/10f+"s",
+                    12,gold);
+            }
             QuestGuide guide = Game.CurrentGuide;
             Panel(1030,22,230,70,new Color(.045f,.08f,.13f,.45f),new Color(gold.r,gold.g,gold.b,.4f));
             Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") : guide.title,12,gold);
@@ -157,13 +181,90 @@ namespace Starfall
                 Text(396,26,488,27,Game.L(Game.CurrentBoss.name,Game.CurrentBoss.en)+"  /  "+boss.BossPhase,16,gold,TextAnchor.MiddleCenter);
                 Bar(399,58,482,boss.hp/boss.maxHp,PixelArt.C("#d28b86"),6); Bar(399,73,482,boss.stagger/95,mint,3);
             }
+            else if (Game.AfterlightWatchActive)
+            {
+                // This is an active, damageable OBJECTIVE, not a boss:
+                // the receiver must remain readable even when it is far
+                // outside the player's camera or between enemy waves.
+                float stock=Game.AfterlightWatchStock;
+                Color accent=stock<=30f?PixelArt.C("#ec7668"):stock<=60f?gold:mint;
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(393,25,494,27,
+                    Game.L("公共储备防卫 · 第","CIVIC RESERVE DEFENSE · WAVE ")+
+                    Game.AfterlightWatchWave+"/2  ·  "+
+                    Math.Ceiling(Game.AfterlightWatchTime)+"s",
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,481,18,
+                    Game.L("设施耐久 ","STOCK INTEGRITY ")+
+                    Math.Ceiling(stock)+"%"+
+                    (Game.AfterlightWatchPatchAvailable?
+                        Game.L(" · 抢修 E"," · PATCH E"):""),
+                    11,accent,TextAnchor.MiddleCenter);
+                Bar(401,71,478,stock/100f,accent,7);
+            }
+            else if (Game.OuterPatrolActive)
+            {
+                // Read the expensive physical-threat selector once per IMGUI
+                // pass. Its result feeds the ETA and heavy-hit label together,
+                // avoiding three repeated enemy/LOS/muzzle scans in one panel.
+                Enemy incomingStockThreat=Game.OuterPatrolIncomingStockThreat;
+                float incomingStockSeconds=incomingStockThreat==null?-1f:
+                    Math.Max(0f,incomingStockThreat.timer);
+                bool incomingStockHeavy=incomingStockThreat!=null&&
+                    incomingStockThreat.kind==2;
+                // The threatened relief cache must be readable even when
+                // the hero is intercepting a raider beyond the watchpost.
+                // Register this panel as HUD geometry so warning overlays
+                // remain visible above its translucent body.
+                float stock=Game.OuterPatrolIntegrity;
+                Color accent=stock<=30f?PixelArt.C("#ec7668"):stock<=60f?gold:mint;
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(393,25,494,27,
+                    (Game.OuterPatrolVeteranActive?
+                        Game.L("精英补给保卫 · 倒计时 ","VETERAN CACHE SIEGE · "):
+                        Game.L("救援岗防卫 · 倒计时 ","RELIEF OUTPOST DEFENSE · "))+
+                    Math.Ceiling(Game.OuterPatrolTime)+"s"+
+                    Game.L(" · 敌人剩余 "," · RAIDERS LEFT ")+
+                    Game.OuterPatrolRaidersRemaining+
+                    (incomingStockSeconds>=0f?
+                        (incomingStockHeavy?
+                            Game.L(" · 重甲即将砸击 "," · HEAVY HIT IN "):
+                            Game.L(" · 物资即将遇袭 "," · CACHE HIT IN "))+
+                        incomingStockSeconds.ToString("0.0")+"s":
+                        Game.save.companion>=0?
+                        (Game.OuterPatrolMedicRallying?
+                            Game.L(" · 救援中 · 召回 Y"," · MEDIC · RECALL Y"):
+                            Game.OuterPatrolCompanionGuarding?
+                                Game.L(" · 召回 Y"," · RECALL Y"):
+                                Game.L(" · 驻守 Y"," · GUARD Y")):""),
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,481,18,
+                    Game.L("物资耐久 ","CACHE INTEGRITY ")+
+                    Math.Ceiling(stock)+"%"+
+                    (Game.OuterPatrolCompanionGuarding?
+                        Game.L(" · 同伴格挡 "," · ALLY BLOCKS ")+
+                        Game.OuterPatrolGuardBlocksLeft:"")+
+                    (Game.OuterPatrolVeteranActive?
+                        Game.L(" · 路障 "," · BARRICADE ")+
+                        Math.Ceiling(Game.OuterPatrolBraceIntegrity)+
+                        (Game.OuterPatrolFlawlessEligible?
+                            Game.L(" · 无损挑战中"," · FLAWLESS ACTIVE"):""):"")+
+                    (Game.OuterPatrolPatchAvailable?
+                        Game.L(" · 靠近哨岗按 X 抢修"," · NEAR POST: X TO PATCH"):"")+
+                    (Game.OuterPatrolBraceAvailable?
+                        Game.L(" · 靠近哨岗按 V 架路障"," · NEAR POST: V TO BRACE"):""),
+                    11,accent,TextAnchor.MiddleCenter);
+                Bar(401,71,478,stock/100f,accent,7);
+            }
             else if (HasFallenBoss) Text(380,29,520,31,Game.L("守护者已倒下 · 战利品已收取","Guardian defeated · loot secured"),18,gold,TextAnchor.MiddleCenter);
             Panel(426,730,428,54,new Color(.045f,.08f,.13f,.65f),new Color(.3f,.4f,.46f,.4f));
             ActionSlot(430,ControlKey("Q","Y"),SkillName(),Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff",Game.skillCooldown,Game.save.energy >= (Game.Relic(4)?50:40),()=>Game.Skill(InputAim(true)),3.5f,Game.L("耐力不足","Low energy"));
             ActionSlot(515,ControlKey("F","LB"),Game.L("汤 ","Stew ")+Game.save.inventory[6],"stew",0,Game.save.inventory[6]>0&&!Game.practicing,()=>Game.Eat());
             ActionSlot(600,ControlKey("T","PACK"),Game.L("茶 ","Tea ")+Game.save.tea,"tea",0,Game.save.tea>0&&!Game.practicing,()=>Game.DrinkTea());
             ActionSlot(685,ControlKey("Z","RB"),Game.L("同伴","Command"),"companion",Game.companionCooldown,Game.save.companion>=0&&!Game.practicing,()=>Game.CommandCompanion(),Game.save.frontierEnding==3?12:18);
-            ActionSlot(770,ControlKey("SPACE","A"),Game.L("闪避","Dodge"),"shield",Game.dashCooldown,Game.save.energy>=(Game.Relic(2)?25:20),()=>Game.Dash(Game.aim),.75f-Game.save.talents[2]*.06f,Game.L("耐力不足","Low energy"));
+            ActionSlot(770,ControlKey("SPACE","A"),Game.L("闪避","Dodge"),"shield",Game.dashCooldown,Game.save.energy>=(Game.Relic(2)?25:20),()=>Game.Dash(HudDodgeDirection()),.75f-Game.save.talents[2]*.06f,Game.L("耐力不足","Low energy"));
             if (Button(1134,746,126,36,Game.L("暂停 ","Pause ")+ControlKey("ESC","START"))) { OpenMenu("pause"); Save(); }
         }
     }

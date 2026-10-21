@@ -174,9 +174,11 @@ namespace Starfall
                     (Position-ObjectPoint(4,"shrine",new Point(-100,-100))).Length>2.2f)
                     return true;
                 bool aid=action=="hearing_orrin_aid";
+                // Each responsibility is a one-time transfer. Do not mark
+                // it fulfilled until BOTH physical supplies actually fit.
+                if(!HasInventoryRoom(aid ? 6 : 4, 2)) return true;
+                CreditInventory(aid ? 6 : 4, 2);
                 Flag(action);
-                if(aid)save.inventory[6]+=2;
-                else save.inventory[4]+=2;
                 revision++;sound="quest";
                 RecordMoment(aid?
                     "厄洛兑现战后责任：两份真实热汤交给公共医护，堡垒平民避难所获得长期治疗支持。":
@@ -244,7 +246,10 @@ namespace Starfall
                 bool open=action=="hearing_verdict_public";
                 Flag(open?"hearing_public":"hearing_reserve");
                 Flag("hearing_complete");
-                save.coins+=85;save.shards+=2;AddXp(100);
+                // One-time civic outcomes are permanent even at a full
+                // wallet. The published v2 save must not silently truncate
+                // chapter-seven currency when reopened.
+                CreditCoins(85); CreditShards(2); AddXp(100);
                 revision++;sound="reward";
                 RecordMoment(open?
                     "三位居民的选择经公开听证后生效：余烬镇公民医疗灯开放，三地的碑文和照护责任永久保留。":

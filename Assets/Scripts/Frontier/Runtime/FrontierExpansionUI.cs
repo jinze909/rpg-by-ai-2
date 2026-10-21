@@ -8,20 +8,88 @@ namespace Starfall
         private int journalTab, relicSlot;
         private void DrawRay(Point from, Point to, Color color)
         {
-            Point a = ScreenPoint(from), b = ScreenPoint(to); int count = Math.Max(1, (int)((b - a).Length / 5));
-            for (int i = 0; i <= count; i++) { Point p = a + (b - a) * (i / (float)count); Box(p.x - 2, p.y - 2, 4, 4, color); }
+            // All campaign LightRays and the new live Roadwarden enemy-ward
+            // siphons use this REAL production path. Huge offscreen-to-
+            // offscreen lines previously queued thousands of invisible
+            // 4px GUI rectangles in each repaint on expanded 120x80 maps.
+            // Clip only the SUBMITTED samples; keep their indices against
+            // the ORIGINAL segment so contact diamonds do not pop, shift
+            // phase, or change opacity while the camera pans.
+            Point a=ScreenPoint(from),b=ScreenPoint(to);
+            Point difference=b-a;
+            float distance=difference.Length;
+            if(float.IsNaN(distance)||float.IsInfinity(distance)||
+                distance>10000000f)return;
+            int count=Math.Max(1,(int)(distance/5f));
+            Point clippedA=a,clippedB=b;
+            if(!ClipWarningScreenSegment(ref clippedA,ref clippedB))return;
+            float denom=difference.x*difference.x+
+                difference.y*difference.y;
+            float first=denom>.000001f?
+                ((clippedA-a).x*difference.x+
+                 (clippedA-a).y*difference.y)/denom:0f;
+            float last=denom>.000001f?
+                ((clippedB-a).x*difference.x+
+                 (clippedB-a).y*difference.y)/denom:1f;
+            int firstIndex=Math.Max(0,
+                (int)Math.Floor(Math.Max(0f,first)*count));
+            int lastIndex=Math.Min(count,
+                (int)Math.Ceiling(Math.Min(1f,last)*count));
+            for(int i=firstIndex;i<=lastIndex;i++)
+            {
+                Point p=a+difference*(i/(float)count);
+                if(p.x< -38f||p.x>Width+38f||
+                   p.y< -38f||p.y>Height+38f)continue;
+                Box(p.x-2f,p.y-2f,4f,4f,color);
+            }
+        }
+        // Visual-only full-body gait continuity, never serialized to saves.
+        private int companionVisualId=-1;
+        private GameCore companionVisualOwner;
+        private int companionVisualGeneration=-1;
+        private int companionLastWalkFrame;
+        private int companionLastWalkFacing;
+        private bool companionWasWalking;
+        private float companionStopTime;
+        private ActorAction companionTrackedAction;
+        private bool companionAttackStartedFromWalk;
+        private int CompanionStopPose(float seconds)
+        {
+            int from=(companionLastWalkFrame%4+4)%4;
+            if(from==0||Game.save.reducedMotion)return 0;
+            float interval=CurrentWorldVisualLook.companionFootfallSeconds;
+            // A stop is not extra distance: do not cycle a stationary ally
+            // through another airborne stride after its feet have planted.
+            // Hold only the next source-painted contact (1->2, 3->0; phase 2
+            // is already planted) for one bounded footfall interval, then
+            // return to the first authored idle-contact cell.
+            if(float.IsNaN(interval)||float.IsInfinity(interval)||
+                interval<=.001f)interval=.075f;
+            if(float.IsNaN(seconds)||float.IsInfinity(seconds)||
+                seconds<0f||seconds>=interval)return 0;
+            return from==1||from==2?2:0;
         }
         private void DrawCompanionActor()
         {
             Point p = ScreenPoint(Game.companionPosition); int id = Game.save.companion;
             if (companionSheets == null || id < 0 || id >= companionSheets.Length || companionSheets[id] == null)
             { DrawNpc("companion", Game.companionPosition, id + 8); return; }
+            // A partial but non-null import is not a different character.
+            // Keep the companion's identity rather than indexing a malformed
+            // 3x4 grid or silently replacing Mira/Ivo/Sen with a generic NPC.
+            if (!ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[id]))
+                return;
             ActorAction action = Game.companionAction;
             Point direction = action == null ? Game.companionAim : action.direction;
             bool north = direction.y < -Math.Abs(direction.x), south = direction.y > Math.Abs(direction.x);
-            int frame = north ? 8 : 0;
+            // The 3x4 source atlas has distinct east, north and south
+            // idle cells. If a richer Walk* atlas is unavailable during
+            // import recovery, never face a south-looking companion east.
+            int frame = north ? 8 : south ? 11 : 0;
             if (action != null)
-                frame = north ? (action.released ? 7 : 6) : south ? (action.released ? 10 : 9) : action.released && action.kind == "command" && id != 1 ? 5 : action.released ? 4 : 3;
+                frame = north ? (action.released ? 7 : 6) : south ? (action.released ? 10 : 9) : action.released && (action.kind == "command" ||
+                    action.kind == "heal") && id != 1 ? 5 :
+                    action.released ? 4 : 3;
             DrawActorContactShadow(p,38,14,4+id,.77f);
             // The former 26x3 opaque mint Box sat ON TOP of finished boot
             // pixels. Use the existing feathered, high-quality Glow() source
@@ -39,33 +107,180 @@ namespace Starfall
             // Companion models ALSO use the complete approved Sprite.
             // Retire the old five-part HumanActor neck/body reattachment
             // without changing companion AI, action phase, or facing logic.
-            if (Game.companionMoving && action == null && companionWalkSheets[id] != null)
+            // A non-null Texture2D can still be a partial/wrong-size
+            // import. Accept only the audited 4x3 grid of 256px cells;
+            // otherwise fall back to the intact original action atlas.
+            bool publishedWalk=companionWalkSheets!=null &&
+                id<companionWalkSheets.Length&&
+                companionWalkSheets[id]!=null&&
+                companionWalkSheets[id].width==4*256&&
+                companionWalkSheets[id].height==3*256;
+            int row=GameCore.DirectionRow(direction);
+            // The first genuine draw of a new character, game instance or
+            // companion presentation generation must use THAT actor's own
+            // direction. Previous smoothing inspected only numeric party ID
+            // and could reuse a north-facing silhouette on a newly loaded
+            // near-diagonal east walk, even after the generation was reset.
+            bool samePresentation=companionVisualId==id&&
+                System.Object.ReferenceEquals(companionVisualOwner,Game)&&
+                companionVisualGeneration==Game.companionPresentationGeneration;
+            // Avoid north/east sheet flip-flop at 45-degree pathfinding
+            // boundaries, but NEVER preserve a south facing when heading
+            // north (or the reverse). A distinct actual direction wins.
+            bool sameHemisphere=companionLastWalkFacing==0||
+                (companionLastWalkFacing==1&&direction.y<0f)||
+                (companionLastWalkFacing==2&&direction.y>0f);
+            if(action==null&&Game.companionMoving&&
+                samePresentation&&sameHemisphere&&
+                Math.Abs(Math.Abs(direction.x)-Math.Abs(direction.y))<
+                    CurrentWorldVisualLook.companionFacingThreshold)
             {
-                int row=GameCore.DirectionRow(direction);
-                Actor(companionWalkSheets[id],4,3,
-                    row*4+GameCore.GaitFrame(Game.companionMoveTime,GameCore.WalkStride),
-                    p,192f,tint,row==0&&direction.x<0);
+                row=companionLastWalkFacing;
+                // If the richer Walk* atlas is missing during recovery,
+                // keep the base-sheet idle cell in the same smoothed facing.
+                if(!publishedWalk)frame=row==1?8:row==2?11:0;
             }
-            else if(south&&action==null&&companionWalkSheets[id]!=null)
-                Actor(companionWalkSheets[id],4,3,8,p,192f,tint,false);
+            bool flip=row==0&&direction.x<-.1f;
+            // Offscreen outline passes must never establish a new gait
+            // owner or reset the actual body's running contact phase.
+            if(!drawingOutline&&!samePresentation)
+            {
+                companionVisualOwner=Game;
+                companionVisualGeneration=Game.companionPresentationGeneration;
+                companionVisualId=id;
+                companionWasWalking=false;
+                companionLastWalkFrame=0;
+                companionLastWalkFacing=row;
+                companionStopTime=clock-.5f;
+                companionTrackedAction=null;
+                companionAttackStartedFromWalk=false;
+            }
+            if(!drawingOutline&&action!=companionTrackedAction)
+            {
+                // An in-flight command is not the same as ordinary idle.
+                // Keep one stance for its entire actual GameCore action;
+                // drawingOutline or a second OnGUI pass must not restart it.
+                companionAttackStartedFromWalk=action!=null&&
+                    companionWasWalking;
+                companionTrackedAction=action;
+            }
+            if(Game.companionMoving&&action==null&&publishedWalk)
+            {
+                // Gait is distance-locked to real companion feet, not an
+                // unrelated FPS or decorative elapsed-time oscillator.
+                // Slightly longer travel per 4-cell loop makes each source
+                // leg-extension pose read as a full step instead of rapid
+                // shuffling; it cannot cause in-place foot cycling.
+                int step=GameCore.GaitFrame(Game.companionMoveTime,
+                    GameCore.WalkStride*
+                        CurrentWorldVisualLook.companionStrideDistanceFactor);
+                if(!drawingOutline)
+                {
+                    companionLastWalkFrame=step;
+                    companionLastWalkFacing=row;
+                    companionWasWalking=true;
+                }
+                Actor(companionWalkSheets[id],4,3,row*4+step,
+                    p,192f,tint,flip);
+            }
+            else if(action==null&&publishedWalk)
+            {
+                // Idle is the same detailed authored WALK cell family for
+                // EAST, NORTH and SOUTH. Old code switched E/N abruptly
+                // into a different Companion sheet (only SOUTH was safe).
+                // When stopping on an airborne key (1/3), briefly resolve
+                // to its nearest planted contact (0/2). Never jump from an
+                // airborne foot to an unrelated body/face in one repaint.
+                if(companionWasWalking&&!drawingOutline)
+                {
+                    companionWasWalking=false;
+                    companionStopTime=clock;
+                }
+                // A silhouette preview may run before or after the real
+                // repaint. It samples the SAME next planted source cell
+                // but does not consume the body-owned stop transition.
+                int finish=companionLastWalkFacing==row?
+                    CompanionStopPose(companionWasWalking?0f:
+                        clock-companionStopTime):0;
+                Actor(companionWalkSheets[id],4,3,
+                    row*4+finish,p,192f,tint,flip);
+            }
+            else if(action!=null&&!action.released&&
+                    companionAttackStartedFromWalk&&
+                    action.elapsed<Math.Min(
+                        CurrentWorldVisualLook.companionAttackPlantSeconds,
+                        action.contact*.42f)&&publishedWalk)
+            {
+                // PREVIOUS DEFECT: the 24%-opaque "boot afterimage" was
+                // actually an ENTIRE prior whole-body Walk Sprite, including
+                // a second head, torso, hands and sometimes visible bow.
+                // The first cast/attack then had TWO overlapping actors,
+                // creating a ghost waist/weapon flash at transition.
+                // Preserve gait readability only with genuine source-painted
+                // contact DIRT at the original planted foot. Exactly ONE
+                // authored full-body action Sprite remains on the stage.
+                if(!drawingOutline)companionWasWalking=false;
+                float duration=Math.Min(
+                    CurrentWorldVisualLook.companionAttackPlantSeconds,
+                    action.contact*.42f);
+                if(!Game.save.reducedMotion&&Game.save.effectsQuality>0&&
+                   !drawingOutline&&effectSheet!=null&&duration>.001f)
+                {
+                    float fade=Mathf.Clamp01(1f-action.elapsed/duration);
+                    string surface=FrontierAudio.FootSurface(
+                        Game,Game.companionPosition);
+                    float width=surface=="snow"?24f:26f;
+                    float height=surface=="snow"?18f:13f;
+                    int sourceCell=surface=="snow"?6:2;
+                    Atlas(effectSheet,4,4,sourceCell,
+                        new Rect(p.x-width*.5f,p.y-height*.58f,
+                            width,height),
+                        FootfallTint(surface,tint.a*.22f*fade),flip);
+                }
+                // The original action pose immediately replaces all older
+                // body pixels. Combat clocks, aim and foot pivot are unchanged.
+                Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);
+            }
             else
-                Actor(companionSheets[id],3,4,frame,p,192f,tint,
-                    !north&&!(south&&action!=null)&&direction.x<-.1f);
+            {
+                if(!drawingOutline)companionWasWalking=false;
+                Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);
+            }
         }
         private void DrawHazardWarnings()
         {
-            foreach (Hazard h in Game.hazards)
+            foreach(Hazard h in Game.hazards)
             {
-                Color warning = HazardWarningColor(h);
-                Ring(h.position, h.radius, warning); Point p = ScreenPoint(h.position);
-                Text(p.x - 25, p.y - 25, 50, 24, h.timer.ToString("0.0"), 13, warning, TextAnchor.MiddleCenter);
+                if(h.radius<=0f)continue;
+                // Include edge-overlap hazards but skip warning canvases
+                // completely outside the visible world. Damage continues
+                // under GameCore regardless of presentation culling.
+                float margin=h.radius*Tile+55f;
+                if(!WorldDrawable(h.position.x,h.position.y,
+                    margin,margin))continue;
+                Color ink=HazardWarningColor(h);
+                WorldVisualLook appearance=CurrentWorldVisualLook;
+                Color warning=new Color(ink.r,ink.g,ink.b,
+                    appearance.hazardRingAlpha);
+                // 32 detached 4px debug dots are not a readable area-of-
+                // effect circle. The same joined, source-independent thin
+                // 36-segment stroke used for enemy telegraphs preserves
+                // the exact radius on 1x/2x and ultrawide canvases.
+                DrawWarningArc(h.position,h.radius,0f,
+                    (float)(Math.PI*2),warning,36);
+                Point p=ScreenPoint(h.position);
+                Text(p.x-25,p.y-25,50,24,h.timer.ToString("0.0"),
+                    13,new Color(ink.r,ink.g,ink.b,
+                        appearance.hazardCountdownAlpha),
+                    TextAnchor.MiddleCenter);
             }
         }
         private Color HazardWarningColor(Hazard hazard)
         { return hazard.glasswindOwned ? PixelArt.C("#ffb76c") : hazard.kind == "glass" ? gold : hazard.kind == "bell" ? PixelArt.C("#9bd8f5") : hazard.kind == "root" ? PixelArt.C("#82d9a3") : hazard.kind == "rift" ? PixelArt.C("#b9a1d1") : PixelArt.C("#d59583"); }
         private void DrawRescueSurvivorActor()
         {
-            if (!Game.ReliefCivilianVisible) return;
+            if (!Game.ReliefCivilianVisible ||
+                !ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)) return;
             Point p = ScreenPoint(Game.reliefFollowerPosition);
             bool walking = Game.ReliefEscortActive && Game.reliefFollowerMoving &&
                 !Game.save.reducedMotion;
@@ -87,6 +302,9 @@ namespace Starfall
             // Both movement and injury must now keep their planted root.
             Color tint=justHit ? PixelArt.C("#ffe2bd") : Color.white;
             DrawRootedCivilianBody(p,lean,tint,Game.reliefFollowerFacingLeft);
+            if(!drawingOutline &&
+                (Game.ReliefEscortUnderAttack||justHit))
+                DrawNpcActionSignal(p,1,14,1f);
         }
 
         // Shared by the production survivor draw and direct render QA.
@@ -95,6 +313,7 @@ namespace Starfall
         private void DrawRootedCivilianBody(Point foot,float lean,
             Color tint,bool flip)
         {
+            if (!ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet)) return;
             Matrix4x4 original=GUI.matrix;
             try
             {
@@ -528,14 +747,24 @@ namespace Starfall
                 bool anchor=kind=="afterlightanchor"+region;
                 bool complete=Game.Has("afterlight_done_"+region);
                 bool active=Game.AfterlightChargeRegion==region;
-                Color tint=complete?mint:active?PixelArt.C("#f1d39a"):
+                bool reserve=Game.AfterlightReserve(region);
+                bool civicFight=!anchor&&Game.AfterlightWatchActive;
+                bool defended=Game.AfterlightWatchDone(region);
+                Color tint=civicFight?
+                    (Game.AfterlightWatchStock<=30?PixelArt.C("#f17368"):gold):
+                    complete?(!anchor&&Game.AfterlightComplete&&!reserve?gold:mint):
+                    active?PixelArt.C("#f1d39a"):
                     Game.AfterlightMode(region)!=0?gold:muted;
                 PropImage(anchor?"afterlightanchor":"afterlightoutlet",region,
                     p.x-32,p.y-78,64,83,complete?Color.white:muted);
                 Ring(new Point(o.x,o.y),complete?.9f:active?1.2f:.62f,tint,22);
                 Text(p.x-79,p.y-104,158,22,
-                    complete?Game.L(anchor?"公共原始锚点":"公共设施运转中",
-                        anchor?"CIVIC ROOT ANCHOR":"PUBLIC SERVICE ONLINE"):
+                    civicFight?Game.L("公共储备防卫中","CIVIC DEFENSE ACTIVE"):
+                    complete?Game.L(anchor?"公共原始锚点":
+                            defended?"巡路防卫已完成":reserve?"应急储备已备妥":"公共设施运转中",
+                        anchor?"CIVIC ROOT ANCHOR":
+                            defended?"CIVIC ROUTE GUARDED":
+                            reserve?"RESERVE STOCKED":"PUBLIC SERVICE ONLINE"):
                     active?Game.L(anchor?"余光输送中":"稳定负载待接通",
                         anchor?"TRANSFER ACTIVE":"CHARGE ARRIVING"):
                     Game.L(anchor?"旧星根供能锚点":"断开的公共接收台",
@@ -545,6 +774,19 @@ namespace Starfall
                     Text(p.x-47,p.y-122,94,19,
                         Game.AfterlightChargeLeft.ToString("0")+"s",
                         12,tint,TextAnchor.MiddleCenter);
+                if(civicFight)
+                    Text(p.x-79,p.y-123,158,18,
+                        Game.AfterlightWatchWave+"/2 · "+Math.Ceiling(Game.AfterlightWatchTime)+"s · "+
+                            Math.Ceiling(Game.AfterlightWatchStock)+"%",
+                        11,tint,TextAnchor.MiddleCenter);
+                else if(complete&&!anchor&&Game.AfterlightComplete&&!reserve)
+                    Text(p.x-79,p.y-123,158,18,
+                        Game.L("应急物资待补充 · E","STOCK SUPPLIES · E"),
+                        10,gold,TextAnchor.MiddleCenter);
+                else if(complete&&!anchor&&reserve&&!defended)
+                    Text(p.x-79,p.y-123,158,18,
+                        Game.L("两波防卫待检验 · E","DEFEND THE RESERVE · E"),
+                        10,mint,TextAnchor.MiddleCenter);
                 return true;
             }
             if(kind=="witnessnpc"+Game.save.room)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Starfall
 {
@@ -11,6 +12,19 @@ namespace Starfall
         public readonly List<Enemy> enemies = new List<Enemy>();
         public readonly List<Projectile> projectiles = new List<Projectile>();
         public readonly List<Effect> effects = new List<Effect>();
+        // A rescue warning is an individual enemy's pending attack, not
+        // shared scenery. Identity-based weak ownership lets a real stun
+        // retract ONLY that enemy's unspent hazard without removing
+        // overlapping alerts from other raiders or persistent world hazards.
+        private readonly ConditionalWeakTable<Enemy,Effect>
+            rescueWindupEffects=new ConditionalWeakTable<Enemy,Effect>();
+        // Shots are born at a contact/release pose, sometimes late inside
+        // Tick(). Only shots already flying at this tick's start receive a
+        // FULL tick of travel. Newly emitted missiles become visible at the
+        // muzzle immediately, then advance next tick rather than traveling
+        // through time before their attack was released.
+        private readonly HashSet<Projectile> flightReadyAtFrameStart =
+            new HashSet<Projectile>();
         public Point aim = new Point(1, 0);
         public int revision, runeProgress;
         public float attackCooldown, dashTime, dashCooldown, invulnerable, skillCooldown, guardTime;
@@ -20,7 +34,7 @@ namespace Starfall
         public string mode
         {
             get { return currentMode; }
-            set { currentMode = value; if (value != "world") { ClearBufferedSkill(); ClearBufferedAttack(); } }
+            set { currentMode = value; if (value != "world") { ClearBufferedSkill(); ClearBufferedAttack(); ClearBufferedDodge(); } }
         }
         public string toast = "";
         public Conversation conversation;
@@ -70,7 +84,13 @@ namespace Starfall
             for (int i = 0; i < 8; i++) save.inventory[i] = Math.Max(0, Math.Min(9999, save.inventory[i]));
             for (int i = 0; i < 3; i++) save.talents[i] = Math.Max(0, Math.Min(5, save.talents[i]));
             for (int i = 0; i < save.kills.Length; i++) save.kills[i] = Math.Max(0, Math.Min(99999, save.kills[i]));
-            save.stage = (int)Clamp(save.stage, 0, 3); save.room = save.room < 0 || save.room >= data.maps.Length ? 0 : save.room;
+            save.stage = (int)Clamp(save.stage, 0, 3);
+            // An out-of-range region is not an authorized town location.
+            // Preserve the fact that this slot needs safe respawning even
+            // when its old coordinates happen to be walkable in Emberfall.
+            int requestedRoom = save.room;
+            bool invalidSavedRoom = save.room < 0 || save.room >= data.maps.Length;
+            if (invalidSavedRoom) save.room = 0;
             // Expansion sanitization checks "technique_<profession>" before
             // any further class handling. Repair the profession first so a
             // valid unlocked second technique is not erased on load.
@@ -84,7 +104,18 @@ namespace Starfall
                 save.flags.Remove("recovery_pending"); save.room = 0; save.x = data.maps[0].spawnX; save.y = data.maps[0].spawnY;
                 save.health = 9999; save.energy = 100; save.snapshotRoom = -1; save.worldEnemies = null;
             }
-            if (!CanEnter(save.room)) save.room = 0;
+            if (invalidSavedRoom || save.room != requestedRoom || !CanEnter(save.room))
+            {
+                // A zero-floor or no-longer-authorized Abyss save cannot
+                // secretly keep a live expedition after its region is rejected.
+                // Preserve permanent/banked achievements, not run loot/boons.
+                if (save.abyssFloor > 0) EndAbyss(false);
+                save.room = 0;
+                save.x = data.maps[0].spawnX; save.y = data.maps[0].spawnY;
+                save.snapshotRoom = -1; save.worldEnemies = null;
+            }
+            // Only construct the procedural Abyss for an actually authorized
+            // active expedition. Never generate a rejected run first.
             if (save.room == 8) GenerateAbyss();
             save.difficulty = (int)Clamp(save.difficulty, 0, 2);
             save.upgrades = (int)Clamp(save.upgrades, 0, 5); save.level = (int)Clamp(save.level, 1, 30);
@@ -106,11 +137,19 @@ namespace Starfall
             RescueCheckpoint pendingRescue = save.rescueCheckpoint;
             ResetTransient(); SpawnRoom(); RestoreWorld();
             RestoreReliefCheckpoint(pendingRescue);
+            // A new save slot replaces the active play session. Transient
+            // dialogue/inventory/fishing modes from the previous character
+            // must not strand the new hero in a frozen non-world UI after
+            // their conversations and actions have been cleared. Preserve
+            // the initial TITLE when the constructor first loads a slot:
+            // Start() remains responsible for entering gameplay from it.
+            if (mode != "title") mode = "world";
             revision++;
         }
         private void ResetTransient()
         {
             projectiles.Clear(); effects.Clear();
+            flightReadyAtFrameStart.Clear();
             // A new journey/slot must never inherit pointer targeting, facing,
             // fishing results or HUD notifications from the previous hero.
             // None of these transient inputs belong to persisted SaveData.
@@ -128,7 +167,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
-            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit();
+            ResetContinuity(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
         {
@@ -312,6 +351,12 @@ namespace Starfall
                     "Afterlight transfer is active. Reach the real receiver or return to the source to cancel before traveling.");
                 return;
             }
+            if(AfterlightWatchActive)
+            {
+                Notify("公共储备防卫进行中！击退袭击者，或返回原接收台主动终止。",
+                    "Civic reserve defense active. Defeat the attackers or withdraw at the receiver.");
+                return;
+            }
             // Portal objects, map routes, scripted choices and travel menus
             // all reach this method. Preserve an active rescue instead of
             // silently erasing its civilian on ResetTransient().
@@ -394,6 +439,12 @@ namespace Starfall
                     "A public afterlight charge is in transit. Finish at the receiver or cancel at the original anchor.");
                 return;
             }
+            if(AfterlightWatchActive)
+            {
+                Notify("守护公共储备的战斗尚未结束，请返回接收台撤销或实际完成防卫。",
+                    "Finish civic reserve defense or withdraw at its receiver before returning to town.");
+                return;
+            }
             if (blackoutActive)
             { Notify("堡垒居民仍在撤离中。先回避难所完成或取消救援。",
                 "Citadel evacuation is active. Complete or cancel at the shelter."); return; }
@@ -422,6 +473,47 @@ namespace Starfall
             }
             SpawnRidgeWildlife();
         }
+        private static bool IsValidTransientEffect(Effect effect)
+        {
+            return effect != null && !string.IsNullOrEmpty(effect.kind) &&
+                Finite(effect.life) && effect.life > 0f &&
+                Finite(effect.maxLife) && effect.maxLife > 0f &&
+                Finite(effect.position.x) && Finite(effect.position.y);
+        }
+
+        private void RepairTransientEffects()
+        {
+            for (int i = effects.Count - 1; i >= 0; i--)
+            {
+                Effect effect = effects[i];
+                if (!IsValidTransientEffect(effect))
+                {
+                    effects.RemoveAt(i);
+                    continue;
+                }
+                // These are presentation-only fields. Recover a safe neutral
+                // fallback rather than letting a bad angle/height/radius
+                // contaminate GUI matrices or make a world flash unbounded.
+                if (!Finite(effect.radius)) effect.radius = 0f;
+                if (!Finite(effect.height)) effect.height = -1f;
+                if (!Finite(effect.direction.x) || !Finite(effect.direction.y))
+                    effect.direction = new Point();
+            }
+        }
+
+        private void TickEffects(float dt)
+        {
+            // TickGate and other world hooks may also add effects, so validate
+            // once more immediately before lifetime advancement.
+            RepairTransientEffects();
+            for (int i = effects.Count - 1; i >= 0; i--)
+            {
+                effects[i].life -= dt;
+                if (!Finite(effects[i].life) || effects[i].life <= 0f)
+                    effects.RemoveAt(i);
+            }
+        }
+
         public void Tick(float dt, Point movement, Point? explicitAim = null)
         {
             dt = Finite(dt) ? Clamp(dt, 0, .05f) : 0;
@@ -433,6 +525,10 @@ namespace Starfall
                 (!Finite(explicitAim.Value.x)||!Finite(explicitAim.Value.y)))
                 explicitAim=null;
             toastTime -= dt;
+            // Invalid presentation records must be removed before any UI,
+            // mission or world renderer can enumerate them. Valid effect clocks
+            // remain frozen outside world mode, exactly as before.
+            RepairTransientEffects();
             if (mode == "fish") { fishTime += dt; fishCursor = .5f + .5f * (float)Math.Sin(fishTime * (2.5f + fishHits * .35f)); return; }
             if (mode != "world") return;
             if (hitStop > 0)
@@ -445,14 +541,23 @@ namespace Starfall
                 dt -= frozen;
                 if (dt <= .00001f) return;
             }
+            flightReadyAtFrameStart.Clear();
+            foreach (Projectile existingShot in projectiles)
+                flightReadyAtFrameStart.Add(existingShot);
             float skillReadyDelay = SkillReadyDelay();
+            float dodgeReadyDelay = Math.Max(0, dashCooldown);
             float attackReadyDelay = Math.Max(0, attackCooldown);
             if (playerAction != null)
                 attackReadyDelay = Math.Max(attackReadyDelay,
                     Math.Max(0, playerAction.duration - playerAction.elapsed));
+            // TickVisuals drains hitTime before locomotion and action
+            // release. Preserve the START-OF-FRAME stun slice so a final
+            // 40ms hit in a 50ms frame cannot grant 50ms of free movement
+            // or release an attack ten milliseconds before its pose.
+            float hitLockedDt=Math.Min(dt,Math.Max(0f,playerHitTime));
             movementDirection = new Point();
             TickVisuals(dt); if (mode != "world") return; TickGate(dt);
-            for (int i = effects.Count - 1; i >= 0; i--) { effects[i].life -= dt; if (effects[i].life <= 0) effects.RemoveAt(i); }
+            TickEffects(dt);
             if (Dying) { deathTime -= dt; if (deathTime <= 0) CompleteDeath(); return; }
             bool beganInPractice = practicing;
             save.totalTime += dt;
@@ -468,18 +573,27 @@ namespace Starfall
                     TrailCircuitComplete(save.room) ? 2 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
-            TickMovement(dt, movement, explicitAim);
-            TickAction(dt);
+            TickMovement(dt, movement, explicitAim, hitLockedDt);
+            // An UNRELEASED action is planted through hit recoil. Only
+            // the unlocked remainder may advance its contact/damage clock;
+            // already-released animation recovery keeps its old duration.
+            TickAction(playerAction!=null&&!playerAction.released?
+                Math.Max(0f,dt-hitLockedDt):dt);
             if (mode != "world" || beganInPractice && !practicing) return;
+            // A buffered dodge wins the newly available movement frame.
+            // Fresh avoidance never fires a queued Q or swing in that tick.
+            TickBufferedDodge(dt, dodgeReadyDelay);
             TickBufferedSkill(dt, skillReadyDelay);
             TickBufferedAttack(dt, attackReadyDelay);
             UpdateEnemies(dt); if (Dying) return;
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
-            TickOuterPatrol();
+            TickOuterPatrol(dt);
+            TickAfterlightWatch(dt);
             TickFarCourier(dt);
             TickCivicResponse(dt);
             TickMineConvoy(dt);
             TickFrostSignal(dt);
+            TickFloodRelief(dt);
             TickLastDirective(dt);
             TickCivicConduit(dt);
             TickExpansion(dt);
@@ -493,7 +607,27 @@ namespace Starfall
                 direction=new Point();
             float cost = Relic(2) ? 25 : 20;
             if (mode != "world" || Dying) return;
-            if (dashCooldown > 0 || save.energy < cost) { ActionUnavailable(dashCooldown, cost); return; }
+            // Dynamic gates/tides can close over the hero between ticks.
+            // A dash from buried ground cannot physically travel, and must
+            // not consume stamina, mint 320ms of invulnerability or grant
+            // a free perfect-dodge counter for a nonexistent dodge.
+            if (!CanStand(Position))
+            {
+                ClearBufferedDodge();
+                return;
+            }
+            if (dashCooldown > 0 || save.energy < cost)
+            {
+                if(dashCooldown>0&&dashCooldown<=DodgeBufferWindow+.00001f&&
+                   save.energy>=cost)
+                    QueueLateDodge(direction);
+                else
+                {
+                    ClearBufferedDodge();
+                    ActionUnavailable(dashCooldown,cost);
+                }
+                return;
+            }
             CancelAction();
             // A dodge is airborne/low-contact locomotion, not the next step of
             // the previous walk cycle. Restart its legs on the first real run
@@ -509,8 +643,14 @@ namespace Starfall
         {
             if(!Finite(direction.x)||!Finite(direction.y))
                 direction=new Point();
-            if (mode != "world" || Dying || bufferedSkill != null) return;
-            if (ActionTransitionBlocked || attackCooldown > 0)
+            if (mode != "world" || Dying || bufferedSkill != null ||
+                bufferedDodge != null) return;
+            // "Recovery" permits the next buffered Q to join a combo, but
+            // it is NOT permission to replace the current whole-body Cast
+            // or Attack before its authored duration finishes. A late LMB
+            // gets one bounded input intent and fires after the old pose.
+            if (playerAction != null || ActionTransitionBlocked ||
+                attackCooldown > 0)
             { QueueLateAttack(direction); return; }
             ClearBufferedAttack();
             SetAim(direction);
@@ -524,15 +664,34 @@ namespace Starfall
             // established 25% finisher and larger contact reach.
             float finisher = combo != 2 ? 1f : save.weapon == 0 ? 1.25f :
                 save.weapon == 1 ? 1.15f : 1.12f;
-            float attackDamage = profile.damage * finisher * (riposteTime > 0 ? 1.5f : 1);
-            riposteTime = 0;
-            BeginAction("attack", attackDamage, profile.interval, profile.interval * (save.weapon == 1 ? .55f : .45f));
+            // Queue a counter on the accepted action, but spend it only
+            // when a genuine hit/projectile is RELEASED. Dodge, hit stun or
+            // an equipment change before contact must not silently waste it.
+            float attackDamage = profile.damage * finisher;
+            BeginAction("attack", attackDamage, profile.interval,
+                profile.interval * (save.weapon == 1 ? .55f : .45f));
         }
         public void Skill(Point? direction = null)
         {
             float cost = Relic(4) ? 50 : 40;
             if (mode != "world" || Dying) return;
             if (skillCooldown > 0 || save.energy < cost) { ClearBufferedSkill(); ActionUnavailable(skillCooldown, cost); return; }
+            // Repeated Q intentionally updates the currently queued aim and
+            // world target (the existing tactical retarget contract). NEVER
+            // create a fresh intent or reset its original 200ms expiry: rapid
+            // presses cannot prolong a hit-stun queue indefinitely.
+            if (bufferedSkill != null)
+            {
+                bufferedSkill.direction = direction.HasValue &&
+                    Finite(direction.Value.x) && Finite(direction.Value.y) &&
+                    direction.Value.Length>.05f ?
+                    direction.Value.Normalized : aim;
+                bufferedSkill.target = aimTarget;
+                return;
+            }
+            // A later explicit Q cancels a still-pending dodge; do not
+            // charge both actions or discard the newer deliberate input.
+            ClearBufferedDodge();
             ClearBufferedAttack(); // A requested Q outranks a queued ordinary swing.
             Point facing = direction.HasValue && Finite(direction.Value.x) && Finite(direction.Value.y) && direction.Value.Length > .05f ? direction.Value.Normalized : aim;
             if (ActionTransitionBlocked)
@@ -566,25 +725,42 @@ namespace Starfall
                 // actually holding. A staff fires arcane arrows rather than
                 // abruptly switching the protagonist into an old Ranger.
                 int visualWeapon = action.equippedWeapon;
-                effects.Add(new Effect("release",
-                    WeaponOrigin(Position, visualWeapon, action.direction), .18f)
-                    { direction = action.direction, variant = visualWeapon,
-                      height = WeaponHeight(visualWeapon, action.direction) });
+                int released = 0;
+                Projectile blocked = null;
                 for (int i = -2; i <= 2; i++)
                 {
                     Projectile shot = FriendlyShot(Position, visualWeapon,
                         action.direction, 13, action.damage * 1.25f, false,
                         action.target, action.impact);
+                    // The release at the hand must be physically valid.
+                    // A neighboring wall can enclose the muzzle while the
+                    // actor's feet and the target centerline remain clear.
+                    if (shot.blockedAtSpawn) { blocked = shot; continue; }
                     double a = Math.Atan2(shot.velocity.y, shot.velocity.x) + i * .15;
-                    shot.velocity = new Point((float)Math.Cos(a), (float)Math.Sin(a)) * 13; shot.technique = true; projectiles.Add(shot);
+                    shot.velocity = new Point((float)Math.Cos(a), (float)Math.Sin(a)) * 13;
+                    shot.technique = true; projectiles.Add(shot); released++;
+                }
+                if (released > 0)
+                    effects.Add(new Effect("release",
+                        WeaponOrigin(Position, visualWeapon, action.direction), .18f)
+                        { direction = action.direction, variant = visualWeapon,
+                          height = WeaponHeight(visualWeapon, action.direction) });
+                else if (blocked != null)
+                {
+                    action.blockedAtContact=true;
+                    effects.Add(new Effect("projectileImpact", blocked.position, .22f)
+                        { direction = action.direction, height = blocked.height });
+                    sound = "guard";
                 }
                 return;
             }
             if (save.profession == 0) guardTime = 3;
             float range = save.profession == 2 ? 4.5f : 3.1f;
-            effects.Add(new Effect("burst", Position, .6f) { variant = save.profession, radius = range });
+            effects.Add(new Effect("burst", Position, .6f) {
+                variant = save.profession, radius = range, playerAreaSkill = true
+            });
             foreach (Enemy e in enemies.ToArray())
-                if ((e.Position - Position).Length < range && ClearAttackPath(Position, e.Position)) { e.stun = e.boss ? .5f : 1.4f; Hit(e, action.damage * (save.profession == 2 ? 2.3f : 1.9f), true,null,action.impact); }
+                if ((e.Position - Position).Length < range && ClearAttackPath(Position, e.Position)) { ApplyEnemyControl(e,e.boss ? .5f : 1.4f); Hit(e, action.damage * (save.profession == 2 ? 2.3f : 1.9f), true,null,action.impact); }
         }
         private float Random()
         {
@@ -623,16 +799,74 @@ namespace Starfall
             bool crit = Random() < profile.criticalChance;
             if (crit) damage *= 1.7f;
             if (e.staggerRecovery <= 0) e.stagger += damage * (profile.weapon == 0 ? .7f : .45f) * (profile.weapon == 0 && profile.style == 2 ? 1.4f : 1);
-            if (e.stagger >= (e.boss ? 95 : 30)) { e.stagger = 0; e.staggerRecovery = e.boss ? 4 : 2; e.stun = e.boss ? 1.1f : 1.7f; e.state = 0; e.timer = 1; effects.Add(new Effect("break", e.Position, .7f, L("破势", "BREAK"))); }
+            if (e.stagger >= (e.boss ? 95 : 30))
+            {
+                e.stagger = 0;
+                e.staggerRecovery = e.boss ? 4 : 2;
+                // A damage-earned Break is a REAL hard crowd control,
+                // exactly like frost, not just a status label. Reuse its
+                // authoritative interruption/cue cleanup before publishing
+                // the stagger reward. Preserve the original 1s recovery.
+                ApplyEnemyControl(e,e.boss ? 1.1f : 1.7f);
+                // The earned Break creates at least a full second of
+                // recovery; it must not REDUCE an already longer idle,
+                // stagger or support-call recovery. Keep the shared
+                // interrupt path responsible for live warning cleanup.
+                e.state = 0; e.timer = Math.Max(e.timer, 1f);
+                effects.Add(new Effect("break",e.Position,.7f,
+                    L("破势","BREAK")));
+            }
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
-            effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact", e.Position, .22f) { direction = e.recoil });
+            // A REAL player technique hit inherits the three professions'
+            // distinct combat element, but only after the authoritative HP,
+            // stagger, critical and cover checks have actually succeeded.
+            // The same original contact painting remains on screen; variant
+            // only tints that Sprite, never invents a second body/hit.
+            // A technique belongs to its snapshotted vocation. An ordinary
+            // attack instead belongs to the EQUIPPED physical weapon:
+            // sword stays neutral, arrows carry green flights, staff bolts
+            // carry arcane blue. A projectile landing AFTER a mid-flight
+            // equipment/class change keeps its own original muzzle identity.
+            // Only REAL dealt HP damage reaches this visual event.
+            int contactElement=0;
+            if(profile.playerOwned)
+            {
+                if(technique&&profile.profession>=0&&
+                    profile.profession<=2)
+                    contactElement=profile.profession+1;
+                else if(!technique&&profile.weapon>=1&&
+                    profile.weapon<=2)
+                    contactElement=profile.weapon+1;
+            }
+            effects.Add(new Effect(e.kind == 2 || e.boss ? "spark" : "impact",
+                e.Position, .22f) { direction = e.recoil,
+                variant = contactElement });
             if (!save.reducedMotion) { hitStop = Math.Max(hitStop, technique ? .05f : .025f); impactShake = Math.Max(impactShake, technique ? .12f : profile.weapon == 0 && profile.combo == 2 ? .07f : 0); }
             effects.Add(new Effect("number", e.Position, .7f, (crit ? "! " : "") + ((int)damage)));
             if (e.hp > 0) return;
-            fallen.Add(new FallenActor { actor = e, room = save.room, life = e.boss ? 1.4f : .65f, duration = e.boss ? 1.4f : .65f });
+            fallen.Add(new FallenActor(e, save.room, e.boss ? 1.4f : .65f));
             enemies.Remove(e);
+            OnAtlasEchoEnemyDefeated(e);
+            OnCommonsRelayEnemyDefeated(e);
+            OnWitnessEnemyDefeated(e);
+            OnSkywatchEnemyDefeated(e);
+            OnTemperEnemyDefeated(e);
+            OnFrostSignalEnemyDefeated(e);
+            OnMineConvoyEnemyDefeated(e);
+            OnGlasswindEnemyDefeated(e);
+            OnTriadSecurityEnemyDefeated(e);
+            OnTideSalvageEnemyDefeated(e);
+            OnWayfarerEnemyDefeated(e);
+            OnRoadwardenTrialEnemyDefeated(e);
+            OnFarCourierEnemyDefeated(e);
+            OnFloodReliefEnemyDefeated(e);
+            // A lethal strike may bypass the stagger threshold entirely.
+            // Its unspent civilian windup must disappear with the attacker,
+            // not keep warning players about an attack that can no longer land.
+            RemoveEnemyPendingWarning(e);
             // Patrol progress records a combat death, never list disappearance.
             OnOuterPatrolEnemyDefeated(e);
+            OnAfterlightWatchEnemyDefeated(e);
             OnCivicResponseEnemyDefeated(e);
             OnLastDirectiveEnemyDefeated(e);
             if (IsRootHarmonyEnemy(e) && !enemies.Exists(IsRootHarmonyEnemy))
@@ -651,15 +885,26 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
-            if (!specialEncounterEnemy) { save.kills[save.room]++; OnExpansionKill(e, profile.masteryWeapon); }
+            if (!specialEncounterEnemy)
+            {
+                // Gameplay can keep running for hours after a full bag/
+                // journal. Apply the SAME caps as SaveData.Load at the
+                // original combat reward, rather than silently trimming
+                // progress or overflowing counters on the next reload.
+                save.kills[save.room] = Math.Min(99999, save.kills[save.room] + 1);
+                OnExpansionKill(e, profile.masteryWeapon, profile.playerOwned);
+            }
             if (!specialEncounterEnemy) effects.Add(new Effect("loot", e.Position, .75f) { variant = e.boss ? 5 : e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2 });
             if (!InAbyss && !specialEncounterEnemy)
             {
-                save.coins += e.boss ? 70 : 6; GrantXp(e.boss ? 80 : 12, true);
-                save.inventory[e.boss ? 5 : (e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2)]++;
+                save.coins = Math.Min(999999,
+                    save.coins + (e.boss ? 70 : 6));
+                GrantXp(e.boss ? 80 : 12, true);
+                int lootSlot = e.boss ? 5 : e.kind == 2 ? 4 : e.kind == 1 ? 1 : 2;
+                save.inventory[lootSlot] = Math.Min(9999, save.inventory[lootSlot] + 1);
             }
             effects.Add(new Effect("defeat", e.Position, .5f) { variant = e.boss ? 1 : 0 }); sound = "reward";
             // Optional Skywatch's armored elite is NOT a main chapter boss.
@@ -696,6 +941,80 @@ namespace Starfall
                 (Position - dashOrigin).Length < .35f) return false;
             AwardPerfectDodge(); return true;
         }
+        // Genuine crowd-control effects INTERRUPT a still-telegraphed
+        // attack; cosmetic hit flashes do not. A 450ms frozen windup whose
+        // timer resumes at 1ms would otherwise damage the hero immediately
+        // after the freeze, with no readable new warning. Give the opponent
+        // a real, bounded recovery before it can select another attack.
+        // Retain long stuns and existing contact/release animation clocks.
+        private void ApplyEnemyControl(Enemy enemy,float seconds)
+        {
+            if(enemy==null||enemy.hp<=0f||seconds<=0f)return;
+            enemy.stun=Math.Max(enemy.stun,seconds);
+            if(enemy.state!=1)return;
+            enemy.state=0;
+            enemy.timer=Math.Max(enemy.timer,enemy.boss?.65f:.45f);
+            enemy.targetingWayfarer=false;
+            enemy.targetingReliefCivilian=false;
+            enemy.targetingAfterlightStock = enemy.targetingOuterPatrolStock = false;
+            RemoveEnemyPendingWarning(enemy);
+        }
+        // Repair transient reaction clocks before deriving lock/free time. A NaN
+        // hit/stun/release clock poisons Math.Max/Min and can leave an enemy
+        // permanently unable to move or attack; an invalid windup must also
+        // retract its owner-specific warning before any release is evaluated.
+        private bool RepairEnemyTransientClocks(Enemy enemy)
+        {
+            bool invalidActionClock =
+                !Finite(enemy.timer) || !Finite(enemy.hitTime) ||
+                !Finite(enemy.stun) || !Finite(enemy.releaseTime) ||
+                !Finite(enemy.windupDuration);
+            bool invalidRecoil = !Finite(enemy.recoil.x) ||
+                !Finite(enemy.recoil.y);
+
+            if (!Finite(enemy.flash)) enemy.flash = 0f;
+            if (!Finite(enemy.stagger)) enemy.stagger = 0f;
+            if (!Finite(enemy.staggerRecovery)) enemy.staggerRecovery = 0f;
+            if (!Finite(enemy.moveTime)) enemy.moveTime = 0f;
+            if (!Finite(enemy.hitTime)) enemy.hitTime = 0f;
+            if (!Finite(enemy.stun)) enemy.stun = 0f;
+            if (!Finite(enemy.releaseTime)) enemy.releaseTime = 0f;
+            if (!Finite(enemy.windupDuration)) enemy.windupDuration = 0f;
+            if (invalidRecoil)
+            {
+                enemy.recoil = new Point();
+                enemy.hitTime = 0f;
+                invalidActionClock = true;
+            }
+
+            if (!invalidActionClock) return false;
+            enemy.state = 0;
+            enemy.timer = .22f;
+            enemy.targetingWayfarer = enemy.targetingReliefCivilian = false;
+            enemy.targetingAfterlightStock = enemy.targetingOuterPatrolStock = false;
+            RemoveEnemyPendingWarning(enemy);
+            return true;
+        }
+
+        private void RemoveEnemyPendingWarning(Enemy enemy)
+        {
+            if(enemy==null)return;
+            // A canceled Boss support call must retract only its own warning,
+            // not a second guardian's cue or unrelated player combat effects.
+            effects.RemoveAll(fx=>Object.ReferenceEquals(
+                fx.bossSummonCueOwner,enemy));
+            Effect pending;
+            if(enemy!=null&&
+                rescueWindupEffects.TryGetValue(enemy,out pending))
+            {
+                // Remove by object identity, not target coordinate or
+                // mission tag: two overlapping NPC lanes can both be live.
+                // This is shared by stun, Break and lethal attacks.
+                effects.Remove(pending);
+                rescueWindupEffects.Remove(enemy);
+            }
+        }
+
         private void Hurt(float damage, string source = "environment", Point? incoming = null)
         {
             // A zero-damage warning or malformed negative/non-finite combat
@@ -709,6 +1028,19 @@ namespace Starfall
             // damage window. Area slams and behind-the-back lunges cannot
             // be parried by an unrelated global defensive buff.
             if(TryParryRealMelee(source,incoming))return;
+            // A REAL hit interrupts the pending follow-up LMB, not just
+            // the visible body reaction. Otherwise a last-window Q/LMB tap
+            // can survive a full recoil and fire unexpectedly as the hero
+            // regains control. Successful parries, dodges, invulnerable
+            // contact and cosmetic zero-power warnings return above and
+            // correctly preserve the deliberate buffered input.
+            ClearBufferedAttack();
+            // A dodge queued before an actual hit is no longer an escape.
+            // Without retiring it at physical contact, its cooldown could
+            // finish under recoil and automatically spend energy on a ghost
+            // dodge while the hero is displaying the authored Hit pose.
+            // Q deliberately retains its own hit-recovery input contract.
+            ClearBufferedDodge();
             float multiplier = save.difficulty == 0 ? .45f : save.difficulty == 2 ? 1.4f : 1;
             float armor = (guardTime > 0 ? .45f : 1) * (1 - save.talents[1] * .035f) * (InAbyss ? 1 - save.boons[2] * .12f : 1) * (Relic(5) ? 1.15f : 1);
             playerHitFacing=VisualFacing; playerHitWeapon=AppearanceWeapon;
@@ -719,6 +1051,8 @@ namespace Starfall
             DamageFarCourierCargo(actualDamage,source);
             DamageCivicResponseMedicine(actualDamage,source);
             DamageCivicConduit(actualDamage,source);
+            DamageFloodReliefParcel(actualDamage,source);
+            DamageAfterlightCharge(actualDamage,source);
             invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
             if (!save.reducedMotion) { hitStop = .045f; impactShake = source == "slam" ? .18f : 0; }
             effects.Add(new Effect("hurt", Position, .5f));
@@ -731,6 +1065,168 @@ namespace Starfall
                 save.health = 0; save.coins = Math.Max(0, save.coins - 10); BeginDeath();
             }
         }
+        // Every effect created by an authored enemy attack belongs to the
+        // SAME live encounter as its projectile. When that encounter ends,
+        // retiring its threats must also retire pending circles, release
+        // poses and contact flashes. Untagged ambient/world effects survive.
+        private void TagEnemyCombatEffect(Effect effect, Enemy attacker,
+            bool targetsCivilian = false)
+        {
+            effect.reliefMissionOwned = IsReliefMissionEnemy(attacker) || targetsCivilian;
+            effect.roadTrialOwned = IsRoadwardenTrialEnemy(attacker);
+            effect.skywatchOwned = IsSkywatchEnemy(attacker);
+            effect.atlasEchoOwned = IsAtlasEchoEnemy(attacker);
+            effect.wayfarerOwned = IsWayfarerEnemy(attacker);
+            effect.rootHarmonyOwned = IsRootHarmonyEnemy(attacker);
+            effect.commonsRelayOwned = IsCommonsRelayEnemy(attacker);
+            effect.glasswindOwned = IsGlasswindEnemy(attacker);
+            effect.tideSalvageOwned = IsTideSalvageEnemy(attacker);
+            effect.temperOwned = IsTemperEnemy(attacker);
+            effect.mineConvoyOwned = IsMineConvoyEnemy(attacker);
+            effect.frostSignalOwned = IsFrostSignalEnemy(attacker);
+            effect.triadOwned = IsTriadEnemy(attacker);
+            effect.witnessOwned = IsWitnessEnemy(attacker);
+            effect.courierOwned = IsFarCourierRaider(attacker);
+            effect.floodReliefOwned = IsFloodReliefEnemy(attacker);
+            effect.civicResponseOwned = IsCivicResponseEnemy(attacker);
+            effect.lastDirectiveOwned = IsLastDirectiveEnemy(attacker);
+            effect.afterlightWatchOwned = IsAfterlightWatchEnemy(attacker);
+            effect.outerPatrolOwned = IsOuterPatrolEnemy(attacker);
+        }
+        // Use the precise SAME 0.1-tile swept-radius shot samples that
+        // UpdateProjectiles uses, not the center-only actor sight ray. A bow
+        // hand can clear its immediate muzzle while an arrow clips the
+        // side of a stone pillar farther along its physical flight.
+        // Check the live intended target before starting AND throughout
+        // the windup; enemy logic can seek a new firing lane instead of
+        // wasting repeated full-length draws into cover.
+        private bool EnemyBowFlightLaneClear(Enemy enemy,Point target)
+        {
+            return enemy!=null&&enemy.kind==1&&!enemy.boss&&
+                PhysicalBowLaneFromFoot(enemy.Position,target);
+        }
+        // For selecting a NEW real firing foot, evaluate the same arrow
+        // footprint without mutating another enemy actor's live position.
+        private bool PhysicalBowLaneFromFoot(Point foot,Point target)
+        {
+            if(!Finite(target.x)||!Finite(target.y)||
+                !CanStand(foot))return false;
+            Point look=target-foot;
+            if(look.Length<.001f)return false;
+            Projectile shot=WeaponShot(foot,1,
+                look.Normalized,5f,10f,target);
+            if(shot.blockedAtSpawn||ShotBlocked(shot,shot.position))
+                return false;
+            Point travel=target-shot.position;
+            float range=travel.Length;
+            if(!Finite(range)||range>5f*shot.life)return false;
+            int steps=Math.Max(1,(int)Math.Ceiling(range/.1f));
+            for(int i=1;i<=steps;i++)
+                if(ShotBlocked(shot,shot.position+
+                    travel*(i/(float)steps)))return false;
+            return true;
+        }
+        // A real archer's source-painted walking stride cannot look
+        // intentional when the AI changes its intended firing foot on every
+        // 50ms tick. Keep an instance-owned, transient lateral destination.
+        // Never serialize it or share it through an enemy spawn ID: restored
+        // foes and fresh waves can reuse IDs without inheriting old routes.
+        private sealed class ArcherCornerPlan
+        {
+            internal SaveData save;
+            internal int room=-1;
+            internal Point target,goal;
+            internal bool active;
+        }
+        private readonly ConditionalWeakTable<Enemy,ArcherCornerPlan>
+            archerCornerPlans=new ConditionalWeakTable<Enemy,ArcherCornerPlan>();
+
+        private bool ArcherWalkCorridorClear(Point from,Point goal)
+        {
+            Point travel=goal-from;
+            if(!Finite(travel.x)||!Finite(travel.y)||
+                travel.Length>2.25f||!CanStand(from))return false;
+            int steps=Math.Max(1,(int)Math.Ceiling(travel.Length/.11f));
+            for(int i=1;i<=steps;i++)
+                if(!CanStand(from+travel*(i/(float)steps)))return false;
+            return true;
+        }
+
+        // When the bow's physical radius scrapes a wall despite an open
+        // centerline, search up to 2.2 tiles of actual walkable lateral
+        // ground. Return a validated DESTINATION, not just an arrow heading
+        // that may reverse itself when the enemy walks by half a tile.
+        private Point ArcherPhysicalCornerGoal(Point from,Point target)
+        {
+            Point sight=target-from;
+            if(sight.Length<.1f||!CanStand(from)||
+                !ClearAttackPath(from,target))return new Point();
+            Point direction=sight.Normalized;
+            Projectile travel=WeaponShot(from,1,direction,5f,10f,target);
+            if((target-travel.position).Length>5f*travel.life||
+                PhysicalBowLaneFromFoot(from,target))return new Point();
+            Point side=new Point(-direction.y,direction.x);
+            bool positiveOpen=true,negativeOpen=true;
+            for(int ring=1;ring<=4;ring++)
+            {
+                float reach=ring*.55f;
+                for(int sign=0;sign<2;sign++)
+                {
+                    if(sign==0&&!positiveOpen||sign==1&&!negativeOpen)
+                        continue;
+                    Point lateral=sign==0?side:side*-1f;
+                    Point foot=from+lateral*reach;
+                    // Reject disconnected free destinations: the real
+                    // body must fit at every intermediate physical point.
+                    if(!ArcherWalkCorridorClear(from,foot))
+                    {
+                        if(sign==0)positiveOpen=false;
+                        else negativeOpen=false;
+                        continue;
+                    }
+                    if(ClearAttackPath(foot,target)&&
+                        PhysicalBowLaneFromFoot(foot,target))
+                        return foot;
+                }
+                if(!positiveOpen&&!negativeOpen)break;
+            }
+            return new Point();
+        }
+
+        // Preserve the original two-Point direct probe/test contract.
+        private Point ArcherPhysicalCornerSidestep(Point from,Point target)
+        {
+            Point goal=ArcherPhysicalCornerGoal(from,target);
+            return goal.Length<.01f||(goal-from).Length<.1f?
+                new Point():(goal-from).Normalized;
+        }
+
+        private Point ArcherFollowCornerPlan(Enemy enemy,Point target)
+        {
+            ArcherCornerPlan plan=archerCornerPlans.GetValue(enemy,
+                ignored=>new ArcherCornerPlan());
+            Point from=enemy.Position;
+            bool sameOwner=plan.active&&plan.room==save.room&&
+                Object.ReferenceEquals(plan.save,save)&&
+                (target-plan.target).Length<.48f;
+            // A gate, changed target or formerly obstructed muzzle can
+            // invalidate the intended destination before a shot is earned.
+            if(sameOwner&&(plan.goal-from).Length>.09f&&
+                ArcherWalkCorridorClear(from,plan.goal)&&
+                ClearAttackPath(plan.goal,target)&&
+                PhysicalBowLaneFromFoot(plan.goal,target))
+                return (plan.goal-from).Normalized;
+            plan.active=false;
+            Point next=ArcherPhysicalCornerGoal(from,target);
+            if(next.Length<.01f||(next-from).Length<.09f)
+                return new Point();
+            plan.save=save;
+            plan.room=save.room;
+            plan.target=target;
+            plan.goal=next;
+            plan.active=true;
+            return (next-from).Normalized;
+        }
         private void UpdateEnemies(float dt)
         {
             tickingEnemies.Clear();tickingEnemies.AddRange(enemies);
@@ -738,25 +1234,118 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!enemies.Contains(e) || mode != "world") continue;
-                e.moving = e.backpedaling = false; e.flash -= dt; e.hitTime -= dt; e.releaseTime -= dt; e.stun -= dt; e.staggerRecovery -= dt;
-                if (e.hitTime > 0) { Point pushed = SweepActor(e.Position, e.recoil * dt * (e.boss ? .15f : .8f)); e.x = pushed.x; e.y = pushed.y; continue; }
-                if (e.stun > 0 || e.releaseTime > 0) continue;
+                // Sanitize ALL reaction clocks before Math.Max/Min derives the
+                // amount of unlocked AI time. Otherwise one NaN can propagate
+                // through freeDt and turn an ordinary foe into a frozen actor.
+                if (RepairEnemyTransientClocks(e)) continue;
+                // Reactions overlap on one shared simulation clock. When a
+                // 40ms stun ends inside a 50ms tick, only the UNLOCKED 10ms
+                // may advance pursuit or a telegraphed attack. Previously all
+                // 50ms advanced at once, giving freed enemies an early hit.
+                float hitBudget=Math.Max(0f,e.hitTime);
+                float lockBudget=Math.Max(hitBudget,
+                    Math.Max(Math.Max(0f,e.stun),Math.Max(0f,e.releaseTime)));
+                float freeDt=Math.Max(0f,dt-Math.Min(dt,lockBudget));
+                float recoilDt=Math.Min(dt,hitBudget);
+                e.moving = e.backpedaling = false;
+                e.flash -= dt; e.hitTime -= dt; e.releaseTime -= dt;
+                e.stun -= dt; e.staggerRecovery -= dt;
+                // Honor the LAST partial recoil slice even if the hit pose
+                // expires this frame. Keep wall-safe movement and original
+                // move-speed / weapon clocks.
+                if(recoilDt>0f)
+                {
+                    Point pushed=SweepActor(e.Position,
+                        e.recoil*recoilDt*(e.boss?.15f:.8f));
+                    e.x=pushed.x;e.y=pushed.y;
+                }
+                if(freeDt<=.000001f)continue;
                 // Beacon attackers advance on the ward instead of blindly following
                 // the hero. Their normal attacks still target the hero if in range.
                 bool wardAttacker = roadTrialRoom == save.room && IsRoadwardenTrialEnemy(e);
+                // The defender drill contains a hunter AND a bowman.
+                // Only the hunter storms the station. The bowman covers it
+                // by fighting the real player at physical arrow distance;
+                // following the station itself forced every longbow to
+                // crowd the beacon and aim its corner-search at a prop.
+                // The existing ward-pressure rule still applies if this
+                // archer truly reaches the beacon under its own movement.
+                bool wardBow=wardAttacker&&e.kind==1&&!e.boss;
                 bool travelerAttacker = wayfarerEncounterRoom == save.room && IsWayfarerEnemy(e);
                 bool reliefAttacker = reliefMissionRoom == save.room &&
                     (reliefMissionWave == 1 || reliefMissionWave == 2) && IsReliefMissionEnemy(e);
                 bool escortPatrol = reliefMissionRoom == save.room &&
                     reliefMissionWave == 3 && !IsReliefMissionEnemy(e) && !e.boss &&
                     (e.Position - reliefFollowerPosition).Length < 8f;
-                Point pursuit = wardAttacker ? ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
+                // The public station is an actual defense objective: melee
+                // raiders advance toward its receiver, ranged threats still
+                // pressure the hero with ordinary traveling projectiles.
+                bool stockRaider=IsAfterlightWatchEnemy(e)&&e.kind!=1;
+                bool patrolSaboteur=IsOuterPatrolEnemy(e)&&e.kind!=1;
+                Point pursuit = patrolSaboteur ? outerPatrolPost : stockRaider ? AfterlightPoint(save.room,"outlet") :
+                    wardAttacker ? (wardBow ? Position :
+                        ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)) :
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition : Position;
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
-                    e.timer -= dt;
+                    // A gate, rising tide or collapsing floor may close
+                    // UNDER an enemy after the attack warning was issued.
+                    // A sealed attacker cannot complete its old contact,
+                    // fire missiles or call Boss support from solid ground.
+                    if (!CanStand(e.Position))
+                    {
+                        e.state = 0;
+                        e.timer = Math.Max(e.timer, .22f);
+                        e.targetingWayfarer = e.targetingReliefCivilian =
+                            e.targetingAfterlightStock = e.targetingOuterPatrolStock = false;
+                        RemoveEnemyPendingWarning(e);
+                        continue;
+                    }
+                    // Validate the locked release lane against CURRENT
+                    // topology. An obstacle may have closed after a real
+                    // windup began, without burying either actor's feet.
+                    // Cancel only this attack and its still-pending cues:
+                    // no invisible arrows, false contact or Boss summons
+                    // from behind a newly raised gate.
+                    // Ordinary archers require an actual physical
+                    // firing lane. Melee attacks intentionally finish their
+                    // telegraphed swing even against cover (contact itself
+                    // checks LOS); bosses retain their authored area/support
+                    // cycles and must not be canceled by an obsolete target
+                    // point unrelated to their radial missile pattern.
+                    if (!e.boss && e.kind == 1 &&
+                        (!ClearAttackPath(e.Position,e.target)||
+                         !EnemyBowFlightLaneClear(e,e.target)))
+                    {
+                        e.state=0;
+                        // Cancel the missed *long* draw: once cover opens,
+                        // reacquire the lane on the same responsive 220ms
+                        // polling cadence as companion ranged combat.
+                        e.timer=.22f;
+                        e.targetingWayfarer=e.targetingReliefCivilian=
+                            e.targetingAfterlightStock = e.targetingOuterPatrolStock = false;
+                        RemoveEnemyPendingWarning(e);
+                        continue;
+                    }
+                    // Even a clear centerline is not sufficient for an
+                    // ordinary archer. The physical bow hand sits to one
+                    // side of the feet; a nearby corner can bury its muzzle
+                    // without covering either living actor or center ray.
+                    // Check the SAME swept attachment used by real Fire
+                    // before committing attack state, sound or projectile.
+                    if (!e.boss && e.kind == 1 &&
+                        WeaponShot(e.Position,1,e.facing,5f,10f,e.target).blockedAtSpawn)
+                    {
+                        e.state=0;
+                        e.timer=.22f;
+                        e.targetingWayfarer=e.targetingReliefCivilian=
+                            e.targetingAfterlightStock = e.targetingOuterPatrolStock = false;
+                        RemoveEnemyPendingWarning(e);
+                        continue;
+                    }
+                    e.timer -= freeDt;
                     if (e.boss && save.room == 1 && e.windupDuration > 0 && e.timer < .2f)
                     {
                         Point next = e.attackOrigin + (e.attackDestination - e.attackOrigin) * Clamp(1 - e.timer / .2f, 0, 1);
@@ -766,25 +1355,42 @@ namespace Starfall
                     {
                         e.releaseTime = e.boss ? .38f : .24f;
                         sound = e.boss || e.kind == 2 ? "slam" : e.kind == 1 ? "arrow" : "attack";
-                        effects.Add(new Effect("enemyRelease", e.Position, .24f) {
-                            direction = e.facing, variant = e.boss ? 10 + save.room : e.kind,
-                            reliefMissionOwned = IsReliefMissionEnemy(e) ||
-                                escortPatrol && e.targetingReliefCivilian,
-                            rootHarmonyOwned = IsRootHarmonyEnemy(e),
-                            mineConvoyOwned = IsMineConvoyEnemy(e),
-                            frostSignalOwned = IsFrostSignalEnemy(e) });
+                        var releaseEffect = new Effect("enemyRelease", e.Position, .24f) {
+                            direction = e.facing, variant = e.boss ? 10 + save.room : e.kind };
+                        TagEnemyCombatEffect(releaseEffect, e,
+                            escortPatrol && e.targetingReliefCivilian);
+                        effects.Add(releaseEffect);
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
-                            effects.Add(new Effect("danger", e.target, .45f) {
-                                variant = e.boss ? save.room : 0, radius = radius,
-                                mineConvoyOwned = IsMineConvoyEnemy(e),
-                                frostSignalOwned = IsFrostSignalEnemy(e) });
+                            // The red ring warned during windup. At the
+                            // actual contact it becomes a short impact flash,
+                            // not another 450ms "incoming" danger telegraph.
+                            // This feedback shares the real damage target.
+                            var strikeEffect = new Effect("burst", e.target, .24f) {
+                                variant = e.boss ? save.room : 0, radius = radius };
+                            TagEnemyCombatEffect(strikeEffect, e,
+                                escortPatrol && e.targetingReliefCivilian);
+                            effects.Add(strikeEffect);
                             if ((Position - e.target).Length < radius && ClearAttackPath(e.Position, Position)) Hurt(e.boss ? 22 + e.BossPhase * 3 : 14, "slam", (Position - e.Position).Normalized);
-                            else TryRewardEscapedWarning(e.target, radius);
+                            else if (perfectDodgeArmed &&
+                                ClearAttackPath(e.Position, dashOrigin))
+                                // Dodge counters are earned by escaping a
+                                // REAL strike, not by dashing outside a red
+                                // ring that could never reach the original
+                                // foot through a newly shut wall. Match the
+                                // live path used for the actual melee/AoE hit.
+                                TryRewardEscapedWarning(e.target, radius);
                             if (Dying) break;
                             if (e.boss)
                             {
+                                // A released call's warning ends precisely on
+                                // the real contact frame, before support appears.
+                                // Retire only this actual caster's cue.
+                                // Another guardian can have the same numeric
+                                // spawn ID but its warning still matters.
+                                effects.RemoveAll(fx=>Object.ReferenceEquals(
+                                    fx.bossSummonCueOwner,e));
                                 e.cycle++;
                                 if (save.room == 3)
                                 {
@@ -796,12 +1402,20 @@ namespace Starfall
                                 int spokes = 4 + Math.Min(5, save.room) * 2 + e.BossPhase * 2;
                                 if (save.room >= 2 || e.BossPhase >= 2)
                                     for (int k = 0; k < spokes; k++) Fire(e, new Point((float)Math.Cos(k * Math.PI * 2 / spokes + e.cycle * .2), (float)Math.Sin(k * Math.PI * 2 / spokes + e.cycle * .2)), 3.5f + e.BossPhase * .4f);
-                                if ((e.BossPhase == 3 || (save.room == 4 && e.BossPhase >= 2)) && e.cycle % 3 == 0 && enemies.Count < 9)
-                                    enemies.Add(CreatePlacedEnemy(++enemyId, save.room == 4 ? 1 : 0, new Point(e.x - 2, e.y + 1), 38 + save.room * 3));
+                                if ((e.BossPhase == 3 || (save.room == 4 && e.BossPhase >= 2)) &&
+                                    e.cycle % 3 == 0 && enemies.Count < 9)
+                                    TrySpawnBossReinforcement(e);
                             }
                         }
                         else if (e.kind == 1) Fire(e, e.facing, 5);
                         else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position)) Hurt(11, "lunge", e.facing);
+                        // Only an uninterrupted genuine enemy release can
+                        // strike the receiver. Nearby bodyguards draw the
+                        // enemy's locked intent and prevent stock damage.
+                        if(stockRaider&&e.targetingAfterlightStock)
+                            DamageAfterlightWatchStock(e);
+                        if(patrolSaboteur&&e.targetingOuterPatrolStock)
+                            DamageOuterPatrolStock(e);
                         if (travelerAttacker && e.targetingWayfarer) DamageWayfarer(e);
                         if (reliefMissionRoom != 0 &&
                             (IsReliefMissionEnemy(e) || escortPatrol) &&
@@ -809,24 +1423,30 @@ namespace Starfall
                             DamageReliefCivilian(e);
                         // Rescue archers only injure civilians where their real
                         // arrow actually flies. No hitscan at the windup release.
-                        e.targetingWayfarer = e.targetingReliefCivilian = false;
+                        e.targetingWayfarer = e.targetingReliefCivilian =
+                            e.targetingAfterlightStock = e.targetingOuterPatrolStock = false;
+                        rescueWindupEffects.Remove(e);
                         e.state = 0; e.timer = e.boss ? 2.2f - e.BossPhase * .3f : 1.4f;
                     }
                     continue;
                 }
                 // Defense attackers cannot abandon the beacon after knockback
                 // or while navigating around a distant obstruction.
-                if (!wardAttacker && !travelerAttacker && !reliefAttacker && !escortPatrol &&
+                if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
+                    !escortPatrol && !stockRaider && !patrolSaboteur &&
                     distance > (e.boss ? 18 : 8)) continue;
-                e.timer -= dt;
+                e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
-                float desired = (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
-                    wardAttacker || travelerAttacker || reliefAttacker || escortPatrol ? 1.05f :
+                float desired = wardBow ? 4.5f :
+                    (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
+                    wardAttacker || travelerAttacker || reliefAttacker || escortPatrol || stockRaider || patrolSaboteur ? 1.05f :
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
+                if(visible&&!e.boss&&e.kind==1)
+                    visible=EnemyBowFlightLaneClear(e,pursuit);
                 Point before = e.Position;
-                if (e.kind == 1 && !e.boss && !wardAttacker &&
+                if (e.kind == 1 && !e.boss && (!wardAttacker||wardBow) &&
                     !travelerAttacker && !practicing &&
                     (reliefAttacker || escortPatrol ? distance < 3.4f : distance < 3f) &&
                     (visible || reliefAttacker || escortPatrol))
@@ -834,22 +1454,35 @@ namespace Starfall
                     // Backstep even with blocked LOS. Never counteract an
                     // actual retreat by walking toward the target this tick.
                     Point away = delta.Length > .001f ?
-                        delta.Normalized * -dt * (reliefAttacker || escortPatrol ? 2.2f : 1.6f) :
-                        new Point(-dt * 1.6f, 0);
+                        delta.Normalized * -freeDt * (reliefAttacker || escortPatrol ? 2.2f : 1.6f) :
+                        new Point(-freeDt * 1.6f, 0);
                     Point back = SweepActor(e.Position, away);
                     e.backpedaling = (back - e.Position).Length > .001f;
                     e.x = back.x; e.y = back.y;
                 }
                 if (!e.backpedaling && (distance > desired || !visible))
                 {
-                    Point p = e.Position + DirectionTo(e.Position, pursuit) * dt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
+                    // Actual archer missile LOS may be shut by a corner
+                    // beside an otherwise perfectly open walking ray.
+                    // Evaluate alternate legal shooting feet BEFORE
+                    // committing pursuit: moving directly nearer simply
+                    // repeats a blocked shot or eventually backpedals.
+                    Point heading=DirectionTo(e.Position,pursuit);
+                    if(e.kind==1&&!e.boss&&!visible)
+                    {
+                        Point lateral=ArcherFollowCornerPlan(e,pursuit);
+                        if(lateral.Length>.1f)heading=lateral;
+                    }
+                    Point p = e.Position + heading * freeDt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
                     Point swept = SweepActor(e.Position, p - e.Position); e.x = swept.x; e.y = swept.y;
                 }
                 Point travelled = e.Position - before; e.moving = travelled.Length > .001f;
                 if (e.moving) { e.moveTime += travelled.Length; e.Face(e.backpedaling?Position-e.Position:travelled); }
                 delta = Position - e.Position; distance = delta.Length;
                 bool heroInRange = distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
-                    ClearAttackPath(e.Position, Position);
+                    ClearAttackPath(e.Position, Position) &&
+                    (e.boss||e.kind!=1||
+                     EnemyBowFlightLaneClear(e,Position));
                 bool nearTraveler = travelerAttacker && (pursuit - e.Position).Length < 2.2f &&
                     ClearAttackPath(e.Position, pursuit);
                 // Standing in the raider's reach lets the hero draw its attention.
@@ -860,25 +1493,67 @@ namespace Starfall
                 // target civilians when the hero does not hold the frontline.
                 bool nearCivilian = (reliefAttacker || escortPatrol) &&
                     (pursuit - e.Position).Length < (e.kind == 1 ? 6.5f : 2.1f) &&
-                    ClearAttackPath(e.Position, pursuit);
+                    ClearAttackPath(e.Position, pursuit) &&
+                    (e.kind!=1||e.boss||
+                     EnemyBowFlightLaneClear(e,pursuit));
                 bool strikeCivilian = nearCivilian &&
                     (!heroInRange || distance > 2.2f);
-                if (e.timer <= 0 && (heroInRange || strikeTraveler || strikeCivilian))
+                bool nearStock=stockRaider&&(pursuit-e.Position).Length<2.2f &&
+                    ClearAttackPath(e.Position,pursuit);
+                bool strikeStock=nearStock&&(!heroInRange||distance>2.2f);
+                bool nearPatrolStock=patrolSaboteur&&
+                    (pursuit-e.Position).Length<2.2f&&
+                    ClearAttackPath(e.Position,pursuit);
+                bool strikePatrolStock=nearPatrolStock&&(!heroInRange||distance>2.2f);
+                // A still-buried enemy may recover its footing when the
+                // world opens again, but must not start a new windup from an
+                // invalid tile while waiting for that transition.
+                if (e.timer <= 0 && CanStand(e.Position) &&
+                    (heroInRange || strikeTraveler || strikeCivilian || strikeStock || strikePatrolStock))
                 {
                     e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer;
                     e.targetingWayfarer = strikeTraveler;
                     e.targetingReliefCivilian = strikeCivilian;
-                    e.target = strikeTraveler || strikeCivilian ? pursuit : Position;
+                    e.targetingAfterlightStock = strikeStock;
+                    e.targetingOuterPatrolStock = strikePatrolStock;
+                    e.target = strikeTraveler || strikeCivilian || strikeStock || strikePatrolStock ? pursuit : Position;
                     e.Face(e.target - e.Position);
-                    if (strikeCivilian)
-                        // Archers use their real swept arrow. Showing a melee
-                        // blast ring for a bow would falsely imply instant AOE.
-                        if (e.kind != 1)
-                            effects.Add(new Effect("danger", pursuit, e.timer) {
-                                radius = e.kind == 2 ?
-                                    EnemyAreaRadius(e) : EnemyMeleeRadius,
-                                reliefMissionOwned = true });
-                    if (e.boss || distance < 6 || strikeCivilian) sound = "windup";
+                    // A ground warning must precede the REAL damage, not
+                    // appear for the first time on its contact frame.
+                    // Heavy slams and Boss AoE target a locked circle; rescue
+                    // melee has the same contract around its civilian.
+                    // Archers still use actual traveling arrows, not fake
+                    // melee rings. Keep this effect tied to its attacker so
+                    // stun, stagger or death can retract an unspent warning.
+                    bool areaAttack = e.boss || e.kind == 2;
+                    if (areaAttack || (strikeCivilian && e.kind != 1) ||
+                        (strikeStock && e.kind != 1) ||
+                        (strikePatrolStock && e.kind != 1))
+                    {
+                        var telegraph = new Effect("danger", e.target, e.timer)
+                        {
+                            radius = areaAttack ? EnemyAreaRadius(e) : EnemyMeleeRadius,
+                            variant = e.boss ? save.room : 0
+                        };
+                        TagEnemyCombatEffect(telegraph, e, strikeCivilian);
+                        effects.Add(telegraph);
+                        rescueWindupEffects.Remove(e);
+                        rescueWindupEffects.Add(e, telegraph);
+                    }
+                    if (e.boss || distance < 6 || strikeCivilian || strikeStock || strikePatrolStock) sound = "windup";
+                    if(e.boss && enemies.Count<9 &&
+                        (e.BossPhase==3||(save.room==4&&e.BossPhase>=2)) &&
+                        (e.cycle+1)%3==0)
+                    {
+                        // Announce the ACTUAL upcoming support cycle before
+                        // the enemy's existing timed attack. Staggering,
+                        // freezing or defeating its owner retracts this cue.
+                        effects.Add(new Effect("number",
+                            e.Position+new Point(0,-1f),e.timer+.06f,
+                            L("正在呼叫增援！","CALLING REINFORCEMENTS!"))
+                            {bossSummonCueOwnerId=e.id,
+                             bossSummonCueOwner=e});
+                    }
                     e.attackOrigin = e.attackDestination = e.Position;
                     if (e.boss && save.room == 1)
                         for (int step = 0; step < 12; step++)
@@ -892,9 +1567,123 @@ namespace Starfall
             tickingEnemies.Clear();
         }
         private void Fire(Enemy e, Point dir, float speed)
-        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e);shot.courierOwned=IsFarCourierRaider(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
+        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e); shot.outerPatrolOwned = IsOuterPatrolEnemy(e);
+            shot.skywatchOwned = IsSkywatchEnemy(e);
+            shot.atlasEchoOwned = IsAtlasEchoEnemy(e);
+            shot.wayfarerOwned = IsWayfarerEnemy(e);
+            shot.courierOwned=IsFarCourierRaider(e);shot.floodReliefOwned=IsFloodReliefEnemy(e);shot.civicResponseOwned=IsCivicResponseEnemy(e);shot.lastDirectiveOwned=IsLastDirectiveEnemy(e);shot.rootHarmonyOwned = IsRootHarmonyEnemy(e);shot.reliefMissionOwned = IsReliefMissionEnemy(e) ||
                 reliefMissionWave == 3 && reliefMissionRoom == save.room &&
-                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+                e.targetingReliefCivilian;shot.tideSalvageOwned=IsTideSalvageEnemy(e);shot.temperOwned=IsTemperEnemy(e);shot.mineConvoyOwned=IsMineConvoyEnemy(e);shot.frostSignalOwned=IsFrostSignalEnemy(e);shot.triadOwned=IsTriadEnemy(e);shot.witnessOwned=IsWitnessEnemy(e);
+            shot.commonsRelayOwned=IsCommonsRelayEnemy(e);
+            shot.glasswindOwned=IsGlasswindEnemy(e);
+            shot.afterlightWatchOwned=IsAfterlightWatchEnemy(e);
+            shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+        // Signed ray-circle entry measured from a shared flight sample.
+        // A negative value means the projectile has already crossed that
+        // actor's front edge. Comparing entries is still well-defined when
+        // two hurt circles overlap on the same <=0.1-tile sweep step.
+        private static float ProjectileCircleEntry(Point point, Point velocity,
+            Point center, float radius)
+        {
+            Point heading=velocity.Normalized;
+            Point offset=center-point;
+            float along=offset.x*heading.x+offset.y*heading.y;
+            float dist2=offset.x*offset.x+offset.y*offset.y;
+            float sideways2=Math.Max(0f,dist2-along*along);
+            return along-(float)Math.Sqrt(Math.Max(0f,
+                radius*radius-sideways2));
+        }
+        // A penetrating shot can make several genuine hits in the SAME
+        // 0.1-tile sweep slice. Roster order is not collision order: an
+        // enemy serialized later may physically stand in front of a boss
+        // or another opponent. Sort once per flight roster snapshot,
+        // and after a real hit refreshes that snapshot, using the signed
+        // FIRST circle entry (including each actor's true hit radius).
+        // Nonpiercing shots retain their existing earliest-single-target
+        // selection; this does not change projectile damage or flight.
+        private void OrderPiercingContacts(Projectile shot)
+        {
+            if(!shot.piercing||projectileTargets.Count<2)return;
+            projectileTargets.Sort((left,right)=>
+            {
+                float leftEntry=ProjectileCircleEntry(shot.position,
+                    shot.velocity,left.Position,
+                    (left.boss?.9f:.5f)+shot.Radius);
+                float rightEntry=ProjectileCircleEntry(shot.position,
+                    shot.velocity,right.Position,
+                    (right.boss?.9f:.5f)+shot.Radius);
+                return leftEntry.CompareTo(rightEntry);
+            });
+        }
+
+        // The final wall/contact spark uses the SAME launch-owned body
+        // identity as the missile and genuine enemy hit, rather than
+        // teleporting visually to a neutral white when it meets stone.
+        // 0=neutral, 1=hostile, 2=bow, 3=staff, 4=sword-deflected.
+        // This transient contact tag never changes damage or SaveData.
+        private static int ProjectileContactLight(Projectile p)
+        {
+            if(!p.friendly)return 1;
+            if(p.source=="deflected")return 4;
+            if(p.impact!=null&&p.impact.playerOwned)
+            {
+                if(p.impact.weapon==1)return 2;
+                if(p.impact.weapon==2)return 3;
+            }
+            return 0;
+        }
+        private void AddProjectileFade(Projectile p)
+        {
+            // Flight expiration or invalid spawn has no genuine contact
+            // radius. Keep existing source/mission-owned fade metadata.
+            effects.Add(new Effect("projectileFade", p.position, .25f) {
+                        direction = p.velocity.Normalized,
+                        variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
+                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
+                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
+                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
+                        roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned, wayfarerOwned = p.wayfarerOwned,
+                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
+                        civicConduitOwned = p.civicConduitOwned,
+                        afterlightWatchOwned = p.afterlightWatchOwned });
+        }
+        // Share exact hero/escort first-contact and deflection rules across
+        // normal flight samples and a shot's final legal sample before cover.
+        // The returned body hit consumes the hostile shot unless a sword
+        // guard genuinely reflected it. All damage remains in GameCore.
+        private bool TryHostileProjectileBodyContact(Projectile p,
+            out bool civilianHit, out bool reflected)
+        {
+            civilianHit=false;reflected=false;
+            bool heroContact=(Position-p.position).Length<.38f;
+            bool civilianContact=p.reliefMissionOwned &&
+                reliefMissionRoom==save.room &&
+                reliefMissionWave>=1 && reliefMissionWave<=3 &&
+                (p.position-reliefFollowerPosition).Length<.45f;
+            bool civilianFirst=civilianContact&&(!heroContact||
+                ProjectileCircleEntry(p.position,p.velocity,
+                    reliefFollowerPosition,.45f)+.00001f <
+                ProjectileCircleEntry(p.position,p.velocity,Position,.38f));
+            if(civilianFirst)
+            {
+                DamageReliefCivilianArrow(p);
+                civilianHit=true;
+                return true;
+            }
+            if(!heroContact)return false;
+            if(civilianContact)
+            {
+                effects.Add(new Effect("number",Position,.7f,
+                    L("护卫拦截","INTERCEPT")){reliefMissionOwned=true});
+                effects.Add(new Effect("discover",
+                    reliefFollowerPosition,.35f){reliefMissionOwned=true});
+            }
+            reflected=TryDeflectHostileProjectile(p);
+            if(!reflected)
+                Hurt(p.damage,p.source??"shot",p.velocity.Normalized);
+            return true;
+        }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -902,45 +1691,195 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!projectiles.Contains(p)) continue;
+                // A malformed live projectile must not poison the swept
+                // collision clock, overflow its subdivision count or draw
+                // a phantom impact at a NaN world coordinate. Keep finite
+                // stationary contact projectiles valid (mission mechanics
+                // use them), but reject nonphysical speed and damage before
+                // touching life, effects, enemies or any quest ownership.
+                float speed=p.velocity.Length;
+                if(!Finite(p.position.x)||!Finite(p.position.y)||
+                    !Finite(p.velocity.x)||!Finite(p.velocity.y)||
+                    !Finite(speed)||speed>256f||
+                    !Finite(p.life)||!Finite(p.age)||
+                    !Finite(p.damage)||p.damage<0f)
+                {
+                    projectiles.Remove(p);
+                    continue;
+                }
+                // TickAction and UpdateEnemies can release mid-frame. They
+                // must not borrow the entire earlier world-time interval for
+                // projectile velocity, expiry, contact or reflection.
+                if (!flightReadyAtFrameStart.Contains(p)) continue;
                 float flightDt = Math.Min(dt, Math.Max(0, p.life));
                 p.life -= dt; p.age += flightDt;
                 if(p.launchHeight>=0&&p.flightHeight>=0)
                 { float t=Clamp(p.age/.25f,0,1);t=t*t*(3-2*t);p.height=p.launchHeight+(p.flightHeight-p.launchHeight)*t; }
                 if (p.life <= 0 && flightDt <= 0)
-                { projectiles.Remove(p); effects.Add(new Effect("projectileFade", p.position, .25f) {
-                        direction = p.velocity.Normalized,
-                        variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
-                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
-                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
-                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
-                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
-                        civicConduitOwned = p.civicConduitOwned }); continue; }
+                { projectiles.Remove(p); AddProjectileFade(p); continue; }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
-                bool dead = p.blockedAtSpawn || ShotBlocked(p,p.position); float impactRadius = 0;
+                bool startedBlocked = p.blockedAtSpawn ||
+                    ShotBlocked(p,p.position);
+                bool dead = startedBlocked, civilianImpactProduced = false;
+                float impactRadius = 0;
                 // Capture collision candidates once per flying projectile,
                 // not on every 0.1-tile sweep subdivision. Refresh only
                 // after a real hit changes the possible target roster.
-                if (p.friendly) { projectileTargets.Clear(); projectileTargets.AddRange(enemies); }
+                if (p.friendly)
+                {
+                    projectileTargets.Clear();
+                    projectileTargets.AddRange(enemies);
+                    OrderPiercingContacts(p);
+                }
                 for (int step = 0; step < steps && !dead; step++)
                 {
                     Point next = p.position + p.velocity * (flightDt / steps);
                     // Resolve the first obstruction along flight, not its endpoint.
-                    if (ShotBlocked(p,next)) { dead = true; break; }
+                    // A starfire bolt striking solid cover must detonate on
+                    // the NEAR side of the wall. Its 1.8-tile blast can hit
+                    // visible nearby enemies, but never a target shielded
+                    // behind the same wall. Spawn-blocked shots, normal arrows
+                    // and range-expired projectiles do not create free blasts.
+                    if (ShotBlocked(p,next))
+                    {
+                        dead = true;
+                        // The leading edge can touch a wall AFTER the arrow
+                        // is already inside one or more exposed hurt circles.
+                        // Resolve those true body contacts from the last legal
+                        // flight sample before consuming the bolt on stone.
+                        // Cover still blocks every concealed actor by LOS.
+                        if(p.friendly&&!p.explosive&&!startedBlocked)
+                        {
+                            Enemy firstBody=null;
+                            float firstEntry=float.MaxValue;
+                            // Piercing contacts were sorted by signed physical
+                            // circle entry at this sample. Preserve that order
+                            // and per-actor immunity even when the NEXT sample
+                            // would hit cover. Ordinary arrows choose only
+                            // the physically first existing body instead.
+                            foreach(Enemy candidate in projectileTargets)
+                            {
+                                if(candidate.hp<=0||p.hitActors.Contains(candidate))
+                                    continue;
+                                float radius=(candidate.boss?.9f:.5f)+p.Radius;
+                                if((candidate.Position-p.position).Length>=radius||
+                                    !ClearAttackPath(p.position,candidate.Position))
+                                    continue;
+                                if(p.piercing)
+                                {
+                                    p.hitActors.Add(candidate);p.hits.Add(candidate.id);
+                                    Hit(candidate,p.damage,p.technique,
+                                        p.velocity.Normalized,p.impact);
+                                    if(!projectiles.Contains(p))break;
+                                    if(p.slowing)ApplyEnemyControl(candidate,.45f);
+                                }
+                                else
+                                {
+                                    float entry=ProjectileCircleEntry(p.position,
+                                        p.velocity,candidate.Position,radius);
+                                    if(entry<firstEntry)
+                                    {firstEntry=entry;firstBody=candidate;}
+                                }
+                            }
+                            if(firstBody!=null)
+                            {
+                                p.hitActors.Add(firstBody);
+                                p.hits.Add(firstBody.id);
+                                Hit(firstBody,p.damage,p.technique,
+                                    p.velocity.Normalized,p.impact);
+                                if(projectiles.Contains(p)&&p.slowing)
+                                    ApplyEnemyControl(firstBody,.45f);
+                                // The existing projectileImpact below is
+                                // rooted at the previous unblocked sample.
+                                break;
+                            }
+                        }
+                        // Hostile shots can likewise overlap a real hero
+                        // or escorted civilian BEFORE their leading edge
+                        // reaches wall cover. Use the same shared body priority
+                        // and sword-reflection transaction as ordinary flight.
+                        if(!p.friendly&&!startedBlocked)
+                        {
+                            bool civilianAtWall,reflectedAtWall;
+                            if(TryHostileProjectileBodyContact(p,
+                                out civilianAtWall,out reflectedAtWall))
+                            {
+                                civilianImpactProduced=civilianAtWall;
+                                if(reflectedAtWall)dead=false;
+                                break;
+                            }
+                        }
+                        // A projectile already buried at the START of this frame
+                        // (including a gate/tide that sealed around an
+                        // in-flight bolt) cannot mint a free area blast.
+                        // A genuine unblocked bolt striking the NEXT wall
+                        // sample keeps its original near-face explosion.
+                        if (p.friendly && p.explosive && !startedBlocked)
+                        {
+                            impactRadius = 1.8f;
+                            splashTargets.Clear();
+                            splashTargets.AddRange(enemies);
+                            foreach (Enemy other in splashTargets)
+                                if ((other.Position-p.position).Length<impactRadius &&
+                                    ClearAttackPath(p.position,other.Position))
+                                    Hit(other,p.damage*.6f,false,
+                                        (other.Position-p.position).Normalized,p.impact);
+                            splashTargets.Clear();
+                        }
+                        break;
+                    }
                     p.position = next;
                     if (p.friendly)
                     {
+                        // When enemy hit-circles overlap within one 0.1-tile
+                        // flight slice, the old roster-order loop let a
+                        // back-row actor swallow a non-piercing arrow before
+                        // the front actor. Select the earliest ray/circle
+                        // entry on the actual flight heading, independently
+                        // of enemy spawn/serialization order.
+                        if (!p.piercing)
+                        {
+                            Enemy firstContact = null;
+                            float firstEntry = float.MaxValue;
+                            Point direction = p.velocity.Normalized;
+                            foreach (Enemy candidate in projectileTargets)
+                            {
+                                if (candidate.hp <= 0 || p.hitActors.Contains(candidate))
+                                    continue;
+                                Point offset = candidate.Position - p.position;
+                                float radius = (candidate.boss ? .9f : .5f) + p.Radius;
+                                float dist2 = offset.x*offset.x + offset.y*offset.y;
+                                if (dist2 >= radius*radius ||
+                                    !ClearAttackPath(p.position,candidate.Position))
+                                    continue;
+                                float along = offset.x*direction.x+offset.y*direction.y;
+                                float perp2 = Math.Max(0f,dist2-along*along);
+                                float entry = along -
+                                    (float)Math.Sqrt(Math.Max(0f,radius*radius-perp2));
+                                if (entry < firstEntry)
+                                {
+                                    firstEntry=entry;
+                                    firstContact=candidate;
+                                }
+                            }
+                            if (firstContact != null)
+                            {
+                                projectileTargets.Clear();
+                                projectileTargets.Add(firstContact);
+                            }
+                        }
                         bool hitAny = false;
                         foreach (Enemy e in projectileTargets)
                         {
-                            if (p.hits.Contains(e.id) || (e.Position - p.position).Length >= (e.boss ? .9f : .5f) + p.Radius || !ClearAttackPath(p.position, e.Position)) continue;
+                            if (p.hitActors.Contains(e) || e.hp <= 0 || (e.Position - p.position).Length >= (e.boss ? .9f : .5f) + p.Radius || !ClearAttackPath(p.position, e.Position)) continue;
+                            p.hitActors.Add(e);
                             p.hits.Add(e.id);
                             hitAny = true;
                             Hit(e, p.damage, p.technique, p.velocity.Normalized, p.impact);
                             // Practice completion or another transaction can
                             // retire the shot. It must not leave an old-room impact.
                             if (!projectiles.Contains(p)) { dead = true; break; }
-                            if (p.slowing) e.stun = Math.Max(e.stun, .45f); dead = !p.piercing;
+                            if (p.slowing) ApplyEnemyControl(e,.45f); dead = !p.piercing;
                             if (p.explosive)
                             {
                                 impactRadius = 1.8f; dead = true;
@@ -956,48 +1895,45 @@ namespace Starfall
                         if (hitAny && !dead && step + 1 < steps)
                         {
                             projectileTargets.Clear(); projectileTargets.AddRange(enemies);
+                            OrderPiercingContacts(p);
                         }
                     }
-                    else if ((Position - p.position).Length < .38f)
+                    else
                     {
-                        // Reflection keeps the very same swept projectile.
-                        // Stop this frame: on the next Tick its fresh friendly
-                        // target snapshot can hit the real source actor.
-                        if(TryDeflectHostileProjectile(p))break;
-                        Hurt(p.damage,p.source ?? "shot",p.velocity.Normalized);
-                        dead=true;
-                    }
-                    else if (p.reliefMissionOwned && reliefMissionRoom == save.room &&
-                        (reliefMissionWave >= 1 && reliefMissionWave <= 3) &&
-                        (p.position - reliefFollowerPosition).Length < .45f)
-                    {
-                        // A genuine hostile arrow, after sweeping through any
-                        // walls or an intervening hero, reaches the civilians.
-                        DamageReliefCivilianArrow(p);
-                        dead = true;
+                        bool struckCivilian,reflected;
+                        if(TryHostileProjectileBodyContact(p,
+                            out struckCivilian,out reflected))
+                        {
+                            civilianImpactProduced=struckCivilian;
+                            if(reflected)break; // keep the REAL reflected shot
+                            dead=true;
+                        }
                     }
                 }
                 if (p.friendly) projectileTargets.Clear();
                 if (dead && projectiles.Remove(p))
-                    effects.Add(new Effect(p.explosive ? "magicImpact" : "projectileImpact",
+                {
+                    // The original muzzle/wall contract requires a small
+                    // near-side CONTACT spark even if a projectile is born
+                    // obstructed. That is not a full mage-area explosion.
+                    // A civilian hit already emitted its rooted contact.
+                    if (!civilianImpactProduced || reliefMissionRoom==0)
+                        effects.Add(new Effect(!startedBlocked && p.explosive ?
+                            "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
-                        variant = p.friendly ? 0 : 1, radius = impactRadius, height = p.height,
+                        variant = ProjectileContactLight(p),
+                        radius = impactRadius, height = p.height,
                         reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
                         rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
                         mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
-                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
+                        commonsRelayOwned = p.commonsRelayOwned, glasswindOwned = p.glasswindOwned, blackoutOwned = p.blackoutOwned,
+                        roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned, wayfarerOwned = p.wayfarerOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
-                        civicConduitOwned = p.civicConduitOwned });
+                        civicConduitOwned = p.civicConduitOwned,
+                        afterlightWatchOwned = p.afterlightWatchOwned });
+                }
                 else if (p.life <= 0 && projectiles.Remove(p))
-                    effects.Add(new Effect("projectileFade", p.position, .25f) {
-                        direction = p.velocity.Normalized,
-                        variant = p.visual == "arrow" || p.visual == "enemyArrow" ? 8 : p.explosive ? 9 : 10,
-                        height = p.height, reliefMissionOwned = p.reliefMissionOwned, tideSalvageOwned = p.tideSalvageOwned, temperOwned = p.temperOwned, triadOwned = p.triadOwned, witnessOwned = p.witnessOwned,
-                        rootHarmonyOwned = p.rootHarmonyOwned, courierOwned = p.courierOwned, civicResponseOwned = p.civicResponseOwned,
-                        mineConvoyOwned = p.mineConvoyOwned, frostSignalOwned = p.frostSignalOwned, swordLessonOwned = p.swordLessonOwned,
-                        commonsRelayOwned = p.commonsRelayOwned, blackoutOwned = p.blackoutOwned,
-                        stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
-                        civicConduitOwned = p.civicConduitOwned });
+                    AddProjectileFade(p);
             }
             tickingProjectiles.Clear();
         }
@@ -1038,8 +1974,20 @@ namespace Starfall
             foreach (WorldObject o in Map.objects)
             {
                 if (!IsObjectPresent(o)) continue;
-                float d = (Position - new Point(o.x, o.y)).Length;
-                if (d < distance) { distance = d; best = o; }
+                Point objective = new Point(o.x, o.y);
+                float d = (Position - objective).Length;
+                // Check the path to the actor's INTERACTION REACH, not
+                // through the object's own tile. Authored dry wood, mural
+                // plaques and some harbor interactables are embedded in
+                // solid decorative cells; players must still reach these
+                // from the neighboring legal floor. The .55f endpoint
+                // margin leaves an intervening full wall solid while
+                // preserving intended in-world E-key reach.
+                Point contact = d > .55f ?
+                    objective - (objective - Position).Normalized * .55f :
+                    Position;
+                if (d < distance && ClearAttackPath(Position, contact))
+                { distance = d; best = o; }
             }
             return best;
         }
@@ -1050,10 +1998,12 @@ namespace Starfall
             WorldObject o = Nearest();
             if (reliefMissionRoom == save.room &&
                 (reliefMissionWave == 1 || reliefMissionWave == 2) &&
-                (Position - reliefFollowerPosition).Length < 1.7f)
+                (Position - reliefFollowerPosition).Length < 1.7f &&
+                ClearAttackPath(Position,reliefFollowerPosition))
             { TalkReliefFieldGuard(); return; }
             if (ReliefEscortActive &&
                 (Position - reliefFollowerPosition).Length < 1.7f &&
+                ClearAttackPath(Position,reliefFollowerPosition) &&
                 (o == null ||
                  (Position - reliefFollowerPosition).Length <=
                     (Position - new Point(o.x, o.y)).Length + .05f))
@@ -1072,14 +2022,14 @@ namespace Starfall
             bool first = !Has(flag);
             if (first)
             {
-                Flag(flag); save.coins += 8; save.shards += 1; revision++;
+                Flag(flag); CreditCoins(8); CreditShards(1); revision++;
                 sound = "reward";
                 bool completed = true;
                 for (int i = 0; i < 8; i++)
                     if (!Has("waytrail_waytrail" + i + "s") || !Has("waytrail_waytrail" + i + "e"))
                         completed = false;
                 if (completed && !Has("waytrail_complete"))
-                { Flag("waytrail_complete"); save.skillPoints++; revision++; }
+                { Flag("waytrail_complete"); CreditSkillPoints(1); revision++; }
             }
             string[] southZh = { "南侧坐标还留着一条朝旅店走的小路。补给不多，但曾足够把迷路的孩子送回镇里。", "树根下藏着巡路人的行程：先找失踪的侦察员，再问为什么林地成了禁区。", "沉桥岸边写着一长串无名者。每次潮水上涨，名单都比货单长。", "工棚旧门上有一道划痕，工人们在这里商量停机，拒绝把伤亡当作损耗。", "堡垒南侧没有城门，只有一条隐蔽的疏散坡道。有人从这里带孩子逃过星雨。", "旧码头的补给栏记着一艘未能返航的船；每一盏亮起的灯都是给它留下的位置。", "遮阴石板背面记录了绿洲水份额。这个数字和仓库的配给账本并不相同。", "雪路旁的余烬已经熄灭，留下的柴枝整齐地指向最近的有人居住的院落。" };
             string[] southEn = { "A southern bearing leads to the inn. Small provisions once guided lost children home.", "A road-warden's note lies beneath the roots: find the scout, then ask why the forest was sealed.", "A line of unnamed people runs along the drowned bridge. With each tide it grew longer than the cargo manifest.", "Workers marked this shed when they voted to stop the machines, refusing to call casualties mere wastage.", "A hidden southern evacuation slope leads away from the citadel: someone led children through the Starfall here.", "An old dock log names a boat that never returned. Every lit lamp kept a place for its crew.", "The shade marker lists the oasis water share, different from the numbers in the depot ledger.", "The fire has gone out, but neatly arranged twigs point toward the nearest inhabited shelter." };
@@ -1224,14 +2174,22 @@ namespace Starfall
                 if(save.profession==0&&save.weapon==0)
                 {
                     if(SwordLessonActive)
-                        list.Add(C("中止三箭练习","Abort three-arrow practice","swordlesson_abort"));
+                        list.Add(C(SwordLessonVeteran?
+                            "中止五箭精英训练":"中止三箭练习",
+                            SwordLessonVeteran?
+                            "Abort five-arrow drill":"Abort three-arrow practice",
+                            "swordlesson_abort"));
                     else if(!SwordLessonComplete)
                         list.Add(C("剑盾弹反试炼 · 三箭","Sword-guard trial · three arrows","swordlesson_start"));
-                    else list.Add(C("三箭试炼 · 已通过","Three-arrow trial · cleared","close"));
+                    else list.Add(C(SwordLessonVeteranComplete?
+                        "五箭精英复练 · 无重复奖励":"五箭精英考核 · 首通技能点+1",
+                        SwordLessonVeteranComplete?
+                        "Replay five-arrow drill · no rewards":"Advanced five-arrow drill · first-clear talent",
+                        "swordlesson_veteran_start"));
                 }
                 list.Add(C("再见", "Goodbye", "close"));
                 Dialog(o.name, o.en, "短剑快，猎弓远，法杖能让星火在敌人间爆开。强化装备提升生命与攻击。\n\n我还需要五个零件修好镇里的水泵。堡垒里有那么多机器，小镇却没有一口能用的井。"+(MineConvoyComplete?"\n\n最后一班矿工安全归来，还带回能再次使用的木材；每次装备强化已额外节省一份木料。":"")+
-                    (save.profession==0&&save.weapon==0?"\n\n战士的Q技能会举起剑盾；正面迎接飞箭，消耗7耐力可弹回。正面挡下敌人的近身扑击则需9耐力，并获得一次强化反击；侧后方和冷却期间只有通常的减伤效果。":""),
+                    (save.profession==0&&save.weapon==0?"\n\n战士的Q技能会举起剑盾；正面迎接飞箭，消耗"+SwordGuardArrowEnergy+"耐力可弹回。正面挡下敌人的近身扑击则需"+SwordGuardMeleeEnergy+"耐力，并获得一次强化反击；侧后方和冷却期间只有通常的减伤效果。":""),
 
                     "Swords are quick, bows reach far, and staves burst starfire between enemies. Upgrades improve health and damage.\n\nI also need five parts to repair our water pump. So many machines in the citadel, and no working well in town."+(MineConvoyComplete?"\n\nThe rescued miners brought reusable timber home. Every equipment upgrade now needs one less timber.":"")+
                     (save.profession==0&&save.weapon==0?"\n\nYour Q raises a sword guard: face arrows to reflect them for 7 energy, or parry a frontal melee lunge for 9 energy and a powered riposte. Rear hits and contacts during cooldown only receive ordinary guard mitigation.":""), list.ToArray()); return;
@@ -1265,13 +2223,36 @@ namespace Starfall
             {
                 if (save.room > 3) { Notify("堡垒的能源，都来自边境的星核。", "The citadel draws its power from the frontier's cores."); return; }
                 int id = save.room; Flag("lore_" + id); LoreData l = data.lore[id - 1];
-                if (!Has("treasure_" + id)) { Flag("treasure_" + id); save.coins += 20; save.inventory[1] += 2; }
-                Dialog(l.title, l.en, l.zh + "\n\n找到遗物：硬币 ×20，星晶 ×2（首次）。", l.text + "\n\nRelic found: 20 coins, 2 crystals (first discovery).", C("记入手帐", "Record it in the journal", "close")); sound = "reward"; return;
+                // Record the region's history even when full, but keep its
+                // one-time physical treasure available until both resources
+                // can actually fit. The lore flag is unrelated to pickup.
+                bool unclaimed = !Has("treasure_" + id);
+                bool collected = unclaimed && save.inventory[1] <= 9997 &&
+                    save.coins <= 999979;
+                if (collected)
+                {
+                    CreditCoins(20); CreditInventory(1, 2);
+                    Flag("treasure_" + id); sound = "reward";
+                }
+                string rewardZh = collected ? "\n\n首次获得：硬币 ×20，星晶 ×2。" :
+                    unclaimed ? "\n\n遗物补给还在这里。留出20硬币和2星晶的容量后回来领取。" :
+                    "\n\n遗物补给已领取。";
+                string rewardEn = collected ? "\n\nFirst discovery: +20 coins, +2 crystals." :
+                    unclaimed ? "\n\nRelic supplies remain here. Free room for 20 coins and 2 crystals, then return." :
+                    "\n\nRelic supplies already collected.";
+                Dialog(l.title, l.en, l.zh + rewardZh, l.text + rewardEn,
+                    C("记入手帐", "Record it in the journal", "close")); return;
             }
             if (kind == "herb" || kind == "wood" || kind == "ore")
             {
                 if (Has("node_" + o.id)) { Notify("已经采集过了。回镇休息后资源会更新。", "Already gathered. Rest in town to renew resources."); return; }
-                Flag("node_" + o.id); int item = kind == "herb" ? 2 : kind == "wood" ? 0 : 1;
+                int item = kind == "herb" ? 2 : kind == "wood" ? 0 : 1;
+                // One-time gathering yields exactly three items (and ore
+                // grants three parts). Do not permanently consume this node
+                // unless BOTH resource stacks can accept the entire pickup.
+                if (!HasInventoryRoom(item, 3) ||
+                    kind == "ore" && !HasInventoryRoom(4, 3)) return;
+                Flag("node_" + o.id);
                 save.inventory[item] += 3; if (kind == "ore") save.inventory[4] += 3;
                 if (kind == "ore") BountyEvent(1, 1);
                 Notify(o.name + " +3" + (kind == "ore" ? "，零件 +3" : ""), o.en + " +3" + (kind == "ore" ? ", parts +3" : "")); sound = "reward"; return;
@@ -1306,6 +2287,20 @@ namespace Starfall
                 Dialog(b.name, b.en, save.room == 4 ? (Has("triad_complete") ? "你带来了三核审计的原始记录。厄洛终于看到森林、河流与矿工分别失去的份额。他沉默了一阵，却仍握住武器：如果停下这道屏障，谁来保护里面的孩子？让我看看你的勇气，而不是另一道命令。\n\n" : "") + "厄洛：我见过屏障熄灭的那一晚。孩子们冻得发抖，我一个一个把他们抱进避难室。我发誓再也不让城墙倒下。\n\n你说星核在抽干城外的村庄？我知道。但现在停机，又该让谁在下一场灾害里死去？如果你有能真正运转的办法，就让我看见；否则先打败我。" : "守护者仍依照失控的星根旧指令驱赶靠近者。地面预警标出它即将攻击的区域。闪避后反击，并查清这一带的机关为何不能停止。", save.room == 4 ? (Has("triad_complete") ? "Your original audit lists the forests, rivers and miners stripped of their share. Orrin sees the accounts and falls silent, but grips his weapon: Who protects the children inside if the shield stops? Show me courage, not another command.\n\n" : "") + "Orrin: I remember the night the lights died. I carried freezing children into shelter, one by one. I swore no wall would fall again.\n\nYou say the cores are draining the villages? I know. But if I stop the shield now, who dies in the next storm? Show me an alternative that actually works—or defeat me first." : "The guardian still obeys an unstable ancient starroot command. Ground warnings reveal its next real contacts. Dodge and counter, then investigate why the regional machinery cannot stop.", C(save.room == 4 ? "为边境而战" : "开始挑战", save.room == 4 ? "Fight for the frontier" : "Challenge the guardian", "boss"), C("准备一下", "Prepare first", "close"));
             }
         }
+        // Progress and rewards must already match v1/v2 save caps BEFORE a
+        // save is written, not be quietly truncated at the next Load().
+        // Use long arithmetic for large accumulated Abyss payouts.
+        private static int CappedReward(int current, int reward, int maximum)
+        {
+            return (int)Math.Max(0L, Math.Min((long)maximum,
+                (long)current + Math.Max(0L, (long)reward)));
+        }
+        private void CreditCoins(int amount) { save.coins = CappedReward(save.coins, amount, 999999); }
+        private void CreditShards(int amount) { save.shards = CappedReward(save.shards, amount, 99999); }
+        private void CreditSkillPoints(int amount) { save.skillPoints = CappedReward(save.skillPoints, amount, 99); }
+        private void CreditTea(int amount) { save.tea = CappedReward(save.tea, amount, 999); }
+        private void CreditInventory(int index, int amount)
+        { save.inventory[index] = CappedReward(save.inventory[index], amount, 9999); }
         private bool Spend(int wood, int crystal, int herb, int fish, int gear, int coins = 0)
         {
             int[] costs = { wood, crystal, herb, fish, gear };
@@ -1319,8 +2314,8 @@ namespace Starfall
         private bool HasInventoryRoom(int index, int quantity)
         {
             if (save.inventory[index] <= 9999 - quantity) return true;
-            Notify("背包数量已达上限。先使用或出售一些物品再购买。",
-                "Inventory stack is full. Use some items before buying more.");
+            Notify("背包数量已达上限。请先腾出物品空间后再领取。",
+                "Inventory stack is full. Free space before collecting more.");
             return false;
         }
         // Inn and upgraded field camps must advance the same transient
@@ -1329,6 +2324,12 @@ namespace Starfall
         private void ResolveRestTimeSkip(float elapsed)
         {
             save.totalTime += elapsed;
+            // Twenty minutes of camp rest (or forty-five at the inn) is a
+            // real jump in world tide time. Do NOT defer collision recovery
+            // to the next rendered Tick: companions/enemies can otherwise
+            // remain inside flooded shoals throughout the post-rest dialogue
+            // and before the next saved snapshot.
+            TickTideTransition();
             CancelAction();
             attackCooldown = dashCooldown = skillCooldown = dashTime = 0;
             companionCooldown = companionAttack = 0;
@@ -1359,9 +2360,9 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || stormTuning ||
+            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
-                TideSalvageActive || LastDirectiveWave > 0 || CivicConduitActive ||
+                TideSalvageActive || FloodReliefActive || LastDirectiveWave > 0 || CivicConduitActive ||
                 // A lull between scripted enemy waves is not a break in the
                 // physical trial. Resting there would skip its capture clock,
                 // red warnings and challenge phases for free.
@@ -1399,7 +2400,7 @@ namespace Starfall
                 ResolveRestTimeSkip(45f);
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
             }
-            if (action == "scout" && save.kills[1] >= 4) { Flag("scout_saved"); save.coins += 20; Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }
+            if (action == "scout" && save.kills[1] >= 4 && !Has("scout_saved")) { Flag("scout_saved"); CreditCoins(20); Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }
             if (action == "engine" && Spend(0, 0, 0, 0, 3)) { Flag("gate_3"); sound = "reward"; Notify("升降机启动，工厂入口开启。", "Elevator repaired. The workshop is open."); }
             if (action == "plant")
             {
@@ -1412,7 +2413,11 @@ namespace Starfall
                 if (save.plantedAt < 0) return;
                 if (save.totalTime - save.plantedAt < 60) { Notify("还需 " + (int)Math.Ceiling(60 - (save.totalTime - save.plantedAt)) + " 秒。", "Ready in " + (int)Math.Ceiling(60 - (save.totalTime - save.plantedAt)) + " seconds."); return; }
                 int harvest = 5 + save.projects[0] * 2 + (save.frontierEnding == 1 ? 2 : 0);
-                save.inventory[2] += harvest; save.inventory[7] += 2; save.plantedAt = -1; save.coins += 8; revision++; sound = "reward"; Notify("收获：月光草 ×" + harvest + "，种子 ×2，硬币 +8。", "Harvest: " + harvest + " Moonherbs, 2 seeds, 8 coins."); return;
+                // Ready crops do not disappear when either herb or seed stack
+                // is full. Keep plantedAt so the same mature garden can be
+                // harvested after the player spends some materials.
+                if (!HasInventoryRoom(2, harvest) || !HasInventoryRoom(7, 2)) return;
+                save.inventory[2] += harvest; save.inventory[7] += 2; save.plantedAt = -1; save.coins = Math.Min(999999, save.coins + 8); revision++; sound = "reward"; Notify("收获：月光草 ×" + harvest + "，种子 ×2，硬币 +8。", "Harvest: " + harvest + " Moonherbs, 2 seeds, 8 coins."); return;
             }
             if (action == "seeds" && HasInventoryRoom(7, 3) && Spend(0, 0, 0, 0, 0, 5)) { save.inventory[7] += 3; Notify("种子 ×3", "Seeds ×3"); }
             if (action == "upgrade")
@@ -1429,15 +2434,16 @@ namespace Starfall
             if (action == "cook" && HasInventoryRoom(6, 1) && Spend(0, 0, 2, 1, 0)) { save.inventory[6]++; sound = "reward"; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buymeal" && HasInventoryRoom(6, 1) && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
-            if (action == "fish") { fishTime = fishCursor = 0; fishHits = fishMisses = 0; mode = "fish"; }
+            if (action == "fish" && HasInventoryRoom(3, 1))
+            { fishTime = fishCursor = 0; fishHits = fishMisses = 0; mode = "fish"; }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
-            { save.stage++; save.coins += 40; save.inventory[6]++; save.inventory[0] += 3; save.inventory[1] += 2; revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
+            { save.stage++; CreditCoins(40); CreditInventory(6, 1); CreditInventory(0, 3); CreditInventory(1, 2); revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
             if (action.StartsWith("ally"))
             {
                 int id = int.Parse(action.Substring(4));
                 if (Has("ally_" + id)) return;
                 if (Spend(0, 0, id == 1 ? 6 : 0, id == 2 ? 3 : 0, id == 3 ? 5 : 0))
-                { Flag("ally_" + id); save.coins += 40; save.inventory[6]++; save.skillPoints++; sound = "reward"; Notify("支线完成！获得同伴支持、40 硬币和 1 技能点。", "Commission complete! An ally, 40 coins and 1 skill point."); }
+                { Flag("ally_" + id); CreditCoins(40); CreditInventory(6, 1); CreditSkillPoints(1); sound = "reward"; Notify("支线完成！获得同伴支持、40 硬币和 1 技能点。", "Commission complete! An ally, 40 coins and 1 skill point."); }
             }
             if (action == "boss")
             {
@@ -1489,7 +2495,16 @@ namespace Starfall
         {
             if (mode != "fish") return;
             if (Math.Abs(fishCursor - .5f) <= .18f) { fishHits++; sound = "reward"; } else { fishMisses++; sound = "hurt"; }
-            if (fishHits >= 3) { save.inventory[3]++; save.coins += 4; BountyEvent(2, 1); Close(); revision++; Notify("钓到银鳍鱼 ×1！", "Caught a Silverfin!"); }
+            if (fishHits >= 3)
+            {
+                // Normal play enters this minigame only when a fish slot was
+                // available. Keep the final reward safe if a developer or
+                // future UI changes the inventory during the reel sequence.
+                save.inventory[3] = Math.Min(9999, save.inventory[3] + 1);
+                save.coins = Math.Min(999999, save.coins + 4);
+                BountyEvent(2, 1); Close(); revision++;
+                Notify("钓到银鳍鱼 ×1！", "Caught a Silverfin!");
+            }
             else if (fishMisses >= 3) { Close(); Notify("鱼游走了。没有损失，再试一次吧。", "The fish slipped away. Nothing lost; try again."); }
         }
         private void FinalConversation()

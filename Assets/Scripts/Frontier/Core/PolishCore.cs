@@ -199,7 +199,7 @@ namespace Starfall
         {
             if (!practicing || practiceStage != 2) return;
             save.practiceBits = 7; TutorialAction(5); bool first = !Has("practice_reward"); EndPractice();
-            if (first) { Flag("practice_reward"); save.skillPoints++; save.coins += 15; }
+            if (first) { Flag("practice_reward"); CreditSkillPoints(1); CreditCoins(15); }
             RecordMoment("完成训练场：攻击、观察预告、闪避与职业战技。", "Practice complete: attack, read a tell, dodge and use your technique.");
             Notify(first ? "练习完成：技能点1、硬币15！可以出发去密林了。" : "练习完成！随时可以再来。", first ? "Practice complete: 1 point, 15 coins. Ready for Thornwood." : "Practice complete! Return anytime.");
         }
@@ -222,8 +222,24 @@ namespace Starfall
         public string PracticeHint { get { return L(new[] { "J / 左键：命中木桩", "观察红圈，空格闪避攻击", "Q：命中目标，完成练习" }[practiceStage], new[] { "J / click: hit the dummy", "Read the red circle; Space to dodge", "Q: hit the target to finish" }[practiceStage]); } }
         public void UseExplorationAbility()
         {
-            if (mode != "world" || Dying || practicing) return; WorldObject near = null; float distance = 3;
-            foreach (var o in Map.objects) if (o.kind.StartsWith("seal")) { float d = (Position - new Point(o.x, o.y)).Length; if (d < distance) { near = o; distance = d; } }
+            if (mode != "world" || Dying || practicing) return;
+            WorldObject near = null; float distance = 3;
+            foreach (WorldObject o in Map.objects)
+            {
+                if (!o.kind.StartsWith("seal")) continue;
+                Point objective = new Point(o.x, o.y);
+                float d = (Position - objective).Length;
+                if (d >= distance) continue;
+                // R and E both require a physically reachable contact.
+                // Authored seals sit ON a blocked route tile, so test the
+                // player-facing reach just before the fixture, rather than
+                // invalidating every legitimate near-side activation.
+                Point contact = d > .55f ?
+                    objective - (objective - Position).Normalized * .55f :
+                    Position;
+                if (!ClearAttackPath(Position, contact)) continue;
+                near = o; distance = d;
+            }
             if (near == null) { Notify("靠近封印入口按 R；探索能力来自前三枚星核。", "Press R near a sealed route; the first three cores grant exploration powers."); return; }
             int id = int.Parse(near.kind.Substring(4));
             if (!Ability(id)) { Notify("需要第 " + id + " 枚星核的探索能力。", "Requires exploration power from core " + id + "."); return; }
@@ -297,7 +313,7 @@ namespace Starfall
                 bool first = !Has("survey_" + signal);
                 if (first)
                 {
-                    Flag("survey_" + signal); save.coins += 12; save.shards++; AddXp(15); revision++; sound = "reward";
+                    Flag("survey_" + signal); CreditCoins(12); CreditShards(1); AddXp(15); revision++; sound = "reward";
                     RecordMoment("恢复巡路信号 " + signal + "/3：" + o.name + "。", "Recovered road signal " + signal + "/3: " + o.en + ".");
                 }
                 var signalChoices = new List<Choice> { C("记住这条路", "Remember the road", "close") };
@@ -323,7 +339,7 @@ namespace Starfall
             {
                 if (!Has("seal_" + save.room)) { Notify("先解除入口的封印。", "Release the entrance seal first."); return true; }
                 string flag = "cache_" + save.room; bool first = !Has(flag);
-                if (first) { Flag(flag); save.coins += 30; save.shards += 3; save.inventory[6]++; save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 8);
+                if (first) { Flag(flag); CreditCoins(30); CreditShards(3); CreditInventory(6, 1); save.mastery[save.weapon] = Math.Min(100, save.mastery[save.weapon] + 8);
                     RecordMoment("发现旧日补给：" + Map.name + "。硬币30、碎片3、炖汤1、熟练度8。", "Found a forgotten cache in " + Map.en + ": 30 coins, 3 shards, 1 stew, 8 mastery."); }
                 LoreData note = o.lore >= 0 && o.lore < data.lore.Length ? data.lore[o.lore] : null;
                 if (note != null) Flag("history_" + o.lore);
@@ -440,14 +456,25 @@ namespace Starfall
             {
                 if (!Has("survey_complete") && Has("survey_1") && Has("survey_2") && Has("survey_3"))
                 {
-                    Flag("survey_complete"); save.coins += 60; save.shards += 5; save.skillPoints++; AddXp(50); revision++; sound = "reward";
+                    Flag("survey_complete"); CreditCoins(60); CreditShards(5); CreditSkillPoints(1); AddXp(50); revision++; sound = "reward";
                     RecordMoment("三段巡路信号拼成了归乡星图：永久移动速度+0.25，技能点1。", "The road signals became a homeward chart: +0.25 permanent movement speed and 1 talent point.");
                     Notify("巡路图完成！移速+0.25、技能点+1，三座信标快速往返已解锁！", "Chart complete! +0.25 speed, +1 talent point; fast travel to all three beacons unlocked!");
                 }
                 return true;
             }
             if (action == "practice") { StartPractice(); return true; }
-            if (action == "scoutgift") { if (Has("scout_saved") && !Has("scout_gift")) { Flag("scout_gift"); save.inventory[6]++; RecordMoment("侦察员回家了，并送来一份热汤。", "The scout made it home and brought you a warm stew."); } return true; }
+            if (action == "scoutgift")
+            {
+                // A one-time gift is not collected until the stew is stored.
+                // Leaving the gift unclaimed lets the player clear a stack
+                // and return without permanently losing it on the next load.
+                if (Has("scout_saved") && !Has("scout_gift") && HasInventoryRoom(6, 1))
+                {
+                    CreditInventory(6, 1); Flag("scout_gift");
+                    RecordMoment("侦察员回家了，并送来一份热汤。", "The scout made it home and brought you a warm stew.");
+                }
+                return true;
+            }
             return false;
         }
         private void CaptureWorld()
@@ -461,7 +488,7 @@ namespace Starfall
                 // them as ordinary world patrols.
                 if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e) ||
                     IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e)) continue;
+                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();

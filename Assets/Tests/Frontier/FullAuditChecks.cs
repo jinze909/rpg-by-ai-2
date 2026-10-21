@@ -37,6 +37,346 @@ namespace Starfall.Tests
             Check(opening.GateBarrierActive&&opening.mode=="world"&&!opening.enemies.Exists(e=>e.boss),"A logically completed objective cannot start a Boss through a still-dissolving collision boundary");
             Advance(opening,.6f);Action(opening,"shrine","boss");Check(opening.enemies.Exists(e=>e.boss&&opening.InProtectedArena(e.Position)&&opening.CanStand(e.Position)),"After the real opening finishes the Boss appears inside its valid arena");
         }
+        public static void BossReinforcementsOccupyFreeReachableLocalFootingOrSkipSafely(Campaign data)
+        {
+            var spawn=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(spawn!=null,"Live Boss AI uses its dedicated real-world local summon transaction");
+            foreach(int room in new[]{0,1,2,3,4})
+            {
+                var g=Unlocked(data);if(room!=0)g.Enter(room);
+                g.enemies.Clear();
+                Point origin=new Point(g.Map.spawnX,g.Map.spawnY);
+                // Keep the player away from the immediate summon socket so
+                // either a legitimate first slot or an alternative is possible.
+                g.save.x=origin.x;g.save.y=origin.y;
+                Point bossFoot=new Point(origin.x+2f,origin.y+2f);
+                if(!g.CanStand(bossFoot))bossFoot=origin;
+                var boss=new Enemy(88510+room,3,bossFoot.x,bossFoot.y,999,true)
+                    {hp=100,cycle=2,state=0,timer=99};
+                g.enemies.Add(boss);
+                bool created=(bool)spawn.Invoke(g,new object[]{boss});
+                if(created)
+                {
+                    Check(g.enemies.Count==2,
+                        "Local Boss wave creates exactly one real recruit without duplicating enemies");
+                    Enemy recruit=g.enemies[1];
+                    Check(g.CanStand(recruit.Position)&&
+                        (recruit.Position-boss.Position).Length<=4.1f&&
+                        (recruit.Position-boss.Position).Length>=1.2f&&
+                        (recruit.Position-g.Position).Length>=1.25f&&
+                        recruit.stun>=.34f,
+                        "Legitimate reinforcement has actual locally reachable footing, stays clear of both actor bodies, and receives an honest entry animation window");
+                    Check(g.effects.Exists(e=>e.kind=="burst"&&
+                        (e.position-recruit.Position).Length<.001f),
+                        "A real summoned fighter has a visible original encounter entrance cue");
+                    bool createdTwice=(bool)spawn.Invoke(g,new object[]{boss});
+                    if(createdTwice)
+                        Check((g.enemies[2].Position-recruit.Position).Length>=1.15f,
+                            "A subsequent reinforcement cannot appear in a living earlier recruit's body");
+                }
+                else Check(g.enemies.Count==1,
+                    "No legal local footing must skip the recruit without teleporting one elsewhere");
+            }
+            // A genuinely sealed one-cell chamber must not seek distant
+            // fallback tiles. Test this without touching any user's save
+            // data or replacing the production authored campaign permanently.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[15];
+                for(int y=0;y<15;y++)
+                {
+                    char[] tiles=new string('#',15).ToCharArray();
+                    if(y==7)tiles[7]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=7.5f,spawnY=7.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var enclosed=Fresh(data);enclosed.enemies.Clear();
+                var boss=new Enemy(99117,3,7.5f,7.5f,1000,true);
+                enclosed.enemies.Add(boss);
+                int effects=enclosed.effects.Count;
+                Check(!(bool)spawn.Invoke(enclosed,new object[]{boss})&&
+                    enclosed.enemies.Count==1&&enclosed.effects.Count==effects,
+                    "A trapped Boss never teleports its reinforcements across sealed terrain or creates a false summon effect");
+            }
+            finally { data.maps[0]=original; }
+        }
+
+        public static void BossSummonsRejectVisibleButUnreachableDiagonalPocket(Campaign data)
+        {
+            // An unobstructed thin ray can pass exactly between two corner
+            // walls while NO full-footprint actor can traverse a 4-way route.
+            // Old summon code checked only a ray and accepted this pocket.
+            var reach=typeof(GameCore).GetMethod("BossSummonHasLocalRoute",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var sight=typeof(GameCore).GetMethod("ClearAttackPath",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(reach!=null&&sight!=null,
+                "Boss summon route and original visible attack ray are distinct production checks");
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[17];
+                for(int y=0;y<rows.Length;y++)
+                    rows[y]=new string('#',17);
+                char[] fromRow=rows[7].ToCharArray();
+                fromRow[7]='.';rows[7]=new string(fromRow);
+                char[] toRow=rows[8].ToCharArray();
+                toRow[8]='.';rows[8]=new string(toRow);
+                data.maps[0]=new MapData{
+                    id=0,spawnX=7.5f,spawnY=7.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var sealedPocket=Fresh(data);sealedPocket.enemies.Clear();
+                Point left=new Point(7.5f,7.5f);
+                Point diagonal=new Point(8.5f,8.5f);
+                Check(sealedPocket.CanStand(left)&&
+                    sealedPocket.CanStand(diagonal)&&
+                    (bool)sight.Invoke(sealedPocket,new object[]{left,diagonal}),
+                    "Both cells are physically standable and the diagonal projectile ray genuinely passes between corner walls");
+                Check(!(bool)reach.Invoke(sealedPocket,new object[]{left,diagonal}),
+                    "A visually open diagonal corner is NOT a navigable enemy corridor and cannot spawn isolated reinforcements");
+                var row=rows[8].ToCharArray();row[7]='.';
+                rows[8]=new string(row);
+                var linked=Fresh(data);linked.enemies.Clear();
+                Check((bool)reach.Invoke(linked,new object[]{left,diagonal}),
+                    "Opening an actual cardinal foot corridor immediately enables reachable reinforcement sites");
+                Check(!(bool)reach.Invoke(linked,new object[]{
+                    left,new Point(14.5f,14.5f)}),
+                    "A distant map cell cannot be legitimized by searching outside the bounded Boss arena");
+            }
+            finally {data.maps[0]=original;}
+        }
+
+        public static void BossReinforcementWindupTelegraphRetractsOnRealControlAndReleasesWithWave(Campaign data)
+        {
+            // Real enemy AI, actual player-contact stun and full Boss
+            // attack/release timeline. No shortcut that inserts fake units.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[17];
+                for(int y=0;y<17;y++)
+                {
+                    char[] cells=new string('#',17).ToCharArray();
+                    if(y>=2&&y<=14)for(int x=2;x<=14;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=8.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();g.invulnerable=100;
+                var boss=new Enemy(99136,3,7.5f,8.5f,999,true)
+                    {hp=190,cycle=2,timer=0,stagger=94};
+                g.enemies.Add(boss);
+                var otherEffect=new Effect("number",g.Position,4f,"unrelated")
+                    {bossSummonCueOwnerId=99139};
+                g.effects.Add(otherEffect);
+                g.Tick(.02f,new Point());
+                Check(boss.state==1&&g.enemies.Count==1&&
+                    g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id&&
+                        e.text.Contains("呼叫增援")),
+                    "Upcoming phase-three summon is explicitly readable during normal live Boss attack windup");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(hit!=null,"Real lethal/contact code available for interrupt test");
+                hit.Invoke(g,new object[]{boss,5f,false,(Point?)new Point(1,0),null});
+                Check(boss.hp>0&&boss.state==0&&boss.stun>0&&
+                    !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id)&&
+                    g.effects.Contains(otherEffect)&&g.enemies.Count==1,
+                    "Genuine combat Break cancels the unspent Boss call, retracts ONLY its own warning and spawns nobody");
+                boss.stun=0;boss.hitTime=0;boss.releaseTime=0;boss.timer=0;
+                // The authentic parry/contact applies 25ms of hit-stop.
+                // Consume it without falsifying the game's freeze contract.
+                g.Tick(.05f,new Point());
+                Check(boss.state==1&&g.effects.Exists(e=>
+                    e.bossSummonCueOwnerId==boss.id),
+                    "Boss can start a second honest call after recovering from interruption");
+                Advance(g,.94f);
+                Check(boss.cycle==3&&g.enemies.Count==2&&
+                    !g.effects.Exists(e=>e.bossSummonCueOwnerId==boss.id)&&
+                    g.enemies[1].stun>0,
+                    "The later genuinely completed Boss release retracts its warning and produces a physical recuperating minion");
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+                Check(loaded.save.version==2&&!loaded.effects.Exists(e=>
+                    e.bossSummonCueOwnerId!=0),
+                    "Transient pending summoning warnings never leak into original v2 saves");
+            }
+            finally{data.maps[0]=original;}
+        }
+
+        public static void ZeroIdCombatWarningCleanupCannotEraseUnrelatedPresentation(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            var ordinary=new Effect("danger",g.Position,4f)
+                {radius=1.2f};
+            var heroCue=new Effect("number",g.Position,4f,"player feedback");
+            var rightful=new Enemy(11871,3,g.Position.x+2f,g.Position.y,999,true);
+            var actualBossCue=new Effect("number",g.Position,4f,
+                "a separate real Boss")
+                {bossSummonCueOwnerId=rightful.id,bossSummonCueOwner=rightful};
+            g.effects.Add(ordinary);
+            g.effects.Add(heroCue);
+            g.effects.Add(actualBossCue);
+            var invalid=new Enemy(0,0,g.Position.x,g.Position.y,40);
+            g.enemies.Add(invalid);
+            var cleanup=typeof(GameCore).GetMethod("RemoveEnemyPendingWarning",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(cleanup!=null,"Genuine enemy warning cleanup exists");
+            cleanup.Invoke(g,new object[]{invalid});
+            Check(g.effects.Contains(ordinary)&&g.effects.Contains(heroCue)&&
+                g.effects.Contains(actualBossCue)&&g.effects.Count>=3,
+                "A legacy or synthetic zero-ID opponent can never wipe all ordinary unowned effects or another Boss cue");
+            g.enemies.Add(rightful);
+            cleanup.Invoke(g,new object[]{rightful});
+            Check(!g.effects.Contains(actualBossCue)&&
+                g.effects.Contains(ordinary)&&g.effects.Contains(heroCue),
+                "Valid Boss cleanup still selectively retires its own exact support warning without deleting ambient combat feedback");
+        }
+
+        public static void LateBossCyclesSpawnVisibleMeleeAndRangedSupportWithoutActorOverlap(Campaign data)
+        {
+            var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(summon!=null,"Production Boss support planner available");
+            foreach(int cycle in new[]{3,6,9})
+            {
+                var g=Quiet(data);g.enemies.Clear();g.invulnerable=999;
+                // Choose genuine open stage flooring with a legal nearby
+                // spawn, avoiding a constructed/fake arena collision.
+                Point open=new Point();bool found=false;
+                for(int y=4;y<g.Map.rows.Length-4&&!found;y++)
+                for(int x=4;x<g.Map.rows[y].Length-4&&!found;x++)
+                {
+                    Point p=new Point(x+.5f,y+.5f);
+                    Point local=p+new Point(-2,1);
+                    if(g.CanStand(p)&&g.CanStand(local)&&
+                        (g.Position-local).Length>1.4f &&
+                        (g.Position-p).Length>1.4f)
+                    {open=p;found=true;}
+                }
+                Check(found,"Real campaign region includes room for a fair physical Boss support wave");
+                var boss=new Enemy(99400+cycle,3,open.x,open.y,999,true)
+                    {hp=100,cycle=cycle};
+                g.enemies.Add(boss);
+                Check((bool)summon.Invoke(g,new object[]{boss})&&g.enemies.Count==2,
+                    "Each genuine later cycle can create one local support actor in a real opened arena");
+                Enemy recruit=g.enemies[1];
+                int expectedKind=cycle==6?1:0;
+                Check(recruit.kind==expectedKind&&recruit.stun>=.34f&&
+                    g.CanStand(recruit.Position),
+                    "First/third phase reinforcement cycles use melee troops; later middle cycle uses real bow AI with an entry windup");
+                Point face=(g.Position-recruit.Position).Normalized;
+                Check(recruit.facing.x*face.x+recruit.facing.y*face.y>.99f,
+                    "Every new support actor faces the real player's latest position on the first physical animation frame");
+                // Normal AI is still authoritative once the summoning pause
+                // expires. Do not short-circuit its real windup / timing.
+                float before=recruit.stun;g.Tick(.02f,new Point());
+                Check(recruit.stun<before&&recruit.stun>0,
+                    "Actual AI consumes the locally spawned soldier's safety/entrance recovery over real frame time");
+            }
+        }
+
+        public static void LateBossArcherActuallyPerformsTimedRealArrowCombat(Campaign data)
+        {
+            // Deterministic physical, unobstructed tile arena; no mock arrows,
+            // bypassed enemy AI or fake damage/effect injection.
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[17];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',17).ToCharArray();
+                    if(y>=2&&y<=14)for(int x=2;x<=14;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=8.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var g=Fresh(data);g.enemies.Clear();g.invulnerable=100;
+                var boss=new Enemy(99126,3,7.5f,8.5f,999,true)
+                    {hp=100,cycle=6,stun=100};
+                g.enemies.Add(boss);
+                var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check((bool)summon.Invoke(g,new object[]{boss})&&
+                    g.enemies.Count==2&&g.enemies[1].kind==1,
+                    "Real late-phase Boss uses its production six-cycle summon to deploy an actual archer in the current arena");
+                Enemy archer=g.enemies[1];
+                Check(g.CanStand(archer.Position)&&
+                    (archer.Position-g.Position).Length<7f&&
+                    archer.stun>=.34f,
+                    "Summoned archer actually begins on legal visible nearby terrain with a genuine entrance recovery");
+                int beforeShots=g.projectiles.Count;
+                g.Tick(.02f,new Point());
+                Check(archer.stun>0 && g.projectiles.Count==beforeShots,
+                    "Summoned archer cannot immediately fire or create a fake projectile during its entry frames");
+                bool fired=false;
+                for(int frame=0;frame<270&&!fired;frame++)
+                {
+                    g.Tick(.02f,new Point());
+                    fired=g.projectiles.Exists(p=>!p.friendly&&
+                        p.visual=="enemyArrow"&&p.source=="shot"&&
+                        p.velocity.Length>1f);
+                }
+                Check(fired,
+                    "The spawned ranged support must travel through normal patrol AI, real windup and live Fire() before an actual enemy arrow exists");
+                Check(g.enemies.Contains(archer)&&!g.Dying&&g.save.version==2,
+                    "The real firing test never manufactures a Boss defeat, removes old actors or alters save format");
+            }
+            finally { data.maps[0]=original; }
+        }
+
+        public static void BossSupportCannotSpawnOnTheLivingCompanion(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[17];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',17).ToCharArray();
+                    if(y>=2&&y<=14)for(int x=2;x<=14;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=8.5f,rows=rows,
+                    objects=new WorldObject[0],
+                    decor=new Decoration[0]
+                };
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                Check(g.save.companion==1,"Physical Boss reinforcements test uses a real selected party companion");
+                Point intended=new Point(5.5f,9.5f);
+                g.companionPosition=intended;
+                var boss=new Enemy(99271,3,7.5f,8.5f,999,true)
+                    {hp=100,cycle=3};
+                g.enemies.Add(boss);
+                var summon=typeof(GameCore).GetMethod("TrySpawnBossReinforcement",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check((bool)summon.Invoke(g,new object[]{boss})&&g.enemies.Count==2,
+                    "The Boss's preferred occupied reinforcement tile still allows an alternate genuine local spawn");
+                Enemy recruit=g.enemies[1];
+                Check((recruit.Position-intended).Length>=1.2f&&
+                    (recruit.Position-g.Position).Length>=1.25f &&
+                    g.CanStand(recruit.Position),
+                    "Summoned support must not appear inside companion, hero or an obstructed footprint");
+                Check(recruit.kind==0,
+                    "Original third-cycle reinforcements keep their actual melee identity when avoiding party characters");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void TideTransitionPrecedesAllAttackContacts(Campaign data)
         {
             var g=Unlocked(data);g.save.totalTime=21.995f;g.Enter(5);g.enemies.Clear();g.invulnerable=100;
@@ -146,5 +486,79 @@ namespace Starfall.Tests
             moments=g.save.moments.Count;g.save.english=true;g.Tick(.01f,new Point());Check(g.save.moments.Count==moments,"Switching language cannot fabricate a new quest update");
             g.TrackQuest("ally1");g.Tick(.01f,new Point());g.save.inventory[2]=6;g.revision++;g.Tick(.01f,new Point());Check(g.CurrentGuide.room==0 && g.save.moments[g.save.moments.Count-1].en.Contains("Deliver"),"A real supply change still refreshes the next step and journal");
         }
+        public static void HarborCampRestRecoversCompanionFromRisingTideImmediately(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.save.totalTime = 5f;
+            g.save.projects[1] = 1;
+            g.Enter(5); g.enemies.Clear();
+            g.save.tideHeldUntil = 0;
+            Point shoal = new Point(); bool found = false;
+            for (int y = 2; y < g.Map.rows.Length - 2 && !found; y++)
+            for (int x = 2; x < g.Map.rows[y].Length - 2 && !found; x++)
+            {
+                Point candidate = new Point(x + .5f, y + .5f);
+                if (g.Map.rows[y][x] != '%' || !g.CanStand(candidate)) continue;
+                shoal = candidate; found = true;
+            }
+            Check(found && g.LowTide,
+                "A legal harbor camp begins at low tide with an actual reachable shoal");
+            var fire = Object(g, "campfire");
+            g.save.x = fire.x; g.save.y = fire.y;
+            g.save.companion = 0;
+            g.companionPosition = shoal;
+            g.companionAction = new ActorAction { kind = "attack",
+                duration = .5f, contact = .2f, elapsed = .05f };
+            Check(g.CanStand(g.companionPosition),
+                "Active partner really stands on land that will be submerged during twenty-minute rest");
+            Action(g, fire.kind, "fieldrest");
+            Check(Math.Abs(g.save.totalTime - 25f) < .001f &&
+                !g.LowTide && g.CanStand(g.Position) &&
+                g.CanStand(g.companionPosition) &&
+                g.companionAction == null,
+                "Real camp rest advances the full twenty minutes and recovers the companion out of newly flooded tiles BEFORE another world Tick");
+            g.PrepareSave();
+            var reloaded = new GameCore(data, CloneSave(g.save));
+            Check(reloaded.save.room == 5 && !reloaded.LowTide &&
+                reloaded.CanStand(reloaded.Position),
+                "Rest and tidal collision state remain legal when saved immediately and reopened");
+        }
+
+        public static void RisingTideWithdrawsUnspentEnemyWarningBeforeNextAttack(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.save.totalTime = 21.92f;
+            g.Enter(5); g.enemies.Clear(); g.effects.Clear();
+            g.invulnerable = 100;
+            Point shoal = new Point(); bool found = false;
+            for (int y = 2; y < g.Map.rows.Length - 2 && !found; y++)
+            for (int x = 2; x < g.Map.rows[y].Length - 2 && !found; x++)
+            {
+                Point p = new Point(x + .5f, y + .5f);
+                if (g.Map.rows[y][x] == '%' && g.CanStand(p))
+                { shoal = p; found = true; }
+            }
+            Check(found && g.LowTide,
+                "A real accessible tidal shoal exists before the attack windup");
+            g.save.x = shoal.x; g.save.y = shoal.y;
+            var raider = new Enemy(18490, 2, shoal.x, shoal.y, 120);
+            raider.timer = 0;
+            g.enemies.Add(raider);
+            g.Tick(.005f, new Point());
+            Effect warning = g.effects.Find(e => e.kind == "danger" &&
+                (e.position - raider.target).Length < .01f);
+            Check(raider.state == 1 && warning != null,
+                "Actual heavy enemy arms its contact-linked warning while low-tide ground is still legal");
+            g.save.totalTime = 21.995f;
+            g.Tick(.01f, new Point());
+            Check(!g.LowTide && g.CanStand(raider.Position) &&
+                g.CanStand(g.Position) && raider.state == 0 &&
+                !g.effects.Contains(warning),
+                "Tide relocation retracts the interrupted warning at the same simulation boundary as the enemy movement");
+            Check(!raider.targetingWayfarer && !raider.targetingReliefCivilian &&
+                raider.timer >= .3f,
+                "Environmentally aborted attackers have no stale civilian target and receive readable recovery");
+        }
+
     }
 }

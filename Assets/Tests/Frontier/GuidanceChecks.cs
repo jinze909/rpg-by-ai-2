@@ -2624,5 +2624,448 @@ namespace Starfall.Tests
                 "Dead watch defender respawns safely, retires owned attackers, and gets no free reward");
         }
 
+        public static void RoadwardenWavesRequireConfirmedEnemyDeathsIncludingVeteran(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=15;
+            foreach(string flag in new[]{"survey_1","survey_complete","dispatch_complete"})
+                g.save.flags.Add(flag);
+            g.Enter(1);g.enemies.Clear();g.invulnerable=250;
+            WorldObject beacon=Object(g,"survey1");
+            g.save.x=beacon.x;g.save.y=beacon.y;
+            int coins=g.save.coins,shards=g.save.shards,points=g.save.skillPoints;
+            Action(g,beacon.kind,"road_trial_start_1");
+            Check(g.RoadwardenTrialRoom==1&&g.RoadwardenTrialWave==1,
+                "Original physical signal starts a real first trial wave");
+            g.enemies.Remove(g.enemies.Find(e=>e.id==81012));
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialRoom==0&&!g.Has("road_trial_1")&&
+                g.save.coins==coins&&g.save.shards==shards&&
+                !g.enemies.Exists(e=>e.id>=81000&&e.id<81100),
+                "Missing first-wave raider cannot grant rewards or skip combat");
+            Action(g,beacon.kind,"road_trial_start_1");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The real combat damage callback must be present");
+            Enemy first=g.enemies.Find(e=>e.id==81012),second=g.enemies.Find(e=>e.id==81013);
+            Check(first!=null&&second!=null,"The two enemies have distinct authored wave IDs");
+            hit.Invoke(g,new object[]{first,99999f,false,null,null});
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialWave==1&&!g.Has("road_trial_1"),
+                "One real kill does not clear an incomplete trial wave");
+            hit.Invoke(g,new object[]{second,99999f,false,null,null});
+            for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialWave==2&&
+                g.enemies.Exists(e=>e.id==81014)&&g.enemies.Exists(e=>e.id==81015),
+                "Two actual first-wave kills spawn the real second wave");
+            g.enemies.Remove(g.enemies.Find(e=>e.id==81014));
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialRoom==0&&!g.Has("road_trial_1")&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "An unconfirmed second-wave despawn cannot award a false victory");
+            Action(g,beacon.kind,"road_trial_start_1");
+            for(int wave=1;wave<=2;wave++)
+            {
+                var fighters=g.enemies.FindAll(e=>e.id>=81000&&e.id<81100);
+                Check(fighters.Count==2,"Every original trial wave still has two combatants");
+                foreach(Enemy foe in fighters)
+                    hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+                for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            }
+            Check(g.Has("road_trial_1")&&g.RoadwardenTrialRoom==0&&
+                g.save.coins==coins+35&&g.save.shards==shards+2,
+                "Legitimate two-wave combat still pays the original one-time oath");
+            int veteranCoins=g.save.coins,veteranShards=g.save.shards;
+            Action(g,beacon.kind,"road_trial_start_1");
+            Check(g.RoadwardenTrialTotalWaves==3,
+                "The earned oath offers its unchanged three-wave veteran drill");
+            for(int wave=1;wave<=2;wave++)
+            {
+                var fighters=g.enemies.FindAll(e=>e.id>=81000&&e.id<81100);
+                foreach(Enemy foe in fighters)
+                    hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+                for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            }
+            Check(g.RoadwardenTrialWave==3,"Veteran replay reaches the actual third wave");
+            g.enemies.Remove(g.enemies.Find(e=>e.id==81016));
+            g.Tick(.05f,new Point());
+            Check(g.RoadwardenTrialRoom==0&&
+                g.save.coins==veteranCoins&&g.save.shards==veteranShards&&
+                g.save.skillPoints==points&&g.Has("road_trial_1"),
+                "Incomplete veteran finale does not repeat paid rewards or erase the earned oath");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.Has("road_trial_1")&&
+                loaded.RoadwardenTrialRoom==0,
+                "Existing v2 slots retain actual roadwarden rewards without transient wave counters");
+        }
+
+        public static void LastDirectiveBlockedSecondWavePreservesEarnedFirstWave(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("civic_response_ledger");
+            g.save.flags.Add("last_directive_started");
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject terminal=Object(g,"lastdirectivecore");
+            g.save.x=terminal.x;g.save.y=terminal.y;
+            Action(g,"lastdirectivecore","last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Main chapter ten console starts both actual first-wave guards");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The production Hit transaction exists");
+            foreach(Enemy guard in g.enemies.FindAll(e=>e.id==90300||e.id==90301))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.hitStop=0;g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==2&&g.LastDirectiveEnemies==0,
+                "Confirmed first-wave combat reaches its genuine intermission");
+            g.save.energy=100;
+            var map=data.maps[4];
+            var oldDecor=map.decor;
+            try
+            {
+                // Simulate a newly blocked real security deployment footprint
+                // without changing committed scene tiles, story or save schema.
+                var blocked=new Decoration[oldDecor.Length+1];
+                Array.Copy(oldDecor,blocked,oldDecor.Length);
+                blocked[oldDecor.Length]=new Decoration{
+                    kind="house",x=98.5f,y=75.5f
+                };
+                map.decor=blocked;
+                Check(!g.CanStand(new Point(98.5f,74.5f)),
+                    "An actual collision footprint prevents the second wave spawn");
+                Action(g,"lastdirectivecore","last_directive_second");
+                Check(g.LastDirectiveWave==2&&g.LastDirectiveEnemies==0&&
+                    g.save.energy==100&&g.LastDirectiveChoice==0,
+                    "Failed second wave preserves first-wave clear, 25 energy, and the civic outcome");
+            }
+            finally { map.decor=oldDecor; }
+            Check(g.CanStand(new Point(98.5f,74.5f)),
+                "Restored authored terrain reopens the original security deployment");
+            Action(g,"lastdirectivecore","last_directive_second");
+            Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&
+                g.save.energy==75,
+                "A normal retry spends energy exactly once and deploys three genuine guards");
+            g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&saved.LastDirectiveWave==0&&
+                saved.LastDirectiveChoice==0&&saved.LastDirectiveClues==3,
+                "Intermission remains transient; original v2 testimony persists on reload");
+        }
+
+        public static void MinecartAndFrostEmberCannotBeHiddenByASecondCourierClock(Campaign data)
+        {
+            // Region 3: the miners' physical cart already owns the player's
+            // escort clock, so a bridge parcel must not replace its objective.
+            var mine=Fresh(data);mine.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","gate_3","boss_3",
+                "far_bridge_3","far_shelter_3"})mine.save.flags.Add(flag);
+            mine.Enter(3);mine.enemies.Clear();
+            WorldObject start=Object(mine,"mineconvoy"),bridge=Object(mine,"farbridge");
+            Check(start!=null&&bridge!=null,"Original mine and bridge objects exist");
+            mine.save.x=start.x;mine.save.y=start.y;
+            Action(mine,start.kind,"mineconvoy_start");
+            Check(mine.MineConvoyActive,
+                "Real western dispatch launches the miners' timed escort");
+            mine.save.x=bridge.x;mine.save.y=bridge.y;
+            Action(mine,bridge.kind,"far_courier_start");
+            Check(mine.MineConvoyActive&&!mine.FarCourierActive,
+                "Active minecart protects its own clock against competing courier pickup");
+            mine.save.x=start.x;mine.save.y=start.y;
+            Action(mine,start.kind,"mineconvoy_abort");
+            Check(!mine.MineConvoyActive,"Original mine dispatch can abort cleanly");
+            mine.save.x=bridge.x;mine.save.y=bridge.y;
+            Action(mine,bridge.kind,"far_courier_start");
+            Check(mine.FarCourierActive,
+                "After explicitly canceling the cart, bridge delivery is playable");
+            int mineCoins=mine.save.coins;
+            mine.PrepareSave();var mineLoaded=new GameCore(data,CloneSave(mine.save));
+            Check(mineLoaded.save.version==2&&!mineLoaded.FarCourierActive&&
+                mineLoaded.save.coins==mineCoins,
+                "Old save slots cannot preserve unearned overlapping transports");
+
+            // Region 7: the original ember has its own warmth and timer,
+            // and should never be hidden by a second carried parcel.
+            var frost=Fresh(data);frost.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","desert_report",
+                "gate_7","boss_7","far_bridge_7","far_shelter_7"})
+                frost.save.flags.Add(flag);
+            frost.Enter(7);frost.enemies.Clear();
+            WorldObject west=null;
+            foreach(WorldObject o in frost.Map.objects)
+                if(o.id=="frostsignal_1")west=o;
+            bridge=Object(frost,"farbridge");
+            Check(west!=null&&bridge!=null,"Physical ember and bridge stations exist");
+            frost.save.x=west.x;frost.save.y=west.y;
+            Action(frost,west.kind,"frostsignal_start");
+            Check(frost.FrostSignalActive,
+                "Actual western signal starts the authored ember run");
+            float flame=frost.FrostSignalFlame;
+            frost.save.x=bridge.x;frost.save.y=bridge.y;
+            Action(frost,bridge.kind,"far_courier_start");
+            Check(frost.FrostSignalActive&&!frost.FarCourierActive&&
+                frost.FrostSignalFlame==flame,
+                "Live ember and its warmth are never overwritten by courier pickup");
+            frost.save.x=west.x;frost.save.y=west.y;
+            Action(frost,west.kind,"frostsignal_abort");
+            Check(!frost.FrostSignalActive,
+                "The original western station can safely return the ember");
+            frost.save.x=bridge.x;frost.save.y=bridge.y;
+            Action(frost,bridge.kind,"far_courier_start");
+            Check(frost.FarCourierActive,
+                "Civilian delivery remains usable after the prior run is canceled");
+        }
+
+        public static void CourierAmbushFindsReachableAlternativeWhenOriginalSpawnsAreBlocked(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            Check(g.FarCourierActive,"Live bridge parcel pickup starts normally");
+            MapData map=data.maps[0];
+            string oldM=map.rows[57],oldA=map.rows[59];
+            try
+            {
+                // Temporarily close only the two original enemy cells,
+                // preserving bridge geometry, original assets and GUIDs.
+                char[] middle=oldM.ToCharArray(),south=oldA.ToCharArray();
+                middle[111]='#';south[114]='#';
+                map.rows[57]=new string(middle);map.rows[59]=new string(south);
+                Check(!g.CanStand(new Point(111.5f,57.5f))&&
+                    !g.CanStand(new Point(114.5f,59.5f)),
+                    "The real collision solver rejects both original blocked raider pads");
+                for(int frame=0;frame<60&&!g.FarCourierCrossed;frame++)
+                    g.Tick(.05f,new Point(0,1));
+                Check(g.FarCourierActive&&g.FarCourierCrossed&&
+                    g.FarCourierRaidersAlive==2,
+                    "Actual hero bridge crossing still creates both raiders at fallback pads");
+                Enemy melee=g.enemies.Find(e=>e.id==90100),
+                    archer=g.enemies.Find(e=>e.id==90101);
+                Check(melee!=null&&archer!=null&&
+                    g.CanStand(melee.Position)&&g.CanStand(archer.Position)&&
+                    (melee.Position-archer.Position).Length>=2.6f&&
+                    (melee.Position-new Point(111.5f,57.5f)).Length>.1f&&
+                    (archer.Position-new Point(114.5f,59.5f)).Length>.1f,
+                    "Both authored archetypes are on distinct safe tiles, not inside new walls");
+                Check(g.effects.FindAll(e=>e.courierOwned&&e.kind=="danger").Count==2,
+                    "Two real relocated enemies retain their independently owned launch warnings");
+            }
+            finally {map.rows[57]=oldM;map.rows[59]=oldA;}
+            g.save.y+=4;g.hitStop=0;g.Tick(.05f,new Point());
+            Check(!g.FarCourierActive&&g.FarCourierRaidersAlive==0&&
+                !g.effects.Exists(e=>e.courierOwned)&&
+                !g.projectiles.Exists(p=>p.courierOwned),
+                "Invalid player warp retires only the relocated encounter-owned actors and warnings");
+        }
+
+        public static void CourierSecureDeliveryRewardsOnlyRealDualRaiderKills(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The real lethal combat callback must exist");
+            for(int branch=0;branch<2;branch++)
+            {
+                var g=Fresh(data);g.save.stage=4;g.save.level=20;g.save.xp=0;
+                g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+                g.Enter(0);g.enemies.Clear();g.invulnerable=200;
+                WorldObject bridge=Object(g,"farbridge"),
+                    checkpoint=Object(g,"farcheck"),refuge=Object(g,"farshelter");
+                int coins=g.save.coins,shards=g.save.shards,xp=g.save.xp;
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                Action(g,"farbridge","far_courier_start");
+                for(int i=0;i<65&&!g.FarCourierCrossed;i++)
+                    g.Tick(.05f,new Point(0,1));
+                Check(g.FarCourierCrossed&&g.FarCourierRaidersAlive==2,
+                    "Actual player movement over the existing bridge summons both real raiders");
+                var raiders=g.enemies.FindAll(e=>e.id==90100||e.id==90101);
+                if(branch==1)
+                {
+                    hit.Invoke(g,new object[]{raiders[0],99999f,false,null,null});
+                    Check(!g.FarCourierSecuredInFlight&&g.FarCourierRaidersAlive==1,
+                        "One verified lethal attacker cannot award a secure route");
+                    hit.Invoke(g,new object[]{raiders[1],99999f,false,null,null});
+                    Check(g.FarCourierSecuredInFlight&&g.FarCourierRaidersAlive==0,
+                        "Two distinct real lethal combat callbacks secure the convoy");
+                    g.hitStop=0;
+                }
+                else
+                {
+                    // Evading is a supported authored strategy; keep the
+                    // exact roster rather than faking a combat completion.
+                    Check(!g.FarCourierSecuredInFlight,
+                        "Unbeaten pursuers never qualify for the combat bonus");
+                    foreach(Enemy e in raiders){e.stun=100;e.timer=100;}
+                }
+                Point toCheck=new Point(checkpoint.x,checkpoint.y);
+                for(int i=0;i<1100&&g.FarCourierActive&&
+                    (g.Position-toCheck).Length>1f;i++)
+                    g.Tick(.05f,g.DirectionTo(g.Position,toCheck));
+                Check(g.FarCourierActive&&
+                    (g.Position-toCheck).Length<2.2f,
+                    "Real hero movement reaches the existing community inspection post");
+                Action(g,"farcheck","far_courier_stamp");
+                Check(g.FarCourierStamped,
+                    "A live physical checkpoint stamps only the carried original parcel");
+                Point toRefuge=new Point(refuge.x,refuge.y);
+                for(int i=0;i<1100&&g.FarCourierActive&&
+                    (g.Position-toRefuge).Length>1f;i++)
+                    g.Tick(.05f,g.DirectionTo(g.Position,toRefuge));
+                Check(g.FarCourierActive&&
+                    (g.Position-toRefuge).Length<2.2f,
+                    "Legitimate field route reaches the remote refuge before timeout");
+                if(branch==0)
+                {
+                    // Evaded raiders never travel to the distant refuge:
+                    // normal delivery only needs the original SafeTravel check.
+                    Check(!g.FarCourierSecuredInFlight,
+                        "Stunned or escaped raiders are not counted as killed");
+                }
+                Action(g,"farshelter","far_courier_deliver");
+                Check(g.FarCourierDelivered(0)&&!g.FarCourierActive&&
+                    g.FarCourierSecured(0)==(branch==1)&&
+                    g.save.coins==coins+(branch==1?35:25)&&
+                    g.save.shards==shards+1&&
+                    g.save.xp==xp+(branch==1?53:38),
+                    "Both valid delivery styles earn the correct, mutually exclusive one-time compensation");
+                g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+                Check(loaded.save.version==2&&loaded.FarCourierDelivered(0)&&
+                    loaded.FarCourierSecured(0)==(branch==1)&&
+                    !loaded.FarCourierActive,
+                    "Original v2 saves preserve the actually earned route outcome only");
+                var forged=typeof(GameCore).GetMethod("ChooseFarCourier",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                int rewarded=loaded.save.coins;
+                forged.Invoke(loaded,new object[]{"far_courier_deliver"});
+                Check(loaded.save.coins==rewarded,
+                    "Already-delivered routes cannot repay secure-combat bonuses on repeated actions");
+            }
+        }
+
+        public static void ChapterElevenManualValveGroundingCancelsOnlyRealGridArcs(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.energy=100;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=300;
+            WorldObject desk=Object(g,"civicconduitmaster"),valve=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(g.CivicConduitValveIndex(o)==0)valve=o;
+            Check(valve!=null,"Chapter Eleven's first grounded valve exists in the original Citadel");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_start");
+            Check(g.CivicConduitActive&&g.CivicConduitGroundAvailable,
+                "Physical fuse setup exposes optional protective grounding");
+            for(int f=0;f<190&&g.Position.x<valve.x-.15f;f++)
+                g.Tick(.05f,new Point(1,0));
+            Check(g.CivicConduitActive&&
+                (g.Position-new Point(valve.x,valve.y)).Length<2.2f,
+                "The real hero walks to the authored control valve");
+            var pulse=typeof(GameCore).GetField("conduitPulseLeft",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(pulse!=null,"The actual live-arc timer exists");
+            pulse.SetValue(g,.01f);
+            g.Tick(.05f,new Point());
+            Check(g.hazards.Exists(h=>h.civicConduitOwned),
+                "A real hazardous arc is active before the grounded contact");
+            var unrelated=new Hazard{position=new Point(6,6),radius=.4f,
+                timer=55,damage=9,kind="root"};
+            g.hazards.Add(unrelated);
+            float energy=g.save.energy;
+            g.Talk(valve);
+            Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
+                c=>c.action=="civic_conduit_ground"),
+                "The in-world valve really offers manual grounding, even outside a green phase");
+            int index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_conduit_ground");
+            g.Choose(index);
+            Check(g.CivicConduitActive&&!g.CivicConduitGroundAvailable&&
+                g.save.energy==energy-20&&!g.hazards.Exists(h=>h.civicConduitOwned)&&
+                g.hazards.Contains(unrelated),
+                "Paying 20 energy once clears only live grid hazards, not ordinary world danger");
+            float delay=(float)pulse.GetValue(g);
+            Check(delay>=4.75f,"Actual subsequent arc is suppressed for almost five seconds");
+            var choose=typeof(GameCore).GetMethod("ChooseCivicConduit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            choose.Invoke(g,new object[]{"civic_conduit_ground"});
+            Check(g.save.energy==energy-20&&
+                Math.Abs((float)pulse.GetValue(g)-delay)<.01f,
+                "Direct repeated requests cannot buy multiple emergency grounds");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.CivicConduitActive&&
+                !loaded.CivicConduitGroundAvailable&&!loaded.CivicConduitComplete,
+                "Emergency grounding is not serialized into old SaveData v2");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_abort");
+            Check(!g.CivicConduitActive&&g.hazards.Contains(unrelated),
+                "Explicit abort removes the temporary grounding without damaging other hazards");
+        }
+
+        public static void ChapterElevenDamagedConductorSupportsOneRealMaterialRepair(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.maxHealth=1000;
+            g.save.health=1000;g.save.energy=100;g.save.inventory[4]=5;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject desk=Object(g,"civicconduitmaster"),valve=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(g.CivicConduitValveIndex(o)==0)valve=o;
+            Check(valve!=null,"The original Citadel first valve exists");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_start");
+            Check(g.CivicConduitActive&&g.save.inventory[4]==4,
+                "First fuse is already paid as the existing real chapter cost");
+            for(int frame=0;frame<190&&g.Position.x<valve.x-.15f;frame++)
+                g.Tick(.05f,new Point(1,0));
+            Check(g.CivicConduitActive&&
+                (g.Position-new Point(valve.x,valve.y)).Length<2.2f,
+                "Hero walks the real route to the live first valve");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hurt!=null,"Production combat has an authoritative post-armor hurt path");
+            g.invulnerable=0;g.hitStop=0;
+            hurt.Invoke(g,new object[]{24f,"shot",null});
+            float damaged=g.CivicConduitIntegrity,seconds=g.CivicConduitTimeLeft;
+            Check(damaged<85&&damaged>0&&g.CivicConduitRepairAvailable,
+                "A genuine damaging enemy shot unlocks exactly one field repair");
+            var unrelated=new Hazard{position=new Point(6.5f,6.5f),
+                radius=.6f,timer=50,damage=8,kind="bell"};
+            g.hazards.Add(unrelated);
+            g.Talk(valve);
+            Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
+                c=>c.action=="civic_conduit_repair"),
+                "The physical valve displays a material repair after genuine charge loss");
+            int index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_conduit_repair");
+            g.Choose(index);
+            Check(g.CivicConduitActive&&g.CivicConduitStage==0&&
+                Math.Abs(g.CivicConduitIntegrity-Math.Min(100,damaged+35))<.01f&&
+                g.save.inventory[4]==3&&g.CivicConduitTimeLeft==seconds&&
+                !g.CivicConduitRepairAvailable&&g.hazards.Contains(unrelated),
+                "One paid repair restores only conductor charge, never rewinds time, valves, or foreign hazards");
+            var choose=typeof(GameCore).GetMethod("ChooseCivicConduit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            choose.Invoke(g,new object[]{"civic_conduit_repair"});
+            Check(g.save.inventory[4]==3,
+                "Replaying the choice can neither repeat free repairs nor double-charge parts");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.CivicConduitStarted&&
+                !restored.CivicConduitActive&&restored.save.inventory[4]==3,
+                "Old save format retains donated actual materials but not unfinished repairs");
+            g.save.x=desk.x;g.save.y=desk.y;
+            Action(g,desk.kind,"civic_conduit_abort");
+            Check(!g.CivicConduitActive&&g.hazards.Contains(unrelated),
+                "Original physical abort still retires only owned field work");
+        }
+
     }
 }

@@ -11,6 +11,16 @@ namespace Starfall
         public Point MineCartPosition { get; private set; }
         private float mineConvoySteam;
         private bool mineConvoyBraced;
+        // A missing enemy is not a player victory; only Hit's lethal callback
+        // can record the two actually defeated switchyard attackers.
+        private int mineConvoyConfirmedKills;
+        private bool MineConvoyGuardsDefeated { get { return mineConvoyConfirmedKills==3; } }
+        private void OnMineConvoyEnemyDefeated(Enemy enemy)
+        {
+            if(MineConvoyStage!=2||save.room!=3||!IsMineConvoyEnemy(enemy))return;
+            int index=enemy.id-91300;
+            if(index>=0&&index<2)mineConvoyConfirmedKills|=1<<index;
+        }
         public bool MineConvoyActive { get { return MineConvoyStage>0; } }
         public bool MineConvoyComplete { get { return Has("mineconvoy_complete"); } }
         public bool IsMineConvoyEnemy(Enemy e)
@@ -30,13 +40,55 @@ namespace Starfall
             effects.RemoveAll(e=>e.mineConvoyOwned);
             MineConvoyStage=0;MineConvoyTime=MineConvoyIntegrity=0;
             MineCartPosition=new Point();mineConvoySteam=0;
-            mineConvoyBraced=false;
+            mineConvoyBraced=false;mineConvoyConfirmedKills=0;
+        }
+        // Keep the authored two-guard confrontation, but do not summon a
+        // fighter inside the real cart, hero, companion, existing enemy or
+        // an unreachable island. A crowded junction may choose nearby floor.
+        private static readonly Point[] mineConvoyAmbushOffsets={
+            new Point(0f,0f),new Point(0f,1.5f),
+            new Point(-1.5f,0f),new Point(1.5f,0f),
+            new Point(0f,-1.5f),new Point(-1.5f,1.5f),
+            new Point(1.5f,1.5f),new Point(-1.5f,-1.5f),
+            new Point(1.5f,-1.5f),new Point(0f,2.5f),
+            new Point(0f,-2.5f),new Point(-2.5f,0f),
+            new Point(2.5f,0f)
+        };
+        private bool TryMineConvoyAmbushFoot(Point origin,Point other,
+            bool hasOther,out Point result)
+        {
+            foreach(Point offset in mineConvoyAmbushOffsets)
+            {
+                Point foot=origin+offset;
+                if(!CanStand(foot) ||
+                    (foot-Position).Length<1.25f ||
+                    (foot-MineCartPosition).Length<1.25f ||
+                    (save.companion>=0 &&
+                     (foot-companionPosition).Length<1.25f) ||
+                    (hasOther && (foot-other).Length<1.25f) ||
+                    !ClearAttackPath(MineCartPosition,foot) ||
+                    !BossSummonHasLocalRoute(foot,MineCartPosition))
+                    continue;
+                bool occupied=false;
+                foreach(Enemy existing in enemies)
+                    if(existing.hp>0&&(foot-existing.Position).Length<1.25f)
+                    {occupied=true;break;}
+                if(occupied)continue;
+                result=foot;return true;
+            }
+            result=new Point();return false;
         }
         private bool SpawnMineConvoyAmbush()
         {
-            Point[] points={new Point(62.5f,40.5f),new Point(65.5f,42.5f)};
-            foreach(Point p in points)
-                if(!CanStand(p)||!ClearAttackPath(MineCartPosition,p))return false;
+            Point first,second;
+            // Validate the entire pair before changing mission kills or
+            // inserting actors. If the local arena is genuinely full, the
+            // cart stays at the junction and retries on the next live tick.
+            if(!TryMineConvoyAmbushFoot(new Point(62.5f,40.5f),
+                new Point(),false,out first) ||
+               !TryMineConvoyAmbushFoot(new Point(65.5f,42.5f),
+                first,true,out second))return false;
+            Point[] points={first,second};
             for(int i=0;i<points.Length;i++)
             {
                 Enemy guard=new Enemy(91300+i,i==0?0:2,points[i].x,points[i].y,
@@ -44,7 +96,19 @@ namespace Starfall
                 guard.timer=.75f+i*.25f;
                 enemies.Add(guard);
             }
+            mineConvoyConfirmedKills=0;
             return true;
+        }
+        private static float ActiveMineConvoyPressureTime(Enemy guard,float dt)
+        {
+            // Enemy AI consumes hit/stun/release locks before the cart is
+            // updated this same world frame. Reconstruct the locked slice
+            // (including a stun expiring midway through this dt), so a
+            // staggered guard never drains full cart HP while disabled.
+            // A fresh hit applied later this frame stays locked completely.
+            float locked=Math.Max(0f,Math.Max(guard.stun,
+                Math.Max(guard.hitTime,guard.releaseTime))+dt);
+            return Math.Max(0f,dt-Math.Min(dt,locked));
         }
         private void TickMineConvoy(float dt)
         {
@@ -60,10 +124,24 @@ namespace Starfall
             }
             if(MineConvoyStage==2)
             {
+                for(int i=0;i<2;i++)
+                    if((mineConvoyConfirmedKills&(1<<i))==0 &&
+                        !enemies.Exists(e=>e.id==91300+i))
+                    {
+                        ResetMineConvoy();revision++;
+                        Notify("袭击者异常离场，战斗未完成。矿车已返回发车岗，可免费重试。",
+                            "An unconfirmed raider vanished; the cart returned to dispatch. Retry for free.");
+                        return;
+                    }
                 foreach(Enemy guard in enemies)
                     if(IsMineConvoyEnemy(guard)&&guard.hp>0&&
-                        (guard.Position-MineCartPosition).Length<5.3f)
-                        MineConvoyIntegrity-=dt*3.3f;
+                        (guard.Position-MineCartPosition).Length<5.3f&&
+                        // A junction wall can close AFTER the guards
+                        // arrived. A fighter behind sealed cover cannot
+                        // damage a real cart it cannot even see. The same
+                        // physical corridor opens damage again immediately.
+                        ClearAttackPath(guard.Position,MineCartPosition))
+                        MineConvoyIntegrity-=ActiveMineConvoyPressureTime(guard,dt)*3.3f;
                 // Real combat is the necessary route to stage three;
                 // no scripted button can despawn surviving miners' attackers.
                 return;
@@ -121,12 +199,18 @@ namespace Starfall
             MineCartPosition=moved;
             revision++;
         }
+        // The rescue cart, live reinforcement purchase and final
+        // non-repeatable reward are physical railway interactions.
+        // Buttons opened before a wall closes may not skip real contact.
+        private bool CanReachMineCartPost(WorldObject site)
+        { return site!=null&&PhysicalRefugeReach(
+            new Point(site.x,site.y),1.8001f); }
         private bool TalkMineConvoy(WorldObject o)
         {
             if(o.kind!="mineconvoy")return false;
             int stage=0;for(int i=1;i<=3;i++)if(o.id=="mineconvoy_"+i)stage=i;
             if(stage==0||save.room!=3||
-                (Position-new Point(o.x,o.y)).Length>1.8f)return true;
+                !CanReachMineCartPost(o))return true;
             if(!Has("boss_3"))
             {
                 Dialog(o.name,o.en,
@@ -182,7 +266,7 @@ namespace Starfall
                         "Wait until the cart reaches the switchyard.");
                     return true;
                 }
-                if(enemies.Exists(IsMineConvoyEnemy))
+                if(enemies.Exists(IsMineConvoyEnemy)||!MineConvoyGuardsDefeated)
                 {
                     Dialog(o.name,o.en,
                         "袭击者还在矿道上。先靠真实战斗击败他们；矿车受威胁时完整度会持续下降。",
@@ -218,7 +302,7 @@ namespace Starfall
                 WorldObject start=MineCartPost(1);
                 if(start==null||MineConvoyActive||MineConvoyComplete||
                     !Has("boss_3")||FieldWorkPreventsRest||!SafeTravel||
-                    (Position-new Point(start.x,start.y)).Length>1.8f)return true;
+                    !CanReachMineCartPost(start))return true;
                 MineCartPosition=new Point(start.x,start.y);
                 mineConvoyBraced=false;MineConvoyStage=1;MineConvoyTime=110;MineConvoyIntegrity=80;
                 mineConvoySteam=5;
@@ -231,7 +315,7 @@ namespace Starfall
             {
                 WorldObject start=MineCartPost(1);
                 if(start==null||!MineConvoyActive||
-                    (Position-new Point(start.x,start.y)).Length>1.8f)return true;
+                    !CanReachMineCartPost(start))return true;
                 ResetMineConvoy();revision++;
                 Notify("矿车安全返回待命，任务可以免费重试。",
                     "Cart safely withdrawn. The rescue can be retried for free.");
@@ -241,8 +325,8 @@ namespace Starfall
             {
                 WorldObject relay=MineCartPost(2);
                 if(MineConvoyStage!=2||relay==null||
-                    (Position-new Point(relay.x,relay.y)).Length>1.8f||
-                    enemies.Exists(IsMineConvoyEnemy))return true;
+                    !CanReachMineCartPost(relay)||
+                    enemies.Exists(IsMineConvoyEnemy)||!MineConvoyGuardsDefeated)return true;
                 if(action=="mineconvoy_brace")
                 {
                     if(save.inventory[4]<1)
@@ -264,12 +348,12 @@ namespace Starfall
             {
                 WorldObject end=MineCartPost(3);
                 if(MineConvoyStage!=4||end==null||MineConvoyComplete||
-                    (Position-new Point(end.x,end.y)).Length>1.8f)return true;
+                    !CanReachMineCartPost(end))return true;
                 bool braceEarned=mineConvoyBraced;
                 ResetMineConvoy();
                 if(braceEarned)Flag("mineconvoy_braced");
                 Flag("mineconvoy_complete");
-                save.coins+=60;save.shards+=2;AddXp(80);
+                CreditCoins(60);CreditShards(2);AddXp(80);
                 revision++;sound="reward";
                 RecordMoment("赤铁矿场的最后一班工人搭乘真正穿过旧矿道的矿车抵达南侧安全矿棚。工人决定以后优先撤离人，而不是运送矿石。",
                     "Ironreach workers escaped in a physical railcart to southern shelter. Workers now evacuate people before ore.");
@@ -285,7 +369,8 @@ namespace Starfall
             {
                 if(!MineConvoyComplete||save.room!=3)return false;
                 WorldObject shelter=MineCartPost(3);
-                return shelter!=null&&(Position-new Point(shelter.x,shelter.y)).Length<3.2f;
+                return shelter!=null&&
+                    PhysicalRefugeReach(new Point(shelter.x,shelter.y),3.2f);
             }
         }
     }

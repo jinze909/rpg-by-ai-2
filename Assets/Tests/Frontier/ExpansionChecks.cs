@@ -214,6 +214,49 @@ namespace Starfall.Tests
                 Check(near, "Unreachable distant object in room " + g.save.room + ": " + o.id);
             }
         }
+        public static void CompanionPartySwapStartsFromPlantedOriginalGait(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.SelectCompanion(0);
+            Check(g.save.companion == 0,
+                "Unlocked starting follower must be selectable");
+            g.companionMoveTime = 4.25f;
+            g.companionMoving = true;
+            var pending = new ActorAction {
+                kind = "command", weapon = 0, duration = .42f,
+                contact = .16f, direction = new Point(1,0)
+            };
+            g.companionAction = pending;
+            int firstGeneration=g.companionPresentationGeneration;
+            g.SelectCompanion(0); // Existing command must never be canceled.
+            Check(g.companionAction == pending &&
+                Math.Abs(g.companionMoveTime-4.25f)<.00001f &&
+                g.companionMoving &&
+                g.companionPresentationGeneration==firstGeneration,
+                "Reselecting the SAME ally may not rewind feet, invalidate pose or cancel commands");
+            g.SelectCompanion(1);
+            Check(g.save.companion == 1 &&
+                g.companionPresentationGeneration==firstGeneration+1 &&
+                g.companionAction == null && !g.companionMoving &&
+                g.companionMoveTime == 0f &&
+                g.companionAim.Length > .9f,
+                "A real follower swap must not inherit the old outfit's airborne stride");
+            g.companionMoveTime = 2.4f;
+            g.companionMoving = true;
+            g.SelectCompanion(-1);
+            Check(g.save.companion == -1 &&
+                g.companionPresentationGeneration==firstGeneration+2 &&
+                !g.companionMoving && g.companionMoveTime == 0f,
+                "Dismissed follower may not retain phantom walking animation");
+            // A same-ID return separated by an unseen dismissal must not
+            // inherit the old movement phase merely because the name matches.
+            g.SelectCompanion(0);
+            Check(g.save.companion == 0 &&
+                g.companionPresentationGeneration==firstGeneration+3 &&
+                g.companionMoveTime==0f,
+                "Recruited-again original companion requires a fresh presentation generation");
+        }
+
         public static void DistantReachability(Campaign data)
         {
             var g = Unlocked(data);
@@ -262,6 +305,152 @@ namespace Starfall.Tests
             int gift = -1; for (int i = 0; i < rpg.conversation.choices.Length; i++) if (rpg.conversation.choices[i].action == "gift0") gift = i;
             rpg.Choose(gift); rpg.CompanionStory(0); rpg.Choose(gift); Check(rpg.save.inventory[6] == 1 && rpg.save.relationships[0] == 1, "A shared meal builds a bond only once per day");
         }
+        public static void ClimatePulsesKeepTheirRealWorldSecondAtVariableFPS(Campaign data)
+        {
+            // A stable unshaded desert exposure already exists at this
+            // playable coordinate. Drive the entire real world Tick path;
+            // no fake timer call or manual damage application.
+            foreach(float dt in new[]{.05f,.027f})
+            {
+                var g=Unlocked(data);g.Enter(6);g.enemies.Clear();
+                g.save.x=14;g.save.y=10;
+                g.save.teaUntil=0;
+                g.save.health=g.save.maxHealth=1000;
+                g.save.heat=100;
+                g.save.reducedMotion=true;
+                int frames=dt>.04f?427:791;
+                for(int frame=0;frame<frames;frame++)
+                    g.Tick(dt,new Point());
+                float elapsed=frames*dt;
+                float expected=1f-(elapsed%1f);
+                var timer=typeof(GameCore).GetField("climateTimer",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                float remaining=(float)timer.GetValue(g);
+                Check(Math.Abs(remaining-expected)<.015f,
+                    "Heat pulse remaining time must conserve every frame's fractional overshoot at "+dt);
+                Check(Math.Abs(g.save.health-916f)<.001f,
+                    "Unprotected desert must apply exactly 21 physical heat contacts in 21.35s at "+dt);
+            }
+        }
+        public static void AbyssRiftsKeepTheirSixSecondWorldClock(Campaign data)
+        {
+            foreach(float dt in new[]{.05f,.027f})
+            {
+                var g=Unlocked(data);g.StartAbyss(0);
+                Check(g.InAbyss,"Test needs the actual running abyss dungeon");
+                g.enemies.Clear();g.hazards.Clear();g.effects.Clear();
+                // Test the real floor-three storm rather than creating
+                // fake hazards. Floor/seed changes are test-local only.
+                g.save.abyssFloor=3;g.save.health=g.save.maxHealth=1000;
+                g.save.reducedMotion=true;
+                var seen=new HashSet<Hazard>();
+                int frames=dt>.04f?817:1513;
+                for(int frame=0;frame<frames;frame++)
+                {
+                    g.Tick(dt,new Point());
+                    foreach(Hazard h in g.hazards)
+                        if(h.kind=="rift")seen.Add(h);
+                }
+                float elapsed=frames*dt;
+                float expected=6f-(elapsed%6f);
+                var timer=typeof(GameCore).GetField("stormTimer",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                float remaining=(float)timer.GetValue(g);
+                Check(seen.Count==6,
+                    "Deep abyss must schedule six actual rift warnings over forty seconds at "+dt);
+                Check(Math.Abs(remaining-expected)<.02f,
+                    "Deep abyss must conserve fractional six-second storm boundaries at "+dt);
+            }
+        }
+
+        public static void RiftWarningRetainsItsFullVisibleDodgeWindow(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            Check(g.InAbyss,"Rift warning test must run in the real abyss");
+            g.enemies.Clear();g.hazards.Clear();g.effects.Clear();
+            g.save.abyssFloor=3;
+            g.save.health=g.save.maxHealth=9999;
+            g.save.reducedMotion=true;
+            Hazard warning=null;
+            for(int frame=0;frame<130 && warning==null;frame++)
+            {
+                g.Tick(.05f,new Point());
+                warning=g.hazards.Find(h=>h.kind=="rift");
+            }
+            Check(warning!=null&&
+                Math.Abs(warning.timer-1.4f)<.001f,
+                "New abyss rift must give its full 1.4s visible warning after spawning, not immediately lose a frame");
+            float health=g.save.health;
+            for(int frame=0;frame<27;frame++)
+                g.Tick(.05f,new Point());
+            Check(g.hazards.Contains(warning)&&
+                Math.Abs(g.save.health-health)<.001f,
+                "A stationary hero must not take rift damage during the announced reaction window");
+            g.Tick(.05f,new Point());g.Tick(.02f,new Point());
+            Check(!g.hazards.Contains(warning)&&
+                g.effects.Exists(e=>e.kind=="danger"&&
+                    Math.Abs(e.radius-1.4f)<.001f)&&
+                g.save.health<health,
+                "The exact same real rift must finally release one dangerous contact after its warning expires");
+        }
+
+        public static void ThermalDangerFeedbackRequiresRealExposureAndDamage(Campaign data)
+        {
+            var g=Unlocked(data);g.Enter(6);g.enemies.Clear();
+            g.save.x=14;g.save.y=10;g.save.teaUntil=0;
+            g.save.heat=84.99f;g.save.cold=0;
+            g.save.english=true;
+            g.save.reducedMotion=true;
+            g.save.health=g.save.maxHealth=1000;
+            g.Tick(.05f,new Point());
+            Check(g.effects.Exists(e=>e.kind=="number"&&
+                e.text=="HEAT DANGER")&&
+                g.toast.Contains("Heat danger"),
+                "A first genuine desert overheat crossing needs visible and actionable English feedback");
+            g.Tick(.05f,new Point());
+            Check(g.effects.FindAll(e=>e.kind=="number"&&
+                e.text=="HEAT DANGER").Count==1,
+                "Sustained desert exposure cannot spam warnings every frame");
+            g.save.heat=79.5f;g.Tick(.05f,new Point());
+            g.save.heat=84.99f;g.Tick(.05f,new Point());
+            Check(g.effects.FindAll(e=>e.kind=="number"&&
+                e.text=="HEAT DANGER").Count==2,
+                "Cooling below 80 and heating back to 85 must genuinely re-arm the single crossing alert");
+            var timer=typeof(GameCore).GetField("climateTimer",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            timer.SetValue(g,.02f);g.invulnerable=0;
+            float hp=g.save.health;
+            g.Tick(.05f,new Point());
+            Check(g.save.health<hp &&
+                g.effects.FindAll(e=>e.kind=="number"&&
+                    e.text=="BURN").Count==1,
+                "Only actual desert HP damage makes the authored BURN contact label");
+            hp=g.save.health;
+            timer.SetValue(g,.02f);
+            g.Tick(.05f,new Point());
+            Check(Math.Abs(g.save.health-hp)<.001f &&
+                g.effects.FindAll(e=>e.kind=="number"&&
+                    e.text=="BURN").Count==1,
+                "I-frame protected climate pulses cannot show phantom second damage numbers");
+
+            g.Enter(7);g.enemies.Clear();
+            g.save.x=17;g.save.y=14;
+            g.save.teaUntil=0;g.save.cold=89.99f;
+            g.save.heat=0;g.invulnerable=0;
+            g.Tick(.05f,new Point());
+            Check(g.effects.Exists(e=>e.kind=="number"&&
+                e.text=="FROST DANGER") &&
+                g.toast.Contains("Freezing danger"),
+                "A real Frostchime cold threshold needs biome-specific shelter guidance");
+            timer.SetValue(g,.02f);g.invulnerable=0;
+            hp=g.save.health;
+            g.Tick(.05f,new Point());
+            Check(g.save.health<hp &&
+                g.effects.Exists(e=>e.kind=="number"&&
+                    e.text=="FROST"),
+                "Actual frozen-region HP loss displays frost injury, not the desert burn");
+        }
+
         public static void ClimateAndContracts(Campaign data)
         {
             var g = Unlocked(data); g.Enter(6); g.enemies.Clear(); g.save.x = 14; g.save.y = 10;

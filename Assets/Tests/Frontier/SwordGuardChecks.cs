@@ -34,6 +34,9 @@ namespace Starfall.Tests
                 g.projectiles.Contains(arrow)&&
                 g.save.health==oldHP&&g.deflectCooldown>0,
                 "A genuinely sweeping frontal hostile shot reverses into a friendly projectile without hurting the hero");
+            Check(arrow.age>0f&&
+                Math.Abs(arrow.trailResetAt-arrow.age)<.00001f,
+                "Real sword reflection must reset outbound visual trail at contact without resetting gameplay age");
             Check(g.effects.Exists(e=>e.kind=="number"&&
                 e.text.Contains("弹反")),
                 "Sword-guard contact announces its real successful timing");
@@ -70,9 +73,13 @@ namespace Starfall.Tests
                     Check(g.save.energy<=92&&g.save.energy>=90,
                         "A real sword counter pays nine energy exactly once");
                     g.Attack(new Point(-1,0));
-                    Check(g.riposteTime==0,
-                        "A genuine post-parry attack spends the existing empowered riposte window");
+                    Check(g.riposteTime>0&&g.playerAction!=null&&
+                        g.playerAction.riposteArmed,
+                        "A genuine post-parry attack reserves the counter until real contact");
                     Advance(g,.45f);
+                    Check(g.riposteTime<=0&&
+                        (g.playerAction==null||!g.playerAction.riposteArmed),
+                        "Only the released physical riposte spends the existing empowered opening");
                     Check(attacker.hp<180,
                         "The parry opening boosts a real sword contact, not a cosmetic reward");
                 }
@@ -146,5 +153,94 @@ namespace Starfall.Tests
             Check(old.save.version==2&&old.deflectCooldown==0,
                 "Old saves never persist temporary guard/deflection timing");
         }
+        public static void ReflectedProjectileRetainsWarriorProfileAfterEquipmentSwap(Campaign data)
+        {
+            var g = Fresh(data);
+            g.enemies.Clear(); g.projectiles.Clear();
+            g.save.x = 19.5f; g.save.y = 14.5f;
+            Advance(g, 1.1f);
+            g.guardTime = 2; g.aim = new Point(-1, 0);
+            g.save.energy = 100;
+            var target = new Enemy(92019, 0, 16.5f, 14.5f, 1);
+            target.stun = 99; target.timer = 99;
+            g.enemies.Add(target);
+            Projectile arrow = ThreateningShot(g, new Point(6, 0));
+            g.projectiles.Add(arrow);
+            for (int i = 0; i < 10 && !arrow.friendly; i++)
+                g.Tick(.05f, new Point());
+            Check(arrow.friendly && arrow.impact != null &&
+                arrow.impact.playerOwned && arrow.impact.weapon == 0 &&
+                arrow.impact.masteryWeapon == 0,
+                "A true contact-time sword guard binds warrior impact and mastery to its reflected projectile");
+
+            // The incoming arrow is already in flight. A later equipment
+            // change cannot rewrite the outbound shot's owner or stagger.
+            int swordMastery = g.save.mastery[0];
+            int bowMastery = g.save.mastery[1];
+            g.save.flags.Add("weapon_1");
+            g.Equip(1);
+            Check(g.save.weapon == 1 && arrow.impact.masteryWeapon == 0,
+                "Changing to an unlocked bow cannot retarget old sword reflection");
+            for (int i = 0; i < 50 && g.enemies.Contains(target); i++)
+                g.Tick(.05f, new Point());
+            Check(!g.enemies.Contains(target) &&
+                g.save.mastery[0] == swordMastery + 2 &&
+                g.save.mastery[1] == bowMastery,
+                "Reflected arrow kill credits the warrior's original sword mastery, never the weapon equipped during flight");
+        }
+
+        public static void VeteranSwordGuardUsesEarnedEnergyDiscountOnRealProjectileAndLunge(Campaign data)
+        {
+            float[] afterShot=new float[2],afterMelee=new float[2];
+            for(int i=0;i<2;i++)
+            {
+                bool veteran=i==1;
+                var g=Fresh(data,0);g.enemies.Clear();g.projectiles.Clear();
+                g.save.x=19.5f;g.save.y=14.5f;
+                Advance(g,1.1f);g.enemies.Clear();
+                if(veteran)g.save.flags.Add("swordlesson_veteran");
+                g.save.energy=60;g.guardTime=2;g.aim=new Point(-1,0);
+                g.invulnerable=0;
+                Check(g.SwordGuardArrowEnergy==(veteran?5:7)&&
+                    g.SwordGuardMeleeEnergy==(veteran?7:9),
+                    "Only the legitimately completed advanced course adjusts guard stamina requirements");
+                var arrow=ThreateningShot(g,new Point(6,0));
+                g.projectiles.Add(arrow);
+                for(int step=0;step<10&&!arrow.friendly;step++)
+                    g.Tick(.05f,new Point());
+                Check(arrow.friendly&&arrow.impact!=null&&
+                    arrow.impact.playerOwned&&arrow.impact.weapon==0,
+                    "Both standard and veteran blocks reflect a real projectile with the same sword owner");
+                afterShot[i]=g.save.energy;
+                g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.SwordGuardArrowEnergy==(veteran?5:7),
+                    "Legacy v2 retains the earned technique using only existing quest flags");
+
+                var m=Fresh(data,0);m.enemies.Clear();m.save.x=19.5f;m.save.y=14.5f;
+                Advance(m,1.1f);m.enemies.Clear();
+                if(veteran)m.save.flags.Add("swordlesson_veteran");
+                m.save.energy=60;m.guardTime=2;m.aim=new Point(-1,0);
+                m.invulnerable=0;
+                var attacker=new Enemy(91891+i,0,18.25f,14.5f,180);
+                attacker.Face(new Point(1,0));attacker.target=m.Position;
+                attacker.state=1;attacker.timer=.02f;attacker.windupDuration=.65f;
+                m.enemies.Add(attacker);
+                float health=m.save.health;
+                m.Tick(.05f,new Point());
+                Check(m.save.health==health&&m.riposteTime>1.3f&&
+                    m.deflectCooldown>.25f,
+                    "Both techniques still counter a true frontal lunge and open the original riposte");
+                afterMelee[i]=m.save.energy;
+            }
+            Check(Math.Abs((afterShot[1]-afterShot[0])-2)<.11f&&
+                Math.Abs((afterMelee[1]-afterMelee[0])-2)<.11f,
+                "The earned technique saves exactly two energy per actual arrow or melee contact");
+            var mage=Fresh(data,2);mage.save.flags.Add("swordlesson_veteran");
+            mage.guardTime=2;mage.save.energy=100;
+            Check(!mage.SwordGuardReady,
+                "No advanced training flag can grant the warrior-exclusive sword guard to another vocation");
+        }
+
     }
 }

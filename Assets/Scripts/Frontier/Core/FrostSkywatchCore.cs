@@ -13,6 +13,15 @@ namespace Starfall
         private float skywatchPulseTime;
         private int skywatchPulseCycle;
         private bool skywatchGroundingUsed;
+        // A missing enemy is not a Boss victory. Persist only the normal
+        // original completion flag after the actual lethal combat callback.
+        private bool skywatchKillConfirmed;
+        private void OnSkywatchEnemyDefeated(Enemy guardian)
+        {
+            if (SkywatchRoom == 7 && save.room == 7 &&
+                IsSkywatchEnemy(guardian))
+                skywatchKillConfirmed = true;
+        }
         public float SkywatchGroundingTime { get; private set; }
         public bool SkywatchGroundingAvailable
         {
@@ -24,10 +33,13 @@ namespace Starfall
         private void ResetSkywatch()
         {
             enemies.RemoveAll(IsSkywatchEnemy);
+            projectiles.RemoveAll(p => p.skywatchOwned);
+            effects.RemoveAll(e => e.skywatchOwned);
             hazards.RemoveAll(h => h.skywatchOwned);
             SkywatchRoom = 0; SkywatchTime = 0;
             skywatchPulseTime = 0; skywatchPulseCycle = 0;
-            skywatchGroundingUsed = false; SkywatchGroundingTime = 0;
+            skywatchGroundingUsed = false; skywatchKillConfirmed = false;
+            SkywatchGroundingTime = 0;
         }
         private bool SkywatchReady()
         {
@@ -316,7 +328,7 @@ namespace Starfall
                     (Position-ObjectPoint(7,"skyobservatory",
                         new Point(-100,-100))).Length>2.2f) return true;
                 Flag("skywatch_afterglow_complete");
-                save.coins+=45;save.shards+=2;AddXp(60);
+                CreditCoins(45); CreditShards(2); AddXp(60);
                 revision++;sound="reward";
                 RecordMoment("三座棱镜成为公开的高原避寒信标。",
                     "All three prisms became public warming beacons.");
@@ -335,6 +347,14 @@ namespace Starfall
                 skywatchGroundingUsed = true;
                 SkywatchGroundingTime = 8f;
                 skywatchPulseTime = Math.Max(skywatchPulseTime, 8f);
+                // Grounding means the current frost attack was CANCELLED,
+                // not only that upcoming scripted pulses are suspended.
+                // Retire the actual boss's pending contact circle and any
+                // already airborne boss-owned orbs at this one-use action.
+                // Unrelated main-world arrows/effects remain intact.
+                RemoveEnemyPendingWarning(guardian);
+                projectiles.RemoveAll(p => p.skywatchOwned);
+                effects.RemoveAll(e => e.skywatchOwned);
                 hazards.RemoveAll(h => h.skywatchOwned);
                 guardian.stun = Math.Max(guardian.stun, 1.8f);
                 guardian.state = 0; guardian.releaseTime = 0;
@@ -384,8 +404,8 @@ namespace Starfall
                     Dying ||
                     (Position-ObjectPoint(0,"skywatcher",new Point(-100,-100))).Length>2.2f)
                     return true;
-                Flag("skywatch_complete"); save.coins+=95; save.shards+=3;
-                save.skillPoints++; AddXp(100); revision++; sound="reward";
+                Flag("skywatch_complete"); CreditCoins(95); CreditShards(3);
+                CreditSkillPoints(1); AddXp(100); revision++; sound="reward";
                 RecordMoment("霜钟高原的原始天气光谱已公开，古观星台不再向旅人隐藏冻雨。",
                     "Frostchime's original weather spectrum was published for every traveler.");
                 Notify("夜空观测完成！获得95硬币、3碎片、1天赋点、100经验。观星台旁开启避寒区域。",
@@ -402,12 +422,19 @@ namespace Starfall
             Enemy guardian=enemies.Find(IsSkywatchEnemy);
             if (guardian==null)
             {
+                bool genuineVictory = skywatchKillConfirmed;
                 ResetSkywatch();
-                if (!Has("skywatch_defeated"))
+                if (genuineVictory && !Has("skywatch_defeated"))
                 {
                     Flag("skywatch_defeated"); revision++; sound="reward";
                     Notify("古观星守卫已停机！回余烬镇向伊澜公开原始光谱。",
                         "The skywatch guardian is down! Return to Yilan with the true spectrum.");
+                }
+                else if (!genuineVictory)
+                {
+                    revision++;
+                    Notify("观星守卫异常离场，未确认击败。棱镜记录保留，可免费重试。",
+                        "The guardian vanished without a confirmed defeat. The prisms remain calibrated; retry for free.");
                 }
                 return;
             }

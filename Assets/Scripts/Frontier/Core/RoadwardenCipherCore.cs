@@ -80,11 +80,11 @@ namespace Starfall
                 return true;
             }
             Flag("dispatch_" + letter);
-            save.coins += 20; save.shards++; AddXp(25); revision++; sound = "reward";
+            CreditCoins(20); CreditShards(1); AddXp(25); revision++; sound = "reward";
             RecordMoment("解读巡路暗号 " + (letter - 5) + "/3。", "Decoded roadwarden cipher " + (letter - 5) + "/3.");
             if (Has("dispatch_6") && Has("dispatch_7") && Has("dispatch_8") && !Has("dispatch_complete"))
             {
-                Flag("dispatch_complete"); save.coins += 40; save.skillPoints++; revision++;
+                Flag("dispatch_complete"); CreditCoins(40); CreditSkillPoints(1); revision++;
                 RecordMoment("三封旧信拼成巡路队的誓言：让每个人都能找到归途。",
                     "Three letters reveal the wardens' promise: a way home for everyone.");
                 Notify("巡路誓言完成！额外获得40硬币、技能点1。三座信标的守路试炼现已开放。",
@@ -100,20 +100,66 @@ namespace Starfall
         // Leaving or loading restarts a drill; trial foes never become world patrols.
         private int roadTrialRoom, roadTrialWave;
         private bool roadTrialVeteran;
+        // Both foes in the current wave must die through the actual Hit
+        // transaction. Disappearing from the active list is never a victory.
+        private int roadTrialConfirmedKills;
+        private void OnRoadwardenTrialEnemyDefeated(Enemy enemy)
+        {
+            if(roadTrialRoom==0||save.room!=roadTrialRoom||
+                !IsRoadwardenTrialEnemy(enemy))return;
+            int index=enemy.id-(81000+roadTrialRoom*10+roadTrialWave*2);
+            if(index>=0&&index<2)
+            {
+                // An actor removed by Hit cannot keep a visible siphon in
+                // the fraction of a frame before the next world tick.
+                roadTrialSiphoners.Remove(enemy);
+                roadTrialConfirmedKills|=1<<index;
+                // The last actual combat death cancels pending hazards for
+                // THIS wave immediately, not one simulation tick later.
+                // A dead raider's pincer must never land during handoff.
+                if(roadTrialConfirmedKills==3)ClearRoadwardenTrialWarnings();
+            }
+        }
         private float roadTrialSurgeTimer;
         private int roadTrialSurgeCount;
+        // A transiently blocked next-wave arena cannot erase confirmed kills.
+        private bool roadTrialWaveDeferred;
         // The ward is a real, vulnerable objective, not a second health bar
         // persisted in saves. Leaving, losing, or loading restarts it cleanly.
         private float roadTrialWard;
+        // The warning tier is re-armed whenever a real repair or newly
+        // deployed wave restores the ward above a previously warned tier.
+        // Otherwise a second 65%/30% breach can arrive silently.
+        private int RoadwardenWardSeverity()
+        { return roadTrialWard <= 30f ? 2 : roadTrialWard <= 65f ? 1 : 0; }
         private bool roadTrialWardUnderAttack;
         private int roadTrialWardWarning;
         private int roadTrialRepairedWave;
+        // Presentation uses the SAME actors that actually drained integrity
+        // in the most recent simulation tick, never a second visual guess
+        // about distance/line of sight. Transient only; v1/v2 saves untouched.
+        private readonly List<Enemy> roadTrialSiphoners = new List<Enemy>(2);
+        public int RoadwardenWardSiphonCount
+        { get { return roadTrialRoom == save.room ? roadTrialSiphoners.Count : 0; } }
+        public Point RoadwardenWardSiphonSource(int index)
+        { return roadTrialSiphoners[index].Position; }
+        public Point RoadwardenWardSiphonTarget
+        { get { return roadTrialRoom == save.room ?
+            ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position) :
+            Position; } }
         public bool RoadwardenWardRepairAvailable
         { get { return roadTrialRoom != 0 && roadTrialWard < 99.9f && roadTrialRepairedWave != roadTrialWave; } }
         public float RoadwardenWardIntegrity { get { return roadTrialRoom == 0 ? 0 : roadTrialWard; } }
         public bool RoadwardenWardUnderAttack { get { return roadTrialRoom != 0 && roadTrialWardUnderAttack; } }
         // Transient warnings belong to this drill, never to the persistent world.
         private readonly List<Hazard> roadTrialWarnings = new List<Hazard>();
+        private void ClearRoadwardenTrialWarnings()
+        {
+            // Preserve unrelated world hazard instances, even when their
+            // positions and kinds exactly overlap a Roadwarden strike.
+            foreach(Hazard warning in roadTrialWarnings)hazards.Remove(warning);
+            roadTrialWarnings.Clear();
+        }
         public int RoadwardenTrialRoom { get { return roadTrialRoom; } }
         public int RoadwardenTrialWave { get { return roadTrialWave; } }
         public int RoadwardenTrialTotalWaves { get { return roadTrialVeteran ? 3 : 2; } }
@@ -133,16 +179,30 @@ namespace Starfall
         { return e != null && e.id >= 81000 && e.id < 81100; }
         private void ResetRoadwardenTrial()
         {
-            foreach (Hazard warning in roadTrialWarnings) hazards.Remove(warning);
-            roadTrialWarnings.Clear();
+            // All reset paths, including death/practice/load and out-of-room
+            // termination, must retire their living trial actors. The old
+            // abort button cleaned them, but other reset callers did not:
+            // a canceled duel could keep attacking as anonymous enemies.
+            if(roadTrialRoom!=0)
+                for(int i=enemies.Count-1;i>=0;i--)
+                    if(IsRoadwardenTrialEnemy(enemies[i]))
+                    {
+                        RemoveEnemyPendingWarning(enemies[i]);
+                        enemies.RemoveAt(i);
+                    }
+            ClearRoadwardenTrialWarnings();
             // A stopped drill must not leave its already-fired arrows active.
             // Keep unrelated patrol and player projectiles intact.
             projectiles.RemoveAll(p => p.roadTrialOwned);
+            effects.RemoveAll(e => e.roadTrialOwned);
             roadTrialRoom = roadTrialWave = 0;
             roadTrialVeteran = false;
+            roadTrialConfirmedKills = 0;
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
+            roadTrialWaveDeferred = false;
             roadTrialWard = 0; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
             roadTrialRepairedWave = 0;
+            roadTrialSiphoners.Clear();
         }
         private string RoadwardenSurgeHint(int region, bool english)
         {
@@ -157,20 +217,29 @@ namespace Starfall
         {
             if (!Has("dispatch_complete")) return "";
             if (roadTrialRoom == region)
-                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Ward " + (int)Math.Ceiling(roadTrialWard) + "%. Return to this beacon to restore 25 ward for 35 energy once per wave, or abandon."
-                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。护盾剩余 " + (int)Math.Ceiling(roadTrialWard) + "%。每波可在此花费35耐力修复25点护盾一次，或放弃试炼。";
+                return english ? "\n\nDefense underway: wave " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + ". Ward " + (int)Math.Ceiling(roadTrialWard) + "%. Return to this beacon to restore 25 ward for 35 energy once per wave, or abandon." +
+                    (roadTrialWaveDeferred?" The next wave is waiting for safe ground; your victories remain.":"")
+                    : "\n\n守路试炼进行中：第 " + roadTrialWave + "/" + RoadwardenTrialTotalWaves + " 波。护盾剩余 " + (int)Math.Ceiling(roadTrialWard) + "%。每波可在此花费35耐力修复25点护盾一次，或放弃试炼。" +
+                    (roadTrialWaveDeferred?" 下一波等待安全地形，已赢得的战果仍保留。":"");
             if (Has("road_trial_" + region))
                 return english ? "\n\nOath fulfilled. Replay a harder three-wave veteran defense. Attackers drain the beacon ward if they reach it; stop them before it breaks; rewards cannot be claimed twice."
                     : "\n\n守路誓约已完成。可再次挑战更难的三波精英守卫战。敌人靠近后会侵蚀信标护盾，务必阻止；奖励不会重复领取。";
             return english ? "\n\nOptional two-wave defense. Stop attackers before they drain the beacon ward. " + RoadwardenSurgeHint(region, true) + " Complete all three for a talent point. Leaving or loading restarts a drill."
                 : "\n\n可选双波守路试炼。阻止敌人靠近并侵蚀信标护盾。" + RoadwardenSurgeHint(region, false) + " 完成三座信标可获得技能点。离开或读档需重新挑战。";
         }
+        // Dialogue remains cached even when a real gate closes.
+        // Spawning attackers and spending ward-repair energy both require
+        // a current near-side physical lane to the active beacon.
+        private bool CanReachRoadwardenBeacon(int room)
+        { return room>=1&&room<=3 &&
+            PhysicalRefugeReach(ObjectPoint(room,"survey"+room,
+                new Point(-100,-100)),2.1001f); }
         private bool ChooseRoadwardenTrial(string action)
         {
             if (action == "road_trial_repair")
             {
                 if (!RoadwardenWardRepairAvailable || roadTrialRoom != save.room ||
-                    (Position - ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)).Length > 2.1f)
+                    !CanReachRoadwardenBeacon(roadTrialRoom))
                     return true;
                 if (save.energy < 35)
                 {
@@ -179,6 +248,7 @@ namespace Starfall
                 }
                 save.energy -= 35;
                 roadTrialWard = Math.Min(100, roadTrialWard + 25);
+                roadTrialWardWarning = RoadwardenWardSeverity();
                 roadTrialRepairedWave = roadTrialWave;
                 Point ward = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position);
                 effects.Add(new Effect("heal", ward, .55f)); sound = "heal"; revision++;
@@ -187,9 +257,12 @@ namespace Starfall
             }
             if (action == "road_trial_abandon")
             {
-                if (roadTrialRoom != 0)
+                // The choice may have been opened before a gate closed,
+                // or after a different region was loaded. Withdrawal is a
+                // physical beacon action, not an anywhere-in-world reset.
+                if (roadTrialRoom != 0&&save.room==roadTrialRoom&&
+                    CanReachRoadwardenBeacon(roadTrialRoom))
                 {
-                    enemies.RemoveAll(IsRoadwardenTrialEnemy);
                     ResetRoadwardenTrial(); revision++;
                     Notify("守路试炼已放弃。可再次从信标开始。", "Defense drill abandoned. Restart at the beacon.");
                 }
@@ -203,7 +276,7 @@ namespace Starfall
                 atlasEchoRoom != 0 || practicing || Dying)
                 return true;
             Point beacon = ObjectPoint(region, "survey" + region, new Point(-100, -100));
-            if ((Position - beacon).Length > 2.1f) return true;
+            if (!CanReachRoadwardenBeacon(region)) return true;
             if (!SafeTravel)
             {
                 Notify("先清理信标附近的敌人，再开始守路试炼。", "Clear nearby enemies before beginning the defense drill.");
@@ -212,6 +285,7 @@ namespace Starfall
             roadTrialRoom = region; roadTrialWave = 1;
             roadTrialVeteran = Has("road_trial_" + region);
             roadTrialSurgeTimer = 0; roadTrialSurgeCount = 0;
+            roadTrialWaveDeferred = false;
             roadTrialWard = 100; roadTrialWardUnderAttack = false; roadTrialWardWarning = 0;
             if (!SpawnRoadwardenTrialWave())
             {
@@ -220,28 +294,16 @@ namespace Starfall
                 return true;
             }
             TrackQuest("vigil");
-            Notify(roadTrialVeteran ? "精英守路试炼！保护信标护盾，击退三波敌人；无重复奖励。" : "守路试炼开始！保护信标护盾，击退追猎者与射手。",
-                roadTrialVeteran ? "Veteran defense! Protect the beacon ward through three waves; no repeat rewards." : "Defense drill! Protect the beacon ward from the hunter and archer.");
+            Notify(roadTrialVeteran ? "精英守路试炼！保护信标，近战敌人会冲锋，射手将远程压制你；无重复奖励。" : "守路试炼开始！追猎者冲击信标，弓箭手从远处射向你！",
+                roadTrialVeteran ? "Veteran defense! Guard the beacon: melee attackers rush it, archers target you from range. No repeat rewards." : "Defense drill! The hunter rushes the beacon; the archer targets you from afar.");
             return true;
         }
         private bool SpawnRoadwardenTrialWave()
         {
-            Point beacon = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, new Point(-100, -100));
-            var positions = new List<Point>();
-            for (int radius = 3; radius <= 6 && positions.Count < 2; radius++)
-            for (int dx = -radius; dx <= radius && positions.Count < 2; dx++)
-            for (int dy = -radius; dy <= radius && positions.Count < 2; dy++)
-            {
-                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
-                Point candidate = new Point(beacon.x + dx, beacon.y + dy);
-                if (!CanStand(candidate) || (candidate - Position).Length < 2.7f ||
-                    (candidate - beacon).Length > 6.7f ||
-                    enemies.Exists(e => (e.Position - candidate).Length < 2.0f) ||
-                    positions.Exists(p => (p - candidate).Length < 3.5f) ||
-                    NavigationPath(candidate).Count == 0) continue;
-                positions.Add(candidate);
-            }
-            if (positions.Count != 2) return false;
+            Point[] positions;
+            if (!TryRoadwardenTrialFeet(out positions)) return false;
+            roadTrialSiphoners.Clear();
+            roadTrialConfirmedKills=0;
             for (int slot = 0; slot < 2; slot++)
             {
                 int kind = roadTrialWave == 1 ? slot :
@@ -259,6 +321,38 @@ namespace Starfall
             }
             revision++; sound = "quest";
             return true;
+        }
+        // NavigationPath may yield a partial pursuit path to the nearest
+        // reachable bank even when the proposed raider is isolated. Verify
+        // a complete local body-foot route to the BEACON, and never put
+        // authored foes on a recruited ally or a surviving world enemy.
+        private bool TryRoadwardenTrialFeet(out Point[] result)
+        {
+            result=null;
+            Point beacon=ObjectPoint(save.room,"survey"+save.room,
+                new Point(-100,-100));
+            if(!CanStand(beacon))return false;
+            var feet=new List<Point>();
+            for(int radius=3;radius<=6&&feet.Count<2;radius++)
+            for(int dx=-radius;dx<=radius&&feet.Count<2;dx++)
+            for(int dy=-radius;dy<=radius&&feet.Count<2;dy++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point candidate=beacon+new Point(dx,dy);
+                if(!CanStand(candidate)||
+                    (candidate-Position).Length<2.7f||
+                    (candidate-beacon).Length>6.7f||
+                    (save.companion>=0&&
+                     (candidate-companionPosition).Length<1.55f)||
+                    feet.Exists(p=>(p-candidate).Length<3.5f)||
+                    enemies.Exists(e=>e.hp>0&&
+                        (e.Position-candidate).Length<2f)||
+                    !ActorHasLocalRoute(candidate,beacon,12))
+                    continue;
+                feet.Add(candidate);
+            }
+            if(feet.Count!=2)return false;
+            result=feet.ToArray();return true;
         }
         // The second wave has a distinct, telegraphed regional hazard pattern.
         // All strikes use the existing warning, dodge and damage pipeline.
@@ -307,8 +401,12 @@ namespace Starfall
             bool escape = false;
             foreach (Point exit in exits)
             {
-                if (!Fits(exit) || (exit - center).Length > .01f &&
-                    NavigationPath(exit).Count == 0) continue;
+                // A partial pursuit path to a sealed standable pocket is
+                // NOT a real dodge route. If every apparent exit is isolated
+                // across solid cover, suppress the entire unfair surge.
+                if(!Fits(exit)||
+                    (exit-center).Length>.01f&&
+                    !ActorHasLocalRoute(center,exit,6))continue;
                 bool safe = true;
                 foreach (Hazard warning in planned)
                     if ((exit - warning.position).Length <= warning.radius + .3f)
@@ -325,7 +423,21 @@ namespace Starfall
         private void TickRoadwardenTrial(float dt)
         {
             if (roadTrialRoom == 0) return;
+            roadTrialSiphoners.Clear();
             if (save.room != roadTrialRoom || Dying || practicing) { ResetRoadwardenTrial(); return; }
+            // A cleared wave requires both physical deaths. An unconfirmed
+            // despawn aborts this attempt before advancing its reward state.
+            int first=81000+roadTrialRoom*10+roadTrialWave*2;
+            for(int i=0;i<2;i++)
+                if((roadTrialConfirmedKills&(1<<i))==0 &&
+                    !enemies.Exists(e=>e.id==first+i&&e.hp>0))
+                {
+                    enemies.RemoveAll(IsRoadwardenTrialEnemy);
+                    ResetRoadwardenTrial();revision++;sound="deny";
+                    Notify("巡路守卫异常离场，未完成真实战斗。信标试炼可以重新挑战。",
+                        "An unconfirmed raider vanished. The beacon defense can be retried.");
+                    return;
+                }
             // Attackers reaching the beacon siphon its ward until interrupted by
             // a hit, stagger, windup or death. This makes intercepting enemies
             // meaningful instead of merely kiting them around the map.
@@ -333,11 +445,19 @@ namespace Starfall
             Point anchor = ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position);
             foreach (Enemy attacker in enemies)
                 if (IsRoadwardenTrialEnemy(attacker) && attacker.hp > 0 &&
+                    // ClearAttackPath checks after the firing root. A gate
+                    // can engulf a raider's actual body while the remaining
+                    // centerline to the beacon is clear. Such a buried body
+                    // cannot physically contest the ward.
+                    CanStand(attacker.Position) &&
                     attacker.stun <= 0 && attacker.hitTime <= 0 &&
                     attacker.state != 1 && attacker.releaseTime <= 0 &&
                     (attacker.Position - anchor).Length < 1.7f &&
                     ClearAttackPath(attacker.Position, anchor))
+                {
                     pressure += attacker.kind == 2 ? 1.3f : 1;
+                    roadTrialSiphoners.Add(attacker);
+                }
             roadTrialWardUnderAttack = pressure > 0;
             if (roadTrialWardUnderAttack)
             {
@@ -351,7 +471,7 @@ namespace Starfall
                         "Beacon ward shattered! Defense failed; regroup and try again.");
                     return;
                 }
-                int threshold = roadTrialWard <= 30 ? 2 : roadTrialWard <= 65 ? 1 : 0;
+                int threshold = RoadwardenWardSeverity();
                 if (threshold > roadTrialWardWarning)
                 {
                     roadTrialWardWarning = threshold;
@@ -359,7 +479,7 @@ namespace Starfall
                         threshold == 2 ? "Warning: beacon ward nearly broken!" : "Beacon under attack! Push back nearby enemies.");
                 }
             }
-            if (enemies.Exists(IsRoadwardenTrialEnemy))
+            if (enemies.Exists(IsRoadwardenTrialEnemy) || roadTrialConfirmedKills!=3)
             {
                 if (roadTrialWave >= 2)
                 {
@@ -374,22 +494,30 @@ namespace Starfall
             }
             if (roadTrialWave < RoadwardenTrialTotalWaves)
             {
-                // End the cleared wave cleanly before spawning its successor;
-                // an old archer shot must not punish the hero in the next wave.
-                projectiles.RemoveAll(p => p.roadTrialOwned);
-                roadTrialWave++;
-                // A cleared wave restores a little ward, but damage sustained
-                // earlier still matters during the remaining defense.
-                roadTrialWard = Math.Min(100, roadTrialWard + 18);
-                roadTrialWardUnderAttack = false;
-                roadTrialSurgeTimer = 1.25f;
-                if (roadTrialWave == 2) roadTrialSurgeCount = 0;
-                if (!SpawnRoadwardenTrialWave())
+                // An old confirmed victory remains valid if a temporary
+                // obstruction prevents a complete physical reinforcement.
+                // Do not award the +18 ward refill until both next-wave
+                // actors actually spawn. Repeated failed retries cost nothing.
+                int previousWave=roadTrialWave;
+                roadTrialWave=previousWave+1;
+                if(!SpawnRoadwardenTrialWave())
                 {
-                    ResetRoadwardenTrial();
-                    Notify("战场已改变，试炼中断；可以再次挑战。", "The arena changed; restart the drill at the beacon.");
+                    roadTrialWave=previousWave;
+                    if(!roadTrialWaveDeferred)
+                    {
+                        roadTrialWaveDeferred=true;revision++;
+                        Notify("当前波次已守住，增援暂缺安全落点。战果和护盾保持，清出道路后继续。",
+                            "Wave defeated. Reinforcements await clear ground; your real kills and ward integrity remain.");
+                    }
                     return;
                 }
+                roadTrialWaveDeferred=false;
+                projectiles.RemoveAll(p=>p.roadTrialOwned);
+                roadTrialWard=Math.Min(100f,roadTrialWard+18f);
+                roadTrialWardWarning=RoadwardenWardSeverity();
+                roadTrialWardUnderAttack=false;
+                roadTrialSurgeTimer=1.25f;
+                if(roadTrialWave==2)roadTrialSurgeCount=0;
                 if (roadTrialWave == 2)
                     Notify("第二波！重甲破阵者与射手。" + RoadwardenSurgeHint(roadTrialRoom, false),
                         "Wave two! Armored breaker and archer. " + RoadwardenSurgeHint(roadTrialRoom, true));
@@ -411,13 +539,13 @@ namespace Starfall
             }
             if (Has("road_trial_" + region)) return;
             Flag("road_trial_" + region);
-            save.coins += 35; save.shards += 2; AddXp(40); revision++;
+            CreditCoins(35); CreditShards(2); AddXp(40); revision++;
             effects.Add(new Effect("discover", Position, .8f)); sound = "reward";
             RecordMoment("守住第 " + region + " 座巡路信标：获得35硬币、2碎片、40经验。",
                 "Defended road beacon " + region + ": 35 coins, 2 shards, 40 XP.");
             if (Has("road_trial_1") && Has("road_trial_2") && Has("road_trial_3") && !Has("road_trial_complete"))
             {
-                Flag("road_trial_complete"); save.skillPoints++; save.shards += 3; revision++;
+                Flag("road_trial_complete"); CreditSkillPoints(1); CreditShards(3); revision++;
                 RecordMoment("三座信标的守路誓约完成：额外获得技能点1、碎片3。",
                     "All three beacon defenses complete: bonus 1 talent point and 3 shards.");
                 Notify("巡路守望完成！额外获得技能点1、碎片3。", "Roadwarden vigilance complete! Bonus: 1 talent point, 3 shards.");
@@ -428,8 +556,15 @@ namespace Starfall
 
         private bool CanDecodeLetter(int id)
         {
+            // A history menu can remain open after walls/gates change.
+            // Cipher completion mints real irreversible coins, shards and
+            // eventually a talent point. Commit it at the physical letter,
+            // not simply anywhere inside the same region after opening UI.
             return id >= 6 && id <= 8 && save.room == id - 5 &&
-                Has("survey_complete") && Has("history_" + id) && !Has("dispatch_" + id);
+                Has("survey_complete") && Has("history_" + id) &&
+                !Has("dispatch_" + id) &&
+                PhysicalRefugeReach(ObjectPoint(save.room,
+                    "history" + id,new Point(-100,-100)),1.8001f);
         }
     }
 }

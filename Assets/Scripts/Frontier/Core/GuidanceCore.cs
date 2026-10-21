@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "mine_convoy", "frost_signal", "sword_lesson" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -88,27 +88,32 @@ namespace Starfall
 
             if(id=="sword_lesson")
             {
-                q.title=L("余烬镇 · 诺尔的三箭考核","Emberfall · Noll's Three Arrows");
+                q.title=L("余烬镇 · 诺尔的剑盾考核","Emberfall · Noll's Sword Guard Trials");
                 q.category=L("剑盾训练 · 实弹弹反","SWORD-GUARD TRAINING · LIVE ARROWS");
                 q.description=L(
                     "回城向铁匠诺尔学习战士剑盾技术。领取48秒练习，面对东方发箭器，使用Q技能正面接触并反弹三支实际飞来的箭。需要保持耐力与正确的技能时机；失败可重新练习，奖励只能获得一次。",
                     "Practice with Noll at the original town smithy: a 48s live-arrow drill. Face the eastern launcher and use the warrior's Q guard to physically reflect three arrows. Manage timing and energy; retries are free and the reward is one-time.");
                 q.room=0;q.target=ObjectPoint(0,"forge",new Point(7,8));
                 q.locked=save.profession!=0;
+                // Preserve the original three-arrow quest completion on
+                // every old save. Veteran is a distinct optional milestone.
                 q.complete=SwordLessonComplete;
                 q.steps.Add(new QuestStep(L("在诺尔铁匠铺启动试炼","Start at Noll's blacksmith shop"),
                     q.complete||SwordLessonActive));
                 q.steps.Add(new QuestStep(L("正面弹回三支实际飞来的箭矢",
-                    "Face and reflect three actual hostile arrows"),q.complete));
+                    "Face and reflect three actual hostile arrows"),SwordLessonComplete));
                 q.next=q.locked?L("此训练属于战士职业","The drill is for the warrior class"):
-                    q.complete?L("诺尔已公布你的剑盾训练记录","Noll has published your sword-guard record"):
-                    SwordLessonActive?L("弹反 "+SwordLessonHits+"/3 · 剩余 "+
+                    SwordLessonActive?L("弹反 "+SwordLessonHits+"/"+SwordLessonTarget+" · 剩余 "+
                         SwordLessonTime.ToString("0")+" 秒",
-                        "Reflections "+SwordLessonHits+"/3 · "+
+                        "Reflections "+SwordLessonHits+"/"+SwordLessonTarget+" · "+
                         SwordLessonTime.ToString("0")+"s left"):
+                    SwordLessonVeteranComplete?L("已完成双阶段考核；五箭精英训练仍可复练",
+                        "Both trials complete; five-arrow replay is available"):
+                    SwordLessonComplete?L("返回诺尔铁匠铺，开始五箭精英考核",
+                        "Return to Noll for the advanced five-arrow drill"):
                     L("回城与诺尔对话，开始三箭实战练习","Talk to Noll to start three real-arrow reflections");
-                q.reward=L("首次30硬币、1碎片、50经验；城镇正式训练记录",
-                    "First clear: 30 coins, 1 shard, 50 XP and permanent training record");
+                q.reward=L("三箭首次30硬币、1碎片、50经验；五箭精英首次技能点1、经验75，实际箭矢弹反耐力7→5、近战破招9→7；可无奖励复练",
+                    "Three-arrow first clear: 30 coins, 1 shard, 50 XP. Five-arrow first clear: 1 talent, 75 XP and lower real sword-guard costs (arrows 7→5, melee 9→7); free replay without rewards.");
                 return q;
             }
             if(id=="frost_signal")
@@ -116,25 +121,36 @@ namespace Starfall
                 q.title=L("霜钟高原 · 公共余火","Frostchime · The Civic Ember");
                 q.category=L("护火实战 · 严寒生存","EMBER RUN · COLD SURVIVAL");
                 q.description=L(
-                    "原有高原守护者失去控制后，将民用火种由西岗送往南侧暖站。严寒使余温衰减，转折台仍有旧守卫。亲自抵达并解决战斗，可选择消耗月光草、耐力或不使用补给，最终决定建立居民疗养点或巡路补给点。",
-                    "After defeating the original highland guardian, carry a civilian ember from the west to southern shelter. Real cold erodes warmth and two guards contest the middle station. Choose herbs, energy or no supplies before commissioning a clinic or road-crew supply fire.");
+                    "原有高原守护者失去控制后，将民用火种由西岗送往南侧暖站。严寒使余温衰减，转折台仍有旧守卫。击败守卫后，可用月光草补火、耐力补火、耐力防风护火或不使用补给；最后选择居民疗养或巡路补给。",
+                    "After the original highland guardian falls, carry the civic ember from west to south in real cold. Defeat both guards, then choose a Moonherb refill, energy refill, timed windbreak, or no supplies before commissioning a clinic or road-crew fire.");
                 q.room=7;q.locked=!Has("boss_7")||!CanEnter(7);
                 q.complete=FrostSignalComplete;
+                // "Started sometime in an earlier attempt" is a saved
+                // historical fact, not proof that this run still carries
+                // the ember after abort, expiry or a v2 reload.
                 q.steps.Add(new QuestStep(L("在西部领取余火","Collect the original western ember"),
-                    Has("frostsignal_started")));
+                    FrostSignalActive||q.complete));
                 q.steps.Add(new QuestStep(L("守卫实战与补给抉择","Overcome the middle guards and select supplies"),
                     q.complete||FrostSignalStage>=3));
                 q.steps.Add(new QuestStep(L("送达南方并选择公共用途","Deliver south and choose a civic purpose"),
                     q.complete));
-                int post=FrostSignalStage==2?2:FrostSignalStage==3?3:1;
+                // Stage 1 means ember in hand: the NEXT objective is the
+                // guard junction. Sending the active HUD marker back to the
+                // western pickup post makes the 100-second timed delivery
+                // appear to go backward. Stage 2 stays at that junction
+                // until two actual guards fall and supplies are chosen.
+                int post=FrostSignalStage==3?3:
+                    FrostSignalStage>=1?2:1;
                 foreach(WorldObject o in data.maps[7].objects)
                     if(o.id=="frostsignal_"+post){q.target=new Point(o.x,o.y);break;}
                 q.next=q.locked?L("先击败高原守护者","First defeat the original Frostchime guardian"):
                     q.complete?L("民用火堆已重燃","Public hearth restored"):
                     FrostSignalActive?L("余温 "+FrostSignalFlame.ToString("0")+
-                        " · 剩余 "+FrostSignalTime.ToString("0")+" 秒",
+                        " · 剩余 "+FrostSignalTime.ToString("0")+" 秒"+
+                        (FrostSignalWindbreakTime>0?" · 防风 "+FrostSignalWindbreakTime.ToString("0")+" 秒":""),
                         "Ember "+FrostSignalFlame.ToString("0")+
-                        " · "+FrostSignalTime.ToString("0")+"s remain"):
+                        " · "+FrostSignalTime.ToString("0")+"s remain"+
+                        (FrostSignalWindbreakTime>0?" · Windbreak "+FrostSignalWindbreakTime.ToString("0")+"s":"")):
                     L("前往西部守灯岗领取火种","Collect ember at the west signal");
                 q.reward=L("首次55硬币、2碎片、85经验；余温50以上额外10硬币；永久暖站服务",
                     "First clear: 55 coins, 2 shards, 85 XP; 10 extra coins at 50+ flame; permanent local shelter service");
@@ -169,6 +185,54 @@ namespace Starfall
                     L("前往西北矿车岗启动撤离","Begin evacuation at western dispatch");
                 q.reward=L("首次60硬币、2碎片、80经验、矿棚安全疗养、强化木料成本永久-1",
                     "First clear: 60 coins, 2 shards, 80 XP, safe depot healing and -1 timber per future upgrade");
+                return q;
+            }
+
+            if(id=="ferry_relief")
+            {
+                q.title=L("沉没遗迹 · 低潮医疗护送",
+                    "Drowned Ruins · Emergency Tide Medicine");
+                q.category=L("民用护航 · 真正渡河与战斗",
+                    "CIVILIAN FERRY · REAL CROSSING AND COMBAT");
+                q.room=2;
+                q.locked=!FloodArchiveComplete;
+                q.complete=FloodReliefComplete;
+                q.description=L(
+                    "先找回沉桥两份民用证据并恢复公共渡船。低潮时在西岸领取65秒急救包，亲自支付14耐力乘渡船到东岸，击败两名真正的拦截者后交付。实际命中会损坏药品，东岸可花20耐力开启一次18秒的药品护盾，或花一份草药修补最多40点完整度（均每趟一次）；敌人异常消失或超时不算完成。",
+                    "Restore the public ferry first. At low tide, carry urgent medicine from the west dock within 65 seconds, pay 14 energy to cross the actual ferry and defeat two real raiders before delivery on the east shore. Real hits damage medicine; at the east dock, spend 20 energy once on an 18-second cargo ward, or one herb once to repair up to 40 integrity. Missing enemies and timeouts never count as wins.");
+                q.steps.Add(new QuestStep(L("恢复公共渡船并调查民用档案",
+                    "Restore the public ferry and civic archives"),FloodArchiveComplete));
+                q.steps.Add(new QuestStep(L("西岸装载急救包并亲自渡河",
+                    "Collect the west-dock medicine and physically ferry across"),
+                    FloodReliefCrossed||FloodReliefComplete));
+                q.steps.Add(new QuestStep(L("确实击退两名拦截者并在东岸交付",
+                    "Defeat both real raiders and hand medicine to the east-bank families"),
+                    FloodReliefComplete));
+                q.target=FloodReliefCrossed||q.complete?
+                    new Point(79.5f,35.5f):new Point(59.5f,37.5f);
+                q.next=q.complete?L("东岸急救补给已经完成交接",
+                    "The eastern medicine has been genuinely delivered"):
+                    q.locked?L("先完成沉桥民用档案，恢复低潮渡船",
+                        "Restore the public tide ferry through the archive"):
+                    FloodReliefCrossed?(FloodReliefSecured?
+                        L("两名拦截者确已击败！立刻在东岸交付医疗包 · 剩余"+
+                            (int)Math.Ceiling(FloodReliefTime)+"秒",
+                          "Both real raiders defeated! Deliver the medicine at east dock · "+
+                            (int)Math.Ceiling(FloodReliefTime)+"s left"):
+                        L("击败拦截者 "+FloodReliefDefeated+"/2，保护药品封条 · 剩余"+
+                            (int)Math.Ceiling(FloodReliefTime)+"秒",
+                          "Defeat raiders "+FloodReliefDefeated+"/2 and guard cargo · "+
+                            (int)Math.Ceiling(FloodReliefTime)+"s left")):
+                    FloodReliefActive?L("携带药品搭乘西岸低潮渡船 · 剩余"+
+                        (int)Math.Ceiling(FloodReliefTime)+"秒",
+                        "Take the west-side low-tide ferry with medicine · "+
+                        (int)Math.Ceiling(FloodReliefTime)+"s left"):
+                    !LowTide?L("前往西岸旧水尺，等待退潮后领取药品",
+                        "Reach the western gauge and wait for low tide"):
+                    L("在西岸水尺领取急救包，开始真实护送",
+                        "Collect medicine at the west gauge to begin escort");
+                q.reward=L("首次送达硬币45、碎片1、经验65；公共渡船消耗永久由14降至10耐力；拦截者不提供可刷的战利品",
+                    "First delivery: 45 coins, 1 shard, 65 XP. Public ferry permanently costs 10 instead of 14 energy, with no farmable raider loot.");
                 return q;
             }
 
@@ -236,8 +300,8 @@ namespace Starfall
             {
                 q.title=L("第十一章 · 公共电网调谐","Chapter Eleven · The Civic Conduit");
                 q.category=L("战后电路 · 行走、相位与避让","POSTWAR GRID · MOVEMENT, TIMING & DODGING");
-                q.description=L("最后一道军令公开后，在堡垒南部真路捐献一枚零件，带着临时导体，80秒内依次走访三个阀门。每个阀门只在自己的绿色稳定窗口开放；旧网格会定期释放真实的延迟电弧。完成后，八地建好的避险棚获得与你在第十章所选民用政策对应的服务。",
-                    "After publishing the Last Directive, donate one fuse part at the western citadel desk, then physically walk east and time three distinct green valve windows within 80s. Dodge real telegraphed grid arcs. All rebuilt refuges gain a persistent service based on your Chapter Ten policy.");
+                q.description=L("最后军令公开后，在堡垒西端捐献熔断器，80秒内步行调谐三个阀门。各阀门须等待自己的绿色相位；遇电弧可花20耐力在当前阀门接地一次，导体受损超过15点时可花一枚零件现场抢修35点（每趟一次）。完成后，八地避险棚获得对应服务。",
+                    "After the Last Directive, donate a fuse and walk three timed valves within 80s. Wait for each green phase. Ground each active valve once for 20 energy to cancel live arcs, or use one spare part to repair 35 integrity when the conductor is significantly damaged (once per run). All rebuilt refuges gain their civic service.");
                 q.locked=!LastDirectiveComplete;
                 q.complete=CivicConduitComplete;
                 q.steps.Add(new QuestStep(L("在西端控制台捐献熔断器并开始调谐",
@@ -254,10 +318,12 @@ namespace Starfall
                     q.target=CivicConduitTarget(CivicConduitStage);
                     q.next=L("第 "+(CivicConduitStage+1)+"/3 阀门 · "+
                         (CivicConduitWindowOpen?"绿色窗口！":"等待相位变绿")+" · "+
-                        (int)Math.Ceiling(CivicConduitTimeLeft)+"秒",
+                        (int)Math.Ceiling(CivicConduitTimeLeft)+"秒 · 导体"+
+                        (int)Math.Ceiling(CivicConduitIntegrity)+"%",
                         "Valve "+(CivicConduitStage+1)+"/3 · "+
                         (CivicConduitWindowOpen?"GREEN NOW":"Wait for green")+
-                        " · "+(int)Math.Ceiling(CivicConduitTimeLeft)+"s");
+                        " · "+(int)Math.Ceiling(CivicConduitTimeLeft)+"s · "+
+                        (int)Math.Ceiling(CivicConduitIntegrity)+"% charge");
                 }
                 else
                 {
@@ -443,8 +509,8 @@ namespace Starfall
             {
                 q.title=L("归乡送达 · 八地居民救援包","Homeward Deliveries · Eight Civilian Parcels");
                 q.category=L("真实步行运输 · 修桥后的生活","ACTUAL WALKING · LIFE AFTER REPAIR");
-                q.description=L("先修好同一地区的桥和避险棚，在95秒内背包步行过桥。桥南有两名真正出击的劫匪，受击会损坏物资。检查站可消耗零件修补或花30耐力开启护送结界。传送或超时不能代替亲手交付。",
-                    "Repair the bridge and remote shelter, then carry aid on foot across the span within 95 seconds. Two real raiders intercept the southbound route. Enemy hits tear the parcel; the checkpoint can repair it for one spare part or ward it for 30 energy. Teleports cannot substitute for real delivery.");
+                q.description=L("先修好桥与避险棚，95秒内背包步行过桥。桥南有两名真正出击的劫匪：可迂回正常交付，也可亲手击败两人并送达，获得每地一次安全护送奖金。检查站可消耗零件修补或花30耐力开启护送结界。传送不能代替亲手交付。",
+                    "Repair bridge and refuge, then deliver on foot within 95s. Evade the two real raiders for normal delivery, or defeat BOTH in combat and complete the run for a one-time secure-route bonus per region. Repair cargo or buy a temporary ward at the checkpoint; teleporting never qualifies.");
                 q.locked=!Has("intro");q.complete=FarCourierDeliveredCount==8;
                 int region=-1;
                 for(int i=0;i<8;i++)
@@ -479,8 +545,8 @@ namespace Starfall
                     q.room=9;q.target=new Point(22.5f,36.5f);
                     q.next=L("前往旅店制图室公开八份补给回执","Publish the signed manifests at the Hearth Inn");
                 }
-                q.reward=L("八次真实送达各得硬币25、碎片1、经验38；八地技能点1；公布公约后全面提升避险棚治疗和御寒",
-                    "Each real delivery: 25 coins, 1 shard, 38 XP; all eight: +1 talent. Publishing the charter upgrades every refuge.");
+                q.reward=L("每地送达硬币25、碎片1、经验38；真实击败两名劫匪并交付额外硬币10、经验15；八地技能点1；公开公约后强化避险棚",
+                    "Each delivery: 25 coins, 1 shard, 38 XP. Defeat both raiders and deliver for +10 coins, +15 XP once per region. All eight: +1 talent; the charter upgrades refuges.");
                 return q;
             }
 
@@ -610,6 +676,91 @@ namespace Starfall
                     L("走到救援岗主动发起防卫","Reach the watchpost and start the defense");
                 q.reward=L("每岗硬币 +14、碎片 +1、经验 +28；八岗全守住再得1技能点",
                     "Each defense: +14 coins, +1 shard, +28 XP; all eight: +1 talent point");
+                return q;
+            }
+
+            if(id=="outer_watch_flawless")
+            {
+                q.title=L("无损守卫 · 八地荣誉挑战",
+                    "Flawless Watches · Eight Honor Challenges");
+                q.category=L("精英挑战 · 战斗精通",
+                    "VETERAN CHALLENGE · COMBAT MASTERY");
+                q.description=L(
+                    "在每处真正的精英三人防卫中击退全部敌人，物资剩余至少90%，全过程不使用抢修或路障。可重新挑战已完成的精英防卫争取徽章；旧奖励不会重复发放。",
+                    "Defeat all three live veteran raiders with >=90% cache integrity, no repairs and no barricade. Replay cleared veteran battles to earn medals without duplicating earlier loot.");
+                q.locked=OuterPatrolVeteranWins==0;
+                q.complete=OuterPatrolFlawlessWins==8;
+                int target=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场",
+                    "堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach",
+                    "Citadel","Mistport","Glasswind","Frostchime"};
+                for(int room=0;room<8;room++)
+                {
+                    bool medal=OuterPatrolFlawlessDone(room);
+                    bool unlocked=OuterPatrolDone(room);
+                    q.steps.Add(new QuestStep(L(zh[room],en[room])+
+                        (medal?" ✓":unlocked?" · 可挑战无损防卫":" · 先守住普通救援岗"),
+                        medal));
+                    if(target<0&&!medal&&unlocked&&CanEnter(room))
+                        target=room;
+                }
+                q.room=target<0?0:target;
+                q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.kind=="outerwatch")
+                        {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("八地无损防卫已全部获得徽章",
+                    "All eight flawless watch medals earned"):
+                    target<0?L("先解锁救援岗和精英挑战",
+                        "Unlock a defended veteran outpost first"):
+                    L("在标记哨岗完成无路障、无抢修的真实精英战",
+                        "Defend the marked cache without repairs or a barricade");
+                q.reward=L("每枚徽章强化当地安全医疗恢复；八地全部完成再得技能点 +1",
+                    "Each medal improves care at that safe outpost; all eight: +1 talent point");
+                return q;
+            }
+
+            if(id=="outer_watch_veteran")
+            {
+                q.title=L("精英巡防 · 八地补给岗","Veteran Patrol · Eight Relief Outposts");
+                q.category=L("精英挑战 · 战斗与野外补给",
+                    "VETERAN CHALLENGE · DEFENSE & FIELD CARE");
+                q.description=L(
+                    "每处救援岗的普通战斗通关后，仍可主动开启 110 秒进阶防卫。近战、游击射手与重甲撞击手会真实攻击你或补给箱。击退三人可永久强化当地的医疗与补给。再次挑战不重复领奖。",
+                    "After clearing normal defense, challenge the 110-second veteran team at each outpost. Melee, archer and heavy slammer attack you and the real cache. Defeat all three to improve local treatment. Replays award no duplicate loot.");
+                q.locked=OuterPatrolWins==0;
+                q.complete=OuterPatrolVeteranWins==8;
+                int target=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场",
+                    "堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach",
+                    "Citadel","Mistport","Glasswind","Frostchime"};
+                for(int room=0;room<8;room++)
+                {
+                    bool done=OuterPatrolVeteranDone(room);
+                    bool available=OuterPatrolDone(room);
+                    q.steps.Add(new QuestStep(L(zh[room],en[room])+
+                        (done?" ✓":available?" · 精英挑战已解锁":" · 先守住普通补给"),
+                        done));
+                    if(target<0&&!done&&available&&CanEnter(room))
+                        target=room;
+                }
+                q.room=target<0?0:target;
+                q.target=new Point(18,15);
+                if(target>=0)
+                    foreach(WorldObject o in data.maps[target].objects)
+                        if(o.kind=="outerwatch")
+                        {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("全部八处精英补给岗已强化",
+                    "All eight veteran outposts upgraded"):
+                    target<0?L("先完成一处普通物资防卫，开启进阶挑战",
+                        "Defend one standard supply post to unlock veteran challenges"):
+                    L("到已守住的救援岗发起三人精英防卫",
+                        "Challenge three live raiders at a defended outpost");
+                q.reward=L("每处首次获胜：硬币26、碎片2、经验60，强化安全恢复；八处再得技能点1",
+                    "First clear each: 26 coins, 2 shards, 60 XP, better local care; all eight: +1 talent");
                 return q;
             }
 
@@ -1013,8 +1164,8 @@ namespace Starfall
                 q.category=L("战后主线 · 三地公共设施","POST-FINALE MAIN STORY · THREE PUBLIC SITES");
                 q.locked=save.ending==0;
                 q.complete=Has("afterlight_complete");
-                q.description=L("星核结局已经落定，却不是每条回家路都恢复了。与莉雅商议，在荆棘密林、沉没遗迹与赤铁矿场分别校准旧锚点，自主决定如何服务居民，然后在90秒内把负载亲自送至另一个场景物件，真正消耗木材、药草或星晶与零件后建立永久公共设施。三地完成后返回公会公开战后公约。原有结局、Boss、远岸功能全部保留。",
-                    "The core ending has been decided, but damaged roads remain. Choose civic designs with Lyra, calibrate source anchors in Thornwood, Drowned Ruins and Ironreach, then personally carry live charges to distant receivers within 90 seconds. Genuine repair materials fund three useful permanent regional services. Publish a final public recovery charter without replacing the existing ending, boss or farshore routes.");
+                q.description=L("星核结局之后，在三地区校准锚点并决定公共用途。可以免费用90秒运输负载，或付1枚星晶购买120秒稳态负载，后者能承受更多真实战斗冲击。必须亲自携带完整载荷前往接收端，支付真实安装材料，三地建设完毕后返回公会公布公约。",
+                    "After the original ending, choose local civic designs and calibrate three regional anchors. Carry a free 90-second load, or spend a real starcrystal on a 120-second stabilized load that better resists combat hits. Physically deliver intact power to the original receiver and spend real installation materials before publishing the public charter.");
                 q.steps.Add(new QuestStep(L("到余烬镇公会加入重建议事","Join the Emberfall reconstruction council"),Has("afterlight_started")));
                 for(int i=1;i<=3;i++)
                     q.steps.Add(new QuestStep(
@@ -1042,7 +1193,13 @@ namespace Starfall
                 q.next=q.complete?L("第五章完成 · 重建公约已公开","Chapter Five complete · Charter published"):
                     q.locked?L("先完成厄洛的星核主线结局","Finish the original starcore ending first"):
                     !Has("afterlight_started")?L("去公会重建议事台接受战后任务","Accept the reconstruction mission at the guild council"):
-                    AfterlightChargeRegion!=0?L("90秒内将稳定余光送到远端公共接收台","Deliver the charge to the distant receiver within 90 seconds"):
+                    AfterlightChargeRegion!=0?L(
+                        "送往远端接收台：剩余"+(int)Math.Ceiling(AfterlightChargeLeft)+
+                        "秒 · 载荷"+(int)Math.Ceiling(AfterlightChargeIntegrity)+"%"+
+                        (AfterlightChargeIntegrity<35?" · 先在接收台使用月光草修复至35%":""),
+                        "Carry to distant receiver: "+(int)Math.Ceiling(AfterlightChargeLeft)+
+                        "s · load integrity "+(int)Math.Ceiling(AfterlightChargeIntegrity)+"%"+
+                        (AfterlightChargeIntegrity<35?" · repair to 35% at receiver with Moonherb":"")):
                     next==0?L("回公会正式发布三地公约","Publish the public charter back at the guild"):
                     Has("afterlight_done_"+next) && !Has("afterlight_steward_"+next)?
                         L("回到当地证人身边，亲自签署设施维护责任","Return to the living witness to sign regional stewardship"):
@@ -1070,8 +1227,11 @@ namespace Starfall
                     q.complete || BlackoutActive && (blackoutRescued & (1<<(i-1)))!=0));
                 q.steps.Add(new QuestStep(L("公布避难名单","Publish evacuation roster"),q.complete));
                 q.target=BlackoutPoint("blackoutshelter");
+                bool civilianBehind=BlackoutActive&&blackoutFollowing!=0&&
+                    (blackoutFollowerPosition-Position).Length>3f;
                 if(BlackoutActive && blackoutFollowing!=0)
-                    q.target=BlackoutPoint("blackoutshelter");
+                    q.target=civilianBehind?blackoutFollowerPosition:
+                        BlackoutPoint("blackoutshelter");
                 else if(BlackoutActive)
                 {
                     for(int i=1;i<=3;i++)
@@ -1082,7 +1242,14 @@ namespace Starfall
                 q.next=q.complete?L("救援成功；居民名单可成为民用停战依据","Rescue complete; the roster can support civilian ceasefire"):
                     q.locked?L("先完成并公开莉雅的第四章三核审计","First complete and publish Lyra's Chapter Four audit"):
                     BlackoutActive && blackoutFollowing!=0?
-                        L("把正在跟随的居民亲自送到公共避难所","Escort your following civilian to public shelter"):
+                        (civilianBehind?
+                            L("居民落在后面！沿指引回头接应，再一起前往避难所",
+                              "Your civilian is behind! Follow the marker back before returning to shelter"):
+                            (blackoutFollowerWard>0?
+                                L("护送居民前往避难所 · 防护灯剩余1次",
+                                  "Escort to shelter · civilian arc ward ready"):
+                                L("把正在跟随的居民亲自送到公共避难所",
+                                  "Escort your following civilian to public shelter"))):
                     BlackoutActive && blackoutRescued==7?
                         L("返回避难所公布三名居民名单","Return to publish the roster at the shelter"):
                     BlackoutActive?L("找到下一名居民，按E让其跟随","Find the next citizen and press E to escort"):
@@ -1717,6 +1884,11 @@ namespace Starfall
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
+            // During an actual timed supply defense the world's objective
+            // arrow points back to the vulnerable physical cache, never
+            // away to an unrelated stale journal waypoint. Original tracked
+            // quest selection is left untouched after combat.
+            if(OuterPatrolActive)return outerPatrolPost;
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.

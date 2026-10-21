@@ -92,13 +92,22 @@ namespace Starfall
             bool firstCache=!OuterCacheRecovered(room);
             if(firstCache)
             {
+                int material = room % 3;
+                // Chests are one-time physical supplies. Unlike narrative
+                // evidence, leave the recovery flag unset until ALL rewards
+                // fit; otherwise a full stack erases the chest on reload.
+                if (save.coins > 999981 || save.inventory[material] > 9997)
+                {
+                    Notify("救援箱物资尚未领取。请留出18硬币和2份材料的空间。",
+                        "Relief chest still holds supplies. Free room for 18 coins and 2 materials.");
+                    return true;
+                }
                 Flag("outer_cache_"+room);
-                save.coins+=18;
-                int material=room%3;
-                save.inventory[material]+=2;
+                CreditCoins(18);
+                CreditInventory(material, 2);
                 AddXp(22);sound="reward";revision++;
                 if(OuterRescueCount==8&&!Has("outer_rescues_complete"))
-                { Flag("outer_rescues_complete");save.skillPoints++;revision++; }
+                { Flag("outer_rescues_complete");CreditSkillPoints(1);revision++; }
                 RecordMoment("第 "+(room+1)+" 片边境的求援灯已恢复，救援箱里留下的人名与物资都被找回。",
                     "The remote rescue signal and relief chest were recovered in region "+(room+1)+".");
             }

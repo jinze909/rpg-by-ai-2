@@ -230,8 +230,13 @@ namespace Starfall.Tests
                     "A clean escape avoids damage and restores the authored eight energy");
                 float expected=g.Profile(g.save.weapon,g.Style).damage*1.5f;
                 g.Attack(new Point(1,0));
-                Check(g.playerAction!=null&&Math.Abs(g.playerAction.damage-expected)<.001f&&g.riposteTime==0,
-                    "The next actual attack consumes the counter for exactly 50 percent bonus damage");
+                ActorAction riposte=g.playerAction;
+                Check(riposte!=null&&riposte.riposteArmed&&g.riposteTime>0,
+                    "The next accepted swing reserves the counter without spending it before contact");
+                for(int n=0;n<45&&!riposte.released;n++)g.Tick(.02f,new Point());
+                Check(riposte.released&&Math.Abs(riposte.damage-expected)<.001f&&
+                    g.riposteTime<=0,
+                    "The actual physical release spends the counter once for exactly 50 percent bonus damage");
             }
             // Regional delayed hazards use the same visible escape rule.
             var hazard=Quiet(data);Point hazardStart=hazard.Position;

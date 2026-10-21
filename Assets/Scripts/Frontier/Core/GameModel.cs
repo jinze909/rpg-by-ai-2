@@ -90,7 +90,7 @@ namespace Starfall
         public int id, kind, state, cycle;
         public bool boss, moving;
         // Ephemeral combat intent: roadside raiders may target the protected traveler.
-        public bool targetingWayfarer, targetingReliefCivilian;
+        public bool targetingWayfarer, targetingReliefCivilian, targetingAfterlightStock, targetingOuterPatrolStock;
         public float x, y, hp, maxHp, timer, stun, flash, stagger, staggerRecovery;
         public Point target, attackOrigin, attackDestination;
         public Point facing = new Point(1, 0);
@@ -127,12 +127,24 @@ namespace Starfall
         public bool friendly, explosive, piercing;
         public bool slowing, technique, blockedAtSpawn;
         // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
-        public bool roadTrialOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned;
+        public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned;
         public string source, visual;
         public float age, height = 32, launchHeight = -1, flightHeight = -1;
+        // Visual-only origin for the CURRENT direction's painted projectile
+        // tail. When a sword guard reflects a shot, the old inbound trail
+        // must not instantly appear behind the new outbound direction.
+        // This field is transient; GameCore SaveData and snapshots are intact.
+        public float trailResetAt;
         public ImpactProfile impact;
         public float Radius { get { return visual == "arrow" || visual == "enemyArrow" ? .14f : .28f; } }
         public int theme;
+        // A projectile can cross several independently spawned actors with the
+        // SAME numeric ID (wave resets, restored encounters or procedural IDs).
+        // Collision deduplication therefore follows the live Enemy reference,
+        // never its reusable save/spawn ID. This stays transient with the shot.
+        public readonly HashSet<Enemy> hitActors = new HashSet<Enemy>();
+        // Preserve the existing contact-ID trace for visual/debug consumers.
+        // Different actor instances may legitimately append the same number.
         public List<int> hits = new List<int>();
     }
     public class Effect
@@ -142,9 +154,20 @@ namespace Starfall
         public float life, maxLife, radius, height = -1;
         public Point direction;
         public int variant;
+        // Live Vanguard/Arcanist Q footprint: authored center spark plus
+        // terrain-clipped damage ring. Effects are transient and this flag
+        // never touches the v1/v2 save schema or any imported Sprite.
+        public bool playerAreaSkill;
+        // Short-lived boss-reinforcement warnings follow their actual attack
+        // owner; stun, Break, or death retracts only this pending cue.
+        public int bossSummonCueOwnerId;
+        // Numeric spawn IDs may repeat inside concurrent encounters. The
+        // actual Enemy object owns this transient call warning and alone
+        // can retract it; ordinary number effects have a null owner.
+        public Enemy bossSummonCueOwner;
         // Only encounter-owned warnings retire when an optional rescue ends.
         // Ordinary combat effects are preserved.
-        public bool reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned;
+        public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned;
         public Effect(string kind, Point position, float life, string text = "")
         { this.kind = kind; this.position = position; this.life = maxLife = life; this.text = text; }
     }

@@ -247,5 +247,318 @@ namespace Starfall.Tests
                 "Earned civilian ceasefire also changes the original ending's actual historical account");
         }
 
+        public static void BlackoutHandoverRequiresCivilianAtPhysicalShelter(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=300;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                citizen=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=citizen.x;g.save.y=citizen.y;
+            Action(g,citizen.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1&&g.BlackoutFollowerHealth>0,
+                "Authentic Citadel pickup creates one living civilian");
+            // The player can stand beside the shelter edge while the
+            // civilian is still outside. Previously proximity to only
+            // the HERO counted as a successful physical handover.
+            var posField=typeof(GameCore).GetField("blackoutFollowerPosition",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(posField!=null,"Live escort maintains a genuine follower position");
+            g.save.x=shelter.x+1.7f;g.save.y=shelter.y;
+            posField.SetValue(g,new Point(shelter.x+3.8f,shelter.y));
+            Check((g.BlackoutFollowerPosition-g.Position).Length<2.3f&&
+                (g.BlackoutFollowerPosition-new Point(shelter.x,shelter.y)).Length>2.8f,
+                "Player and civilian can be close despite civilian being outside the shelter");
+            g.Talk(shelter);
+            Check(g.conversation!=null&&!Array.Exists(g.conversation.choices,
+                c=>c.action=="blackout_deliver_1"),
+                "Shelter dialogue refuses a ghost handover outside the civic safety radius");
+            g.Close();
+            var choose=typeof(GameCore).GetMethod("ChooseBlackout",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Authoritative choice handler exists");
+            choose.Invoke(g,new object[]{"blackout_deliver_1"});
+            Check(g.BlackoutFollowing==1&&g.BlackoutRescued==0,
+                "Direct choice dispatch cannot forge the civilian roster either");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            posField.SetValue(g,new Point(shelter.x+.9f,shelter.y));
+            g.Talk(shelter);
+            Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
+                c=>c.action=="blackout_deliver_1"),
+                "A living civilian genuinely inside the public lamps may be handed over");
+            g.Close();
+            choose.Invoke(g,new object[]{"blackout_deliver_1"});
+            Check(g.BlackoutFollowing==0&&g.BlackoutRescued==1&&
+                !g.Has("blackout_complete"),
+                "Only actual first civilian shelter arrival updates the transient rescue roster");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.Has("blackout_started")&&
+                !restored.Has("blackout_complete")&&!restored.BlackoutActive,
+                "Existing v2 saves still never persist a partially escorted civilian");
+        }
+
+        public static void BlackoutCivilianNavigatesAroundARealWallCorner(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=400;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                citizen=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=citizen.x;g.save.y=citizen.y;
+            Action(g,citizen.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1,
+                "The actual Citadel citizen enters the normal timed escort");
+            MapData map=data.maps[4];int xFound=-1,yFound=-1;
+            for(int y=8;y<map.rows.Length-9&&xFound<0;y++)
+            for(int x=8;x<map.rows[y].Length-10&&xFound<0;x++)
+            {
+                Point left=new Point(x+.5f,y+.5f),
+                    middle=new Point(x+1.5f,y+.5f),
+                    right=new Point(x+2.5f,y+.5f),
+                    a=new Point(x+.5f,y-1.5f),b=new Point(x+1.5f,y-1.5f),
+                    c=new Point(x+2.5f,y-1.5f);
+                if(map.rows[y][x+1]!='.'||
+                    !g.CanStand(left)||!g.CanStand(middle)||
+                    !g.CanStand(right)||!g.CanStand(a)||
+                    !g.CanStand(b)||!g.CanStand(c))continue;
+                xFound=x;yFound=y;
+            }
+            Check(xFound>=0,"The original Citadel offers a walkable alternate corridor");
+            var field=typeof(GameCore).GetField("blackoutFollowerPosition",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(field!=null,"The genuine civilian location is maintained at runtime");
+            string oldRow=map.rows[yFound];
+            try
+            {
+                char[] blocked=oldRow.ToCharArray();blocked[xFound+1]='#';
+                map.rows[yFound]=new string(blocked);
+                Point start=new Point(xFound+.5f,yFound+.5f),
+                    finish=new Point(xFound+2.5f,yFound+.5f);
+                Check(!g.CanStand(new Point(xFound+1.5f,yFound+.5f))&&
+                    g.CanStand(start)&&g.CanStand(finish),
+                    "An added wall blocks the direct citizen path, not either actor");
+                g.save.x=finish.x;g.save.y=finish.y;
+                field.SetValue(g,start);
+                bool legal=true;
+                for(int i=0;i<135&&g.BlackoutActive&&
+                    (g.BlackoutFollowerPosition-g.Position).Length>1.4f;i++)
+                {
+                    g.Tick(.03f,new Point());
+                    if(!g.CanStand(g.BlackoutFollowerPosition)){legal=false;break;}
+                }
+                Check(legal&&g.BlackoutActive&&
+                    (g.BlackoutFollowerPosition-g.Position).Length<1.5f,
+                    "Civilian follows the path around the wall without snapping, clipping or abandoning the mission");
+                Check(g.BlackoutRescued==0&&!g.Has("blackout_complete"),
+                    "Following through the alternate corridor never gives a free story completion");
+            }
+            finally{map.rows[yFound]=oldRow;}
+            g.PrepareSave();var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(reloaded.save.version==2&&!reloaded.BlackoutActive,
+                "Transient path recovery does not extend old SaveData v2");
+        }
+
+        public static void BlackoutQuestCompassRecoversStrandedCivilianBeforeShelter(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                civilian=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=civilian.x;g.save.y=civilian.y;
+            Action(g,civilian.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1,"The named citizen must be under genuine escort");
+            Point position=g.BlackoutFollowerPosition;
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Check((g.Position-position).Length>3f,
+                "Actual shelter is distant from the picked-up civilian");
+            var q=g.GetQuest("blackout");
+            Check((q.target-position).Length<.01f&&
+                q.next.Contains("回头"),
+                "The real journal directs the player back to the stranded civilian");
+            g.save.english=true;
+            q=g.GetQuest("blackout");
+            Check((q.target-position).Length<.01f&&
+                q.next.Contains("behind"),
+                "English journal and compass use the same physical rescue target");
+            g.save.english=false;
+            g.save.x=position.x;g.save.y=position.y;
+            q=g.GetQuest("blackout");
+            Check((q.target-new Point(shelter.x,shelter.y)).Length<.01f&&
+                q.next.Contains("避难所"),
+                "Once reunited the original authored refuge becomes the live navigation target");
+            Check(g.BlackoutRescued==0&&!g.Has("blackout_complete"),
+                "Navigation guidance never registers citizens or pays the chapter reward");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.BlackoutActive,
+                "Temporary rescue compass state does not enter v2 saves");
+        }
+
+        public static void BlackoutOneUseCivilianWardAbsorbsActualArcAndRespectsResources(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=350;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                lena=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=lena.x;g.save.y=lena.y;
+            g.save.energy=24;
+            g.Talk(lena);
+            Check(g.conversation!=null&&
+                Array.Exists(g.conversation.choices,c=>c.action=="blackout_ward_1"),
+                "The actual unrescued NPC offers an optional defensive pickup");
+            g.Close();
+            Action(g,lena.kind,"blackout_ward_1");
+            Check(g.BlackoutFollowing==0&&g.BlackoutFollowerWard==0&&
+                g.save.energy==24&&g.BlackoutActive,
+                "Insufficient energy neither picks up the civilian nor grants free shielding");
+            g.save.energy=70;
+            Action(g,lena.kind,"blackout_ward_1");
+            Check(g.BlackoutFollowing==1&&g.BlackoutFollowerWard==1&&
+                g.BlackoutFollowerHealth==48&&g.save.energy==45,
+                "The real ward-equipped pickup consumes exactly 25 energy once");
+            // The rescued follower is intentionally no longer a world
+            // interaction target. Probe the authoritative action dispatcher
+            // directly rather than pretending the NPC still offers dialogue.
+            var choose=typeof(GameCore).GetMethod("ChooseBlackout",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(choose!=null,"Actual blackout action handler exists");
+            choose.Invoke(g,new object[]{"blackout_ward_1"});
+            Check(g.BlackoutFollowerWard==1&&g.save.energy==45,
+                "Direct action replay cannot stack wards or double charge resources");
+            g.save.english=true;
+            Check(g.GetQuest("blackout").next.Contains("ward ready"),
+                "The real English quest HUD announces active one-use protection");
+            g.save.english=false;
+            Check(g.GetQuest("blackout").next.Contains("防护灯"),
+                "The same protection is visible in Chinese quest guidance");
+            Advance(g,5.2f);
+            Check(g.BlackoutActive&&g.BlackoutFollowerHealth==48&&
+                g.BlackoutFollowerWard==0,
+                "One actual delayed storm arc consumes the ward instead of hurting the escorted mother");
+            Check(!g.GetQuest("blackout").next.Contains("防护灯"),
+                "Spent protection no longer advertises itself as available");
+            Advance(g,5.5f);
+            Check(g.BlackoutActive&&g.BlackoutFollowerHealth==34,
+                "A second genuine shield surge damages an unwarded civilian normally");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&!loaded.BlackoutActive&&
+                loaded.BlackoutFollowerWard==0&&!loaded.Has("blackout_complete"),
+                "Unfinished warded rescues never enter legacy v2 save slots");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_abort");
+            Check(!g.BlackoutActive&&g.BlackoutFollowerWard==0,
+                "The existing physical abort retires protection without fake rewards");
+        }
+
+        public static void BlackoutCannotOverlapLiveCitadelSecurityButStartsAfterWithdrawal(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            foreach(string f in new[]{"triad_complete","civic_response_ledger",
+                "last_directive_started","last_directive_clue_0",
+                "last_directive_clue_1","last_directive_clue_2"})
+                g.save.flags.Add(f);
+            g.Enter(4);g.enemies.Clear();g.invulnerable=300;
+            WorldObject console=Object(g,"lastdirectivecore"),
+                shelter=Object(g,"blackoutshelter");
+            g.save.x=console.x;g.save.y=console.y;
+            Action(g,console.kind,"last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Actual terminal spawns two live Citadel security defenders");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.Talk(shelter);
+            Check(g.conversation!=null&&
+                !Array.Exists(g.conversation.choices,
+                    c=>c.action=="blackout_start"),
+                "Existing public shelter refuses to offer a competing rescue during security combat");
+            g.Close();
+            var choose=typeof(GameCore).GetMethod("ChooseBlackout",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Blackout uses an authoritative gameplay choice handler");
+            choose.Invoke(g,new object[]{"blackout_start"});
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2&&
+                !g.BlackoutActive&&!g.Has("blackout_started"),
+                "Directly forged rescue action cannot hide or reset the live original enemies");
+            g.save.x=console.x;g.save.y=console.y;
+            Action(g,console.kind,"last_directive_abort");
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveEnemies==0,
+                "Real security console withdraws its own defenders without losing chapter testimony");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            Check(g.BlackoutActive&&g.BlackoutTime==180&&
+                g.Has("blackout_started"),
+                "Authentic shelter resumes full 180-second rescue after prior work explicitly ends");
+            g.PrepareSave();var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(reloaded.save.version==2&&reloaded.Has("last_directive_started")&&
+                reloaded.Has("blackout_started")&&!reloaded.BlackoutActive,
+                "Both recorded story milestones survive old v2 slots without persisting competing live actors");
+        }
+
+        public static void BlackoutAlternatingPulsesTargetTheRealFollowerWithDodgeTime(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=200;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                lena=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            g.save.x=lena.x;g.save.y=lena.y;
+            Action(g,lena.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1&&g.BlackoutFollowerWard==0,
+                "The free real rescue option retains a vulnerable citizen");
+            Advance(g,5.2f);
+            Check(g.BlackoutFollowerHealth==34,
+                "First authentic shield arc remains aimed at the player and damages a stationary follower");
+            // Establish a distinct but still nearby civilian location before
+            // the second real telegraph, to prove it targets the follower,
+            // not the original hero position.
+            var position=typeof(GameCore).GetField("blackoutFollowerPosition",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var pulse=typeof(GameCore).GetField("blackoutPulse",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var cycle=typeof(GameCore).GetField("blackoutPulseIndex",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(position!=null&&pulse!=null&&cycle!=null,
+                "Real escort location and timed surge scheduler exist");
+            Point offset=new Point();
+            foreach(Point step in new[]{new Point(1.5f,0),new Point(-1.5f,0),
+                new Point(0,1.5f),new Point(0,-1.5f)})
+                if(g.CanStand(g.Position+step)){offset=step;break;}
+            Check(offset.Length>1f,"The actual Citadel street has room for a nearby escort");
+            position.SetValue(g,g.Position+offset);
+            pulse.SetValue(g,.02f);
+            cycle.SetValue(g,1);
+            Point expected=g.BlackoutFollowerPosition;
+            g.Tick(.05f,new Point());
+            var warning=g.hazards.Find(h=>h.blackoutOwned&&h.timer>1.2f);
+            Check(warning!=null&&
+                (warning.position-g.BlackoutFollowerPosition).Length<.01f&&
+                (warning.position-g.Position).Length>1.1f&&
+                g.effects.Exists(e=>e.blackoutOwned&&e.kind=="warn"),
+                "Second real delayed arc locks onto the live citizen position, with a visible warning and 1.35s response");
+            // Lead the follower outside the warning while it is still armed.
+            float health=g.BlackoutFollowerHealth;
+            for(int i=0;i<78&&g.BlackoutActive;i++)
+                g.Tick(.02f,offset.Normalized*-1f);
+            Check(g.BlackoutActive&&g.BlackoutFollowerHealth==health,
+                "Steering the real following civilian out of its marked spot dodges the targeted strike");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&!restored.BlackoutActive,
+                "Alternating live targeting adds no persistent state or save migration");
+        }
+
     }
 }

@@ -74,9 +74,9 @@ namespace Starfall
             bool done=stage==3;
             if(done)
             {
-                save.coins+=24;save.shards+=2;AddXp(35);
+                CreditCoins(24); CreditShards(2); AddXp(35);
                 if(TrailCircuitCount==8&&!Has("trail_circuits_all"))
-                { Flag("trail_circuits_all");save.skillPoints++;revision++; }
+                { Flag("trail_circuits_all"); CreditSkillPoints(1); revision++; }
                 RecordMoment("巡路队第 "+room+" 地的三处原始地标都经亲自抵达，开放区域的行路补给开始持续生效。",
                     "Three original roadwarden bearings were walked and verified for "+routeEn[room]+
                     "; the annex now supports sustained civilian stamina recovery.");

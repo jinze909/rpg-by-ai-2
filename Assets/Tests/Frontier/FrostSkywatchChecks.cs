@@ -392,5 +392,115 @@ namespace Starfall.Tests
                 loaded.SkywatchRoom==0,
                 "Reload preserves completed exploration but not an unfinished boss fight");
         }
+        public static void GroundedFrostGuardianCannotLeaveLiveOrbsOrFalseWarnings(Campaign data)
+        {
+            for (int test = 0; test < 2; test++)
+            {
+                var g = Fresh(data); g.save.stage = 3;
+                foreach (string flag in new[] { "mountain_report",
+                    "desert_report", "gate_7", "skywatch_started",
+                    "skywatch_prism_1", "skywatch_prism_2",
+                    "skywatch_prism_3" }) g.save.flags.Add(flag);
+                g.Enter(7); g.enemies.Clear(); g.effects.Clear();
+                g.projectiles.Clear();
+                var observatory = Object(g, "skyobservatory");
+                g.save.x = observatory.x; g.save.y = observatory.y;
+                g.invulnerable = 100;
+                Action(g, observatory.kind, "skywatch_start");
+                Enemy guardian = g.enemies.Find(g.IsSkywatchEnemy);
+                Check(guardian != null && g.SkywatchGroundingAvailable,
+                    "Actual skywatch fight is live with one original grounded defense");
+                // Begin real enemy AI at a legal west-side position, rather
+                // than synthesizing a red circle or an owned missile in tests.
+                g.save.x = guardian.x - 2.5f;
+                g.save.y = guardian.y;
+                Check(g.CanStand(g.Position),
+                    "The actual skywatch guardian has legal adjacent ground for its attack");
+                if (test == 0)
+                {
+                    guardian.state = 1;
+                    guardian.timer = .005f;
+                    guardian.target = g.Position;
+                    guardian.Face(g.Position - guardian.Position);
+                    g.Tick(.05f, new Point());
+                    Check(g.projectiles.Exists(p => p.skywatchOwned),
+                        "The real live Boss release generated airborne observatory-owned missiles");
+                }
+                else
+                {
+                    guardian.state = 0; guardian.timer = 0;
+                    g.Tick(.05f, new Point());
+                    Check(guardian.state == 1 &&
+                        g.effects.Exists(e => e.kind == "danger" && e.skywatchOwned),
+                        "The real Boss windup emitted its full-duration owned danger circle before attack contact");
+                }
+                var unrelated = new Effect("discover", new Point(12,14), 4);
+                g.effects.Add(unrelated);
+                var arrow = new Projectile { position = new Point(12,14),
+                    velocity = new Point(1,0), friendly = true, life = 3,
+                    visual = "arrow", damage = 0 };
+                g.projectiles.Add(arrow);
+                g.save.x = observatory.x; g.save.y = observatory.y;
+                Action(g, observatory.kind, "skywatch_ground");
+                Check(g.SkywatchGroundingTime > 7.9f &&
+                    guardian.state == 0 && guardian.stun >= 1.8f &&
+                    !g.projectiles.Exists(p => p.skywatchOwned) &&
+                    !g.effects.Exists(e => e.skywatchOwned) &&
+                    g.effects.Contains(unrelated) && g.projectiles.Contains(arrow),
+                    "A single authentic paid grounding interrupts the Boss and retires only its live missiles and unspent warnings");
+                g.Close();
+                g.Tick(.05f, new Point());
+                Check(g.projectiles.Contains(arrow) &&
+                    !g.projectiles.Exists(p => p.skywatchOwned),
+                    "Unrelated player shots continue normally without resurrecting pre-grounding observatory missiles");
+            }
+        }
+
+        public static void SkywatchBossDisappearanceCannotForgeAnAstronomerVictory(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3; g.save.level = 12;
+            foreach (string flag in new[] {
+                "mountain_report", "desert_report", "gate_7",
+                "skywatch_started", "skywatch_prism_1",
+                "skywatch_prism_2", "skywatch_prism_3" })
+                g.save.flags.Add(flag);
+            g.Enter(7); g.enemies.Clear(); g.projectiles.Clear();
+            var altar = Object(g, "skyobservatory");
+            g.save.x = altar.x; g.save.y = altar.y;
+            Action(g, altar.kind, "skywatch_start");
+            var guardian = g.enemies.Find(g.IsSkywatchEnemy);
+            Check(g.SkywatchRoom == 7 && guardian != null,
+                "The astronomer's real calibrated observatory starts its original armored boss");
+            g.enemies.Remove(guardian);
+            g.Tick(.05f, new Point());
+            Check(g.SkywatchRoom == 0 && !g.Has("skywatch_defeated") &&
+                !g.Has("skywatch_complete"),
+                "A vanished but undefeated boss cannot counterfeit an earned public spectrum");
+            g.Talk(altar);
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices,
+                    c => c.action == "skywatch_start"),
+                "The physical observatory offers a legitimate free retry after an abnormal reset");
+            g.Close(); g.enemies.Clear();
+            Action(g, altar.kind, "skywatch_start");
+            guardian = g.enemies.Find(g.IsSkywatchEnemy);
+            Check(g.SkywatchRoom == 7 && guardian != null,
+                "A fresh legitimate guardian spawns with the same authored combat");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit != null, "Original actual lethal damage is the only source of victory");
+            hit.Invoke(g, new object[] { guardian, 99999f, false, null, null });
+            g.Tick(.05f, new Point());
+            Check(g.Has("skywatch_defeated") &&
+                g.SkywatchRoom == 0 && !g.Has("boss_7"),
+                "Real lethal skywatch combat confirms the optional boss without forging the unrelated main story gate");
+            g.PrepareSave();
+            var resumed = new GameCore(data, CloneSave(g.save));
+            Check(resumed.Has("skywatch_defeated") &&
+                !resumed.Has("skywatch_complete"),
+                "Verified defeat survives the original v2 slot and still needs Yilan's distinct publication");
+        }
+
     }
 }

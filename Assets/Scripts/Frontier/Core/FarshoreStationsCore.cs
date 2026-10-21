@@ -65,11 +65,11 @@ namespace Starfall
                 ResetFieldStationSurvey();
                 if (Has("fieldstation_survey_" + region)) return;
                 Flag("fieldstation_survey_" + region);
-                save.coins += 24; save.shards += 2; AddXp(30);
+                CreditCoins(24); CreditShards(2); AddXp(30);
                 if (Has("fieldstation_survey_5") && Has("fieldstation_survey_6") &&
                     Has("fieldstation_survey_7") && !Has("fieldstation_survey_complete"))
                 {
-                    Flag("fieldstation_survey_complete"); save.tea += 2;
+                    Flag("fieldstation_survey_complete"); CreditTea(2);
                     RecordMoment("三份风暴巡测数据已归档。远岸避风网可以预警下一场风暴。",
                         "Three field readings archived. The farshore network can forecast the next storm.");
                     Notify("三地巡测完成！获得24硬币、2碎片、30经验和额外凉茶2。",
@@ -334,7 +334,8 @@ namespace Starfall
         {
             if (reliefMissionRoom != save.room ||
                 (reliefMissionWave != 1 && reliefMissionWave != 2) ||
-                (Position - reliefFollowerPosition).Length > 1.7f) return;
+                ((Position - reliefFollowerPosition).Length > 1.7f ||
+                 !ClearAttackPath(Position,reliefFollowerPosition))) return;
             var options = new List<Choice>();
             if (ReliefFieldGuardAvailable)
                 options.Add(C("组织紧急护卫 · 耐力20", "Rally defenders · 20 energy",
@@ -351,7 +352,8 @@ namespace Starfall
         {
             if (action != "relief_field_guard") return false;
             if (!ReliefFieldGuardAvailable ||
-                (Position - reliefFollowerPosition).Length > 1.7f)
+                ((Position - reliefFollowerPosition).Length > 1.7f ||
+                 !ClearAttackPath(Position,reliefFollowerPosition)))
                 return true;
             save.energy -= 20; reliefWardTime = 8f; reliefWardUsed = true;
             effects.Add(new Effect("discover", reliefFollowerPosition, .7f));
@@ -634,13 +636,13 @@ namespace Starfall
                 return;
             }
             Flag("relief_rescue_" + region);
-            save.coins += 45; save.shards += 3; AddXp(50);
+            CreditCoins(45); CreditShards(3); AddXp(50);
             RecordMoment("从第 " + (region - 4) + " 条远岸路线上救回被围困的居民。",
                 "Rescued stranded civilians from farshore route " + (region - 4) + ".");
             if (Has("relief_rescue_5") && Has("relief_rescue_6") &&
                 Has("relief_rescue_7") && !Has("relief_rescue_complete"))
             {
-                Flag("relief_rescue_complete"); save.skillPoints++; save.tea += 2;
+                Flag("relief_rescue_complete"); CreditSkillPoints(1); CreditTea(2);
                 Notify("三地居民全部获救！额外技能点1、凉茶2。",
                     "Civilians rescued across all three regions! Bonus talent and two teas.");
             }
@@ -653,7 +655,8 @@ namespace Starfall
         // world-space position, without creating a fake persistent WorldObject.
         private void TalkRescuedCivilian()
         {
-            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f) return;
+            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f ||
+                !ClearAttackPath(Position,reliefFollowerPosition)) return;
             var options = new List<Choice>();
             options.Add(C(reliefFollowerWaiting ? "跟上我" : "在这里等候",
                 reliefFollowerWaiting ? "Follow me" : "Wait here",
@@ -686,7 +689,8 @@ namespace Starfall
             if (action != "relief_wait" && action != "relief_follow" &&
                 action != "relief_treat" && action != "relief_escort_guard" &&
                 action != "relief_hurry" && action != "relief_climate_kit") return false;
-            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f)
+            if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f ||
+                !ClearAttackPath(Position,reliefFollowerPosition))
                 return true;
             if (action == "relief_wait")
             {
@@ -981,7 +985,7 @@ namespace Starfall
                     reliefRegion == 6 ? 2 : 0, reliefRegion == 6 ? 1 : reliefRegion == 7 ? 2 : 0,
                     0, reliefRegion == 5 ? 1 : 0)) return true;
                 Flag("farshore_relief_" + reliefRegion);
-                save.coins += 30; save.shards += 2; AddXp(35);
+                CreditCoins(30); CreditShards(2); AddXp(35);
                 effects.Add(new Effect("discover", new Point(post.x, post.y), .8f));
                 RecordMoment(reliefRegion == 5 ? "新的浮桥和救援旗使低潮安全时段延长到90秒。" :
                     reliefRegion == 6 ? "绿洲遮阳道将沙海的降温庇护范围扩大到6.5格。" :
@@ -992,7 +996,7 @@ namespace Starfall
                 if (Has("farshore_relief_5") && Has("farshore_relief_6") &&
                     Has("farshore_relief_7") && !Has("farshore_relief_complete"))
                 {
-                    Flag("farshore_relief_complete"); save.skillPoints++; save.tea += 2;
+                    Flag("farshore_relief_complete"); CreditSkillPoints(1); CreditTea(2);
                     RecordMoment("三地应急避难通道建成，远岸旅人终于有了可持续的庇护网络。",
                         "All three civilian refuge routes are open. The farshore has a lasting shelter network.");
                     Notify("远岸平民庇护网完成！本站30硬币、2碎片、35经验；额外技能点1、凉茶2。",
@@ -1143,7 +1147,7 @@ namespace Starfall
                 region <= 6 ? 1 : 0))
                 return true;
             Flag("fieldstation_" + region);
-            save.coins += 18; save.shards += 2; AddXp(20);
+            CreditCoins(18); CreditShards(2); AddXp(20);
             effects.Add(new Effect("discover", new Point(station.x, station.y), .8f));
             RecordMoment(region == 5 ? "潮汐站修好了，浅滩重新有了安全航标。" :
                 region == 6 ? "沙海降温站修好了，荒路上多了一片清凉之地。" :
@@ -1154,7 +1158,7 @@ namespace Starfall
             if (Has("fieldstation_5") && Has("fieldstation_6") &&
                 Has("fieldstation_7") && !Has("fieldstation_complete"))
             {
-                Flag("fieldstation_complete"); save.skillPoints++; save.tea += 2;
+                Flag("fieldstation_complete"); CreditSkillPoints(1); CreditTea(2);
                 RecordMoment("三座观测站连成远岸避风网：技能点1、凉茶2。",
                     "Three weather stations connected: one talent point and two teas.");
                 Notify("远岸观测网建成！额外获得技能点1、凉茶2。",

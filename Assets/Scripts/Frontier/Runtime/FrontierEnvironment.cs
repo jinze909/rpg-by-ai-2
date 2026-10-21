@@ -36,14 +36,48 @@ namespace Starfall
             // overpainted the finely rendered original terrain and river
             // atlas. Retain both experimental resources for future review,
             // but display the unchanged rich Terrain/TerrainVariants art.
-            if (tile == '=' && Game.save.room < 2)
+            if(tile=='=' && Game.save.room<2)
+                DrawAuthoredRoadSeam(x,y,p,seed);
+        }
+        // The old road boundary was a hard 2px monochrome rectangle on top
+        // of the original cobblestone. Keep edge contrast but borrow pixels
+        // FROM the approved TerrainVariants stone row, never a new coarse
+        // strip atlas. This is static material, so reduced-motion and
+        // low-effects accessibility keep the same navigable road outline.
+        private void DrawAuthoredRoadSeam(int x,int y,Point p,int seed)
+        {
+            if(terrainVariants==null)return;
+            string[] map=Game.Map.rows;
+            bool left=x>0&&map[y][x-1]=='.';
+            bool right=x+1<map[y].Length&&map[y][x+1]=='.';
+            bool up=y>0&&map[y-1][x]=='.';
+            bool down=y+1<map.Length&&map[y+1][x]=='.';
+            if(!left&&!right&&!up&&!down)return;
+            float col=(seed%4)*48f;
+            // Third row from top, i.e. y=48..96 in bottom-origin
+            // Unity UV space, contains the authored stone/road material.
+            Rect horizontal=new Rect((col+7f)/192f,
+                66f/192f,34f/192f,3f/192f);
+            Rect vertical=new Rect((col+16f)/192f,
+                56f/192f,3f/192f,32f/192f);
+            Color previous=GUI.color;
+            try
             {
-                // Dark, narrow soil edges make the road shape read above busy grass.
-                if (x > 0 && Game.Map.rows[y][x - 1] == '.') Box(p.x, p.y, 2, Tile, new Color(.17f, .22f, .15f, .28f));
-                if (x + 1 < Game.Map.rows[y].Length && Game.Map.rows[y][x + 1] == '.') Box(p.x + Tile - 2, p.y, 2, Tile, new Color(.17f, .22f, .15f, .28f));
-                if (y > 0 && Game.Map.rows[y - 1][x] == '.') Box(p.x, p.y, Tile, 2, new Color(.17f, .22f, .15f, .28f));
-                if (y + 1 < Game.Map.rows.Length && Game.Map.rows[y + 1][x] == '.') Box(p.x, p.y + Tile - 2, Tile, 2, new Color(.17f, .22f, .15f, .28f));
+                GUI.color=new Color(.79f,.81f,.76f,.54f*worldActorOpacity);
+                if(left)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,3,Tile-2),
+                    terrainVariants,vertical);
+                if(right)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+Tile-4,p.y+1,3,Tile-2),
+                    terrainVariants,vertical);
+                if(up)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+1,Tile-2,3),
+                    terrainVariants,horizontal);
+                if(down)GUI.DrawTextureWithTexCoords(
+                    new Rect(p.x+1,p.y+Tile-4,Tile-2,3),
+                    terrainVariants,horizontal);
             }
+            finally {GUI.color=previous;}
         }
         // Source-preserving water animation: sample a small HAND-PAINTED
         // passage of the actual 48px water terrain variant, not a fresh 8px
@@ -86,11 +120,183 @@ namespace Starfall
             finally{GUI.color=original;}
         }
 
+        // Eight original full-transparent 24x16 ripple poses, in two distinct
+        // temperate and cold-water palettes, sit ABOVE the unchanged mature
+        // TerrainVariants water pixels and BELOW all sorted game actors.
+        // Water is tile art, not a simulated creature: a seeded local sprite
+        // cycle is preferable to hundreds of separate Animator components.
+        private Texture2D waterRipplesSheet;
+        private float waterRipplesCheckedAt=float.NegativeInfinity;
+        private float waterRipplesNextCheck=float.NegativeInfinity;
+        private void RefreshAuthoredWaterRipples()
+        {
+            if(clock>=waterRipplesCheckedAt&&clock<waterRipplesNextCheck)
+                return;
+            waterRipplesCheckedAt=clock;
+            waterRipplesNextCheck=clock+2.5f;
+            Texture2D candidate=Resources.Load<Texture2D>(
+                "Frontier/Art/WaterRipples");
+            // Keep the last complete sheet during partial Editor reimport;
+            // never crop a malformed atlas or hide the water itself.
+            if(candidate!=null&&candidate.width==96&&candidate.height==32)
+                waterRipplesSheet=candidate;
+        }
+        private void DrawAuthoredWaterRipples(int x,int y,char tile,Point p)
+        {
+            if(Game.save.reducedMotion||Game.save.effectsQuality==0||
+                !IsSurfaceWater(tile,Game.save.room,Game.LowTide))return;
+            int seed=PreparedTileSeed(x,y);
+            // Rare, stable tile placements read as living water instead of
+            // identical marching rings on every tile of the river.
+            if(seed%11!=0)return;
+            RefreshAuthoredWaterRipples();
+            if(waterRipplesSheet==null||waterRipplesSheet.width!=96||
+                waterRipplesSheet.height!=32)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            int frame=((int)Math.Floor(clock*look.waterRippleFrameRate+
+                (seed%31)*.37f)%4+4)%4;
+            // Cold coasts and dark northern basins have distinct authored
+            // cobalt pigments, not a global tint over warm sea foam.
+            int row=Game.save.room==7||Game.save.room==4||
+                Game.save.room==8?1:0;
+            float alpha=look.waterRippleAlpha*
+                (Game.Night?.80f:1f)*
+                (Game.save.effectsQuality==1?.58f:1f);
+            Rect area=new Rect(p.x+6f,p.y+10f,24f,16f);
+            // Atlas applies the current world fade once, like the water
+            // terrain below this original ripple cell.
+            Atlas(waterRipplesSheet,4,2,row*4+frame,area,
+                new Color(1f,1f,1f,alpha));
+        }
+
+
+        // An original 3-biome x 8-pose transparent CANOPY highlight atlas.
+        // This is foliage/weather decoration, not a second tree body or a
+        // SpriteRenderer-driven character. The accepted WorldProps tree keeps
+        // its unchanged 120/128 rooted foot, original texture and occlusion.
+        private Texture2D canopyWhispersSheet;
+        private float canopyWhispersLastChecked=float.NegativeInfinity;
+        private float canopyWhispersNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredCanopyWhispers(Decoration prop,Point foot,
+            float originalSize,Color bodyTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality<2)return;
+            if(clock<canopyWhispersLastChecked||
+                clock>=canopyWhispersNextCheck)
+            {
+                canopyWhispersLastChecked=clock;
+                canopyWhispersNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/CanopyWhispers");
+                // Keep last verified full family throughout a partial Editor
+                // import. Never expose a truncated cell or hide the old tree.
+                if(candidate!=null&&candidate.width==256&&
+                    candidate.height==96)canopyWhispersSheet=candidate;
+            }
+            if(canopyWhispersSheet==null||
+                canopyWhispersSheet.width!=256||
+                canopyWhispersSheet.height!=96)return;
+            int row=prop.kind=="palm"?1:prop.kind=="snowpine"?2:0;
+            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),
+                Game.save.room);
+            float rate=CurrentWorldVisualLook.canopyWhisperFrameRate;
+            int frame=((int)Math.Floor(clock*rate+
+                (seed%29)*.23f)%8+8)%8;
+            float alpha=CurrentWorldVisualLook.canopyWhisperAlpha*
+                bodyTint.a*(Game.Night?.78f:1f);
+            // All eight frames share one unchanged 32px transparent canvas.
+            // Their artwork moves within it, while the draw origin stays on
+            // the same tree crown rooted to the original shadow/terrain.
+            float width=originalSize*.54f;
+            Rect crown=new Rect(foot.x-width*.5f,
+                foot.y-originalSize*.64f-width*.5f,width,width);
+            Matrix4x4 originalMatrix=GUI.matrix;
+            try
+            {
+                float sway=RootedCanopyGustDegrees(prop);
+                if(sway!=0f)
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(
+                        originalMatrix,new Vector2(foot.x,foot.y),sway);
+                // The original whole canopy and its glints share ONE
+                // depth-pass opacity. Atlas already applies it.
+                Atlas(canopyWhispersSheet,8,3,row*8+frame,crown,
+                    new Color(1f,1f,1f,alpha));
+            }
+            finally {GUI.matrix=originalMatrix;}
+        }
+
+
+        // Whole, illustrated ruined-stone masonry stays in WorldProps. This
+        // lightweight transparent eight-cell rune is ONLY a rooted lighting
+        // treatment, depth-sorted with the real ruin; never an actor body.
+        private Texture2D ruinSigilsSheet;
+        private float ruinSigilsLastChecked=float.NegativeInfinity;
+        private float ruinSigilsNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredRuinSigils(Decoration ruin,Point foot,Color masonryTint)
+        {
+            if(drawingOutline||Game.save.effectsQuality==0)return;
+            if(clock<ruinSigilsLastChecked||clock>=ruinSigilsNextCheck)
+            {
+                ruinSigilsLastChecked=clock;
+                ruinSigilsNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/RuinSigils");
+                // Keep the last complete source sheet while an Editor
+                // importer is halfway through publishing its new pixels.
+                if(candidate!=null&&candidate.width==128&&candidate.height==64)
+                    ruinSigilsSheet=candidate;
+            }
+            if(ruinSigilsSheet==null||ruinSigilsSheet.width!=128||
+               ruinSigilsSheet.height!=64)return;
+            int seed=TileSeed((int)(ruin.x*7),(int)(ruin.y*7),Game.save.room);
+            int frame=Game.save.reducedMotion?0:
+                ((int)Math.Floor(clock*CurrentWorldVisualLook.ruinSigilFrameRate+
+                (seed%19)*.27f)%4+4)%4;
+            int row=Game.save.room==3||Game.save.room==6?1:0;
+            float alpha=CurrentWorldVisualLook.ruinSigilAlpha*
+                masonryTint.a*
+                (Game.Night?1f:.78f)*
+                (Game.save.effectsQuality==1?.56f:1f);
+            // The source mural is attached to ORIGINAL ruin screen-foot,
+            // independent of actor/camera state; its exact 32px source
+            // origin never wanders as the rune animates.
+            Atlas(ruinSigilsSheet,4,2,row*4+frame,
+                new Rect(foot.x-21f,foot.y-111f,42f,42f),
+                new Color(1f,1f,1f,alpha));
+        }
+
         // Source-preserving shoreline animation: one subdued crest sampled
         // from the existing high-detail 48px water painting, never a coarse
         // newly drawn rectangle. Its center stays anchored to the authored
         // water tile. Side-facing crests rotate as a SINGLE complete sample.
         // Reduced-motion/low-FX modes never receive moving embellishment.
+        // An edge-facing crest sampled from ORIGINAL detailed water pixels.
+        // Preserve the source UV and tile anchor across every tide/frame;
+        // orient and slightly advect the entire wave along the bank.
+        // Four fully painted 32x12 shoreline foam poses, kept independent
+        // of the mature detailed TerrainVariants/Coastline atlas and water
+        // collision. No animator for tide particle ornaments.
+        private Texture2D shorelineFoamSheet;
+        private float shoreFoamCheckedAt=float.NegativeInfinity;
+        private float shoreFoamNextCheck=float.NegativeInfinity;
+        // An artist may publish new wave pixel cells while this game is
+        // running. Cache only one complete 128x12 family, never a partially
+        // imported 127px/empty atlas; throttle Resources calls across all
+        // visible shore tiles and respect clocks rewound by a loaded save.
+        private void RefreshAuthoredShoreFoam()
+        {
+            if(clock>=shoreFoamCheckedAt&&clock<shoreFoamNextCheck)
+                return;
+            shoreFoamCheckedAt=clock;
+            shoreFoamNextCheck=clock+2.5f;
+            Texture2D candidate=Resources.Load<Texture2D>(
+                "Frontier/Art/ShorelineFoam");
+            if(candidate!=null&&candidate.width==128&&
+                candidate.height==12)
+                shorelineFoamSheet=candidate;
+        }
+
         private void DrawAuthoredShorelineWash(int x,int y,char tile,Point p)
         {
             if(terrainVariants==null || Game.save.reducedMotion ||
@@ -98,43 +304,77 @@ namespace Starfall
                 !IsSurfaceWater(tile,Game.save.room,Game.LowTide))
                 return;
             int seed=PreparedTileSeed(x,y);
-            // Sparse stable shorebreak instead of a solid bright tile border.
             if((seed&1)!=0)return;
             bool north=!WaterAt(x,y-1),east=!WaterAt(x+1,y),
                 south=!WaterAt(x,y+1),west=!WaterAt(x-1,y);
-            if(!north&&!east&&!south&&!west)return;
-            float cx=p.x+Tile*.5f,cy=p.y+Tile*.5f;
-            bool vertical=false;
-            if(north)cy=p.y+5f;
-            else if(east){cx=p.x+Tile-5f;vertical=true;}
-            else if(south)cy=p.y+Tile-5f;
-            else {cx=p.x+5f;vertical=true;}
+            int shores=(north?1:0)+(east?1:0)+(south?1:0)+(west?1:0);
+            if(shores==0)return;
             WorldVisualLook look=CurrentWorldVisualLook;
-            float strength=Math.Min(.12f,look.waterGlintAlpha*.88f);
             float wave=(float)Math.Sin(clock*look.waterGlintRate+
                 (seed%37)*.31f);
-            float opacity=strength*(.72f+.16f*wave);
+            float opacity=look.shorelineWashAlpha*(.76f+.16f*wave)*
+                (shores>1?.82f:1f);
             if(Game.save.effectsQuality==1)opacity*=.64f;
             int variant=(seed/7)%4;
             Rect uv=new Rect((variant*48f+8f)/192f,
                 18f/192f,24f/192f,7f/192f);
-            Rect dest=new Rect(cx-12f,cy-3.5f,24f,7f);
+            RefreshAuthoredShoreFoam();
+            // Set the phase ONCE for all sides of this one tile. Unlike
+            // procedural rectangles, these are authored transparent
+            // 32x12 frame cells with small irregular crest silhouettes.
+            bool paintedFoam=shorelineFoamSheet!=null&&
+                shorelineFoamSheet.width==128&&
+                shorelineFoamSheet.height==12;
+            int foamFrame=((int)Math.Floor(
+                clock*look.shoreFoamFrameRate+(seed%13)*.23f)%4+4)%4;
+            Rect foamUv=new Rect(foamFrame*.25f,0f,.25f,1f);
+            float foamAlpha=look.shoreFoamAlpha*(.72f+.18f*wave)*
+                (Game.save.effectsQuality==1?.64f:1f)*worldActorOpacity;
             Matrix4x4 original=GUI.matrix;
-            Color originalColor=GUI.color;
+            Color color=GUI.color;
             try
             {
-                if(vertical)
-                    GUI.matrix=GuiGeometry.RotateAroundPivot(
-                        original,new Vector2(cx,cy),90f);
                 GUI.color=new Color(1.04f,1.09f,1.14f,
                     opacity*worldActorOpacity);
-                GUI.DrawTextureWithTexCoords(dest,terrainVariants,uv);
+                for(int edge=0;edge<4;edge++)
+                {
+                    if(!(edge==0?north:edge==1?east:
+                        edge==2?south:west))continue;
+                    float cx=p.x+Tile*.5f,cy=p.y+Tile*.5f;
+                    if(edge==0)cy=p.y+5f;
+                    else if(edge==1)cx=p.x+Tile-5f;
+                    else if(edge==2)cy=p.y+Tile-5f;
+                    else cx=p.x+5f;
+                    // Opposite shore faces are no longer painted with
+                    // identical orientation; no Sprite splice or material
+                    // replacement. All movement is a bounded continuous
+                    // 2D drift of one accepted complete source sample.
+                    float drift=(float)Math.Sin(clock*
+                        look.waterGlintRate*1.3f+
+                        (seed%29)*.23f+edge*1.57f)*
+                        look.shorelineTravelPixels;
+                    GUI.matrix=edge==0?original:
+                        GuiGeometry.RotateAroundPivot(original,
+                        new Vector2(cx,cy),edge==1?90f:
+                        edge==2?180f:-90f);
+                    // Restore the mature original-water opacity for EVERY
+                    // bank; a previously drawn foam cell may not tint
+                    // the next edge and create a bright island corner.
+                    GUI.color=new Color(1.04f,1.09f,1.14f,
+                        opacity*worldActorOpacity);
+                    GUI.DrawTextureWithTexCoords(
+                        new Rect(cx-12f+drift,cy-3.5f,24f,7f),
+                        terrainVariants,uv);
+                    if(paintedFoam&&foamAlpha>.001f)
+                    {
+                        GUI.color=new Color(1f,1f,1f,foamAlpha);
+                        GUI.DrawTextureWithTexCoords(
+                            new Rect(cx-16f,cy-6f,32f,12f),
+                            shorelineFoamSheet,foamUv);
+                    }
+                }
             }
-            finally
-            {
-                GUI.matrix=original;
-                GUI.color=originalColor;
-            }
+            finally {GUI.matrix=original;GUI.color=color;}
         }
 
         // Pixel-authored material accents from TerrainAccentRemaster.png:
@@ -236,7 +476,10 @@ namespace Starfall
 
         private void DrawGroundDetail(int x, int y, char tile, Point p)
         {
-            if (detailSheet == null || Game.save.room == 9 || tile != '.' && tile != '%') return;
+            if (detailSheet == null || Game.save.room == 9 ||
+                (tile != '.' && tile != '%') ||
+                IsSurfaceWater(tile,Game.save.room,Game.LowTide))
+                return; // High-tide shoals are water, not a bed for dry plants.
             int seed = PreparedTileSeed(x, y);
             if (seed % 17 != 0 || GroundDetailOccluded(x, y)) return;
             Point world = new Point(x + .35f + seed % 5 * .07f, y + .65f);
@@ -245,7 +488,59 @@ namespace Starfall
             int id = options[(seed / 17) % options.Length];
             if (id == 9) id = 4; // Large fallen trunks belong to fixed solid edge scenery.
             float size = id == 10 ? 33 : id == 8 ? 38 : 23;
-            Actor(detailSheet, 4, 4, id, ScreenPoint(world), size, new Color(1, 1, 1, .8f), (seed & 1) == 1);
+            Point foot=ScreenPoint(world);
+            bool flip=(seed & 1)==1;
+            // Ground litter is not a character. Sending every tiny grass
+            // tuft/rock through SpriteRenderer -> 128px RenderTexture was
+            // allocating offscreen actor targets for non-actors on map
+            // entry. Sample the SAME accepted Details.png cell directly.
+            // Keep original outline-mask behaviour in outline review:
+            // Actor() bypasses the native capture for drawingOutline.
+            if(drawingOutline)
+            {
+                Actor(detailSheet,4,4,id,foot,size,new Color(1,1,1,.8f),flip);
+                return;
+            }
+            Rect sourceBounds=new Rect(foot.x-size*.5f,
+                foot.y-size*120f/128f,size,size);
+            Matrix4x4 canvas=GUI.matrix;
+            try
+            {
+                // Only living green tufts/flowers sway, NEVER stone, snow
+                // debris or harvested paths. Rotate ONE complete authored
+                // Sprite around the same 120/128 painted boot/soil pivot.
+                if((id==0||id==1||id==10)&&
+                    !Game.save.reducedMotion&&Game.save.effectsQuality>0)
+                {
+                    float phase=(seed%997)*.017f;
+                    float wind=(float)(Math.Sin(clock*.91f+phase)*.73+
+                        Math.Sin(clock*1.61f+phase*.67f)*.27);
+                    float degrees=wind*CurrentWorldVisualLook.groundFoliageSwayDegrees;
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(canvas,
+                        new Vector2(foot.x,foot.y),degrees);
+                }
+                Atlas(detailSheet,4,4,id,sourceBounds,
+                    new Color(1f,1f,1f,.8f),flip);
+            }
+            finally { GUI.matrix=canvas; }
+        }
+        // One wind clock for both the ORIGINAL whole WorldProps painting
+        // and its optional source-illustrated leaf/glint layer. The old
+        // overlay stayed static while the canopy swayed, so highlights
+        // visibly crawled away from branches at every gust extrema.
+        private float RootedCanopyGustDegrees(Decoration prop)
+        {
+            if(Game.save.reducedMotion||Game.save.effectsQuality==0)return 0f;
+            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),
+                Game.save.room);
+            float phase=(seed%997)*.01f;
+            float gust=(float)(Math.Sin(clock*.82f+phase)*.72+
+                Math.Sin(clock*1.43f+phase*1.73f)*.28);
+            WorldVisualLook visual=CurrentWorldVisualLook;
+            float strength=prop.kind=="palm"?visual.palmSwayDegrees:
+                prop.kind=="snowpine"?visual.snowpineSwayDegrees:
+                visual.treeSwayDegrees;
+            return gust*strength;
         }
         private void DrawRootedPlant(Decoration prop, Rect rect, Color tint)
         {
@@ -263,7 +558,6 @@ namespace Starfall
             rect=new Rect(rect.x+(rect.width-side)*.5f,
                 rect.y+rect.height-side,side,side);
             int id=prop.kind=="palm"?5:prop.kind=="snowpine"?6:0;
-            int seed=TileSeed((int)(prop.x*7),(int)(prop.y*7),Game.save.room);
             Matrix4x4 originalMatrix=GUI.matrix;
             Color originalTint=GUI.color;
             try
@@ -271,19 +565,13 @@ namespace Starfall
                 // Anchor all gentle foliage motion to the authored foot,
                 // NOT the painted canvas centre. The trunk/root must remain
                 // at the actual depth-sort/collision location during gusts.
-                if (!Game.save.reducedMotion && Game.save.effectsQuality>0)
+                float sway=RootedCanopyGustDegrees(prop);
+                if (sway!=0f)
                 {
-                    float phase=(seed%997)*.01f;
-                    float gust=(float)(Math.Sin(clock*.82f+phase)*.72+
-                        Math.Sin(clock*1.43f+phase*1.73f)*.28);
-                    WorldVisualLook visual=CurrentWorldVisualLook;
-                    float strength=prop.kind=="palm"?visual.palmSwayDegrees:
-                        prop.kind=="snowpine"?visual.snowpineSwayDegrees:
-                        visual.treeSwayDegrees;
                     Vector2 foot=new Vector2(rect.x+rect.width*.5f,
                         rect.y+rect.height*(120f/128f));
                     GUI.matrix=GuiGeometry.RotateAroundPivot(
-                        originalMatrix,foot,gust*strength);
+                        originalMatrix,foot,sway);
                 }
                 tint.a*=worldActorOpacity;
                 GUI.color=tint;
@@ -312,23 +600,267 @@ namespace Starfall
             Atlas(fieldProps, 4, 4, Game.save.room == 1 ? 11 : 4, new Rect(p.x - 2, p.y - 9, Tile + 4, Tile + 12), new Color(1, 1, 1, opacity));
             if ((x + y) % 3 == 0) Diamond(p.x + Tile / 2, p.y + Tile / 2, 3, new Color(gold.r, gold.g, gold.b, opacity));
         }
+        // Props, furniture and planted herbs are fixed atlas scenery, NOT
+        // gameplay actors. Skip native SpriteRenderer -> RenderTexture
+        // capture entirely; the exact original pixel cell/foot/tint stays
+        // unchanged. Only true actors run the Animator-driven pipeline.
+        // Preserve the original gold contour during outline passes.
+        private void DrawStaticFieldSprite(Texture2D sheet,int id,Point foot,
+            float size,Color tint,float rootedSway=0f)
+        {
+            if(drawingOutline)
+            {
+                Actor(sheet,4,4,id,foot,size,tint);
+                return;
+            }
+            Matrix4x4 original=GUI.matrix;
+            try
+            {
+                // Plants may move as ONE illustrated source Sprite without
+                // animating a torso/foliage segment or allocating a GPU actor
+                // target. The exact soil root remains pixel-registered.
+                if(rootedSway!=0f&&!Game.save.reducedMotion&&
+                    Game.save.effectsQuality>0)
+                    GUI.matrix=GuiGeometry.RotateAroundPivot(original,
+                        new Vector2(foot.x,foot.y),rootedSway);
+                Atlas(sheet,4,4,id,new Rect(foot.x-size*.5f,
+                    foot.y-size*120f/128f,size,size),tint);
+            }
+            finally {GUI.matrix=original;}
+        }
+        // Real, active PropImage -> DrawFieldProp("fire") lane: the accepted
+        // 128px original campfire remains the ONLY object body. Small
+        // hand-painted Effects.png embers provide world-rooted atmosphere;
+        // particles do not replace the fireplace Sprite or own an Animator.
+        private void DrawAuthoredCampfireEmbers(Point foot,float size,int variant)
+        {
+            if(effectSheet==null||drawingOutline||
+                Game.save.reducedMotion||Game.save.effectsQuality==0)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float phase=foot.x*.037f+foot.y*.019f+variant*.93f;
+            float beat=(float)Math.Sin(clock*4.6f+phase);
+            float amplitude=look.emberFlickerAlpha*(.72f+.28f*beat);
+            float spread=size*.125f;
+            float centerY=foot.y-size*.55f;
+            float lift=look.emberLiftPixels*
+                (.5f+.5f*(float)Math.Sin(clock*2.8f+phase));
+            // Two complete ORIGINAL illustration samples; never generate
+            // rectangular interpolations, animated limb seams or a second
+            // body identity. Their base follows the fixed campfire foot.
+            Atlas(effectSheet,4,4,13,
+                new Rect(foot.x-spread-9f,
+                    centerY-lift-11f,22f,22f),
+                new Color(1f,.80f,.53f,amplitude));
+            if(Game.save.effectsQuality>1)
+                Atlas(effectSheet,4,4,3,
+                    new Rect(foot.x+spread-7f,
+                        centerY-lift*.64f-8f,16f,16f),
+                    new Color(1f,.67f,.38f,amplitude*.52f));
+        }
+
+        // Four original FULL flame-body 24x32 paintings. Their bottom
+        // stays at a fixed offset from the mature campfire's foot; no
+        // procedural limb/shape stretching or duplicate fireplace body.
+        // Decorative sprites use a bounded 4-cell sequence rather than
+        // independent Animator components for every stationary fire.
+        private Texture2D campfireFlamesSheet;
+        private float campfireFlamesLastChecked=float.NegativeInfinity;
+        private float campfireFlamesNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredCampfireFlames(Point foot,float size,
+            int variant,Color originalTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality==0)return;
+            if(clock<campfireFlamesLastChecked||
+                clock>=campfireFlamesNextCheck)
+            {
+                campfireFlamesLastChecked=clock;
+                campfireFlamesNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/CampfireFlames");
+                if(candidate!=null&&candidate.width==96&&
+                    candidate.height==32)
+                    campfireFlamesSheet=candidate;
+            }
+            if(campfireFlamesSheet==null||
+                campfireFlamesSheet.width!=96||
+                campfireFlamesSheet.height!=32)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            int cell=Game.save.effectsQuality==1?0:
+                ((int)Math.Floor(clock*look.campfireFlameFrameRate+
+                    variant*.31f)%4+4)%4;
+            float alpha=look.campfireFlameAlpha*
+                (Game.Night?1f:.83f)*
+                (Game.save.effectsQuality==1?.63f:1f)*
+                originalTint.a;
+            Atlas(campfireFlamesSheet,4,1,cell,
+                new Rect(foot.x-12f,foot.y-size*.73f,24f,32f),
+                new Color(1f,1f,1f,alpha));
+        }
+
+        // Four newly illustrated TRANSPARENT 24px whole-sprite light poses
+        // for the real FieldProps crystal, mirror, altar and obelisk bodies.
+        // This is an emissive particle decoration, NOT actor anatomy; a
+        // GameCore-independent 4-cell point-sampled sprite sequence is more
+        // appropriate than an Animator attached to a fixed map obstacle.
+        private Texture2D relicShimmerSheet;
+        private float relicShimmerRetryAt=float.NegativeInfinity;
+        private float relicShimmerLastCheck=float.NegativeInfinity;
+        private void DrawAuthoredRelicShimmer(int id,int variant,Point foot,
+            float size,Color originalTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality==0)return;
+            if(clock<relicShimmerLastCheck||clock>=relicShimmerRetryAt)
+            {
+                relicShimmerLastCheck=clock;
+                relicShimmerRetryAt=clock+2f;
+                Texture2D imported=Resources.Load<Texture2D>(
+                    "Frontier/Art/RelicShimmer");
+                // Hold the last complete validated source during Editor
+                // partial import; original FieldProps always remains drawn.
+                if(imported!=null&&imported.width==96&&
+                    imported.height==24)
+                    relicShimmerSheet=imported;
+            }
+            if(relicShimmerSheet==null)return;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float alpha=look.relicShimmerAlpha*
+                (Game.Night?1f:.75f)*
+                (Game.save.effectsQuality==1?.65f:1f)*
+                originalTint.a;
+            if(alpha<=0f)return;
+            int cell=((int)Math.Floor(clock*look.relicShimmerRate+
+                id*.43f+variant*.83f)%4+4)%4;
+            // The obelisk's crown sits slightly lower than its raw
+            // 120/128 source pivot suggests. Keep light INSIDE that
+            // actual intact source canvas rather than floating above it.
+            float height=id==3?.74f:id==12?.67f:
+                id==14?.65f:.72f;
+            float offset=id==14?size*.09f:0f;
+            float side=Math.Min(35f,size*.37f);
+            // Plant the complete transparent glint on the SAME accepted
+            // world Sprite root. No canvas scale/pivot/UV changes to body.
+            Point center=new Point(foot.x+offset,
+                foot.y-size*height);
+            Color glow=id==12?
+                new Color(1f,.85f,.67f,alpha):
+                id==14?new Color(.96f,.94f,1f,alpha):
+                new Color(.73f,.96f,1f,alpha);
+            Atlas(relicShimmerSheet,4,1,cell,
+                new Rect(center.x-side*.5f,center.y-side*.5f,
+                    side,side),glow);
+        }
+
+        // 8 ORIGINAL 32x48 whole transparent atmospheric poses:
+        // warm campfire ash and cold altar/engine vapor. They ornament the
+        // unchanged approved FieldProps body; GameCore owns interaction,
+        // world-space location, quest state and collisions. A static,
+        // rooted flipbook is better than a separate Animator for each prop.
+        private Texture2D propVaporsSheet;
+        private float propVaporsLastCheck=float.NegativeInfinity;
+        private float propVaporsNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredPropVapors(int id,Point foot,float size,
+            int variant,Color bodyTint)
+        {
+            if(drawingOutline||Game.save.reducedMotion||
+                Game.save.effectsQuality<2||bodyTint.a<=0f)return;
+            if(clock<propVaporsLastCheck||clock>=propVaporsNextCheck)
+            {
+                propVaporsLastCheck=clock;
+                propVaporsNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/PropVapors");
+                // Partial PNG/import must retain the previous eight-pose
+                // family instead of presenting a cropped source cell.
+                if(candidate!=null&&candidate.width==128&&
+                   candidate.height==96)
+                    propVaporsSheet=candidate;
+            }
+            if(propVaporsSheet==null||propVaporsSheet.width!=128||
+                propVaporsSheet.height!=96)return;
+            float rate=CurrentWorldVisualLook.propVaporFrameRate;
+            int frame=((int)Math.Floor(clock*rate+variant*.27f+
+                id*.13f)%4+4)%4;
+            int row=id==13?0:1;
+            float alpha=CurrentWorldVisualLook.propVaporAlpha*
+                bodyTint.a*(Game.Night?1f:.82f);
+            // Both painted source families start at the same FOOT-registered
+            // fire/altar vent. The flicker moves within fixed 32x48 cells,
+            // never moving the base prop or changing its collision root.
+            Rect plume=new Rect(foot.x-16f,
+                foot.y-size*.73f-40f,32f,48f);
+            Atlas(propVaporsSheet,4,2,row*4+frame,plume,
+                new Color(1f,1f,1f,alpha));
+        }
+
         private bool DrawFieldProp(string kind, int variant, float x, float y, float w, float h, Color? tint)
         {
             if (fieldProps == null) return false;
             int id = kind == "well" ? 0 : kind == "boat" ? 1 : kind == "column" ? 2 : kind == "obelisk" ? 3 : kind == "crystal" || kind == "ore" ? 4 : kind == "post" ? 5 : kind == "herb" ? 6 : kind == "wood" ? 7 : kind == "bell" ? 8 : kind == "tent" ? 9 : kind == "skiff" ? 10 : kind == "root" ? 11 : kind == "altar" || kind == "engine" ? 12 : kind == "fire" ? 13 : kind == "mirror" ? 14 : kind == "cache" ? 15 : -1;
             Point foot = new Point(x + w / 2, y + h - 8);
-            if (id >= 0) { Actor(fieldProps, 4, 4, id, foot, Math.Max(w, h), tint ?? Color.white); return true; }
+            if (id >= 0)
+            {
+                DrawStaticFieldSprite(fieldProps,id,foot,
+                    Math.Max(w,h),tint??Color.white);
+                if(id==13)
+                {
+                    DrawAuthoredCampfireFlames(foot,Math.Max(w,h),
+                        variant,tint??Color.white);
+                    DrawAuthoredCampfireEmbers(foot,Math.Max(w,h),variant);
+                    DrawAuthoredPropVapors(id,foot,Math.Max(w,h),
+                        variant,tint??Color.white);
+                }
+                else if(id==3||id==4||id==12||id==14)
+                {
+                    DrawAuthoredRelicShimmer(id,variant,foot,
+                        Math.Max(w,h),tint??Color.white);
+                    if(id==12)
+                        DrawAuthoredPropVapors(id,foot,Math.Max(w,h),
+                            variant,tint??Color.white);
+                }
+                return true;
+            }
             id = kind == "crate" ? 6 : kind == "barrel" ? 7 : kind == "fence" ? 11 : kind == "bridge" ? 12 : kind == "bed" ? 13 : kind == "bookshelf" ? 14 : kind == "table" || kind == "counter" ? 15 : -1;
             if (id >= 0 && detailSheet != null)
             {
-                Actor(detailSheet, 4, 4, id, foot, Math.Max(w, h), tint ?? Color.white);
-                if (kind == "counter") { Actor(detailSheet, 4, 4, 15, foot + new Point(-45, 0), Math.Max(w, h), tint ?? Color.white); Actor(detailSheet, 4, 4, 15, foot + new Point(45, 0), Math.Max(w, h), tint ?? Color.white); }
+                DrawStaticFieldSprite(detailSheet,id,foot,
+                    Math.Max(w,h),tint??Color.white);
+                if (kind == "counter")
+                {
+                    DrawStaticFieldSprite(detailSheet,15,foot+new Point(-45,0),
+                        Math.Max(w,h),tint??Color.white);
+                    DrawStaticFieldSprite(detailSheet,15,foot+new Point(45,0),
+                        Math.Max(w,h),tint??Color.white);
+                }
                 return true;
             }
             if (kind == "garden")
             {
                 Atlas(terrainSheet, 8, 2, 2, new Rect(x + 6, y + h - 40, w - 12, 32), Color.white);
-                for (int row = 0; row < 3; row++) { Box(x + 8, y + h - 36 + row * 10, w - 16, 1, new Color(.16f, .12f, .09f, .35f)); if (variant > 0) for (int col = 0; col < 3; col++) Actor(fieldProps, 4, 4, 6, new Point(x + 17 + col * (w - 24) / 3, y + h - 30 + row * 10), variant == 2 ? 27 : 18, Color.white); }
+                for(int row=0;row<3;row++)
+                {
+                    Box(x+8,y+h-36+row*10,w-16,1,
+                        new Color(.16f,.12f,.09f,.35f));
+                    if(variant>0)
+                        for(int col=0;col<3;col++)
+                        {
+                            // Each rooted herb moves on its own soft
+                            // phase; no world-space/body disconnection, no
+                            // synchronous mechanical motion across a bed.
+                            float phase=row*1.31f+col*.79f;
+                            float breeze=(float)(
+                                Math.Sin(clock*.82f+phase)*.70f+
+                                Math.Sin(clock*1.19f+phase*.67f)*.30f);
+                            float sway=CurrentWorldVisualLook.
+                                groundFoliageSwayDegrees*breeze*
+                                (variant==2?1f:.55f);
+                            DrawStaticFieldSprite(fieldProps,6,
+                                new Point(x+17+col*(w-24)/3,
+                                    y+h-30+row*10),
+                                variant==2?27:18,Color.white,sway);
+                        }
+                }
                 return true;
             }
             return false;

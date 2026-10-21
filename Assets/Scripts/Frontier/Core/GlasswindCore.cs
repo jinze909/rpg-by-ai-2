@@ -13,6 +13,19 @@ namespace Starfall
         public float GlasswindCharge { get; private set; }
         private float glasswindSurgeTimer;
         private int glasswindSurgeCycle;
+        // A crowded second-wave arena is a retryable transient state,
+        // not permission to discard four seconds of actual player defense.
+        private bool glasswindReinforcementsDeferred;
+        // Two real kills from EACH wave, never inferred from an empty list.
+        private int glasswindConfirmedKills;
+        private bool GlasswindWavesDefeated { get { return glasswindConfirmedKills==15; } }
+        private void OnGlasswindEnemyDefeated(Enemy enemy)
+        {
+            if(GlasswindSite==0||save.room!=6||!IsGlasswindEnemy(enemy))return;
+            int index=enemy.id-(89810+GlasswindSite*10+2);
+            if(index>=0&&index<GlasswindWave*2&&index<4)
+                glasswindConfirmedKills|=1<<index;
+        }
 
         public bool IsGlasswindEnemy(Enemy e)
         { return e != null && e.id >= 89810 && e.id < 89900; }
@@ -27,7 +40,8 @@ namespace Starfall
                 if(save.room!=6 || GlasswindSite!=0 || !SafeTravel) return false;
                 for(int i=1;i<=3;i++)
                     if(Has("glasswind_"+i) &&
-                        (Position-GlasswindPoint(i)).Length<3.1f) return true;
+                        PhysicalRefugeReach(GlasswindPoint(i),3.1f))
+                        return true;
                 return false;
             }
         }
@@ -35,9 +49,13 @@ namespace Starfall
         private void ResetGlasswind()
         {
             enemies.RemoveAll(IsGlasswindEnemy);
+            // Abort also retires hostile arrows already in midair.
+            projectiles.RemoveAll(p => p.glasswindOwned);
             hazards.RemoveAll(h => h.glasswindOwned);
             effects.RemoveAll(e => e.glasswindOwned);
             glasswindSurgeTimer=0;glasswindSurgeCycle=0;
+            glasswindReinforcementsDeferred=false;
+            glasswindConfirmedKills=0;
             GlasswindSite=GlasswindWave=0;
             GlasswindTime=GlasswindCharge=0;
         }
@@ -53,9 +71,23 @@ namespace Starfall
             for(int n=0;n<offsets.Length && spots.Count<2;n++)
             {
                 Point p=station+offsets[(n+(GlasswindSite-1)*2+wave)%offsets.Length];
-                if(!CanStand(p) || !ClearAttackPath(station,p) ||
-                    NavigationPath(p).Count==0 || (p-Position).Length<1.75f)
+                // A legal point still may overlap a living bystander or the
+                // companion, or sit in a room disconnected from the valve.
+                // Verify the real four-neighbor body-foot route rather than
+                // accepting NavigationPath's fallback nearest partial path.
+                if(!CanStand(p) || !CanStand(station) ||
+                    !ClearAttackPath(station,p) ||
+                    !BossSummonHasLocalRoute(p,station) ||
+                    (p-Position).Length<1.75f ||
+                    (p-station).Length<1.65f ||
+                    (save.companion>=0 &&
+                     (p-companionPosition).Length<1.55f))
                     continue;
+                bool occupied=false;
+                foreach(Enemy existing in enemies)
+                    if(existing.hp>0&&(p-existing.Position).Length<1.55f)
+                    { occupied=true; break; }
+                if(occupied)continue;
                 bool distinct=true;
                 foreach(Point used in spots)
                     if((p-used).Length<2.3f) distinct=false;
@@ -137,7 +169,7 @@ namespace Starfall
                     return true;
                 }
                 bool clear=GlasswindWave==2 && GlasswindCharge>=8 &&
-                    !enemies.Exists(IsGlasswindEnemy);
+                    GlasswindWavesDefeated && !enemies.Exists(IsGlasswindEnemy);
                 Dialog(o.name,o.en,
                     "剩余 "+GlasswindTime.ToString("0")+"秒；校准 "+
                         GlasswindCharge.ToString("0.0")+"/8；第 "+
@@ -165,7 +197,8 @@ namespace Starfall
             {
                 if(save.room==0 && Has("desert_report") &&
                     !Has("glasswind_started") && !Dying &&
-                    (Position-ObjectPoint(0,"glasswindkeeper",new Point(-100,-100))).Length<2.2f)
+                    PhysicalRefugeReach(ObjectPoint(0,"glasswindkeeper",
+                        new Point(-100,-100)),2.2f))
                 {
                     Flag("glasswind_started");TrackQuest("glasswind");revision++;
                     Notify("新委托：玻璃风脉。守住沙海三座中继。",
@@ -185,7 +218,7 @@ namespace Starfall
                     site<1 || site>3 || save.room!=6 || !Has("glasswind_started") ||
                     Has("glasswind_"+site) || GlasswindSite!=0 || Dying ||
                     practicing || racing || !SafeTravel ||
-                    (Position-GlasswindPoint(site)).Length>2.2f)return true;
+                    !PhysicalRefugeReach(GlasswindPoint(site),2.2001f))return true;
                 GlasswindSite=site;GlasswindTime=95;GlasswindCharge=0;
                 glasswindSurgeTimer=2.5f;glasswindSurgeCycle=0;
                 if(!SpawnGlasswindWave(1))
@@ -203,7 +236,7 @@ namespace Starfall
             if(action=="glasswind_withdraw")
             {
                 if(save.room==6 && GlasswindSite!=0 &&
-                    (Position-GlasswindPoint(GlasswindSite)).Length<2.2f)
+                    PhysicalRefugeReach(GlasswindPoint(GlasswindSite),2.2f))
                 {
                     ResetGlasswind();revision++;
                     Notify("已撤出。未封存中继可免费重试。",
@@ -215,11 +248,12 @@ namespace Starfall
             {
                 int site=GlasswindSite;
                 if(site==0 || save.room!=6 || Dying || GlasswindWave!=2 ||
-                    GlasswindCharge<8 || enemies.Exists(IsGlasswindEnemy) ||
-                    (Position-GlasswindPoint(site)).Length>2.2f ||
+                    GlasswindCharge<8 || !GlasswindWavesDefeated ||
+                    enemies.Exists(IsGlasswindEnemy) ||
+                    !PhysicalRefugeReach(GlasswindPoint(site),2.2001f) ||
                     Has("glasswind_"+site))return true;
                 ResetGlasswind();Flag("glasswind_"+site);
-                save.coins+=15;save.shards++;AddXp(20);revision++;sound="reward";
+                CreditCoins(15);CreditShards(1);AddXp(20);revision++;sound="reward";
                 effects.Add(new Effect("discover",Position,.7f));
                 RecordMoment("沙海风脉 "+site+"/3 已对所有旅人开放。",
                     "Glasswind relay "+site+"/3 opened to all travelers.");
@@ -238,10 +272,11 @@ namespace Starfall
             {
                 if(save.room!=0 || Dying || !Has("glasswind_all_sealed") ||
                     Has("glasswind_complete") ||
-                    (Position-ObjectPoint(0,"glasswindkeeper",new Point(-100,-100))).Length>2.2f)
+                    !PhysicalRefugeReach(ObjectPoint(0,"glasswindkeeper",
+                        new Point(-100,-100)),2.2001f))
                     return true;
-                Flag("glasswind_complete");save.coins+=65;save.shards+=2;
-                save.skillPoints++;AddXp(70);revision++;sound="reward";
+                Flag("glasswind_complete");CreditCoins(65);CreditShards(2);
+                CreditSkillPoints(1);AddXp(70);revision++;sound="reward";
                 RecordMoment("米娅公开风脉地图。三座公共风阀为行路者遮阴。",
                     "Mia published the wind chart. Three public valves now shelter travelers.");
                 Notify("玻璃风脉归档！65硬币、2碎片、1天赋点、70经验。",
@@ -299,6 +334,21 @@ namespace Starfall
             if(GlasswindSite==0)return;
             if(save.room!=6 || Dying || practicing)
             {ResetGlasswind();revision++;return;}
+            // An authored wave stays contested until each actual individual
+            // death is confirmed in GameCore.Hit. External roster removal
+            // cannot complete a capture or pay its one-time permanent reward.
+            for(int i=0;i<GlasswindWave*2;i++)
+            {
+                int expectedId=89810+GlasswindSite*10+2+i;
+                if((glasswindConfirmedKills&(1<<i))==0 &&
+                    !enemies.Exists(e=>e.id==expectedId && e.hp>0))
+                {
+                    ResetGlasswind();revision++;
+                    Notify("风阀守卫异常离场，未确认击败。守点已重置，可免费重试。",
+                        "An unconfirmed relay guard vanished. Capture reset; retry for free.");
+                    return;
+                }
+            }
             GlasswindTime-=dt;
             if(GlasswindTime<=0)
             {
@@ -316,21 +366,39 @@ namespace Starfall
             }
             Point station=GlasswindPoint(GlasswindSite);
             float range=(Position-station).Length;
+            // Physical capture cannot progress through a closing wall or
+            // gate, even if the player remains inside the icon's radius.
+            // Use the same near-side contact as actual relay interactions.
+            bool reachableRing=PhysicalRefugeReach(station,2.65f);
+            // A defender can contest only from a real attack lane.
             bool jammed=enemies.Exists(e=>IsGlasswindEnemy(e) &&
-                (e.Position-station).Length<1.6f);
-            if(range<2.65f && !jammed)
+                e.hp>0 && (e.Position-station).Length<1.6f &&
+                ClearAttackPath(e.Position,station));
+            if(reachableRing && !jammed)
                 GlasswindCharge=Math.Min(8,GlasswindCharge+dt);
-            else if(range>3.2f)
+            else if(range>3.2f || (range<2.65f && !reachableRing))
+                // A nearby but physically isolated hero is outside the
+                // reachable capture area: apply the ordinary retreat decay.
                 GlasswindCharge=Math.Max(0,GlasswindCharge-dt*.6f);
             if(GlasswindWave==1 && GlasswindCharge>=4)
             {
                 if(!SpawnGlasswindWave(2))
                 {
-                    ResetGlasswind();revision++;
-                    Notify("增援队缺少安全落点，中继重置，可重试。",
-                        "Reinforcements lacked a safe spawn; relay reset for free.");
+                    // Do not let a temporarily occupied foot cause an
+                    // unrecoverable reset. Hold at the first-wave threshold
+                    // until two genuinely clear feet are available; keep
+                    // the 95-second deadline and first-wave combat alive.
+                    GlasswindCharge=4f;
+                    if(!glasswindReinforcementsDeferred)
+                    {
+                        glasswindReinforcementsDeferred=true;
+                        revision++;
+                        Notify("增援暂缺安全落点，已保留第一波守点进度。清出位置后继续迎战。",
+                            "Reinforcements need clear ground. First-wave progress is held; clear the arena to continue.");
+                    }
                     return;
                 }
+                glasswindReinforcementsDeferred=false;
                 sound="windup";revision++;
                 Notify("第二波重甲守卫来袭！","The armored second wave is coming!");
             }

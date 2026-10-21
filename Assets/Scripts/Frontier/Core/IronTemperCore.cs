@@ -12,6 +12,19 @@ namespace Starfall
         public float TemperPressure { get; private set; }
         private float temperPulseTime;
         private int temperPulseIndex;
+        private int temperConfirmedKills;
+        private int TemperWaveFirst { get { return 89940 + TemperStage * 3; } }
+        private int TemperWaveCount { get { return TemperStage == 3 ? 1 :
+            TemperStage == 1 || TemperStage == 2 ? 2 : 0; } }
+        private bool TemperWaveDefeated { get { return TemperWaveCount > 0 &&
+            temperConfirmedKills == (1 << TemperWaveCount) - 1; } }
+        private void OnTemperEnemyDefeated(Enemy enemy)
+        {
+            if (!TemperActive || save.room != 3 || !IsTemperEnemy(enemy)) return;
+            int index = enemy.id - TemperWaveFirst;
+            if (index >= 0 && index < TemperWaveCount)
+                temperConfirmedKills |= 1 << index;
+        }
         public bool TemperActive { get { return TemperStage!=0; } }
         public bool IsTemperEnemy(Enemy e)
         { return e!=null && e.id>=89940 && e.id<89950; }
@@ -31,7 +44,8 @@ namespace Starfall
             projectiles.RemoveAll(p=>p.temperOwned);
             hazards.RemoveAll(h=>h.temperOwned);
             effects.RemoveAll(e=>e.temperOwned);
-            TemperStage=0;TemperTime=TemperPressure=0;
+            TemperStage=0;temperConfirmedKills=0;
+            TemperTime=TemperPressure=0;
             temperPulseTime=0;temperPulseIndex=0;
         }
         private bool SpawnTemperWave(int stage)
@@ -57,6 +71,7 @@ namespace Starfall
                 e.timer=.6f+.35f*i;
                 enemies.Add(e);
             }
+            temperConfirmedKills=0;
             return true;
         }
         private bool TalkTemper(WorldObject o)
@@ -97,11 +112,11 @@ namespace Starfall
                     (TemperStage==3?"Both valves open. Defeat the overseer and return here to remove the military control order.":
                     TemperStage==2?"Northwest valve released. Proceed to the eastern valve.":
                     "Clear the first guards, then reach the northwest release valve."),
-                    C(TemperStage==3 && !enemies.Exists(IsTemperEnemy)?
+                    C(TemperStage==3 && TemperWaveDefeated && !enemies.Exists(IsTemperEnemy)?
                         "向矿工交付回火配方":"继续行动",
-                        TemperStage==3 && !enemies.Exists(IsTemperEnemy)?
+                        TemperStage==3 && TemperWaveDefeated && !enemies.Exists(IsTemperEnemy)?
                         "Deliver the public temper recipe":"Continue operation",
-                        TemperStage==3 && !enemies.Exists(IsTemperEnemy)?
+                        TemperStage==3 && TemperWaveDefeated && !enemies.Exists(IsTemperEnemy)?
                         "iron_temper_finish":"close"),
                     C("退出并安全停机","Abort and safely shut down","iron_temper_abort"));return true;
             }
@@ -119,7 +134,7 @@ namespace Starfall
                     valve<TemperStage?"Already vented.":"Release the preceding forge circuit first.");
                 return true;
             }
-            if(enemies.Exists(IsTemperEnemy))
+            if(enemies.Exists(IsTemperEnemy) || !TemperWaveDefeated)
             {
                 Notify("有锻炉守卫正在争夺阀门。先在实战中击退他们。",
                     "Foundry guards contest this valve. Defeat them in real combat first.");
@@ -171,6 +186,13 @@ namespace Starfall
                     enemies.Exists(IsTemperEnemy) ||
                     (Position-TemperPoint("ironvent"+index)).Length>2.2f)
                     return true;
+                if (!TemperWaveDefeated)
+                {
+                    ResetTemper(); revision++;
+                    Notify("守卫未被确认击败。本轮回火已重置，需从锻炉重新开始。",
+                        "A guard vanished without a confirmed defeat. Restart the forge defense.");
+                    return true;
+                }
                 // The next wave must have legal, reachable feet before a
                 // pressure checkpoint advances or the old wave is retired.
                 if(!SpawnTemperWave(index+1))
@@ -202,9 +224,16 @@ namespace Starfall
                     enemies.Exists(IsTemperEnemy) || Dying ||
                     Has("iron_temper_complete") ||
                     (Position-TemperPoint("ironfoundry")).Length>2.2f)return true;
+                if (!TemperWaveDefeated)
+                {
+                    ResetTemper(); revision++;
+                    Notify("重装监工未被确认击败。回火未完成，请重试。",
+                        "The armored overseer was not defeated in combat. Retry the forge.");
+                    return true;
+                }
                 ResetTemper();
                 Flag("iron_temper_complete");
-                save.coins+=75;save.shards+=3;save.skillPoints++;
+                CreditCoins(75);CreditShards(3);CreditSkillPoints(1);
                 AddXp(85);revision++;sound="reward";
                 RecordMoment("赤铁工房被矿工接管。诺尔获得公开回火配方，装备强化用料永久减少。",
                     "Ironreach foundry restored to miners. Noll's public temper recipe permanently reduces upgrade materials.");
@@ -219,6 +248,17 @@ namespace Starfall
             if(!TemperActive)return;
             if(save.room!=3 || Dying || practicing)
             {ResetTemper();revision++;return;}
+            // Three fixed authored waves must remain intact until their
+            // actual lethal Hit callbacks confirm each defeated guard.
+            for (int index = 0; index < TemperWaveCount; index++)
+            {
+                if ((temperConfirmedKills & (1 << index)) != 0 ||
+                    enemies.Exists(e => e.id == TemperWaveFirst + index)) continue;
+                ResetTemper(); revision++;
+                Notify("锻炉守卫异常离场，未确认击败。已安全停机，可重新尝试。",
+                    "A foundry sentinel vanished without combat defeat. The forge shut down; retry freely.");
+                return;
+            }
             TemperTime-=dt;
             TemperPressure+=dt*(TemperStage==3?1.05f:1.3f);
             if(TemperTime<=0 || TemperPressure>=95)

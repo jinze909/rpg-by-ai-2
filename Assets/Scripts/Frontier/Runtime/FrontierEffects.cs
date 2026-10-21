@@ -4,6 +4,225 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
+        // New 4-frame original 32px contact paintings: sword, arrow, magic.
+        // This supplementary texture NEVER replaces approved Effects.png,
+        // hero, enemy or Boss source art; it creates no gameplay hit event.
+        private Texture2D impactFlourishSheet;
+        private float impactFlourishRetryAt=float.NegativeInfinity;
+        private float impactFlourishLastChecked=float.NegativeInfinity;
+        // World-depth sorted optional pixel VFX: unlike gameplay hazard
+        // outlines and hit-stop indicators, these embellishments must be
+        // hidden by trees and buildings in FRONT of their contact point.
+        private bool CanDrawAuthoredImpactFlourishes()
+        {
+            if(Game==null||Game.save.effectsQuality<2||
+                Game.save.reducedMotion)return false;
+            // Recheck even an ALREADY VALID source: Unity can republish
+            // original painted contact frames during an active Play session.
+            // Previously a successful first load was cached forever and
+            // slash/arrow/Boss contacts kept showing the obsolete PNG.
+            // Never swap a complete 4x3 family for a half-written import.
+            if(clock<impactFlourishLastChecked||
+               clock>=impactFlourishRetryAt)
+            {
+                impactFlourishLastChecked=clock;
+                impactFlourishRetryAt=clock+2f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/ImpactFlourish");
+                if(candidate!=null&&candidate.width==128&&
+                   candidate.height==96)
+                    impactFlourishSheet=candidate;
+            }
+            return impactFlourishSheet!=null &&
+                impactFlourishSheet.width==128 &&
+                impactFlourishSheet.height==96;
+        }
+        private static bool ValidEffectForDraw(Effect effect)
+        {
+            return effect != null && !string.IsNullOrEmpty(effect.kind) &&
+                !float.IsNaN(effect.life) && !float.IsInfinity(effect.life) &&
+                effect.life > 0f &&
+                !float.IsNaN(effect.maxLife) && !float.IsInfinity(effect.maxLife) &&
+                effect.maxLife > 0f &&
+                !float.IsNaN(effect.position.x) && !float.IsInfinity(effect.position.x) &&
+                !float.IsNaN(effect.position.y) && !float.IsInfinity(effect.position.y) &&
+                !float.IsNaN(effect.radius) && !float.IsInfinity(effect.radius) &&
+                !float.IsNaN(effect.height) && !float.IsInfinity(effect.height) &&
+                !float.IsNaN(effect.direction.x) && !float.IsInfinity(effect.direction.x) &&
+                !float.IsNaN(effect.direction.y) && !float.IsInfinity(effect.direction.y);
+        }
+
+        private static int ImpactFlourishCategory(Effect effect)
+        {
+            if (effect == null) return -1;
+            // The same hand-painted contact artwork can echo true player
+            // strikes, hits, arrows and Boss magic, not normal patrol bolts.
+            return effect.kind=="slash"||
+                effect.kind=="impact"||effect.kind=="hurt"?0:
+                effect.kind=="projectileImpact"?1:
+                effect.kind=="magicImpact"||
+                (effect.kind=="enemyRelease"&&effect.variant>=10)?2:-1;
+        }
+        private void DrawAuthoredImpactFlourish(Effect effect)
+        {
+            if (!ValidEffectForDraw(effect)) return;
+            int category=ImpactFlourishCategory(effect);
+            if(category<0||!WorldDrawable(effect.position.x,
+                    effect.position.y,115f,115f))return;
+            float phase=Mathf.Clamp01(1f-effect.life/effect.maxLife);
+            int frame=Math.Min(3,(int)(phase*4f));
+            float size=category==0?
+                (effect.kind=="slash"?
+                    (effect.variant==2?73f:57f):44f):
+                category==1?38f:
+                effect.kind=="enemyRelease"?65f:58f;
+            Point point=ScreenPoint(effect.position);
+            float lift=effect.height>=0f?effect.height:
+                effect.kind=="enemyRelease"?38f:30f;
+            float opacity=CurrentWorldVisualLook.impactFlourishAlpha*
+                (1f-phase);
+            float angle=category==0?
+                (float)(Math.Atan2(effect.direction.y,
+                    effect.direction.x)*180f/Math.PI):0f;
+            Rect footprint=new Rect(point.x-size*.5f,
+                point.y-lift-size*.5f,size,size);
+            // The original four painted poses used to snap instantly at
+            // 25/50/75% of their live contact effect's clock. Crossfade the
+            // TWO complete authored Sprite cells only within a narrow seam
+            // window. This leaves action/gameplay timing and true contact
+            // pivot unchanged, with no frame interpolation or limb grafting.
+            float scaled=phase*4f;
+            int boundary=(int)Math.Floor(scaled+.5f);
+            const float seamHalfWidth=.20f;
+            if(boundary>0&&boundary<4&&
+               scaled>boundary-seamHalfWidth&&
+               scaled<boundary+seamHalfWidth)
+            {
+                float blend=Mathf.Clamp01(
+                    (scaled-boundary+seamHalfWidth)/
+                    (2f*seamHalfWidth));
+                Atlas(impactFlourishSheet,4,3,category*4+boundary-1,
+                    footprint,new Color(1f,1f,1f,opacity*(1f-blend)),
+                    false,angle);
+                Atlas(impactFlourishSheet,4,3,category*4+boundary,
+                    footprint,new Color(1f,1f,1f,opacity*blend),
+                    false,angle);
+            }
+            else
+                Atlas(impactFlourishSheet,4,3,category*4+frame,
+                    footprint,new Color(1f,1f,1f,opacity),false,angle);
+        }
+        // Independent QA entrypoint: tests sample the real source cells
+        // directly, while DrawOrderedWorld owns actual in-scene occlusion.
+        private void DrawAuthoredImpactFlourishes()
+        {
+            if(!CanDrawAuthoredImpactFlourishes())return;
+            foreach(Effect effect in Game.effects)
+                DrawAuthoredImpactFlourish(effect);
+        }
+
+        // A small, source-authored, alpha-only-detail Sprite sheet contains
+        // four 24px motifs: forest fireflies, blown sand, coastal spray and
+        // snow crystals. VFX remains world-rooted, never a stand-in for the
+        // real character SpriteRenderer/Animator production architecture.
+        private Texture2D weatherWispSheet;
+        private float weatherWispNextImportCheck=float.NegativeInfinity;
+        private float weatherWispLastImportClock=float.NegativeInfinity;
+        // Biome-specific air motion uses genuine illustrated Effects.png
+        // star/speck pixels. The old 18 looping, screen-space square boxes
+        // looked identical in forest, snow and volcanic areas, and snapped
+        // under camera panning. Samples are world-seeded, pinned near their
+        // own source tile, and fade instead of teleported screen confetti.
+        // Small drifting flecks are VFX, not gameplay Animator actors.
+        private void DrawAuthoredAtmosphericMotes()
+        {
+            if (Game.save.reducedMotion || Game.save.effectsQuality==0)
+                return;
+            int region=Game.save.room;
+            // Citadel interiors and abyss dungeons have their own authored
+            // sources/light cues; do not paint outdoor fireflies across them.
+            if (region==4 || region==9) return;
+            bool authoredWisps=weatherWispSheet!=null &&
+                weatherWispSheet.width==96&&weatherWispSheet.height==24;
+            if(!authoredWisps &&
+               (clock<weatherWispLastImportClock ||
+                clock>=weatherWispNextImportCheck))
+            {
+                // During Unity art reimport a temporarily missing/wrong-
+                // dimension atlas must never leave permanent coarse VFX or
+                // trigger Resources.Load on EVERY world repaint. Re-attempt
+                // once per two seconds, including timeline/review rewind.
+                weatherWispLastImportClock=clock;
+                weatherWispNextImportCheck=clock+2f;
+                weatherWispSheet=Resources.Load<Texture2D>(
+                    "Frontier/Art/WeatherWisps");
+                authoredWisps=weatherWispSheet!=null &&
+                    weatherWispSheet.width==96&&weatherWispSheet.height==24;
+            }
+            // Never blank out ambience if Unity has not imported the new
+            // art yet. Its original approved Effects.png is a safe fallback.
+            if(!authoredWisps)
+            {
+                if(effectSheet==null)RecoverPublishedVisualAtlases();
+                if(effectSheet==null)return;
+            }
+            int density=Game.save.effectsQuality==1?13:8;
+            WorldVisualLook look=CurrentWorldVisualLook;
+            float baseOpacity=Game.Night?
+                look.ambientMoteNightAlpha:look.ambientMoteDayAlpha;
+            Color ink=region==0||region==1?
+                new Color(.80f,.95f,.67f,1f):region==2?
+                new Color(.77f,.89f,.90f,1f):region==3?
+                new Color(1f,.72f,.53f,1f):region==5?
+                new Color(.72f,.91f,1f,1f):region==6?
+                new Color(1f,.84f,.61f,1f):region==7?
+                new Color(.82f,.92f,1f,1f):
+                new Color(.88f,.81f,1f,1f);
+            int cx=(int)Math.Floor(camera.x/5f);
+            int cy=(int)Math.Floor(camera.y/5f);
+            for(int gy=cy-5;gy<=cy+5;gy++)
+                for(int gx=cx-5;gx<=cx+5;gx++)
+                {
+                    int seed=TileSeed(gx,gy,region);
+                    if(seed%density!=0)continue;
+                    Point anchor=new Point(gx*5f+.3f+
+                        (seed%337)/100f,gy*5f+.4f+
+                        ((seed/337)%371)/110f);
+                    // Camera pan changes only the projection, never the
+                    // world seed. Snow gusts sideways, warm desert dust
+                    // drifts along the horizon, and coast spray lifts;
+                    // forest motes retain their existing soft float.
+                    // All are smooth, short-range motions of the ORIGINAL
+                    // painted source cell, never resynthesized body pixels.
+                    float phase=(seed%211)*.071f;
+                    float flicker=.5f+.5f*(float)Math.Sin(clock*.9f+phase);
+                    float windX=region==7?look.snowMoteWindX:
+                        region==6?look.desertMoteWindX:
+                        region==5?.10f:.06f;
+                    float windY=region==7?.11f:region==6?.035f:
+                        region==5?look.coastMoteLift:.08f;
+                    Point drift=anchor+new Point(
+                        (float)Math.Sin(clock*.35f+phase)*windX,
+                        (float)Math.Sin(clock*.44f+phase*1.3f)*windY);
+                    if(!WorldDrawable(drift.x,drift.y,18f,18f))continue;
+                    Point p=ScreenPoint(drift);
+                    float alpha=baseOpacity*(.25f+.75f*flicker);
+                    float size=region==7?9f:region==6?7f:8f;
+                    int motif=region==7?3:region==6||region==3?1:
+                        region==5||region==2?2:0;
+                    if(authoredWisps)
+                        Atlas(weatherWispSheet,4,1,motif,
+                            new Rect(p.x-size*.5f,p.y-size*.5f,
+                                size,size),
+                            new Color(ink.r,ink.g,ink.b,alpha));
+                    else
+                        Atlas(effectSheet,4,4,13,
+                            new Rect(p.x-size*.5f,p.y-size*.5f,
+                                size,size),
+                            new Color(ink.r,ink.g,ink.b,alpha));
+                }
+        }
+
         private void DrawProjectileVisual(Projectile projectile)
         {
             if (effectSheet == null) RecoverPublishedVisualAtlases();
@@ -14,17 +233,23 @@ namespace Starfall
             float angle = (float)(Math.Atan2(projectile.velocity.y, projectile.velocity.x) * 180 / Math.PI);
             float size = arrow ? 30 : projectile.explosive ? 28 : 22;
             Color tint = projectile.friendly ? Color.white : BossEffectColor(projectile.theme);
-            // Tail cells are the original illustrated Effects.png pixels.
-            // Previously each ghost materialized at FULL alpha as soon as a
-            // discrete distance threshold was crossed: fast arrows showed
-            // three visible duplicate silhouettes in successive frames.
-            // Ease each independent tail IN over 0.18 world units. Nothing
-            // changes projectile collision, velocity or real emission time.
-            // Reduced motion never adds trailing moving silhouettes.
-            if(effectSheet!=null && Game.save.effectsQuality>0 &&
-                !Game.save.reducedMotion)
+            // A separate hand-painted four-pose motion trail now follows
+            // the ACTUAL projectile in flight. Never ghost the projectile
+            // head itself: a streak of real 24px painted filaments conveys
+            // arrow speed and magic energy without fake duplicate missiles.
+            // The original Effects.png remains the exact safe fallback.
+            // GameCore owns travel, reflection, collision and hit timing.
+            if(Game.save.effectsQuality>0&&!Game.save.reducedMotion)
             {
-                float travelled=projectile.age*projectile.velocity.Length;
+                Texture2D authoredTail=PublishedProjectileTrailArt();
+                if(authoredTail==null&&effectSheet==null)
+                    RecoverPublishedVisualAtlases();
+                // Derive tail growth from the CURRENT flight direction,
+                // not the inbound age accumulated before a warrior parry.
+                // The gameplay projectile (and its hitbox/age) never resets.
+                float travelled=Math.Max(0f,
+                    projectile.age-projectile.trailResetAt)*
+                    projectile.velocity.Length;
                 int maxTrail=Game.save.effectsQuality==1?2:3;
                 for(int i=maxTrail;i>0;i--)
                 {
@@ -35,10 +260,31 @@ namespace Starfall
                     Point tail=ScreenPoint(projectile.position-
                         projectile.velocity.Normalized*i*.18f);
                     tail.y-=height;
-                    Atlas(effectSheet,4,4,arrow?11:12,
-                        new Rect(tail.x-size/2,tail.y-size/2,size,size),
-                        new Color(tint.r,tint.g,tint.b,
-                            .42f/i*fade),false,angle);
+                    float trailSize=arrow?24f:26f;
+                    // Frame choice is based ONLY on real time since the
+                    // current heading's launch/reflection. A parry resets
+                    // it, so inbound source silhouettes never linger.
+                    int paintedFrame=(int)Math.Floor(
+                        Math.Max(0f,projectile.age-
+                            projectile.trailResetAt)*
+                            CurrentWorldVisualLook.projectileTrailFrameRate+i)%4;
+                    // Hostile archers must retain their faction/elemental
+                    // telegraph on the SAME physical missile and its original
+                    // painted tail. White trails on every enemyArrow formerly
+                    // made dangerous inbound arrows look like allied shots.
+                    // Parried shots become friendly in GameCore, so both head
+                    // and trailing filament now change color together.
+                    Color trailTint=new Color(tint.r,tint.g,tint.b,
+                        CurrentWorldVisualLook.projectileTrailAlpha/i*fade);
+                    if(authoredTail!=null)
+                        Atlas(authoredTail,4,2,(arrow?0:4)+paintedFrame,
+                            new Rect(tail.x-trailSize*.5f,
+                                tail.y-trailSize*.5f,trailSize,trailSize),
+                            trailTint,false,angle);
+                    else if(effectSheet!=null)
+                        Atlas(effectSheet,4,4,arrow?11:12,
+                            new Rect(tail.x-size*.5f,tail.y-size*.5f,
+                                size,size),trailTint,false,angle);
                 }
             }
             if (effectSheet != null) Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2, size, size), tint, false, arrow ? angle : 0);
@@ -46,6 +292,7 @@ namespace Starfall
         }
         private bool DrawAuthoredEffect(Effect effect)
         {
+            if (!ValidEffectForDraw(effect)) return false;
             if (effectSheet == null || iconSheet == null)
                 RecoverPublishedVisualAtlases();
             if (effect.kind == "number" || effect.kind == "break") return false;
@@ -94,10 +341,26 @@ namespace Starfall
                     id = progress < .32f ? 3 : 4;
                     size = 35; break;
                 case "projectileFade": id = effect.variant; size = 26; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
-                case "magicImpact": id = 5; size = effect.radius > 0 ? effect.radius * Tile * 2 : 67; break;
+                case "magicImpact":
+                    id=5;
+                    // Solid cover limits damage, so a giant Effects.png disc
+                    // must not extend across that wall. Preserve the source
+                    // impact glyph locally and let the physical splash
+                    // perimeter below describe the actual visible blast.
+                    size=effect.radius>0?80f:67f;
+                    break;
                 case "release": id = 13; size = 33; break;
                 case "frost": id = 6; size = 4 * Tile * 2; break;
-                case "burst": id = effect.variant == 0 ? 7 : 5; size = effect.radius > 0 ? effect.radius * Tile * 2 : 145; break;
+                case "burst":
+                    id = effect.variant == 0 ? 7 : 5;
+                    // The accepted 32px source glyph is a CONTACT flash,
+                    // not a full-screen painted damage disc. A centered
+                    // native-pixel-sized flash avoids stamping its source
+                    // artwork across a wall; the accurate outer footprint
+                    // is drawn separately below.
+                    size = effect.playerAreaSkill ? 88f :
+                        effect.radius > 0 ? effect.radius * Tile * 2 : 145;
+                    break;
                 case "heal": id = 13; size = 65; break;
                 case "defeat": id = 15; size = effect.variant == 1 ? 90 : 42; break;
                 case "discover": id = 13; size = 56; break;
@@ -110,18 +373,96 @@ namespace Starfall
                 case "dash": id = 11; size = 38; angle = (float)(Math.Atan2(effect.direction.y, effect.direction.x) * 180 / Math.PI); break;
                 default: id = 14; size = 52; break;
             }
-            // Discrete authored texture plus a short, restrained expansion and fade.
-            size *= .8f + progress * .35f;
+            // Source-painted contact FX expand slightly in the normal
+            // animation mode. Reduced Motion previously still animated the
+            // ENTIRE projectile/sword contact image by ~44% in scale, even
+            // though its optional sprite blends were already disabled.
+            // Hold a single legible original Sprite footprint instead;
+            // damage, occlusion, audio and lifecycle clocks never change.
+            size *= Game.save.reducedMotion ? 1f :
+                .8f + progress * .35f;
             Color color = new Color(1, 1, 1, Math.Min(1, (1 - progress) * 1.7f));
             if (effect.kind == "danger" || effect.kind == "enemyRelease" && effect.variant >= 10)
             { Color theme = BossEffectColor(effect.kind == "danger" ? effect.variant : effect.variant - 10); color.r = theme.r; color.g = theme.g; color.b = theme.b; }
+            if ((effect.kind=="impact"||effect.kind=="spark") &&
+                effect.variant>=1&&effect.variant<=3)
+            {
+                // Only damage-confirmed player technique contacts get
+                // class-specific elemental light. The unchanged approved
+                // Effects.png contact cell keeps its physical pivot,
+                // lifetime and source pixels; ordinary hits remain white.
+                switch(effect.variant)
+                {
+                    case 1: color.r=.98f;color.g=.80f;color.b=.48f;break;
+                    case 2: color.r=.60f;color.g=.91f;color.b=.72f;break;
+                    case 3: color.r=.67f;color.g=.76f;color.b=1f;break;
+                }
+            }
+            if((effect.kind=="projectileImpact"||
+                effect.kind=="magicImpact")&&
+                effect.variant>=1&&effect.variant<=4)
+            {
+                // The authentic Effects.png contact frame is recolored
+                // ONLY for an actual GameCore missile/wall collision.
+                // Enemy orange, bow green, arcane blue and successful
+                // sword deflection gold agree with each flying source.
+                switch(effect.variant)
+                {
+                    case 1: color.r=1f;color.g=.47f;color.b=.40f;break;
+                    case 2: color.r=.60f;color.g=.91f;color.b=.72f;break;
+                    case 3: color.r=.67f;color.g=.76f;color.b=1f;break;
+                    case 4: color.r=.98f;color.g=.80f;color.b=.48f;break;
+                }
+            }
             if (effect.kind == "projectileFade") color.a *= .65f;
             if (effect.kind != "slash" && effect.kind != "impact" && effect.kind != "spark" && effect.kind != "projectileImpact") color.a *= Math.Min(1, progress * 12 + .15f);
             if (IsGroundEffect(effect)) color.a *= effect.kind == "frost" ? .42f : .62f;
             if (effect.kind == "heal") color = new Color(.65f, 1, .8f, color.a);
             float height = effect.kind == "impact" || effect.kind == "hurt" || effect.kind == "spark" || effect.kind == "slash" || effect.kind == "projectileImpact" || effect.kind == "magicImpact" || effect.kind == "release" || effect.kind == "heal" ? 30 : effect.kind == "defeat" ? 18 : effect.kind == "enemyRelease" && id != 7 ? 38 : 0;
             if (effect.height >= 0) height = effect.height;
-            Atlas(effectSheet, 4, 4, id, new Rect(p.x - size / 2, p.y - size / 2 - height, size, size), color, false, angle);
+            Rect contactRect=new Rect(p.x-size/2,p.y-size/2-height,
+                size,size);
+            // Hit reactions previously replaced the bright contact star
+            // with an unrelated dust/deflection cell in ONE repaint. This
+            // made an otherwise continuous melee/arrow impact visibly pop.
+            // Overlap the two ORIGINAL hand-painted whole effect Sprites on
+            // the SAME GameCore contact pivot for just 16% of the effect
+            // lifetime; no new animation clock, collision or fake body art.
+            float contactWindow=CurrentWorldVisualLook.hitContactBlendFraction;
+            float beginContact=.32f-contactWindow*.5f;
+            float endContact=.32f+contactWindow*.5f;
+            bool blendContact=Game.save.effectsQuality>0 &&
+                !Game.save.reducedMotion &&
+                (effect.kind=="impact"||effect.kind=="hurt"||
+                 effect.kind=="projectileImpact") &&
+                progress>beginContact&&progress<endContact;
+            // A sword previously teleported between its two WHOLE authored
+            // slash silhouettes at 38% effect progress. Interleave the
+            // original cell 0 and 1 only around that existing seam.
+            // No extra hit event, independent Animator, weapon translation,
+            // collision extension or invented body parts.
+            float slashWindow=CurrentWorldVisualLook.slashBridgeFraction;
+            float slashBegin=.38f-slashWindow*.5f;
+            bool blendSlash=Game.save.effectsQuality>0 &&
+                !Game.save.reducedMotion&&effect.kind=="slash"&&
+                progress>slashBegin&&
+                progress<slashBegin+slashWindow;
+            if(blendContact||blendSlash)
+            {
+                float start=blendSlash?slashBegin:beginContact;
+                float duration=blendSlash?slashWindow:contactWindow;
+                float mix=Mathf.Clamp01((progress-start)/duration);
+                int sourceCell=blendSlash?0:3;
+                int releaseCell=blendSlash?1:
+                    effect.kind=="projectileImpact"?4:2;
+                Atlas(effectSheet,4,4,sourceCell,contactRect,
+                    new Color(color.r,color.g,color.b,color.a*(1f-mix)),
+                    false,angle);
+                Atlas(effectSheet,4,4,releaseCell,contactRect,
+                    new Color(color.r,color.g,color.b,color.a*mix),
+                    false,angle);
+            }
+            else Atlas(effectSheet,4,4,id,contactRect,color,false,angle);
             // A spell currently has a fine, illustrated teal vortex but its
             // point of contact looks static. Use the ORIGINAL authored
             // Effects.png contact star (cell 13) as a short-lived second
@@ -143,12 +484,38 @@ namespace Starfall
             {
                 float radius = effect.kind == "frost" ? 4 : effect.kind == "burst" || effect.kind == "magicImpact" ? effect.radius : effect.radius > 0 ? effect.radius : .4f + progress * 1.3f;
                 Color ring = effect.kind == "frost" || effect.kind == "magicImpact" || effect.kind == "burst" && effect.variant == 2 ? mint : effect.kind == "danger" ? PixelArt.C("#df8a68") : gold;
-                if (radius > 0) Ring(effect.position, radius, new Color(ring.r, ring.g, ring.b, .48f * (1 - progress)), 32);
+                if (radius > 0)
+                {
+                    Color footprint=new Color(ring.r,ring.g,ring.b,
+                        .48f*(1-progress));
+                    if(effect.kind=="burst"&&effect.playerAreaSkill||
+                        effect.kind=="magicImpact"&&effect.radius>0f)
+                    {
+                        // The SAME actual cover rule clips both full-body
+                        // class Q shockwaves and real starfire splash. Keep
+                        // each source-authored center contact, but never
+                        // draw an outer range dot through impenetrable rock.
+                        for(int i=0;i<32;i++)
+                        {
+                            double spokeRadians=i*Math.PI*2/32;
+                            Point unit=new Point((float)Math.Cos(spokeRadians),
+                                (float)Math.Sin(spokeRadians));
+                            Point sample=effect.position+unit*(radius*.98f);
+                            bool visible=effect.kind=="magicImpact"?
+                                Game.MagicSplashVisualContactVisible(effect,sample):
+                                Game.PlayerAreaEffectContactVisible(effect,sample);
+                            if(!visible)continue;
+                            Point edge=ScreenPoint(effect.position+unit*radius);
+                            Box(edge.x-2,edge.y-2,4,4,footprint);
+                        }
+                    }
+                    else Ring(effect.position,radius,footprint,32);
+                }
             }
             return true;
         }
         private static bool IsGroundEffect(Effect effect)
-        { return effect.kind == "danger" || effect.kind == "frost" || effect.kind == "burst"; }
+        { return effect != null && (effect.kind == "danger" || effect.kind == "frost" || effect.kind == "burst"); }
         private static int BossEffectFrame(int room)
         { return room == 1 ? 1 : room == 2 ? 12 : room == 3 ? 7 : room == 4 ? 5 : room == 5 ? 12 : room == 6 ? 7 : room == 7 ? 6 : room == 8 ? 5 : 7; }
         private static Color BossEffectColor(int room)
@@ -160,6 +527,10 @@ namespace Starfall
         // letterboxing/ultrawide GameView and never mutates collision.
         private void DrawWarningStroke(Point a, Point b, Color color)
         {
+            // Source/target remain GameCore-owned. Clip only the VISUAL
+            // segment to the logical canvas (before GUI letterbox matrix).
+            // Entirely invisible lines submit zero draw calls.
+            if(!ClipWarningScreenSegment(ref a,ref b))return;
             Point delta=b-a;
             float length=delta.Length;
             if(length<.001f)return;
@@ -195,6 +566,88 @@ namespace Starfall
                 prior=end;
             }
         }
+        // Draw the exact circle still centered on the GameCore strike,
+        // but fade arcs behind LIVE occluding walls: area damage itself
+        // performs ClearAttackPath from the enemy to its actual victim.
+        // Keep blocked arcs faint instead of silently hiding the entire
+        // warning (including legitimate long-range/offscreen windups).
+        // No wall collision, target or source artwork is modified.
+        private void DrawCoverAwareEnemyAreaArc(Enemy enemy,float radius,
+            Color visible,int segments)
+        {
+            if(radius<=0f||segments<1)return;
+            Point center=enemy.target;
+            float step=(float)(Math.PI*2/segments);
+            Point prev=center+new Point(radius,0);
+            Color behindWall=new Color(.52f,.64f,.67f,visible.a*.30f);
+            for(int i=1;i<=segments;i++)
+            {
+                float angle=i*step;
+                Point next=center+new Point(
+                    (float)Math.Cos(angle)*radius,
+                    (float)Math.Sin(angle)*radius);
+                float midway=(i-.5f)*step;
+                Point sample=center+new Point(
+                    (float)Math.Cos(midway)*radius,
+                    (float)Math.Sin(midway)*radius);
+                DrawWarningStroke(ScreenPoint(prev),ScreenPoint(next),
+                    Game.EnemyAreaWarningSpokeReachable(enemy,sample)?
+                    visible:behindWall);
+                prev=next;
+            }
+        }
+        private void DrawCoverAwareEnemyMeleeArc(Enemy enemy,
+            float start,float sweep,Color visible,int segments)
+        {
+            if(segments<1)return;
+            const float radius=GameCore.EnemyMeleeRadius;
+            float step=sweep/segments;
+            Point previous=enemy.Position+new Point(
+                (float)Math.Cos(start)*radius,
+                (float)Math.Sin(start)*radius);
+            Color cover=new Color(.52f,.64f,.67f,visible.a*.30f);
+            for(int i=1;i<=segments;i++)
+            {
+                float theta=start+i*step;
+                Point next=enemy.Position+new Point(
+                    (float)Math.Cos(theta)*radius,
+                    (float)Math.Sin(theta)*radius);
+                // The warning itself sits ON the exact strict contact
+                // boundary. Probe just INSIDE that radius for the same
+                // physical LOS and melee direction used on hit release.
+                float mid=start+(i-.5f)*step;
+                Point actualProbe=enemy.Position+new Point(
+                    (float)Math.Cos(mid)*(radius-.015f),
+                    (float)Math.Sin(mid)*(radius-.015f));
+                DrawWarningStroke(ScreenPoint(previous),
+                    ScreenPoint(next),
+                    Game.EnemyMeleeWarningSpokeReachable(enemy,actualProbe)?
+                    visible:cover);
+                previous=next;
+            }
+            // Preserve the original narrow wedge boundaries, but never
+            // render a full threatening line through a solid wall.
+            for(int side=-1;side<=1;side+=2)
+            {
+                float theta=side<0?start:start+sweep;
+                Point direction=new Point(
+                    (float)Math.Cos(theta),(float)Math.Sin(theta));
+                Point endpoint=enemy.Position+direction*radius;
+                Point check=enemy.Position+direction*(radius-.015f);
+                // The exact angular boundary is intentionally outside
+                // InEnemyMeleeArc's strict > cosine. Nudge inward by one
+                // half-segment so the boundary follows the nearby
+                // drawable physical arc, not a mathematical equality.
+                float inner=theta+(side<0?1f:-1f)*step*.5f;
+                check=enemy.Position+new Point((float)Math.Cos(inner),
+                    (float)Math.Sin(inner))*(radius-.015f);
+                Color tint=Game.EnemyMeleeWarningSpokeReachable(enemy,check)?
+                    visible:cover;
+                DrawWarningStroke(ScreenPoint(enemy.Position),
+                    ScreenPoint(endpoint),
+                    new Color(tint.r,tint.g,tint.b,tint.a*.45f));
+            }
+        }
         private void DrawTelegraph(Enemy enemy)
         {
             float radius = GameCore.EnemyAreaRadius(enemy);
@@ -205,13 +658,26 @@ namespace Starfall
                 DrawWarningStroke(ScreenPoint(enemy.Position),
                     ScreenPoint(enemy.target),
                     new Color(warning.r,warning.g,warning.b,.18f+progress*.15f));
-            DrawWarningArc(enemy.target,radius,0f,
-                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,.85f),36);
-            DrawWarningArc(enemy.target,radius*(.2f+progress*.8f),0f,
-                (float)(Math.PI*2),new Color(warning.r,warning.g,warning.b,
-                .35f+progress*.35f),24);
-            Point p = ScreenPoint(enemy.target);
-            Atlas(effectSheet, 4, 4, 14, new Rect(p.x - radius * Tile, p.y - radius * Tile, radius * Tile * 2, radius * Tile * 2), new Color(warning.r, warning.g, warning.b, .1f + progress * .13f));
+            DrawCoverAwareEnemyAreaArc(enemy,radius,
+                new Color(warning.r,warning.g,warning.b,.85f),36);
+            // The large safety outline remains visible to everybody.
+            // The concentric INNER ring formerly expanded for every
+            // GameCore tick even in Reduced Motion. Hold a fixed 90%-radius
+            // secondary outline for motion-sensitive players; impact range
+            // and the persistent outer circle never change.
+            float innerRadius=Game.save.reducedMotion?
+                radius*.90f:radius*(.2f+progress*.8f);
+            float innerAlpha=Game.save.reducedMotion?
+                .56f:.35f+progress*.35f;
+            DrawCoverAwareEnemyAreaArc(enemy,innerRadius,
+                new Color(warning.r,warning.g,warning.b,innerAlpha),24);
+            // Old renderer scaled one 32px Effects cell to the COMPLETE
+            // attack radius (sometimes 200+ screen pixels), smearing its
+            // pixels across scenery and burying the original terrain.
+            // Keep both mathematically accurate GameCore radius rings,
+            // but put a genuine artist-painted four-pose glyph only at
+            // the LOCKED attack target. Actor sprites and collision survive.
+            DrawCastSigil(enemy,progress);
         }
         private void DrawEnemyWarning(Enemy enemy)
         {
@@ -263,16 +729,8 @@ namespace Starfall
             // The previous 33 disconnected square dots flickered into a
             // jagged, barely legible arc. The new stitched stroke follows the
             // identical GameCore melee cosine/radius and facing.
-            DrawWarningArc(enemy.Position,GameCore.EnemyMeleeRadius,
-                angle-half,half*2f,color,24);
-            for(int side=-1;side<=1;side+=2)
-            {
-                float a=angle+half*side;
-                Point edge=enemy.Position+new Point((float)Math.Cos(a),(float)Math.Sin(a))*GameCore.EnemyMeleeRadius;
-                DrawWarningStroke(ScreenPoint(enemy.Position),
-                    ScreenPoint(edge),
-                    new Color(color.r,color.g,color.b,color.a*.45f));
-            }
+            DrawCoverAwareEnemyMeleeArc(enemy,angle-half,
+                half*2f,color,24);
         }
     }
 }

@@ -8,6 +8,12 @@ namespace Starfall
     {
         public readonly List<Hazard> hazards = new List<Hazard>();
         public Point companionPosition;
+        // Transient pose identity generation; not serialized and never
+        // participates in battle, damage, relationship or save formats.
+        // When a player dismisses Mira then later reselects Mira WITHOUT
+        // rendering an intermediate NPC frame, the old foot phase must not
+        // leak into the new character instance.
+        public int companionPresentationGeneration;
         public float companionCooldown, raceTime, comboTimer, riposteTime;
         public int raceCheckpoint, combo;
         public bool racing, perfectDodgeArmed;
@@ -15,6 +21,13 @@ namespace Starfall
         private Point dashOrigin;
         private float dodgeEscapeTime;
         private float companionAttack, climateTimer, stormTimer;
+        // Local, nonserialized climate danger notifications. Re-arm only
+        // after actually recovering below the lower safe threshold.
+        private bool heatDangerWarned, coldDangerWarned;
+        // Identity of a genuine AUTO attack's selected opponent. A player
+        // command owns its explicit aim instead, and must never be retargeted
+        // or cancelled by this transient AI safety check.
+        private Enemy companionAutoTarget;
         private MapData abyssMap;
         private bool previousLowTide;
         public static readonly Point[] RaceRoute = { new Point(8, 18), new Point(8, 5), new Point(23, 5), new Point(30, 18), new Point(14, 18) };
@@ -48,6 +61,21 @@ namespace Starfall
                 {
                     float dx = foe.x - x, dy = foe.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
+                    // A Boss/elite can lock an actual ground strike from
+                    // beyond the ordinary 4-6 tile safety radius. An archer
+                    // can likewise finish an already aimed long shot.
+                    // Travel must not erase an attack about to reach the
+                    // hero merely because the attacker is offscreen/far.
+                    if (foe.state != 1 ||
+                        !(foe.boss || foe.kind == 2 || foe.kind == 1))
+                        continue;
+                    float blast = foe.boss || foe.kind == 2 ?
+                        EnemyAreaRadius(foe) : .45f;
+                    float reach = dangerRadius + blast;
+                    float tx=foe.target.x-x,ty=foe.target.y-y;
+                    if (tx*tx+ty*ty<reach*reach &&
+                        ClearAttackPath(foe.Position,Position))
+                        return false;
                 }
                 // A nearby hostile shot can arrive after its archer has moved
                 // beyond the safety radius. A travel shortcut must not make
@@ -59,6 +87,24 @@ namespace Starfall
                         continue;
                     float dx = shot.position.x - x, dy = shot.position.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
+                    // The incoming projectile may be beyond the safety
+                    // circle *now* but cross it in the next second. Predict
+                    // the closest point on its real velocity segment, bound
+                    // the forecast by remaining flight lifetime, and reject
+                    // shots already flying away or blocked by actual terrain.
+                    // Never consume ammo, create collisions or change saves.
+                    float speed2=shot.velocity.x*shot.velocity.x+
+                        shot.velocity.y*shot.velocity.y;
+                    if(speed2<=.0001f)continue;
+                    float approach=((x-shot.position.x)*shot.velocity.x+
+                        (y-shot.position.y)*shot.velocity.y)/speed2;
+                    float horizon=Math.Min(shot.life,1.25f);
+                    if(approach<0f||approach>horizon)continue;
+                    Point nearest=shot.position+shot.velocity*approach;
+                    float nx=nearest.x-x,ny=nearest.y-y;
+                    if(nx*nx+ny*ny<rangeSquared&&
+                        ClearAttackPath(shot.position,nearest))
+                        return false;
                 }
                 // A live telegraphed explosion is also combat. Previously
                 // resting or quick travel could erase its pending contact
@@ -72,7 +118,12 @@ namespace Starfall
                     if (warning.damage <= 0) continue;
                     float dx = warning.position.x - x, dy = warning.position.y - y;
                     float reach = dangerRadius + Math.Max(0, warning.radius);
-                    if (dx * dx + dy * dy < reach * reach) return false;
+                    // A wall can close after a delayed blast warning.
+                    // Radius alone must not forbid resting/travel behind
+                    // solid terrain that the same blast cannot penetrate.
+                    if (dx * dx + dy * dy < reach * reach &&
+                        ClearAttackPath(warning.position,Position))
+                        return false;
                 }
                 return true;
             }
@@ -143,9 +194,13 @@ namespace Starfall
         private void ResetExpansionTransient()
         {
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
-            companionAction = null; companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
+            companionAction = null; companionAutoTarget = null;
+            companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
+            companionPresentationGeneration++;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
-            climateTimer = 1; stormTimer = 6; ClearFrost(); ResetFieldStationSurvey();
+            climateTimer = 1; stormTimer = 6;
+            heatDangerWarned = coldDangerWarned = false;
+            ClearFrost(); ResetFieldStationSurvey();
             combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; dashOrigin = new Point(); dodgeEscapeTime = 0; previousLowTide = LowTide;
         }
         private bool SpawnExpansionRoom()
@@ -203,16 +258,27 @@ namespace Starfall
             if (save.abyssFloor == 6 && !Has("boss_8") && !enemies.Exists(e => e.boss)) enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), CurrentBoss.hp, true));
             return true;
         }
-        private void OnExpansionKill(Enemy e, int releasedWeapon = -1)
+        private void OnExpansionKill(Enemy e, int releasedWeapon = -1,
+            bool playerOwned = true)
         {
-            int weapon = releasedWeapon >= 0 && releasedWeapon <= 2 ? releasedWeapon : save.weapon;
-            save.mastery[weapon] = Math.Min(100, save.mastery[weapon] + (e.boss ? 10 : 2));
+            // World kills still pay their normal bounty, XP and loot,
+            // including genuine ally kills. Weapon mastery, however,
+            // measures a *player-operated* weapon's combat experience.
+            // A companion-owned projectile must not silently train the
+            // hero's equipped sword/staff while the ally fights alone.
+            if (playerOwned)
+            {
+                int weapon = releasedWeapon >= 0 && releasedWeapon <= 2 ?
+                    releasedWeapon : save.weapon;
+                save.mastery[weapon] = Math.Min(100,
+                    save.mastery[weapon] + (e.boss ? 10 : 2));
+            }
             BountyEvent(0, 1); if (e.boss) BountyEvent(3, 1); if (e.kind == 2) BountyEvent(4, 1);
             if (InAbyss)
             {
-                save.runCoins += e.boss ? 70 : 8 + save.abyssRisk * 3;
-                save.runShards += (e.boss ? 5 : 1) + save.abyssRisk;
-                save.runXp += e.boss ? 100 : 14;
+                save.runCoins = CappedReward(save.runCoins, e.boss ? 70 : 8 + save.abyssRisk * 3, 9999);
+                save.runShards = CappedReward(save.runShards, (e.boss ? 5 : 1) + save.abyssRisk, 9999);
+                save.runXp = CappedReward(save.runXp, e.boss ? 100 : 14, 9999);
                 if (enemies.Count == 0) { Flag("abyss_clear_" + save.abyssFloor); Notify("本层已清理。到东侧地脉门选择祝福并结算。", "Floor cleared. Choose a blessing and bank rewards at the east gate."); }
                 PrepareSave();
             }
@@ -229,7 +295,7 @@ namespace Starfall
             while (save.level < 30 && save.xp >= save.level * 40)
             {
                 save.xp -= save.level * 40;
-                save.level++; save.skillPoints++; save.health = save.maxHealth;
+                save.level++; CreditSkillPoints(1); save.health = save.maxHealth;
                 if (announce)
                     Notify("升级！生命回满，获得 1 技能点。按 K 分配。",
                         "Level up! Health restored, +1 skill point. Open K to spend it.");
@@ -252,7 +318,37 @@ namespace Starfall
             // its next automatic action just because the same icon was tapped.
             if (id == save.companion) return;
             if (!SafeTravel) return;
-            save.companion = id; companionAction = null; companionPosition = CompanionFollowTarget(); companionAttack = 1; revision++;
+            // Switching companions deliberately cancels an in-flight
+            // manual order. A command that NEVER reached its physical
+            // release cannot charge a 12-18s skill cooldown; conversely,
+            // swapping AFTER release must not refresh an already-earned
+            // heal, arrow volley or frost aura for free.
+            bool unreleasedCommand=companionAction!=null &&
+                companionAction.kind=="command" && !companionAction.released;
+            save.companion = id;
+            // A tactical watch was assigned to a PARTICULAR companion
+            // body and its original physical foot. Swapping that body
+            // cannot silently transfer the old guard position, medic
+            // rescue state or route timer to a different party member.
+            // Same-ID taps already return above and preserve the watch.
+            outerPatrolCompanionGuard=outerPatrolGuardMedicRescue=false;
+            outerPatrolCompanionGuardFoot=new Point();
+            outerPatrolGuardRouteCheck=0f;
+            companionPresentationGeneration++;
+            companionAction = null; companionAutoTarget = null;
+            if(unreleasedCommand)companionCooldown=0f;
+            companionPosition = CompanionFollowTarget();
+            companionAttack = 1;
+            // A different companion is a new walking identity. The old
+            // follower's traveled-distance phase previously carried over
+            // mid-stride and made the new body start on an airborne leg.
+            // This is transient motion state only; saved relationships,
+            // commands and old save formats remain untouched.
+            companionMoveTime = 0f;
+            companionMoving = false;
+            companionAim = aim.Length > .001f ?
+                aim.Normalized : new Point(1,0);
+            revision++;
         }
         public void CompanionStory(int id)
         {
@@ -274,64 +370,581 @@ namespace Starfall
                 else target = null;
             }
             companionCooldown = save.frontierEnding == 3 ? 12 : 18;
+            companionAutoTarget = null; // explicit command is owned by user
             companionAction = new ActorAction { kind = "command", weapon = save.companion, combo = save.relationships[save.companion], damage = Damage,
                 direction = direction, target=target, duration = .52f, contact = .2f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
             companionAim = companionAction.direction;
         }
         private void ReleaseCompanionCommand(ActorAction action)
         {
-            int bond = action.combo; sound = "skill";
+            int bond = action.combo;
+            // A shot/spell committed inside newly closed gates, flooded
+            // ground or solid props is not a usable companion action.
+            // Retire the invalid contact and refund the manual command so
+            // the player can issue a genuine order after reaching safe foot.
+            if(action.weapon!=0&&!CanStand(companionPosition))
+            {
+                companionCooldown=0f;
+                return;
+            }
             if (action.weapon == 0)
-            { save.health = Math.Min(save.maxHealth, save.health + 18 + bond * 3); save.energy = Math.Min(100, save.energy + 15); guardTime = Math.Max(guardTime, 3); }
+            {
+                // The player's commanded Mira heal is a PHYSICAL support
+                // contact, just like Mira's automatic heal. If the hero
+                // stepped behind a wall/portal during her 200ms cast, a
+                // global heal and 18s spent cooldown would be misleading.
+                // Retain the full authored command recovery pose, but refund
+                // the invalid contact; never award HP, energy or guard.
+                if (!CanCompanionHeal())
+                {
+                    companionCooldown=0f;
+                    return;
+                }
+                save.health = Math.Min(save.maxHealth, save.health + 18 + bond * 3);
+                save.energy = Math.Min(100, save.energy + 15);
+                guardTime = Math.Max(guardTime, 3);
+            }
             else if (action.weapon == 1)
+            {
+                int arrowsReleased = 0;
                 for (int i = -1; i <= 1; i++)
                 {
                     Projectile shot = FriendlyShot(companionPosition, 1, action.direction, 13, action.damage * (.8f + bond * .05f), false, action.target, action.impact);
+                    // Standing legally and seeing the target does not make a
+                    // bow hand embedded in adjacent stone a valid release.
+                    // A command whose entire physical volley is blocked
+                    // must not charge 18 seconds or publish phantom arrows.
+                    if (shot.blockedAtSpawn) continue;
                     double angle = Math.Atan2(shot.velocity.y, shot.velocity.x) + i * .17;
                     shot.velocity = new Point((float)Math.Cos(angle), (float)Math.Sin(angle)) * 13; shot.piercing = true; projectiles.Add(shot);
+                    arrowsReleased++;
                 }
+                if (arrowsReleased == 0)
+                {
+                    companionCooldown = 0f;
+                    return;
+                }
+            }
             else
             {
-                BeginFrost(Position,action.damage,action.impact??CaptureImpact(2,0,false));
-                foreach (Enemy e in enemies) if ((e.Position - Position).Length < 5 && ClearAttackPath(Position, e.Position)) { e.stun = 1.4f; e.state = 0; e.timer = 1.2f; }
+                // Sen is an actual actor. An ally stranded on flooded or
+                // sealed terrain cannot create a global spell from the hero,
+                // nor should this command replace the player's current Q.
+                // Resolve the release at the caster's CURRENT physical foot.
+                Point caster=companionPosition;
+                BeginCompanionFrost(caster,action.damage,
+                    action.impact??CaptureImpact(2,0,false));
+                // Match the genuine companion staff's current animation and
+                // origin. Without this only the distant ground ring appeared,
+                // so the player couldn't tell WHO had actually cast it.
+                effects.Add(new Effect("release",
+                    WeaponOrigin(caster,2,action.direction),.18f)
+                    {direction=action.direction,variant=2,
+                        height=WeaponHeight(2,action.direction)});
+                foreach(Enemy e in enemies)
+                    if((e.Position-caster).Length<5f &&
+                        ClearAttackPath(caster,e.Position))
+                    {
+                        ApplyEnemyControl(e,1.4f);
+                        // A true windup was canceled by ApplyEnemyControl.
+                        // Preserve any *longer* idle/recovery delay already
+                        // earned by this opponent rather than waking it up
+                        // early merely because Sen chilled the area.
+                        e.state=0;e.timer=Math.Max(e.timer,1.2f);
+                    }
             }
+            sound = "skill";
             if (action.weapon == 0) effects.Add(new Effect("heal", Position, .6f));
             else if (action.weapon == 1) effects.Add(new Effect("release", WeaponOrigin(companionPosition, 1, action.direction), .18f) { direction = action.direction, variant = 1, height = WeaponHeight(1, action.direction) });
         }
+        // The six preferred escort slots all need diagonal space. In a
+        // one-tile bridge/corridor none may fit, despite plenty of legal
+        // standing room directly beside the hero. Keep fallback slots close
+        // without ever choosing the hero's exact foot if another legal lane
+        // exists; this is also the party-switch spawn path.
+        private static readonly Point[] companionNarrowOffsets={
+            new Point(-1.35f,0),new Point(1.35f,0),
+            new Point(0,-1.35f),new Point(0,1.35f),
+            new Point(-1.1f,-1.1f),new Point(1.1f,-1.1f),
+            new Point(-1.1f,1.1f),new Point(1.1f,1.1f)
+        };
         private Point CompanionFollowTarget()
         {
-            foreach (Point offset in companionOffsets) if (Fits(Position + offset)) return Position + offset;
-            return Fits(companionPosition) && (companionPosition - Position).Length < 6 ? companionPosition : Position;
+            foreach(Point offset in companionOffsets)
+                if(Fits(Position+offset))return Position+offset;
+            // A previously planted ally remains valid if the nearby route
+            // narrows. Do not teleport the sprite to another slot when the
+            // same legal foot already has room to stand.
+            Point previous=companionPosition-Position;
+            if(Fits(companionPosition)&&previous.Length>=.9f&&
+                previous.Length<6f)return companionPosition;
+            foreach(Point offset in companionNarrowOffsets)
+                if(Fits(Position+offset))return Position+offset;
+            // Fully sealed single-cell geometry is handled by the existing
+            // SafeActorFoot/recovery; avoid introducing a new saved location.
+            return Position;
+        }
+        private bool CanCompanionHeal()
+        {
+            // Auto-healing follows the same physical accessibility as
+            // companion attacks; no heals through a closed gate, house or
+            // rising tide, and none from an ally left far behind.
+            return (Position-companionPosition).Length<=6f &&
+                Fits(companionPosition) &&
+                ClearAttackPath(companionPosition,Position);
+        }
+        // Automatic companion fire must clear the actual physical arrow
+        // or staff projectile over its entire flight, not just actor LOS
+        // and the 0.8-tile weapon attachment. Manual player-directed
+        // commands intentionally keep their existing independent rules.
+        private bool CompanionAutoFlightLaneClear(Point caster,int weapon,
+            Point target)
+        {
+            if(!CanStand(caster)||!Finite(target.x)||!Finite(target.y))
+                return false;
+            Point travel=target-caster;
+            if(travel.Length<.05f)return false;
+            Projectile shot=WeaponShot(caster,weapon,
+                travel.Normalized,9f,0f,target);
+            if(shot.blockedAtSpawn||ShotBlocked(shot,shot.position))
+                return false;
+            float distance=(target-shot.position).Length;
+            if(!Finite(distance)||distance>9f*shot.life)return false;
+            int steps=Math.Max(1,(int)Math.Ceiling(distance/.1f));
+            for(int i=1;i<=steps;i++)
+                if(ShotBlocked(shot,shot.position+
+                    (target-shot.position)*(i/(float)steps)))return false;
+            return true;
+        }
+        // One short, genuine foot route for the ally's next AUTO shot.
+        // The previous AI retried a forever-blocked bow hand every 220ms,
+        // even where one safe sideways stride would open a real arrow lane.
+        // This is an INSTANCE-ONLY combat order: never write a companion
+        // firing position to SaveData v2, or inherit it across party swaps.
+        private Enemy companionCornerTarget;
+        private Point companionCornerGoal,companionCornerTargetFoot;
+        private SaveData companionCornerSave;
+        private int companionCornerRoom=-1,companionCornerGeneration=-1;
+        // The first REAL projectile release starts a brief foot-plant
+        // interval. The post-contact recovery cannot pin Ivo/Sen beside
+        // a stale target for the remainder of a 2.8/6-second auto cadence.
+        private bool companionCornerShotCommitted;
+        private float companionCornerPostShotSeconds;
+        private void ClearCompanionCornerPlan()
+        {
+            companionCornerTarget=null;
+            companionCornerSave=null;
+            companionCornerShotCommitted=false;
+            companionCornerPostShotSeconds=0f;
+        }
+        private bool CompanionCornerWalkable(Point from,Point goal)
+        {
+            Point travel=goal-from;
+            float length=travel.Length;
+            if(!Finite(travel.x)||!Finite(travel.y)||
+                length>2.25f||!Fits(from))return false;
+            if(length<.0001f)return true;
+            // An entire straight-foot segment has one exact closest
+            // approach to each enemy disk. The previous every-0.11-step
+            // loop repeated an O(enemy count) scan 20+ times PER flank
+            // candidate, and could miss a narrow tangent BETWEEN samples.
+            // Check each live Enemy just once before the tile sweep.
+            float denominator=travel.x*travel.x+travel.y*travel.y;
+            foreach(Enemy foe in enemies)
+            {
+                if(foe==null||foe.hp<=0)continue;
+                // NaN coordinates poison the projection and make every
+                // comparison false, accidentally turning one invalid actor
+                // into a permanent invisible wall for every flank candidate.
+                Point enemyFoot=foe.Position;
+                if(!Finite(enemyFoot.x)||!Finite(enemyFoot.y))continue;
+                float clearance=foe.boss?.88f:.58f;
+                Point offset=enemyFoot-from;
+                float projection=GameCore.Clamp(
+                    (offset.x*travel.x+offset.y*travel.y)/denominator,
+                    0f,1f);
+                Point closest=from+travel*projection;
+                Point separation=enemyFoot-closest;
+                if(separation.x*separation.x+
+                    separation.y*separation.y>=clearance*clearance)
+                    continue;
+                float startSq=offset.x*offset.x+
+                    offset.y*offset.y;
+                // If already inside this creature's body disk, a
+                // strictly outward escape is still legitimate: its
+                // closest approach was our ORIGINAL overlapped foot.
+                // Never advance INTO an enemy or pass through its center.
+                if(startSq<clearance*clearance&&projection<=.00001f)
+                    continue;
+                return false;
+            }
+            int steps=Math.Max(1,(int)Math.Ceiling(length/.11f));
+            for(int i=1;i<=steps;i++)
+                if(!Fits(from+travel*(i/(float)steps)))return false;
+            return true;
+        }
+        private bool CompanionCornerShotReady(Point foot,Enemy foe)
+        {
+            if(foe==null||foe.hp<=0||!enemies.Contains(foe)||
+                !Fits(foot))return false;
+            Point delta=foe.Position-foot;
+            return delta.Length>.2f&&delta.Length<7f&&
+                ClearAttackPath(foot,foe.Position)&&
+                CompanionAutoFlightLaneClear(foot,
+                    save.companion==1?1:2,foe.Position);
+        }
+        private Point CompanionTacticalFollowTarget(Point normal)
+        {
+            // Never leave an assigned cache-guard post, abandon a wounded
+            // hero needing Mira, cross a distant leash, or interrupt a
+            // player-authored command to chase a lateral firing pose.
+            if(save.companion<0||OuterPatrolCompanionGuarding||
+                save.companion==0&&save.health<save.maxHealth*.8f||
+                companionAction!=null||!Fits(companionPosition)||
+                (Position-companionPosition).Length>3.6f)
+            {
+                ClearCompanionCornerPlan();return normal;
+            }
+            Enemy old=companionCornerTarget;
+            bool samePlan=old!=null&&
+                System.Object.ReferenceEquals(companionCornerSave,save)&&
+                companionCornerRoom==save.room&&
+                companionCornerGeneration==companionPresentationGeneration&&
+                (old.Position-companionCornerTargetFoot).Length<.40f;
+            // Stop at the FIRST genuinely clear physical arrow lane and
+            // plant the painted boots while the short 220ms auto cadence
+            // expires. Resuming ordinary hero-follow immediately before
+            // target acquisition could put the weapon back into the same
+            // corner and create a loop of aborted attacks. Never freeze
+            // after a moving/dead target, party swap, new save or changed
+            // geometry: only a CURRENT verified projectile line holds us.
+            if(samePlan&&CompanionCornerShotReady(companionPosition,old))
+            {
+                // While the shot is not yet fired, stay at the physically
+                // earned foot until the real attack timer permits release.
+                // Afterwards allow only a bounded stable source-foot
+                // recovery: never hold a follower motionless for the
+                // remaining multi-second normal attack cooldown.
+                if(!companionCornerShotCommitted||
+                    companionCornerPostShotSeconds>0f)
+                    return companionPosition;
+                ClearCompanionCornerPlan();
+                return normal;
+            }
+            bool reusable=samePlan&&
+                !CompanionCornerShotReady(companionPosition,old)&&
+                (companionCornerGoal-companionPosition).Length>.12f&&
+                (companionCornerGoal-Position).Length<4f&&
+                CompanionCornerWalkable(companionPosition,companionCornerGoal)&&
+                CompanionCornerShotReady(companionCornerGoal,old);
+            if(reusable)return companionCornerGoal;
+            ClearCompanionCornerPlan();
+            // An existing usable target outranks all sideways exploration.
+            // A solid body-blocking wall is not the same failure as a
+            // 0.14-unit radius arrow scraping a nearby corner.
+            if(NearestCompanionThreat()!=null)return normal;
+            Enemy candidate=null;
+            Point newGoal=new Point();
+            float best=float.PositiveInfinity;
+            foreach(Enemy foe in enemies)
+            {
+                if(foe==null||foe.hp<=0)continue;
+                Point line=foe.Position-companionPosition;
+                // A short opaque pillar may hide even the centerline
+                // from the CURRENT foot while one reachable sideways
+                // position exposes the genuine physical projectile lane.
+                // Do not require the OLD foot to see around that pillar:
+                // the NEW foot is tested against full actor LOS, swept
+                // arrow collision, stamina-free travel and hero leash.
+                if(line.Length<1f||line.Length>=6.9f||
+                    CompanionCornerShotReady(companionPosition,foe))
+                    continue;
+                Point side=new Point(-line.y,line.x).Normalized;
+                for(int ring=1;ring<=4;ring++)
+                {
+                    float reach=ring*.55f;
+                    for(int sign=0;sign<2;sign++)
+                    {
+                        Point foot=companionPosition+
+                            side*(sign==0?reach:-reach);
+                        if((foot-Position).Length>3.65f||
+                            !CompanionCornerWalkable(companionPosition,foot)||
+                            !CompanionCornerShotReady(foot,foe))
+                            continue;
+                        // Prefer a shorter truly swept walk and nearest
+                        // actual threat. Identical scores are deterministic
+                        // across ticks; the saved candidate prevents
+                        // positive/negative side oscillation in mid-gait.
+                        float score=reach+line.Length*.04f;
+                        if(score<best)
+                        {
+                            best=score;candidate=foe;newGoal=foot;
+                        }
+                    }
+                    if(candidate==foe)break;
+                }
+            }
+            if(candidate==null)return normal;
+            companionCornerTarget=candidate;
+            companionCornerShotCommitted=false;
+            companionCornerPostShotSeconds=0f;
+            companionCornerTargetFoot=candidate.Position;
+            companionCornerGoal=newGoal;
+            companionCornerSave=save;
+            companionCornerRoom=save.room;
+            companionCornerGeneration=companionPresentationGeneration;
+            return newGoal;
+        }
+        private Enemy NearestCompanionThreat()
+        {
+            Enemy nearest=null;
+            float best=7f*7f;
+            int bestPriority=int.MaxValue;
+            // When multiple raiders have committed genuine stock strikes,
+            // the earliest physical contact wins; distance is only the tie
+            // breaker. Otherwise Ivo could shoot a nearby slow windup while a
+            // farther heavy lands an already-warned hit on the protected cache.
+            float bestStockSeconds=float.PositiveInfinity;
+            foreach(Enemy foe in enemies)
+            {
+                if(foe==null || foe.hp<=0)continue;
+                Point delta=foe.Position-companionPosition;
+                float squared=delta.x*delta.x+delta.y*delta.y;
+                bool saboteur=OuterPatrolActive&&
+                    IsOuterPatrolEnemy(foe)&&foe.kind!=1;
+                int priority=saboteur?
+                    (OuterPatrolUncoveredStockStrike(foe)?0:1):2;
+                if(squared>=7f*7f || priority>bestPriority)
+                    continue;
+                // OuterPatrolUncoveredStockStrike guarantees a finite
+                // clock. Preserve negative overdue deadlines when ordering;
+                // clamping them would turn every overdue hit into a distance tie.
+                float stockSeconds=priority==0?foe.timer:
+                    float.PositiveInfinity;
+                if(priority==bestPriority)
+                {
+                    if(priority==0)
+                    {
+                        bool earlier=stockSeconds<bestStockSeconds;
+                        bool tied=stockSeconds==bestStockSeconds||
+                            (!float.IsInfinity(stockSeconds)&&
+                             !float.IsInfinity(bestStockSeconds)&&
+                             Math.Abs(stockSeconds-bestStockSeconds)<=.0001f);
+                        if(!earlier&&!(tied&&squared<best))continue;
+                    }
+                    else if(squared>=best)continue;
+                }
+                if(!ClearAttackPath(companionPosition,foe.Position))
+                    continue;
+                // A clear feet-to-target lane is not necessarily a usable shot:
+                // Ivo's bow and Mira/Sen's staff extend into neighboring tiles.
+                // Probe the SAME swept muzzle as real projectile creation before
+                // reserving a full auto-attack cadence. A blocked nearby foe
+                // must not starve a more distant enemy with a clear firing lane.
+                Point aimDirection=delta.Normalized;
+                int weapon=save.companion==1?1:2;
+                if(!CompanionAutoFlightLaneClear(
+                    companionPosition,weapon,foe.Position))
+                    continue;
+                best=squared;bestPriority=priority;nearest=foe;
+                bestStockSeconds=priority==0?stockSeconds:float.PositiveInfinity;
+            }
+            return nearest;
+        }
+        private bool CompanionCacheContactImminent(Enemy foe)
+        {
+            return foe!=null&&enemies.Contains(foe)&&
+                OuterPatrolUncoveredStockStrike(foe);
         }
         private void TickCompanion(float dt)
         {
             companionMoving = false;
-            if (save.companion < 0 || practicing) { companionAction = null; return; }
+            if (save.companion < 0 || practicing)
+            { companionAction = null; companionAutoTarget = null; return; }
             companionCooldown = Math.Max(0, companionCooldown - dt); companionAttack -= dt;
+            companionCornerPostShotSeconds=Math.Max(0f,
+                companionCornerPostShotSeconds-dt);
             if (companionAction != null)
             {
                 ActorAction action = companionAction;
-                if (action.weapon != save.companion) { companionAction = null; return; }
+                if (action.weapon != save.companion)
+                { companionAction = null; companionAutoTarget = null; return; }
                 action.elapsed += dt;
                 if (!action.released && action.elapsed + .00001f >= action.contact)
                 {
                     action.released = true;
                     if (action.kind == "command") ReleaseCompanionCommand(action);
                     else if (action.kind == "heal")
-                    { save.health = Math.Min(save.maxHealth, save.health + 6 + action.combo); effects.Add(new Effect("number", Position, .7f, "+HP")); sound = "skill"; }
+                    {
+                        // A prepared heal is not a remote teleport. If the
+                        // player crossed a wall/portal before the release
+                        // frame, cancel the contact rather than paying out
+                        // health and a false "+HP" effect through terrain.
+                        if (CanCompanionHeal() && save.health < save.maxHealth)
+                        {
+                            save.health = Math.Min(save.maxHealth, save.health + 6 + action.combo);
+                            effects.Add(new Effect("number", Position, .7f, "+HP"));
+                            sound = "skill";
+                        }
+                        else
+                            // A ward or fast move can invalidate a prepared
+                            // heal. Don't consume the six-second cadence for
+                            // a contact that never actually restored HP.
+                            companionAttack=Math.Min(companionAttack,.22f);
+                    }
                     else
                     {
-                        projectiles.Add(FriendlyShot(companionPosition, action.weapon == 1 ? 1 : 2, action.direction, 9, action.damage, action.weapon == 2, action.target, action.impact));
-                        effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) }); sound = action.weapon == 1 ? "arrow" : "spell";
+                        // An ally may finish drawing its bow after the hero
+                        // killed the marked foe or a gate closed. Never fire
+                        // into a dead/occluded target and spend a full cooldown;
+                        // retain the authored recovery pose and retry promptly.
+                        Enemy locked = companionAutoTarget;
+                        if(action.kind=="attack")
+                        {
+                            // Every automatic release rechecks the actual
+                            // muzzle: a legal foot-to-target line can still
+                            // leave the hand/weapon inside a nearby wall.
+                            // Reuse this already-prepared contact on another
+                            // genuinely shootable foe instead of wasting it.
+                            // Player-issued skills use kind="command" and keep
+                            // their exact user-directed target and aim.
+                            Enemy available=NearestCompanionThreat();
+                            Point oldAim=locked==null?new Point():
+                                locked.Position-companionPosition;
+                            bool oldValid=locked!=null&&locked.hp>0&&
+                                enemies.Contains(locked)&&oldAim.Length<7f&&
+                                ClearAttackPath(companionPosition,locked.Position)&&
+                                CompanionAutoFlightLaneClear(companionPosition,
+                                    action.weapon==1?1:2,locked.Position);
+                            // During a real cache defense, an uncovered
+                            // committed stock strike can supersede an otherwise
+                            // valid lock. Outside that narrow priority rule,
+                            // preserve a still-shootable target's windup.
+                            bool availableCache=OuterPatrolCompanionGuarding&&
+                                available!=null&&
+                                CompanionCacheContactImminent(available);
+                            bool lockedCache=OuterPatrolCompanionGuarding&&
+                                locked!=null&&
+                                CompanionCacheContactImminent(locked);
+                            // The shared stock-threat predicate guarantees
+                            // finite timers. Compare their raw values so an
+                            // already-overdue strike can supersede a later one.
+                            float availableSeconds=availableCache?
+                                available.timer:float.PositiveInfinity;
+                            float lockedSeconds=lockedCache?
+                                locked.timer:float.PositiveInfinity;
+                            // A currently committed stock attacker is not
+                            // automatically the best one: if another real,
+                            // uncovered strike will land sooner, redirect the
+                            // planted arrow to that deadline as well.
+                            bool urgentCache=availableCache&&
+                                (!lockedCache||
+                                 available!=locked&&
+                                 availableSeconds<lockedSeconds-.0001f);
+                            if(available!=null&&(!oldValid||urgentCache))
+                            {
+                                locked=available;
+                                companionAutoTarget=available;
+                            }
+                        }
+                        if (action.kind == "attack" &&
+                            (!CanStand(companionPosition) ||
+                             locked == null || !enemies.Contains(locked) ||
+                             locked.hp <= 0 ||
+                             (locked.Position-companionPosition).Length >= 7f ||
+                             (!ClearAttackPath(companionPosition,locked.Position)||
+                              !CompanionAutoFlightLaneClear(companionPosition,
+                                  action.weapon==1?1:2,locked.Position))))
+                        {
+                            // Retire this *unreleased* contact. Merely
+                            // reducing the next attack timer while falling
+                            // through to FriendlyShot launched phantom
+                            // projectiles at dead, missing, or occluded foes.
+                            // Preserve the real recovery pose, never publish
+                            // a projectile, muzzle effect or audio cue.
+                            companionAttack = Math.Min(companionAttack,.22f);
+                        }
+                        else
+                        {
+                            // Auto-fire follows the same living, visible locked foe
+                            // through its short windup. The original snapshot
+                            // otherwise launches at where a moving enemy WAS,
+                            // even after validating its CURRENT line of sight.
+                            // Manual commands deliberately retain player aim.
+                            if (action.kind == "attack" && locked != null)
+                            {
+                                Point liveAim = locked.Position - companionPosition;
+                                if (liveAim.Length > .05f)
+                                    action.direction = liveAim.Normalized;
+                                action.target = locked.Position;
+                                companionAim = action.direction;
+                            }
+                            Projectile shot = FriendlyShot(companionPosition,
+                                action.weapon == 1 ? 1 : 2, action.direction, 9,
+                                action.damage, action.weapon == 2,
+                                action.target, action.impact);
+                            if (shot.blockedAtSpawn)
+                            {
+                                // Clear center-to-target LOS does NOT prove the
+                                // wider physical arrow/staff attachment fits a
+                                // neighboring corner. Do not spend the whole
+                                // cadence or publish a false cast from a wall.
+                                companionAttack = Math.Min(companionAttack, .22f);
+                            }
+                            else
+                            {
+                                projectiles.Add(shot);
+                                if(action.kind=="attack"&&
+                                    System.Object.ReferenceEquals(
+                                        locked,companionCornerTarget)&&
+                                    System.Object.ReferenceEquals(
+                                        companionCornerSave,save)&&
+                                    companionCornerGeneration==
+                                        companionPresentationGeneration&&
+                                    companionCornerRoom==save.room)
+                                {
+                                    // Publish this visual foot-plant ONLY
+                                    // after actual projectile creation. A
+                                    // blocked muzzle or dead foe cannot
+                                    // masquerade as a completed flank.
+                                    companionCornerShotCommitted=true;
+                                    companionCornerPostShotSeconds=.65f;
+                                }
+                                effects.Add(new Effect("release", WeaponOrigin(companionPosition, action.weapon == 1 ? 1 : 2, action.direction), .18f) { direction = action.direction, variant = action.weapon == 1 ? 1 : 2, height = WeaponHeight(action.weapon == 1 ? 1 : 2, action.direction) });
+                                sound = action.weapon == 1 ? "arrow" : "spell";
+                            }
+                        }
                     }
                 }
-                if (action.elapsed >= action.duration) companionAction = null;
+                if (action.elapsed >= action.duration)
+                { companionAction = null; companionAutoTarget = null; }
                 return; // Plant the feet while drawing a bow or casting.
             }
-            Point follow = CompanionFollowTarget();
+            Point follow = CompanionTacticalFollowTarget(
+                CompanionOutpostGuardTarget());
             Point delta = follow - companionPosition;
-            if (!Fits(companionPosition)) companionPosition = follow; // Recovery only; never teleport to catch up.
-            else if (delta.Length > .3f)
+            // The NORMAL party follow tolerates a 0.3-tile stopping
+            // distance. A bow's real 0.14-tile swept radius can still hit
+            // a pillar with 0.2 tiles remaining. That tolerance caused
+            // the new hard-cover flank to walk 0.89 tiles, stop in view
+            // of the enemy, and NEVER reach its physically tested muzzle
+            // foot. Finish only the specifically verified tactical goal
+            // within 0.055 tiles; ordinary following keeps its original
+            // 0.3-tile stop, preserving crowding and companion spacing.
+            bool pursuingFiringFoot=companionCornerTarget!=null&&
+                System.Object.ReferenceEquals(companionCornerSave,save)&&
+                companionCornerRoom==save.room&&
+                companionCornerGeneration==companionPresentationGeneration&&
+                (follow-companionCornerGoal).Length<.001f;
+            float stoppingDistance=pursuingFiringFoot?.055f:.3f;
+            if (!Fits(companionPosition))
+            {
+                companionPosition = follow; // Recovery only, never catch-up warp.
+                // A collision recovery is NOT a physical footstep. Restart
+                // the source contact phase at the valid planted root.
+                companionMoveTime = 0f;
+            }
+            else if (delta.Length > stoppingDistance)
             {
                 Point heading = DirectionTo(companionPosition, follow), before = companionPosition;
                 Point next = SweepActor(before, heading * Math.Min(delta.Length, dt * (Speed + 1)));
@@ -339,20 +952,36 @@ namespace Starfall
                 if (travelled.Length > .001f) { companionPosition = next; companionMoving = true; companionMoveTime += travelled.Length; companionAim = travelled.Normalized; }
             }
             if (companionAttack > 0) return;
-            companionAttack = save.companion == 1 ? 2.8f : 6;
             string kind = null; Point direction = aim;Point? attackTarget=null;
-            if (save.companion == 0 && save.health < save.maxHealth * .8f)
+            Enemy selectedTarget=null;
+            if (save.companion == 0 && save.health < save.maxHealth * .8f &&
+                CanCompanionHeal())
             { kind = "heal"; direction = (Position - companionPosition).Normalized; }
             else
             {
-                Enemy target = enemies.Find(e => (e.Position - companionPosition).Length < 7 && ClearAttackPath(companionPosition, e.Position));
-                if (target != null) { kind = "attack"; direction = (target.Position - companionPosition).Normalized;attackTarget=target.Position; }
+                Enemy target = NearestCompanionThreat();
+                if (target != null)
+                {
+                    kind = "attack"; selectedTarget=target;
+                    direction = (target.Position-companionPosition).Normalized;
+                    attackTarget = target.Position;
+                }
             }
             if (kind != null)
             {
+                companionAutoTarget=selectedTarget;
+                companionAttack=save.companion==1?2.8f:6f;
                 companionAim = direction; companionMoving = false;
                 companionAction = new ActorAction { kind = kind, weapon = save.companion, combo = save.relationships[save.companion], direction = direction,target=attackTarget,
                     damage = 9 + save.relationships[save.companion] * 2, duration = .42f, contact = .16f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
+            }
+            else
+            {
+                companionAutoTarget=null;
+                // Empty field / blocked healing route is NOT a spent
+                // companion attack. Short polling makes an approaching
+                // enemy or newly-opened gate actionable within 220ms.
+                companionAttack=.22f;
             }
         }
         public void LearnTechnique()
@@ -366,7 +995,7 @@ namespace Starfall
             if (save.profession == 0)
             {
                 guardTime = 4; effects.Add(new Effect("burst", Position, .7f) { variant = 0, radius = 3.8f });
-                foreach (Enemy e in enemies.ToArray()) if ((e.Position - Position).Length < 3.8f && ClearAttackPath(Position, e.Position)) { Hit(e, action.damage * 1.65f, true,null,action.impact); e.stun = e.boss ? 1 : 2.2f; }
+                foreach (Enemy e in enemies.ToArray()) if ((e.Position - Position).Length < 3.8f && ClearAttackPath(Position, e.Position)) { Hit(e, action.damage * 1.65f, true,null,action.impact); ApplyEnemyControl(e,e.boss ? 1 : 2.2f); }
                 RetireHostileProjectiles(Position, 4);
             }
             else if (save.profession == 1)
@@ -374,22 +1003,38 @@ namespace Starfall
                 // Charged Ranger skill with a sword/staff must still use
                 // the CURRENT equipped actor and muzzle, not bow cosplay.
                 int visualWeapon = action.equippedWeapon;
-                effects.Add(new Effect("release",
-                    WeaponOrigin(Position, visualWeapon, action.direction), .18f)
-                    { direction = action.direction, variant = visualWeapon,
-                      height = WeaponHeight(visualWeapon, action.direction) });
                 Projectile shot = FriendlyShot(Position, visualWeapon,
                     action.direction, 17, action.damage * 3.4f, false,
                     action.target, action.impact);
-                shot.life = 2.5f;
-                shot.piercing = shot.technique = true;
-                projectiles.Add(shot);
+                if (shot.blockedAtSpawn)
+                {
+                    effects.Add(new Effect("projectileImpact", shot.position, .22f)
+                        { direction = action.direction, height = shot.height });
+                    sound = "guard";
+                }
+                else
+                {
+                    shot.life = 2.5f;
+                    shot.piercing = shot.technique = true;
+                    projectiles.Add(shot);
+                    effects.Add(new Effect("release",
+                        WeaponOrigin(Position, visualWeapon, action.direction), .18f)
+                        { direction = action.direction, variant = visualWeapon,
+                          height = WeaponHeight(visualWeapon, action.direction) });
+                }
             }
             else { BeginFrost(Position,action.damage,action.impact??CaptureImpact(2)); }
         }
         private bool NearKind(string kind, float range)
         {
-            foreach (WorldObject o in Map.objects) if (o.kind == kind && (new Point(o.x, o.y) - Position).Length < range) return true;
+            // This predicate drives real civic recovery, climate shelter and
+            // restored stations. A nearby icon behind a solid wall is not
+            // a physically accessible service; keep the original radius
+            // but share the real near-side path test with field refuges.
+            foreach (WorldObject o in Map.objects)
+                if(o.kind==kind&&
+                    PhysicalRefugeReach(new Point(o.x,o.y),range))
+                    return true;
             return false;
         }
         private void TickExpansion(float dt)
@@ -423,15 +1068,41 @@ namespace Starfall
             // Persistent forest roots are safe, proximity-gated places to recover.
             if(RootsongRefuge && SafeTravel && !practicing && !racing)
                 save.energy=Math.Min(100,save.energy+dt*2.3f);
+            // A staffed, actually defended relief outpost shelters visitors
+            // against the exposed desert sun and highland wind. This is
+            // current physical protection, not a global immunity reward.
+            bool safeReliefShelter=OuterPatrolRefuge;
             bool tea = save.teaUntil > save.totalTime;
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
-                !GlasswindRefuge && !racing ? 1.3f : -10), 0, 100);
+                !GlasswindRefuge && !safeReliefShelter && !racing ? 1.3f : -10), 0, 100);
             bool warm = FrostSignalRefuge;
             if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
-            if (SkywatchRefuge || SkywatchEchoRefuge) warm = true;
+            if (SkywatchRefuge || SkywatchEchoRefuge || safeReliefShelter) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // The first genuine heat/cold danger crossing needs an
+            // actionable readable warning, not just a shrinking HP bar.
+            // Hysteresis avoids flooding toast/UI every frame near 85/90;
+            // no permanent flag or SaveData version is introduced.
+            if (save.heat < 80) heatDangerWarned = false;
+            if (save.cold < 85) coldDangerWarned = false;
+            if (save.room == 6 && save.heat >= 85 && !heatDangerWarned)
+            {
+                heatDangerWarned = true;
+                effects.Add(new Effect("number", Position, .85f,
+                    L("高温危险", "HEAT DANGER")));
+                Notify("高温危险！前往阴影、已启用的气象站或饮用凉茶。",
+                    "Heat danger! Find shade, an active weather station, or drink tea.");
+            }
+            if (save.room == 7 && save.cold >= 90 && !coldDangerWarned)
+            {
+                coldDangerWarned = true;
+                effects.Add(new Effect("number", Position, .85f,
+                    L("严寒危险", "FROST DANGER")));
+                Notify("严寒危险！寻找已点燃的火盆、气象站或饮用凉茶。",
+                    "Freezing danger! Find a lit brazier, weather station, or drink tea.");
+            }
             // Civilian supply decisions are *physical* services at the
             // existing southern refuge, not unconditional global stat buffs.
             // A distant shelter cannot heal the player in an active fight.
@@ -519,16 +1190,41 @@ namespace Starfall
                 save.health=Math.Min(save.maxHealth,
                     save.health+dt*(1.2f+StormBudgetLeft*.35f+(StormReliefAll?.75f:0f)+
                         (Has("storm_orrin_open")?StormBudgetLeft*.55f:0f)));
+            // The eight defended field caches are living outposts: a local
+            // field-medic rest and supply pause, never combat healing or a
+            // region-wide passive perk. No new permanent state or save format.
+            if(safeReliefShelter)
+            {
+                if(save.health>0&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+
+                        dt*(OuterPatrolFlawlessDone(save.room)?3.15f:
+                            OuterPatrolVeteranDone(save.room)?2.4f:1.55f));
+                save.energy=Math.Min(100f,save.energy+
+                    dt*(OuterPatrolFlawlessDone(save.room)?6.0f:
+                        OuterPatrolVeteranDone(save.room)?4.5f:3.0f));
+            }
             // A finished reconstruction actually changes what the region
             // can do, without impacting boss combat or distant locations.
-            if(AfterlightRefuge(save.room) && !practicing && !racing &&
-                SafeTravel && !Dying && save.health>0 &&
-                save.health<save.maxHealth &&
-                NearKind("afterlightoutlet"+save.room,3.1f))
-                save.health=Math.Min(save.maxHealth,save.health+dt*1.7f);
+            // Emergency stocks are post-charter, physically provisioned at
+            // the corresponding receiver. No global regeneration and no
+            // healing in combat. A stocked public ferry also offers care at
+            // BOTH of its original terminals instead of fake instant travel.
+            bool civicHealing=(AfterlightRefuge(save.room) &&
+                NearKind("afterlightoutlet"+save.room,3.1f)) ||
+                (save.room==2 && AfterlightReserve(2) && AfterlightMode(2)==1 &&
+                Has("afterlight_done_2") &&
+                (NearKind("afterlightoutlet2",3.1f) ||
+                 NearKind("afterlightanchor2",3.1f)));
+            if(civicHealing && !practicing && !racing && SafeTravel &&
+                !Dying && save.health>0 && save.health<save.maxHealth)
+                save.health=Math.Min(save.maxHealth,
+                    save.health+dt*(1.7f+(AfterlightReserve(save.room)?1.3f:0f)+
+                        (AfterlightWatchDone(save.room)?1.0f:0f)));
             if(AfterlightEnergyPost && SafeTravel && !practicing &&
                 NearKind("afterlightoutlet1",3.1f))
-                save.energy=Math.Min(100,save.energy+dt*3.0f);
+                save.energy=Math.Min(100,save.energy+
+                    dt*(3.0f+(AfterlightReserve(1)?2.0f:0f)+
+                        (AfterlightWatchDone(1)?1.5f:0f)));
             // The defeated former Warden now maintains actual civilian
             // backup lighting, only if the player entrusted unused reserve to
             // citadel shelters after the published first-storm charter.
@@ -563,8 +1259,26 @@ namespace Starfall
                 NearActiveFieldStation(save.room,
                     save.room == 5 ? 4.2f : FieldStationRefugeRadius(save.room)))
                 save.health = Math.Min(save.maxHealth, save.health + dt * 1.25f);
+            // Preserve the overshoot on every 1-second climate boundary.
+            // Resetting to exactly 1 here discarded up to a full rendered
+            // frame per tick and made desert/frost survival depend on FPS.
             climateTimer -= dt;
-            if (climateTimer <= 0) { climateTimer = 1; if (save.heat >= 85 || save.cold >= 90) Hurt(4); }
+            while (climateTimer <= .000001f)
+            {
+                climateTimer += 1f;
+                if (save.heat >= 85 || save.cold >= 90)
+                {
+                    float beforeHealth = save.health;
+                    Hurt(4);
+                    // Never fake a BURN/FROST impact during invulnerability,
+                    // a pause, or a protected/zero-damage tick.
+                    if (save.health < beforeHealth && !Dying)
+                        effects.Add(new Effect("number", Position, .72f,
+                            save.room == 7 && save.cold >= 90 ?
+                                L("冻伤", "FROST") : L("灼伤", "BURN")));
+                }
+                if (Dying) return;
+            }
             if (Dying) return;
             TickFieldStationSurvey(dt);
             if (racing)
@@ -579,8 +1293,21 @@ namespace Starfall
             }
             if (InAbyss && !Has("abyss_clear_" + save.abyssFloor) && save.abyssFloor >= 3)
             {
+                // Six real world-clock seconds per abyss rift. Keep the
+                // fractional overshoot across arbitrary fixed/variable
+                // simulation frame sizes, as for climate survival pulses.
                 stormTimer -= dt;
-                if (stormTimer <= 0) { stormTimer = 6; AddHazard(Position, 1.4f, 1.4f, 10 + save.abyssRisk * 4, "rift"); }
+                while (stormTimer <= .000001f)
+                {
+                    stormTimer += 6f;
+                    // This rift is born during TickExpansion, before
+                    // TickExpansion's hazard loop consumes this whole dt.
+                    // Compensate for that immediate same-frame decrement
+                    // so the player sees the full 1.4-second warning before
+                    // the real contact becomes active.
+                    AddHazard(Position, 1.4f, 1.4f + dt,
+                        10 + save.abyssRisk * 4, "rift");
+                }
             }
             tickingHazards.Clear();tickingHazards.AddRange(hazards);
             foreach (Hazard h in tickingHazards)
@@ -596,8 +1323,20 @@ namespace Starfall
                     triadOwned = h.triadOwned, stormOwned = h.stormOwned,
                     lastDirectiveOwned = h.lastDirectiveOwned,
                     civicConduitOwned = h.civicConduitOwned });
-                if ((Position - h.position).Length < h.radius) Hurt(h.damage, "area", (Position - h.position).Normalized);
-                else TryRewardEscapedWarning(h.position, h.radius);
+                // Ground hazards share the same physical line-of-sight
+                // contract as hostile slam/area and mage explosions. A
+                // closing gate must shelter the player rather than letting
+                // a delayed ring deal damage through solid world geometry.
+                if ((Position-h.position).Length < h.radius &&
+                    ClearAttackPath(h.position,Position))
+                    Hurt(h.damage,"area",(Position-h.position).Normalized);
+                else if(perfectDodgeArmed &&
+                    ClearAttackPath(h.position,dashOrigin))
+                    // Escaping a circle that could never reach the dodge
+                    // starting foot through a wall is not a successful
+                    // dodge of an actual threat. A legal exposed dodge
+                    // retains the original earned-riposte reward.
+                    TryRewardEscapedWarning(h.position,h.radius);
             }
             tickingHazards.Clear();
         }
@@ -792,7 +1531,7 @@ namespace Starfall
         public bool ClaimBounty()
         {
             if (save.bounty < 0 || save.bountyProgress < BountyTargets[save.bounty]) return false;
-            save.coins += 35; save.shards += 3 + (save.frontierEnding == 3 ? 1 : 0); AddXp(30); save.bounty = -1; save.bountyProgress = 0; save.bountyCycle++; revision++; sound = "reward"; return true;
+            CreditCoins(35); CreditShards(3 + (save.frontierEnding == 3 ? 1 : 0)); AddXp(30); save.bounty = -1; save.bountyProgress = 0; save.bountyCycle++; revision++; sound = "reward"; return true;
         }
         public void AbandonBounty() { save.bounty = -1; save.bountyProgress = 0; revision++; }
         private int RescueCount { get { int n = 0; for (int i = 0; i < 3; i++) if (Has("rescue_" + i)) n++; return n; } }
@@ -996,7 +1735,7 @@ namespace Starfall
             if (action == "parley")
             {
                 if (save.room != 4 || Proofs != 3 || save.frontierEnding != 3 || Has("boss_4") || TriadDefenseActive) return true;
-                enemies.Clear(); projectiles.Clear(); hazards.Clear(); Flag("boss_4"); Flag("warden_stood_down"); save.coins += 70; AddXp(80); FinalConversation(); revision++; return true;
+                enemies.Clear(); projectiles.Clear(); hazards.Clear(); Flag("boss_4"); Flag("warden_stood_down"); CreditCoins(70); AddXp(80); FinalConversation(); revision++; return true;
             }
             if (action.StartsWith("pledge"))
             {
@@ -1011,27 +1750,27 @@ namespace Starfall
                 bool rescue = action.StartsWith("rescue"); int id = int.Parse(action.Substring(rescue ? 6 : 5)); string flag = (rescue ? "rescue_" : "relay_") + id;
                 if (save.room != 5 || id < 0 || id > 2 || Has(flag)) return true;
                 if (Spend(rescue ? 1 : 0, 0, rescue ? 1 : 0, 0, rescue ? 0 : 1))
-                { Flag(flag); save.coins += 12; Reputation(rescue ? 1 : 0, 1); CheckHarborGate(); sound = "reward"; }
+                { Flag(flag); CreditCoins(12); Reputation(rescue ? 1 : 0, 1); CheckHarborGate(); sound = "reward"; }
                 return true;
             }
             if (action == "holdtide") { if (save.room == 5 && Spend(0, 2, 0, 0, 0)) { save.tideHeldUntil = save.totalTime + 90; Notify("闸门固定低潮 90 秒。", "Low tide held for 90 seconds."); } return true; }
             if (action == "harbor_report")
             {
                 if (!Has("boss_5") || Has("harbor_report")) return true;
-                Flag("harbor_report"); Flag("companion_0"); RewardRelic(0); save.relationships[0] = Math.Max(1, save.relationships[0]); save.coins += 65; save.shards += 5; save.companion = 0; AddXp(45); revision++;
+                Flag("harbor_report"); Flag("companion_0"); RewardRelic(0); save.relationships[0] = Math.Max(1, save.relationships[0]); CreditCoins(65); CreditShards(5); save.companion = 0; AddXp(45); revision++;
                 Notify("港口证词已归档。米拉加入，获得回潮瓶；玻璃沙海开放。", "Tide log filed. Mira joins; Tide Flask found. Glass Desert opens."); return true;
             }
             if (action.StartsWith("desert") && action.Length == 7)
             {
                 if (!Has("boss_6") || !Has("mirrors_lit") || Has("desert_report")) return true;
-                save.desertChoice = int.Parse(action.Substring(6)); Flag("desert_report"); Flag("companion_1"); RewardRelic(2); save.relationships[1] = Math.Max(1, save.relationships[1]); Reputation(save.desertChoice == 1 ? 2 : 0, 3); Reputation(1, 1); save.coins += 70; save.shards += 6; AddXp(50); revision++;
+                save.desertChoice = int.Parse(action.Substring(6)); Flag("desert_report"); Flag("companion_1"); RewardRelic(2); save.relationships[1] = Math.Max(1, save.relationships[1]); Reputation(save.desertChoice == 1 ? 2 : 0, 3); Reputation(1, 1); CreditCoins(70); CreditShards(6); AddXp(50); revision++;
                 RecordMoment(save.desertChoice == 1 ? "公开沙海调度，山野议会更支持你。" : "保留沙海机器，守灯会更支持你。", save.desertChoice == 1 ? "Published desert allocations; Assembly trust grew." : "Retained desert machines; Lamplighter trust grew.");
                 Notify("调度日志已归档。伊沃加入，风蚀罗盘入手；霜钟高原开放。", "Allocation log filed. Ivo joins; Wind Compass found. Frostchime opens."); return true;
             }
             if (action.StartsWith("mountain") && action.Length == 9)
             {
                 if (!Has("boss_7") || !Has("gate_7") || Has("mountain_report")) return true;
-                save.mountainChoice = int.Parse(action.Substring(8)); Flag("mountain_report"); Flag("companion_2"); RewardRelic(3); save.relationships[2] = Math.Max(1, save.relationships[2]); Reputation(save.mountainChoice == 1 ? 0 : 2, 3); Reputation(1, 1); save.coins += 75; save.shards += 6; AddXp(60); revision++;
+                save.mountainChoice = int.Parse(action.Substring(8)); Flag("mountain_report"); Flag("companion_2"); RewardRelic(3); save.relationships[2] = Math.Max(1, save.relationships[2]); Reputation(save.mountainChoice == 1 ? 0 : 2, 3); Reputation(1, 1); CreditCoins(75); CreditShards(6); AddXp(60); revision++;
                 RecordMoment(save.mountainChoice == 1 ? "封存高原记录，守灯会更支持你。" : "公开高原名字，山野议会更支持你。", save.mountainChoice == 1 ? "Sealed mountain records; Lamplighter trust grew." : "Published mountain names; Assembly trust grew.");
                 Notify("高原记录已归档。森加入，断钟片入手；回雾港召开议事会。", "Mountain record filed. Sen joins; Broken Chime found. Convene Mistport's council."); return true;
             }
@@ -1105,7 +1844,19 @@ namespace Starfall
             if (action.StartsWith("abyssStart")) { StartAbyss(int.Parse(action.Substring(10))); return true; }
             if (action == "abyssLeave") { EndAbyss(false); Enter(0); return true; }
             if (action.StartsWith("boon")) { TakeBoon(int.Parse(action.Substring(4))); return true; }
-            if (action == "abyssBank") { BankFloor(); EndAbyss(true); Enter(0); return true; }
+            if (action == "abyssBank")
+            {
+                // A gate dialogue can outlive the floor-clear state it observed.
+                // Never discard unbanked rewards and end the run when the
+                // actual BankFloor transaction cannot legally commit.
+                if (!CanBankFloor())
+                {
+                    Notify("本层结算条件已改变。请清理敌人后重新调查地脉门。",
+                        "Floor settlement is no longer ready. Clear hostiles and inspect the root gate again.");
+                    return true;
+                }
+                BankFloor(); EndAbyss(true); Enter(0); return true;
+            }
             return false;
         }
         private void CompletePersonal(int id)
@@ -1114,7 +1865,7 @@ namespace Starfall
             if (id == 0 && !Has("manifest_found")) { Notify("先调查雾港西北的乘客名册（8,5）。", "Find the passenger manifest in northwest Mistport (8,5)."); return; }
             if (id == 1 && !Spend(0, 4, 0, 0, 4)) return;
             if (id == 2 && (!Has("lore_1") || !Spend(0, 0, 4, 0, 0))) { Notify("需要密林侦察记录与药草4。", "You need the forest scouting log and 4 herbs."); return; }
-            Flag("personal_" + id); save.relationships[id] = Math.Min(5, save.relationships[id] + 2); save.coins += 35; save.shards += 3; save.skillPoints++;
+            Flag("personal_" + id); save.relationships[id] = Math.Min(5, save.relationships[id] + 2); CreditCoins(35); CreditShards(3); CreditSkillPoints(1);
             if (Has("personal_0") && Has("personal_1") && Has("personal_2")) RewardRelic(4);
             Notify("同伴故事完成。羁绊提升，获得 1 技能点与记忆碎片。", "Companion story complete. Bond improved; +1 point and memory shards."); revision++; sound = "reward";
         }
@@ -1122,9 +1873,9 @@ namespace Starfall
         {
             racing = false; int tenths = Math.Max(1, (int)(raceTime * 10));
             bool first = !Has("race_finished"), record = save.bestRace == 0 || tenths < save.bestRace;
-            if (first) { Flag("race_finished"); save.coins += 25; save.shards += 3; }
+            if (first) { Flag("race_finished"); CreditCoins(25); CreditShards(3); }
             if (record) save.bestRace = tenths;
-            if (raceTime <= 16 && !Has("race_badge")) { Flag("race_badge"); save.shards += 5; save.skillPoints++; }
+            if (raceTime <= 16 && !Has("race_badge")) { Flag("race_badge"); CreditShards(5); CreditSkillPoints(1); }
             revision++; sound = "reward"; Notify("竞速完成！用时 " + raceTime.ToString("0.0") + " 秒。首次与风行徽章奖励只发一次。", "Race finished in " + raceTime.ToString("0.0") + "s. First-finish and badge rewards are one-time.");
         }
         public bool CouncilPactReady { get { return ProjectTiers >= 3 && CompanionCount >= 2 && save.reputation[0] >= 2 && save.reputation[1] >= 2 && save.reputation[2] >= 2; } }
@@ -1140,7 +1891,7 @@ namespace Starfall
         private void ResolveCouncil(int ending)
         {
             if (Proofs < 3 || save.frontierEnding > 0 || ending < 1 || ending > 3 || (ending == 3 && !CouncilPactReady)) return;
-            save.frontierEnding = ending; Flag("frontier_settled"); save.shards += 10; save.skillPoints += 2; save.coins += 100; revision++; CouncilEpilogue();
+            save.frontierEnding = ending; Flag("frontier_settled"); CreditShards(10); CreditSkillPoints(2); CreditCoins(100); revision++; CouncilEpilogue();
         }
         private void CouncilEpilogue()
         {
@@ -1161,7 +1912,7 @@ namespace Starfall
         {
             if (id < 0 || id >= data.lore.Length) return;
             bool first = !Has("history_" + id); Flag("history_" + id);
-            if (first) { save.shards += 2; save.coins += 10; revision++; }
+            if (first) { CreditShards(2); CreditCoins(10); revision++; }
             LoreData book = data.lore[id]; Dialog(book.title, book.en, book.zh, book.text, C("记入手帐", "Record in journal", "close"));
         }
         public void OpenCodex(int id)
@@ -1293,8 +2044,12 @@ namespace Starfall
             if (first)
             {
                 Flag(flag);
-                if (cache) { save.runCoins += 18; save.runShards += 2; }
-                else save.runXp += 15;
+                if (cache)
+                {
+                    save.runCoins = CappedReward(save.runCoins, 18, 9999);
+                    save.runShards = CappedReward(save.runShards, 2, 9999);
+                }
+                else save.runXp = CappedReward(save.runXp, 15, 9999);
                 revision++; sound = "reward";
             }
             Dialog(o.name, o.en,
@@ -1321,19 +2076,24 @@ namespace Starfall
             choices.Add(C(save.abyssFloor == 6 ? "完成远征，结算返回" : "结算本层，安全返回", save.abyssFloor == 6 ? "Complete the expedition and bank" : "Bank this floor and extract", "abyssBank"));
             Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。", "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards.", choices.ToArray());
         }
+        private bool CanBankFloor()
+        {
+            return !Dying && InAbyss && enemies.Count == 0 &&
+                Has("abyss_clear_" + save.abyssFloor);
+        }
         private void BankFloor()
         {
-            if (Dying || !InAbyss || enemies.Count > 0 || !Has("abyss_clear_" + save.abyssFloor)) return;
-            save.coins += save.runCoins; save.shards += save.runShards + (save.frontierEnding == 3 ? 2 : 0); AddXp(save.runXp);
+            if (!CanBankFloor()) return;
+            CreditCoins(save.runCoins); CreditShards(CappedReward(save.runShards, save.frontierEnding == 3 ? 2 : 0, int.MaxValue)); AddXp(save.runXp);
             save.runCoins = save.runShards = save.runXp = 0; save.bestFloor = Math.Max(save.bestFloor, save.abyssFloor);
             BountyEvent(5, 1);
             if (save.abyssFloor >= 3) RewardRelic(5);
-            if (save.abyssFloor == 6 && !Has("abyss_complete")) { Flag("abyss_complete"); save.skillPoints += 2; save.shards += 12; }
+            if (save.abyssFloor == 6 && !Has("abyss_complete")) { Flag("abyss_complete"); CreditSkillPoints(2); CreditShards(12); }
             revision++;
         }
         public void TakeBoon(int id)
         {
-            if (Dying || id < 0 || id > 2 || !InAbyss || save.abyssFloor >= 6 || enemies.Count > 0 || !Has("abyss_clear_" + save.abyssFloor)) return;
+            if (id < 0 || id > 2 || save.abyssFloor >= 6 || !CanBankFloor()) return;
             BankFloor(); save.boons[id] = Math.Min(4, save.boons[id] + 1); save.abyssFloor++;
             GenerateAbyss(); save.x = 5; save.y = 14; save.health = Math.Min(save.maxHealth, save.health + save.maxHealth * .5f); save.energy = 100;
             ResetTransient(); SpawnRoom(); mode = "world"; revision++; sound = "travel";

@@ -16,6 +16,300 @@ namespace Starfall.Tests
                 if(g.conversation.choices[i].action==a){g.Choose(i);return true;}
             return false;
         }
+        public static void HighlandEmberCachedChoicesCannotCommitAcrossClosedPosts(Campaign data)
+        {
+            MapData original=data.maps[7];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[7]=new MapData {id=7,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("desert_report");
+                g.Enter(7);g.enemies.Clear();g.invulnerable=180;
+                g.save.flags.Add("boss_7");
+                WorldObject west=FrostPost(g,1),
+                    mid=FrostPost(g,2),south=FrostPost(g,3);
+                g.save.x=west.x+1.75f;g.save.y=west.y;
+                Check(g.CanStand(g.Position)&&
+                    (g.Position-new Point(west.x,west.y)).Length<1.8f,
+                    "The canonical hero can genuinely open the western ember pickup from reachable ground");
+                g.Talk(west);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The real mountain post exposes the original timed ember acceptance");
+                int barrier=(int)Math.Floor(west.x)+1,wy=(int)Math.Floor(west.y);
+                char[] closed=rows[wy].ToCharArray();closed[barrier]='#';
+                rows[wy]=new string(closed);
+                Check(g.CanStand(g.Position)&&g.Blocked(barrier+.5f,wy+.5f),
+                    "An intervening full solid mountain wall closes after the pickup dialogue was opened");
+                Check(FrostChoice(g,"frostsignal_start")&&
+                    !g.FrostSignalActive&&g.FrostSignalStage==0&&
+                    !g.Has("frostsignal_started"),
+                    "Cached pickup cannot mint an active ember through solid scenery");
+                closed[barrier]='.';rows[wy]=new string(closed);
+                g.Talk(west);
+                Check(FrostChoice(g,"frostsignal_start")&&
+                    g.FrostSignalStage==1&&g.FrostSignalActive,
+                    "Reopening the exact path starts the authentic ninety-plus-second physical ember delivery");
+                g.save.x=mid.x;g.save.y=mid.y;
+                g.Talk(mid);
+                Check(g.FrostSignalStage==2&&
+                    g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                    "The original switchyard really deploys two authored defenders");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"Authentic enemy death callbacks exist");
+                foreach(Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                    hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+                g.hitStop=0;g.Close();g.Talk(mid);
+                Check(FrostChoice(g,"frostsignal_free")&&g.FrostSignalStage==3,
+                    "Both actual lethal guard kills allow the original no-resource southbound choice");
+                g.save.x=south.x+1.75f;g.save.y=south.y;
+                Check(g.CanStand(g.Position),
+                    "The final real authored public hearth has safe player footing on its eastern approach");
+                g.Talk(south);
+                int coins=g.save.coins;
+                int sy=(int)Math.Floor(south.y),sx=(int)Math.Floor(south.x)+1;
+                char[] finalWall=rows[sy].ToCharArray();finalWall[sx]='#';
+                rows[sy]=new string(finalWall);
+                Check(g.CanStand(g.Position)&&g.Blocked(sx+.5f,sy+.5f),
+                    "A new solid wall closes the actual final hearth contact after the reward menu opens");
+                Check(FrostChoice(g,"frostsignal_clinic")&&
+                    !g.FrostSignalComplete&&g.FrostSignalStage==3&&
+                    g.save.coins==coins&&g.FrostSignalActive,
+                    "An old final outcome button cannot publish a civilian clinic or forfeit the ember behind cover");
+                finalWall[sx]='.';rows[sy]=new string(finalWall);
+                g.Talk(south);
+                Check(FrostChoice(g,"frostsignal_clinic")&&
+                    g.FrostSignalComplete&&g.Has("frostsignal_clinic")&&
+                    g.save.coins>coins&&g.save.version==2,
+                    "Reopened real hearth completes exactly one authentic clinic reward without save migration");
+            }
+            finally{data.maps[7]=original;}
+        }
+
+        public static void HighlandEmberEnemyPressureStopsAcrossActualMountainWall(Campaign data)
+        {
+            MapData original=data.maps[7];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[7]=new MapData{id=7,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("desert_report");
+                g.Enter(7);g.enemies.Clear();
+                g.save.flags.Add("boss_7");g.invulnerable=200;
+                WorldObject west=FrostPost(g,1),
+                    junction=FrostPost(g,2);
+                g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+                Check(FrostChoice(g,"frostsignal_start")&&
+                    g.FrostSignalStage==1,
+                    "The original real highland ember starts from its physical western station");
+                g.save.x=junction.x;g.save.y=junction.y;g.Talk(junction);
+                Check(g.FrostSignalStage==2&&
+                    g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                    "The actual mid-journey switchyard deploys both authored guard identities");
+                var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+                Enemy pressure=guards[0],distant=guards[1];
+                pressure.x=junction.x+3f;pressure.y=junction.y;
+                distant.x=west.x;distant.y=west.y;
+                foreach(Enemy guard in guards)
+                {guard.stun=100f;guard.timer=1000f;}
+                g.Close();g.save.x=junction.x;g.save.y=junction.y;
+                g.save.cold=0f;
+                int y=(int)Math.Floor(junction.y),
+                    x=(int)Math.Floor(junction.x)+2;
+                char[] closed=rows[y].ToCharArray();
+                closed[x]='#';rows[y]=new string(closed);
+                Check(g.CanStand(g.Position)&&g.CanStand(pressure.Position)&&
+                    g.Blocked(x+.5f,y+.5f)&&
+                    (pressure.Position-g.Position).Length<5f,
+                    "The true first guard remains in ember pressure range across an obstructing full wall");
+                float flame=g.FrostSignalFlame;
+                g.Tick(.05f,new Point());
+                float shelteredLoss=flame-g.FrostSignalFlame;
+                Check(g.FrostSignalStage==2&&shelteredLoss>.02f&&
+                    shelteredLoss<.05f,
+                    "A blocked guard imposes only the original ambient highland ember cost");
+                closed[x]='.';rows[y]=new string(closed);
+                flame=g.FrostSignalFlame;
+                g.Tick(.05f,new Point());
+                float exposedLoss=flame-g.FrostSignalFlame;
+                Check(exposedLoss>shelteredLoss+.02f&&
+                    exposedLoss<shelteredLoss+.04f,
+                    "Opening the wall adds precisely real close-guard pressure to the normal 0.65-per-second flame cost");
+                closed[x]='#';rows[y]=new string(closed);
+                flame=g.FrostSignalFlame;
+                g.Tick(.05f,new Point());
+                float recoveredLoss=flame-g.FrostSignalFlame;
+                Check(Math.Abs(recoveredLoss-shelteredLoss)<.005f&&
+                    g.FrostSignalActive&&!g.FrostSignalComplete&&
+                    g.save.version==2,
+                    "Closing the same corridor instantly restores shelter without changing the mission timer, kill or old-save contract");
+            }
+            finally {data.maps[7]=original;}
+        }
+
+        public static void HighlandGuardsSpawnOnDistinctUnoccupiedCombatFeet(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;g.save.flags.Add("desert_report");
+            g.Enter(7);g.enemies.Clear();g.save.flags.Add("boss_7");
+            g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            WorldObject west=FrostPost(g,1),junction=FrostPost(g,2);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start"),
+                "The genuine highland escort begins at its authored west station");
+            // Both fixed spawn positions are already occupied by living world
+            // actors; the mission must select safe nearby feet or defer.
+            var standing=new Enemy(91911,0,62.5f,41.5f,300f)
+                {stun=100f,timer=1000f};
+            g.enemies.Add(standing);
+            g.companionPosition=new Point(65.5f,42.5f);
+            g.save.x=junction.x;g.save.y=junction.y;
+            g.Talk(junction);
+            var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+            Check(g.FrostSignalStage==2&&guards.Count==2&&
+                g.enemies.Contains(standing)&&
+                (standing.Position-new Point(62.5f,41.5f)).Length<.001f,
+                "The switchyard starts two genuine guards without deleting or moving the pre-existing fighter");
+            Point[] authored={new Point(62.5f,41.5f),
+                              new Point(65.5f,42.5f)};
+            for(int i=0;i<guards.Count;i++)
+            {
+                Point foot=guards[i].Position;
+                Check(g.CanStand(foot)&&
+                    (foot-authored[i]).Length<=2.2f &&
+                    (foot-standing.Position).Length>=1.25f &&
+                    (foot-g.companionPosition).Length>=1.25f &&
+                    (foot-g.Position).Length>=1.25f,
+                    "A live guard must materialize on real nearby free ground without overlapping hero, ally or another foe");
+            }
+            Check((guards[0].Position-guards[1].Position).Length>=1.25f &&
+                guards[0].id==91400&&guards[1].id==91401,
+                "Two uniquely identified defenders occupy separate feet and preserve their actual quest-kill identities");
+        }
+
+        public static void LiveFrostSignalNavigationTracksActualCarriedEmber(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+            g.save.flags.Add("boss_7");g.invulnerable=250;
+            WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
+            Point source=new Point(west.x,west.y);
+            Point junction=new Point(mid.x,mid.y);
+            Point hearth=new Point(south.x,south.y);
+            var initial=g.GetQuest("frost_signal");
+            Check(!initial.locked&&!initial.complete&&
+                !initial.steps[0].done&&(initial.target-source).Length<.001f,
+                "The real highland quest starts at western pickup before carrying an ember");
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start")&&g.FrostSignalStage==1,
+                "West post starts the actual timed flame delivery");
+            var carried=g.GetQuest("frost_signal");
+            Check(carried.steps[0].done&&!carried.steps[1].done&&
+                (carried.target-junction).Length<.001f&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-junction).Length<.001f,
+                "Immediately after pickup, the world navigation marker and journal route FORWARD to the guard junction");
+            g.Talk(west);Check(FrostChoice(g,"frostsignal_abort"),
+                "Returning the carried ember is a genuine cancel action");
+            var aborted=g.GetQuest("frost_signal");
+            Check(!aborted.steps[0].done&&aborted.Progress==0&&
+                (aborted.target-source).Length<.001f&&
+                g.Has("frostsignal_started"),
+                "A historical started flag survives, but an aborted attempt must show no currently carried ember");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            var restored=loaded.GetQuest("frost_signal");
+            Check(loaded.save.version==2&&!restored.steps[0].done&&
+                (restored.target-source).Length<.001f,
+                "Original v2 slots that once carried an ember restart navigation at the actual pickup post");
+            g.Talk(west);Check(FrostChoice(g,"frostsignal_start"),
+                "An aborted delivery can really restart");
+            g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+            Check(g.FrostSignalStage==2&&
+                (g.GetQuest("frost_signal").target-junction).Length<.001f,
+                "With live defenders, the marker remains at their real junction");
+            g.Close();
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The real gameplay kill path must be present");
+            foreach(Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.Talk(mid);
+            Check(FrostChoice(g,"frostsignal_free")&&g.FrostSignalStage==3,
+                "Only genuine guard defeat unlocks the southbound delivery");
+            var delivered=g.GetQuest("frost_signal");
+            Check(delivered.steps[0].done&&delivered.steps[1].done&&
+                (delivered.target-hearth).Length<.001f&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-hearth).Length<.001f,
+                "After the mid-quest choice, both live guidance and the journal lead to the civilian hearth");
+            g.save.x=south.x;g.save.y=south.y;g.Talk(south);
+            Check(FrostChoice(g,"frostsignal_guides")&&
+                g.GetQuest("frost_signal").complete&&
+                g.GetQuest("frost_signal").Progress==1f,
+                "Permanent civilian completion remains recorded as finished independently of transient active mission state");
+        }
+
+        public static void HighlandSignalGuardsCannotSpawnInIsolatedWalkablePocket(Campaign data)
+        {
+            // An isolated tile is legal standing ground but a melee guard
+            // spawned inside it can never reach the live timed encounter.
+            // Reuse the actual authored post coordinates and real path graph.
+            MapData old=data.maps[7];
+            try
+            {
+                var rows=new string[80];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',120).ToCharArray();
+                    if(y>=2&&y<78)
+                        for(int x=2;x<118;x++)cells[x]='.';
+                    // Seal the original first-guard tile in its own 1x1
+                    // legal pocket without filling the center itself.
+                    if(y>=40&&y<=42)
+                        for(int x=61;x<=63;x++)
+                            if(x!=62||y!=41)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[7]=new MapData{id=7,spawnX=58.5f,
+                    spawnY=35.5f,rows=rows,
+                    objects=old.objects,decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+                g.save.flags.Add("boss_7");g.invulnerable=120;
+                Point trapped=new Point(62.5f,41.5f);
+                WorldObject west=FrostPost(g,1),mid=FrostPost(g,2);
+                g.save.x=mid.x;g.save.y=mid.y;
+                Check(g.CanStand(trapped)&&g.NavigationPath(trapped).Count==0,
+                    "The sealed first spawn pocket has legal floor but no genuine reachable route to the junction");
+                g.save.x=west.x;g.save.y=west.y;
+                g.Talk(west);
+                Check(FrostChoice(g,"frostsignal_start"),
+                    "The real timed highland mission starts from the old western signal");
+                g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+                var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+                Check(g.FrostSignalStage==2&&guards.Count==2,
+                    "An accessible alternate local guard pair begins the genuine mid-quest battle");
+                foreach(Enemy guard in guards)
+                {
+                    Check((guard.Position-trapped).Length>.1f&&
+                        g.NavigationPath(guard.Position).Count>0&&
+                        g.CanStand(guard.Position),
+                        "No live guard is marooned in the disconnected authored pocket: each has a real walking route to the player");
+                }
+            }
+            finally{data.maps[7]=old;}
+        }
+
         public static void CivicEmberAbortAndFailurePreserveUnrelatedWorldEffects(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;
@@ -49,7 +343,11 @@ namespace Starfall.Tests
             Check(g.FrostSignalStage==2&&g.enemies.Exists(g.IsFrostSignalEnemy),
                 "The guard checkpoint has real combat participants during retry");
             g.Close();
-            g.enemies.Clear(); // Allow real frost/time failure rather than a lethal attack.
+            // Keep the authentic guard roster alive but safely immobilized
+            // so the separate real ember expiry can be measured without
+            // manufacturing a false defender disappearance.
+            foreach (Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+            { guard.stun = 200; guard.timer = 200; }
             g.save.x=source.x;g.save.y=source.y;
             for(int i=0;i<2200&&g.FrostSignalActive;i++)g.Tick(.05f,new Point());
             Check(!g.FrostSignalActive&&!g.FrostSignalComplete&&
@@ -169,5 +467,122 @@ namespace Starfall.Tests
                     "Old version-two saves retain each independently chosen public outcome");
             }
         }
+        public static void HighlandEmberNeedsActualTwoGuardDefeatBeforeCivilianRestoration(Campaign data)
+        {
+            var g = Fresh(data); g.save.stage = 3;
+            g.save.flags.Add("desert_report"); g.Enter(7); g.enemies.Clear();
+            g.save.flags.Add("boss_7"); g.invulnerable = 200;
+            var west = FrostPost(g, 1); var middle = FrostPost(g, 2);
+            var south = FrostPost(g, 3);
+            int coins = g.save.coins, shards = g.save.shards;
+            g.save.x = west.x; g.save.y = west.y;
+            Action(g, west.kind, "frostsignal_start");
+            g.save.x = middle.x; g.save.y = middle.y;
+            g.Talk(middle); g.Close();
+            Check(g.FrostSignalStage == 2 &&
+                g.enemies.FindAll(g.IsFrostSignalEnemy).Count == 2,
+                "Original highland switchyard deploys both genuine security actors");
+            g.enemies.RemoveAll(g.IsFrostSignalEnemy);
+            g.Tick(.05f, new Point());
+            Check(!g.FrostSignalActive && !g.FrostSignalComplete &&
+                g.save.coins == coins && g.save.shards == shards,
+                "No civilian service or permanent money can be earned by deleting an unconfirmed guard roster");
+            g.save.x = west.x; g.save.y = west.y;
+            Action(g, west.kind, "frostsignal_start");
+            g.save.x = middle.x; g.save.y = middle.y;
+            g.Talk(middle); g.Close();
+            Check(g.FrostSignalStage == 2, "Abandoned encounter restarts normally");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "The original player damage path exists");
+            foreach (Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                hit.Invoke(g, new object[] { guard, 99999f, false, null, null });
+            g.save.x = middle.x; g.save.y = middle.y;
+            g.Talk(middle);
+            Check(FrostChoice(g, "frostsignal_free"),
+                "Original middle highland post offers free flame conservation only after verified kills");
+            Check(g.FrostSignalStage == 3 &&
+                !g.FrostSignalComplete && g.FrostSignalFlame > 0,
+                "Actually defeating two enemies opens optional free flame conservation");
+            g.save.x = south.x; g.save.y = south.y;
+            g.Talk(south);
+            Check(FrostChoice(g, "frostsignal_clinic"),
+                "Original southern hearth presents the public clinic decision after authentic switchyard combat");
+            Check(g.FrostSignalComplete && g.FrostSignalOutcome == 1 &&
+                g.save.coins >= coins + 55 && g.save.shards == shards + 2,
+                "The true real-combat ember trip still permanently opens its authored public clinic");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.FrostSignalComplete && loaded.FrostSignalOutcome == 1 &&
+                loaded.save.version == 2 && !loaded.FrostSignalActive,
+                "Authentic highland clinic remains valid in original v2 save format");
+        }
+
+        public static void HighlandEmberWindbreakPaysOnlyAfterCombatAndExpires(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+            g.save.flags.Add("boss_7");g.invulnerable=200;
+            WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start")&&g.FrostSignalStage==1,
+                "Windbreak route begins with an authentic western ember");
+            g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+            Check(g.FrostSignalStage==2&&
+                g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                "Windbreak still requires the real two-guard encounter");
+            Check(!FrostChoice(g,"frostsignal_windbreak")&&
+                g.FrostSignalWindbreakTime==0,
+                "Live guards cannot expose the protected option");
+            g.Close();
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Authoritative real-combat lethal callback must exist");
+            foreach(Enemy guard in g.enemies.FindAll(g.IsFrostSignalEnemy))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.save.energy=19;g.Talk(mid);
+            Check(FrostChoice(g,"frostsignal_windbreak")&&
+                g.FrostSignalStage==2&&g.FrostSignalWindbreakTime==0&&
+                g.save.energy==19,
+                "Insufficient energy cannot award windbreak or advance the mission");
+            g.save.energy=100;g.Talk(mid);
+            Check(FrostChoice(g,"frostsignal_windbreak")&&
+                g.FrostSignalStage==3&&g.FrostSignalWindbreakTime==25f&&
+                g.save.energy==80,
+                "Earned escort shelter starts for 25s and deducts exactly 20 energy");
+            g.Talk(mid);
+            Check(g.conversation==null&&g.FrostSignalWindbreakTime==25f,
+                "Completed switchyard cannot recharge or repeat resource payments");
+            g.save.cold=90;float warmth=g.FrostSignalFlame;
+            g.Tick(.05f,new Point());
+            Check(g.FrostSignalWindbreakTime>24.9f&&
+                g.FrostSignalFlame>warmth-.05f&&g.FrostSignalFlame<warmth,
+                "Actual severe-cold Tick burns flame more slowly while shielded");
+            Check(g.GetQuest("frost_signal").next.Contains("防风"),
+                "Real objective HUD shows timed shelter in Chinese");
+            g.save.english=true;
+            Check(g.GetQuest("frost_signal").next.Contains("Windbreak"),
+                "Real objective HUD shows timed shelter in English");
+            g.save.english=false;
+            for(int i=0;i<500&&g.FrostSignalActive;i++)
+                g.Tick(.05f,new Point());
+            Check(g.FrostSignalStage==3&&g.FrostSignalWindbreakTime==0f,
+                "The actual escort timer expires the windbreak without cancelling the ember");
+            g.save.cold=90;warmth=g.FrostSignalFlame;
+            g.Tick(.05f,new Point());
+            Check(warmth-g.FrostSignalFlame>.06f,
+                "After expiry the original harsh-cold loss returns");
+            g.save.x=south.x;g.save.y=south.y;g.Talk(south);
+            Check(FrostChoice(g,"frostsignal_guides")&&g.FrostSignalComplete&&
+                !g.FrostSignalActive&&g.FrostSignalWindbreakTime==0,
+                "Timed shelter does not block the physical public-hearth finale");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FrostSignalOutcome==2&&
+                restored.FrostSignalWindbreakTime==0,
+                "Old v2 save keeps the permanent roadwarden choice, never transient windbreak");
+        }
+
     }
 }

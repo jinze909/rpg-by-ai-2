@@ -45,6 +45,221 @@ namespace Starfall.Tests
                     "Actual player combat defeats each minecart ambusher");
             }
         }
+        public static void MinecartJunctionGuardsAvoidActualCombatActorOccupancy(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(3);
+            g.enemies.Clear();
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            g.invulnerable=120;
+            WorldObject west=MineCartTestPost(g,1);
+            WorldObject junction=MineCartTestPost(g,2);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start")&&
+                g.MineConvoyStage==1,
+                "The authentic Ironreach civilian cart starts at its old western dispatch");
+            // A genuine final cart arrival (not a synthetic stage-2 flag)
+            // triggers the guarded spawn transaction in the next Tick.
+            var positionField=typeof(GameCore).GetField(
+                "<MineCartPosition>k__BackingField",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(positionField!=null,
+                "The live minecart still owns its real position and motion state");
+            positionField.SetValue(g,new Point(junction.x,junction.y));
+            // Both preferred authored feet are occupied by distinct actors.
+            // The enemy is unrelated to the escort and must not be moved,
+            // killed or converted into an authored 91300-series combatant.
+            var bystander=new Enemy(91823,0,62.5f,40.5f,800f)
+                {stun=200f,timer=1000f};
+            g.enemies.Add(bystander);
+            g.save.x=junction.x;g.save.y=junction.y;
+            g.companionPosition=new Point(65.5f,42.5f);
+            Point allyBefore=g.companionPosition;
+            g.Tick(.05f,new Point());
+            var guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+            Check(g.MineConvoyStage==2&&guards.Count==2&&
+                g.enemies.Contains(bystander)&&
+                (bystander.Position-new Point(62.5f,40.5f)).Length<.001f,
+                "Cart reaches live contested junction with two actual guards and untouched pre-existing fighter");
+            Check(guards[0].id==91300&&guards[1].id==91301,
+                "Existing pair of kill-confirmed minecart enemy identities is stable");
+            foreach(Enemy guard in guards)
+            {
+                Check(g.CanStand(guard.Position)&&
+                    (guard.Position-bystander.Position).Length>=1.25f&&
+                    (guard.Position-g.Position).Length>=1.25f&&
+                    (guard.Position-g.companionPosition).Length>=1.25f&&
+                    (guard.Position-g.MineCartPosition).Length>=1.25f&&
+                    g.NavigationPath(guard.Position).Count>0,
+                    "Each actual ambusher stands apart from the cart and actors on walkable reachable junction floor");
+            }
+            Check((guards[0].Position-guards[1].Position).Length>=1.25f&&
+                (allyBefore-g.companionPosition).Length<1f,
+                "New enemies may not overlap each other or teleport an unrelated recruited ally");
+            Check(g.save.version==2&&!g.MineConvoyComplete,
+                "An in-progress combat ambush cannot leak a permanent quest result or alter old saves");
+        }
+
+        public static void MinecartHullOnlyDrainsFromUnobstructedLivingGuards(Campaign data)
+        {
+            // The mission's authored three rail posts remain in place, but
+            // the switchyard has one genuinely dynamic solid barrier.
+            // The cart arrives by actual player movement, not a stage setter.
+            MapData original=data.maps[3];
+            try
+            {
+                var rows=new string[80];
+                for(int y=0;y<80;y++)
+                {
+                    char[] cells=new string('#',120).ToCharArray();
+                    if(y>=2&&y<=77)
+                        for(int x=2;x<=117;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[3]=new MapData{id=3,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(3);
+                g.enemies.Clear();
+                g.save.flags.Add("boss_3");
+                g.save.flags.Add("gate_3");
+                g.invulnerable=120;
+                WorldObject west=MineCartTestPost(g,1);
+                WorldObject junction=MineCartTestPost(g,2);
+                g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+                Check(MineCartTestChoice(g,"mineconvoy_start"),
+                    "A real cart dispatch is required to test physical escort damage");
+                WalkBesideMinecart(g,new Point(junction.x,junction.y),1);
+                var guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+                Check(g.MineConvoyStage==2&&guards.Count==2&&
+                    g.MineConvoyIntegrity>0,
+                    "The cart physically traverses the route and reaches its true two-raider encounter");
+                Enemy threat=guards[0],other=guards[1];
+                threat.x=junction.x+3f;threat.y=junction.y;
+                threat.stun=100;threat.timer=1000;
+                other.x=junction.x+12f;other.y=junction.y+8f;
+                other.stun=100;other.timer=1000;
+                char[] closed=rows[(int)junction.y].ToCharArray();
+                closed[(int)junction.x+1]='#';
+                rows[(int)junction.y]=new string(closed);
+                Check(g.CanStand(threat.Position)&&
+                    g.CanStand(g.MineCartPosition)&&
+                    g.Blocked(junction.x+1f,junction.y)&&
+                    (threat.Position-g.MineCartPosition).Length<5.3f,
+                    "A standing real guard is in damage range, but a dynamic wall seals its entire approach to the cart");
+                float hull=g.MineConvoyIntegrity;
+                g.Tick(.05f,new Point());
+                Check(g.MineConvoyStage==2&&
+                    Math.Abs(g.MineConvoyIntegrity-hull)<.0001f,
+                    "Live timed junction combat must not drain civilian cart health through sealed cover");
+                closed[(int)junction.x+1]='.';
+                rows[(int)junction.y]=new string(closed);
+                g.Tick(.05f,new Point());
+                Check(Math.Abs(g.MineConvoyIntegrity-hull)<.0001f,
+                    "A newly open corridor does not let a still-stunned guard sabotage the cart while unable to act");
+                // A genuine combat stagger expires DURING this 50ms
+                // frame. Only the 25ms remaining active slice can damage
+                // the cart, not a free complete frame of pressure.
+                threat.stun=.025f;
+                g.Tick(.05f,new Point());
+                float partial=hull-g.MineConvoyIntegrity;
+                Check(partial>.055f&&partial<.11f,
+                    "Stun ending halfway through a frame restores precisely partial civilian hull pressure");
+                threat.stun=0;
+                g.Tick(.05f,new Point());
+                float active=partial-(hull-g.MineConvoyIntegrity);
+                Check(active<-.12f&&active>-.23f&&
+                    g.enemies.Contains(threat)&&g.enemies.Contains(other),
+                    "Fully recovered raider again drains the original 3.3 HP/s cart integrity without erasing actors");
+                Check(!g.MineConvoyComplete&&g.save.version==2,
+                    "Physical collision adjustment changes no final reward, guard kill bit or old save version");
+            }
+            finally {data.maps[3]=original;}
+        }
+
+        public static void MinecartStaleRailwayActionsCannotSpendOrRewardThroughClosedWall(Campaign data)
+        {
+            MapData original=data.maps[3];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[3]=new MapData {id=3,
+                    spawnX=original.spawnX,spawnY=original.spawnY,
+                    rows=rows,objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;g.Enter(3);
+                g.enemies.Clear();g.save.flags.Add("boss_3");
+                g.save.flags.Add("gate_3");g.invulnerable=180;
+                WorldObject west=MineCartTestPost(g,1),
+                    relay=MineCartTestPost(g,2),end=MineCartTestPost(g,3);
+                g.save.x=west.x+1.75f;g.save.y=west.y;
+                g.Talk(west);
+                Check(g.mode=="dialog"&&g.CanStand(g.Position),
+                    "The real western railway dispatch offers the original cart start on accessible ground");
+                int wy=(int)Math.Floor(west.y),wx=(int)Math.Floor(west.x)+1;
+                char[] blocked=rows[wy].ToCharArray();
+                blocked[wx]='#';rows[wy]=new string(blocked);
+                Check(g.CanStand(g.Position)&&g.Blocked(wx+.5f,wy+.5f),
+                    "A real solid mine wall seals the dispatch while the hero stands beyond it");
+                Check(MineCartTestChoice(g,"mineconvoy_start")&&
+                    !g.MineConvoyActive&&!g.Has("mineconvoy_started"),
+                    "Previously offered start cannot materialize a cart on the other side of solid cover");
+                blocked[wx]='.';rows[wy]=new string(blocked);
+                g.Talk(west);
+                Check(MineCartTestChoice(g,"mineconvoy_start")&&
+                    g.MineConvoyActive&&g.MineConvoyStage==1,
+                    "Opening the exact wall starts the authentic railway mission");
+                WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+                Check(g.MineConvoyStage==2&&
+                    g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                    "The physical cart reaches the original guarded switchyard");
+                DefeatMinecartRaiders(g,relay);
+                int coins=g.save.coins;
+                g.save.x=relay.x+1.75f;g.save.y=relay.y;
+                Check(g.CanStand(g.Position),
+                    "The living hero may reach the east side of the original switchyard post");
+                g.Talk(relay);
+                int ry=(int)Math.Floor(relay.y),rx=(int)Math.Floor(relay.x)+1;
+                char[] sw=rows[ry].ToCharArray();sw[rx]='#';
+                rows[ry]=new string(sw);
+                Check(g.CanStand(g.Position)&&g.Blocked(rx+.5f,ry+.5f),
+                    "The switchyard now has a real full-wall divide between worker and hero");
+                Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                    g.MineConvoyStage==2&&g.MineConvoyActive&&
+                    g.save.coins==coins,
+                    "A cached switch lever cannot move a defended cart forward through closed scenery");
+                sw[rx]='.';rows[ry]=new string(sw);
+                g.Talk(relay);
+                Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                    g.MineConvoyStage==3,
+                    "Opening the exact barrier resumes the legitimate full railway escort");
+                WalkBesideMinecart(g,new Point(end.x,end.y),3);
+                Check(g.MineConvoyStage==4&&g.MineConvoyIntegrity>0,
+                    "The surviving real cart reaches the authored civilian shelter without a teleport");
+                g.save.x=end.x+1.75f;g.save.y=end.y;
+                Check(g.CanStand(g.Position),
+                    "The original depot has standable eastern approach terrain");
+                g.Talk(end);
+                int ey=(int)Math.Floor(end.y),ex=(int)Math.Floor(end.x)+1;
+                char[] finalWall=rows[ey].ToCharArray();
+                finalWall[ex]='#';rows[ey]=new string(finalWall);
+                Check(g.CanStand(g.Position)&&g.Blocked(ex+.5f,ey+.5f),
+                    "A newly sealed last wall separates the opened completion panel and physical depot");
+                Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                    !g.MineConvoyComplete&&g.MineConvoyStage==4&&
+                    g.save.coins==coins,
+                    "Cached depot registry cannot mint rescues, currency or upgrade discounts through a wall");
+                finalWall[ex]='.';rows[ey]=new string(finalWall);
+                g.Talk(end);
+                Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                    g.MineConvoyComplete&&g.save.coins==coins+60&&
+                    g.save.version==2,
+                    "Reopening real depot contact awards exactly one valid civilian rescue without altering existing saves");
+            }
+            finally {data.maps[3]=original;}
+        }
+
         public static void MinecartCivicTimberSavingsActuallyReachTownForge(Campaign data)
         {
             foreach(bool temper in new[]{false,true})
@@ -159,8 +374,9 @@ namespace Starfall.Tests
                 g.effects.Exists(e=>e.kind=="projectileFade"&&e.frostSignalOwned),
                 "Real projectile expiration tags the correct authored combat source");
             Check(g.effects.Exists(e=>e.kind=="enemyRelease"&&e.mineConvoyOwned)&&
-                g.effects.Exists(e=>e.kind=="danger"&&e.mineConvoyOwned),
-                "An actual minecart raider's windup/release warnings inherit mission ownership");
+                g.effects.Exists(e=>e.kind=="burst"&&e.mineConvoyOwned)&&
+                !g.effects.Exists(e=>e.kind=="danger"&&e.mineConvoyOwned),
+                "Minecart raider release and post-contact burst inherit mission ownership without a phantom danger warning");
             g.Talk(west);
             Check(MineCartTestChoice(g,"mineconvoy_abort"),
                 "The western civilian post can actually cancel its active fight");
@@ -258,5 +474,74 @@ namespace Starfall.Tests
                 reloaded.GetQuest("mine_convoy").complete,
                 "All completed rescue and depot service flags survive original version-two saves");
         }
+        public static void MinecartRequiresBothRealLethalKillsBeforeSwitchAndRewards(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(3);g.enemies.Clear();
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            g.invulnerable=180;
+            WorldObject west=MineCartTestPost(g,1),relay=MineCartTestPost(g,2),
+                end=MineCartTestPost(g,3);
+            int coins=g.save.coins,shards=g.save.shards;
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start"),
+                "Authentic western worker dispatch begins the escort");
+            WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+            Check(g.MineConvoyStage==2&&
+                g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                "Actual cart reaches two live switchyard guards");
+            // Removing either genuine foe without a lethal player callback
+            // must not unlock repair, dispatch, or permanent compensation.
+            var guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+            g.enemies.Remove(guards[0]);
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            Check(!MineCartTestChoice(g,"mineconvoy_go")&&
+                !MineCartTestChoice(g,"mineconvoy_brace"),
+                "Missing guard without a verified defeat cannot offer a switch action");
+            g.Close();
+            g.Tick(.05f,new Point());
+            Check(!g.MineConvoyActive&&!g.MineConvoyComplete &&
+                g.save.coins==coins&&g.save.shards==shards &&
+                !g.enemies.Exists(g.IsMineConvoyEnemy),
+                "First missing hostile resets the cart and only its temporary actors");
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start"),
+                "Interrupted work escort can restart without charging resources");
+            WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+            Check(g.MineConvoyStage==2,
+                "The retry physically reaches the same switchyard");
+            // The canonical Hit() lethal path, not list manipulation,
+            // authorizes both individual enemy identities for dispatch.
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Combat death callback must be available");
+            guards=g.enemies.FindAll(g.IsMineConvoyEnemy);
+            hit.Invoke(g,new object[]{guards[0],99999f,false,null,null});
+            Check(g.MineConvoyStage==2&&
+                g.enemies.FindAll(g.IsMineConvoyEnemy).Count==1,
+                "First real kill alone does not clear the mine switch");
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            Check(!MineCartTestChoice(g,"mineconvoy_go"),
+                "Surviving second raider continues to guard the switch");
+            g.Close();
+            hit.Invoke(g,new object[]{guards[1],99999f,false,null,null});
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                g.MineConvoyStage==3,
+                "Two confirmed lethal combat kills enable supply-conserving transit");
+            WalkBesideMinecart(g,new Point(end.x,end.y),3);
+            Check(g.MineConvoyStage==4&&g.MineConvoyIntegrity>0,
+                "The authentic second leg reaches its original depot");
+            g.save.x=end.x;g.save.y=end.y;g.Talk(end);
+            Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                g.MineConvoyComplete&&g.save.coins==coins+60&&
+                g.save.shards==shards+2,
+                "The genuine two-kill route retains its original one-time rescue reward");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.MineConvoyComplete &&
+                !loaded.MineConvoyActive,
+                "SaveData v2 persists earned evacuation but no transient kill counters");
+        }
+
     }
 }

@@ -26,9 +26,18 @@ namespace Starfall
             if(first)
             {
                 Flag(flag);
-                if(survey)save.runXp+=25;
-                else if(cache){save.runCoins+=30;save.runShards++;}
-                else save.runXp+=20;
+                // The lower gallery shares the same v2 unbanked ceilings
+                // as ordinary enemy defeats and near-side annex discoveries.
+                // Saturate BEFORE an autosave so deep expedition progress is
+                // never truncated or wraps when this floor is resumed.
+                if (survey)
+                    save.runXp = CappedReward(save.runXp, 25, 9999);
+                else if (cache)
+                {
+                    save.runCoins = CappedReward(save.runCoins, 30, 9999);
+                    save.runShards = CappedReward(save.runShards, 1, 9999);
+                }
+                else save.runXp = CappedReward(save.runXp, 20, 9999);
                 revision++;sound="reward";
             }
             string zh=survey?

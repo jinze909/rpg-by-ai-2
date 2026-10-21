@@ -70,7 +70,7 @@ namespace Starfall
         private float worldActorOpacity = 1f;
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
-        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.H,KeyCode.R,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
+        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
 
@@ -153,6 +153,9 @@ namespace Starfall
                 Game.Tick(step, movement, frameAim);
                 timeLeft -= step;
             }
+            // Spawn from actual GameCore foot contacts, never from IMGUI
+            // repaints or a free-running artificial walking animation.
+            AdvanceFootfallVisual(frameDelta);
             UpdatePresentation(frameDelta); UpdateMenuInput(frameDelta);
             if (Game.mode == "world" && beganInWorld)
             {
@@ -170,6 +173,9 @@ namespace Starfall
                 if (Input.GetKeyDown(KeyCode.Z)) Game.CommandCompanion();
                 if (Input.GetKeyDown(KeyCode.H)) Game.ReturnToTown();
                 if (Input.GetKeyDown(KeyCode.R)) Game.UseExplorationAbility();
+                if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
+                if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
+                if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();
                 if (PadDown(4)) Game.Eat(); if (PadDown(5)) Game.CommandCompanion();
                 if (PadDown(6)) OpenMenu("journal"); if (PadDown(7)) { OpenMenu("pause"); Save(); }
             }
@@ -206,7 +212,7 @@ namespace Starfall
             if (SaveStore.Write(Game.save)) { lastRevision = Game.revision; saveTimer = 0; hasSave = true; return true; }
             else { saveTimer = 0; Game.Notify("存档失败，请检查磁盘空间或目录权限。", "Save failed. Check disk space and folder permissions."); return false; }
         }
-        private void OnApplicationPause(bool paused) { applicationPaused = paused; if (paused) { if (Game != null) Game.ClearBufferedSkill(); Save(); } }
+        private void OnApplicationPause(bool paused) { applicationPaused = paused; if (paused) { if (Game != null) Game.ClearBufferedCombatInputs(); Save(); } }
         private void OnApplicationFocus(bool focused)
         {
             applicationFocused = focused;
@@ -215,7 +221,7 @@ namespace Starfall
                 // Focus loss freezes interactive non-world modes (such as
                 // fishing) instead of letting their cursor run unseen.
                 // World combat additionally displays the existing pause menu.
-                Game.ClearBufferedSkill();
+                Game.ClearBufferedCombatInputs();
                 // Off-window updates already freeze. Do not convert an
                 // active death pose to a persistent pause menu: on returning,
                 // mandatory respawn must continue without another keypress.
@@ -537,22 +543,36 @@ namespace Starfall
                 DrawSurface(x, y, tile, p);
                 DrawGroundDetail(x, y, tile, p); DrawTerrainEdge(x, y, tile, p);
                 DrawAuthoredWaterShimmer(x,y,tile,p);
+                DrawAuthoredWaterRipples(x,y,tile,p);
                 DrawAuthoredShorelineWash(x,y,tile,p);
                 float reveal = TerrainTileOpacity(x, y);
                 if (reveal < .999f)
                     Box(p.x, p.y, Tile + .5f, Tile + .5f, new Color(fadeBase.r,fadeBase.g,fadeBase.b,
                         WorldStreaming.TerrainVeilOpacity(reveal)));
             }
+            // Atmosphere belongs in the world background. Painting motes
+            // AFTER the depth-sorted cast made stars crawl over faces,
+            // equipped weapons, hit flashes and red combat telegraphs.
+            // Terrain is already in place; all game actors/props/HUD now
+            // occlude these subtle authored particles naturally.
+            DrawAuthoredAtmosphericMotes();
             DrawArenaBoundary();
             // Sort scenery and actors by their ground position, for proper overlap.
-            DrawHazardWarnings();
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);
             DrawOrderedWorld();
+            // Authoritative enemy-to-ward pressure above the depth pass,
+            // distinct from damage telegraphs and unowned ambient effects.
+            DrawRoadwardenWardSiphons();
+            // Timed hazards are an active GAMEPLAY warning, never floor
+            // decoration. Render their lean outlines after solid scenery
+            // and actor bodies, before flying projectiles and impacts.
+            DrawHazardWarnings();
             foreach (Projectile p in Game.projectiles) DrawProjectileVisual(p);
             foreach (Effect e in Game.effects) if (!IsGroundEffect(e)) DrawCombatEffect(e);
+            // Source-painted optional impact cells are already drawn in the
+            // WORLD depth pass; painting them here again would put every
+            // slash above roofs, NPCs and even nearer equipped weapons.
             DrawExpansionWorld();
-            if (!Game.save.reducedMotion && Game.save.effectsQuality > 0)
-                for (int i = 0; i < 18; i++) { float x = (i * 137 + Mathf.Sin(clock * .35f + i) * 45 + Width) % Width, y = (i * 83 - clock * 6 + Height * 100) % Height; Box(x, y, 2, 2, new Color(.96f, .87f, .6f, .45f)); }
             DrawAtmosphere(); DrawPolishWorld();
             WorldObject near = Game.Nearest();
             if (near != null && Game.mode == "world" && Game.SafeTravel)
@@ -767,12 +787,93 @@ namespace Starfall
             if(kind=="outerwatch")
             {
                 bool done=Game.OuterPatrolDone(Game.save.room);
+                bool flawless=Game.OuterPatrolFlawlessDone(Game.save.room);
                 PropImage("post",0,p.x-34,p.y-80,68,83,
+                    flawless?new Color(1f,.91f,.68f):
                     done?new Color(.68f,.93f,.78f):Color.white);
-                Ring(new Point(o.x,o.y),.43f,done?mint:
-                    Game.OuterPatrolActive?new Color(1,.4f,.34f):gold,14);
-                if(!done)Diamond(p.x,p.y-79,5,
-                    Game.OuterPatrolActive?new Color(1,.4f,.34f):gold);
+                // The constructed barricade is now physically legible in
+                // the same live gameplay field as its real stock contacts.
+                // Reuse accepted original wooden prop artwork rather than
+                // faking a new asset or mounting an unverified Sprite.
+                // Only actual unspent structural HP draws this foreground
+                // line of cover. A true released raider strike briefly
+                // brightens it; depleted cover vanishes automatically.
+                if(Game.OuterPatrolBraceStanding)
+                {
+                    float guardHp=Game.OuterPatrolBraceIntegrity;
+                    Color wooden=Game.OuterPatrolBraceHitFlash>0f?
+                        new Color(1f,.85f,.46f):
+                        guardHp<=16f?new Color(.83f,.48f,.39f):
+                        guardHp<=32f?new Color(.91f,.68f,.49f):
+                        new Color(.83f,.87f,.79f);
+                    PropImage("barrel",0,p.x-34,p.y-41,33,40,wooden);
+                    PropImage("barrel",0,p.x+1,p.y-41,33,40,wooden);
+                    Ring(new Point(o.x,o.y),.67f,
+                        Game.OuterPatrolBraceHitFlash>0f?
+                            new Color(1f,.83f,.42f):wooden,18);
+                }
+                // Highlight ONLY the authentic attacker whose committed
+                // contact is about to hit the actual supply objective.
+                // The footprint is the living actor's, never a fake enemy
+                // or a replacement animation. Reduced motion gets the
+                // identical stationary, readable warning ring.
+                Enemy breaker=Game.OuterPatrolIncomingStockThreat;
+                if(breaker!=null)
+                {
+                    Color imminent=breaker.kind==2?
+                        new Color(1f,.37f,.33f):
+                        new Color(1f,.75f,.35f);
+                    Ring(breaker.Position,breaker.kind==2?.75f:.62f,
+                        imminent,20);
+                }
+                // Veteran fights occur at already-repaired posts: the
+                // live danger color MUST outrank the old green-clear tint.
+                Color guardColor=Game.OuterPatrolActive?
+                    new Color(1,.4f,.34f):flawless?gold:done?mint:gold;
+                Ring(new Point(o.x,o.y),.43f,guardColor,14);
+                if(Game.OuterPatrolActive||!done)
+                    Diamond(p.x,p.y-79,5,guardColor);
+                if(Game.OuterPatrolCompanionGuarding)
+                {
+                    // A guard is an actual foot waypoint beside the stock:
+                    // visually mark the destination, not a second ally,
+                    // copied sprite or a fake detached attack body.
+                    Ring(Game.OuterPatrolCompanionGuardPosition,.35f,
+                        Game.OuterPatrolMedicRallying?
+                            new Color(1f,.73f,.43f):
+                            Game.OuterPatrolGuardBlocksLeft==0?
+                            new Color(.64f,.63f,.66f):
+                            new Color(.48f,.9f,1f),12);
+                    // The additional ring appears only on the physical
+                    // planted ally when finite interception is actually
+                    // ready; never represent an approaching/remote guard
+                    // or a medic rushing away as an active bodyguard.
+                    if(Game.OuterPatrolGuardReady)
+                        Ring(Game.companionPosition,.53f,
+                            new Color(.46f,1f,.78f),16);
+                    if(Game.OuterPatrolMedicRallying)
+                        // This is an actual healing rally, not a second
+                        // companion sprite, phantom projectile or teleport.
+                        Ring(Game.Position,.45f,
+                            new Color(.56f,.98f,.76f),12);
+                }
+                if(Game.OuterPatrolActive)
+                    Text(p.x-79,p.y-107,158,20,
+                        Math.Ceiling(Game.OuterPatrolTime)+"s · "+
+                        Math.Ceiling(Game.OuterPatrolIntegrity)+"%"+
+                        (Game.OuterPatrolVeteranActive?
+                            " · "+Math.Ceiling(Game.OuterPatrolBraceIntegrity)+"B":""),
+                        11,Game.OuterPatrolIntegrity<=30f?
+                            new Color(1,.4f,.34f):gold,TextAnchor.MiddleCenter);
+                else if(done)
+                    Text(p.x-79,p.y-104,158,18,
+                        flawless?Game.L("无损守卫徽章 · 荣誉补给岗",
+                            "FLAWLESS MEDAL · HONOR POST"):
+                        Game.OuterPatrolVeteranDone(Game.save.room)?
+                            Game.L("精英补给岗 · 强化医疗","VETERAN POST · IMPROVED CARE"):
+                            Game.L("安全补给 · 恢复与避寒暑",
+                                "SAFE OUTPOST · REST & SHELTER"),
+                        10,mint,TextAnchor.MiddleCenter);
                 return;
             }
             if(kind=="outerlog"||kind=="outerrelay"||kind=="outercache")

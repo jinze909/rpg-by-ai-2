@@ -52,14 +52,22 @@ namespace Starfall
             if(save.room<0||save.room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
             string key=(kind=="annexcache"?"annex_cache_":kind=="annexvista"?"annex_vista_":"annex_camp_")+o.id;
             bool first=!Has(key);
+            int cacheMaterial = save.room==1 || save.room==7 ? 2 :
+                save.room==3 || save.room==6 ? 1 : 0;
+            if(first && kind=="annexcache" &&
+                (save.coins > 999992 || save.inventory[cacheMaterial] > 9997))
+            {
+                Notify("探索补给仍可领取。请先留出7硬币和2份材料的容量。",
+                    "Exploration supplies remain here. Free room for 7 coins and 2 materials.");
+                return true;
+            }
             if(first)
             {
                 Flag(key);sound="reward";
                 if(kind=="annexcache")
                 {
-                    save.coins+=7;
-                    int item=save.room==1||save.room==7?2:save.room==3||save.room==6?1:0;
-                    save.inventory[item]+=2;
+                    CreditCoins(7);
+                    CreditInventory(cacheMaterial, 2);
                 }
                 else if(kind=="annexvista")
                 {
@@ -73,10 +81,10 @@ namespace Starfall
                 }
                 else
                 {
-                    save.coins+=5;
+                    CreditCoins(5);
                     bool all=true;
                     for(int i=0;i<8;i++)if(!Has("annex_camp_annex_camp_"+i))all=false;
-                    if(all&&!Has("annex_camps_complete")){Flag("annex_camps_complete");save.skillPoints++;}
+                    if(all&&!Has("annex_camps_complete")){Flag("annex_camps_complete");CreditSkillPoints(1);}
                 }
                 revision++;
             }
@@ -135,7 +143,7 @@ namespace Starfall
                         return true;
                     }
                 Flag("annex_archive_complete");
-                save.coins+=60;save.shards+=3;save.skillPoints++;
+                CreditCoins(60);CreditShards(3);CreditSkillPoints(1);
                 RecordMoment("八地营地、观景点与补给旧路均已核实。炉火旅店的公开星图不再遗漏任何普通旅人。",
                     "Eight regions of camps, lookouts and recovered supplies are now public on the Hearth Inn's atlas.");
                 revision++;sound="reward";

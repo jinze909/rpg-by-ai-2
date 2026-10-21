@@ -319,5 +319,71 @@ namespace Starfall.Tests
                 "A newly undertaken miner investigation outranks incomplete earlier optional testimony");
         }
 
+        public static void UnconfirmedWitnessGuardDisappearanceCannotForgeLivingTestimony(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 0;
+            g.save.flags.Add("scout_saved");
+            g.Enter(1); g.enemies.Clear(); g.invulnerable = 100;
+            var witness = Object(g, "witnessnpc1");
+            var source = Object(g, "witnesssite11");
+            var archive = Object(g, "witnesssite21");
+            g.save.x = witness.x; g.save.y = witness.y;
+            Action(g, witness.kind, "witness_begin_1");
+            g.save.x = source.x; g.save.y = source.y;
+            g.save.inventory[2] = Math.Max(1, g.save.inventory[2]);
+            Action(g, source.kind, "witness_answer_1_1");
+            g.save.x = archive.x; g.save.y = archive.y;
+            Action(g, archive.kind, "witness_defend_1");
+            Check(g.WitnessDefenseRoom == 1 &&
+                g.enemies.FindAll(g.IsWitnessEnemy).Count == 2,
+                "A signed testimony requires the original live two-guard security encounter");
+            int coins = g.save.coins, shards = g.save.shards;
+            // A rogue cleanup is not a player kill. The pending record
+            // must not be marked secured merely because its guards vanished.
+            g.enemies.RemoveAll(g.IsWitnessEnemy);
+            g.Tick(.05f, new Point());
+            Check(g.WitnessDefenseRoom == 0 &&
+                !g.Has("witness_defeated_1") &&
+                !g.Has("witness_sealed_1") &&
+                !g.Has("witness_complete_1") &&
+                g.save.coins == coins && g.save.shards == shards,
+                "An unconfirmed enemy-list disappearance resets the actual witness defense without forging evidence or rewards");
+            g.Talk(archive);
+            Check(g.conversation != null &&
+                Array.Exists(g.conversation.choices,
+                    c => c.action == "witness_defend_1") &&
+                !Array.Exists(g.conversation.choices,
+                    c => c.action == "witness_seal_1"),
+                "The existing original field marker offers a free retry instead of a counterfeit sealed record");
+            g.Close();
+            Action(g, archive.kind, "witness_defend_1");
+            Check(g.WitnessDefenseRoom == 1 &&
+                g.enemies.FindAll(g.IsWitnessEnemy).Count == 2,
+                "A fresh legitimate battle remains playable with both authored security enemies");
+            var hit = typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Check(hit != null, "Witness defeat uses the original live combat damage path");
+            foreach (Enemy guard in g.enemies.FindAll(g.IsWitnessEnemy))
+                hit.Invoke(g, new object[] { guard, 99999f, false, null, null });
+            g.Tick(.05f, new Point());
+            Check(g.WitnessDefenseRoom == 0 && g.Has("witness_defeated_1") &&
+                g.save.coins == coins && g.save.shards == shards,
+                "Both authentic lethal contacts earn the security unlock without paying before signature");
+            Action(g, archive.kind, "witness_seal_1");
+            g.save.x = witness.x; g.save.y = witness.y;
+            Action(g, witness.kind, "witness_finish_1");
+            Check(g.Has("witness_sealed_1") &&
+                g.Has("witness_complete_1") &&
+                g.save.coins == coins + 25,
+                "Verified defense still yields the original genuine signed first-chapter testimony and once-only reward");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.Has("witness_complete_1") &&
+                loaded.save.coins == g.save.coins,
+                "Signed and verified civilian testimony survives unchanged v2 save reload");
+        }
+
     }
 }

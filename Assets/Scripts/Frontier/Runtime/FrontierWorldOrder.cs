@@ -6,7 +6,7 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion, Survivor }
+        private enum WorldDrawKind { Decoration, Object, Enemy, Fallen, Player, Companion, Survivor, ImpactFlourish, Footfall }
         private struct WorldDrawEntry
         {
             public float depth;
@@ -16,6 +16,8 @@ namespace Starfall
             public WorldObject obj;
             public Enemy enemy;
             public FallenActor fallen;
+            public Effect effect;
+            public FootfallMark footfall;
         }
         private sealed class WorldDepthComparer:IComparer<WorldDrawEntry>
         {
@@ -48,6 +50,15 @@ namespace Starfall
             // still bounds work; actual actor occlusion remains unchanged.
             return 1f;
         }
+        // Filter before reading actor coordinates: DrawFallen's own guard
+        // is too late if the depth-sort pass already dereferenced the record.
+        private bool CanDrawFallen(FallenActor fallen)
+        {
+            return fallen != null && fallen.IsValid &&
+                fallen.room == Game.save.room &&
+                WorldDrawable(fallen.actor.x,fallen.actor.y);
+        }
+
         private void DrawOrderedWorld()
         {
             // Reuse storage and explicit references. Captured per-actor callbacks
@@ -71,17 +82,36 @@ namespace Starfall
                 }
             foreach(Enemy e in Game.enemies)
             {
-                // Combat simulation remains active everywhere; visuals still
-                // draw well beyond the viewport to keep long-range warnings.
+                // Enemy bodies are culled independently from attack targets.
+                // A visible landing zone must NEVER lose its warning merely
+                // because its long-range caster is beyond actor draw margin.
                 if(WorldDrawable(e.x,e.y,450,450))
-                {
-                    DrawEnemyWarning(e);
                     AddWorldEntry(new WorldDrawEntry{depth=e.y,kind=WorldDrawKind.Enemy,enemy=e});
-                }
             }
             foreach(FallenActor f in Game.fallen)
-                if(WorldDrawable(f.actor.x,f.actor.y))
+                if(CanDrawFallen(f))
                     AddWorldEntry(new WorldDrawEntry{depth=f.actor.y-.02f,kind=WorldDrawKind.Fallen,fallen=f});
+            // Optional impact paint is WORLD scenery, not a gameplay
+            // warning. Respect foreground canopies, NPCs and hero weapons
+            // through the same source-foot depth ordering as real actors.
+            // Actual hit telegraphs stay in DrawVisibleEnemyWarnings.
+            if(CanDrawAuthoredImpactFlourishes())
+                foreach(Effect effect in Game.effects)
+                    if(ValidEffectForDraw(effect) &&
+                       ImpactFlourishCategory(effect)>=0 &&
+                       WorldDrawable(effect.position.x,effect.position.y,115f,115f))
+                        AddWorldEntry(new WorldDrawEntry{
+                            depth=effect.position.y+.001f,
+                            kind=WorldDrawKind.ImpactFlourish,effect=effect});
+            // Material-aware foot contacts are rooted to their ORIGINAL
+            // terrain position, not screen-space ankle offsets. Sort below
+            // bodies and prop occluders just like other world details.
+            foreach(FootfallMark contact in footfallMarks)
+                    if(contact.room==Game.save.room &&
+                        WorldDrawable(contact.position.x,contact.position.y,40,40))
+                        AddWorldEntry(new WorldDrawEntry{
+                            depth=contact.position.y-.035f,
+                            kind=WorldDrawKind.Footfall,footfall=contact});
             AddWorldEntry(new WorldDrawEntry{depth=Game.save.y+.002f,kind=WorldDrawKind.Player});
             if(Game.save.companion>=0)AddWorldEntry(new WorldDrawEntry{depth=Game.companionPosition.y,kind=WorldDrawKind.Companion});
             // Keep the moving rescue survivor in the same depth pass as every
@@ -111,6 +141,8 @@ namespace Starfall
                         case WorldDrawKind.Player:DrawHero();DrawFarCourierPack();DrawCivicResponsePack();DrawCivicConduitCoil();break;
                         case WorldDrawKind.Companion:DrawCompanionActor();break;
                         case WorldDrawKind.Survivor:DrawRescueSurvivorActor();break;
+                        case WorldDrawKind.ImpactFlourish:DrawAuthoredImpactFlourish(entry.effect);break;
+                        case WorldDrawKind.Footfall:DrawFootfallMark(entry.footfall);break;
                     }
                 }
             }
@@ -120,6 +152,92 @@ namespace Starfall
                 coverResidentsInView.Clear();
                 worldActorOpacity=1f;
                 worldDrawEntries.Clear();
+            }
+            DrawVisibleEnemyWarnings();
+        }
+        // Combat preview outlines are gameplay signals, not scenery. Draw
+        // AFTER depth-sorted trees, NPCs, the hero and Boss bodies so opaque
+        // canopies/ruins cannot erase a real locked hit radius or rescue
+        // interception lane. The existing slim strokes and subdued fill
+        // preserve the character silhouette; damage/timing are unchanged.
+        // An archer or distant Boss can lock a shot whose ENDPOINTS are
+        // both off-screen even though the actual shot lane crosses the hero's
+        // whole viewport. Endpoint-only culling silently erased its warning.
+        // Liang-Barsky tests the whole world-rooted line against the visible
+        // logical game canvas without iterating 36px samples per projectile.
+        private static bool ClipWarningLane(float p,float q,
+            ref float low,ref float high)
+        {
+            if(Math.Abs(p)<.00001f)return q>=0f;
+            float intersection=q/p;
+            if(p<0f)
+            {
+                if(intersection>high)return false;
+                if(intersection>low)low=intersection;
+            }
+            else
+            {
+                if(intersection<low)return false;
+                if(intersection<high)high=intersection;
+            }
+            return true;
+        }
+        // Reuse ONE exact viewport clip for both visibility and painting.
+        // Huge distant 2000px+ attack strokes no longer submit unbounded
+        // rectangles across an otherwise tiny visible region.
+        private bool ClipWarningScreenSegment(ref Point a,ref Point b)
+        {
+            float dx=b.x-a.x,dy=b.y-a.y;
+            const float margin=36f;
+            float low=0f,high=1f;
+            if(!ClipWarningLane(-dx,a.x+margin,ref low,ref high)||
+               !ClipWarningLane(dx,Width+margin-a.x,ref low,ref high)||
+               !ClipWarningLane(-dy,a.y+margin,ref low,ref high)||
+               !ClipWarningLane(dy,Height+margin-a.y,ref low,ref high)||
+               low>high)return false;
+            Point start=a;
+            a=new Point(start.x+dx*low,start.y+dy*low);
+            b=new Point(start.x+dx*high,start.y+dy*high);
+            return true;
+        }
+        private bool WarningLaneCrossesScreen(Point source,Point target)
+        {
+            Point a=ScreenPoint(source),b=ScreenPoint(target);
+            return ClipWarningScreenSegment(ref a,ref b);
+        }
+        private bool WarningFootprintVisible(Enemy enemy)
+        {
+            // A circle can touch a screen border with its center outside,
+            // but a rectangular center-margin test spuriously flags diagonal
+            // screen corners. Measure the true circle-to-viewport distance,
+            // using the authoritative GameCore damage radius in canvas px.
+            Point center=ScreenPoint(enemy.target);
+            float radius=GameCore.EnemyAreaRadius(enemy)*Tile;
+            float dx=Math.Max(0f,Math.Max(-center.x,center.x-Width));
+            float dy=Math.Max(0f,Math.Max(-center.y,center.y-Height));
+            return dx*dx+dy*dy<=(radius+2f)*(radius+2f);
+        }
+        private void DrawVisibleEnemyWarnings()
+        {
+            foreach(Enemy e in Game.enemies)
+            {
+                if(e.state!=1)continue;
+                bool areaAttack=e.boss||e.kind==2;
+                bool anchored=WorldDrawable(e.x,e.y,450,450) ||
+                    !areaAttack&&WorldDrawable(e.target.x,e.target.y,120,120);
+                bool area=areaAttack&&WarningFootprintVisible(e);
+                // For melee there is no offscreen line to recover. Archers
+                // use the SAME GameCore weapon origin as their emitted bolt;
+                // Bosses only draw a long lane if their lock exceeds 3 tiles.
+                bool longLane=e.kind==1 ||
+                    e.boss&&(e.target-e.Position).Length>3f ||
+                    e.targetingWayfarer||e.targetingReliefCivilian;
+                Point origin=e.kind==1?
+                    GameCore.WeaponOrigin(e.Position,1,e.facing):
+                    e.Position;
+                if(anchored||area||
+                    longLane&&WarningLaneCrossesScreen(origin,e.target))
+                    DrawEnemyWarning(e);
             }
         }
         // Canopy/ruin occlusion is a presentation-only mask. Test every
@@ -184,8 +302,10 @@ namespace Starfall
                 cover,1.4f,2.7f))
                 return true;
             foreach(FallenActor fallen in Game.fallen)
-                if(fallen.actor!=null && BehindWorldCover(
-                    fallen.actor.x,fallen.actor.y,cover,1.6f,2.9f))
+                if(fallen != null && fallen.IsValid &&
+                    fallen.room == Game.save.room &&
+                    BehindWorldCover(fallen.actor.x,fallen.actor.y,
+                        cover,1.6f,2.9f))
                     return true;
             return false;
         }
@@ -206,7 +326,28 @@ namespace Starfall
                 DrawActorContactShadow(p,canopy?76:prop.kind=="house"?122:108,
                     canopy?21:27,canopy?12:prop.kind=="house"?13:14,
                     occludes?.48f:.68f);
-            if(canopy)DrawRootedPlant(prop,rect,tint);else PropImage(prop.kind,variant,rect.x,rect.y,rect.width,rect.height,tint);
+            if(canopy)
+            {
+                // DrawRootedPlant displays an intact square 128px atlas
+                // Sprite with a painted soil/foot root at pixel 120. The
+                // inherited tall-prop rect used its bottom+8 as a proxy
+                // pivot: gust rotation kept that *wrong* point still and
+                // made trunks skate against the real terrain/shadow anchor.
+                // Register the accepted square's exact painted root with
+                // the source world coordinate BEFORE applying wind.
+                float side=Math.Min(rect.width,rect.height);
+                rect.y=p.y-side*120f/128f;
+                rect.height=side;
+                DrawRootedPlant(prop,rect,tint);
+                DrawAuthoredCanopyWhispers(prop,p,side,tint);
+            }
+            else
+            {
+                PropImage(prop.kind,variant,rect.x,rect.y,rect.width,rect.height,tint);
+                if(prop.kind=="ruin")DrawAuthoredRuinSigils(prop,p,tint);
+                if(prop.kind=="garden")
+                    DrawAuthoredLivingGarden(prop,p,variant,tint);
+            }
             if(prop.kind=="well"&&Game.Has("ally_3"))Box(p.x-5,p.y-16,10,5,mint);
         }
         private void DrawEnemyWithBars(Enemy enemy)

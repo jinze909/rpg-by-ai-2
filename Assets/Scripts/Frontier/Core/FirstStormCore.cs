@@ -471,7 +471,7 @@ namespace Starfall
                     StormAllocations!=3 || Has("storm_complete") || save.room!=0 ||
                     (Position-StormPoint(0,"stormcouncil")).Length>2.2f)return true;
                 Flag("storm_complete");
-                save.coins+=110;save.shards+=3;save.skillPoints++;
+                CreditCoins(110);CreditShards(3);CreditSkillPoints(1);
                 AddXp(110);revision++;sound="reward";
                 RecordMoment("第六章：八单位公共储备中"+StormBudgetSpent+
                     "单位实际分配给三地，另有"+StormBudgetLeft+

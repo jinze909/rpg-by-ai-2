@@ -71,6 +71,43 @@ namespace Starfall
             for (int i = 0; i < Math.Min(6, Game.save.moments.Count); i++) { var m = Game.save.moments[Game.save.moments.Count - 1 - i]; float y = 226 + i * 78; Card(728, y, 489, 72); Text(745, y + 6, 450, 17, Game.L("第 ", "Day ") + m.day + Game.L(" 天", ""), 11, mint); Text(745, y + 26, 450, 42, Game.L(m.zh, m.en), 12, paper); }
             if (Game.save.moments.Count == 0) Text(755, 287, 422, 119, Game.L("完成任务、发现旧路、改变地方决定后，关键足迹会保存在这里。", "Quest updates, discoveries and regional decisions leave a record here."), 18, muted);
         }
+        // An original 4x2 Sprite Sheet, NOT a reused GUI circle or a
+        // second actor body. Painted behind the unchanged detailed beacon
+        // column in the production World depth pass. Health and pressure are
+        // GameCore-owned; this renderer never guesses them from enemy range.
+        private Texture2D roadwardenWardSheet;
+        private float roadwardenWardLastCheck=float.NegativeInfinity;
+        private float roadwardenWardNextCheck=float.NegativeInfinity;
+        private void DrawAuthoredRoadwardenWard(Point plantedFoot,
+            float integrity,bool underAttack,int region)
+        {
+            if(drawingOutline||Game==null||Game.mode!="world")return;
+            if(clock<roadwardenWardLastCheck||
+                clock>=roadwardenWardNextCheck)
+            {
+                roadwardenWardLastCheck=clock;
+                roadwardenWardNextCheck=clock+2.5f;
+                Texture2D candidate=Resources.Load<Texture2D>(
+                    "Frontier/Art/RoadwardenWard");
+                // Partial Editor import MUST NOT paint chopped rings or
+                // displace the original body. Hold the last complete sheet;
+                // a first-run missing resource keeps the existing ring/bar.
+                if(candidate!=null&&candidate.width==256&&
+                    candidate.height==128)
+                    roadwardenWardSheet=candidate;
+            }
+            if(roadwardenWardSheet==null)return;
+            int row=integrity<=35f||underAttack?1:0;
+            // Low FX and reduced-motion retain a planted, source-painted
+            // warning cell: accessibility must not hide the objective state.
+            int phase=Game.save.reducedMotion||
+                Game.save.effectsQuality==0?0:
+                ((int)Math.Floor(clock*3.3f+region*.37f)&3);
+            Atlas(roadwardenWardSheet,4,2,row*4+phase,
+                new Rect(plantedFoot.x-44f,plantedFoot.y-84f,88f,88f),
+                Color.white);
+        }
+
         private bool DrawPolishObject(WorldObject o)
         {
             Point p = ScreenPoint(new Point(o.x, o.y));
@@ -140,6 +177,9 @@ namespace Starfall
                 bool defending = !desk && Game.RoadwardenTrialRoom == Game.save.room;
                 bool defended = !desk && Game.Has("road_trial_" + o.kind.Substring(6));
                 Color accent = defending ? (Game.RoadwardenTrialVeteran ? PixelArt.C("#b9a4ed") : PixelArt.C("#e69d83")) : defended ? gold : found ? mint : gold;
+                if(defending)
+                    DrawAuthoredRoadwardenWard(p,Game.RoadwardenWardIntegrity,
+                        Game.RoadwardenWardUnderAttack,Game.save.room);
                 PropImage(desk ? "bookshelf" : "column", 0, p.x - 27, p.y - 62, 54, 68, found ? muted : Color.white);
                 float pulse = found || Game.save.reducedMotion ? 0 : Mathf.Sin(clock * 2.6f) * .05f;
                 Ring(new Point(o.x, o.y), .36f + pulse, accent, 16);
@@ -163,6 +203,40 @@ namespace Starfall
             if (o.kind.StartsWith("seal")) { bool open = Game.Has("seal_" + Game.save.room); Ring(new Point(o.x, o.y), .4f, open ? mint : gold, 16); if (!open) { Icon("relic", p.x - 18, p.y - 38, 36); Text(p.x - 44, p.y + 14, 88, 23, ControlKey("R / E", "B"), 12, gold, TextAnchor.MiddleCenter); } return true; }
             if (o.kind.StartsWith("cache")) { bool found = Game.Has("cache_" + Game.save.room); PropImage("cache", 0, p.x - 26, p.y - 42, 52, 61, found ? muted : Color.white); return true; }
             return false;
+        }
+        // Roadwarden ward pressure is no longer an invisible drain hidden
+        // behind a distant HUD. Link precisely the GameCore-confirmed
+        // siphoning enemies to the world beacon, using the existing lean
+        // pixel-line language. This is not an independently guessed enemy
+        // proximity query: a real stun, death or stone wall instantly retires
+        // its pressure and next simulation tick retires its visible tether.
+        // In reduced-motion/low-FX modes the fixed line remains legible;
+        // only the little traveling highlight is removed.
+        private void DrawRoadwardenWardSiphons()
+        {
+            if(Game == null || Game.mode != "world" ||
+                Game.RoadwardenTrialRoom == 0 ||
+                Game.RoadwardenTrialRoom != Game.save.room ||
+                drawingOutline)return;
+            Point ward=Game.RoadwardenWardSiphonTarget;
+            int count=Game.RoadwardenWardSiphonCount;
+            for(int i=0;i<count;i++)
+            {
+                Point source=Game.RoadwardenWardSiphonSource(i);
+                Point delta=ward-source;
+                if(delta.Length<.01f || delta.Length>4f)continue;
+                Color tether=PixelArt.C(Game.RoadwardenTrialVeteran ?
+                    "#bc9ced" : "#efab73");
+                tether.a=.64f;
+                DrawRay(source,ward,tether);
+                if(Game.save.reducedMotion||Game.save.effectsQuality==0)
+                    continue;
+                float phase=clock*1.7f+i*.37f;
+                phase-=(float)Math.Floor(phase);
+                Point glint=ScreenPoint(source+delta*phase);
+                Box(glint.x-3f,glint.y-3f,6f,6f,
+                    PixelArt.C("#ffe6b2"));
+            }
         }
         private void DrawPolishWorld()
         {

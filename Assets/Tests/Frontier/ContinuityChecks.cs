@@ -235,5 +235,49 @@ namespace Starfall.Tests
             }
             Check(GameCore.WeaponHeight(2,new Point(0,1))==82&&GameCore.WeaponHeight(2,new Point(0,-1))==65,"Authored vertical staff orbs are above the hand and head, not at the chest");
         }
+        public static void RealArrowMuzzleStopsAtWallLeadingEdge(Campaign data)
+        {
+            var g = Quiet(data, 1);
+            Point approach = WallStand(g);
+            // A hero still stands entirely on open ground, but the 0.82
+            // tile bow muzzle ends just 0.08 tiles from this real solid wall:
+            // the old point-only check erroneously called it unobstructed.
+            Point feet = new Point((float)Math.Floor(approach.x) + .90f,
+                approach.y);
+            Check(g.CanStand(feet) &&
+                g.Blocked((float)Math.Floor(approach.x) - .1f, feet.y),
+                "The authored wall-edge attack starts at legal actor footing next to actual solid cover");
+            g.save.x = feet.x; g.save.y = feet.y;
+            g.Attack(new Point(-1, 0));
+            for (int step = 0; step < 20 && g.projectiles.Count == 0; step++)
+                g.Tick(.05f, new Point());
+            Check(g.projectiles.Count == 1,
+                "The real ranger contact still emits exactly one arrow");
+            Projectile arrow = g.projectiles[0];
+            Check(arrow.blockedAtSpawn && arrow.age == 0,
+                "Muzzle must register a leading-edge collision before the newborn shot enters the wall");
+            Check(arrow.position.x - arrow.Radius >=
+                (float)Math.Floor(approach.x) - .0001f,
+                "Real arrow's physical left edge never crosses the wall during weapon attachment");
+            g.Tick(.05f, new Point());
+            Check(!g.projectiles.Contains(arrow) &&
+                g.effects.Exists(e => e.kind == "projectileImpact") &&
+                g.CanStand(g.Position),
+                "A real near-side wall spark retires the blocked arrow on the following frame without moving the hero into cover");
+
+            var mage = Quiet(data, 2);
+            Point mageWall = WallStand(mage);
+            // Moving outward from a solid LEFT wall is a valid cast: the
+            // body fits on walkable ground and the hand is to its RIGHT.
+            mage.save.x = mageWall.x; mage.save.y = mageWall.y;
+            mage.Attack(new Point(1, 0));
+            for (int tick = 0; tick < 20 && mage.projectiles.Count == 0; tick++)
+                mage.Tick(.05f, new Point());
+            Check(mage.projectiles.Count == 1 &&
+                !mage.projectiles[0].blockedAtSpawn &&
+                mage.projectiles[0].position.x > mage.Position.x + 1,
+                "A staff cast away from cover remains playable even if its theoretical center-sized orb grazes the wall BEHIND the hero");
+        }
+
     }
 }
