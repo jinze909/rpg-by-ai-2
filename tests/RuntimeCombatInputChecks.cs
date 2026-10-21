@@ -2996,8 +2996,45 @@ public static class RuntimeCombatInputChecks
                 Console.WriteLine("FAIL "+test.Method.Name+": "+root.ToString());
             }
         }
+        // The source bundle also contains complete legacy runtime suites.
+        // Keep them live in CI instead of compiling their helpers without
+        // executing the actual actor, world-render, menu/audio and transition
+        // checks. Their captured frames are offline review evidence only.
+        string reviewFolder = Path.Combine(Directory.GetCurrentDirectory(),
+            ".starfall-checks", "runtime-extended");
+        if (Directory.Exists(reviewFolder)) Directory.Delete(reviewFolder, true);
+        Directory.CreateDirectory(reviewFolder);
+        Action[] extendedSuites = {
+            () => RuntimePolishChecks.Run(app),
+            () => VisualRuntimeChecks.Run(app, reviewFolder),
+            () => ActorRegistrationChecks.Run(app, reviewFolder),
+            () => RenderStateChecks.Run(app, reviewFolder),
+            () => RuntimeContinuityChecks.Run(app, reviewFolder)
+        };
+        string[] extendedNames = {
+            "runtime polish / menus / audio",
+            "visual runtime / three-class / regions / Boss timelines",
+            "actor registration / gait / enemy and companion continuity",
+            "world render state / VFX / chapter HUD / GUI isolation",
+            "runtime continuity / navigation / scene ordering / Boss combat"
+        };
+        for (int i = 0; i < extendedSuites.Length; i++)
+        {
+            try
+            {
+                extendedSuites[i]();
+                Console.WriteLine("PASS extended suite: " + extendedNames[i]);
+            }
+            catch (Exception error)
+            {
+                Exception root = error;
+                while (root.InnerException != null) root = root.InnerException;
+                failures++;
+                Console.WriteLine("FAIL extended suite " + extendedNames[i] + ": " + root);
+            }
+        }
         Call(app, "OnDestroy");
-        Console.WriteLine("Runtime combat input: " + (cases.Length - failures) + "/" + cases.Length + " groups passed; NATIVE_UNVERIFIED");
+        Console.WriteLine("Runtime combat input: " + (cases.Length - failures) + "/" + cases.Length + " focused groups passed; extended suites included; NATIVE_UNVERIFIED");
         return failures == 0 ? 0 : 1;
     }
 }
