@@ -245,14 +245,14 @@ namespace Starfall.Tests
                 g.conversation.en.Contains("The Frontier You Chose") &&
                 StoryChoicePresent(g, "story_read_civic_aftermath"),
                 "The ending links backward to Chapter Twelve in the same chronological order");
-            Check(g.conversation.en.Contains("[After the ending, public promises still need caretakers]") &&
-                g.conversation.en.Contains("All three valves have been retuned.") &&
-                g.conversation.en.Contains("The public audit is still pending."),
+            Check(g.conversation.textEn.Contains("[After the ending, public promises still need caretakers]") &&
+                g.conversation.textEn.Contains("All three valves have been retuned.") &&
+                g.conversation.textEn.Contains("The public audit is still pending."),
                 "The ending summary distinguishes a completed grid from pending civic services");
-            Check(g.conversation.en.Contains("Public refuges: " + g.FarShelterCount +
+            Check(g.conversation.textEn.Contains("Public refuges: " + g.FarShelterCount +
                 "/8 built; long-term regional services: " + g.CivicSupplyResolvedCount + "/3 signed.") &&
-                g.conversation.en.Contains("Afterlight sites restored: " + g.AfterlightRestored + "/3.") &&
-                g.conversation.en.Contains("Residents still need to sign the maintenance charter."),
+                g.conversation.textEn.Contains("Afterlight sites restored: " + g.AfterlightRestored + "/3.") &&
+                g.conversation.textEn.Contains("Residents still need to sign the maintenance charter."),
                 "The ending summary uses the real refuge, service and maintenance counters");
             Check(g.save.coins == coins && g.save.shards == shards &&
                 g.save.flags.Count == flags,
@@ -267,9 +267,9 @@ namespace Starfall.Tests
             pending.Talk(pendingBook);
             ChooseStoryChoice(pending, "story_section_after");
             ChooseStoryChoice(pending, "story_read_ending");
-            Check(pending.conversation.en.Contains("The three valves are still waiting for physical tuning.") &&
-                pending.conversation.en.Contains("The public audit is still pending.") &&
-                pending.conversation.en.Contains("Residents still need to sign the maintenance charter."),
+            Check(pending.conversation.textEn.Contains("The three valves are still waiting for physical tuning.") &&
+                pending.conversation.textEn.Contains("The public audit is still pending.") &&
+                pending.conversation.textEn.Contains("Residents still need to sign the maintenance charter."),
                 "An ending with unfinished civic work explicitly leaves it pending");
             Check(pending.save.coins == pendingCoins &&
                 pending.save.shards == pendingShards &&
