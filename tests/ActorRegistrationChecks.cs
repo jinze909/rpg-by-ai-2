@@ -3657,7 +3657,11 @@ public static class ActorRegistrationChecks
                         Call(app,"AdvanceEnemyFootfalls",game.save.room);
                         int expected=step/4;
                         Check(marks.Count==expected,
-                            "Enemy "+kind+" contact effects must coincide with accepted Walk Sprite cells 0/2, not arbitrary gait distance");
+                            "Enemy "+kind+" step "+step+" expected "+expected+
+                            " contact marks, found "+marks.Count+" (moveTime="+enemy.moveTime+
+                            ", stride="+stride+", state="+enemy.state+
+                            ", release="+enemy.releaseTime+", stun="+enemy.stun+
+                            ", moving="+enemy.moving+"); source Walk Sprite cells 0/2 must own contacts");
                         if(step%4==0)
                         {
                             object mark=marks[marks.Count-1];
