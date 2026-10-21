@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -61,7 +62,7 @@ namespace Starfall
             // A *valid JSON fragment* containing only version + inventory
             // previously passed and silently replaced quests, location and
             // money with defaults. Reject it before loading or saving over a
-            // recoverable .bak/.tmp. Do not require newer expansion fields.
+            // recoverable .bak/.tmp/.stage-* candidate. Do not require newer expansion fields.
             string[] required = { "version", "inventory", "flags",
                 "room", "x", "y", "health", "coins" };
             foreach (string field in required)
@@ -97,6 +98,49 @@ namespace Starfall
                 return FileTimestamp(path);
             return savedTime.ToUniversalTime();
         }
+        // Each in-progress write gets its own immutable candidate path.
+        // A crashed or failed writer must never truncate the only valid
+        // recovery file left by an earlier interrupted transaction.
+        private static string[] StagingPaths(string main)
+        {
+            string directory = Path.GetDirectoryName(main);
+            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+                return new string[0];
+            try
+            {
+                return Directory.GetFiles(directory,
+                    Path.GetFileName(main) + ".stage-*");
+            }
+            catch { return new string[0]; }
+        }
+        private static string[] RecoveryPaths(string main)
+        {
+            var paths = new List<string> {
+                main + ".tmp", main + ".bak", main + ".precommit"
+            };
+            paths.AddRange(StagingPaths(main));
+            return paths.ToArray();
+        }
+        private static void CleanupCommittedRecoveryPaths(string main)
+        {
+            // Called only after a verified candidate became the primary.
+            // The new primary is timestamp-newer than every valid candidate
+            // considered by NextSaveTimestamp, so these stages are no longer
+            // the only recoverable copy.
+            var paths = new List<string>();
+            paths.Add(main + ".tmp");
+            paths.AddRange(StagingPaths(main));
+            foreach (string path in paths)
+            {
+                if (!File.Exists(path)) continue;
+                try { File.Delete(path); }
+                catch (Exception error)
+                {
+                    Debug.LogWarning("Starfall stale recovery cleanup delayed: " +
+                        error.Message);
+                }
+            }
+        }
         private static DateTime NextSaveTimestamp(int slot)
         {
             string main = PathFor(slot);
@@ -104,8 +148,9 @@ namespace Starfall
             // Wall clocks can move backwards after travel, sleep or manual
             // correction. Advance beyond every valid on-disk transaction
             // candidate so the next successful write remains the newest copy.
-            foreach (string path in new[] { main, main + ".tmp",
-                main + ".bak", main + ".precommit" })
+            var candidates = new List<string> { main };
+            candidates.AddRange(RecoveryPaths(main));
+            foreach (string path in candidates)
             {
                 if (!File.Exists(path)) continue;
                 try
@@ -128,9 +173,9 @@ namespace Starfall
         {
             warning = null;
             string main = PathFor(slot);
-            // Treat every checksum/schema-verified copy as a candidate. A
-            // process can die after flushing a complete .tmp but before
-            // promoting it; preferring any valid primary unconditionally
+            // Treat every checksum/schema-verified copy as a candidate.
+            // A process may die after flushing a unique .stage-* file but
+            // before promoting it; preferring any valid primary unconditionally
             // would silently roll back that newer, recoverable progress.
             SaveData newest = null;
             DateTime newestTime = DateTime.MinValue;
@@ -150,7 +195,7 @@ namespace Starfall
             // Include all recoverable transaction stages and choose by the
             // payload's own save time, not filename priority. Ties keep the
             // primary (or the first valid recovery copy when no primary exists).
-            foreach (string path in new[] { main + ".tmp", main + ".bak", main + ".precommit" })
+            foreach (string path in RecoveryPaths(main))
             {
                 if (!File.Exists(path)) continue;
                 try
@@ -173,10 +218,20 @@ namespace Starfall
                 }
             }
             if (newest != null && !string.Equals(recoveredFrom, main, StringComparison.Ordinal))
-                warning = "Recovered " + (recoveredFrom.EndsWith(".tmp") ? "interrupted save" : "backup") + ".";
+            {
+                bool interrupted = recoveredFrom.EndsWith(".tmp", StringComparison.Ordinal) ||
+                    recoveredFrom.IndexOf(".stage-", StringComparison.Ordinal) >= 0;
+                warning = "Recovered " + (interrupted ? "interrupted save" : "backup") + ".";
+            }
             return newest;
         }
-        public static bool Exists(int slot) { string path = PathFor(slot); return File.Exists(path) || File.Exists(path + ".bak") || File.Exists(path + ".tmp") || File.Exists(path + ".precommit"); }
+        public static bool Exists(int slot)
+        {
+            string path = PathFor(slot);
+            return File.Exists(path) || File.Exists(path + ".bak") ||
+                File.Exists(path + ".tmp") || File.Exists(path + ".precommit") ||
+                StagingPaths(path).Length > 0;
+        }
         // Fallback for platforms/filesystems without File.Replace. Never
         // DELETE the only primary save before installing its replacement:
         // keep the former primary at .precommit until the verified temp is
@@ -215,13 +270,17 @@ namespace Starfall
         {
             try
             {
-                Directory.CreateDirectory(Application.persistentDataPath); string path = PathFor(slot), temp = path + ".tmp";
+                Directory.CreateDirectory(Application.persistentDataPath);
+                string path = PathFor(slot);
+                // Never reuse .tmp or a previous stage for a new write: it may
+                // be the only checksum-valid copy left after an earlier crash.
+                string temp = path + ".stage-" + Guid.NewGuid().ToString("N");
                 value.savedAtUtc = NextSaveTimestamp(slot).ToString("o", CultureInfo.InvariantCulture);
                 string payload = JsonUtility.ToJson(value);
                 string json = JsonUtility.ToJson(new SaveEnvelope { payload = payload, checksum = Checksum(payload) }, true);
-                // Validate BEFORE FileMode.Create truncates a crash-recovered
-                // .tmp that might be the only remaining good save. The
-                // existing post-flush disk verification still runs below.
+                // Validate before touching disk. The unique stage path then
+                // preserves all older recovery candidates until the new bytes
+                // are flushed and decoded from disk.
                 Decode(json);
                 using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
                 { byte[] bytes = Encoding.UTF8.GetBytes(json); stream.Write(bytes, 0, bytes.Length); stream.Flush(true); }
@@ -235,6 +294,7 @@ namespace Starfall
                     catch (PlatformNotSupportedException)
                     { PortableReplace(temp, path, backup); }
                 }
+                CleanupCommittedRecoveryPaths(path);
                 return true;
             }
             catch (Exception ex) { Debug.LogWarning("Starfall save failed: " + ex.Message); return false; }

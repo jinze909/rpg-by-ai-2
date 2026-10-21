@@ -1769,6 +1769,27 @@ public static class RuntimeCombatInputChecks
             Check(restored != null && restored.coins == 88 && restored.version == 2 && warning == null,
                 "Unwrapped original v2 saves also remain readable.");
 
+            // Simulate process death after a unique candidate was flushed but
+            // before it was promoted. Recovery must recognize it without
+            // overwriting the older primary or the legacy sidecar paths.
+            string staged = main + ".stage-recovery-fixture";
+            DateTime stagedAt = DateTime.UtcNow.AddMinutes(5);
+            put(staged, 89, stagedAt.ToString("o", CultureInfo.InvariantCulture));
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 89 &&
+                warning == "Recovered interrupted save.",
+                "A complete unpromoted unique staging file is a recoverable interrupted save.");
+            var invalidCandidate = new SaveData { version = 2, coins = 90,
+                inventory = new int[7] };
+            Check(!SaveStore.Write(invalidCandidate, 0) &&
+                System.IO.File.Exists(staged),
+                "A rejected write cannot truncate an older recoverable staging candidate.");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 89 &&
+                warning == "Recovered interrupted save.",
+                "The only complete staging candidate survives a failed new write.");
+            System.IO.File.Delete(staged);
+
             // A damaged clock or hand-edited metadata must not make a backup
             // outrank an otherwise newer sane copy forever.
             put(main, 100, "9999-12-31T23:59:59.9999999Z");
@@ -1789,8 +1810,12 @@ public static class RuntimeCombatInputChecks
             restored = SaveStore.Read(0, out warning);
             Check(restored != null && restored.coins == 91 && warning == null,
                 "A new write advances beyond the newest persisted timestamp and cannot be rolled back to the old future-dated backup.");
+            Check(!System.IO.File.Exists(main + ".tmp") &&
+                System.IO.Directory.GetFiles(directory,
+                    System.IO.Path.GetFileName(main) + ".stage-*").Length == 0,
+                "Successful commit cleans stale temporary/staging candidates only after the primary is verified.");
 
-            Console.WriteLine("PASS Real SaveStore I/O: monotonic timestamps, clock rollback, corrupt future metadata, crash recovery, schema rejection and v1/v2 compatibility");
+            Console.WriteLine("PASS Real SaveStore I/O: unique staging recovery, failed-write preservation, monotonic timestamps, clock rollback, corrupt future metadata, schema rejection and v1/v2 compatibility");
         }
         finally
         {
