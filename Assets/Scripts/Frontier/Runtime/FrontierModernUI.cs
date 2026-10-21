@@ -302,13 +302,29 @@ namespace Starfall
                 Box(edge.x - 1.5f, edge.y + 6, 3, 3, color);
             }
         }
+        private void DrawNavigationBlockedCross(Point center, Color color)
+        {
+            // A compact broken-route glyph, separate from the normal gold
+            // objective ring. Keep every 3px cluster readable at game scale.
+            Box(center.x - 4.5f, center.y - 4.5f, 3f, 3f, color);
+            Box(center.x + 1.5f, center.y - 4.5f, 3f, 3f, color);
+            Box(center.x - 1.5f, center.y - 1.5f, 3f, 3f, color);
+            Box(center.x - 4.5f, center.y + 1.5f, 3f, 3f, color);
+            Box(center.x + 1.5f, center.y + 1.5f, 3f, 3f, color);
+        }
         private void DrawNavigationTargetMarker()
         {
             if (Game == null || Game.mode != "world" || !Game.save.showGuidance) return;
             Point? target = Game.NavigationTarget();
             if (!target.HasValue || float.IsNaN(target.Value.x) || float.IsInfinity(target.Value.x) ||
-                float.IsNaN(target.Value.y) || float.IsInfinity(target.Value.y) ||
-                (target.Value - Game.Position).Length < 1.15f) return;
+                float.IsNaN(target.Value.y) || float.IsInfinity(target.Value.y)) return;
+            float targetDistance = (target.Value - Game.Position).Length;
+            if (targetDistance < 1.15f) return;
+            // NavigationPath returns no steps when collision makes the target
+            // unreachable. Do not keep presenting a normal gold ring/arrow as
+            // though the route were clear; near targets remain unflagged
+            // because their intentionally empty route can mean "already here".
+            bool routeBlocked = targetDistance > 3f && NavigationRoute().Count == 0;
             Point screen = ScreenPoint(target.Value);
             // Keep the ordinary target ring away from HUD panels. If the
             // objective is beyond that view, project its bearing to a safe
@@ -340,8 +356,15 @@ namespace Starfall
                 Point edge = new Point(
                     Math.Max(left, Math.Min(right, centerX + direction.x * scale)),
                     Math.Max(top, Math.Min(bottom, centerY + direction.y * scale)));
-                Color edgeColor = PixelArt.C("#f2d48b");
+                Color edgeColor = PixelArt.C(routeBlocked ? "#ff6961" : "#f2d48b");
                 DrawNavigationEdgeArrow(edge, direction, edgeColor, tx <= ty);
+                if (routeBlocked)
+                    DrawNavigationBlockedCross(edge - direction.Normalized * 13f, edgeColor);
+                return;
+            }
+            if (routeBlocked)
+            {
+                DrawNavigationBlockedCross(screen, PixelArt.C("#ff6961"));
                 return;
             }
             Color marker = PixelArt.C("#e8bd62");

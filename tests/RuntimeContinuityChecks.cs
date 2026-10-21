@@ -467,6 +467,19 @@ public static class RuntimeContinuityChecks
         }
         return count == 4;
     }
+    static int NavigationBlockedPixels()
+    {
+        Color expected = PixelArt.C("#ff6961");
+        int count = 0;
+        foreach (var call in GUI.textureCalls)
+            if (call.texture == Texture2D.whiteTexture &&
+                Math.Abs(call.rect.width - 3f) < .001f &&
+                Math.Abs(call.rect.height - 3f) < .001f &&
+                Math.Abs(call.color.r - expected.r) < .001f &&
+                Math.Abs(call.color.g - expected.g) < .001f &&
+                Math.Abs(call.color.b - expected.b) < .001f) count++;
+        return count;
+    }
     static void NavigationRouteGuidance(FrontierRuntime app)
     {
         Prepare(app, 0);
@@ -598,7 +611,67 @@ public static class RuntimeContinuityChecks
         Check(Get<int>(app, "navigationRouteStartX") == (int)game.save.x &&
             Get<int>(app, "navigationRouteStartY") == (int)game.save.y,
             "The cached route is rebuilt when the player enters the next tile");
-        Console.WriteLine("PASS tracked-quest walking route on HUD/local maps, guidance toggle and tile-change cache invalidation");
+
+        // Enclose the real tracked objective behind a five-tile collision
+        // pocket. An empty path must be communicated as blocked, not rendered
+        // as a successful gold objective. Restore the actual campaign map even
+        // when an assertion fails; this is a temporary fixture, not world art.
+        MapData blockedMap = game.Map;
+        string[] originalRows = blockedMap.rows;
+        float originalX = game.save.x, originalY = game.save.y;
+        try
+        {
+            Point? unreachable = game.NavigationTarget();
+            Check(unreachable.HasValue, "The blocked-route fixture starts from a real tracked objective");
+            int targetX = (int)Math.Floor(unreachable.Value.x);
+            int targetY = (int)Math.Floor(unreachable.Value.y);
+            int mapWidth = originalRows[0].Length, mapHeight = originalRows.Length;
+            Check(targetX >= 5 && targetY >= 5 && targetX < mapWidth - 5 &&
+                targetY < mapHeight - 5,
+                "The real objective leaves enough map space for an isolated collision fixture");
+            Point farStart = game.Position;
+            float farthest = -1f;
+            for (int y = 3; y < mapHeight - 3; y += 2)
+                for (int x = 3; x < mapWidth - 3; x += 2)
+                {
+                    Point candidate = new Point(x + .5f, y + .5f);
+                    float distance = (candidate - unreachable.Value).Length;
+                    if (distance > farthest && distance > 6f && game.CanStand(candidate))
+                    { farthest = distance; farStart = candidate; }
+                }
+            Check(farthest > 6f,
+                "The collision fixture can keep the player safely outside the blocked pocket");
+            game.save.x = farStart.x; game.save.y = farStart.y;
+            string[] blockedRows = (string[])originalRows.Clone();
+            for (int y = targetY - 2; y <= targetY + 2; y++)
+            {
+                char[] row = blockedRows[y].ToCharArray();
+                for (int x = targetX - 2; x <= targetX + 2; x++) row[x] = '#';
+                blockedRows[y] = new string(row);
+            }
+            blockedMap.rows = blockedRows;
+            Set(app, "camera", unreachable.Value);
+            List<Point> unreachableRoute = (List<Point>)Call(app, "NavigationRoute");
+            Check(unreachableRoute.Count == 0,
+                "A complete collision pocket produces no fabricated walking path");
+            ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+            Check(NavigationBlockedPixels() == 5 && NavigationRouteDots(4f) == 0,
+                "An unreachable visible objective gets a coral broken-route mark instead of the gold ring");
+
+            Set(app, "camera", new Point(unreachable.Value.x + 16f, unreachable.Value.y));
+            ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+            Check(NavigationBlockedPixels() == 9 && NavigationEdgeArrowPixels() == 0 &&
+                NavigationRouteDots(4f) == 0,
+                "An unreachable off-screen objective keeps directional bearing but marks the edge cue blocked");
+        }
+        finally
+        {
+            blockedMap.rows = originalRows;
+            game.save.x = originalX; game.save.y = originalY;
+            Set(app, "camera", game.Position);
+            Call(app, "NavigationRoute");
+        }
+        Console.WriteLine("PASS tracked-quest routes, blocked-objective cues, HUD/local maps, guidance toggle and route cache invalidation");
     }
     public static void Run(FrontierRuntime app,string folder)
     {
