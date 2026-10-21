@@ -473,6 +473,21 @@ public static class RuntimeContinuityChecks
         Check(NavigationRouteDots(1.5f) > 0,
             "The full local map also draws the same route at its own tile scale");
 
+        game.save.x = 12; game.save.y = 14; game.mode = "world";
+        Set(app, "camera", game.Position);
+        ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+        Check(NavigationRouteDots(4f) == 12,
+            "A visible tracked objective gets one compact twelve-point world-space marker");
+        game.save.showGuidance = false;
+        ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+        Check(NavigationRouteDots(4f) == 0,
+            "The world marker obeys the existing route-guidance toggle");
+        game.save.showGuidance = true;
+        game.save.x = 80; game.save.y = 14; Set(app, "camera", game.Position);
+        ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+        Check(NavigationRouteDots(4f) == 0,
+            "An off-screen objective never paints a marker over the HUD panels");
+
         Point next = route[0]; game.save.x = next.x; game.save.y = next.y;
         ClearDraw(); Call(app, "MiniTerrainWindow", 1024f, 42f);
         Check(Get<int>(app, "navigationRouteStartX") == (int)game.save.x &&

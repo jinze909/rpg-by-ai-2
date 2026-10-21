@@ -267,7 +267,12 @@ namespace Starfall
                 disabledButtonStyle.normal.textColor = disabledButtonStyle.hover.textColor = disabledButtonStyle.active.textColor = disabledButtonStyle.focused.textColor = muted;
             }
             Box(0, 0, Width, Height, ink);
-            if (Game.mode == "title" && titleArt != null) Image(titleArt, 0, 0, Width, Height); else DrawWorld();
+            if (Game.mode == "title" && titleArt != null) Image(titleArt, 0, 0, Width, Height);
+            else
+            {
+                DrawWorld();
+                if (Game.mode == "world") DrawNavigationTargetMarker();
+            }
             if (Game.mode == "title") DrawTitle();
             else
             {

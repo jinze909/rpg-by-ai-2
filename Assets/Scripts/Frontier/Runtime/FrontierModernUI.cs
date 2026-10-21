@@ -254,6 +254,21 @@ namespace Starfall
                 Box(x - dot * .5f, y - dot * .5f, dot, dot, routeColor);
             }
         }
+        private void DrawNavigationTargetMarker()
+        {
+            if (Game == null || Game.mode != "world" || !Game.save.showGuidance) return;
+            Point? target = Game.NavigationTarget();
+            if (!target.HasValue || float.IsNaN(target.Value.x) || float.IsInfinity(target.Value.x) ||
+                float.IsNaN(target.Value.y) || float.IsInfinity(target.Value.y) ||
+                (target.Value - Game.Position).Length < 1.15f) return;
+            Point screen = ScreenPoint(target.Value);
+            // The marker belongs to the playable viewport, never over the
+            // fixed status panels or the right-side quest guidance.
+            if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > 650) return;
+            Color marker = PixelArt.C("#e8bd62");
+            Ring(target.Value, .38f, new Color(marker.r, marker.g, marker.b, .82f), 12);
+            Box(screen.x - 1.5f, screen.y - 1.5f, 3f, 3f, ink);
+        }
         // The HUD shows a readable, player-centered 24x15-tile neighborhood.
         // M still opens the separately scaled full-world strategic map.
         private void MiniTerrainWindow(float x0, float y0)
