@@ -319,12 +319,12 @@ namespace Starfall
             float markerBottom = bossHudVisible ? 590f : 650f;
             if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > markerBottom)
             {
-                bool bossHudVisible = Game.enemies != null &&
+                bool edgeBossHudVisible = Game.enemies != null &&
                     Game.enemies.Exists(enemy => enemy != null && enemy.boss);
                 // The centered Boss bar occupies y=612..676. When no Boss is
                 // active, let objectives use the lower playfield instead.
                 const float left = 366, right = 954, top = 145;
-                float bottom = bossHudVisible ? 600f : 630f;
+                float bottom = edgeBossHudVisible ? 600f : 630f;
                 float centerX = (left + right) * .5f, centerY = (top + bottom) * .5f;
                 // Project from the viewport, not the hero: at a clamped world
                 // boundary the hero can sit off-centre while the target lies
