@@ -3644,7 +3644,7 @@ public static class ActorRegistrationChecks
                     float stride=boss?2.8f:kind==0?1.35f:1.8f;
                     var enemy=new Enemy(991100+kind,kind==3?0:kind,
                         12f,12f,300f,boss)
-                        {timer=999f,stun=0f,moveTime=0f};
+                        {timer=999f,stun=0f,moveTime=0f,state=0,releaseTime=0f};
                     game.enemies.Add(enemy);
                     Call(app,"AdvanceEnemyFootfalls",game.save.room);
                     Check(marks.Count==0,"A newly observed actor has no fake prior footstep");
@@ -3703,7 +3703,10 @@ public static class ActorRegistrationChecks
                 game.save.companion=companion;
                 game.companionPosition=new Point(12f,12f);
                 game.companionMoveTime=0f;
-                game.companionMoving=false;
+                // Start this source-cell sweep with a moving gait epoch.
+                // The real stop->move rebase is covered independently by
+                // VerifyCompanionFootfallsFollowGaitRestart.
+                game.companionMoving=true;
                 game.companionAction=null;
                 Call(app,"AdvanceCompanionFootfalls",game.save.room);
                 Check(marks.Count==0,
@@ -3886,7 +3889,8 @@ public static class ActorRegistrationChecks
                 game.save.x=12f+moved;
                 game.movementDirection=new Point(1f,0f);
                 game.footContacts++;
-                Call(app,"AdvanceFootfallVisual",.05f);
+                // This assertion measures contact emission, not decal expiry.
+                Call(app,"AdvanceFootfallVisual",0f);
                 Check(marks.Count==step/4,
                     "Canonical blonde hero ground contact must match ONLY original planted Walk frames 2/0");
             }
