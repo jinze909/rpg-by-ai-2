@@ -4387,6 +4387,16 @@ namespace Starfall.Tests
                     "CompanionFollowTarget",
                     System.Reflection.BindingFlags.Instance|
                     System.Reflection.BindingFlags.NonPublic).Invoke(g,null);
+                Point direct=goal-start;
+                Point enemyOffset=foe.Position-start;
+                float directProjection=(enemyOffset.x*direct.x+
+                    enemyOffset.y*direct.y)/Math.Max(.0001f,
+                        direct.x*direct.x+direct.y*direct.y);
+                directProjection=Math.Max(0f,Math.Min(1f,directProjection));
+                Point directClosest=start+direct*directProjection;
+                float directClearance=(directClosest-foe.Position).Length;
+                Check(directClearance<.58f,
+                    "The straight follow line really crosses the living enemy's collision radius");
                 bool passedEnemy=false,reachedGoal=false;
                 float minSeparation=float.MaxValue,totalTravelled=0f;
                 for(int frame=0;frame<220;frame++)
@@ -4405,12 +4415,14 @@ namespace Starfall.Tests
                     if((g.companionPosition-goal).Length<.7f)
                     {reachedGoal=true;break;}
                 }
-                Check(passedEnemy&&reachedGoal&&totalTravelled>5f&&
+                Check(passedEnemy&&reachedGoal&&
+                    totalTravelled>(goal-start).Length+.001f&&
                     minSeparation>=.56f,
                     "Companion must detour around a living enemy and reach its follow socket; travel="+
-                    totalTravelled+", min separation="+minSeparation+
-                    ", foot="+g.companionPosition.x+","+g.companionPosition.y+
-                    ", goal="+goal.x+","+goal.y);
+                    totalTravelled+", straight distance="+(goal-start).Length+
+                    ", min separation="+minSeparation+", direct clearance="+
+                    directClearance+", foot="+g.companionPosition.x+","+
+                    g.companionPosition.y+", goal="+goal.x+","+goal.y);
             }
             finally{data.maps[0]=original;}
         }
