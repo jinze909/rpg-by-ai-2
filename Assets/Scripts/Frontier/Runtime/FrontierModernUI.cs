@@ -1,10 +1,20 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
         private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, recordsPage, questPage;
+        // NavigationPath is a real collision-aware BFS. Cache its output by
+        // map, start/goal tile and world revision so IMGUI Layout/Repaint passes
+        // do not repeatedly search the full 120x80 outdoor maps.
+        private readonly List<Point> navigationRouteCache = new List<Point>();
+        private MapData navigationRouteMap;
+        private bool navigationRouteCacheValid, navigationRouteLowTide, navigationRouteGateBarrier;
+        private int navigationRouteRoom = -1, navigationRouteFloor = -1, navigationRouteRevision = -1;
+        private int navigationRouteStartX = int.MinValue, navigationRouteStartY = int.MinValue;
+        private int navigationRouteTargetX = int.MinValue, navigationRouteTargetY = int.MinValue;
         private Conversation lastConversation;
         private readonly string[] menuModes = { "inventory", "loadout", "talents", "companions", "journal", "map", "camp", "bounties", "help" };
         private readonly string[] menuZh = { "冒险背包", "遗物配装", "职业成长", "同行伙伴", "任务手帐", "世界地图", "城镇建设", "公会悬赏", "冒险指南" };
@@ -183,6 +193,67 @@ namespace Starfall
             if(hit) act();
         }
         private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrainWindow(1024, 42); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
+        private List<Point> NavigationRoute()
+        {
+            if (Game == null || !Game.save.showGuidance)
+            {
+                navigationRouteCache.Clear(); navigationRouteCacheValid = false;
+                return navigationRouteCache;
+            }
+            Point? goal = Game.NavigationTarget();
+            if (!goal.HasValue || float.IsNaN(goal.Value.x) || float.IsInfinity(goal.Value.x) ||
+                float.IsNaN(goal.Value.y) || float.IsInfinity(goal.Value.y))
+            {
+                navigationRouteCache.Clear(); navigationRouteCacheValid = false;
+                return navigationRouteCache;
+            }
+            MapData map = Game.Map;
+            if (map == null || map.rows == null || map.rows.Length == 0 ||
+                map.rows[0] == null || goal.Value.x < 0 || goal.Value.y < 0 ||
+                goal.Value.x >= map.rows[0].Length || goal.Value.y >= map.rows.Length)
+            {
+                navigationRouteCache.Clear(); navigationRouteCacheValid = false;
+                return navigationRouteCache;
+            }
+            int startX = (int)Game.Position.x, startY = (int)Game.Position.y;
+            int targetX = (int)Math.Floor(goal.Value.x), targetY = (int)Math.Floor(goal.Value.y);
+            bool lowTide = Game.LowTide, gateBarrier = Game.GateBarrierActive;
+            if (navigationRouteCacheValid && object.ReferenceEquals(navigationRouteMap, map) &&
+                navigationRouteRoom == Game.save.room && navigationRouteFloor == Game.save.abyssFloor &&
+                navigationRouteRevision == Game.revision && navigationRouteStartX == startX &&
+                navigationRouteStartY == startY && navigationRouteTargetX == targetX &&
+                navigationRouteTargetY == targetY && navigationRouteLowTide == lowTide &&
+                navigationRouteGateBarrier == gateBarrier)
+                return navigationRouteCache;
+
+            navigationRouteCache.Clear();
+            navigationRouteCache.AddRange(Game.NavigationPath(goal.Value));
+            navigationRouteMap = map; navigationRouteRoom = Game.save.room;
+            navigationRouteFloor = Game.save.abyssFloor; navigationRouteRevision = Game.revision;
+            navigationRouteStartX = startX; navigationRouteStartY = startY;
+            navigationRouteTargetX = targetX; navigationRouteTargetY = targetY;
+            navigationRouteLowTide = lowTide; navigationRouteGateBarrier = gateBarrier;
+            navigationRouteCacheValid = true;
+            return navigationRouteCache;
+        }
+        private void DrawNavigationRoute(float x0, float y0, float tileSize,
+            int left, int top, int width, int height)
+        {
+            if (tileSize <= 0) return;
+            List<Point> route = NavigationRoute();
+            if (route.Count == 0) return;
+            float dot = Math.Max(1.5f, Math.Min(3f, tileSize * .36f));
+            Color routeColor = PixelArt.C("#e8bd62");
+            foreach (Point point in route)
+            {
+                int tileX = (int)Math.Floor(point.x), tileY = (int)Math.Floor(point.y);
+                if (tileX < left || tileX >= left + width ||
+                    tileY < top || tileY >= top + height) continue;
+                float x = x0 + (point.x - left) * tileSize;
+                float y = y0 + (point.y - top) * tileSize;
+                Box(x - dot * .5f, y - dot * .5f, dot, dot, routeColor);
+            }
+        }
         // The HUD shows a readable, player-centered 24x15-tile neighborhood.
         // M still opens the separately scaled full-world strategic map.
         private void MiniTerrainWindow(float x0, float y0)
@@ -204,6 +275,7 @@ namespace Starfall
                 Box(x0+dx*cell,y0+dy*cell,cell,cell,
                     Game.Explored(Game.save.room,x,y)?c:Color.Lerp(c,ink,.68f));
             }
+            DrawNavigationRoute(x0, y0, cell, left, top, cellsX, cellsY);
             foreach(WorldObject o in Game.Map.objects)
             {
                 if(o.x<left||o.x>=left+cellsX||o.y<top||o.y>=top+cellsY||
@@ -221,6 +293,8 @@ namespace Starfall
         private void MiniTerrain(float x0, float y0, float size)
         {
             DrawTerrainPreview(Game.Map,Game.save.room,true,x0,y0,size);
+            DrawNavigationRoute(x0, y0, size, 0, 0,
+                Game.Map.rows[0].Length, Game.Map.rows.Length);
             foreach (var o in Game.Map.objects) if (Game.IsObjectPresent(o) && (o.kind.StartsWith("portal") || Game.Explored(Game.save.room, o.x, o.y))) Box(x0 + o.x * size - 1, y0 + o.y * size - 1, 3, 3, o.kind.StartsWith("portal") ? mint : gold);
             Point? goal = Game.NavigationTarget(); if (goal.HasValue && Game.save.showGuidance) { Box(x0 + goal.Value.x * size - 3, y0 + goal.Value.y * size - 3, 7, 7, gold); Box(x0 + goal.Value.x * size - 1, y0 + goal.Value.y * size - 1, 3, 3, ink); } Box(x0 + Game.save.x * size - 2, y0 + Game.save.y * size - 2, 5, 5, paper);
         }

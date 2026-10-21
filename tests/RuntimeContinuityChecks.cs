@@ -408,9 +408,81 @@ public static class RuntimeContinuityChecks
         Check(extendedClicks>0,"The test includes actual authored pixels outside the former fixed Boss rectangle");
         Console.WriteLine("PASS Full audit: 3 world overlays, practice input, regional HUD warnings, fallback direction/radius, nested GUI state and "+extendedClicks+" extended Boss click footprints (offline production GUI)");
     }
+    static int NavigationRouteDots(float size)
+    {
+        Color expected = PixelArt.C("#e8bd62");
+        int count = 0;
+        foreach (var call in GUI.textureCalls)
+            if (call.texture == Texture2D.whiteTexture &&
+                Math.Abs(call.rect.width - size) < .001f &&
+                Math.Abs(call.rect.height - size) < .001f &&
+                Math.Abs(call.color.r - expected.r) < .001f &&
+                Math.Abs(call.color.g - expected.g) < .001f &&
+                Math.Abs(call.color.b - expected.b) < .001f) count++;
+        return count;
+    }
+    static void NavigationRouteGuidance(FrontierRuntime app)
+    {
+        Prepare(app, 0);
+        GameCore game = app.Game;
+        game.save.room = 1; game.save.x = 12; game.save.y = 14;
+        game.save.trackedQuest = "main"; game.save.showGuidance = true;
+        game.enemies.Clear(); Set(app, "camera", game.Position);
+        Point? goal = game.NavigationTarget();
+        Check(goal.HasValue, "The active story has a real in-world navigation target");
+        List<Point> route = game.NavigationPath(goal.Value);
+        Check(route.Count > 0, "The active story target has a collision-valid walking route");
+
+        int width = game.Map.rows[0].Length, height = game.Map.rows.Length;
+        int left = Math.Max(0, Math.Min(width - 24, (int)game.save.x - 12));
+        int top = Math.Max(0, Math.Min(height - 15, (int)game.save.y - 7));
+        Point visible = new Point(); bool hasVisible = false;
+        foreach (Point point in route)
+        {
+            int x = (int)Math.Floor(point.x), y = (int)Math.Floor(point.y);
+            if (x >= left && x < left + 24 && y >= top && y < top + 15)
+            { visible = point; hasVisible = true; break; }
+        }
+        Check(hasVisible, "The reachable route intersects the live minimap viewport");
+
+        ClearDraw(); Call(app, "MiniTerrainWindow", 1024f, 42f);
+        int minimapDots = NavigationRouteDots(3f);
+        Check(minimapDots > 0 && minimapDots <= route.Count,
+            "The HUD minimap draws a bounded gold breadcrumb for actual path tiles");
+        Color routeColor = PixelArt.C("#e8bd62");
+        float dotX = 1024f + (visible.x - left) * 9f - 1.5f;
+        float dotY = 42f + (visible.y - top) * 9f - 1.5f;
+        bool exactStep = false;
+        foreach (var call in GUI.textureCalls)
+            if (call.texture == Texture2D.whiteTexture &&
+                Math.Abs(call.rect.x - dotX) < .001f &&
+                Math.Abs(call.rect.y - dotY) < .001f &&
+                Math.Abs(call.rect.width - 3f) < .001f &&
+                Math.Abs(call.color.r - routeColor.r) < .001f &&
+                Math.Abs(call.color.g - routeColor.g) < .001f &&
+                Math.Abs(call.color.b - routeColor.b) < .001f)
+            { exactStep = true; break; }
+        Check(exactStep, "The drawn breadcrumb matches a real walkable tile from NavigationPath");
+
+        game.save.showGuidance = false;
+        ClearDraw(); Call(app, "MiniTerrainWindow", 1024f, 42f);
+        Check(NavigationRouteDots(3f) == 0,
+            "Disabling route guidance removes breadcrumbs without hiding terrain");
+        game.save.showGuidance = true;
+        ClearDraw(); Call(app, "MiniTerrain", 888f, 264f, 2f);
+        Check(NavigationRouteDots(1.5f) > 0,
+            "The full local map also draws the same route at its own tile scale");
+
+        Point next = route[0]; game.save.x = next.x; game.save.y = next.y;
+        ClearDraw(); Call(app, "MiniTerrainWindow", 1024f, 42f);
+        Check(Get<int>(app, "navigationRouteStartX") == (int)game.save.x &&
+            Get<int>(app, "navigationRouteStartY") == (int)game.save.y,
+            "The cached route is rebuilt when the player enters the next tile");
+        Console.WriteLine("PASS tracked-quest walking route on HUD/local maps, guidance toggle and tile-change cache invalidation");
+    }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }
