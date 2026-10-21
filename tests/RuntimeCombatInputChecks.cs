@@ -1833,6 +1833,28 @@ public static class RuntimeCombatInputChecks
                     System.IO.Path.GetFileName(main) + ".stage-*").Length == 0,
                 "Successful commit cleans stale temporary/staging candidates only after the primary is verified.");
 
+            // Concurrent writers can observe the same wall-clock tick.
+            // A later verified stage must win even when its payload timestamp
+            // ties the primary, and post-commit cleanup must not delete it.
+            string tieStage = main + ".stage-equal-timestamp";
+            string tieTimestamp = restored.savedAtUtc;
+            put(tieStage, 93, tieTimestamp);
+            DateTime tiedClock;
+            Check(DateTime.TryParse(tieTimestamp, CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind, out tiedClock),
+                "The committed timestamp is parseable for concurrency regression.");
+            System.IO.File.SetLastWriteTimeUtc(main, tiedClock.AddMinutes(-2));
+            System.IO.File.SetLastWriteTimeUtc(tieStage, tiedClock.AddMinutes(-1));
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 93 &&
+                warning == "Recovered interrupted save.",
+                "A later complete stage wins a same-savedAtUtc race by verified file-write order.");
+            cleanup.Invoke(null, new object[] { main });
+            Check(System.IO.File.Exists(tieStage),
+                "Commit cleanup preserves a same-timestamp stage written after the primary.");
+            System.IO.File.Delete(tieStage);
+            System.IO.File.SetLastWriteTimeUtc(main, DateTime.UtcNow);
+
             string newerStage = main + ".stage-concurrent-writer";
             put(newerStage, 92, "2100-01-01T00:00:00.0000000Z");
             var cleanup = typeof(SaveStore).GetMethod("CleanupCommittedRecoveryPaths",

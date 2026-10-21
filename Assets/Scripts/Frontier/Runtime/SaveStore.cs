@@ -121,6 +121,11 @@ namespace Starfall
             paths.AddRange(StagingPaths(main));
             return paths.ToArray();
         }
+        private static bool IsInterruptedCandidate(string path)
+        {
+            return path.EndsWith(".tmp", StringComparison.Ordinal) ||
+                path.IndexOf(".stage-", StringComparison.Ordinal) >= 0;
+        }
         private static void CleanupCommittedRecoveryPaths(string main)
         {
             // Cleanup runs after commit, but another game process could still
@@ -142,7 +147,16 @@ namespace Starfall
                 try
                 {
                     SaveData candidate = Decode(File.ReadAllText(path));
-                    if (SaveTimestamp(candidate, path) > committedAt) continue;
+                    DateTime candidateAt = SaveTimestamp(candidate, path);
+                    // Concurrent writers can allocate identical serialized
+                    // timestamps before either stage becomes visible. For an
+                    // interrupted candidate only, a later filesystem write
+                    // time breaks that tie so cleanup cannot erase newer data.
+                    if (candidateAt > committedAt ||
+                        (candidateAt == committedAt &&
+                         IsInterruptedCandidate(path) &&
+                         FileTimestamp(path) > FileTimestamp(main)))
+                        continue;
                     File.Delete(path);
                 }
                 catch
@@ -213,7 +227,16 @@ namespace Starfall
                 {
                     SaveData candidate = Decode(File.ReadAllText(path));
                     DateTime savedTime = SaveTimestamp(candidate, path);
-                    if (newest == null || savedTime > newestTime)
+                    bool newer = newest == null || savedTime > newestTime;
+                    // Two writers may begin before either unique stage is
+                    // visible, yielding the same savedAtUtc. Prefer a later
+                    // verified interrupted write on ties; backups retain the
+                    // primary-first behavior because their mtime may be copied.
+                    if (!newer && newest != null && savedTime == newestTime &&
+                        IsInterruptedCandidate(path) &&
+                        FileTimestamp(path) > FileTimestamp(recoveredFrom))
+                        newer = true;
+                    if (newer)
                     {
                         newest = candidate;
                         newestTime = savedTime;
@@ -230,8 +253,7 @@ namespace Starfall
             }
             if (newest != null && !string.Equals(recoveredFrom, main, StringComparison.Ordinal))
             {
-                bool interrupted = recoveredFrom.EndsWith(".tmp", StringComparison.Ordinal) ||
-                    recoveredFrom.IndexOf(".stage-", StringComparison.Ordinal) >= 0;
+                bool interrupted = IsInterruptedCandidate(recoveredFrom);
                 warning = "Recovered " + (interrupted ? "interrupted save" : "backup") + ".";
             }
             return newest;
