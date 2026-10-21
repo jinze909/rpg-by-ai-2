@@ -100,9 +100,14 @@ namespace Starfall
                 return float.IsNaN(preview)||float.IsInfinity(preview)||
                     preview<0f?0f:preview;
             }
-            float offset=same?companionGaitPhaseOffset:raw;
+            // A new presentation owner still honors its real accumulated
+            // distance. Only a same-owner stop/restart is rebased; a distance
+            // rewind is a new gait epoch and starts safely from phase zero.
+            bool distanceRewound=same&&
+                raw<companionGaitLastRawDistance-.0001f;
+            float offset=same?companionGaitPhaseOffset:0f;
             bool wasMoving=same&&companionGaitPhaseMoving;
-            if(!same||raw<companionGaitLastRawDistance-.0001f)
+            if(distanceRewound)
             {
                 offset=raw;
                 wasMoving=false;
@@ -112,7 +117,7 @@ namespace Starfall
                 CurrentWorldVisualLook.companionStrideDistanceFactor;
             if(float.IsNaN(stride)||float.IsInfinity(stride)||stride<=.1f)
                 stride=GameCore.WalkStride;
-            if(Game.companionMoving&&!wasMoving)
+            if(Game.companionMoving&&!wasMoving&&same&&!distanceRewound)
             {
                 int startFrame=0;
                 bool sameVisual=companionVisualId==id&&
