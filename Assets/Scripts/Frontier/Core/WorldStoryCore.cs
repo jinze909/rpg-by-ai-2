@@ -155,7 +155,9 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective", "civicconduit", "civic_aftermath" };
+            // Keep the retrospective ending after the later reconstruction and civic chapters.
+            // Adjacent navigation still skips chapters the player has not unlocked.
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective", "civicconduit", "civic_aftermath", "ending" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {

@@ -19,6 +19,35 @@ namespace Starfall.Tests
                 if (c.action == action) return true;
             return false;
         }
+        public static void ChronicleEndingFollowsPostGridAccounts(Campaign data)
+        {
+            var g = Fresh(data); g.NewGame(0); g.Close();
+            g.save.frontierEnding = 3;
+            g.save.ending = 3;
+            g.save.flags.Add("civic_conduit_complete");
+            WorldObject book = Object(g, "worldchronicle");
+            int coins = g.save.coins, shards = g.save.shards, flags = g.save.flags.Count;
+
+            g.Talk(book);
+            ChooseStoryChoice(g, "story_section_after");
+            Check(StoryChoicePresent(g, "story_read_civic_aftermath") &&
+                StoryChoicePresent(g, "story_read_ending"),
+                "A completed public grid exposes both the Chapter Twelve account and the chosen ending");
+            ChooseStoryChoice(g, "story_read_civic_aftermath");
+            Check(g.conversation.text.Contains("电网之后") &&
+                g.conversation.textEn.Contains("Who Keeps the Road After the Grid") &&
+                StoryChoicePresent(g, "story_read_ending"),
+                "Chapter Twelve now links forward to the retrospective ending instead of becoming a dead end");
+            ChooseStoryChoice(g, "story_read_ending");
+            Check(g.conversation.text.Contains("你决定的边境") &&
+                g.conversation.textEn.Contains("The Frontier You Chose") &&
+                StoryChoicePresent(g, "story_read_civic_aftermath"),
+                "The ending links backward to Chapter Twelve in the same chronological order");
+            Check(g.save.coins == coins && g.save.shards == shards &&
+                g.save.flags.Count == flags,
+                "Correcting chronicle navigation does not mutate save progress or grant rewards");
+        }
+
         public static void ChronicleChapterNavigationNeverLeaksFutureEvents(Campaign data)
         {
             var g = Fresh(data); g.NewGame(0); g.Close();
