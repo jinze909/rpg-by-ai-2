@@ -42,7 +42,7 @@ namespace Starfall
         {
             if(o.kind!="outerlog"&&o.kind!="outerrelay"&&o.kind!="outercache")return false;
             int room=save.room;
-            if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(room<0||room>=8||!HasPhysicalInteractionReach(o))return true;
             string titleZh=o.name, titleEn=o.en;
             if(o.kind=="outerlog")
             {
@@ -128,7 +128,7 @@ namespace Starfall
             WorldObject relay=null;
             foreach(WorldObject o in Map.objects)
                 if(o.kind=="outerrelay"){relay=o;break;}
-            if(relay==null||(Position-new Point(relay.x,relay.y)).Length>2.2f)return true;
+            if(relay==null||!HasPhysicalInteractionReach(relay))return true;
             if(!SafeTravel)
             { Notify("敌人太近，无法安全修理信号灯。","Enemies are too close to safely repair the relay.");return true; }
             if(!Spend(0,0,0,0,1))return true;

@@ -26,6 +26,17 @@ namespace Starfall.Tests
             }
             throw new Exception("No standable regression point outside physical Talk reach for "+o.id);
         }
+        private static Point StandableOutsidePhysicalRadius(GameCore g, WorldObject o,float radius)
+        {
+            Point[] offsets={new Point(-3f,0f),new Point(3f,0f),new Point(0f,-3f),new Point(0f,3f),
+                new Point(-2.5f,-2.5f),new Point(-2.5f,2.5f),new Point(2.5f,-2.5f),new Point(2.5f,2.5f)};
+            foreach(Point offset in offsets)
+            {
+                Point p=new Point(o.x+offset.x,o.y+offset.y);
+                if((p-new Point(o.x,o.y)).Length>radius&&g.CanStand(p))return p;
+            }
+            throw new Exception("No standable regression point beyond radius "+radius+" for "+o.id);
+        }
         private static void Action(GameCore g, string kind, string action)
         {
             g.Talk(Object(g, kind));
@@ -976,7 +987,11 @@ namespace Starfall.Tests
                 foreach(WorldObject site in sites)
                     Check(seen.Contains((int)site.y*width+(int)site.x),
                         "New signal route must be reachable from original spawn using real collision");
-                int coins=g.save.coins,parts=g.save.inventory[4];
+                int coins=g.save.coins,parts=g.save.inventory[4],xp=g.save.xp;
+                Point outsideLog=StandableOutsideTalkReach(g,sites[0]);
+                g.save.x=outsideLog.x;g.save.y=outsideLog.y;g.Talk(sites[0]);g.Close();
+                Check(!g.OuterLogFound(room)&&g.save.xp==xp,
+                    "A distant rescue log cannot award first-discovery XP or advance evidence");
                 g.save.x=sites[2].x;g.save.y=sites[2].y;
                 g.Talk(sites[2]);g.Close();
                 Check(!g.OuterCacheRecovered(room)&&g.save.coins==coins,
@@ -992,6 +1007,13 @@ namespace Starfall.Tests
                 g.Talk(sites[1]);
                 int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_repair");
                 Check(choice>=0,"Physical repair offers a real material-consuming choice");
+                Point outsideRelay=StandableOutsideTalkReach(g,sites[1]);
+                g.save.x=outsideRelay.x;g.save.y=outsideRelay.y;g.Choose(choice);g.Close();
+                Check(!g.OuterRelayRestored(room)&&g.save.inventory[4]==parts,
+                    "A stale relay-repair choice cannot spend a part after leaving physical reach");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;g.Talk(sites[1]);
+                choice=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_repair");
+                Check(choice>=0,"Returning to the physical beacon restores the repair choice");
                 g.Choose(choice);
                 Check(g.OuterRelayRestored(room)&&g.save.inventory[4]==parts-1,
                     "One actual spare part is consumed when the physical beacon is repaired");
@@ -1062,6 +1084,17 @@ namespace Starfall.Tests
                 g.Talk(o);
                 int start=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start");
                 Check(start>=0,"Completed exploration unlocks the voluntary real combat choice");
+                if(room==0)
+                {
+                    Point outsidePost=StandableOutsidePhysicalRadius(g,o,2.2f);
+                    g.save.x=outsidePost.x;g.save.y=outsidePost.y;
+                    g.Choose(start);g.Close();
+                    Check(!g.OuterPatrolActive&&g.enemies.Count==0&&g.save.coins==coins,
+                        "A stale outpost dialogue cannot launch a remote defense");
+                    g.save.x=o.x;g.save.y=o.y;g.Talk(o);
+                    start=Array.FindIndex(g.conversation.choices,c=>c.action=="outer_watch_start");
+                    Check(start>=0,"Returning to the physical post restores the defense choice");
+                }
                 g.Choose(start);
                 Check(g.OuterPatrolActive&&g.enemies.Count==2&&
                     !g.OuterPatrolDone(room),"Defense uses actual two spawned enemies, not a text-only battle");

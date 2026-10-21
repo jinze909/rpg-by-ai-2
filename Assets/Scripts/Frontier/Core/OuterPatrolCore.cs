@@ -300,7 +300,7 @@ namespace Starfall
         {
             if(o.kind!="outerwatch")return false;
             int room=save.room;
-            if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(room<0||room>=8||!HasPhysicalInteractionReach(o))return true;
             if(OuterPatrolActive)
             {
                 var choices=new List<Choice> {
@@ -380,8 +380,7 @@ namespace Starfall
                 Dying||practicing||racing||FieldWorkPreventsRest||!SafeTravel)
                 return false;
             foreach(WorldObject site in Map.objects)
-                if(site.kind=="outerwatch"&&
-                    PhysicalRefugeReach(new Point(site.x,site.y),2.2001f))
+                if(site.kind=="outerwatch"&&HasPhysicalInteractionReach(site))
                     return true;
             return false;
         }
@@ -669,8 +668,7 @@ namespace Starfall
             WorldObject watch=null;
             foreach(WorldObject candidate in Map.objects)
                 if(candidate.kind=="outerwatch"){watch=candidate;break;}
-            if(watch==null||
-                !PhysicalRefugeReach(new Point(watch.x,watch.y),2.2001f))
+            if(watch==null||!HasPhysicalInteractionReach(watch))
                 return false;
             Point standing;
             if(!TryOuterPatrolCompanionGuardFoot(out standing))
@@ -731,8 +729,7 @@ namespace Starfall
                 WorldObject cache=null;
                 foreach(WorldObject candidate in Map.objects)
                     if(candidate.kind=="outerwatch"){cache=candidate;break;}
-                if(cache==null||!PhysicalRefugeReach(
-                    new Point(cache.x,cache.y),2.2001f))return true;
+                if(cache==null||!HasPhysicalInteractionReach(cache))return true;
                 if(action=="outer_watch_abort")
                 {
                     ResetOuterPatrol();revision++;
@@ -770,8 +767,7 @@ namespace Starfall
                 !OuterCacheRecovered(room)||Dying||practicing)return true;
             WorldObject post=null;
             foreach(WorldObject o in Map.objects)if(o.kind=="outerwatch"){post=o;break;}
-            if(post==null||!PhysicalRefugeReach(
-                new Point(post.x,post.y),2.2001f))return true;
+            if(post==null||!HasPhysicalInteractionReach(post))return true;
             if(!SafeTravel||FieldWorkPreventsRest)
             {
                 Notify("先结束其它现场任务并清理附近追击者。","Finish other active field missions and clear nearby pursuers first.");
