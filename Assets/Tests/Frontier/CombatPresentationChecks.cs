@@ -4351,6 +4351,70 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void CompanionFollowRoutesAroundLivingEnemyBodies(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[22];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',22).ToCharArray();
+                    if(y>=2&&y<=19)
+                        for(int x=2;x<=19;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=13.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=13.5f;g.save.y=10.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.companionPosition=new Point(7.5f,10.5f);
+                var foe=new Enemy(74191,0,9.5f,10.5f,10000f){
+                    stun=100f,timer=1000f,staggerRecovery=100f};
+                g.enemies.Add(foe);
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(cadence!=null&&g.CanStand(g.companionPosition)&&
+                    g.CanStand(foe.Position),
+                    "Follower and living enemy start on real playable ground");
+                // Keep the test about physical follow routing, not an
+                // autonomous attack interrupting the movement under test.
+                cadence.SetValue(g,100f);
+                Point goal=(Point)typeof(GameCore).GetMethod(
+                    "CompanionFollowTarget",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic).Invoke(g,null);
+                bool passedEnemy=false,reachedGoal=false;
+                float minSeparation=float.MaxValue,totalTravelled=0f;
+                for(int frame=0;frame<220;frame++)
+                {
+                    Point before=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    Point travelled=g.companionPosition-before;
+                    totalTravelled+=travelled.Length;
+                    float separation=(g.companionPosition-foe.Position).Length;
+                    minSeparation=Math.Min(minSeparation,separation);
+                    Check(travelled.Length<.35f&&g.CanStand(g.companionPosition),
+                        "Enemy-aware following still uses small swept steps and legal terrain feet");
+                    if(g.companionPosition.x>10.5f)passedEnemy=true;
+                    if(separation<.56f)
+                        throw new Exception("Follower clipped through a living enemy body: "+separation);
+                    if((g.companionPosition-goal).Length<.7f)
+                    {reachedGoal=true;break;}
+                }
+                Check(passedEnemy&&reachedGoal&&totalTravelled>5f&&
+                    minSeparation>=.56f,
+                    "Companion must detour around a living enemy and reach its follow socket; travel="+
+                    totalTravelled+", min separation="+minSeparation+
+                    ", foot="+g.companionPosition.x+","+g.companionPosition.y+
+                    ", goal="+goal.x+","+goal.y);
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void CompanionPreparationAndSafeFollowing(Campaign data)
         {
             for (int id = 0; id < 3; id++)

@@ -500,7 +500,10 @@ namespace Starfall
             Point direction=delta.Normalized;
             Point next=companionPosition+
                 direction*Math.Min(delta.Length,Math.Max(.001f,dt*(Speed+1)));
-            if(Fits(next))return false;
+            bool terrainStepClear=Fits(next);
+            bool actorStepClear=terrainStepClear&&
+                CompanionCornerWalkable(companionPosition,next);
+            if(actorStepClear)return false;
 
             int width=Map.rows[0].Length,height=Map.rows.Length;
             int sx=(int)Math.Floor(companionPosition.x);
@@ -529,13 +532,25 @@ namespace Starfall
                         Math.Abs(nx-sx)>radius||Math.Abs(ny-sy)>radius)
                         continue;
                     int candidate=ny*width+nx;
+                    Point fromCenter=center;
+                    Point toCenter=new Point(nx+.5f,ny+.5f);
                     if(PathVisited(candidate)||
-                        !Fits(new Point(nx+.5f,ny+.5f)))continue;
+                        !CompanionCornerWalkable(fromCenter,toCenter))
+                        continue;
                     VisitPath(candidate,node);
                     pathQueue[tail++]=candidate;
                 }
             }
-            if(found<0)return false;
+            if(found<0)
+            {
+                // Terrain-blocked paths retain the ordinary collision-slide
+                // fallback. If terrain is open but a living actor blocks the
+                // next step and no safe detour exists, plant here instead of
+                // clipping through that actor; retry on the next world tick.
+                if(terrainStepClear)
+                {waypoint=companionPosition;return true;}
+                return false;
+            }
             int first=found;
             while(pathParents[first]>=0&&pathParents[first]!=start)
                 first=pathParents[first];
