@@ -123,21 +123,32 @@ namespace Starfall
         }
         private static void CleanupCommittedRecoveryPaths(string main)
         {
-            // Called only after a verified candidate became the primary.
-            // The new primary is timestamp-newer than every valid candidate
-            // considered by NextSaveTimestamp, so these stages are no longer
-            // the only recoverable copy.
-            var paths = new List<string>();
-            paths.Add(main + ".tmp");
+            // Cleanup runs after commit, but another game process could still
+            // be writing a different unique stage. Delete only candidates that
+            // decode successfully and are no newer than the verified primary.
+            SaveData committed;
+            DateTime committedAt;
+            try
+            {
+                committed = Decode(File.ReadAllText(main));
+                committedAt = SaveTimestamp(committed, main);
+            }
+            catch { return; }
+            var paths = new List<string> { main + ".tmp" };
             paths.AddRange(StagingPaths(main));
             foreach (string path in paths)
             {
                 if (!File.Exists(path)) continue;
-                try { File.Delete(path); }
-                catch (Exception error)
+                try
                 {
-                    Debug.LogWarning("Starfall stale recovery cleanup delayed: " +
-                        error.Message);
+                    SaveData candidate = Decode(File.ReadAllText(path));
+                    if (SaveTimestamp(candidate, path) > committedAt) continue;
+                    File.Delete(path);
+                }
+                catch
+                {
+                    // An invalid stage may be an in-flight writer. Preserve it;
+                    // Read() ignores invalid candidates without hiding the main.
                 }
             }
         }

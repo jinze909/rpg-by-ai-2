@@ -1815,6 +1815,21 @@ public static class RuntimeCombatInputChecks
                     System.IO.Path.GetFileName(main) + ".stage-*").Length == 0,
                 "Successful commit cleans stale temporary/staging candidates only after the primary is verified.");
 
+            string newerStage = main + ".stage-concurrent-writer";
+            put(newerStage, 92, "2100-01-01T00:00:00.0000000Z");
+            var cleanup = typeof(SaveStore).GetMethod("CleanupCommittedRecoveryPaths",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            cleanup.Invoke(null, new object[] { main });
+            Check(System.IO.File.Exists(newerStage),
+                "Commit cleanup preserves a valid newer stage owned by a concurrent writer.");
+            System.IO.File.Delete(newerStage);
+            string partialStage = main + ".stage-inflight";
+            System.IO.File.WriteAllText(partialStage, "{partial");
+            cleanup.Invoke(null, new object[] { main });
+            Check(System.IO.File.Exists(partialStage),
+                "Commit cleanup never deletes an unreadable candidate that may still be in flight.");
+            System.IO.File.Delete(partialStage);
+
             Console.WriteLine("PASS Real SaveStore I/O: unique staging recovery, failed-write preservation, monotonic timestamps, clock rollback, corrupt future metadata, schema rejection and v1/v2 compatibility");
         }
         finally
