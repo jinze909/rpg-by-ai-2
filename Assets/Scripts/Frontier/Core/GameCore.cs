@@ -148,6 +148,11 @@ namespace Starfall
         }
         private void ResetTransient()
         {
+            // FrostField owns pulse clocks and exact visual references outside
+            // the public effects list. Clearing effects alone leaves its
+            // damage state alive, allowing an old cast to pulse after travel
+            // or a save-slot replacement at the same world coordinates.
+            ClearFrost();
             projectiles.Clear(); effects.Clear();
             flightReadyAtFrameStart.Clear();
             // A new journey/slot must never inherit pointer targeting, facing,

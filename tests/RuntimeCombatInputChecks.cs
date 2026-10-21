@@ -20,6 +20,10 @@ public static class RuntimeCombatInputChecks
 
     private static void Set(FrontierRuntime app, string field, object value)
     { typeof(FrontierRuntime).GetField(field, Private).SetValue(app, value); }
+    private static object CallCore(GameCore game, string method, params object[] args)
+    { return typeof(GameCore).GetMethod(method, Private).Invoke(game, args); }
+    private static object CoreField(GameCore game, string field)
+    { return typeof(GameCore).GetField(field, Private).GetValue(game); }
 
     private static void Prepare(FrontierRuntime app, int profession = 1)
     {
@@ -1769,6 +1773,44 @@ public static class RuntimeCombatInputChecks
     }
 
 
+    private static void FrostFieldsAreClearedWhenLoadingAnotherSlot(FrontierRuntime app)
+    {
+        Prepare(app, 2);
+        GameCore game = app.Game;
+        game.mode = "world";
+        Point center = game.Position;
+        var impact = new ImpactProfile(2, 0, 2, 0, .06f, true, 2);
+        game.enemies.Clear();
+        game.enemies.Add(new Enemy(992300, 0, center.x + 1f, center.y, 100f));
+        CallCore(game, "BeginFrost", center, 20f, impact);
+        CallCore(game, "BeginCompanionFrost", center, 20f, impact);
+        CallCore(game, "TickFrost", .01f);
+        Check(CoreField(game, "frost") != null &&
+            CoreField(game, "companionFrost") != null,
+            "Player and companion own two live FrostFields before slot replacement");
+        Check(game.effects.Exists(effect => effect.kind == "frost"),
+            "Active FrostFields own their real transient frost visuals");
+
+        // Reuse the same room and world coordinates: without an explicit reset,
+        // the stale pulse clocks would still be physically valid after Load().
+        game.Load(new SaveData {
+            version = 2, room = 1, x = center.x, y = center.y, profession = 2
+        });
+        Check(CoreField(game, "frost") == null &&
+            CoreField(game, "companionFrost") == null,
+            "Loading a replacement save clears both player and companion frost ownership");
+        Check(!game.effects.Exists(effect => effect.kind == "frost"),
+            "No old frost visual survives the new save's transient effect reset");
+
+        var freshTarget = new Enemy(992301, 0, center.x + 1f, center.y, 100f);
+        game.enemies.Clear();
+        game.enemies.Add(freshTarget);
+        CallCore(game, "TickFrost", 1f);
+        Check(Math.Abs(freshTarget.hp - 100f) < .001f,
+            "A previous slot's player or companion pulse cannot damage a new session");
+        Console.WriteLine("PASS player/companion FrostField ownership is retired on save-slot replacement");
+    }
+
     private static void PortableSaveCommitNeverLosesLastGoodPrimary(FrontierRuntime app)
     {
         // Exercise the REAL fallback used when File.Replace is unsupported.
@@ -2926,7 +2968,7 @@ public static class RuntimeCombatInputChecks
             StrafeDuringReleasedCastKeepsBodyAndAim,
             RecoveryHitAndDeathRetainVisibleEquipment, CombatOpeningsAndPoiseDrawInActualWorld,
             RenderStateChecks.MapRasterRegression, RejectedRegionLoadReturnsToRealInn, SaveRecoveryUsesNewestVerifiedCopy,
-            PortableSaveCommitNeverLosesLastGoodPrimary,
+            FrostFieldsAreClearedWhenLoadingAnotherSlot, PortableSaveCommitNeverLosesLastGoodPrimary,
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
