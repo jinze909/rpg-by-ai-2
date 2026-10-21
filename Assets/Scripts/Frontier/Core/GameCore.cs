@@ -473,6 +473,47 @@ namespace Starfall
             }
             SpawnRidgeWildlife();
         }
+        private static bool IsValidTransientEffect(Effect effect)
+        {
+            return effect != null && !string.IsNullOrEmpty(effect.kind) &&
+                Finite(effect.life) && effect.life > 0f &&
+                Finite(effect.maxLife) && effect.maxLife > 0f &&
+                Finite(effect.position.x) && Finite(effect.position.y);
+        }
+
+        private void RepairTransientEffects()
+        {
+            for (int i = effects.Count - 1; i >= 0; i--)
+            {
+                Effect effect = effects[i];
+                if (!IsValidTransientEffect(effect))
+                {
+                    effects.RemoveAt(i);
+                    continue;
+                }
+                // These are presentation-only fields. Recover a safe neutral
+                // fallback rather than letting a bad angle/height/radius
+                // contaminate GUI matrices or make a world flash unbounded.
+                if (!Finite(effect.radius)) effect.radius = 0f;
+                if (!Finite(effect.height)) effect.height = -1f;
+                if (!Finite(effect.direction.x) || !Finite(effect.direction.y))
+                    effect.direction = new Point();
+            }
+        }
+
+        private void TickEffects(float dt)
+        {
+            // TickGate and other world hooks may also add effects, so validate
+            // once more immediately before lifetime advancement.
+            RepairTransientEffects();
+            for (int i = effects.Count - 1; i >= 0; i--)
+            {
+                effects[i].life -= dt;
+                if (!Finite(effects[i].life) || effects[i].life <= 0f)
+                    effects.RemoveAt(i);
+            }
+        }
+
         public void Tick(float dt, Point movement, Point? explicitAim = null)
         {
             dt = Finite(dt) ? Clamp(dt, 0, .05f) : 0;
@@ -484,6 +525,10 @@ namespace Starfall
                 (!Finite(explicitAim.Value.x)||!Finite(explicitAim.Value.y)))
                 explicitAim=null;
             toastTime -= dt;
+            // Invalid presentation records must be removed before any UI,
+            // mission or world renderer can enumerate them. Valid effect clocks
+            // remain frozen outside world mode, exactly as before.
+            RepairTransientEffects();
             if (mode == "fish") { fishTime += dt; fishCursor = .5f + .5f * (float)Math.Sin(fishTime * (2.5f + fishHits * .35f)); return; }
             if (mode != "world") return;
             if (hitStop > 0)
@@ -512,7 +557,7 @@ namespace Starfall
             float hitLockedDt=Math.Min(dt,Math.Max(0f,playerHitTime));
             movementDirection = new Point();
             TickVisuals(dt); if (mode != "world") return; TickGate(dt);
-            for (int i = effects.Count - 1; i >= 0; i--) { effects[i].life -= dt; if (effects[i].life <= 0) effects.RemoveAt(i); }
+            TickEffects(dt);
             if (Dying) { deathTime -= dt; if (deathTime <= 0) CompleteDeath(); return; }
             bool beganInPractice = practicing;
             save.totalTime += dt;

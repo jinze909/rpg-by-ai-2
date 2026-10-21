@@ -51,8 +51,21 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     actor = (RUNTIME / "FrontierActors.cs").read_text()
     scene = (RUNTIME / "FrontierRuntime.cs").read_text()
+    world_order = (RUNTIME / "FrontierWorldOrder.cs").read_text(encoding="utf-8")
+    effects = (RUNTIME / "FrontierEffects.cs").read_text(encoding="utf-8")
+    presentation = (RUNTIME / "FrontierPresentation.cs").read_text(encoding="utf-8")
+    core = (ROOT / "Assets/Scripts/Frontier/Core/GameCore.cs").read_text(encoding="utf-8")
     native = CAPTURE.read_text()
     geometry = GEOMETRY.read_text(encoding="utf-8")
+    assert "private bool CanDrawFallen(FallenActor fallen)" in world_order
+    assert "fallen != null && fallen.IsValid" in world_order
+    assert "fallen.room == Game.save.room" in world_order
+    assert "ValidEffectForDraw(effect)" in world_order
+    assert "private static bool ValidEffectForDraw(Effect effect)" in effects
+    assert "if (!ValidEffectForDraw(effect)) return false;" in effects
+    assert "if (!ValidEffectForDraw(e)) return;" in presentation
+    assert "private void RepairTransientEffects()" in core
+    assert "private void TickEffects(float dt)" in core
     # The Unity-only native clip builders must never preserve an old
     # m_LocalScale/m_LocalPosition animation on an otherwise correct Sprite.
     # This source contract supplements (not replaces) Editor PlayMode QA.

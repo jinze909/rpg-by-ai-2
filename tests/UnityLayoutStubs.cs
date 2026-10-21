@@ -193,6 +193,7 @@ class LayoutHarness
         // Mandatory nonhero CI must execute the real boss draw method too:
         // phase thresholds, matched flash atlas cells and the GameCore clock.
         ActorRegistrationChecks.VerifyBossMovingFlash(app);
+        RenderStateChecks.VerifyMalformedTransientRecordsAreSkippedBeforeWorldSort(app);
         return 0;
 #elif CONTINUITY_ONLY
         ActorRegistrationChecks.Run(app,args[0]);RuntimeContinuityChecks.Run(app,args[0]);return 0;

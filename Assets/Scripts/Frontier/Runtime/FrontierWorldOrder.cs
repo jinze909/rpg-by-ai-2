@@ -50,6 +50,15 @@ namespace Starfall
             // still bounds work; actual actor occlusion remains unchanged.
             return 1f;
         }
+        // Filter before reading actor coordinates: DrawFallen's own guard
+        // is too late if the depth-sort pass already dereferenced the record.
+        private bool CanDrawFallen(FallenActor fallen)
+        {
+            return fallen != null && fallen.IsValid &&
+                fallen.room == Game.save.room &&
+                WorldDrawable(fallen.actor.x,fallen.actor.y);
+        }
+
         private void DrawOrderedWorld()
         {
             // Reuse storage and explicit references. Captured per-actor callbacks
@@ -80,7 +89,7 @@ namespace Starfall
                     AddWorldEntry(new WorldDrawEntry{depth=e.y,kind=WorldDrawKind.Enemy,enemy=e});
             }
             foreach(FallenActor f in Game.fallen)
-                if(WorldDrawable(f.actor.x,f.actor.y))
+                if(CanDrawFallen(f))
                     AddWorldEntry(new WorldDrawEntry{depth=f.actor.y-.02f,kind=WorldDrawKind.Fallen,fallen=f});
             // Optional impact paint is WORLD scenery, not a gameplay
             // warning. Respect foreground canopies, NPCs and hero weapons
@@ -88,8 +97,8 @@ namespace Starfall
             // Actual hit telegraphs stay in DrawVisibleEnemyWarnings.
             if(CanDrawAuthoredImpactFlourishes())
                 foreach(Effect effect in Game.effects)
-                    if(ImpactFlourishCategory(effect)>=0&&
-                       effect.life>0f&&effect.maxLife>0f&&
+                    if(ValidEffectForDraw(effect) &&
+                       ImpactFlourishCategory(effect)>=0 &&
                        WorldDrawable(effect.position.x,effect.position.y,115f,115f))
                         AddWorldEntry(new WorldDrawEntry{
                             depth=effect.position.y+.001f,

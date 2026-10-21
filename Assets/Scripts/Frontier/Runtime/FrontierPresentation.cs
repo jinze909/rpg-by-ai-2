@@ -238,6 +238,7 @@ namespace Starfall
         }
         private void DrawCombatEffect(Effect e)
         {
+            if (!ValidEffectForDraw(e)) return;
             if (DrawAuthoredEffect(e)) return;
             Point p = ScreenPoint(e.position); float progress = 1 - e.life / e.maxLife;
             if (e.kind == "number" || e.kind == "break") { Text(p.x - 59, p.y - 54 - progress * 22, 120, 32, e.text, 19, ink, TextAnchor.MiddleCenter); Text(p.x - 60, p.y - 55 - progress * 22, 120, 32, e.text, 19, gold, TextAnchor.MiddleCenter); }

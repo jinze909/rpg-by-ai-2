@@ -37,8 +37,24 @@ namespace Starfall
                 impactFlourishSheet.width==128 &&
                 impactFlourishSheet.height==96;
         }
+        private static bool ValidEffectForDraw(Effect effect)
+        {
+            return effect != null && !string.IsNullOrEmpty(effect.kind) &&
+                !float.IsNaN(effect.life) && !float.IsInfinity(effect.life) &&
+                effect.life > 0f &&
+                !float.IsNaN(effect.maxLife) && !float.IsInfinity(effect.maxLife) &&
+                effect.maxLife > 0f &&
+                !float.IsNaN(effect.position.x) && !float.IsInfinity(effect.position.x) &&
+                !float.IsNaN(effect.position.y) && !float.IsInfinity(effect.position.y) &&
+                !float.IsNaN(effect.radius) && !float.IsInfinity(effect.radius) &&
+                !float.IsNaN(effect.height) && !float.IsInfinity(effect.height) &&
+                !float.IsNaN(effect.direction.x) && !float.IsInfinity(effect.direction.x) &&
+                !float.IsNaN(effect.direction.y) && !float.IsInfinity(effect.direction.y);
+        }
+
         private static int ImpactFlourishCategory(Effect effect)
         {
+            if (effect == null) return -1;
             // The same hand-painted contact artwork can echo true player
             // strikes, hits, arrows and Boss magic, not normal patrol bolts.
             return effect.kind=="slash"||
@@ -49,10 +65,10 @@ namespace Starfall
         }
         private void DrawAuthoredImpactFlourish(Effect effect)
         {
+            if (!ValidEffectForDraw(effect)) return;
             int category=ImpactFlourishCategory(effect);
-            if(category<0||effect.maxLife<=0f||
-               effect.life<=0f||!WorldDrawable(effect.position.x,
-                   effect.position.y,115f,115f))return;
+            if(category<0||!WorldDrawable(effect.position.x,
+                    effect.position.y,115f,115f))return;
             float phase=Mathf.Clamp01(1f-effect.life/effect.maxLife);
             int frame=Math.Min(3,(int)(phase*4f));
             float size=category==0?
@@ -276,6 +292,7 @@ namespace Starfall
         }
         private bool DrawAuthoredEffect(Effect effect)
         {
+            if (!ValidEffectForDraw(effect)) return false;
             if (effectSheet == null || iconSheet == null)
                 RecoverPublishedVisualAtlases();
             if (effect.kind == "number" || effect.kind == "break") return false;
@@ -498,7 +515,7 @@ namespace Starfall
             return true;
         }
         private static bool IsGroundEffect(Effect effect)
-        { return effect.kind == "danger" || effect.kind == "frost" || effect.kind == "burst"; }
+        { return effect != null && (effect.kind == "danger" || effect.kind == "frost" || effect.kind == "burst"); }
         private static int BossEffectFrame(int room)
         { return room == 1 ? 1 : room == 2 ? 12 : room == 3 ? 7 : room == 4 ? 5 : room == 5 ? 12 : room == 6 ? 7 : room == 7 ? 6 : room == 8 ? 5 : 7; }
         private static Color BossEffectColor(int room)

@@ -70,6 +70,58 @@ namespace Starfall.Tests
                 "Expired corpse entries must be retired before a later render can touch them");
         }
 
+        public static void MalformedTransientEffectsAreQuarantinedWithoutLosingValidFeedback(Campaign data)
+        {
+            var game=Fresh(data,0);
+            game.mode="world";game.enemies.Clear();game.projectiles.Clear();
+            game.effects.Clear();
+            Point anchor=game.Position;
+            Effect valid=new Effect("impact",anchor,.5f);
+            Effect recoverable=new Effect("slash",anchor,.5f) {
+                radius=float.NaN,height=float.PositiveInfinity,
+                direction=new Point(float.NaN,1f)
+            };
+            Effect badLife=new Effect("impact",anchor,.5f) {life=float.NaN};
+            Effect badInfiniteLife=new Effect("impact",anchor,.5f) {
+                life=float.PositiveInfinity
+            };
+            Effect badDuration=new Effect("impact",anchor,.5f) {
+                maxLife=float.NaN
+            };
+            Effect badPosition=new Effect("impact",
+                new Point(float.NaN,anchor.y),.5f);
+            Effect badKind=new Effect(null,anchor,.5f);
+            game.effects.Add(null);
+            game.effects.Add(valid);
+            game.effects.Add(recoverable);
+            game.effects.Add(badLife);
+            game.effects.Add(badInfiniteLife);
+            game.effects.Add(badDuration);
+            game.effects.Add(badPosition);
+            game.effects.Add(badKind);
+
+            game.Tick(.02f,new Point());
+            Check(!game.effects.Contains(null)&&
+                !game.effects.Contains(badLife)&&
+                !game.effects.Contains(badInfiniteLife)&&
+                !game.effects.Contains(badDuration)&&
+                !game.effects.Contains(badPosition)&&
+                !game.effects.Contains(badKind),
+                "Malformed/null effect records must be quarantined before any world subsystem can enumerate them");
+            Check(game.effects.Contains(valid)&&game.effects.Contains(recoverable)&&
+                Math.Abs(valid.life-.48f)<.001f&&
+                Math.Abs(recoverable.life-.48f)<.001f,
+                "Valid effect lifetimes still advance by the original world-frame duration");
+            Check(recoverable.radius==0f&&recoverable.height==-1f&&
+                Math.Abs(recoverable.direction.x)<.0001f&&
+                Math.Abs(recoverable.direction.y)<.0001f,
+                "Malformed effect-only radius, height and direction recover to neutral visual values without losing the contact");
+
+            for(int i=0;i<30;i++)game.Tick(.02f,new Point());
+            Check(!game.effects.Contains(valid)&&!game.effects.Contains(recoverable),
+                "Recovered valid effects still expire normally and cannot accumulate forever");
+        }
+
         public static void ReliefCivilianInteractionsNeedPhysicalOpenLane(Campaign data)
         {
             MapData previous=data.maps[1];

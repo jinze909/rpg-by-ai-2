@@ -5286,6 +5286,59 @@ public static class RenderStateChecks
         }
     }
 
+    public static void VerifyMalformedTransientRecordsAreSkippedBeforeWorldSort(FrontierRuntime app)
+    {
+        Prepare(app);
+        try
+        {
+            var game=app.Game;
+            game.mode="world";game.enemies.Clear();game.projectiles.Clear();
+            game.effects.Clear();game.fallen.Clear();game.save.companion=-1;
+            Point foot=game.Position;
+            Check(!(bool)Call(app,"CanDrawFallen",null),
+                "Production world sort rejects a null fallen record before reading its actor");
+            Check(!(bool)Call(app,"CanDrawFallen",new FallenActor {
+                actor=null,room=game.save.room,life=.2f,duration=.6f
+            }),"Production world sort rejects a missing corpse actor");
+            Check(!(bool)Call(app,"CanDrawFallen",new FallenActor {
+                actor=new Enemy(9871,0,foot.x,foot.y,10f),
+                room=-1,life=.2f,duration=.6f
+            }),"Production world sort rejects an invalid corpse room");
+            Check(!(bool)Call(app,"CanDrawFallen",new FallenActor {
+                actor=new Enemy(9872,0,foot.x,foot.y,10f),
+                room=game.save.room+1,life=.2f,duration=.6f
+            }),"A valid corpse from another room cannot bleed into the current map");
+            Check((bool)Call(app,"CanDrawFallen",new FallenActor {
+                actor=new Enemy(9873,0,foot.x,foot.y,10f),
+                room=game.save.room,life=.2f,duration=.6f
+            }),"A genuine in-room corpse remains eligible for its normal draw path");
+
+            game.fallen.Add(null);
+            game.fallen.Add(new FallenActor {
+                actor=null,room=game.save.room,life=.2f,duration=.6f
+            });
+            game.fallen.Add(new FallenActor {
+                actor=new Enemy(9874,0,foot.x,foot.y,10f),
+                room=game.save.room+1,life=.2f,duration=.6f
+            });
+            game.effects.Add(null);
+            game.effects.Add(new Effect("slash",
+                new Point(float.NaN,foot.y),.5f));
+            game.effects.Add(new Effect("impact",foot,.5f) {life=float.NaN});
+            Clear();
+            Call(app,"DrawCombatEffect",(object)null);
+            Call(app,"DrawCombatEffect",new Effect("slash",
+                new Point(float.NaN,foot.y),.5f));
+            Call(app,"DrawOrderedWorld");
+            Console.WriteLine("PASS production world sort skips malformed/out-of-room corpses and invalid effect records before dereference");
+        }
+        finally
+        {
+            app.EndVisualReview();
+            Clear();
+        }
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;
