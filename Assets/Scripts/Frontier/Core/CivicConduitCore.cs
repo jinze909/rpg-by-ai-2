@@ -48,7 +48,7 @@ namespace Starfall
         public bool CivicConduitWindowOpen
         {
             get{return CivicConduitActive&&
-                (conduitElapsed+conduitStage*2f)%6f<1.9f;}
+                (conduitElapsed+conduitStage*2f)%6f<2.6f;}
         }
         public float CivicConduitWindowRemaining
         {
@@ -56,7 +56,7 @@ namespace Starfall
             {
                 if(!CivicConduitActive)return 0;
                 float phase=(conduitElapsed+conduitStage*2f)%6f;
-                return phase<1.9f?1.9f-phase:6f-phase;
+                return phase<2.6f?2.6f-phase:6f-phase;
             }
         }
         private void ResetCivicConduit()

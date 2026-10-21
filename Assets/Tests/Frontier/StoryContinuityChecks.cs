@@ -645,5 +645,179 @@ namespace Starfall.Tests
                 g.conversation.text.Contains("共同水渠"),
                 "Returning the cores remains compatible with the water-first farshore covenant");
         }
+
+        public static void ChapterElevenFirstValveHasAReachableGreenWindow(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            g.save.room = 4;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            WorldObject master = Object(g, "civicconduitmaster");
+            WorldObject valve = null;
+            foreach (WorldObject o in g.Map.objects)
+                if (o.id == "civicConduitValve1") valve = o;
+            Check(valve != null && g.CanStand(new Point(valve.x, valve.y)),
+                "The first civic valve must be a real reachable object on the authored route");
+            g.save.x = master.x;
+            g.save.y = master.y;
+            g.save.inventory[4] = 1;
+            g.enemies.Clear();
+            g.invulnerable = 120f;
+            Action(g, "civicconduitmaster", "civic_conduit_start");
+
+            Point start = g.Position;
+            int frames = 0;
+            while ((g.Position - start).Length < 7.25f && frames < 100)
+            {
+                g.Tick(.02f, new Point(1, 0));
+                frames++;
+            }
+            Check(frames < 100 &&
+                (g.Position - new Point(valve.x, valve.y)).Length <= 2.2f,
+                "A normal-speed eastward approach reaches the first valve after its required real walking distance");
+            Check(g.CivicConduitWindowOpen && g.CivicConduitWindowRemaining >= .85f,
+                "The first green window must leave a usable interaction margin after the 7.2-unit approach");
+
+            g.Talk(valve);
+            int tune = -1;
+            for (int i = 0; i < g.conversation.choices.Length; i++)
+                if (g.conversation.choices[i].action == "civic_conduit_tune") tune = i;
+            Check(tune >= 0, "The reachable first green window offers the real tuning action");
+            g.Choose(tune);
+            Check(g.CivicConduitActive && g.CivicConduitStage == 1,
+                "The first valve can be completed during its opening green window without waiting a full cycle");
+        }
+
+        public static void ChapterElevenPublicGridUsesOrderedPhysicalValvesAndPersistsItsChoice(Campaign data)
+        {
+            foreach (int choice in new[] { 1, 2 })
+            {
+                var g = Fresh(data);
+                g.save.stage = 3;
+                g.save.room = 4;
+                g.save.flags.Add("last_directive_complete");
+                g.save.flags.Add(choice == 1 ? "last_directive_open" : "last_directive_shelter");
+                WorldObject master = Object(g, "civicconduitmaster");
+                g.save.x = master.x;
+                g.save.y = master.y;
+                WorldObject[] valves = new WorldObject[3];
+                foreach (WorldObject o in g.Map.objects)
+                {
+                    int index = g.CivicConduitValveIndex(o);
+                    if (index >= 0) valves[index] = o;
+                }
+                for (int i = 0; i < valves.Length; i++)
+                    Check(valves[i] != null && g.CanStand(new Point(valves[i].x, valves[i].y)),
+                        "Chapter Eleven valve " + (i + 1) + " must remain a real, reachable authored object");
+
+                g.save.inventory[4] = 2;
+                g.save.energy = 100;
+                g.enemies.Clear();
+                g.invulnerable = 200f;
+                int coinsBefore = g.save.coins;
+                int shardsBefore = g.save.shards;
+                Action(g, "civicconduitmaster", "civic_conduit_start");
+                Check(g.CivicConduitStarted && g.CivicConduitActive &&
+                    g.save.inventory[4] == 1 && g.CivicConduitTimeLeft > 79f,
+                    "Starting the live circuit consumes one real fuse exactly once and starts its actual timer");
+
+                Action<WorldObject> walkTo = delegate(WorldObject target)
+                {
+                    int steps = 0;
+                    Point destination = new Point(target.x, target.y);
+                    while ((g.Position - destination).Length > .45f && steps < 2000)
+                    {
+                        Point delta = destination - g.Position;
+                        g.Tick(.02f, delta.Length > .001f ? delta.Normalized : new Point());
+                        steps++;
+                    }
+                    Check((g.Position - destination).Length <= .7f,
+                        "The player must physically reach the next valve instead of remotely completing it: " + target.id);
+                    Check(g.CivicConduitActive && g.CivicConduitTimeLeft > 0,
+                        "Walking between valves must preserve a live, unexpired circuit");
+                };
+
+                if (choice == 1)
+                {
+                    walkTo(valves[2]);
+                    g.Talk(valves[2]);
+                    Check(g.mode == "dialog" && g.conversation.textEn.Contains("west to east"),
+                        "A later valve explains the required west-to-east sequence instead of accepting a skip");
+                    Check(g.CivicConduitStage == 0,
+                        "Touching the third valve first cannot advance the first stage");
+                    g.Close();
+                }
+
+                for (int i = 0; i < valves.Length; i++)
+                {
+                    walkTo(valves[i]);
+                    int waited = 0;
+                    while (g.CivicConduitActive && !g.CivicConduitWindowOpen && waited < 450)
+                    {
+                        g.Tick(.02f, new Point());
+                        waited++;
+                    }
+                    Check(g.CivicConduitActive && g.CivicConduitWindowOpen &&
+                        g.CivicConduitTimeLeft > 0,
+                        "Each ordered valve must expose a reachable green timing window before the circuit expires");
+                    g.Talk(valves[i]);
+                    Check(g.mode == "dialog", "The current physical valve must open its real interaction panel");
+                    int tune = -1;
+                    for (int c = 0; c < g.conversation.choices.Length; c++)
+                        if (g.conversation.choices[c].action == "civic_conduit_tune") tune = c;
+                    Check(tune >= 0, "A stable, correctly reached valve must offer its real tune action");
+                    g.Choose(tune);
+                    if (i < valves.Length - 1)
+                        Check(g.CivicConduitActive && g.CivicConduitStage == i + 1,
+                            "A tuned valve advances exactly one stage and requires the next physical valve");
+                }
+
+                Check(g.CivicConduitComplete && !g.CivicConduitActive &&
+                    g.GetQuest("civic_conduit").complete &&
+                    g.save.coins == coinsBefore + 65 && g.save.shards == shardsBefore + 2 &&
+                    g.save.inventory[4] == 1,
+                    "Three real valve contacts award the Chapter Eleven reward once and preserve the unused fuse");
+                g.PrepareSave();
+                var resumed = new GameCore(data, CloneSave(g.save));
+                resumed.Start();
+                Check(resumed.save.version == 2 && resumed.CivicConduitComplete &&
+                    resumed.LastDirectiveChoice == choice && resumed.save.inventory[4] == 1,
+                    "The completed grid and the chosen public service survive a normal SaveData v2 reload");
+
+                var withoutGrid = new GameCore(data, CloneSave(resumed.save));
+                withoutGrid.save.flags.Remove("civic_conduit_complete");
+                withoutGrid.Start();
+                resumed.save.room = 0;
+                withoutGrid.save.room = 0;
+                WorldObject shelter = Object(resumed, "farshelter");
+                WorldObject controlShelter = Object(withoutGrid, "farshelter");
+                resumed.save.flags.Add("far_shelter_0");
+                withoutGrid.save.flags.Add("far_shelter_0");
+                resumed.save.x = shelter.x;
+                resumed.save.y = shelter.y;
+                withoutGrid.save.x = controlShelter.x;
+                withoutGrid.save.y = controlShelter.y;
+                resumed.enemies.Clear();
+                withoutGrid.enemies.Clear();
+                resumed.invulnerable = 200f;
+                withoutGrid.invulnerable = 200f;
+                resumed.save.health = withoutGrid.save.health = 50;
+                resumed.save.energy = withoutGrid.save.energy = 10;
+                Advance(resumed, 1f);
+                Advance(withoutGrid, 1f);
+                float energyService = resumed.save.energy - withoutGrid.save.energy;
+                float healthService = resumed.save.health - withoutGrid.save.health;
+                if (choice == 1)
+                    Check(energyService > 2.5f && energyService < 2.9f &&
+                        Math.Abs(healthService) < .01f,
+                        "The public-grid choice adds its real local stamina service at a rebuilt refuge");
+                else
+                    Check(Math.Abs(energyService) < .01f &&
+                        healthService > .7f && healthService < 1.0f,
+                        "The emergency-shelter choice adds its distinct real local healing service");
+            }
+        }
+
     }
 }
