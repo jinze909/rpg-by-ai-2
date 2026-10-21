@@ -4423,7 +4423,12 @@ public static class ActorRegistrationChecks
 
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
-        try { CompanionGaitActuallyPlantsBothFeet(app); CompanionOutlinePassCannotConsumeGaitOrAttack(app); }
+        try
+        {
+            CompanionGaitActuallyPlantsBothFeet(app);
+            VerifyCompanionFootfallsFollowGaitRestart(app);
+            CompanionOutlinePassCannotConsumeGaitOrAttack(app);
+        }
         finally { app.EndVisualReview(); Clear(); }
     }
     public static void VerifyUnifiedGaitPixelComposites(FrontierRuntime app) { FullBodyHeroProductionFrames(app); ProductionLoadoutUsesFullBodyHero(app); }
