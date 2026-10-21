@@ -4371,6 +4371,7 @@ namespace Starfall.Tests
                 g.save.x=13.5f;g.save.y=10.5f;
                 g.save.flags.Add("companion_1");g.SelectCompanion(1);
                 g.companionPosition=new Point(7.5f,10.5f);
+                Point start=g.companionPosition;
                 var foe=new Enemy(74191,0,9.5f,10.5f,10000f){
                     stun=100f,timer=1000f,staggerRecovery=100f};
                 g.enemies.Add(foe);
