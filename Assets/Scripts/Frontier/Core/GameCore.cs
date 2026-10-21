@@ -2045,6 +2045,20 @@ namespace Starfall
             if (o.kind != "waytrail") return false;
             int region = save.room;
             if (region < 0 || region > 7) return false;
+            // Talk() is also used by internal gameplay/test callers, not only
+            // Interact() after Nearest(). Never award or submit a route marker
+            // remotely, and preserve the same reach/occlusion rule as E input.
+            Point objective = new Point(o.x, o.y);
+            float distance = (Position - objective).Length;
+            Point contact = distance > .55f ?
+                objective - (objective - Position).Normalized * .55f : Position;
+            if (!Finite(distance) || distance >= 1.75f ||
+                !ClearAttackPath(Position, contact))
+            {
+                Notify("请靠近路标并确保路线畅通，再记录旧路。",
+                    "Move within reach of the marker with a clear path before recording the road.");
+                return true;
+            }
             RecordCivicAftercareWaypoint(o);
             bool eastern = o.id.EndsWith("e", StringComparison.Ordinal);
             string flag = "waytrail_" + o.id;

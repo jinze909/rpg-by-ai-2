@@ -3888,10 +3888,17 @@ namespace Starfall.Tests
             GameCore game = new GameCore(data);
             WorldObject landmark = Array.Find(data.maps[0].objects, o => o.id == "waytrail0s");
             int coins = game.save.coins, shards = game.save.shards;
+            game.save.x = 18f; game.save.y = 18f;
+            game.Talk(landmark);
+            Check(!game.Has("waytrail_waytrail0s") &&
+                game.save.coins == coins && game.save.shards == shards,
+                "A direct remote Talk call cannot discover a waypoint or grant its reward");
+            game.Close();
+            game.save.x = landmark.x; game.save.y = landmark.y;
             game.Talk(landmark);
             Check(game.Has("waytrail_waytrail0s") &&
                 game.save.coins == coins + 8 && game.save.shards == shards + 1,
-                "Recording a real waypoint grants a one-time survey reward");
+                "Recording a physically reached waypoint grants a one-time survey reward");
             game.Close(); game.Talk(landmark);
             Check(game.save.coins == coins + 8 && game.save.shards == shards + 1,
                 "Rereading a waypoint never duplicates rewards");
@@ -3942,8 +3949,15 @@ namespace Starfall.Tests
             {
                 WorldObject marker = Array.Find(data.maps[room].objects,
                     o => o.id == "waytrail" + room + "e");
-                g.save.room = room; g.save.x = marker.x; g.save.y = marker.y;
+                g.save.room = room; g.save.x = 18f; g.save.y = 18f;
                 g.mode = "world";
+                g.Talk(marker);
+                Check(g.RoadCharterReports == room - 1 &&
+                    !g.Has("roadcharter_report_" + room) &&
+                    !g.Has("waytrail_" + marker.id),
+                    "A distant direct Talk call cannot submit Chapter Eight or survey evidence");
+                g.Close();
+                g.save.x = marker.x; g.save.y = marker.y;
                 g.Talk(marker);
                 Check(g.RoadCharterReports == room &&
                     g.Has("roadcharter_report_" + room),
