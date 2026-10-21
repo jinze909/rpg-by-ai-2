@@ -3189,7 +3189,7 @@ namespace Starfall.Tests
 
             handler.Invoke(g,new object[]{"civic_aftercare_publish"});
             Check(!g.Has("civic_aftercare_published")&&g.save.coins==coins&&
-                g.save.shards==shards&&g.save.xp==xp,
+                g.save.shards==shards&&g.save.xp+20*g.save.level*(g.save.level-1)==totalXp,
                 "An incomplete audit cannot publish or grant any reward even at the inn");
 
             foreach(int room in new[]{0,3,5})
@@ -3222,7 +3222,7 @@ namespace Starfall.Tests
             handler.Invoke(g,new object[]{"civic_aftercare_publish"});
             handler.Invoke(g,new object[]{"civic_aftercare_status"});
             Check(!g.Has("civic_aftercare_published")&&g.mode=="world"&&
-                g.save.coins==coins&&g.save.shards==shards&&g.save.xp==xp,
+                g.save.coins==coins&&g.save.shards==shards&&g.save.xp+20*g.save.level*(g.save.level-1)==totalXp,
                 "Neither remote publishing nor remote status can bypass the physical inn interaction");
 
             g.save.room=9;inn=Object(g,"innGuest");
@@ -3262,6 +3262,3 @@ namespace Starfall.Tests
                 resumed.conversation.textEn.Contains("three-region road audit is now on the public record"),
                 "The inn's persistent bilingual response reflects the published audit after reload");
         }
-
-    }
-}
