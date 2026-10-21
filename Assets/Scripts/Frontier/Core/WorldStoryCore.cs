@@ -238,6 +238,39 @@ namespace Starfall
                     en += "\n\n[Open starroads] Mira, Ivo and Sen jointly care for ferries, canals and the memorial road. Energy accounts are public, and companions and community contracts benefit from their cooperation.";
                 }
             }
+            else if (page == "ending")
+            {
+                // The chosen ending is still the player's ending. This
+                // retrospective only records the civic work completed after
+                // it; browsing never awards progress or changes SaveData.
+                zh += "\n\n【结局之后，公共承诺仍需维护】";
+                zh += CivicConduitComplete ?
+                    "三处阀门已重新调谐。" : "三处阀门仍待现场调谐。";
+                zh += "公共避险棚已建成 " + FarShelterCount +
+                    "/8 处；居民长期服务已有 " + CivicSupplyResolvedCount + "/3 处签署。";
+                zh += CivicSupplyComplete ?
+                    "公开审计已发布。" : "公开审计仍待发布。";
+                zh += "余光设施已有 " + AfterlightRestored + "/3 处恢复运行。";
+                zh += Has("afterlight_complete") ?
+                    "维护公约已公布。" : "维护公约仍待居民签署。";
+                zh += "这些进度不会改写你选择的结局，却决定它能否成为日常生活。";
+
+                en += "\n\n[After the ending, public promises still need caretakers] ";
+                en += CivicConduitComplete ?
+                    "All three valves have been retuned." :
+                    "The three valves are still waiting for physical tuning.";
+                en += " Public refuges: " + FarShelterCount +
+                    "/8 built; long-term regional services: " +
+                    CivicSupplyResolvedCount + "/3 signed.";
+                en += CivicSupplyComplete ?
+                    " The public audit has been published." :
+                    " The public audit is still pending.";
+                en += " Afterlight sites restored: " + AfterlightRestored + "/3.";
+                en += Has("afterlight_complete") ?
+                    " The maintenance charter has been published." :
+                    " Residents still need to sign the maintenance charter.";
+                en += " These milestones do not replace your chosen ending; they determine how fully it reaches daily life.";
+            }
         }
         private void WorldChroniclePage(string page)
         {
