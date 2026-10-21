@@ -4325,11 +4325,13 @@ namespace Starfall.Tests
                     "Companion and follow socket start on opposite sides of a real solid wall");
                 Point start=g.companionPosition;
                 bool crossedOpening=false,reachedGoal=false;
+                float totalTravelled=0f;
                 for(int frame=0;frame<280;frame++)
                 {
                     Point before=g.companionPosition;
                     g.Tick(.05f,new Point());
                     Point travelled=g.companionPosition-before;
+                    totalTravelled+=travelled.Length;
                     Check(travelled.Length<.35f&&g.CanStand(g.companionPosition),
                         "Wall detours must use small swept steps and retain a valid physical companion foot");
                     if(g.companionPosition.x>10.5f&&g.companionPosition.y<4.5f)
@@ -4339,10 +4341,12 @@ namespace Starfall.Tests
                 }
                 Check(crossedOpening,
                     "A blocked direct follow must route through the only walkable opening instead of idling against stone");
-                Check(reachedGoal&&
-                    (g.companionPosition-start).Length>5f&&
+                Check(reachedGoal&&totalTravelled>10f&&
                     (g.companionPosition-goal).Length<.7f,
-                    "The real GameCore follow loop completes its wall detour without warping, saving path state, or changing the target socket");
+                    "The real GameCore follow loop completes its wall detour without warping or changing the target socket; reached="+
+                    reachedGoal+", travel="+totalTravelled+", foot="+
+                    g.companionPosition.x+","+g.companionPosition.y+", goal="+
+                    goal.x+","+goal.y);
             }
             finally{data.maps[0]=original;}
         }
