@@ -5424,6 +5424,13 @@ public static class RenderStateChecks
         }
     }
 
+    // Focused wrapper for the real world-depth-pass canopy cache regression.
+    // Keep the comprehensive legacy Run suite separate because it contains
+    // old visual assumptions about the retired segmented-tree renderer.
+    public static void VerifyCanopyOcclusionIncludesEveryLiveActor(FrontierRuntime app)
+    {
+        CoverOcclusionIncludesEveryLiveActor(app);
+    }
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;

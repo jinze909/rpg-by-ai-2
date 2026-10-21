@@ -311,7 +311,11 @@ namespace Starfall
                 // No allocation, no full-map scan per canopy; all candidates
                 // were verified present and on-screen in DrawOrderedWorld.
                 foreach(WorldObject resident in coverResidentsInView)
-                    if(resident!=null && !String.IsNullOrEmpty(resident.kind) &&
+                    // The list is built once per sorted frame, but NPC identity
+                    // can change while the same object remains cached (e.g. a
+                    // quest actor is replaced by a prop). Revalidate the kind
+                    // here without rescanning the entire map for each canopy.
+                    if(resident!=null && IsCoverResident(resident.kind) &&
                         BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
                         return true;
             }

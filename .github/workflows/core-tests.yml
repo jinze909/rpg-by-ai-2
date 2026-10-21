@@ -162,7 +162,6 @@ jobs:
             .starfall-checks/hero-runtime-qa/
             .starfall-checks/hero-committed-qa/
             .starfall-checks/hero-gameplay-traces/
-            .starfall-checks/runtime-extended/
             .starfall-checks/phase2-mossbound/
             .starfall-checks/phase2-briar/
             .starfall-checks/phase2-residents/
