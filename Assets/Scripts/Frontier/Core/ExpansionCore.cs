@@ -497,6 +497,33 @@ namespace Starfall
             // SafeActorFoot/recovery; avoid introducing a new saved location.
             return Position;
         }
+        // The hero is a real body in the follower's navigation graph too.
+        // Otherwise a far-behind companion can take the shortest route straight
+        // through the player's capsule to a fixed formation socket. Keep the
+        // existing tactical flank helper unchanged; this extra disk applies only
+        // to ordinary party-follow movement and permits a strictly outward escape
+        // if an external recovery placed the ally inside the player radius.
+        private bool CompanionFollowSegmentClear(Point from,Point goal)
+        {
+            if(!CompanionCornerWalkable(from,goal))return false;
+            Point travel=goal-from;
+            float denominator=travel.x*travel.x+travel.y*travel.y;
+            if(denominator<.000001f)return true;
+            Point hero=Position;
+            if(!Finite(hero.x)||!Finite(hero.y))return false;
+            const float clearance=.58f;
+            Point offset=hero-from;
+            float projection=GameCore.Clamp(
+                (offset.x*travel.x+offset.y*travel.y)/denominator,
+                0f,1f);
+            Point closest=from+travel*projection;
+            Point separation=hero-closest;
+            if(separation.x*separation.x+separation.y*separation.y>=
+                clearance*clearance)return true;
+            float startSquared=offset.x*offset.x+offset.y*offset.y;
+            return startSquared<clearance*clearance&&projection<=.00001f;
+        }
+
         private void ClearCompanionFollowRoute()
         {
             companionFollowRoute.Clear();
@@ -527,7 +554,7 @@ namespace Starfall
                 direction*Math.Min(delta.Length,Math.Max(.001f,dt*(Speed+1)));
             bool terrainStepClear=Fits(next);
             bool actorStepClear=terrainStepClear&&
-                CompanionCornerWalkable(companionPosition,next);
+                CompanionFollowSegmentClear(companionPosition,next);
             if(actorStepClear)
             {
                 // A newly opened doorway or a moving target can make the
@@ -574,7 +601,7 @@ namespace Starfall
                     int wx=(int)Math.Floor(first.x);
                     int wy=(int)Math.Floor(first.y);
                     bool adjacent=Math.Abs(fx-wx)+Math.Abs(fy-wy)<=1;
-                    if(adjacent&&CompanionCornerWalkable(
+                    if(adjacent&&CompanionFollowSegmentClear(
                         companionPosition,first))
                     {
                         waypoint=first;
@@ -609,7 +636,7 @@ namespace Starfall
                     // The first route edge starts at the actual fractional
                     // foot. Every later edge uses tile centers, and every
                     // segment checks both the swept terrain and living actors.
-                    if(!CompanionCornerWalkable(fromPoint,toCenter))continue;
+                    if(!CompanionFollowSegmentClear(fromPoint,toCenter))continue;
                     VisitPath(candidate,node);
                     pathQueue[tail++]=candidate;
                 }
@@ -647,7 +674,7 @@ namespace Starfall
             companionFollowRouteGeneration=companionPresentationGeneration;
             companionFollowRouteGoalCell=goalCell;
             Point firstWaypoint=companionFollowRoute.Peek();
-            if(!CompanionCornerWalkable(companionPosition,firstWaypoint))
+            if(!CompanionFollowSegmentClear(companionPosition,firstWaypoint))
             {
                 ClearCompanionFollowRoute();
                 if(terrainStepClear)

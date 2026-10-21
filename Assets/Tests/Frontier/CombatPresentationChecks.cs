@@ -4418,6 +4418,77 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void CompanionFollowDetoursAroundHeroBody(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                const int size=64;
+                var rows=new string[size];
+                for(int y=0;y<size;y++)
+                {
+                    char[] cells=new string('#',size).ToCharArray();
+                    if(y>=2&&y<=61)
+                        for(int x=2;x<=61;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=32.5f,spawnY=32.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=32.5f;g.save.y=32.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                Point hero=g.Position;
+                Point goal=(Point)typeof(GameCore).GetMethod(
+                    "CompanionFollowTarget",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic).Invoke(g,null);
+                Point relative=goal-hero;
+                // Start on the opposite axis from the fixed formation socket,
+                // so the direct segment must cross the hero's actual body disk.
+                Point start=Math.Abs(relative.x)>=Math.Abs(relative.y)
+                    ?new Point(hero.x-Math.Sign(relative.x)*6f,hero.y)
+                    :new Point(hero.x,hero.y-Math.Sign(relative.y)*6f);
+                Point line=goal-start,offset=hero-start;
+                float projection=GameCore.Clamp(
+                    (offset.x*line.x+offset.y*line.y)/
+                    Math.Max(.0001f,line.x*line.x+line.y*line.y),0f,1f);
+                Point nearest=start+line*projection;
+                float directClearance=(nearest-hero).Length;
+                Check(directClearance<.58f,
+                    "Follower fixture's direct formation line really crosses the hero body");
+                g.companionPosition=start;
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(cadence!=null&&g.CanStand(start)&&g.CanStand(hero),
+                    "Follower and hero begin on legal physical feet");
+                cadence.SetValue(g,100f);
+                bool reached=false;float minHeroSeparation=float.MaxValue;
+                float totalTravelled=0f;
+                for(int frame=0;frame<420;frame++)
+                {
+                    Point before=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    Point travelled=g.companionPosition-before;
+                    totalTravelled+=travelled.Length;
+                    float separation=(g.companionPosition-g.Position).Length;
+                    minHeroSeparation=Math.Min(minHeroSeparation,separation);
+                    Check(travelled.Length<.35f&&g.CanStand(g.companionPosition),
+                        "Hero-aware route still uses swept movement and legal companion feet");
+                    if(separation<.56f)
+                        throw new Exception("Follower crossed the hero body disk: "+separation);
+                    if((g.companionPosition-goal).Length<.7f)
+                    {reached=true;break;}
+                }
+                Check(reached&&totalTravelled>6f&&minHeroSeparation>=.58f,
+                    "Companion routes around the hero instead of cutting through the fixed socket line; reached="+
+                    reached+", travel="+totalTravelled+", min separation="+
+                    minHeroSeparation+", direct clearance="+directClearance);
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void CompanionFollowRoutesAroundLivingEnemyBodies(Campaign data)
         {
             MapData original=data.maps[0];
