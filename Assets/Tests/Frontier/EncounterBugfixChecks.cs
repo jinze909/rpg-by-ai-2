@@ -739,7 +739,9 @@ namespace Starfall.Tests
                 var g=Fresh(data);g.save.stage=3;g.Enter(0);
                 g.enemies.Clear();
                 g.save.flags.Add("outer_cache_0");
-                g.save.x=12.25f;g.save.y=10.5f;
+                // Stay strictly inside the same 1.75-unit radius as Nearest();
+                // a position exactly 1.75 away is intentionally not interactable.
+                g.save.x=12.0f;g.save.y=10.5f;
                 g.Talk(outpost);
                 Check(g.mode=="dialog"&&g.conversation!=null,
                     "The original recovered relief box unlocks an authentic optional outpost defense");
