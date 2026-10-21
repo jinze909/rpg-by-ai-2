@@ -19,6 +19,77 @@ namespace Starfall.Tests
                 if (c.action == action) return true;
             return false;
         }
+        private static int StoryChoiceIndex(GameCore g, string action)
+        {
+            if (g.conversation == null) return -1;
+            for (int i = 0; i < g.conversation.choices.Length; i++)
+                if (g.conversation.choices[i].action == action) return i;
+            return -1;
+        }
+
+        public static void ChronicleCampaignNavigationMatchesDirectoryOrder(Campaign data)
+        {
+            var g = Fresh(data); g.NewGame(0); g.Close();
+            g.save.flags.Add("witness_started_1");
+            g.save.flags.Add("core_1");
+            WorldObject book = Object(g, "worldchronicle");
+            g.Talk(book); ChooseStoryChoice(g, "story_section_campaign");
+            int testimonies = StoryChoiceIndex(g, "story_read_testimonies");
+            int forest = StoryChoiceIndex(g, "story_read_forest");
+            Check(testimonies >= 0 && forest > testimonies,
+                "Campaign page navigation must preserve the testimony-before-Thornwood order shown in the directory");
+            ChooseStoryChoice(g, "story_read_testimonies");
+            Check(StoryChoicePresent(g, "story_read_forest") &&
+                !StoryChoicePresent(g, "story_read_ruins"),
+                "The unlocked testimony page advances to the next displayed campaign chapter without revealing Drowned Ruins");
+            ChooseStoryChoice(g, "story_read_forest");
+            Check(StoryChoicePresent(g, "story_read_testimonies") &&
+                !StoryChoicePresent(g, "story_read_ruins"),
+                "Thornwood returns to the testimony page rather than reversing the directory's chronology");
+        }
+
+        public static void ChronicleRestoresChapterEightBetweenChaptersSevenAndNine(Campaign data)
+        {
+            var g = Fresh(data); g.NewGame(0); g.Close();
+            WorldObject book = Object(g, "worldchronicle");
+            g.Talk(book); ChooseStoryChoice(g, "story_section_after");
+            Check(!StoryChoicePresent(g, "story_read_roadcharter"),
+                "Chapter Eight remains hidden until its existing quest is started or completed");
+            g.Close();
+            g.save.flags.Add("hearing_started");
+            g.save.flags.Add("roadcharter_started");
+            g.save.flags.Add("roadcharter_report_1");
+            g.save.flags.Add("roadcharter_report_3");
+            g.save.flags.Add("civic_supply_started");
+            int coins = g.save.coins, shards = g.save.shards;
+            int skillPoints = g.save.skillPoints, flags = g.save.flags.Count;
+
+            g.Talk(book); ChooseStoryChoice(g, "story_section_after");
+            int hearing = StoryChoiceIndex(g, "story_read_hearing");
+            int chapterEight = StoryChoiceIndex(g, "story_read_roadcharter");
+            int chapterNine = StoryChoiceIndex(g, "story_read_supply_inquest");
+            Check(hearing >= 0 && chapterEight > hearing && chapterNine > chapterEight,
+                "The directory inserts the implemented Chapter Eight between the Seventh and Ninth chapters");
+            ChooseStoryChoice(g, "story_read_roadcharter");
+            Check(g.conversation.speaker.Contains("第八章") &&
+                g.conversation.en.Contains("Chapter Eight") &&
+                g.conversation.text.Contains("2/3") &&
+                g.conversation.textEn.Contains("2/3"),
+                "Chapter Eight's bilingual chronicle reports the real two-of-three field evidence state");
+            Check(StoryChoicePresent(g, "story_read_hearing") &&
+                StoryChoicePresent(g, "story_read_supply_inquest"),
+                "Chapter Eight links backward to the hearing and forward to the Ninth Chapter");
+            ChooseStoryChoice(g, "story_read_supply_inquest");
+            Check(StoryChoicePresent(g, "story_read_roadcharter"),
+                "The Ninth Chapter links back to the missing Chapter Eight");
+            ChooseStoryChoice(g, "story_read_hearing");
+            Check(StoryChoicePresent(g, "story_read_roadcharter"),
+                "The Seventh Chapter links forward to the restored Chapter Eight");
+            Check(g.save.coins == coins && g.save.shards == shards &&
+                g.save.skillPoints == skillPoints && g.save.flags.Count == flags,
+                "Reading the restored chapter never grants rewards or mutates existing v2 save progress");
+        }
+
         public static void ChronicleEndingFollowsPostGridAccounts(Campaign data)
         {
             var g = Fresh(data); g.NewGame(0); g.Close();

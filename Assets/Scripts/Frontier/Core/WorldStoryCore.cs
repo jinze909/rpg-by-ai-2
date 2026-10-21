@@ -53,6 +53,7 @@ namespace Starfall
             if (page == "afterlight") return Has("afterlight_started") || Has("afterlight_complete");
             if (page == "storm") return Has("storm_started") || Has("storm_complete");
             if (page == "hearing") return Has("hearing_started") || Has("hearing_complete");
+            if (page == "roadcharter") return RoadCharterStarted || RoadCharterComplete;
             if (page == "supply_inquest") return CivicSupplyStarted;
             if (page == "lastdirective") return LastDirectiveStarted;
             if (page == "civicconduit") return CivicConduitStarted;
@@ -119,6 +120,8 @@ namespace Starfall
                 if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
                 if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
                 if (StoryUnlocked("hearing")) choices.Add(StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing"));
+                if (StoryUnlocked("roadcharter"))
+                    choices.Add(StoryChoice("第八章 · 共同行路", "Chapter Eight · Roads for Everyone", "story_read_roadcharter"));
                 if (StoryUnlocked("supply_inquest"))
                     choices.Add(StoryChoice("第九章 · 送达之后谁守路",
                         "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest"));
@@ -153,11 +156,11 @@ namespace Starfall
         private static string[] StoryPagesForSection(string section)
         {
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
-            if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
+            if (section == "campaign") return new[] { "testimonies", "forest", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
             // Keep the retrospective ending after the later reconstruction and civic chapters.
             // Adjacent navigation still skips chapters the player has not unlocked.
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective", "civicconduit", "civic_aftermath", "ending" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "afterlight", "storm", "hearing", "roadcharter", "supply_inquest", "lastdirective", "civicconduit", "civic_aftermath", "ending" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -636,6 +639,48 @@ namespace Starfall
                             "\nOrrin must personally answer for his share of the charter. The hero cannot sign on his behalf.";
                     }
                     break;
+                case "roadcharter":
+                {
+                    headingZh="第八章：共同行路";
+                    headingEn="Chapter Eight: Roads for Everyone";
+                    zh="第七章的听证确认了谁有权作出公共承诺，却不能自动把人送到公共设施。莉雅因此把公会地图带回现场：荆棘密林、沉没遗迹和赤铁矿场东侧的旧路标，分别保存着被省略的通行、渡口与撤离证据。\n\n"+
+                        "三处证据必须由你亲自走到并核验。道路不该只在地图上开放，也不能让居民再次成为运货清单上的数字。\n\n";
+                    en="Chapter Seven's hearing established who may make public commitments, but it did not carry anyone to the services. Lyra takes the guild's maps back into the field: eastern waymarkers in Thornwood, Drowned Ruins and Ironreach preserve evidence about erased footpaths, public crossings and evacuation rights.\n\n"+
+                        "You must visit and verify all three records yourself. A road is not public merely because a map says so, and residents are not cargo on a manifest.\n\n";
+                    string[] charterRegionsZh={"","荆棘密林","沉没遗迹","赤铁矿场"};
+                    string[] charterRegionsEn={"","Thornwood","Drowned Ruins","Ironreach"};
+                    for(int charterRegion=1;charterRegion<=3;charterRegion++)
+                    {
+                        bool charterVisited=Has("roadcharter_report_"+charterRegion);
+                        zh+=charterRegionsZh[charterRegion]+"："+
+                            (charterVisited?"东部旧路标已亲自核验。":"尚未实地核验；编年册不会替你虚构证据。")+"\n";
+                        en+=charterRegionsEn[charterRegion]+": "+
+                            (charterVisited?"Eastern waymarker personally verified.":"Not yet surveyed; the chronicle will not invent evidence.")+"\n";
+                    }
+                    zh+="\n【实地进度】"+RoadCharterReports+"/3 份道路证据已收集。";
+                    en+="\n[Field progress] "+RoadCharterReports+"/3 route reports collected.";
+                    if(RoadCharterComplete&&Has("roadcharter_public"))
+                    {
+                        zh+="\n\n【行人优先】公会公开了可步行的民用路线；所有职业获得常驻步速提升。";
+                        en+="\n\n[Pedestrian-first routes] Public walking routes are published, granting every profession a permanent movement-speed improvement.";
+                    }
+                    else if(RoadCharterComplete&&Has("roadcharter_reserve"))
+                    {
+                        zh+="\n\n【民用应急供能】公共救援路灯保留应急储备，所有职业获得常驻耐力恢复提升。";
+                        en+="\n\n[Civic emergency reserve] Public rescue lamps retain emergency power, granting every profession improved stamina recovery.";
+                    }
+                    else if(RoadCharterComplete)
+                    {
+                        zh+="\n\n公约已完成，但这份旧存档没有记录最终服务选择。";
+                        en+="\n\nThe charter is complete, but this legacy save does not record the final service choice.";
+                    }
+                    else
+                    {
+                        zh+="\n\n【公约尚未发布】证据收集后，仍须回余烬镇公会公开道路地图，并由你选择行人通行或民用应急供能的优先方案。";
+                        en+="\n\n[Charter pending] After collecting the reports, return to the Emberfall guild to publish the map and choose pedestrian access or civilian emergency reserves.";
+                    }
+                    break;
+                }
                 case "civicconduit":
                     headingZh="第十一章：重接公共电网";
                     headingEn="Chapter Eleven: Reconnecting the Public Grid";
