@@ -4289,6 +4289,64 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void CompanionFollowRoutesAroundSolidWallWithoutWarping(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                // Two walkable chambers are joined only through the northern
+                // opening. A direct eastward sweep from the companion is
+                // blocked by the full-height wall; a real follower must walk
+                // north, cross the opening, and return to the hero's side.
+                var rows=new string[22];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',22).ToCharArray();
+                    if(y>=2&&y<=19)
+                        for(int x=2;x<=19;x++)cells[x]='.';
+                    if(y>=4&&y<=17)cells[10]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=13.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.enemies.Clear();
+                g.save.x=13.5f;g.save.y=10.5f;
+                g.save.flags.Add("companion_1");
+                g.SelectCompanion(1);
+                g.companionPosition=new Point(7.5f,10.5f);
+                Point goal=(Point)typeof(GameCore).GetMethod(
+                    "CompanionFollowTarget",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic).Invoke(g,null);
+                Check(g.CanStand(g.Position)&&g.CanStand(g.companionPosition)&&
+                    goal.x>10.5f,
+                    "Companion and follow socket start on opposite sides of a real solid wall");
+                Point start=g.companionPosition;
+                bool crossedOpening=false,reachedGoal=false;
+                for(int frame=0;frame<280;frame++)
+                {
+                    Point before=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    Point travelled=g.companionPosition-before;
+                    Check(travelled.Length<.35f&&g.CanStand(g.companionPosition),
+                        "Wall detours must use small swept steps and retain a valid physical companion foot");
+                    if(g.companionPosition.x>10.5f&&g.companionPosition.y<4.5f)
+                        crossedOpening=true;
+                    if((g.companionPosition-goal).Length<.7f)
+                    {reachedGoal=true;break;}
+                }
+                Check(crossedOpening,
+                    "A blocked direct follow must route through the only walkable opening instead of idling against stone");
+                Check(reachedGoal&&
+                    (g.companionPosition-start).Length>5f&&
+                    (g.companionPosition-goal).Length<.7f,
+                    "The real GameCore follow loop completes its wall detour without warping, saving path state, or changing the target socket");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void CompanionPreparationAndSafeFollowing(Campaign data)
         {
             for (int id = 0; id < 3; id++)

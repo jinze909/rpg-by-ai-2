@@ -484,6 +484,65 @@ namespace Starfall
             // SafeActorFoot/recovery; avoid introducing a new saved location.
             return Position;
         }
+        // Ordinary follow movement is a real actor route, not a teleport or a
+        // line-of-sight shortcut. When the next physical step is blocked, use
+        // the same dynamic Fits footprint graph as pursuit/navigation and take
+        // only the first tile-center waypoint. The next Tick recomputes from
+        // the actor's actual swept feet, so doors/tides and moving targets are
+        // naturally re-evaluated without persistent path state or save fields.
+        private bool TryCompanionFollowWaypoint(Point target,float dt,
+            out Point waypoint)
+        {
+            waypoint=target;
+            Point delta=target-companionPosition;
+            if(!Finite(delta.x)||!Finite(delta.y)||delta.Length<.001f||
+                !Fits(companionPosition)||!Fits(target))return false;
+            Point direction=delta.Normalized;
+            Point next=companionPosition+
+                direction*Math.Min(delta.Length,Math.Max(.001f,dt*(Speed+1)));
+            if(Fits(next))return false;
+
+            int width=Map.rows[0].Length,height=Map.rows.Length;
+            int sx=(int)Math.Floor(companionPosition.x);
+            int sy=(int)Math.Floor(companionPosition.y);
+            if(sx<0||sy<0||sx>=width||sy>=height)return false;
+            int start=sy*width+sx;
+            PreparePathSearch(width*height);
+            int head=0,tail=0,found=-1;
+            pathQueue[tail++]=start;
+            VisitPath(start,-1);
+            // Follow goals remain close to the hero. A 18-tile local bound
+            // allows a useful detour around buildings without turning each
+            // blocked follow tick into an unbounded whole-world search.
+            const int radius=18;
+            while(head<tail)
+            {
+                int node=pathQueue[head++];
+                int x=node%width,y=node/width;
+                Point center=new Point(x+.5f,y+.5f);
+                if(node!=start&&(center-target).Length<=.82f)
+                {found=node;break;}
+                for(int i=0;i<4;i++)
+                {
+                    int nx=x+pursuitSteps[i,0],ny=y+pursuitSteps[i,1];
+                    if(nx<0||ny<0||nx>=width||ny>=height||
+                        Math.Abs(nx-sx)>radius||Math.Abs(ny-sy)>radius)
+                        continue;
+                    int candidate=ny*width+nx;
+                    if(PathVisited(candidate)||
+                        !Fits(new Point(nx+.5f,ny+.5f)))continue;
+                    VisitPath(candidate,node);
+                    pathQueue[tail++]=candidate;
+                }
+            }
+            if(found<0)return false;
+            int first=found;
+            while(pathParents[first]>=0&&pathParents[first]!=start)
+                first=pathParents[first];
+            if(pathParents[first]!=start)return false;
+            waypoint=new Point(first%width+.5f,first/width+.5f);
+            return true;
+        }
         private bool CanCompanionHeal()
         {
             // Auto-healing follows the same physical accessibility as
@@ -920,23 +979,26 @@ namespace Starfall
                 { companionAction = null; companionAutoTarget = null; }
                 return; // Plant the feet while drawing a bow or casting.
             }
-            Point follow = CompanionTacticalFollowTarget(
+            Point followGoal = CompanionTacticalFollowTarget(
                 CompanionOutpostGuardTarget());
-            Point delta = follow - companionPosition;
-            // The NORMAL party follow tolerates a 0.3-tile stopping
-            // distance. A bow's real 0.14-tile swept radius can still hit
-            // a pillar with 0.2 tiles remaining. That tolerance caused
-            // the new hard-cover flank to walk 0.89 tiles, stop in view
-            // of the enemy, and NEVER reach its physically tested muzzle
-            // foot. Finish only the specifically verified tactical goal
-            // within 0.055 tiles; ordinary following keeps its original
-            // 0.3-tile stop, preserving crowding and companion spacing.
+            // Preserve the approved tactical firing-foot route: its separate
+            // body-clearance checks are stricter than ordinary follow routing.
             bool pursuingFiringFoot=companionCornerTarget!=null&&
                 System.Object.ReferenceEquals(companionCornerSave,save)&&
                 companionCornerRoom==save.room&&
                 companionCornerGeneration==companionPresentationGeneration&&
-                (follow-companionCornerGoal).Length<.001f;
-            float stoppingDistance=pursuingFiringFoot?.055f:.3f;
+                (followGoal-companionCornerGoal).Length<.001f;
+            Point follow=followGoal;
+            bool usingFollowWaypoint=false;
+            if(!pursuingFiringFoot&&Fits(companionPosition))
+                usingFollowWaypoint=TryCompanionFollowWaypoint(
+                    followGoal,dt,out follow);
+            Point delta = follow - companionPosition;
+            // Normal follow retains its 0.3-tile personal-space stop. Route
+            // waypoints and the separately verified firing foot are planted
+            // precisely so the next path segment starts from real ground.
+            float stoppingDistance=pursuingFiringFoot?.055f:
+                usingFollowWaypoint?.045f:.3f;
             if (!Fits(companionPosition))
             {
                 companionPosition = follow; // Recovery only, never catch-up warp.
