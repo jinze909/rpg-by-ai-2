@@ -105,9 +105,25 @@ public static class NativeHeroCaptureChecks
                 published.Count==18&&owned.Count==18,
                 "17/18 imported Sprite families must not expose a mixed class/facing contact release");
             var finalCells=MakeImportedCells(stagedTextures[delayedPath],7);
-            Resources.RegisteredSprites[delayedPath]=finalCells;
             incomingImported.AddRange(finalCells);
+            // Seven Sprite objects are not sufficient if two claim the same
+            // atlas cell. Keep the missing seventh cell malformed and prove
+            // that the entire family remains on the prior accepted six cells.
+            finalCells[6].rect=finalCells[5].rect;
+            Resources.RegisteredSprites[delayedPath]=finalCells;
             clockField.SetValue(app,12f);
+            Require(!(bool)gate.Invoke(app,null)&&
+                published.Count==18&&owned.Count==18,
+                "Duplicate imported Sprite rectangles must not promote a mixed seven-cell family");
+
+            finalCells[6].rect=new Rect(6*256,0,256,256);
+            app.Game.playerAction=new ActorAction{kind="attack"};
+            clockField.SetValue(app,15f);
+            Require(!(bool)gate.Invoke(app,null)&&
+                published.Count==18&&owned.Count==18,
+                "A complete imported family must defer publication while the actual action is still in flight");
+            app.Game.playerAction=null;
+            clockField.SetValue(app,18f);
             Require((bool)gate.Invoke(app,null),
                 "all 18 valid seven-cell textures and Sprite families did not switch after the real source action completed");
             Require(published.Count==0&&owned.Count==0,

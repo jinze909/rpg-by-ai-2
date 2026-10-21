@@ -501,6 +501,7 @@ def check():
         "candidate.pixelsPerUnit-",
         "Vector2.Distance(candidate.pivot,new Vector2(",
         "Mathf.RoundToInt(",
+        "present[cell])continue;",
         "matched!=present.Length",
     ):
         assert mark in family, ("PARTIAL_IMPORTED_HERO_CONTACT_FAMILY_ACCEPTED",mark)
