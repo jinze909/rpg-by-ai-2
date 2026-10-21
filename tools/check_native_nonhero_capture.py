@@ -60,6 +60,8 @@ def main():
     assert "private bool CanDrawFallen(FallenActor fallen)" in world_order
     assert "fallen != null && fallen.IsValid" in world_order
     assert "fallen.room == Game.save.room" in world_order
+    assert "fallen != null && fallen.IsValid" in world_order
+    assert "BehindWorldCover(fallen.actor.x,fallen.actor.y," in world_order
     assert "ValidEffectForDraw(effect)" in world_order
     assert "private static bool ValidEffectForDraw(Effect effect)" in effects
     assert "if (!ValidEffectForDraw(effect)) return false;" in effects

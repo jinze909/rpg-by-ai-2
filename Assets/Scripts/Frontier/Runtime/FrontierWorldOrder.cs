@@ -302,8 +302,10 @@ namespace Starfall
                 cover,1.4f,2.7f))
                 return true;
             foreach(FallenActor fallen in Game.fallen)
-                if(fallen.actor!=null && BehindWorldCover(
-                    fallen.actor.x,fallen.actor.y,cover,1.6f,2.9f))
+                if(fallen != null && fallen.IsValid &&
+                    fallen.room == Game.save.room &&
+                    BehindWorldCover(fallen.actor.x,fallen.actor.y,
+                        cover,1.6f,2.9f))
                     return true;
             return false;
         }
