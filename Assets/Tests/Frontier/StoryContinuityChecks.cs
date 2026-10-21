@@ -27,6 +27,90 @@ namespace Starfall.Tests
             return -1;
         }
 
+        public static void ChapterEightRoadCharterUsesRealFieldEvidenceAndPersistentOutcome(Campaign data)
+        {
+            foreach (bool publicRoute in new[] { true, false })
+            {
+                var g = Fresh(data);
+                g.save.stage = 3; g.save.ending = 2;
+                WorldObject guild = Object(g, "guild");
+                g.save.x = guild.x; g.save.y = guild.y;
+                g.Talk(guild);
+                Check(!StoryChoicePresent(g, "roadcharter_guild"),
+                    "Chapter Eight cannot be offered before the hearing and Orrin's real responsibility");
+                g.Close();
+                foreach (string flag in new[] { "hearing_complete", "hearing_public",
+                    "hearing_orrin_aid", "scout_saved", "gate_1", "gate_2", "gate_3" })
+                    g.save.flags.Add(flag);
+                Check(g.RoadCharterReady && !g.RoadCharterStarted,
+                    "The existing post-hearing and Orrin flags unlock Chapter Eight without pre-completing it");
+                Action(g, "guild", "roadcharter_guild");
+                ChooseStoryChoice(g, "roadcharter_begin");
+                Check(g.RoadCharterStarted && g.GetQuest("roadcharter").id == "roadcharter",
+                    "The chapter starts through Lyra's actual guild dialogue and appears in the tracked quest journal");
+                g.Close();
+
+                for (int region = 1; region <= 3; region++)
+                {
+                    g.save.room = region;
+                    WorldObject marker = null;
+                    foreach (WorldObject candidate in g.Map.objects)
+                        if (candidate.id == "waytrail" + region + "e") marker = candidate;
+                    Check(marker != null &&
+                        g.CanStand(new Point(marker.x, marker.y)),
+                        "Chapter Eight's eastern field marker is present on standable authored terrain: " + region);
+                    g.save.x = marker.x; g.save.y = marker.y;
+                    g.Talk(marker);
+                    Check(g.Has("roadcharter_report_" + region) &&
+                        g.conversation != null &&
+                        g.conversation.text.Contains("第八章的公开证据") &&
+                        g.conversation.textEn.Contains("Chapter Eight field evidence"),
+                        "Interacting with the real eastern marker files bilingual Chapter Eight evidence: " + region);
+                    g.Close();
+                }
+                Check(g.RoadCharterReports == 3,
+                    "Three actual region interactions—not a menu shortcut—complete the field evidence set");
+
+                g.save.room = 0;
+                guild = Object(g, "guild");
+                g.save.x = guild.x; g.save.y = guild.y;
+                int coinsBefore = g.save.coins, shardsBefore = g.save.shards;
+                float speedBefore = g.Speed;
+                g.Talk(guild); ChooseStoryChoice(g, "roadcharter_guild");
+                string selected = publicRoute ? "roadcharter_public" : "roadcharter_reserve";
+                string rejected = publicRoute ? "roadcharter_reserve" : "roadcharter_public";
+                Check(StoryChoicePresent(g, selected) && StoryChoicePresent(g, rejected),
+                    "The completed field survey presents both distinct civic outcomes");
+                ChooseStoryChoice(g, selected);
+                Check(g.RoadCharterComplete && g.Has(selected) && !g.Has(rejected) &&
+                    g.save.coins == coinsBefore + 45 && g.save.shards == shardsBefore + 3,
+                    "The selected civic outcome is saved once with its authored reward and without granting the rejected outcome");
+                Check(Math.Abs(g.Speed - (speedBefore + (publicRoute ? .25f : 0f))) < .001f,
+                    "Pedestrian-first choice applies the real permanent movement bonus and the reserve choice does not");
+                g.Close();
+                g.save.energy = 10;
+                g.save.x = data.maps[0].spawnX; g.save.y = data.maps[0].spawnY;
+                Advance(g, 1f);
+                float regeneration = g.save.energy - 10;
+                Check(Math.Abs(regeneration - (publicRoute ? 14f : 17f)) < .2f,
+                    "Civilian reserve choice adds real stamina regeneration while the public-route choice preserves the baseline");
+
+                int rewardedCoins = g.save.coins, rewardedShards = g.save.shards;
+                g.save.x = guild.x; g.save.y = guild.y;
+                g.Talk(guild); ChooseStoryChoice(g, "roadcharter_guild");
+                Check(!StoryChoicePresent(g, "roadcharter_public") &&
+                    !StoryChoicePresent(g, "roadcharter_reserve") &&
+                    g.save.coins == rewardedCoins && g.save.shards == rewardedShards,
+                    "Reopening a completed Chapter Eight cannot repeat the reward or reselect its permanent outcome");
+                g.Close(); g.PrepareSave();
+                var resumed = new GameCore(data, CloneSave(g.save)); resumed.Start();
+                Check(resumed.save.version == 2 && resumed.RoadCharterComplete &&
+                    resumed.Has(selected) &&
+                    Math.Abs(resumed.Speed - (speedBefore + (publicRoute ? .25f : 0f))) < .001f,
+                    "Both Chapter Eight outcomes survive a real SaveData v2 reload with their gameplay effect intact");
+            }
+        }
+
         public static void ChronicleCampaignNavigationMatchesDirectoryOrder(Campaign data)
         {
             var g = Fresh(data); g.NewGame(0); g.Close();
