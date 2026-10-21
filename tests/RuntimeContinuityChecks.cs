@@ -555,7 +555,11 @@ public static class RuntimeContinuityChecks
             "A newly opened collision bridge invalidates the route cache immediately");
 
         game.save.x = 12; game.save.y = 14; game.mode = "world";
-        Set(app, "camera", game.Position);
+        // This assertion is for the on-screen marker specifically. The quest
+        // objective may be outside the hero-centered viewport, so center the
+        // camera on the known target rather than assuming its authored region
+        // lies within the playable view.
+        Set(app, "camera", goal.Value);
         ClearDraw(); Call(app, "DrawNavigationTargetMarker");
         Check(NavigationRouteDots(4f) == 12,
             "A visible tracked objective gets one compact twelve-point world-space marker");
