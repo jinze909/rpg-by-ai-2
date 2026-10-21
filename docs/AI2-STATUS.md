@@ -1,5 +1,15 @@
 # AI-2 live development handoff — Starfall Frontier
 
+## 2026-10-20 AI-2 atomic seven-cell hero Sprite import validation
+
+- **Live tested code/test HEAD:** [`62808b53`](https://github.com/jinze909/rpg-by-ai-2/commit/62808b53575e8014cd75bdbd37c2c0cc3d1ba3fe); [Core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39529673351). All writes remain on `jinze909/rpg-by-ai-2/chatgpt/dev`.
+- [`264ac208`](https://github.com/jinze909/rpg-by-ai-2/commit/264ac2087dc5c94aca7f43c07ccbc5c3ca8e1ee5) hardens `HasCompleteHeroContactArt`: a 7-cell `Texture2D` size is no longer enough to activate the new Attack/Cast family. Under Unity, all 18 class/action/facing atlases must also expose seven distinct imported Sprite sub-assets with the exact expected source texture, rect, 256px cell size, 128 PPU and canonical (128,16) pixel pivot.
+- [`fdf8edf6`](https://github.com/jinze909/rpg-by-ai-2/commit/fdf8edf6664a6670bad0241be83d1033ad6f1d3e) adjusts the native import probe to remain compatible with the repository's Unity C# runner and exercises partial import readiness.
+- [`62808b53`](https://github.com/jinze909/rpg-by-ai-2/commit/62808b53575e8014cd75bdbd37c2c0cc3d1ba3fe) expands the native-conditional test to reject duplicate Sprite rectangles, refuse a 17/18 imported family, defer a fully imported family during a live action, and roll back to the accepted six-cell family without destroying Unity-owned Sprites.
+- **Exact verification:** [Core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39529673351). Logs confirm `Runtime combat input: 80/80 groups passed` and `PASS 84 E/W/N/S class actions, late Controller import, bounded retry, live GPU fault recovery, full-body fallback, class-swap isolation and cleanup`.
+- **Preserved:** canonical blonde protagonist and approved art pixels, existing Unity resource GUIDs, original six-cell Attack/Cast behavior, game-root movement, collision, damage timing, and old SaveData schema. No schedules or external repository branches were changed.
+- **Still blocked honestly:** 18 original hand-drawn Attack/Cast contact frames remain `ART_REVIEW_REQUIRED`; actual Unity 2022.3.53f1 Editor/GameView/PlayMode/GPU review remains `NATIVE_UNVERIFIED`. The offline native-conditional probe is not a Unity-license/runtime render certificate.
+
 ## 2026-10-20 AI-2 companion gait phase-lock and planted footfall restart
 
 - **Scope and source:** Continued from the real `jinze909/rpg-by-ai-2/chatgpt/dev` HEAD and kept every write on that branch. Latest tested code/test HEAD is [`66b4b39d`](https://github.com/jinze909/rpg-by-ai-2/commit/66b4b39d4196c3e8bf638b88758e7795a332d62b); [Core CI is green](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39526841015).
