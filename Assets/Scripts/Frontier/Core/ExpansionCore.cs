@@ -532,10 +532,14 @@ namespace Starfall
                         Math.Abs(nx-sx)>radius||Math.Abs(ny-sy)>radius)
                         continue;
                     int candidate=ny*width+nx;
-                    Point fromCenter=center;
+                    Point fromPoint=node==start?companionPosition:center;
                     Point toCenter=new Point(nx+.5f,ny+.5f);
+                    // The first route edge begins at the actual fractional
+                    // foot, not the abstract center of its containing tile.
+                    // Checking the true segment prevents a first waypoint
+                    // from cutting through a nearby living enemy body.
                     if(PathVisited(candidate)||
-                        !CompanionCornerWalkable(fromCenter,toCenter))
+                        !CompanionCornerWalkable(fromPoint,toCenter))
                         continue;
                     VisitPath(candidate,node);
                     pathQueue[tail++]=candidate;
