@@ -9,7 +9,7 @@ namespace Starfall
             string kind=o.kind;
             if(kind=="annexinnarchive" || kind=="annexinnmessage")
             {
-                if(save.room!=9 || (Position-new Point(o.x,o.y)).Length>2.2f)return true;
+                if(save.room!=9 || !HasPhysicalInteractionReach(o))return true;
                 if(kind=="annexinnmessage")
                 {
                     bool firstLetter=!Has("annex_inn_letter");
@@ -49,7 +49,7 @@ namespace Starfall
                 return true;
             }
             if(kind!="annexcache"&&kind!="annexcamp"&&kind!="annexvista")return false;
-            if(save.room<0||save.room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(save.room<0||save.room>7||!HasPhysicalInteractionReach(o))return true;
             string key=(kind=="annexcache"?"annex_cache_":kind=="annexvista"?"annex_vista_":"annex_camp_")+o.id;
             bool first=!Has(key);
             int cacheMaterial = save.room==1 || save.room==7 ? 2 :
@@ -131,7 +131,7 @@ namespace Starfall
                 WorldObject archive=null;
                 foreach(WorldObject o in Map.objects)
                     if(o.kind=="annexinnarchive"){archive=o;break;}
-                if(archive==null||(Position-new Point(archive.x,archive.y)).Length>2.2f)
+                if(archive==null||!HasPhysicalInteractionReach(archive))
                     return true;
                 for(int region=0;region<8;region++)
                     if(!Has("annex_camp_annex_camp_"+region)||
@@ -155,7 +155,7 @@ namespace Starfall
             if(save.room<0||save.room>7||mode!="world"||Dying||practicing)return true;
             WorldObject camp=null;
             foreach(WorldObject o in Map.objects)if(o.kind=="annexcamp"){camp=o;break;}
-            if(camp==null||(Position-new Point(camp.x,camp.y)).Length>2.2f)return true;
+            if(camp==null||!HasPhysicalInteractionReach(camp))return true;
             if(!SafeTravel){Notify("战斗中不能休息。","Cannot rest while enemies are nearby.");return true;}
             if(!Spend(1,0,0,0,0))return true;
             save.health=Clamp(save.health+40,0,save.maxHealth);save.energy=100;

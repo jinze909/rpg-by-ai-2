@@ -784,9 +784,17 @@ namespace Starfall.Tests
             }
             GameCore game=new GameCore(data);
             WorldObject cache=Array.Find(data.maps[0].objects,o=>o.id=="annex_cache_0_a");
+            int coins=game.save.coins,cacheMaterial=game.save.inventory[0];
+            Point outsideCache=StandableOutsideTalkReach(game,cache);
+            game.save.x=outsideCache.x;game.save.y=outsideCache.y;
+            game.Talk(cache);game.Close();
+            Check(!game.Has("annex_cache_"+cache.id)&&game.save.coins==coins&&
+                game.save.inventory[0]==cacheMaterial,
+                "An out-of-reach direct cache call cannot claim supplies or resources");
             game.save.x=cache.x;game.save.y=cache.y;
-            int coins=game.save.coins;
-            game.Talk(cache);Check(game.save.coins==coins+7 && game.Has("annex_cache_"+cache.id),"Looting physical cache grants once");
+            game.Talk(cache);
+            Check(game.save.coins==coins+7&&game.Has("annex_cache_"+cache.id),
+                "Looting a physically reached cache grants its one-time supplies");
             game.Close();game.Talk(cache);game.Close();
             Check(game.save.coins==coins+7,"Cache cannot duplicate real loot");
             WorldObject vista=Array.Find(data.maps[0].objects,o=>o.id=="annex_vista_0");

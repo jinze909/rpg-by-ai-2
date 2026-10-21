@@ -2009,8 +2009,8 @@ namespace Starfall
         public WorldObject Nearest()
         {
             WorldObject best=null;float distance=1.75f;
-            WorldObject[] objects=Map.objects;
-            if(objects==null)return null;
+            WorldObject[] objects = Map.objects;
+            if (objects == null) return null;
             foreach(WorldObject o in objects)
             {
                 if(!HasPhysicalInteractionReach(o))continue;
