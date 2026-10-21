@@ -3226,12 +3226,23 @@ namespace Starfall.Tests
 
             g.save.room=9;inn=Object(g,"innGuest");
             g.save.x=inn.x;g.save.y=inn.y;
+            var atInn=typeof(GameCore).GetMethod("AtCivicAftercareInn",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(atInn!=null&&(bool)atInn.Invoke(g,null)&&
+                g.CivicAftercareActive&&g.CivicAftercareWaypointCount==3,
+                "The complete audit is still active and the hero is physically beside the authored inn traveler");
             Action(g,"innGuest","civic_aftercare_publish");
-            Check(g.Has("civic_aftercare_published")&&
-                g.GetQuest("civic_aftercare").complete&&
-                g.save.coins==coins+35&&g.save.shards==shards+1&&
-                g.save.xp==xp+45,
-                "Publishing the three real regional visits completes the quest and pays exactly its authored reward");
+            Check(g.Has("civic_aftercare_published"),
+                "Publishing at the inn sets the persistent public-record flag");
+            Check(g.GetQuest("civic_aftercare").complete,
+                "Published civic aftercare is complete in the real quest journal");
+            Check(g.save.coins==coins+35,
+                "Publication grants exactly 35 coins (before "+coins+", after "+g.save.coins+")");
+            Check(g.save.shards==shards+1,
+                "Publication grants exactly one shard (before "+shards+", after "+g.save.shards+")");
+            Check(g.save.xp==xp+45,
+                "Publication grants exactly 45 XP (before "+xp+", after "+g.save.xp+")");
             handler.Invoke(g,new object[]{"civic_aftercare_publish"});
             Check(g.save.coins==coins+35&&g.save.shards==shards+1&&
                 g.save.xp==xp+45,
