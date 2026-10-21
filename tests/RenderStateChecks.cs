@@ -5339,7 +5339,10 @@ public static class RenderStateChecks
             Call(app,"DrawAuthoredImpactFlourish",(object)null);
             Call(app,"DrawAuthoredImpactFlourish",new Effect("slash",
                 new Point(float.NaN,foot.y),.5f));
-            Call(app,"DrawOrderedWorld");
+            // OnGUI initializes the production text styles before it enters
+            // the sorted world pass; the test has emptied only map arrays to
+            // isolate malformed transient records from unrelated prop content.
+            Draw(app);
 
             // The separate canopy-overlap path also traverses the corpse list;
             // prove its identity/room guards, not just the depth-sort guards.
