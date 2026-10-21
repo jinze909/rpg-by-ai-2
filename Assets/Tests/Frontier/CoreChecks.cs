@@ -306,6 +306,61 @@ namespace Starfall.Tests
                 "Application pause/focus must retire all queued combat inputs");
         }
 
+        public static void DodgeWaitsForHitRecoveryAndCooldown(Campaign data)
+        {
+            var hitOnly=Fresh(data);hitOnly.enemies.Clear();
+            hitOnly.save.energy=100f;hitOnly.invulnerable=0f;
+            hitOnly.dashCooldown=0f;hitOnly.playerHitTime=.08f;
+            Check(hitOnly.CanBufferDodge,
+                "A short real hit recovery exposes a bounded dodge buffer when the cooldown is already ready");
+            hitOnly.Dash(new Point(1,0));
+            Check(hitOnly.DodgeQueued&&hitOnly.dashTime<=0f&&
+                hitOnly.save.energy==100f&&hitOnly.invulnerable<=0f&&
+                hitOnly.HeroAnimationState==5&&hitOnly.PlayerPose==10,
+                "A dodge tap during hit recovery must keep both production render paths on the actual Hit pose");
+            hitOnly.Tick(.04f,new Point());
+            Check(hitOnly.playerHitTime>0f&&hitOnly.DodgeQueued&&
+                hitOnly.dashTime<=0f&&hitOnly.save.energy==100f&&
+                hitOnly.invulnerable<=0f,
+                "The buffered dodge cannot move, spend stamina or grant i-frames before the hit pose ends");
+            hitOnly.Tick(.05f,new Point());
+            Check(hitOnly.playerHitTime<=.00001f&&hitOnly.dashTime>.17f&&
+                hitOnly.save.energy<81f&&hitOnly.save.energy>=80f&&
+                hitOnly.invulnerable>.30f&&hitOnly.HeroAnimationState==4&&
+                hitOnly.PlayerPose==8,
+                "A short valid hit-recovery dodge dispatches once after the real recovery boundary");
+
+            var both=Fresh(data);both.enemies.Clear();
+            both.save.energy=100f;both.invulnerable=0f;
+            both.dashCooldown=.10f;both.playerHitTime=.08f;
+            both.Dash(new Point(0,-1));
+            Check(both.DodgeQueued&&both.dashTime<=0f&&both.save.energy==100f,
+                "Cooldown and hit recovery share one bounded queued dodge intent");
+            both.Tick(.04f,new Point());
+            both.Tick(.04f,new Point());
+            Check(both.playerHitTime<=.00001f&&both.dashCooldown>.01f&&
+                both.dashTime<=0f&&both.save.energy==100f&&
+                both.invulnerable<=0f,
+                "Finishing hit recovery alone cannot bypass the remaining dash cooldown");
+            both.Tick(.03f,new Point());
+            Check(both.dashTime>.17f&&both.invulnerable>.30f&&
+                both.save.energy<81f&&both.save.energy>=80f&&
+                !both.DodgeQueued,
+                "The same queued input dispatches only after BOTH hit recovery and cooldown finish");
+
+            var tooEarly=Fresh(data);tooEarly.enemies.Clear();
+            tooEarly.save.energy=100f;tooEarly.invulnerable=0f;
+            tooEarly.dashCooldown=0f;tooEarly.playerHitTime=.35f;
+            tooEarly.Dash(new Point(1,0));
+            Check(!tooEarly.DodgeQueued&&tooEarly.dashTime<=0f&&
+                tooEarly.save.energy==100f&&tooEarly.invulnerable<=0f,
+                "A hit-recovery input outside the 140ms window is rejected, not stored for a later free dodge");
+            Advance(tooEarly,.4f);
+            Check(tooEarly.dashTime<=0f&&tooEarly.save.energy==100f&&
+                tooEarly.invulnerable<=0f,
+                "An expired early dodge press cannot execute after recovery ends");
+        }
+
         public static void BufferedSkillRepeatCannotExtendOrRetargetIntent(Campaign data)
         {
             var g=Fresh(data,1);g.enemies.Clear();

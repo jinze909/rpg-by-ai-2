@@ -314,9 +314,10 @@ namespace Starfall
         public bool CanBufferDodge
         {
             get {
+                float readyDelay=Math.Max(dashCooldown,playerHitTime);
                 return DodgeRootReady && bufferedDodge==null &&
-                    dashCooldown>.00001f &&
-                    dashCooldown<=DodgeBufferWindow+.00001f &&
+                    readyDelay>.00001f &&
+                    readyDelay<=DodgeBufferWindow+.00001f &&
                     save.energy >= (Relic(2)?25:20);
             }
         }
@@ -352,7 +353,7 @@ namespace Starfall
             if(!DodgeRootReady){ClearBufferedDodge();return;}
             float remaining=intent.remaining;
             intent.remaining-=dt;
-            if(dashCooldown<=.00001f&&
+            if(dashCooldown<=.00001f&&playerHitTime<=.00001f&&
                 readyDelay<=remaining+.00001f&&
                 !Dying&&mode=="world")
             {

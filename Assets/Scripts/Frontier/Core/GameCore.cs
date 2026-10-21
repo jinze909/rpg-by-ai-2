@@ -550,7 +550,7 @@ namespace Starfall
             foreach (Projectile existingShot in projectiles)
                 flightReadyAtFrameStart.Add(existingShot);
             float skillReadyDelay = SkillReadyDelay();
-            float dodgeReadyDelay = Math.Max(0, dashCooldown);
+            float dodgeReadyDelay = Math.Max(0, Math.Max(dashCooldown, playerHitTime));
             float attackReadyDelay = Math.Max(0, attackCooldown);
             if (playerAction != null)
                 attackReadyDelay = Math.Max(attackReadyDelay,
@@ -619,6 +619,23 @@ namespace Starfall
             if (!CanStand(Position))
             {
                 ClearBufferedDodge();
+                return;
+            }
+            // A hit-recovery press may be buffered only when BOTH hitstun
+            // and cooldown can finish inside the original 140ms window.
+            // Never grant movement/invulnerability over a visible Hit pose.
+            if (playerHitTime > .00001f)
+            {
+                float readyDelay = Math.Max(playerHitTime, dashCooldown);
+                if (readyDelay <= DodgeBufferWindow + .00001f &&
+                    save.energy >= cost)
+                    QueueLateDodge(direction);
+                else
+                {
+                    ClearBufferedDodge();
+                    if (readyDelay <= DodgeBufferWindow + .00001f)
+                        ActionUnavailable(dashCooldown, cost);
+                }
                 return;
             }
             if (dashCooldown > 0 || save.energy < cost)
