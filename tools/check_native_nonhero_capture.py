@@ -63,6 +63,9 @@ def main():
     assert "fallen.room == Game.save.room" in world_order
     assert "BehindWorldCover(fallen.actor.x,fallen.actor.y," in world_order
     assert "private static bool FiniteWorldCoordinate(float value)" in world_order
+    assert "if(Game.Map.decor!=null)" in world_order
+    assert "if(Game.Map.objects!=null)" in world_order
+    assert "else if(Game.Map.objects!=null)" in world_order
     assert "if(d!=null && !String.IsNullOrEmpty(d.kind)" in world_order
     assert "if(o!=null && !String.IsNullOrEmpty(o.kind)" in world_order
     assert "if(IsValidWorldEnemy(e) && WorldDrawable(e.x,e.y,450,450))" in world_order

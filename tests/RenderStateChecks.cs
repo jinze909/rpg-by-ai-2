@@ -5403,6 +5403,16 @@ public static class RenderStateChecks
             };
             Check(!(bool)Call(app,"WorldCoverOverlapsActor",remoteCover),
                 "Canopy occlusion skips null, invalid and foreign-room actors/objects/corpses");
+            Decoration[] invalidDecor=game.Map.decor;
+            WorldObject[] invalidObjects=game.Map.objects;
+            game.Map.decor=null;
+            game.Map.objects=null;
+            Clear();
+            Call(app,"DrawOrderedWorld");
+            Check(!(bool)Call(app,"WorldCoverOverlapsActor",remoteCover),
+                "Production depth sorting and canopy fallback tolerate missing map arrays");
+            game.Map.decor=invalidDecor;
+            game.Map.objects=invalidObjects;
             Console.WriteLine("PASS production draw guards skip malformed world records, corpses and effects before dereference");
         }
         finally

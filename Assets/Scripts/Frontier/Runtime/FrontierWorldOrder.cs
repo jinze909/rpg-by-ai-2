@@ -86,18 +86,20 @@ namespace Starfall
             // Artwork is already loaded and nearby terrain prewarmed. Avoid
             // sorting and invoking GUI props for hundreds of remote actors.
             // The 230x250 margin exceeds even the tallest authored canopy.
-            foreach(Decoration d in Game.Map.decor)
-                if(d!=null && !String.IsNullOrEmpty(d.kind) &&
-                   WorldDrawable(d.x,d.y))
-                    AddWorldEntry(new WorldDrawEntry{depth=d.y,kind=WorldDrawKind.Decoration,decoration=d});
-            foreach(WorldObject o in Game.Map.objects)
-                if(o!=null && !String.IsNullOrEmpty(o.kind) &&
-                   WorldDrawable(o.x,o.y))
-                {
-                    AddWorldEntry(new WorldDrawEntry{depth=o.y+.01f,kind=WorldDrawKind.Object,obj=o});
-                    if(IsCoverResident(o.kind) && Game.IsObjectPresent(o))
-                        coverResidentsInView.Add(o);
-                }
+            if(Game.Map.decor!=null)
+                foreach(Decoration d in Game.Map.decor)
+                    if(d!=null && !String.IsNullOrEmpty(d.kind) &&
+                       WorldDrawable(d.x,d.y))
+                        AddWorldEntry(new WorldDrawEntry{depth=d.y,kind=WorldDrawKind.Decoration,decoration=d});
+            if(Game.Map.objects!=null)
+                foreach(WorldObject o in Game.Map.objects)
+                    if(o!=null && !String.IsNullOrEmpty(o.kind) &&
+                       WorldDrawable(o.x,o.y))
+                    {
+                        AddWorldEntry(new WorldDrawEntry{depth=o.y+.01f,kind=WorldDrawKind.Object,obj=o});
+                        if(IsCoverResident(o.kind) && Game.IsObjectPresent(o))
+                            coverResidentsInView.Add(o);
+                    }
             foreach(Enemy e in Game.enemies)
             {
                 // Enemy bodies are culled independently from attack targets.
@@ -313,7 +315,7 @@ namespace Starfall
                         BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
                         return true;
             }
-            else
+            else if(Game.Map.objects!=null)
             {
                 // Single-actor Editor/review draws are not inside the sorted
                 // frame. Preserve their exact resident visibility semantics.
