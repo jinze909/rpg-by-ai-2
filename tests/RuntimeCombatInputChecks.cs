@@ -2926,6 +2926,93 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS keyboard V constructs only one nearby real veteran barricade");
     }
 
+    private static void CivicAftermathChronicleReflectsLiveInfrastructure(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        var originalFlags=new System.Collections.Generic.List<string>(g.save.flags);
+        int originalCoins=g.save.coins,originalXp=g.save.xp,originalShards=g.save.shards;
+        int originalSkillPoints=g.save.skillPoints;
+        int[] originalInventory=(int[])g.save.inventory.Clone();
+        string originalTrackedQuest=g.save.trackedQuest;
+        try
+        {
+            g.save.flags.Clear();
+            Check(!(bool)CallCore(g,"StoryUnlocked","civic_aftermath"),
+                "Chapter Twelve stays locked until the real public grid is complete");
+            CallCore(g,"WorldChronicleSection","after");
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_civic_aftermath")<0,
+                "The locked epilogue is absent from the actual chronicle menu");
+
+            g.save.flags.Add("civic_conduit_complete");
+            Check((bool)CallCore(g,"StoryUnlocked","civic_aftermath"),
+                "Completing all three physical grid valves unlocks the epilogue");
+            CallCore(g,"WorldChronicleSection","after");
+            int entry=Array.FindIndex(g.conversation.choices,c=>c.action=="story_read_civic_aftermath");
+            Check(entry>=0,"The unlocked Chapter Twelve is selectable from the real chronicle");
+            CallCore(g,"WorldChroniclePage","civic_aftermath");
+            Check(g.conversation.speaker.Contains("第十二章")&&
+                g.conversation.en.Contains("Chapter Twelve"),
+                "The new page presents a bilingual Chapter Twelve title");
+            Check(g.conversation.text.Contains("0/8")&&g.conversation.text.Contains("0/3")&&
+                g.conversation.text.Contains("尚未签署"),
+                "The page reports missing refuges and unsigned community choices instead of inventing completion");
+
+            for(int room=0;room<8;room++)g.save.flags.Add("far_shelter_"+room);
+            g.save.flags.Add("far_refuge_atlas");
+            g.save.flags.Add("civic_supply_started");
+            g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("civic_supply_clinic_0");
+            g.save.flags.Add("civic_supply_watch_3");
+            g.save.flags.Add("civic_supply_clinic_5");
+            g.save.flags.Add("civic_response_ledger");
+            g.save.flags.Add("civic_response_done_0");
+            g.save.flags.Add("civic_response_done_3");
+            g.save.flags.Add("civic_response_done_5");
+            g.save.flags.Add("last_directive_open");
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("afterlight_complete");
+            for(int region=1;region<=3;region++)
+            {
+                g.save.flags.Add("afterlight_done_"+region);
+                g.save.flags.Add("afterlight_steward_"+region);
+            }
+            var beforeRead=new System.Collections.Generic.List<string>(g.save.flags);
+            int coins=g.save.coins,xp=g.save.xp,shards=g.save.shards,skillPoints=g.save.skillPoints;
+            int[] inventory=(int[])g.save.inventory.Clone();
+            string trackedQuest=g.save.trackedQuest;
+            CallCore(g,"WorldChroniclePage","civic_aftermath");
+            Check(g.conversation.text.Contains("8/8")&&g.conversation.text.Contains("3/3")&&
+                g.conversation.text.Contains("医疗点")&&g.conversation.text.Contains("守路岗"),
+                "The page reflects the actual refuge count and each region's distinct signed service");
+            Check(g.conversation.textEn.Contains("8/8")&&g.conversation.textEn.Contains("3/3")&&
+                g.conversation.textEn.Contains("clinic")&&g.conversation.textEn.Contains("road watch")&&
+                g.conversation.textEn.Contains("Public oversight")&&
+                g.conversation.textEn.Contains("named local stewards"),
+                "The English page reflects the same public choices and lasting responsibilities");
+            Check(string.Join("|",beforeRead)==string.Join("|",g.save.flags)&&
+                coins==g.save.coins&&xp==g.save.xp&&shards==g.save.shards&&
+                skillPoints==g.save.skillPoints&&trackedQuest==g.save.trackedQuest&&
+                Array.TrueForAll(EnumerableIndices(inventory.Length),i=>inventory[i]==g.save.inventory[i]),
+                "Reading the chronicle never mutates flags, inventory, rewards or tracked quest");
+            Console.WriteLine("PASS Chapter Twelve chronicle unlock, bilingual live civic outcomes and read-only save behavior");
+        }
+        finally
+        {
+            g.save.flags.Clear();g.save.flags.AddRange(originalFlags);
+            g.save.coins=originalCoins;g.save.xp=originalXp;g.save.shards=originalShards;
+            g.save.skillPoints=originalSkillPoints;g.save.trackedQuest=originalTrackedQuest;
+            Array.Copy(originalInventory,g.save.inventory,Math.Min(originalInventory.Length,g.save.inventory.Length));
+        }
+    }
+
+    private static int[] EnumerableIndices(int count)
+    {
+        int[] result=new int[count];
+        for(int i=0;i<count;i++)result[i]=i;
+        return result;
+    }
+
     public static int Main()
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
@@ -2991,6 +3078,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyRoadwardenWardSpriteInProduction,
             RenderStateChecks.VerifyMalformedTransientRecordsAreSkippedByProductionDrawGuards,
             RenderStateChecks.VerifyCanopyOcclusionIncludesEveryLiveActor,
+            CivicAftermathChronicleReflectsLiveInfrastructure,
             RuntimeContinuityChecks.NavigationRouteGuidance };
         int failures = 0;
         foreach (var test in cases)

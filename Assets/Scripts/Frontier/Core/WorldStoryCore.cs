@@ -56,6 +56,7 @@ namespace Starfall
             if (page == "supply_inquest") return CivicSupplyStarted;
             if (page == "lastdirective") return LastDirectiveStarted;
             if (page == "civicconduit") return CivicConduitStarted;
+            if (page == "civic_aftermath") return CivicConduitComplete;
             return false;
         }
         private void WorldChronicleSection(string section)
@@ -127,6 +128,10 @@ namespace Starfall
                     choices.Add(StoryChoice("第十一章 · 重接公共电网",
                         "Chapter Eleven · Reconnecting the Public Grid",
                         "story_read_civicconduit"));
+                if (StoryUnlocked("civic_aftermath"))
+                    choices.Add(StoryChoice("第十二章 · 电网之后，谁守着路",
+                        "Chapter Twelve · Who Keeps the Road After the Grid",
+                        "story_read_civic_aftermath"));
                 if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
             else { WorldChronicleMenu(); return; }
@@ -150,7 +155,7 @@ namespace Starfall
             if (section == "origins") return new[] { "origin", "roots", "orders", "wardens" };
             if (section == "campaign") return new[] { "forest", "testimonies", "ruins", "mine", "temper", "triad", "blackout", "citadel" };
             if (section == "farshore") return new[] { "harbor", "tidebound", "desert", "glasswind", "mountain", "covenant" };
-            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective", "civicconduit" };
+            return new[] { "signal", "atlas", "counterpoint", "commons", "skywatch", "abyss", "ending", "afterlight", "storm", "hearing", "supply_inquest", "lastdirective", "civicconduit", "civic_aftermath" };
         }
         private string AdjacentStoryPage(string page, int direction)
         {
@@ -654,6 +659,67 @@ namespace Starfall
                         zh+="【仍未完成】本册不会替旅行者走完现场线路，也不会虚构三处成功的调谐记录。";
                         en+="[Not yet complete] This chronicle cannot walk the circuit or invent three successful calibrations.";
                     }
+                    break;
+                case "civic_aftermath":
+                    headingZh="第十二章：电网之后，谁守着路";
+                    headingEn="Chapter Twelve: Who Keeps the Road After the Grid";
+                    zh="三处阀门已经在现场重新调谐，电网终于不再只服从九年前的旧命令。但接通线路不是结局：避险棚需要真实的补给，公共服务需要维护者，居民也必须能看见每一份资源去了哪里。\n\n"+
+                        "这一页把已经发生的选择放在同一张账桌上。它只记录你亲自完成的事情，不会替尚未到访的地区补写胜利。\n\n";
+                    en="All three valves have been physically retuned. The grid no longer answers only to a nine-year-old command. But reconnecting a line is not an ending: refuges need real supplies, public services need named stewards, and residents must be able to see where every resource goes.\n\n"+
+                        "This page brings existing choices to one table. It records what has actually been done and will not invent victories for places you have not visited.\n\n";
+                    zh+="【公共避险棚】"+FarShelterCount+"/8 处已建成。";
+                    en+="[Public refuges] "+FarShelterCount+"/8 have been built.";
+                    if(Has("far_refuge_atlas"))
+                    {
+                        zh+=" 八地星图已经公开，旅人可以按真实路线寻找避险处。";
+                        en+=" The eight-region atlas is published, so travelers can find refuges along real routes.";
+                    }
+                    else
+                    {
+                        zh+=" 总图尚未发布，未建成的避险棚不会被算作可用设施。";
+                        en+=" The shared atlas is not yet published; an unbuilt refuge is not counted as a working service.";
+                    }
+                    int[] sites={0,3,5};
+                    string[] siteZh={"引水渠","赤铁矿场","雾港"};
+                    string[] siteEn={"Canal","Ironreach","Mistport"};
+                    zh+="\n\n【居民长期服务】"+CivicSupplyResolvedCount+"/3 处已签署选择。\n";
+                    en+="\n\n[Long-term community services] "+CivicSupplyResolvedCount+"/3 regional choices are signed.\n";
+                    for(int i=0;i<sites.Length;i++)
+                    {
+                        bool clinic=CivicSupplyClinic(sites[i]);
+                        bool watch=CivicSupplyWatch(sites[i]);
+                        zh+=siteZh[i]+"："+(clinic?"居民医疗点已选定。":watch?"居民守路岗已选定。":"尚未签署；编年册不会替居民投票。")+"\n";
+                        en+=siteEn[i]+": "+(clinic?"Residents chose a clinic.":watch?"Residents chose a road watch.":"No vote is signed; the chronicle will not vote for the residents.")+"\n";
+                    }
+                    zh+=CivicSupplyComplete?
+                        "公开审计已发布，三地的物资去向与永久服务均可查阅。":
+                        "公开审计仍待完成；所有选择齐备后，还要回旅店亲手公布账目。";
+                    en+=CivicSupplyComplete?
+                        "The public audit is published; each contribution and lasting service is recorded.":
+                        "The public audit is still pending; after all choices are signed, return to the Inn and publish the ledger.";
+                    if(LastDirectiveChoice==1)
+                    {
+                        zh+="\n\n【公共监督】居民保留巡路与停机监督权；安全时避险棚额外恢复耐力。";
+                        en+="\n\n[Public oversight] Residents retain road-watch and shutdown oversight; refuges restore extra energy when safe.";
+                    }
+                    else if(LastDirectiveChoice==2)
+                    {
+                        zh+="\n\n【无条件庇护】任何人都能寻求紧急庇护；安全时避险棚额外疗伤。";
+                        en+="\n\n[Unconditional shelter] Anyone may seek emergency refuge; shelters provide extra healing when safe.";
+                    }
+                    else
+                    {
+                        zh+="\n\n最后指令的公共权限尚未签署。";
+                        en+="\n\nThe public authority for the Last Directive has not yet been signed.";
+                    }
+                    zh+=Has("afterlight_complete")?
+                        "\n\n三处余光设施都有居民亲自署名的维护者。":
+                        "\n\n余光重建的维护责任仍待居民亲自署名；一座接通的机器不能替代长期照料。";
+                    en+=Has("afterlight_complete")?
+                        "\n\nAll three Afterlight facilities have named local stewards.":
+                        "\n\nAfterlight still needs residents to sign for maintenance; a connected machine is not a substitute for long-term care.";
+                    zh+="\n\n道路终于不只是把人送到堡垒。它必须让每个人都能回来，也让每个人有权问清楚：谁守着这盏灯？";
+                    en+="\n\nA road should do more than bring people to the citadel. It must help everyone get home—and let everyone ask who keeps the light burning.";
                     break;
                 case "lastdirective":
                     headingZh="第十章：最后指令";headingEn="Chapter Ten: The Last Directive";
