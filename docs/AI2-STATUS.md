@@ -1,5 +1,15 @@
 # AI-2 live development handoff — Starfall Frontier
 
+## 2026-10-20 AI-2 companion gait phase-lock and planted footfall restart
+
+- **Scope and source:** Continued from the real `jinze909/rpg-by-ai-2/chatgpt/dev` HEAD and kept every write on that branch. Latest tested code/test HEAD is [`66b4b39d`](https://github.com/jinze909/rpg-by-ai-2/commit/66b4b39d4196c3e8bf638b88758e7795a332d62b); [Core CI is green](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39526841015).
+- [`1cc1e6e1`](https://github.com/jinze909/rpg-by-ai-2/commit/1cc1e6e12764b1b37f447c1bfb4e04608cf14a8a) introduces a presentation-only, owner/save/party/room/generation-scoped companion gait phase. Both `DrawCompanionActor` and `AdvanceCompanionFootfalls` now sample the same rebased distance, so a real stop/action pause can restart on the next source-painted planted cell (0/2) without moving the root, changing collision, or modifying SaveData.
+- [`d75fe8f9`](https://github.com/jinze909/rpg-by-ai-2/commit/d75fe8f9fc9a7362641fdb1a2ffcb90938776667) keeps outline previews read-only; [`32ace04b`](https://github.com/jinze909/rpg-by-ai-2/commit/32ace04b86596d69448d5919fa3c249cf8325f11) preserves genuine accumulated phase for a new presentation owner while treating distance rewind as a new gait epoch.
+- [`adc1e526`](https://github.com/jinze909/rpg-by-ai-2/commit/adc1e52668352465e8a0300d5aae822104552296) adds end-to-end production draw/VFX restart cases; [`66b4b39d`](https://github.com/jinze909/rpg-by-ai-2/commit/66b4b39d4196c3e8bf638b88758e7795a332d62b) registers that verifier in the live companion gait suite.
+- **Exact verification:** [Core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39526841015). Logs confirm `PASS companion source gait restart: 24 stop/restart cases`, `PASS companion planted-contact/footfall restart: 24 production draw + VFX cases`, and `Runtime combat input: 80/80 groups passed`.
+- **Preserved:** accepted companion/hero source pixels and Unity GUIDs, party identity, root movement, collision, action timing and old save schema. No schedules or other repositories were touched.
+- **Remaining limits:** the 18 original full-body hero Attack/Cast contact drawings and moving recovery remain **`ART_REVIEW_REQUIRED`**. Licensed Unity 2022.3.53f1 Editor/GameView/PlayMode/GPU verification remains **`NATIVE_UNVERIFIED`**; offline C# success is not native visual acceptance.
+
 ## 2026-10-20 AI-2 transient combat and draw-record recovery
 
 - **Scope:** Continued from the real jinze909/rpg-by-ai-2/chatgpt/dev handoff HEAD and kept all writes on that branch. Latest tested gameplay commit before this entry is [e42de9a3](https://github.com/jinze909/rpg-by-ai-2/commit/e42de9a37f5f5cef294faa27b254f17aac429166); its [Core CI is green](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39519532994).
