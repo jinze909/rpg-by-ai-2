@@ -1,3 +1,14 @@
+## 2026-10-21 save staging recovery — stage-only slot coverage
+
+- **Latest tested code/test HEAD:** [`56500fa5`](https://github.com/jinze909/rpg-by-ai-2/commit/56500fa58b985192af57059ef77e745b60e8d60b). Exact-commit [Core CI SUCCESS, run #1698](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39588630298): all 52 workflow steps passed; production offline runtime harness reports **96/96 groups passed**.
+- Added an isolated slot-3 regression proving the title/save-existence query and `SaveStore.Read` can recover a complete staged candidate when that slot has no primary, backup or legacy temporary file. The recovery warning correctly identifies an interrupted save.
+- The prior staged-write hardening remains covered by real disk I/O: failed invalid payload validation preserves the only complete stage; a later valid commit removes stale stages only after verifying the primary; valid newer stages and unreadable/in-flight candidates survive cleanup.
+- **Executed evidence:** `PASS Real SaveStore I/O: unique staging recovery, failed-write preservation, monotonic timestamps, clock rollback, corrupt future metadata, schema rejection and v1/v2 compatibility`; `PASS Atomic portable save: update, failed rename rollback, crash recovery and subsequent heal`; `Runtime combat input: 96/96 groups passed; NATIVE_UNVERIFIED`.
+- **Preserved:** SaveData v1/v2 compatibility, all existing save slots and legacy recovery files, quest progress, canonical blonde protagonist, accepted art pixels, Unity GUIDs and production scene. All writes stayed on `jinze909/rpg-by-ai-2/chatgpt/dev`; no scheduled tasks or other branches were modified.
+- **Still honestly gated:** Unity 2022.3.53f1 native Editor/GameView/PlayMode/GPU verification remains `NATIVE_UNVERIFIED`; 18 original hero Attack/Cast contact paintings and motion-complete moving recovery remain `ART_REVIEW_REQUIRED`.
+
+---
+
 ## 2026-10-21 crash-safe unique save staging
 
 - **Verified code/test HEAD:** [`687c4695`](https://github.com/jinze909/rpg-by-ai-2/commit/687c469554831183b52330a83dc7373bee19cc76). Exact-commit [Core CI SUCCESS, run #1696](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39588291371): all 52 workflow steps passed; the production offline harness reports **96/96 groups passed**.
