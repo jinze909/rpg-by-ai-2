@@ -1,3 +1,12 @@
+## 2026-10-21 AI-2 dodge readiness, hit-recovery and hit-stop consistency
+
+- **Verified gameplay/test HEAD:** [`215c7b3c`](https://github.com/jinze909/rpg-by-ai-2/commit/215c7b3c8155462e477b38758e97bab96fc46e5b). [Exact-commit Core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39549896959): 52/52 core steps passed.
+- [`531214b8`](https://github.com/jinze909/rpg-by-ai-2/commit/531214b8f5d9e5b4871bb781851f8b9f94e74677) closes a real action-state gap: when the dash cooldown had already elapsed, `Dash()` could begin during positive `playerHitTime`, spending stamina and starting invulnerability over the Hit recovery. A valid tap now remains a bounded 140ms intent only if both recovery and cooldown fit the window. Otherwise it is rejected without a later free dash. HUD readiness, GameCore dispatch and real C# regression agree.
+- [`215c7b3c`](https://github.com/jinze909/rpg-by-ai-2/commit/215c7b3c8155462e477b38758e97bab96fc46e5b) extends the same rule to `hitStop`: a direct dash can no longer consume resources during a frozen simulation. The accepted intent waits until hit-stop, hit recovery and cooldown are actually clear; hit-stop freezes the input deadline consistently with the simulation. Long pauses outside the window cannot store a free dash.
+- **Executed evidence:** CI log confirms `PASS DodgeWaitsForHitRecoveryAndCooldown` and `Runtime combat input: 82/82 groups passed`. Tests cover recovery-only, simultaneous recovery/cooldown, short hit-stop, long hit-stop expiry, matching SpriteRenderer/OnGUI state, no premature movement, stamina or invulnerability, and exactly-once dispatch.
+- **Preserved:** no SaveData fields/schema, damage/contact timing, enemy behavior, accepted art pixels, Unity GUIDs, scene or quest data changed. All writes remained on `chatgpt/dev`; no scheduled tasks or other branches were touched.
+- **Still unresolved and honestly gated:** 18 original whole-body Attack/Cast contact paintings remain `ART_REVIEW_REQUIRED`; licensed Unity 2022.3.53f1 Editor/GameView/PlayMode/GPU review remains `NATIVE_UNVERIFIED`. The green offline CI is not native visual acceptance.
+
 ## 2026-10-20 AI-2 moving-objective navigation and transient FrostField isolation
 
 - **Latest verified code/test HEAD before this handoff-only edit:** [`df53d355`](https://github.com/jinze909/rpg-by-ai-2/commit/df53d35598c4da1139ad3e1c6a477406990d93bc). [Full CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39546998347): 52/52 steps passed.
