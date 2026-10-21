@@ -1833,6 +1833,9 @@ public static class RuntimeCombatInputChecks
                     System.IO.Path.GetFileName(main) + ".stage-*").Length == 0,
                 "Successful commit cleans stale temporary/staging candidates only after the primary is verified.");
 
+            var cleanup = typeof(SaveStore).GetMethod("CleanupCommittedRecoveryPaths",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+
             // Concurrent writers can observe the same wall-clock tick.
             // A later verified stage must win even when its payload timestamp
             // ties the primary, and post-commit cleanup must not delete it.
@@ -1857,8 +1860,6 @@ public static class RuntimeCombatInputChecks
 
             string newerStage = main + ".stage-concurrent-writer";
             put(newerStage, 92, "2100-01-01T00:00:00.0000000Z");
-            var cleanup = typeof(SaveStore).GetMethod("CleanupCommittedRecoveryPaths",
-                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
             cleanup.Invoke(null, new object[] { main });
             Check(System.IO.File.Exists(newerStage),
                 "Commit cleanup preserves a valid newer stage owned by a concurrent writer.");
