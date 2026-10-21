@@ -27,6 +27,52 @@ namespace Starfall.Tests
             return -1;
         }
 
+        public static void ChronicleMenusFollowOneCanonicalPageSequence(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3; g.save.frontierEnding = 3; g.save.ending = 3;
+            foreach (string flag in new[] {
+                "scout_saved", "witness_started_1", "core_1", "core_2", "core_3",
+                "iron_temper_started", "triad_started", "blackout_started", "boss_4",
+                "harbor_report", "tide_salvage_started", "desert_report", "glasswind_started",
+                "mountain_report", "survey_complete", "archive_complete", "root_harmony_started",
+                "commons_relay_started", "skywatch_started", "afterlight_started", "storm_started",
+                "hearing_started", "roadcharter_started", "civic_supply_started",
+                "last_directive_started", "civic_conduit_started", "civic_conduit_complete" })
+                g.save.flags.Add(flag);
+            WorldObject book = Object(g, "worldchronicle");
+            string[][] sections = {
+                new[] { "story_section_origins", "story_read_origin", "story_read_roots",
+                    "story_read_orders", "story_read_wardens" },
+                new[] { "story_section_campaign", "story_read_testimonies", "story_read_forest",
+                    "story_read_ruins", "story_read_mine", "story_read_temper", "story_read_triad",
+                    "story_read_blackout", "story_read_citadel" },
+                new[] { "story_section_farshore", "story_read_harbor", "story_read_tidebound",
+                    "story_read_desert", "story_read_glasswind", "story_read_mountain",
+                    "story_read_covenant" },
+                new[] { "story_section_after", "story_read_signal", "story_read_atlas",
+                    "story_read_counterpoint", "story_read_commons", "story_read_skywatch",
+                    "story_read_abyss", "story_read_afterlight", "story_read_storm",
+                    "story_read_hearing", "story_read_roadcharter", "story_read_supply_inquest",
+                    "story_read_lastdirective", "story_read_civicconduit",
+                    "story_read_civic_aftermath", "story_read_ending" }
+            };
+            g.Talk(book);
+            foreach (string[] section in sections)
+            {
+                ChooseStoryChoice(g, section[0]);
+                int previous = -1;
+                for (int i = 1; i < section.Length; i++)
+                {
+                    int index = StoryChoiceIndex(g, section[i]);
+                    Check(index > previous,
+                        "Every earned chronicle page appears in the canonical section order: " + section[i]);
+                    previous = index;
+                }
+                ChooseStoryChoice(g, "story_menu");
+            }
+        }
+
         public static void ChapterEightRoadCharterUsesRealFieldEvidenceAndPersistentOutcome(Campaign data)
         {
             foreach (bool publicRoute in new[] { true, false })

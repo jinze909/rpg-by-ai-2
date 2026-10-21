@@ -69,80 +69,81 @@ namespace Starfall
                 titleZh = "旧日编年"; titleEn = "Before the Fall";
                 descriptionZh = "星陨不是第一次错误，只是多年未曾纠正的调谐，终于在七日前一起断裂。";
                 descriptionEn = "The Starfall was not the first mistake. Seven days ago, years of neglected imbalances finally fractured.";
-                choices.Add(StoryChoice("星陨后的第七天", "Seven days after the fall", "story_read_origin"));
-                choices.Add(StoryChoice("星根与七锚", "Starroot and seven anchors", "story_read_roots"));
-                choices.Add(StoryChoice("九年前的旧指令", "The nine-year-old order", "story_read_orders"));
-                if (StoryUnlocked("wardens")) choices.Add(StoryChoice("巡路队的未寄信", "Unsent roadwarden letters", "story_read_wardens"));
             }
             else if (section == "campaign")
             {
                 titleZh = "星核四章"; titleEn = "The Four Starcores";
                 descriptionZh = "从一位失踪侦察员开始，追查森林、河水和矿机被抽走的供给。只能阅读已经走到的真相。";
                 descriptionEn = "The investigation begins with a missing scout. Accounts appear as their truths are discovered.";
-                if (StoryUnlocked("testimonies")) choices.Add(StoryChoice("前三章 · 未被计入的证人", "Three Chapters · The Uncounted Witnesses", "story_read_testimonies"));
-                if (StoryUnlocked("forest")) choices.Add(StoryChoice("荆棘密林 · 被割断的根", "Thornwood · severed roots", "story_read_forest"));
-                if (StoryUnlocked("ruins")) choices.Add(StoryChoice("沉没遗迹 · 被改写的闸", "Ruins · rewritten sluice", "story_read_ruins"));
-                if (StoryUnlocked("mine")) choices.Add(StoryChoice("赤铁矿场 · 不停的机器", "Ironreach · the tireless machine", "story_read_mine"));
-                if (StoryUnlocked("temper"))
-                    choices.Add(StoryChoice("余烬回火 · 能停下的炉", "Ember Temper · A Furnace That Can Rest", "story_read_temper"));
-                if (StoryUnlocked("triad")) choices.Add(StoryChoice("第四章 · 三核审计", "Chapter Four · Three-Core Reckoning", "story_read_triad"));
-                if (StoryUnlocked("blackout")) choices.Add(StoryChoice("第四章 · 长夜撤离", "Chapter Four · The Night the Shield Failed", "story_read_blackout"));
-                if (StoryUnlocked("citadel")) choices.Add(StoryChoice("星陨堡垒 · 厄洛的屏障", "Citadel · Orrin's shield", "story_read_citadel"));
             }
             else if (section == "farshore")
             {
                 titleZh = "远岸证词"; titleEn = "Letters from Afar";
                 descriptionZh = "灯照向哪里？谁喝得到水？被封在钟声下的人叫什么名字？三份记录必须放在同一张桌前。";
                 descriptionEn = "Who sees the light, receives the water, and gets named beneath the bells? Three records belong at one table.";
-                if (StoryUnlocked("harbor")) choices.Add(StoryChoice("雾港 · 灯与救援", "Mistport · light and rescue", "story_read_harbor"));
-                if (StoryUnlocked("tidebound"))
-                    choices.Add(StoryChoice("潮缚货单 · 谁被记作货损", "Tidebound Manifest · Written Off", "story_read_tidebound"));
-                if (StoryUnlocked("desert")) choices.Add(StoryChoice("玻璃沙海 · 水归谁", "Glass Desert · who owns water", "story_read_desert"));
-                if (StoryUnlocked("glasswind"))
-                    choices.Add(StoryChoice("玻璃风脉 · 为谁吹来的风", "Glasswind Circuit · Who Owns the Wind", "story_read_glasswind"));
-                if (StoryUnlocked("mountain")) choices.Add(StoryChoice("霜钟高原 · 名字", "Frostchime · names", "story_read_mountain"));
-                if (StoryUnlocked("covenant")) choices.Add(StoryChoice("三方议事厅 · 协定", "The council covenant", "story_read_covenant"));
             }
             else if (section == "after")
             {
                 titleZh = "归乡与余波"; titleEn = "Homeward and After";
                 descriptionZh = "并不是只有星核能改变世界。一张地图、一座信标、一条未封锁的道路，都在说明另一种防线。";
                 descriptionEn = "A map, a beacon and an open road can also change the frontier.";
-                if (StoryUnlocked("signal")) choices.Add(StoryChoice("归乡星图与巡路信标", "Homeward chart and beacons", "story_read_signal"));
-                if (StoryUnlocked("atlas")) choices.Add(StoryChoice("失落测绘师的记录", "The lost surveyor's atlas", "story_read_atlas"));
-                if (StoryUnlocked("counterpoint"))
-                    choices.Add(StoryChoice("星根失谐与三段音纹", "Starroot Counterpoint · three readings", "story_read_counterpoint"));
-                if (StoryUnlocked("commons"))
-                    choices.Add(StoryChoice("公共信标 · 艾拉的证词", "Citadel Commons Relay · Ayla's testimony", "story_read_commons"));
-                if (StoryUnlocked("skywatch"))
-                    choices.Add(StoryChoice("霜钟夜空 · 最后一夜的光谱", "Frostchime Skywatch · last night's spectrum", "story_read_skywatch"));
-                if (StoryUnlocked("abyss")) choices.Add(StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss"));
-                if (StoryUnlocked("afterlight")) choices.Add(StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight"));
-                if (StoryUnlocked("storm")) choices.Add(StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm"));
-                if (StoryUnlocked("hearing")) choices.Add(StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing"));
-                if (StoryUnlocked("roadcharter"))
-                    choices.Add(StoryChoice("第八章 · 共同行路", "Chapter Eight · Roads for Everyone", "story_read_roadcharter"));
-                if (StoryUnlocked("supply_inquest"))
-                    choices.Add(StoryChoice("第九章 · 送达之后谁守路",
-                        "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest"));
-                if (StoryUnlocked("lastdirective"))
-                    choices.Add(StoryChoice("第十章 · 最后指令", "Chapter Ten · The Last Directive", "story_read_lastdirective"));
-                if (StoryUnlocked("civicconduit"))
-                    choices.Add(StoryChoice("第十一章 · 重接公共电网",
-                        "Chapter Eleven · Reconnecting the Public Grid",
-                        "story_read_civicconduit"));
-                if (StoryUnlocked("civic_aftermath"))
-                    choices.Add(StoryChoice("第十二章 · 电网之后，谁守着路",
-                        "Chapter Twelve · Who Keeps the Road After the Grid",
-                        "story_read_civic_aftermath"));
-                if (StoryUnlocked("ending")) choices.Add(StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending"));
             }
             else { WorldChronicleMenu(); return; }
+
+            // One canonical ordered list drives both the directory and page
+            // navigation. Adding a chapter here can no longer silently omit
+            // its menu entry or place its previous/next links out of order.
+            foreach (string page in StoryPagesForSection(section))
+            {
+                if (!StoryUnlocked(page)) continue;
+                Choice choice = ChronicleChoiceForPage(page);
+                if (choice != null) choices.Add(choice);
+            }
             string lockedZh = "下一页尚未写成。继续推进调查后回来。";
             string lockedEn = "These pages are not yet written. Return after your investigations.";
             if (choices.Count == 0) { descriptionZh += "\n\n" + lockedZh; descriptionEn += "\n\n" + lockedEn; }
             choices.Add(StoryChoice("返回编年册目录", "Back to chronicle", "story_menu"));
             Dialog(titleZh, titleEn, descriptionZh, descriptionEn, choices.ToArray());
+        }
+        private Choice ChronicleChoiceForPage(string page)
+        {
+            switch (page)
+            {
+                case "origin": return StoryChoice("星陨后的第七天", "Seven days after the fall", "story_read_origin");
+                case "roots": return StoryChoice("星根与七锚", "Starroot and seven anchors", "story_read_roots");
+                case "orders": return StoryChoice("九年前的旧指令", "The nine-year-old order", "story_read_orders");
+                case "wardens": return StoryChoice("巡路队的未寄信", "Unsent roadwarden letters", "story_read_wardens");
+                case "testimonies": return StoryChoice("前三章 · 未被计入的证人", "Three Chapters · The Uncounted Witnesses", "story_read_testimonies");
+                case "forest": return StoryChoice("荆棘密林 · 被割断的根", "Thornwood · severed roots", "story_read_forest");
+                case "ruins": return StoryChoice("沉没遗迹 · 被改写的闸", "Ruins · rewritten sluice", "story_read_ruins");
+                case "mine": return StoryChoice("赤铁矿场 · 不停的机器", "Ironreach · the tireless machine", "story_read_mine");
+                case "temper": return StoryChoice("余烬回火 · 能停下的炉", "Ember Temper · A Furnace That Can Rest", "story_read_temper");
+                case "triad": return StoryChoice("第四章 · 三核审计", "Chapter Four · Three-Core Reckoning", "story_read_triad");
+                case "blackout": return StoryChoice("第四章 · 长夜撤离", "Chapter Four · The Night the Shield Failed", "story_read_blackout");
+                case "citadel": return StoryChoice("星陨堡垒 · 厄洛的屏障", "Citadel · Orrin's shield", "story_read_citadel");
+                case "harbor": return StoryChoice("雾港 · 灯与救援", "Mistport · light and rescue", "story_read_harbor");
+                case "tidebound": return StoryChoice("潮缚货单 · 谁被记作货损", "Tidebound Manifest · Written Off", "story_read_tidebound");
+                case "desert": return StoryChoice("玻璃沙海 · 水归谁", "Glass Desert · who owns water", "story_read_desert");
+                case "glasswind": return StoryChoice("玻璃风脉 · 为谁吹来的风", "Glasswind Circuit · Who Owns the Wind", "story_read_glasswind");
+                case "mountain": return StoryChoice("霜钟高原 · 名字", "Frostchime · names", "story_read_mountain");
+                case "covenant": return StoryChoice("三方议事厅 · 协定", "The council covenant", "story_read_covenant");
+                case "signal": return StoryChoice("归乡星图与巡路信标", "Homeward chart and beacons", "story_read_signal");
+                case "atlas": return StoryChoice("失落测绘师的记录", "The lost surveyor's atlas", "story_read_atlas");
+                case "counterpoint": return StoryChoice("星根失谐与三段音纹", "Starroot Counterpoint · three readings", "story_read_counterpoint");
+                case "commons": return StoryChoice("公共信标 · 艾拉的证词", "Citadel Commons Relay · Ayla's testimony", "story_read_commons");
+                case "skywatch": return StoryChoice("霜钟夜空 · 最后一夜的光谱", "Frostchime Skywatch · last night's spectrum", "story_read_skywatch");
+                case "abyss": return StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss");
+                case "afterlight": return StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight");
+                case "storm": return StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm");
+                case "hearing": return StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing");
+                case "roadcharter": return StoryChoice("第八章 · 共同行路", "Chapter Eight · Roads for Everyone", "story_read_roadcharter");
+                case "supply_inquest": return StoryChoice("第九章 · 送达之后谁守路", "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest");
+                case "lastdirective": return StoryChoice("第十章 · 最后指令", "Chapter Ten · The Last Directive", "story_read_lastdirective");
+                case "civicconduit": return StoryChoice("第十一章 · 重接公共电网", "Chapter Eleven · Reconnecting the Public Grid", "story_read_civicconduit");
+                case "civic_aftermath": return StoryChoice("第十二章 · 电网之后，谁守着路", "Chapter Twelve · Who Keeps the Road After the Grid", "story_read_civic_aftermath");
+                case "ending": return StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending");
+                default: return null;
+            }
         }
         // Chapter navigation is derived entirely from existing milestone flags.
         // No new save field or reward can be introduced by browsing the book.
