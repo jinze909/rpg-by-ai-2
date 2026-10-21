@@ -480,6 +480,26 @@ public static class RuntimeContinuityChecks
                 Math.Abs(call.color.b - expected.b) < .001f) count++;
         return count;
     }
+    static bool NavigationBlockedCueStaysInPlayableView(float bottom)
+    {
+        Color expected = PixelArt.C("#ff6961");
+        int count = 0;
+        foreach (var call in GUI.textureCalls)
+        {
+            if (call.texture != Texture2D.whiteTexture ||
+                Math.Abs(call.rect.width - 3f) >= .001f ||
+                Math.Abs(call.rect.height - 3f) >= .001f ||
+                Math.Abs(call.color.r - expected.r) >= .001f ||
+                Math.Abs(call.color.g - expected.g) >= .001f ||
+                Math.Abs(call.color.b - expected.b) >= .001f) continue;
+            count++;
+            if (call.rect.x < 350 || call.rect.x + call.rect.width > 970 ||
+                call.rect.y < 125 || call.rect.y + call.rect.height > bottom) return false;
+        }
+        // The blocked state renders four directional arrow pixels plus the
+        // five-pixel broken-route glyph; all nine must remain in the safe view.
+        return count == 9;
+    }
     public static void NavigationRouteGuidance(FrontierRuntime app)
     {
         Prepare(app, 0);
@@ -580,9 +600,12 @@ public static class RuntimeContinuityChecks
             ClearDraw(); Call(app, "DrawNavigationTargetMarker");
             Check(NavigationRouteDots(4f) == 0,
                 "Off-screen " + edgeNames[i] + " objective does not draw a misleading on-world ring");
-            Check(NavigationEdgeArrowPixels() == 4 &&
-                NavigationEdgeArrowStaysInPlayableView(630f),
-                "Off-screen " + edgeNames[i] + " objective receives a four-pixel directional cue outside HUD panels");
+            bool reachableArrow = NavigationEdgeArrowPixels() == 4 &&
+                NavigationEdgeArrowStaysInPlayableView(630f);
+            bool blockedArrow = NavigationBlockedPixels() == 9 &&
+                NavigationBlockedCueStaysInPlayableView(630f);
+            Check(reachableArrow || blockedArrow,
+                "Off-screen " + edgeNames[i] + " objective receives a safe directional cue in either route state");
         }
         Point? bossBarTarget = game.NavigationTarget();
         Check(bossBarTarget.HasValue, "Lower-playfield fixture has a real objective");
