@@ -3091,6 +3091,15 @@ public static class RuntimeCombatInputChecks
                 g.save.coins==coinsBeforePublish+35&&g.save.shards==shardsBeforePublish+1,
                 "Publishing settles the one-time reward and completes the persistent quest");
             int coinsAfterPublish=g.save.coins,shardsAfterPublish=g.save.shards;
+            g.save.room=5;
+            WorldObject auditedMarker=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
+            Check(auditedMarker!=null,"The third region keeps its original physical route marker after publication");
+            g.save.x=auditedMarker.x;g.save.y=auditedMarker.y;
+            g.Talk(auditedMarker);
+            Check(g.conversation.text.Contains("公开记录")&&
+                g.conversation.textEn.Contains("public record"),
+                "A field marker continues to acknowledge its region's published audit after quest completion");
+            g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;
             g.Talk(inn);
             Check(g.conversation.text.Contains("公开记录")&&
                 g.conversation.textEn.Contains("public record")&&

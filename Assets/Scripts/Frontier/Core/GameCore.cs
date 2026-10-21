@@ -2067,12 +2067,18 @@ namespace Starfall
             bool charterEvidence = RecordRoadCharterWaypoint(o);
             string charterZh = charterEvidence ? "\n\n这份实地测绘已封存到第八章的公开证据，进度 " + RoadCharterReports + "/3。" : "";
             string charterEn = charterEvidence ? "\n\nRecorded as public Chapter Eight field evidence (" + RoadCharterReports + "/3)." : "";
-            string aftercareZh = CivicAftercareActive && (region==0||region==3||region==5) ?
-                "\n\n三地巡路复核 "+CivicAftercareWaypointCount+"/3。"+
-                (CivicAftercareWaypointCount>=3?"三处信标齐备，回炉火旅店公布记录。":"本地信标已核验；请继续检查另两地。") : "";
-            string aftercareEn = CivicAftercareActive && (region==0||region==3||region==5) ?
-                "\n\nThree-region road audit "+CivicAftercareWaypointCount+"/3."+
-                (CivicAftercareWaypointCount>=3?" All markers are verified; return to Hearth Inn to publish.":" This local marker is verified; check the other regions.") : "";
+            string aftercareZh = Has("civic_aftercare_published") &&
+                Has("civic_aftercare_waytrail_"+region) ?
+                "\n\n本地区的路标复核已列入公开记录，旅人可以据此核对重接后的公共路线。":
+                CivicAftercareActive && (region==0||region==3||region==5) ?
+                    "\n\n三地巡路复核 "+CivicAftercareWaypointCount+"/3。"+
+                    (CivicAftercareWaypointCount>=3?"三处信标齐备，回炉火旅店公布记录。":"本地信标已核验；请继续检查另两地。") : "";
+            string aftercareEn = Has("civic_aftercare_published") &&
+                Has("civic_aftercare_waytrail_"+region) ?
+                "\n\nThis region's route-marker audit is on the public record, so travelers can check the restored civic route against field evidence.":
+                CivicAftercareActive && (region==0||region==3||region==5) ?
+                    "\n\nThree-region road audit "+CivicAftercareWaypointCount+"/3."+
+                    (CivicAftercareWaypointCount>=3?" All markers are verified; return to Hearth Inn to publish.":" This local marker is verified; check the other regions.") : "";
             string closingZh = save.ending > 0
                 ? "\n\n星核的结局已经写下，但路标仍属于每一位需要它的人。"
                 : "\n\n这条路线没有写进堡垒的正式地图。先记下它，未来也许能让更多人安全归来。";
