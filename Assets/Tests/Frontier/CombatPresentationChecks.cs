@@ -4304,7 +4304,7 @@ namespace Starfall.Tests
                     char[] cells=new string('#',22).ToCharArray();
                     if(y>=2&&y<=19)
                         for(int x=2;x<=19;x++)cells[x]='.';
-                    if(y>=4&&y<=17)cells[10]='#';
+                    if(y>=4&&y<=19)cells[10]='#';
                     rows[y]=new string(cells);
                 }
                 data.maps[0]=new MapData{
