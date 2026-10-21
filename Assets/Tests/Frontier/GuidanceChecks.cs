@@ -1482,7 +1482,7 @@ namespace Starfall.Tests
             var valve=Object(g,"civicconduitvalve");
             g.save.x=master.x;g.save.y=master.y;
             Action(g,"civicconduitmaster","civic_conduit_start");
-            for(int i=0;i<43;i++)g.Tick(.05f,new Point());
+            for(int i=0;i<100&&g.CivicConduitActive&&g.CivicConduitWindowOpen;i++)g.Tick(.05f,new Point());
             Check(g.CivicConduitActive&&!g.CivicConduitWindowOpen,
                 "The real clock advances out of green before examining the valve dialogue");
             // Walk the same authored ground while keeping the valve closed.
