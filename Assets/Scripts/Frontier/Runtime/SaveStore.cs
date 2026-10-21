@@ -75,32 +75,50 @@ namespace Starfall
             return value;
         }
         public static SaveData Read(out string warning) { return Read(-1, out warning); }
+        private static DateTime SaveTimestamp(SaveData candidate, string path)
+        {
+            DateTime savedTime;
+            // The serialized timestamp follows the save payload through an
+            // atomic rename and is more reliable than the filesystem timestamp
+            // copied onto a .bak by platform-specific replace implementations.
+            if (!DateTime.TryParse(candidate.savedAtUtc, CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind, out savedTime))
+                return File.GetLastWriteTimeUtc(path); // Original v1 saves may lack a timestamp.
+            return savedTime.ToUniversalTime();
+        }
         public static SaveData Read(int slot, out string warning)
         {
             warning = null;
             string main = PathFor(slot);
-            // A validated primary save always wins, even if a stale temporary file remains.
-            if (File.Exists(main))
-            {
-                try { return Decode(File.ReadAllText(main)); }
-                catch (Exception ex) { warning = "Cannot read save: " + ex.Message; }
-            }
-            // A crash can leave a COMPLETE .tmp newer than the last .bak.
-            // Inspect both verified copies rather than rolling back merely due to suffix order.
+            // Treat every checksum/schema-verified copy as a candidate. A
+            // process can die after flushing a complete .tmp but before
+            // promoting it; preferring any valid primary unconditionally
+            // would silently roll back that newer, recoverable progress.
             SaveData newest = null;
             DateTime newestTime = DateTime.MinValue;
             string recoveredFrom = null;
+            if (File.Exists(main))
+            {
+                try
+                {
+                    SaveData primary = Decode(File.ReadAllText(main));
+                    DateTime primaryTime = SaveTimestamp(primary, main);
+                    newest = primary;
+                    newestTime = primaryTime;
+                    recoveredFrom = main;
+                }
+                catch (Exception ex) { warning = "Cannot read save: " + ex.Message; }
+            }
+            // Include all recoverable transaction stages and choose by the
+            // payload's own save time, not filename priority. Ties keep the
+            // primary (or the first valid recovery copy when no primary exists).
             foreach (string path in new[] { main + ".tmp", main + ".bak", main + ".precommit" })
             {
                 if (!File.Exists(path)) continue;
                 try
                 {
                     SaveData candidate = Decode(File.ReadAllText(path));
-                    DateTime savedTime;
-                    if (!DateTime.TryParse(candidate.savedAtUtc, CultureInfo.InvariantCulture,
-                        DateTimeStyles.RoundtripKind, out savedTime))
-                        savedTime = File.GetLastWriteTimeUtc(path); // Old v1 saves may lack a timestamp.
-                    else savedTime = savedTime.ToUniversalTime();
+                    DateTime savedTime = SaveTimestamp(candidate, path);
                     if (newest == null || savedTime > newestTime)
                     {
                         newest = candidate;
@@ -108,9 +126,15 @@ namespace Starfall
                         recoveredFrom = path;
                     }
                 }
-                catch (Exception ex) { if (warning == null) warning = "Cannot read save: " + ex.Message; }
+                catch (Exception ex)
+                {
+                    // A corrupt stale sidecar must not make a valid primary
+                    // look like a recovery event to the player.
+                    if (newest == null && warning == null)
+                        warning = "Cannot read save: " + ex.Message;
+                }
             }
-            if (newest != null)
+            if (newest != null && !string.Equals(recoveredFrom, main, StringComparison.Ordinal))
                 warning = "Recovered " + (recoveredFrom.EndsWith(".tmp") ? "interrupted save" : "backup") + ".";
             return newest;
         }

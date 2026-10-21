@@ -1717,8 +1717,13 @@ public static class RuntimeCombatInputChecks
             put(main + ".tmp", 30, "2026-01-03T00:00:00.0000000Z");
             string warning;
             SaveData restored = SaveStore.Read(0, out warning);
-            Check(restored != null && restored.coins == 10 && warning == null,
-                "A valid primary save must win over newer recovery artifacts.");
+            Check(restored != null && restored.coins == 30 && warning == "Recovered interrupted save.",
+                "A newer checksum-valid interrupted write must recover even while the old primary remains valid.");
+            put(main, 35, "2026-01-04T00:00:00.0000000Z");
+            put(main + ".tmp", 30, "2026-01-03T00:00:00.0000000Z");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 35 && warning == null,
+                "A newer valid primary must beat a stale temporary file.");
             System.IO.File.WriteAllText(main, "{corrupt");
             restored = SaveStore.Read(0, out warning);
             Check(restored != null && restored.coins == 30 && warning == "Recovered interrupted save.",
