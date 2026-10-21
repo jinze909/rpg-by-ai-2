@@ -82,6 +82,7 @@ namespace Starfall.Tests
             ChooseStoryChoice(g, "story_read_supply_inquest");
             Check(StoryChoicePresent(g, "story_read_roadcharter"),
                 "The Ninth Chapter links back to the missing Chapter Eight");
+            ChooseStoryChoice(g, "story_read_roadcharter");
             ChooseStoryChoice(g, "story_read_hearing");
             Check(StoryChoicePresent(g, "story_read_roadcharter"),
                 "The Seventh Chapter links forward to the restored Chapter Eight");
