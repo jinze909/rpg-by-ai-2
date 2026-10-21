@@ -348,6 +348,26 @@ namespace Starfall.Tests
                 !both.DodgeQueued,
                 "The same queued input dispatches only after BOTH hit recovery and cooldown finish");
 
+            var frozen=Fresh(data);frozen.enemies.Clear();
+            frozen.save.energy=100f;frozen.invulnerable=0f;
+            frozen.dashCooldown=0f;frozen.hitStop=.08f;
+            Check(frozen.CanBufferDodge,
+                "A short hit-stop exposes the same bounded input buffer without starting the dodge early");
+            frozen.Dash(new Point(0,-1));
+            Check(frozen.DodgeQueued&&frozen.dashTime<=0f&&
+                frozen.save.energy==100f&&frozen.invulnerable<=0f,
+                "A dodge requested during hit-stop remains unpaid until simulation resumes");
+            frozen.Tick(.04f,new Point());
+            Check(frozen.hitStop>0f&&frozen.DodgeQueued&&
+                frozen.dashTime<=0f&&frozen.save.energy==100f&&
+                frozen.invulnerable<=0f,
+                "A frozen simulation cannot dispatch the queued dodge or advance its input deadline");
+            frozen.Tick(.05f,new Point());
+            Check(frozen.hitStop<=.00001f&&frozen.dashTime>.17f&&
+                frozen.save.energy<81f&&frozen.save.energy>=80f&&
+                frozen.invulnerable>.30f,
+                "The queued dodge starts once after hit-stop has fully elapsed");
+
             var tooEarly=Fresh(data);tooEarly.enemies.Clear();
             tooEarly.save.energy=100f;tooEarly.invulnerable=0f;
             tooEarly.dashCooldown=0f;tooEarly.playerHitTime=.35f;
@@ -359,6 +379,18 @@ namespace Starfall.Tests
             Check(tooEarly.dashTime<=0f&&tooEarly.save.energy==100f&&
                 tooEarly.invulnerable<=0f,
                 "An expired early dodge press cannot execute after recovery ends");
+
+            var longFreeze=Fresh(data);longFreeze.enemies.Clear();
+            longFreeze.save.energy=100f;longFreeze.invulnerable=0f;
+            longFreeze.dashCooldown=0f;longFreeze.hitStop=.35f;
+            longFreeze.Dash(new Point(1,0));
+            Check(!longFreeze.DodgeQueued&&longFreeze.dashTime<=0f&&
+                longFreeze.save.energy==100f&&longFreeze.invulnerable<=0f,
+                "A hit-stop outside the 140ms window cannot store a future free dodge");
+            Advance(longFreeze,.4f);
+            Check(longFreeze.dashTime<=0f&&longFreeze.save.energy==100f&&
+                longFreeze.invulnerable<=0f,
+                "An expired early hit-stop dodge cannot start after the world unfreezes");
         }
 
         public static void BufferedSkillRepeatCannotExtendOrRetargetIntent(Campaign data)

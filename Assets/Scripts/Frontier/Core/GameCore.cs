@@ -624,9 +624,9 @@ namespace Starfall
             // A hit-recovery press may be buffered only when BOTH hitstun
             // and cooldown can finish inside the original 140ms window.
             // Never grant movement/invulnerability over a visible Hit pose.
-            if (playerHitTime > .00001f)
+            if (playerHitTime > .00001f || hitStop > .00001f)
             {
-                float readyDelay = Math.Max(playerHitTime, dashCooldown);
+                float readyDelay = Math.Max(hitStop, Math.Max(playerHitTime, dashCooldown));
                 if (readyDelay <= DodgeBufferWindow + .00001f &&
                     save.energy >= cost)
                     QueueLateDodge(direction);

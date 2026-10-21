@@ -308,13 +308,13 @@ namespace Starfall
         // deadline, change collision, or grant invulnerability.
         public Point DodgeQueuedDirection
         { get { return bufferedDodge==null?new Point():bufferedDodge.direction; } }
-        // The HUD may offer a real input only in the same late cooldown
-        // window as keyboard and gamepad. Never claim that the queue is
-        // payable/valid when its GameCore action would reject the click.
+        // The HUD offers the same bounded late-ready window for cooldown,
+        // hit recovery and hit-stop as keyboard/gamepad. Never claim a queued
+        // dodge is payable when GameCore would reject the input.
         public bool CanBufferDodge
         {
             get {
-                float readyDelay=Math.Max(dashCooldown,playerHitTime);
+                float readyDelay=Math.Max(hitStop,Math.Max(dashCooldown,playerHitTime));
                 return DodgeRootReady && bufferedDodge==null &&
                     readyDelay>.00001f &&
                     readyDelay<=DodgeBufferWindow+.00001f &&
@@ -354,7 +354,7 @@ namespace Starfall
             float remaining=intent.remaining;
             intent.remaining-=dt;
             if(dashCooldown<=.00001f&&playerHitTime<=.00001f&&
-                readyDelay<=remaining+.00001f&&
+                hitStop<=.00001f&&readyDelay<=remaining+.00001f&&
                 !Dying&&mode=="world")
             {
                 // Clear BEFORE dispatch: the accepted dodge cancels the active
