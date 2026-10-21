@@ -1,3 +1,15 @@
+## 2026-10-21 crash-safe unique save staging
+
+- **Verified code/test HEAD:** [`687c4695`](https://github.com/jinze909/rpg-by-ai-2/commit/687c469554831183b52330a83dc7373bee19cc76). Exact-commit [Core CI SUCCESS, run #1696](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39588291371): all 52 workflow steps passed; the production offline harness reports **96/96 groups passed**.
+- **Data-loss risk closed:** `SaveStore.Write` previously opened the shared `.tmp` with `FileMode.Create`. If that file was the only valid copy after an earlier interrupted transaction, a later disk write could truncate it before the replacement was safely committed.
+- Each new write now uses a fresh `<save>.stage-<guid>` path, flushes and decodes it from disk, and only then moves/replaces the primary. `Read`, `Exists`, and monotonic timestamp selection recognize complete stage candidates. A crash after staging can recover the newest valid candidate; existing `.tmp`, `.bak`, and `.precommit` files remain readable.
+- Cleanup runs only after a primary is committed and removes only valid recovery candidates no newer than that primary. A valid newer stage or an unreadable/in-flight stage is preserved, avoiding a race with another writer. Legacy `.tmp` files are cleaned after successful commit when safe.
+- **Executed evidence:** `PASS Real SaveStore I/O: unique staging recovery, failed-write preservation, monotonic timestamps, clock rollback, corrupt future metadata, schema rejection and v1/v2 compatibility`; `PASS Atomic portable save: update, failed rename rollback, crash recovery and subsequent heal`. Exact CI log confirms `Runtime combat input: 96/96 groups passed; NATIVE_UNVERIFIED`.
+- **Preserved:** v1/v2 save payload/schema, autosave/manual-slot paths, checksum validation, old sidecar recovery, campaign/quest state, canonical blonde protagonist, source artwork and Unity GUIDs. All changes remain on `jinze909/rpg-by-ai-2/chatgpt/dev`; no scheduled tasks or other branches were modified.
+- **Remaining limits:** Unity 2022.3.53f1 native Editor/GameView/PlayMode/GPU verification remains `NATIVE_UNVERIFIED`. The 18 original full-body hero Attack/Cast contact artworks and motion-complete moving recovery remain `ART_REVIEW_REQUIRED`.
+
+---
+
 ## 2026-10-21 save-recovery timestamp monotonicity
 
 - **Verified code/test HEAD:** [`55c5dee3`](https://github.com/jinze909/rpg-by-ai-2/commit/55c5dee3b7f12a780fa5518ac4b0b49de842e14f). Exact-commit [Core CI SUCCESS, run #1693](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39585742002); all 52 workflow steps passed and the offline runtime harness reports **96/96 groups passed**.
