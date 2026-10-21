@@ -1043,6 +1043,7 @@ namespace Starfall
 
         private void DrawEnemyActor(Enemy e)
         {
+            if(!IsValidWorldEnemy(e))return;
             bool acceptedBriarBody=e.boss && Game.save.room==1 &&
                 ActorAtlasGeometry.IsAcceptedBriarBeastAtlas(briarBeastSheet);
             if(e.boss)

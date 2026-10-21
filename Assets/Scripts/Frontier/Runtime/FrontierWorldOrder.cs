@@ -32,13 +32,29 @@ namespace Starfall
         private readonly List<WorldObject> coverResidentsInView=
             new List<WorldObject>(64);
         private bool coverResidentsPrepared;
+        private static bool FiniteWorldCoordinate(float value)
+        { return !float.IsNaN(value) && !float.IsInfinity(value); }
+        private static bool FiniteWorldPoint(Point point)
+        { return FiniteWorldCoordinate(point.x) && FiniteWorldCoordinate(point.y); }
+        private static bool IsValidWorldEnemy(Enemy enemy)
+        { return enemy != null && FiniteWorldCoordinate(enemy.x) &&
+            FiniteWorldCoordinate(enemy.y); }
+        private static bool IsValidEnemyWarning(Enemy enemy)
+        {
+            return IsValidWorldEnemy(enemy) &&
+                FiniteWorldPoint(enemy.target) &&
+                FiniteWorldPoint(enemy.facing);
+        }
         private void AddWorldEntry(WorldDrawEntry entry)
         {entry.order=worldDrawEntries.Count;worldDrawEntries.Add(entry);}
         private bool WorldDrawable(float x, float y, float horizontalMargin = 230,
             float verticalMargin = 250)
         {
+            if(!FiniteWorldCoordinate(x)||!FiniteWorldCoordinate(y))
+                return false;
             Point screen = ScreenPoint(new Point(x, y));
-            return screen.x > -horizontalMargin && screen.x < Width + horizontalMargin &&
+            return FiniteWorldPoint(screen) &&
+                screen.x > -horizontalMargin && screen.x < Width + horizontalMargin &&
                 screen.y > -verticalMargin && screen.y < Height + verticalMargin;
         }
         private float FadeWorldProp(float x,float y)
@@ -71,10 +87,12 @@ namespace Starfall
             // sorting and invoking GUI props for hundreds of remote actors.
             // The 230x250 margin exceeds even the tallest authored canopy.
             foreach(Decoration d in Game.Map.decor)
-                if(WorldDrawable(d.x,d.y))
+                if(d!=null && !String.IsNullOrEmpty(d.kind) &&
+                   WorldDrawable(d.x,d.y))
                     AddWorldEntry(new WorldDrawEntry{depth=d.y,kind=WorldDrawKind.Decoration,decoration=d});
             foreach(WorldObject o in Game.Map.objects)
-                if(WorldDrawable(o.x,o.y))
+                if(o!=null && !String.IsNullOrEmpty(o.kind) &&
+                   WorldDrawable(o.x,o.y))
                 {
                     AddWorldEntry(new WorldDrawEntry{depth=o.y+.01f,kind=WorldDrawKind.Object,obj=o});
                     if(IsCoverResident(o.kind) && Game.IsObjectPresent(o))
@@ -85,7 +103,7 @@ namespace Starfall
                 // Enemy bodies are culled independently from attack targets.
                 // A visible landing zone must NEVER lose its warning merely
                 // because its long-range caster is beyond actor draw margin.
-                if(WorldDrawable(e.x,e.y,450,450))
+                if(IsValidWorldEnemy(e) && WorldDrawable(e.x,e.y,450,450))
                     AddWorldEntry(new WorldDrawEntry{depth=e.y,kind=WorldDrawKind.Enemy,enemy=e});
             }
             foreach(FallenActor f in Game.fallen)
@@ -107,11 +125,12 @@ namespace Starfall
             // terrain position, not screen-space ankle offsets. Sort below
             // bodies and prop occluders just like other world details.
             foreach(FootfallMark contact in footfallMarks)
-                    if(contact.room==Game.save.room &&
-                        WorldDrawable(contact.position.x,contact.position.y,40,40))
-                        AddWorldEntry(new WorldDrawEntry{
-                            depth=contact.position.y-.035f,
-                            kind=WorldDrawKind.Footfall,footfall=contact});
+                if(IsValidFootfallMark(contact) &&
+                   contact.room==Game.save.room &&
+                   WorldDrawable(contact.position.x,contact.position.y,40,40))
+                    AddWorldEntry(new WorldDrawEntry{
+                        depth=contact.position.y-.035f,
+                        kind=WorldDrawKind.Footfall,footfall=contact});
             AddWorldEntry(new WorldDrawEntry{depth=Game.save.y+.002f,kind=WorldDrawKind.Player});
             if(Game.save.companion>=0)AddWorldEntry(new WorldDrawEntry{depth=Game.companionPosition.y,kind=WorldDrawKind.Companion});
             // Keep the moving rescue survivor in the same depth pass as every
@@ -221,7 +240,7 @@ namespace Starfall
         {
             foreach(Enemy e in Game.enemies)
             {
-                if(e.state!=1)continue;
+                if(!IsValidEnemyWarning(e)||e.state!=1)continue;
                 bool areaAttack=e.boss||e.kind==2;
                 bool anchored=WorldDrawable(e.x,e.y,450,450) ||
                     !areaAttack&&WorldDrawable(e.target.x,e.target.y,120,120);
@@ -247,6 +266,10 @@ namespace Starfall
         private static bool BehindWorldCover(float x,float y,Decoration cover,
             float reachX,float reachY)
         {
+            if(cover==null||!FiniteWorldCoordinate(x)||
+               !FiniteWorldCoordinate(y)||
+               !FiniteWorldCoordinate(cover.x)||
+               !FiniteWorldCoordinate(cover.y))return false;
             return Math.Abs(x-cover.x)<reachX && y<cover.y &&
                 y>cover.y-reachY;
         }
@@ -269,10 +292,13 @@ namespace Starfall
         }
         private bool WorldCoverOverlapsActor(Decoration cover)
         {
+            if(cover==null||!FiniteWorldCoordinate(cover.x)||
+               !FiniteWorldCoordinate(cover.y))return false;
             if(BehindWorldCover(Game.save.x,Game.save.y,cover,1.4f,2.7f))
                 return true;
             foreach(Enemy actor in Game.enemies)
-                if(BehindWorldCover(actor.x,actor.y,cover,1.6f,2.9f))
+                if(IsValidWorldEnemy(actor)&&
+                   BehindWorldCover(actor.x,actor.y,cover,1.6f,2.9f))
                     return true;
             if(Game.save.companion>=0 && BehindWorldCover(
                 Game.companionPosition.x,Game.companionPosition.y,
@@ -283,7 +309,7 @@ namespace Starfall
                 // No allocation, no full-map scan per canopy; all candidates
                 // were verified present and on-screen in DrawOrderedWorld.
                 foreach(WorldObject resident in coverResidentsInView)
-                    if(IsCoverResident(resident.kind) &&
+                    if(resident!=null && !String.IsNullOrEmpty(resident.kind) &&
                         BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
                         return true;
             }
@@ -292,7 +318,7 @@ namespace Starfall
                 // Single-actor Editor/review draws are not inside the sorted
                 // frame. Preserve their exact resident visibility semantics.
                 foreach(WorldObject resident in Game.Map.objects)
-                    if(IsCoverResident(resident.kind) &&
+                    if(resident!=null && IsCoverResident(resident.kind) &&
                         Game.IsObjectPresent(resident) &&
                         BehindWorldCover(resident.x,resident.y,cover,1.4f,2.7f))
                         return true;
@@ -311,6 +337,8 @@ namespace Starfall
         }
         private void DrawWorldDecoration(Decoration prop)
         {
+            if(prop==null||String.IsNullOrEmpty(prop.kind)||
+               !FiniteWorldPoint(new Point(prop.x,prop.y)))return;
             Point p=ScreenPoint(new Point(prop.x,prop.y));
             float w=prop.kind=="house"?170:prop.kind=="tree"?100:prop.kind=="ruin"?150:prop.kind=="bed"||prop.kind=="bookshelf"?90:prop.kind=="table"||prop.kind=="counter"?80:76;
             int variant=prop.variant;

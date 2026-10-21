@@ -52,6 +52,7 @@ def main():
     actor = (RUNTIME / "FrontierActors.cs").read_text()
     scene = (RUNTIME / "FrontierRuntime.cs").read_text()
     world_order = (RUNTIME / "FrontierWorldOrder.cs").read_text(encoding="utf-8")
+    footfalls = (RUNTIME / "FrontierFootfallVisual.cs").read_text(encoding="utf-8")
     effects = (RUNTIME / "FrontierEffects.cs").read_text(encoding="utf-8")
     presentation = (RUNTIME / "FrontierPresentation.cs").read_text(encoding="utf-8")
     core = (ROOT / "Assets/Scripts/Frontier/Core/GameCore.cs").read_text(encoding="utf-8")
@@ -60,8 +61,15 @@ def main():
     assert "private bool CanDrawFallen(FallenActor fallen)" in world_order
     assert "fallen != null && fallen.IsValid" in world_order
     assert "fallen.room == Game.save.room" in world_order
-    assert "fallen != null && fallen.IsValid" in world_order
     assert "BehindWorldCover(fallen.actor.x,fallen.actor.y," in world_order
+    assert "private static bool FiniteWorldCoordinate(float value)" in world_order
+    assert "if(d!=null && !String.IsNullOrEmpty(d.kind)" in world_order
+    assert "if(o!=null && !String.IsNullOrEmpty(o.kind)" in world_order
+    assert "if(IsValidWorldEnemy(e) && WorldDrawable(e.x,e.y,450,450))" in world_order
+    assert "if(!IsValidEnemyWarning(e)||e.state!=1)continue;" in world_order
+    assert "if(resident!=null && IsCoverResident(resident.kind)" in world_order
+    assert "private static bool IsValidFootfallMark(FootfallMark mark)" in footfalls
+    assert "if(!IsValidFootfallMark(mark))" in footfalls
     assert "ValidEffectForDraw(effect)" in world_order
     assert "private static bool ValidEffectForDraw(Effect effect)" in effects
     assert "if (!ValidEffectForDraw(effect)) return false;" in effects

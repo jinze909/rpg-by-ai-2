@@ -92,6 +92,14 @@ namespace Starfall
         private int companionContactIndex=-1;
 
 
+        private static bool IsValidFootfallMark(FootfallMark mark)
+        {
+            return mark!=null &&
+                FiniteWorldPoint(mark.position) &&
+                FiniteWorldCoordinate(mark.age) && mark.age>=0f &&
+                FiniteWorldCoordinate(mark.intensity) && mark.intensity>0f;
+        }
+
         private void AdvanceFootfallVisual(float delta)
         {
             if(Game == null) return;
@@ -133,10 +141,17 @@ namespace Starfall
                 return;
             }
             float lifetime=CurrentWorldVisualLook.footfallLifetime;
+            float elapsed=FiniteWorldCoordinate(delta)?Math.Max(0f,delta):0f;
             for(int i=footfallMarks.Count-1;i>=0;--i)
             {
-                footfallMarks[i].age+=Math.Max(0,delta);
-                if(footfallMarks[i].age>=lifetime)
+                FootfallMark mark=footfallMarks[i];
+                if(!IsValidFootfallMark(mark))
+                {
+                    footfallMarks.RemoveAt(i);
+                    continue;
+                }
+                mark.age+=elapsed;
+                if(!FiniteWorldCoordinate(mark.age)||mark.age>=lifetime)
                     footfallMarks.RemoveAt(i);
             }
             // Hero audio contact count is a separate cadence from the
@@ -285,7 +300,7 @@ namespace Starfall
 
         private void DrawFootfallMark(FootfallMark mark)
         {
-            if(mark.room!=Game.save.room||
+            if(!IsValidFootfallMark(mark)||mark.room!=Game.save.room||
                Game.save.reducedMotion||Game.save.effectsQuality==0)
                 return;
             float life=CurrentWorldVisualLook.footfallLifetime;

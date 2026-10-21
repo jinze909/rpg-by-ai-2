@@ -5331,10 +5331,48 @@ public static class RenderStateChecks
                 new Point(float.NaN,foot.y),.5f));
             game.effects.Add(new Effect("impact",foot,.5f) {life=float.NaN});
 
-            // Exercise the actual depth-sort loop without unrelated HUD/prop
-            // text rendering. Preserve and restore the live map arrays exactly.
-            game.Map.decor=new Decoration[0];
-            game.Map.objects=new WorldObject[0];
+            // Exercise the actual depth-sort loop with malformed world records.
+            // The renderer must skip these before reading kind, coordinates or
+            // warning targets; no accepted map/source asset is mutated.
+            game.Map.decor=new Decoration[] {
+                null,
+                new Decoration {kind="tree",x=float.NaN,y=foot.y},
+                new Decoration {kind=null,x=foot.x,y=foot.y}
+            };
+            game.Map.objects=new WorldObject[] {
+                null,
+                new WorldObject {kind=null,x=foot.x,y=foot.y},
+                new WorldObject {kind="guild",x=float.PositiveInfinity,y=foot.y}
+            };
+            var marks=(System.Collections.IList)typeof(FrontierRuntime)
+                .GetField("footfallMarks",Private).GetValue(app);
+            marks.Clear();
+            marks.Add(null);
+            Type markType=typeof(FrontierRuntime).GetNestedType(
+                "FootfallMark",BindingFlags.NonPublic);
+            object malformedMark=Activator.CreateInstance(markType,true);
+            markType.GetField("position",Private).SetValue(malformedMark,
+                new Point(float.NaN,foot.y));
+            markType.GetField("room",Private).SetValue(malformedMark,
+                game.save.room);
+            markType.GetField("age",Private).SetValue(malformedMark,0f);
+            markType.GetField("intensity",Private).SetValue(malformedMark,1f);
+            marks.Add(malformedMark);
+            Set(app,"paintedFootRoom",game.save.room);
+            Set(app,"paintedFootContact",game.footContacts);
+            Set(app,"paintedHeroOwner",game);
+            Set(app,"paintedHeroSave",game.save);
+            Set(app,"paintedHeroWalkDistance",game.walkDistance);
+            Set(app,"paintedHeroPosition",game.Position);
+            Set(app,"paintedHeroContactIndex",-1);
+            Call(app,"AdvanceFootfallVisual",.016f);
+            Check(marks.Count==0,
+                "Malformed/null footfall marks are retired before age arithmetic");
+            game.enemies.Add(null);
+            game.enemies.Add(new Enemy(9875,0,float.NaN,foot.y,10f) {
+                state=1,target=new Point(float.NaN,foot.y),
+                facing=new Point(float.NaN,0f)
+            });
             Clear();
             Call(app,"DrawCombatEffect",(object)null);
             Call(app,"DrawCombatEffect",new Effect("slash",
@@ -5342,18 +5380,22 @@ public static class RenderStateChecks
             Call(app,"DrawAuthoredImpactFlourish",(object)null);
             Call(app,"DrawAuthoredImpactFlourish",new Effect("slash",
                 new Point(float.NaN,foot.y),.5f));
-            // Invoke the production depth-sort pass directly so the HUD
-            // cannot depend on map content intentionally removed for isolation.
+            Call(app,"DrawWorldDecoration",(object)null);
+            Call(app,"DrawEnemyActor",(object)null);
+            // Invoke the production depth-sort pass directly so the invalid
+            // collections reach the real production filters and warning pass.
             Call(app,"DrawOrderedWorld");
+            Check(!(bool)Call(app,"WorldCoverOverlapsActor",(object)null),
+                "Canopy occlusion rejects a null cover before coordinate access");
 
-            // The separate canopy-overlap path also traverses the corpse list;
-            // prove its identity/room guards, not just the depth-sort guards.
+            // The separate canopy-overlap path also traverses every actor and
+            // map object list; malformed records must not crash its fallback.
             Decoration remoteCover=new Decoration {
                 kind="tree",x=foot.x+1000f,y=foot.y+1000f
             };
             Check(!(bool)Call(app,"WorldCoverOverlapsActor",remoteCover),
-                "Canopy occlusion skips null, invalid and foreign-room corpses");
-            Console.WriteLine("PASS production draw guards skip malformed/out-of-room corpses and invalid effects before dereference");
+                "Canopy occlusion skips null, invalid and foreign-room actors/objects/corpses");
+            Console.WriteLine("PASS production draw guards skip malformed world records, corpses and effects before dereference");
         }
         finally
         {
