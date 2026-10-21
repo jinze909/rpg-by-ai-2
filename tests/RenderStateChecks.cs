@@ -5295,7 +5295,7 @@ public static class RenderStateChecks
             game.mode="world";game.enemies.Clear();game.projectiles.Clear();
             game.effects.Clear();game.fallen.Clear();game.save.companion=-1;
             Point foot=game.Position;
-            Check(!(bool)Call(app,"CanDrawFallen",null),
+            Check(!(bool)Call(app,"CanDrawFallen",(object)null),
                 "Production world sort rejects a null fallen record before reading its actor");
             Check(!(bool)Call(app,"CanDrawFallen",new FallenActor {
                 actor=null,room=game.save.room,life=.2f,duration=.6f
