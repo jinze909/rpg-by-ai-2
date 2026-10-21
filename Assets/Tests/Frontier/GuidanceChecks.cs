@@ -3262,3 +3262,6 @@ namespace Starfall.Tests
                 resumed.conversation.textEn.Contains("three-region road audit is now on the public record"),
                 "The inn's persistent bilingual response reflects the published audit after reload");
         }
+
+    }
+}
