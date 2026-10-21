@@ -1768,7 +1768,29 @@ public static class RuntimeCombatInputChecks
             restored = SaveStore.Read(0, out warning);
             Check(restored != null && restored.coins == 88 && restored.version == 2 && warning == null,
                 "Unwrapped original v2 saves also remain readable.");
-            Console.WriteLine("PASS Real SaveStore I/O: crash recovery, schema rejection, truncated envelope, and original v1/v2 compatibility");
+
+            // A damaged clock or hand-edited metadata must not make a backup
+            // outrank an otherwise newer sane copy forever.
+            put(main, 100, "9999-12-31T23:59:59.9999999Z");
+            System.IO.File.SetLastWriteTimeUtc(main, DateTime.UtcNow.AddMinutes(-10));
+            DateTime saneBackupTime = DateTime.UtcNow.AddMinutes(-5);
+            put(main + ".bak", 99, saneBackupTime.ToString("o", CultureInfo.InvariantCulture));
+            System.IO.File.SetLastWriteTimeUtc(main + ".bak", saneBackupTime);
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 99 && warning == "Recovered backup.",
+                "An implausible year-9999 save timestamp cannot permanently outrank a sane backup.");
+
+            // Simulate a machine clock being corrected backwards after an
+            // earlier save was written with a future-but-representable clock.
+            put(main, 90, "2099-01-01T00:00:00.0000000Z");
+            put(main + ".bak", 89, "2098-01-01T00:00:00.0000000Z");
+            Check(SaveStore.Write(new SaveData { version = 2, coins = 91 }, 0),
+                "A new save succeeds after the wall clock moves backwards.");
+            restored = SaveStore.Read(0, out warning);
+            Check(restored != null && restored.coins == 91 && warning == null,
+                "A new write advances beyond the newest persisted timestamp and cannot be rolled back to the old future-dated backup.");
+
+            Console.WriteLine("PASS Real SaveStore I/O: monotonic timestamps, clock rollback, corrupt future metadata, crash recovery, schema rejection and v1/v2 compatibility");
         }
         finally
         {

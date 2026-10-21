@@ -75,16 +75,54 @@ namespace Starfall
             return value;
         }
         public static SaveData Read(out string warning) { return Read(-1, out warning); }
+        private static DateTime FileTimestamp(string path)
+        {
+            DateTime timestamp = File.GetLastWriteTimeUtc(path);
+            // A timestamp centuries ahead is corrupted metadata, not a reason
+            // to let one stale sidecar permanently outrank future saves.
+            return timestamp > DateTime.UtcNow.AddYears(100) ?
+                DateTime.MinValue : timestamp;
+        }
         private static DateTime SaveTimestamp(SaveData candidate, string path)
         {
             DateTime savedTime;
             // The serialized timestamp follows the save payload through an
             // atomic rename and is more reliable than the filesystem timestamp
             // copied onto a .bak by platform-specific replace implementations.
+            // Reject implausible future metadata, but keep the filesystem-time
+            // fallback for old v1 saves and timestamp-corrupted sidecars.
             if (!DateTime.TryParse(candidate.savedAtUtc, CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind, out savedTime))
-                return File.GetLastWriteTimeUtc(path); // Original v1 saves may lack a timestamp.
+                DateTimeStyles.RoundtripKind, out savedTime) ||
+                savedTime > DateTime.UtcNow.AddYears(100))
+                return FileTimestamp(path);
             return savedTime.ToUniversalTime();
+        }
+        private static DateTime NextSaveTimestamp(int slot)
+        {
+            string main = PathFor(slot);
+            DateTime newest = DateTime.MinValue;
+            // Wall clocks can move backwards after travel, sleep or manual
+            // correction. Advance beyond every valid on-disk transaction
+            // candidate so the next successful write remains the newest copy.
+            foreach (string path in new[] { main, main + ".tmp",
+                main + ".bak", main + ".precommit" })
+            {
+                if (!File.Exists(path)) continue;
+                try
+                {
+                    SaveData candidate = Decode(File.ReadAllText(path));
+                    DateTime timestamp = SaveTimestamp(candidate, path);
+                    if (timestamp > newest) newest = timestamp;
+                }
+                catch
+                {
+                    // An invalid recovery candidate must not prevent a save.
+                }
+            }
+            DateTime now = DateTime.UtcNow;
+            if (newest >= now && newest < DateTime.MaxValue)
+                return newest.AddTicks(1);
+            return now;
         }
         public static SaveData Read(int slot, out string warning)
         {
@@ -178,7 +216,8 @@ namespace Starfall
             try
             {
                 Directory.CreateDirectory(Application.persistentDataPath); string path = PathFor(slot), temp = path + ".tmp";
-                value.savedAtUtc = DateTime.UtcNow.ToString("o"); string payload = JsonUtility.ToJson(value);
+                value.savedAtUtc = NextSaveTimestamp(slot).ToString("o", CultureInfo.InvariantCulture);
+                string payload = JsonUtility.ToJson(value);
                 string json = JsonUtility.ToJson(new SaveEnvelope { payload = payload, checksum = Checksum(payload) }, true);
                 // Validate BEFORE FileMode.Create truncates a crash-recovered
                 // .tmp that might be the only remaining good save. The
