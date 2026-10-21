@@ -1,3 +1,14 @@
+## 2026-10-21 save-recovery timestamp monotonicity
+
+- **Verified code/test HEAD:** [`55c5dee3`](https://github.com/jinze909/rpg-by-ai-2/commit/55c5dee3b7f12a780fa5518ac4b0b49de842e14f). Exact-commit [Core CI SUCCESS, run #1693](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39585742002); all 52 workflow steps passed and the offline runtime harness reports **96/96 groups passed**.
+- `SaveStore.Write` now derives a strictly monotonic `savedAtUtc` from every valid on-disk primary/temporary/backup/precommit candidate before writing. This prevents a later save from becoming older than an existing copy when the system clock is corrected backwards.
+- Save candidate ordering rejects implausible timestamps over 100 years ahead; an ordinary file timestamp is used as fallback, and equally implausible filesystem timestamps are bounded instead of becoming an immortal winner. No SaveData field/schema change was made.
+- **Executed regression evidence:** `PASS Real SaveStore I/O: monotonic timestamps, clock rollback, corrupt future metadata, crash recovery, schema rejection and v1/v2 compatibility`. Existing portable transaction and full runtime checks also passed.
+- **Preserved:** v1/v2 save compatibility, the existing primary/tmp/backup/precommit transaction, scene, quest content, canonical blonde protagonist, accepted artwork and Unity GUIDs. Writes remained on `chatgpt/dev`; no scheduled tasks or other branches were modified.
+- **Remaining honest gates:** licensed Unity 2022.3.53f1 Editor/GameView/PlayMode/GPU verification remains `NATIVE_UNVERIFIED`; the 18 original full-body hero Attack/Cast contact artworks and moving recovery still remain `ART_REVIEW_REQUIRED`.
+
+---
+
 ## 2026-10-21 live continuation — save recovery, combat contacts and Chapter Twelve field audit
 
 - **Latest tested code/test HEAD:** [`5c3769b4`](https://github.com/jinze909/rpg-by-ai-2/commit/5c3769b4dbe1c5c7413d89b6fe21663178b1d177). Exact-commit [Core CI SUCCESS, run #1691](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39583449696); the offline production harness reports **96/96 groups passed**. This is not native Unity Editor/GameView/PlayMode verification.
