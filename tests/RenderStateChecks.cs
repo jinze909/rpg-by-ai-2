@@ -5431,6 +5431,54 @@ public static class RenderStateChecks
     {
         CoverOcclusionIncludesEveryLiveActor(app);
     }
+    public static void VerifyWaytrailCueTracksCivicAudit(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        var originalFlags=new System.Collections.Generic.List<string>(g.save.flags);
+        int originalRoom=g.save.room;
+        float originalX=g.save.x,originalY=g.save.y;
+        try
+        {
+            g.save.flags.RemoveAll(flag=>flag.StartsWith("civic_aftercare_"));
+            g.save.flags.Add("civic_conduit_complete");
+            foreach(int room in new[]{0,3,5})
+            {
+                g.save.room=room;
+                WorldObject marker=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
+                Check(marker!=null,"Every civic audit region retains its authored route marker");
+                g.save.flags.Remove("waytrail_"+marker.id);
+                g.save.flags.Remove("civic_aftercare_started");
+                g.save.flags.Remove("civic_aftercare_waytrail_"+room);
+                g.save.flags.Add("waytrail_"+marker.id);
+                Clear();Call(app,"DrawObject",marker);
+                Check(Label("✓"),
+                    "The original route-chart check remains visible before the optional audit starts");
+                g.save.flags.Add("civic_aftercare_started");
+                Clear();Call(app,"DrawObject",marker);
+                Check(Label("?"),
+                    "An old survey check cannot hide the active audit's pending region cue (room "+room+")");
+                g.save.flags.Add("civic_aftercare_waytrail_"+room);
+                Clear();Call(app,"DrawObject",marker);
+                Check(Label("✓"),
+                    "The region's audit cue changes to verified after its own persistent flag (room "+room+")");
+            }
+            g.save.room=1;
+            WorldObject unrelated=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
+            Check(unrelated!=null,"Non-audit regions retain their original route marker");
+            g.save.flags.Add("waytrail_"+unrelated.id);
+            Clear();Call(app,"DrawObject",unrelated);
+            Check(Label("✓"),
+                "The optional audit does not overwrite original survey cues in other regions");
+            Console.WriteLine("PASS civic audit waytrail cues follow region progress without changing legacy survey flags");
+        }
+        finally
+        {
+            g.save.flags.Clear();g.save.flags.AddRange(originalFlags);
+            g.save.room=originalRoom;g.save.x=originalX;g.save.y=originalY;
+        }
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         int width=Screen.width,height=Screen.height;Matrix4x4 matrix=GUI.matrix;Color color=GUI.color;bool enabled=GUI.enabled;float dpi=GUI.pixelsPerPoint;Vector3 mouse=Input.mousePosition;

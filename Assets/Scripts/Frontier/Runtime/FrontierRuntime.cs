@@ -942,7 +942,17 @@ namespace Starfall
             }
             if (kind == "waytrail")
             {
-                bool recorded = Game.Has("waytrail_" + o.id);
+                // The late civic audit revisits old markers that may already
+                // carry their original survey checkmark. While the audit is
+                // active, show the region's audit state instead; otherwise a
+                // completed old survey can misleadingly look like this new
+                // objective is already done.
+                bool auditRegion = Game.CivicAftercareActive &&
+                    (Game.save.room == 0 || Game.save.room == 3 ||
+                     Game.save.room == 5);
+                bool recorded = auditRegion ?
+                    Game.Has("civic_aftercare_waytrail_" + Game.save.room) :
+                    Game.Has("waytrail_" + o.id);
                 PropImage("obelisk", 0, p.x - 31, p.y - 71, 62, 73,
                     recorded ? new Color(.65f, .87f, .79f, .8f) : Color.white);
                 Ring(new Point(o.x, o.y), .43f, recorded ? mint : gold, 12);

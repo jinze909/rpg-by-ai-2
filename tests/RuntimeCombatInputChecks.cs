@@ -3195,6 +3195,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyRoadwardenWardSpriteInProduction,
             RenderStateChecks.VerifyMalformedTransientRecordsAreSkippedByProductionDrawGuards,
             RenderStateChecks.VerifyCanopyOcclusionIncludesEveryLiveActor,
+            RenderStateChecks.VerifyWaytrailCueTracksCivicAudit,
             CivicAftermathChronicleReflectsLiveInfrastructure,
             CivicAftercareRoadAuditIsTrackableAndOneTime,
             RuntimeContinuityChecks.NavigationRouteGuidance };
