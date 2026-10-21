@@ -24,6 +24,9 @@ namespace Starfall
         private bool navigationRouteFarBridge, navigationRouteSeal;
         private int navigationRouteRoom = -1, navigationRouteFloor = -1;
         private int navigationRouteStartX = int.MinValue, navigationRouteStartY = int.MinValue;
+        // Moving objectives (practice targets, the physical mine cart) can
+        // travel within one map tile. Half-tile buckets keep HUD repaints cheap
+        // without leaving breadcrumbs pinned to the previous whole tile.
         private int navigationRouteTargetX = int.MinValue, navigationRouteTargetY = int.MinValue;
         private Conversation lastConversation;
         private readonly string[] menuModes = { "inventory", "loadout", "talents", "companions", "journal", "map", "camp", "bounties", "help" };
@@ -245,7 +248,8 @@ namespace Starfall
                 return navigationRouteCache;
             }
             int startX = (int)Game.Position.x, startY = (int)Game.Position.y;
-            int targetX = (int)Math.Floor(goal.Value.x), targetY = (int)Math.Floor(goal.Value.y);
+            int targetX = (int)Math.Floor(goal.Value.x * 2f);
+            int targetY = (int)Math.Floor(goal.Value.y * 2f);
             bool lowTide = Game.LowTide, gateBarrier = Game.GateBarrierActive;
             bool farBridge = Game.Has("far_bridge_" + Game.save.room);
             bool seal = Game.Has("seal_" + Game.save.room);

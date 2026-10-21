@@ -702,6 +702,50 @@ public static class RuntimeContinuityChecks
             Set(app, "camera", game.Position);
             Call(app, "NavigationRoute");
         }
+        // A moving objective may travel a substantial distance without
+        // leaving its whole map tile. Rebuild on half-tile boundaries while
+        // preserving the cached BFS for small sub-bucket movement.
+        bool oldPractice = game.practicing;
+        float movingOldX = game.save.x, movingOldY = game.save.y;
+        Enemy[] oldEnemies = game.enemies.ToArray();
+        try
+        {
+            game.save.x = 12; game.save.y = 14;
+            Point anchor = route[route.Count / 2];
+            int movingTileX = (int)Math.Floor(anchor.x);
+            int movingTileY = (int)Math.Floor(anchor.y);
+            game.enemies.Clear();
+            Enemy movingTarget = new Enemy(991234, 0,
+                movingTileX + .1f, movingTileY + .5f, 100);
+            game.enemies.Add(movingTarget);
+            game.practicing = true;
+            Set(app, "camera", game.Position);
+            List<Point> initialMovingRoute = (List<Point>)Call(app, "NavigationRoute");
+            Check(initialMovingRoute.Count > 0,
+                "A moving practice objective has a real collision-valid route");
+            Check(Get<int>(app, "navigationRouteTargetX") ==
+                (int)Math.Floor(movingTarget.x * 2f),
+                "The route cache records the target's half-tile bucket");
+            movingTarget.x = movingTileX + .3f;
+            List<Point> subBucketRoute = (List<Point>)Call(app, "NavigationRoute");
+            Check(object.ReferenceEquals(initialMovingRoute, subBucketRoute),
+                "Small target motion inside one half-tile bucket reuses the existing BFS");
+            movingTarget.x = movingTileX + .8f;
+            List<Point> advancedMovingRoute = (List<Point>)Call(app, "NavigationRoute");
+            Check(!object.ReferenceEquals(subBucketRoute, advancedMovingRoute) &&
+                Get<int>(app, "navigationRouteTargetX") ==
+                    (int)Math.Floor(movingTarget.x * 2f),
+                "A moving target is re-routed after moving within the same whole tile");
+            Console.WriteLine("PASS moving-objective half-tile route refresh and stable sub-bucket cache");
+        }
+        finally
+        {
+            game.practicing = oldPractice;
+            game.enemies.Clear(); game.enemies.AddRange(oldEnemies);
+            game.save.x = movingOldX; game.save.y = movingOldY;
+            Set(app, "camera", game.Position);
+            Call(app, "NavigationRoute");
+        }
         Console.WriteLine("PASS tracked-quest routes, blocked-objective cues, HUD/local maps, guidance toggle and route cache invalidation");
     }
     public static void Run(FrontierRuntime app,string folder)
