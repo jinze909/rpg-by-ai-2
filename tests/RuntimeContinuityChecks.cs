@@ -446,7 +446,7 @@ public static class RuntimeContinuityChecks
                 Math.Abs(call.color.g - expected.g) >= .001f ||
                 Math.Abs(call.color.b - expected.b) >= .001f) continue;
             if (call.rect.x < 350 || call.rect.x + call.rect.width > 970 ||
-                call.rect.y < 125 || call.rect.y + call.rect.height > 650) return false;
+                call.rect.y < 125 || call.rect.y + call.rect.height > 600) return false;
         }
         return true;
     }
@@ -546,6 +546,16 @@ public static class RuntimeContinuityChecks
                 NavigationEdgeArrowStaysInPlayableView(),
                 "Off-screen " + edgeNames[i] + " objective receives a four-pixel directional cue outside HUD panels");
         }
+        Point? bossBarTarget = game.NavigationTarget();
+        Check(bossBarTarget.HasValue, "Boss-bar overlap fixture has a real objective");
+        game.save.x = bossBarTarget.Value.x;
+        game.save.y = bossBarTarget.Value.y - 7.2f;
+        Set(app, "camera", game.Position);
+        ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+        Check(NavigationRouteDots(4f) == 0 && NavigationEdgeArrowPixels() == 4 &&
+            NavigationEdgeArrowStaysInPlayableView(),
+            "A target behind the centered Boss bar is rerouted to a visible safe-edge cue");
+
         game.mode = "inventory";
         ClearDraw(); Call(app, "DrawNavigationTargetMarker");
         Check(NavigationEdgeArrowPixels() == 0,

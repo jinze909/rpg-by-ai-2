@@ -313,12 +313,14 @@ namespace Starfall
             // Keep the ordinary target ring away from HUD panels. If the
             // objective is beyond that view, project its bearing to a safe
             // edge instead of silently losing the player's direction cue.
-            if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > 650)
+            // The centered Boss health panel overlays the lower playfield.
+            if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > 590)
             {
                 Point player = ScreenPoint(Game.Position);
                 Point direction = screen - player;
                 if (direction.Length < .001f) return;
-                const float left = 366, right = 954, top = 145, bottom = 630;
+                // The live Boss bar occupies y=612..676; keep edge cues above it.
+                const float left = 366, right = 954, top = 145, bottom = 600;
                 float centerX = (left + right) * .5f, centerY = (top + bottom) * .5f;
                 float tx = direction.x > .001f ? (right - centerX) / direction.x :
                     direction.x < -.001f ? (left - centerX) / direction.x : float.PositiveInfinity;
