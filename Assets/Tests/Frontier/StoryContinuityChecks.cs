@@ -245,9 +245,34 @@ namespace Starfall.Tests
                 g.conversation.en.Contains("The Frontier You Chose") &&
                 StoryChoicePresent(g, "story_read_civic_aftermath"),
                 "The ending links backward to Chapter Twelve in the same chronological order");
+            Check(g.conversation.en.Contains("[After the ending, public promises still need caretakers]") &&
+                g.conversation.en.Contains("All three valves have been retuned.") &&
+                g.conversation.en.Contains("Public refuges: 0/8 built; long-term regional services: 0/3 signed.") &&
+                g.conversation.en.Contains("The public audit is still pending.") &&
+                g.conversation.en.Contains("Afterlight sites restored: 0/3.") &&
+                g.conversation.en.Contains("Residents still need to sign the maintenance charter."),
+                "The retrospective ending reports actual post-grid work without assuming every civic milestone is complete");
             Check(g.save.coins == coins && g.save.shards == shards &&
                 g.save.flags.Count == flags,
                 "Correcting chronicle navigation does not mutate save progress or grant rewards");
+
+            var pending = Fresh(data); pending.NewGame(0); pending.Close();
+            pending.save.frontierEnding = 3;
+            pending.save.ending = 3;
+            WorldObject pendingBook = Object(pending, "worldchronicle");
+            int pendingCoins = pending.save.coins, pendingShards = pending.save.shards;
+            int pendingFlags = pending.save.flags.Count;
+            pending.Talk(pendingBook);
+            ChooseStoryChoice(pending, "story_section_after");
+            ChooseStoryChoice(pending, "story_read_ending");
+            Check(pending.conversation.en.Contains("The three valves are still waiting for physical tuning.") &&
+                pending.conversation.en.Contains("The public audit is still pending.") &&
+                pending.conversation.en.Contains("Residents still need to sign the maintenance charter."),
+                "An ending with unfinished civic work explicitly leaves it pending");
+            Check(pending.save.coins == pendingCoins &&
+                pending.save.shards == pendingShards &&
+                pending.save.flags.Count == pendingFlags,
+                "Reading the ending never rewards or mutates a save with unfinished civic work");
         }
 
         public static void ChronicleChapterNavigationNeverLeaksFutureEvents(Campaign data)
