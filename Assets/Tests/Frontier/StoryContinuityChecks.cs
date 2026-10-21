@@ -247,9 +247,9 @@ namespace Starfall.Tests
                 "The ending links backward to Chapter Twelve in the same chronological order");
             Check(g.conversation.en.Contains("[After the ending, public promises still need caretakers]") &&
                 g.conversation.en.Contains("All three valves have been retuned.") &&
-                g.conversation.en.Contains("Public refuges: 0/8 built; long-term regional services: 0/3 signed.") &&
+                g.conversation.en.Contains("Public refuges: " + g.FarShelterCount + "/8 built; long-term regional services: " + g.CivicSupplyResolvedCount + "/3 signed.") &&
                 g.conversation.en.Contains("The public audit is still pending.") &&
-                g.conversation.en.Contains("Afterlight sites restored: 0/3.") &&
+                g.conversation.en.Contains("Afterlight sites restored: " + g.AfterlightRestored + "/3.") &&
                 g.conversation.en.Contains("Residents still need to sign the maintenance charter."),
                 "The retrospective ending reports actual post-grid work without assuming every civic milestone is complete");
             Check(g.save.coins == coins && g.save.shards == shards &&
