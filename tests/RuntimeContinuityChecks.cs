@@ -660,25 +660,41 @@ public static class RuntimeContinuityChecks
                 "The blocked-route fixture begins with the real tracked campaign objective");
             int mapWidth = originalRows[0].Length, mapHeight = originalRows.Length;
             Point blockedObjective = new Point();
-            float farthest = -1f;
-            // Use an already-proven reachable point on the real route, but keep
-            // the 5x5 fixture away from map borders. This avoids assuming the
-            // authored quest target itself has five tiles of margin.
-            for (int i = 1; i < route.Count; i++)
-            {
-                Point candidate = route[i];
-                int x = (int)Math.Floor(candidate.x), y = (int)Math.Floor(candidate.y);
-                float distance = (candidate - game.Position).Length;
-                if (x < 5 || y < 5 || x >= mapWidth - 5 || y >= mapHeight - 5 ||
-                    distance <= 6f || !game.CanStand(candidate)) continue;
-                if (distance > farthest)
+            bool foundInteriorRoute = false;
+            // The tracked campaign goal can be near a map edge or close to the
+            // player. Search standable interior tiles from farthest to nearest,
+            // and accept only a destination with an actual BFS route. This
+            // avoids both border assumptions and disconnected open pockets.
+            List<Point> interiorCandidates = new List<Point>();
+            for (int y = 5; y < mapHeight - 5; y++)
+                for (int x = 5; x < mapWidth - 5; x++)
                 {
-                    farthest = distance; blockedObjective = candidate;
-                    blockedPredecessor = route[i - 1];
+                    Point candidate = new Point(x + .5f, y + .5f);
+                    if ((candidate - game.Position).Length > 6f && game.CanStand(candidate))
+                        interiorCandidates.Add(candidate);
                 }
+            interiorCandidates.Sort((a, b) =>
+                (b - game.Position).Length.CompareTo((a - game.Position).Length));
+            foreach (Point candidate in interiorCandidates)
+            {
+                List<Point> candidateRoute = game.NavigationPath(candidate);
+                if (candidateRoute.Count == 0) continue;
+                int candidateX = (int)Math.Floor(candidate.x);
+                int candidateY = (int)Math.Floor(candidate.y);
+                for (int i = candidateRoute.Count - 1; i >= 0; i--)
+                {
+                    int px = (int)Math.Floor(candidateRoute[i].x);
+                    int py = (int)Math.Floor(candidateRoute[i].y);
+                    if (Math.Abs(px - candidateX) + Math.Abs(py - candidateY) != 1) continue;
+                    blockedObjective = candidate;
+                    blockedPredecessor = candidateRoute[i];
+                    foundInteriorRoute = true;
+                    break;
+                }
+                if (foundInteriorRoute) break;
             }
-            Check(farthest > 6f,
-                "The proven route contains a roomy interior waypoint for the collision fixture");
+            Check(foundInteriorRoute,
+                "The map has a standable, connected interior waypoint for the collision fixture");
             game.practicing = true;
             game.enemies.Clear();
             game.enemies.Add(new Enemy(991233, 0,
