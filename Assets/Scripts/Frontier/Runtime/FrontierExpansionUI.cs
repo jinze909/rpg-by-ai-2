@@ -91,6 +91,15 @@ namespace Starfall
                 companionGaitPhaseId==id&&
                 companionGaitPhaseGeneration==Game.companionPresentationGeneration&&
                 companionGaitPhaseRoom==Game.save.room;
+            // Outline/selection previews are read-only: they sample the last
+            // committed phase (or raw distance for a new owner) and never
+            // predict/consume a stop-restart rebase before the real body draw.
+            if(!commit)
+            {
+                float preview=raw-(same?companionGaitPhaseOffset:0f);
+                return float.IsNaN(preview)||float.IsInfinity(preview)||
+                    preview<0f?0f:preview;
+            }
             float offset=same?companionGaitPhaseOffset:raw;
             bool wasMoving=same&&companionGaitPhaseMoving;
             if(!same||raw<companionGaitLastRawDistance-.0001f)
