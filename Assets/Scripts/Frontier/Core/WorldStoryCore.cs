@@ -718,6 +718,21 @@ namespace Starfall
                     en+=Has("afterlight_complete")?
                         "\n\nAll three Afterlight facilities have named local stewards.":
                         "\n\nAfterlight still needs residents to sign for maintenance; a connected machine is not a substitute for long-term care.";
+                    if(Has("civic_aftercare_published"))
+                    {
+                        zh+="\n\n【巡路复核已公开】引水渠、赤铁矿场与雾港的现场路标都留下了记录，公共电网不再只靠一份旧地图证明安全。";
+                        en+="\n\n[Road audit published] Field markers at Canal, Ironreach and Mistport are recorded; the public grid no longer relies on an old map alone to claim its routes are safe.";
+                    }
+                    else if(Has("civic_aftercare_started"))
+                    {
+                        zh+="\n\n三地巡路复核进度 "+CivicAftercareWaypointCount+"/3。完成后回炉火旅店找夜行旅人公布记录。";
+                        en+="\n\nThree-region road audit progress: "+CivicAftercareWaypointCount+"/3. Return to the night traveler at Hearth Inn to publish the record.";
+                    }
+                    else
+                    {
+                        zh+="\n\n可选后续行动：与炉火旅店的夜行旅人交谈，接取三地巡路复核，确认重连后的安全路线仍然可用。";
+                        en+="\n\nOptional follow-up: speak with the night traveler at Hearth Inn to audit three old route markers and verify the restored network's safe paths.";
+                    }
                     zh+="\n\n道路终于不只是把人送到堡垒。它必须让每个人都能回来，也让每个人有权问清楚：谁守着这盏灯？";
                     en+="\n\nA road should do more than bring people to the citadel. It must help everyone get home—and let everyone ask who keeps the light burning.";
                     break;

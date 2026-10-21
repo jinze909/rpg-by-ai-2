@@ -2045,6 +2045,7 @@ namespace Starfall
             if (o.kind != "waytrail") return false;
             int region = save.room;
             if (region < 0 || region > 7) return false;
+            RecordCivicAftercareWaypoint(o);
             bool eastern = o.id.EndsWith("e", StringComparison.Ordinal);
             string flag = "waytrail_" + o.id;
             bool first = !Has(flag);
@@ -2066,6 +2067,12 @@ namespace Starfall
             bool charterEvidence = RecordRoadCharterWaypoint(o);
             string charterZh = charterEvidence ? "\n\n这份实地测绘已封存到第八章的公开证据，进度 " + RoadCharterReports + "/3。" : "";
             string charterEn = charterEvidence ? "\n\nRecorded as public Chapter Eight field evidence (" + RoadCharterReports + "/3)." : "";
+            string aftercareZh = CivicAftercareActive && (region==0||region==3||region==5) ?
+                "\n\n三地巡路复核 "+CivicAftercareWaypointCount+"/3。"+
+                (CivicAftercareWaypointCount>=3?"三处信标齐备，回炉火旅店公布记录。":"本地信标已核验；请继续检查另两地。") : "";
+            string aftercareEn = CivicAftercareActive && (region==0||region==3||region==5) ?
+                "\n\nThree-region road audit "+CivicAftercareWaypointCount+"/3."+
+                (CivicAftercareWaypointCount>=3?" All markers are verified; return to Hearth Inn to publish.":" This local marker is verified; check the other regions.") : "";
             string closingZh = save.ending > 0
                 ? "\n\n星核的结局已经写下，但路标仍属于每一位需要它的人。"
                 : "\n\n这条路线没有写进堡垒的正式地图。先记下它，未来也许能让更多人安全归来。";
@@ -2077,8 +2084,8 @@ namespace Starfall
             string rewardEn = first ? "\n\nFirst survey: +8 coins, +1 shard." +
                 (Has("waytrail_complete") ? " All old routes charted: +1 talent point." : "") : "";
             Dialog(o.name, o.en,
-                (eastern ? eastZh[region] : southZh[region]) + closingZh + rewardZh + charterZh,
-                (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn + charterEn,
+                (eastern ? eastZh[region] : southZh[region]) + closingZh + rewardZh + charterZh + aftercareZh,
+                (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn + charterEn + aftercareEn,
                 C("记入旧路星图", "Record in the road chart", "close"));
             return true;
         }
@@ -2122,7 +2129,7 @@ namespace Starfall
                 (LastDirectiveComplete?
                     (LastDirectiveChoice==1?
                         "\n\nThe inn displays the new public review process. Any traveler can challenge an overload order without hiding the evidence.":
-                        "\n\nThe citadel has confirmed unconditional emergency refuge: shelter the stranded first, then let residents decide how to rebuild."):""), C("坐一会儿，记住这句话", "Remember the advice", "close")); return;
+                        "\n\nThe citadel has confirmed unconditional emergency refuge: shelter the stranded first, then let residents decide how to rebuild."):""), CivicAftercareInnChoices()); return;
             }
             if (kind.StartsWith("portal")) { Enter(int.Parse(kind.Substring(6))); return; }
             if (kind == "routes")

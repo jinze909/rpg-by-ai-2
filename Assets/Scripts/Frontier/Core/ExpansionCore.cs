@@ -1726,6 +1726,7 @@ namespace Starfall
         }
         private bool ChooseExpansion(string action)
         {
+            if (ChooseCivicAftercare(action)) return true;
             if (ChooseReliefFieldGuard(action)) return true;
             if (ChooseRescuedCivilian(action)) return true;
             if (ChooseFieldStation(action)) return true;

@@ -3006,6 +3006,101 @@ public static class RuntimeCombatInputChecks
         }
     }
 
+    private static void CivicAftercareRoadAuditIsTrackableAndOneTime(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        var originalFlags=new System.Collections.Generic.List<string>(g.save.flags);
+        var originalMoments=new System.Collections.Generic.List<JournalMoment>(g.save.moments);
+        int originalRoom=g.save.room,originalCoins=g.save.coins,originalXp=g.save.xp;
+        int originalShards=g.save.shards,originalLevel=g.save.level;
+        int originalSkillPoints=g.save.skillPoints,originalTutorialBits=g.save.tutorialBits;
+        float originalX=g.save.x,originalY=g.save.y;
+        int[] originalInventory=(int[])g.save.inventory.Clone();
+        string originalTrackedQuest=g.save.trackedQuest;
+        bool originalFrontierFocus=g.save.frontierFocus;
+        try
+        {
+            g.save.flags.Clear();
+            g.save.room=9;
+            WorldObject inn=Array.Find(g.Map.objects,o=>o.kind=="innGuest");
+            Check(inn!=null,"Hearth Inn retains the original night traveler as quest giver");
+            g.save.x=inn.x;g.save.y=inn.y;
+            g.Talk(inn);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_begin")<0,
+                "The new road audit cannot start before the public grid is restored");
+
+            g.save.flags.Add("civic_conduit_complete");
+            g.Talk(inn);
+            int begin=Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_begin");
+            Check(begin>=0,"The original night traveler offers the optional audit after grid completion");
+            int coinsBeforeStart=g.save.coins,shardsBeforeStart=g.save.shards;
+            g.Choose(begin);
+            Check(g.save.flags.Contains("civic_aftercare_started")&&
+                g.save.trackedQuest=="civic_aftercare"&&
+                g.save.coins==coinsBeforeStart&&g.save.shards==shardsBeforeStart,
+                "Accepting the audit persists and tracks the quest without granting its completion reward");
+            QuestGuide guide=g.GetQuest("civic_aftercare");
+            Check(!guide.locked&&guide.steps.Count==5&&guide.room==0,
+                "The real journal guide targets the first unresolved region");
+
+            int[] rooms={0,3,5};
+            for(int i=0;i<rooms.Length;i++)
+            {
+                int room=rooms[i];
+                g.save.room=room;
+                WorldObject waypoint=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
+                Check(waypoint!=null,"Region "+room+" contains an authored route marker");
+                g.save.x=waypoint.x;g.save.y=waypoint.y;
+                g.Talk(waypoint);
+                Check(g.save.flags.Contains("civic_aftercare_waytrail_"+room)&&
+                    g.CivicAftercareWaypointCount==i+1,
+                    "Physical interaction records exactly one field audit for region "+room);
+                if(i==0)
+                {
+                    g.Talk(waypoint);
+                    Check(g.CivicAftercareWaypointCount==1,
+                        "Revisiting a recorded marker cannot double-count the region");
+                }
+                if(i==1)
+                {
+                    g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;g.Talk(inn);
+                    Check(Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_publish")<0&&
+                        Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_status")>=0,
+                        "The Inn cannot publish a two-of-three audit");
+                }
+            }
+            guide=g.GetQuest("civic_aftercare");
+            Check(guide.room==9&&!guide.complete&&g.CivicAftercareWaypointCount==3,
+                "All three verified markers move the live quest target back to Hearth Inn");
+            g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;g.Talk(inn);
+            int publish=Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_publish");
+            Check(publish>=0,"The Inn offers publication only after all three field checks");
+            int coinsBeforePublish=g.save.coins,shardsBeforePublish=g.save.shards;
+            g.Choose(publish);
+            Check(g.save.flags.Contains("civic_aftercare_published")&&
+                g.GetQuest("civic_aftercare").complete&&
+                g.save.coins==coinsBeforePublish+35&&g.save.shards==shardsBeforePublish+1,
+                "Publishing settles the one-time reward and completes the persistent quest");
+            int coinsAfterPublish=g.save.coins,shardsAfterPublish=g.save.shards;
+            CallCore(g,"ChooseCivicAftercare","civic_aftercare_publish");
+            Check(g.save.coins==coinsAfterPublish&&g.save.shards==shardsAfterPublish,
+                "A stale second publication action cannot duplicate the reward");
+            Console.WriteLine("PASS Chapter Twelve road audit uses real route markers, journal guidance and one-time publication");
+        }
+        finally
+        {
+            g.save.flags.Clear();g.save.flags.AddRange(originalFlags);
+            g.save.moments.Clear();g.save.moments.AddRange(originalMoments);
+            g.save.room=originalRoom;g.save.x=originalX;g.save.y=originalY;
+            g.save.coins=originalCoins;g.save.xp=originalXp;g.save.shards=originalShards;
+            g.save.level=originalLevel;g.save.skillPoints=originalSkillPoints;
+            g.save.tutorialBits=originalTutorialBits;g.save.trackedQuest=originalTrackedQuest;
+            g.save.frontierFocus=originalFrontierFocus;
+            Array.Copy(originalInventory,g.save.inventory,Math.Min(originalInventory.Length,g.save.inventory.Length));
+        }
+    }
+
     private static int[] EnumerableIndices(int count)
     {
         int[] result=new int[count];
@@ -3079,6 +3174,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyMalformedTransientRecordsAreSkippedByProductionDrawGuards,
             RenderStateChecks.VerifyCanopyOcclusionIncludesEveryLiveActor,
             CivicAftermathChronicleReflectsLiveInfrastructure,
+            CivicAftercareRoadAuditIsTrackableAndOneTime,
             RuntimeContinuityChecks.NavigationRouteGuidance };
         int failures = 0;
         foreach (var test in cases)

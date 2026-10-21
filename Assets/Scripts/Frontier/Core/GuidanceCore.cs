@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -63,6 +63,111 @@ namespace Starfall
             if (room >= 0 && room < 10 && (x >= 36 || y >= 24))
                 return Has(AnnexSectorKey(room, x, y));
             return (save.explored[room] & (1 << Sector(x, y))) != 0;
+        }
+        private static readonly int[] CivicAftercareRegions={0,3,5};
+        public bool CivicAftercareActive
+        { get { return CivicConduitComplete&&Has("civic_aftercare_started")&&!Has("civic_aftercare_published"); } }
+        public int CivicAftercareWaypointCount
+        {
+            get
+            {
+                int count=0;
+                foreach(int room in CivicAftercareRegions)
+                    if(Has("civic_aftercare_waytrail_"+room))count++;
+                return count;
+            }
+        }
+        private bool RecordCivicAftercareWaypoint(WorldObject o)
+        {
+            if(o==null||o.kind!="waytrail"||!CivicAftercareActive)return false;
+            int room=save.room;
+            if(room!=0&&room!=3&&room!=5)return false;
+            string flag="civic_aftercare_waytrail_"+room;
+            if(Has(flag))return false;
+            Flag(flag);
+            int count=CivicAftercareWaypointCount;
+            sound="quest";revision++;
+            Notify(count>=3?
+                "三地巡路复核已齐备。回炉火旅店公布记录。":
+                "巡路复核已记录 "+count+"/3。继续核验另外两地。",
+                count>=3?
+                "All three route checks are recorded. Return to Hearth Inn to publish the audit.":
+                "Road audit recorded "+count+"/3. Verify the other regions.");
+            return true;
+        }
+        private Choice[] CivicAftercareInnChoices()
+        {
+            var choices=new List<Choice>();
+            choices.Add(C("坐一会儿，记住这句话","Remember the advice","close"));
+            if(!CivicConduitComplete)return choices.ToArray();
+            if(Has("civic_aftercare_published"))
+                choices.Add(C("查看公开巡路复核记录","Review the published road audit","civic_aftercare_status"));
+            else if(!Has("civic_aftercare_started"))
+                choices.Add(C("开始三地巡路复核","Begin the three-region road audit","civic_aftercare_begin"));
+            else if(CivicAftercareWaypointCount>=3)
+                choices.Add(C("公开三地巡路复核记录","Publish the three-region road audit","civic_aftercare_publish"));
+            else
+                choices.Add(C("查看巡路复核进度","Review road audit progress","civic_aftercare_status"));
+            return choices.ToArray();
+        }
+        private bool ChooseCivicAftercare(string action)
+        {
+            if(action=="civic_aftercare_begin")
+            {
+                if(!CivicConduitComplete)
+                {Notify("先完成公共电网的三处现场调谐。","Finish the three physical grid valves first.");return true;}
+                if(Has("civic_aftercare_published"))
+                {Notify("巡路复核已经公开，不能重复领取奖励。","The road audit is already published; its reward cannot be claimed twice.");return true;}
+                if(!Has("civic_aftercare_started"))
+                {
+                    Flag("civic_aftercare_started");
+                    RecordMoment("三地巡路复核已接取：回访引水渠、赤铁矿场与雾港的旧路标。","Accepted the three-region road audit: revisit the old route markers at Canal, Ironreach and Mistport.");
+                }
+                TrackQuest("civic_aftercare");
+                sound="quest";revision++;
+                Notify("已追踪三地巡路复核。与每地的旧路标交互，完成后回旅店公布。","Three-region road audit tracked. Interact with one old route marker in each region, then publish at the Inn.");
+                return true;
+            }
+            if(action=="civic_aftercare_status")
+            {
+                int count=CivicAftercareWaypointCount;
+                string zh=Has("civic_aftercare_published")?
+                    "三地巡路复核已公开。每地的现场标记只计入一次，首次奖励已经结算。":
+                    "当前进度 "+count+"/3。复核区域：";
+                string en=Has("civic_aftercare_published")?
+                    "The three-region road audit is public. Each field marker counted once and the first-clear reward has been settled.":
+                    "Current progress "+count+"/3. Field regions: ";
+                string[] namesZh={"引水渠","赤铁矿场","雾港"};
+                string[] namesEn={"Canal","Ironreach","Mistport"};
+                for(int i=0;i<CivicAftercareRegions.Length;i++)
+                {
+                    int room=CivicAftercareRegions[i];
+                    bool done=Has("civic_aftercare_waytrail_"+room);
+                    zh+="\n"+namesZh[i]+"："+(done?"已复核":"待复核");
+                    en+="\n"+namesEn[i]+": "+(done?"verified":"pending");
+                }
+                if(!Has("civic_aftercare_published")&&count>=3)
+                {
+                    zh+="\n三处已齐备，选择“公开三地巡路复核记录”即可归档。";
+                    en+="\nAll three are verified; choose Publish the three-region road audit to file the record.";
+                }
+                Dialog("三地巡路复核","Three-Region Road Audit",zh,en,C("返回","Back","close"));
+                return true;
+            }
+            if(action=="civic_aftercare_publish")
+            {
+                if(Has("civic_aftercare_published"))
+                {Notify("巡路复核已经公开，奖励不会重复发放。","The audit is already public; no duplicate reward is granted.");return true;}
+                if(!CivicAftercareActive||CivicAftercareWaypointCount<3)
+                {Notify("必须先在引水渠、赤铁矿场和雾港各核验一处旧路标。","Verify one old route marker each at Canal, Ironreach and Mistport first.");return true;}
+                Flag("civic_aftercare_published");
+                CreditCoins(35);CreditShards(1);AddXp(45);
+                RecordMoment("三地巡路复核已公开，公共电网的安全路线有了现场记录。","Published the three-region road audit, giving the restored public grid a field-verified route record.");
+                sound="reward";revision++;
+                Notify("三地巡路复核已公开！硬币 +35、碎片 +1、经验 +45。","Three-region road audit published! +35 coins, +1 shard, +45 XP.");
+                return true;
+            }
+            return false;
         }
         public void TrackQuest(string id)
         { if (Array.IndexOf(QuestIds, id) < 0 || GetQuest(id).locked) return; save.trackedQuest = id; save.frontierFocus = id == "shore"; TutorialAction(2); revision++; }
@@ -446,6 +551,68 @@ namespace Starfall
                 }
                 q.reward=L("每地硬币24、碎片1、经验42、服务升级；三地完成技能点1；名册公开硬币40、碎片2、经验55并解锁八地基础疗养",
                     "Each region 24 coins, 1 shard, 42 XP, improved service; all three +1 talent; ledger publication +40 coins, 2 shards, 55 XP and basic care in every rebuilt refuge");
+                return q;
+            }
+
+            if(id=="civic_aftercare")
+            {
+                q.title=L("第十二章后续 · 三地巡路复核",
+                    "Chapter Twelve Aftermath · Three-Region Road Audit");
+                q.category=L("开放世界 · 公共设施维护",
+                    "OPEN WORLD · CIVIC MAINTENANCE");
+                q.description=L(
+                    "公共电网重新接通后，居民需要确认安全路线仍然能走。先在炉火旅店接取复核，再回访引水渠、赤铁矿场与雾港各一处旧路标，最后回旅店公开现场记录。每个地区只计一次；公开后只发放一次奖励。",
+                    "After the public grid is restored, residents need to verify that its safe routes remain usable. Accept the audit at Hearth Inn, revisit one old route marker each at Canal, Ironreach and Mistport, then publish the field record at the Inn. Each region counts once and the reward is one-time.");
+                q.locked=!CivicConduitComplete;
+                q.complete=Has("civic_aftercare_published");
+                q.steps.Add(new QuestStep(L("在炉火旅店接取复核",
+                    "Accept the audit at Hearth Inn"),
+                    Has("civic_aftercare_started")||q.complete));
+                int next=-1;
+                string[] namesZh={"引水渠","赤铁矿场","雾港"};
+                string[] namesEn={"Canal","Ironreach","Mistport"};
+                for(int i=0;i<CivicAftercareRegions.Length;i++)
+                {
+                    int room=CivicAftercareRegions[i];
+                    bool done=Has("civic_aftercare_waytrail_"+room);
+                    q.steps.Add(new QuestStep(L(namesZh[i],namesEn[i]),done));
+                    if(next<0&&!done)next=room;
+                }
+                q.steps.Add(new QuestStep(L("回旅店公布记录并领取首次奖励",
+                    "Publish the record at Hearth Inn for the first-clear reward"),q.complete));
+                if(q.complete)
+                {
+                    q.room=9;
+                    q.target=ObjectPoint(9,"innGuest",new Point(20,12));
+                    q.next=L("三地巡路复核已公开","Three-region road audit published");
+                }
+                else if(q.locked||!Has("civic_aftercare_started"))
+                {
+                    q.room=9;
+                    q.target=ObjectPoint(9,"innGuest",new Point(20,12));
+                    q.next=q.locked?
+                        L("先完成公共电网的三处现场调谐","First complete the three physical grid valves"):
+                        L("与炉火旅店的夜行旅人交谈，接取复核",
+                          "Talk to the night traveler at Hearth Inn to begin");
+                }
+                else if(next<0)
+                {
+                    q.room=9;
+                    q.target=ObjectPoint(9,"innGuest",new Point(20,12));
+                    q.next=L("三处信标已复核，回旅店公布记录",
+                        "All three markers verified; return to the Inn to publish");
+                }
+                else
+                {
+                    q.room=next;
+                    q.target=ObjectPoint(next,"waytrail",new Point(18,15));
+                    q.next=!CanEnter(next)?
+                        L("继续主线以开放该地区","Advance the main story to unlock this region"):
+                        L("与本地区任一旧路标交互，记录现场复核",
+                          "Interact with an old route marker in this region");
+                }
+                q.reward=L("首次公开：硬币35、碎片1、经验45；每地区只计一次，公开后不可重复领取",
+                    "First publication: 35 coins, 1 shard, 45 XP; each region counts once, with no repeat reward.");
                 return q;
             }
 
