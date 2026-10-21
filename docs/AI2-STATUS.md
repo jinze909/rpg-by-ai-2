@@ -1,3 +1,16 @@
+## 2026-10-21 live continuation — save recovery, combat contacts and Chapter Twelve field audit
+
+- **Latest tested code/test HEAD:** [`5c3769b4`](https://github.com/jinze909/rpg-by-ai-2/commit/5c3769b4dbe1c5c7413d89b6fe21663178b1d177). Exact-commit [Core CI SUCCESS, run #1691](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39583449696); the offline production harness reports **96/96 groups passed**. This is not native Unity Editor/GameView/PlayMode verification.
+- `f956df37` hardens `SaveStore.Read`: it considers checksum/schema-verified primary, `.tmp`, `.bak` and `.precommit` copies by the serialized save timestamp, preserving a newer completed temporary save after a crash. Regression covers newer temporary vs old primary and stale temporary vs newer primary. Existing SaveData v1/v2 formats remain unchanged.
+- `18af748b` revalidates the cached resident kind before canopy occlusion, preventing a cached NPC that becomes a prop from fading a tree. Focused runtime regressions were registered instead of treating obsolete segmented-tree assertions as current production requirements.
+- `97b7f441` corrected the enemy footfall regression fixture at float gait boundaries; exact CI #1685 passed. The production footfall system remains tied to source-painted planted cells and genuine movement.
+- `7736c735` adds a choice-aware public-grid aftermath chronicle; `e6b3eee3` adds the persistent optional Chapter Twelve three-region road audit. The audit requires the real route marker in each region and one-time publication at Hearth Inn; it does not add SaveData fields.
+- `4ab8ae69` connects audit progress and completion to the Inn's bilingual dialogue. `00586bcb` preserves the published-record response on field markers. `fd0d1b91` and `5c3769b4` connect regional audit state to the actual waytrail draw path; the final badge is separate from the original per-marker survey checkmark and remains visible after publication. CI #1690 and #1691 passed, including the regression that preserves legacy survey cues.
+- **Preserved:** canonical blonde protagonist identity/art, accepted source sprites and Unity GUIDs, old saves, collision/damage timing and the existing production scene. All writes remained on `jinze909/rpg-by-ai-2/chatgpt/dev`; no scheduled tasks or other branches were modified.
+- **Remaining honest gates:** licensed Unity 2022.3.53f1 Editor/GameView/PlayMode/GPU checks remain `NATIVE_UNVERIFIED`; the 18 original full-body hero Attack/Cast contact paintings and motion-complete recovery remain `ART_REVIEW_REQUIRED`.
+
+---
+
 ## 2026-10-21 AI-2 dodge readiness, hit-recovery and hit-stop consistency
 
 - **Verified gameplay/test HEAD:** [`215c7b3c`](https://github.com/jinze909/rpg-by-ai-2/commit/215c7b3c8155462e477b38758e97bab96fc46e5b). [Exact-commit Core CI SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39549896959): 52/52 core steps passed.
