@@ -275,6 +275,36 @@ namespace Starfall.Tests
                 pending.save.shards == pendingShards &&
                 pending.save.flags.Count == pendingFlags,
                 "Reading the ending never rewards or mutates a save with unfinished civic work");
+
+            var completed = Fresh(data); completed.NewGame(0); completed.Close();
+            completed.save.frontierEnding = 3;
+            completed.save.ending = 3;
+            completed.save.flags.Add("civic_conduit_complete");
+            completed.save.flags.Add("civic_supply_complete");
+            completed.save.flags.Add("civic_supply_clinic_0");
+            completed.save.flags.Add("civic_supply_watch_3");
+            completed.save.flags.Add("civic_supply_clinic_5");
+            for (int room = 0; room < 8; room++)
+                completed.save.flags.Add("far_shelter_" + room);
+            for (int site = 1; site <= 3; site++)
+                completed.save.flags.Add("afterlight_done_" + site);
+            completed.save.flags.Add("afterlight_complete");
+            WorldObject completedBook = Object(completed, "worldchronicle");
+            int completedCoins = completed.save.coins, completedShards = completed.save.shards;
+            int completedFlags = completed.save.flags.Count;
+            completed.Talk(completedBook);
+            ChooseStoryChoice(completed, "story_section_after");
+            ChooseStoryChoice(completed, "story_read_ending");
+            Check(completed.conversation.textEn.Contains("All three valves have been retuned.") &&
+                completed.conversation.textEn.Contains("Public refuges: 8/8 built; long-term regional services: 3/3 signed.") &&
+                completed.conversation.textEn.Contains("The public audit has been published.") &&
+                completed.conversation.textEn.Contains("Afterlight sites restored: 3/3.") &&
+                completed.conversation.textEn.Contains("The maintenance charter has been published."),
+                "The ending account recognizes fully completed civic work without inventing or omitting outcomes");
+            Check(completed.save.coins == completedCoins &&
+                completed.save.shards == completedShards &&
+                completed.save.flags.Count == completedFlags,
+                "Reading a fully completed ending remains reward-neutral and save-neutral");
         }
 
         public static void ChronicleChapterNavigationNeverLeaksFutureEvents(Campaign data)
