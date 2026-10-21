@@ -353,10 +353,47 @@ namespace Starfall
                         string key="Hero_"+profession+"_"+action+"_"+direction;
                         // Bypass previously cached six-cell atlases: those
                         // would permanently hide newly imported 7-cell art.
-                        Texture2D atlas=Resources.Load<Texture2D>(
-                            "Frontier/HeroAnimator/Canonical/"+key);
+                        string path="Frontier/HeroAnimator/Canonical/"+key;
+                        Texture2D atlas=Resources.Load<Texture2D>(path);
                         if(atlas==null||atlas.height!=256||atlas.width!=7*256)
+                        {
                             complete=false;
+                            continue;
+                        }
+#if UNITY_5_3_OR_NEWER
+                        // Dimensions alone are not an atomic art publication:
+                        // Unity can expose a freshly imported 7-cell Texture2D
+                        // while its Sprite sub-assets still describe the old
+                        // six-cell family. Do not switch every class to seven
+                        // cells until every facing has all seven correctly
+                        // rooted, class-owned imported Sprite rectangles.
+                        Sprite[] imported=Resources.LoadAll<Sprite>(path);
+                        bool[] present=new bool[7];
+                        int matched=0;
+                        foreach(Sprite candidate in imported)
+                        {
+                            if(candidate==null||candidate.texture!=atlas||
+                                Mathf.Abs(candidate.rect.y)>.05f||
+                                Mathf.Abs(candidate.rect.width-CanonicalHeroSpriteFactory.Cell)>.05f||
+                                Mathf.Abs(candidate.rect.height-CanonicalHeroSpriteFactory.Cell)>.05f||
+                                Mathf.Abs(candidate.pixelsPerUnit-
+                                    CanonicalHeroSpriteFactory.PixelsPerUnit)>.05f||
+                                Vector2.Distance(candidate.pivot,new Vector2(
+                                    CanonicalHeroSpriteFactory.FootX,
+                                    CanonicalHeroSpriteFactory.Cell-
+                                        CanonicalHeroSpriteFactory.FootTop))>.05f)
+                                continue;
+                            int cell=Mathf.RoundToInt(
+                                candidate.rect.x/CanonicalHeroSpriteFactory.Cell);
+                            if(cell<0||cell>=present.Length||
+                                Mathf.Abs(candidate.rect.x-
+                                    cell*CanonicalHeroSpriteFactory.Cell)>.05f||
+                                present[cell])continue;
+                            present[cell]=true;
+                            matched++;
+                        }
+                        if(matched!=present.Length)complete=false;
+#endif
                     }
             if(complete!=heroContactFamilyComplete)
             {

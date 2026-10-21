@@ -491,6 +491,19 @@ def check():
     assert "bool actionSeven=actionSix&&HasCompleteHeroContactArt();" in actor
     assert "heroContactFamilyChecked" in actor and "heroContactFamilyComplete" in actor
     assert "atlas.width!=7*256" in actor
+    family=actor.split("private bool HasCompleteHeroContactArt()",1)[1].split(
+        "private Texture2D PublishedFullBodyHeroAtlas",1)[0]
+    for mark in (
+        "Resources.LoadAll<Sprite>(path)",
+        "candidate.texture!=atlas",
+        "candidate.rect.width-CanonicalHeroSpriteFactory.Cell",
+        "candidate.rect.height-CanonicalHeroSpriteFactory.Cell",
+        "candidate.pixelsPerUnit-",
+        "Vector2.Distance(candidate.pivot,new Vector2(",
+        "Mathf.RoundToInt(",
+        "matched!=present.Length",
+    ):
+        assert mark in family, ("PARTIAL_IMPORTED_HERO_CONTACT_FAMILY_ACCEPTED",mark)
     assert "phase<2f?Math.Min(3f,phase*2f):phase*2f" in actor
     # Contact animation must be tied to GameCore's released flag,
     # not only an interpolation cap that a later artist-timeline tweak

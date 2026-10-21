@@ -16,6 +16,18 @@ public static class NativeHeroCaptureChecks
     // Actual Resources and the actual HasCompleteHeroContactArt publication
     // gate: repeated six/seven-cell swaps must not leak runtime Sprite.Create
     // wrappers, yet Unity-imported sub-assets must never be destroyed.
+    static Sprite[] MakeImportedCells(Texture2D atlas,int count)
+    {
+        var cells=new Sprite[count];
+        for(int i=0;i<count;i++)
+            cells[i]=Sprite.Create(atlas,new Rect(i*256,0,256,256),
+                new Vector2(.5f,.0625f),128f,0,SpriteMeshType.FullRect);
+        return cells;
+    }
+
+    // Actual Resources and the actual HasCompleteHeroContactArt publication
+    // gate: dimensions alone must not promote a partial Unity Sprite import.
+    // Imported Sprite sub-assets are never owned by the renderer or destroyed.
     static void VerifyAtomicHeroFamilySwap(MethodInfo release,BindingFlags flags)
     {
         var app=new FrontierRuntime();
@@ -29,15 +41,18 @@ public static class NativeHeroCaptureChecks
         var published=(Dictionary<string,Sprite[]>)spritesField.GetValue(app);
         var owned=(HashSet<Sprite>)ownedField.GetValue(app);
         var originals=new Dictionary<string,Texture2D>();
+        var originalSpriteSets=new Dictionary<string,Sprite[]>();
+        var stagedTextures=new Dictionary<string,Texture2D>();
+        var incomingImported=new List<Sprite>();
+        var temporaries=new List<Sprite>();
+        string[] classes={"Vanguard","Ranger","Arcanist"};
+        string[] facings={"E","N","S"};
         // First publish the existing six-cell art. This makes the next
         // all-18-file import a genuine in-flight ART SWITCH instead of a
         // first-time initialization.
         Require(!(bool)gate.Invoke(app,null),
             "old production source must begin as 6-cell action family");
-        var temporaries=new List<Sprite>();
-        var imported=new List<Sprite>();
-        string[] classes={"Vanguard","Ranger","Arcanist"};
-        string[] facings={"E","N","S"};
+        string delayedPath=null;
         try
         {
             foreach(string cls in classes)
@@ -48,52 +63,81 @@ public static class NativeHeroCaptureChecks
                 string path="Frontier/HeroAnimator/Canonical/"+key;
                 var old=(Texture2D)Resources.Registered[path];
                 originals.Add(path,old);
+                originalSpriteSets.Add(path,Resources.RegisteredSprites[path]);
                 // Preserve a real imported subasset in the stale cache: it
                 // is shared with the production Animator and is NOT ours.
-                var asset=Resources.RegisteredSprites[path][0];
-                imported.Add(asset);
+                var asset=originalSpriteSets[path][0];
                 var wrapper=Sprite.Create(old,new Rect(256,0,256,256),
                     new Vector2(.5f,.0625f),128f,0,SpriteMeshType.FullRect);
                 temporaries.Add(wrapper);
                 owned.Add(wrapper);
                 published.Add(key,new[]{asset,wrapper});
-                Resources.Registered[path]=new Texture2D(7*256,256,
+                var incoming=new Texture2D(7*256,256,
                     TextureFormat.RGBA32,false);
+                stagedTextures.Add(path,incoming);
+                Resources.Registered[path]=incoming;
+                if(delayedPath==null)delayedPath=path;
             }
             clockField.SetValue(app,3f);
             app.Game.playerAction=new ActorAction{kind="attack"};
             Require(!(bool)gate.Invoke(app,null)&&
                 published.Count==18&&owned.Count==18,
                 "Native mid-attack import must not destroy original one-body published Sprites");
+
             app.Game.playerAction=null;
+            clockField.SetValue(app,6f);
+            Require(!(bool)gate.Invoke(app,null)&&
+                published.Count==18&&owned.Count==18,
+                "Seven-cell texture dimensions alone must not promote the family before Sprite import completes");
+
+            // Import 17 of 18 seven-cell Sprite families, leaving one direction
+            // on the six-cell sub-assets. The runtime must continue to use the
+            // entire previously accepted family until the last import arrives.
+            foreach(var pair in stagedTextures)
+            {
+                if(pair.Key==delayedPath)continue;
+                var cells=MakeImportedCells(pair.Value,7);
+                Resources.RegisteredSprites[pair.Key]=cells;
+                incomingImported.AddRange(cells);
+            }
+            clockField.SetValue(app,9f);
+            Require(!(bool)gate.Invoke(app,null)&&
+                published.Count==18&&owned.Count==18,
+                "17/18 imported Sprite families must not expose a mixed class/facing contact release");
+            var finalCells=MakeImportedCells(stagedTextures[delayedPath],7);
+            Resources.RegisteredSprites[delayedPath]=finalCells;
+            incomingImported.AddRange(finalCells);
+            clockField.SetValue(app,12f);
             Require((bool)gate.Invoke(app,null),
-                "all 18 valid seven-cell sheets did not switch after the real source action completed");
+                "all 18 valid seven-cell textures and Sprite families did not switch after the real source action completed");
             Require(published.Count==0&&owned.Count==0,
                 "six-to-seven-frame family swap retained stale cache owners");
             foreach(var item in temporaries)
                 Require(item.destroyed,"runtime-owned Sprite leaked after publish");
-            foreach(var item in imported)
+            foreach(var item in originalSpriteSets.Values.SelectMany(x=>x))
                 Require(!item.destroyed,"atomic publish destroyed imported Animator Sprite");
             temporaries.Clear();
+
             foreach(var pair in originals)
             {
                 string key=pair.Key.Substring(
                     "Frontier/HeroAnimator/Canonical/".Length);
-                var wrapper=Sprite.Create(
-                    (Texture2D)Resources.Registered[pair.Key],
+                var wrapper=Sprite.Create(stagedTextures[pair.Key],
                     new Rect(0,0,256,256),new Vector2(.5f,.0625f),
                     128f,0,SpriteMeshType.FullRect);
                 temporaries.Add(wrapper);
                 owned.Add(wrapper);
                 published.Add(key,new[]{wrapper});
                 Resources.Registered[pair.Key]=pair.Value;
+                Resources.RegisteredSprites[pair.Key]=originalSpriteSets[pair.Key];
             }
-            clockField.SetValue(app,6f);
+            clockField.SetValue(app,15f);
             app.Game.playerAction=new ActorAction{kind="skill"};
             Require((bool)gate.Invoke(app,null)&&
                 published.Count==18&&owned.Count==18,
                 "Mid-cast withdrawal must not destroy the currently authored whole-body recovery");
             app.Game.playerAction=null;
+            clockField.SetValue(app,18f);
             Require(!(bool)gate.Invoke(app,null),
                 "Withdrawn action atlas did not safely roll back after Cast ended");
             Require(published.Count==0&&owned.Count==0,
@@ -101,13 +145,19 @@ public static class NativeHeroCaptureChecks
             foreach(var item in temporaries)
                 Require(item.destroyed,
                     "runtime-owned Sprite leaked after all-or-none rollback");
-            foreach(var item in imported)
+            foreach(var item in originalSpriteSets.Values.SelectMany(x=>x))
                 Require(!item.destroyed,
                     "contact rollback destroyed shared imported Hero Sprite");
         }
         finally
         {
-            foreach(var pair in originals)Resources.Registered[pair.Key]=pair.Value;
+            foreach(var pair in originals)
+            {
+                Resources.Registered[pair.Key]=pair.Value;
+                Resources.RegisteredSprites[pair.Key]=originalSpriteSets[pair.Key];
+            }
+            foreach(var item in incomingImported)
+                if(item!=null&&!item.destroyed)UnityEngine.Object.Destroy(item);
             release.Invoke(app,null);
         }
     }
