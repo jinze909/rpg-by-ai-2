@@ -3648,6 +3648,8 @@ public static class ActorRegistrationChecks
                     game.enemies.Add(enemy);
                     Call(app,"AdvanceEnemyFootfalls",game.save.room);
                     Check(marks.Count==0,"A newly observed actor has no fake prior footstep");
+                    int expected=0;
+                    int priorSourceFrame=GameCore.GaitFrame(0f,stride);
                     for(int step=1;step<=16;step++)
                     {
                         float moved=stride*step/8f;
@@ -3655,14 +3657,24 @@ public static class ActorRegistrationChecks
                         enemy.x=12f+moved;
                         enemy.moving=true;
                         Call(app,"AdvanceEnemyFootfalls",game.save.room);
-                        int expected=step/4;
+                        // Float rounding can leave moveTime just before an
+                        // ideal half-stride boundary. Judge contacts against
+                        // the actual four-cell Sprite frame selected by the
+                        // renderer, not the mathematical step counter.
+                        int sourceFrame=GameCore.GaitFrame(enemy.moveTime,stride);
+                        int beforeExpected=expected;
+                        if(sourceFrame!=priorSourceFrame &&
+                           (sourceFrame==0||sourceFrame==2))
+                            expected++;
+                        priorSourceFrame=sourceFrame;
                         Check(marks.Count==expected,
                             "Enemy "+kind+" step "+step+" expected "+expected+
                             " contact marks, found "+marks.Count+" (moveTime="+enemy.moveTime+
-                            ", stride="+stride+", state="+enemy.state+
-                            ", release="+enemy.releaseTime+", stun="+enemy.stun+
-                            ", moving="+enemy.moving+"); source Walk Sprite cells 0/2 must own contacts");
-                        if(step%4==0)
+                            ", stride="+stride+", sourceFrame="+sourceFrame+
+                            ", state="+enemy.state+", release="+enemy.releaseTime+
+                            ", stun="+enemy.stun+", moving="+enemy.moving+
+                            "); only actual planted Walk Sprite cells 0/2 may own contacts");
+                        if(expected>beforeExpected)
                         {
                             object mark=marks[marks.Count-1];
                             bool flipped=(bool)mark.GetType().GetField("alternate",
