@@ -34,13 +34,13 @@ namespace Starfall.Tests
                 StoryChoicePresent(g, "story_read_ending"),
                 "A completed public grid exposes both the Chapter Twelve account and the chosen ending");
             ChooseStoryChoice(g, "story_read_civic_aftermath");
-            Check(g.conversation.text.Contains("电网之后") &&
-                g.conversation.textEn.Contains("Who Keeps the Road After the Grid") &&
+            Check(g.conversation.speaker.Contains("第十二章") &&
+                g.conversation.en.Contains("Chapter Twelve") &&
                 StoryChoicePresent(g, "story_read_ending"),
                 "Chapter Twelve now links forward to the retrospective ending instead of becoming a dead end");
             ChooseStoryChoice(g, "story_read_ending");
-            Check(g.conversation.text.Contains("你决定的边境") &&
-                g.conversation.textEn.Contains("The Frontier You Chose") &&
+            Check(g.conversation.speaker.Contains("你决定的边境") &&
+                g.conversation.en.Contains("The Frontier You Chose") &&
                 StoryChoicePresent(g, "story_read_civic_aftermath"),
                 "The ending links backward to Chapter Twelve in the same chronological order");
             Check(g.save.coins == coins && g.save.shards == shards &&
