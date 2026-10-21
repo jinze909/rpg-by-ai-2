@@ -480,7 +480,7 @@ public static class RuntimeContinuityChecks
                 Math.Abs(call.color.b - expected.b) < .001f) count++;
         return count;
     }
-    static void NavigationRouteGuidance(FrontierRuntime app)
+    public static void NavigationRouteGuidance(FrontierRuntime app)
     {
         Prepare(app, 0);
         GameCore game = app.Game;

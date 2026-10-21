@@ -2974,7 +2974,8 @@ public static class RuntimeCombatInputChecks
             TitleSaveManagerNeverOverwritesAnotherJourney,
             FishingSuspendsOnFocusLossAndResumesOnReturn,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
-            StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup };
+            StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
+            RuntimeContinuityChecks.NavigationRouteGuidance };
         int failures = 0;
         foreach (var test in cases)
         {
