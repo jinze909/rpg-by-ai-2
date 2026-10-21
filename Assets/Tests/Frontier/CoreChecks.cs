@@ -3669,14 +3669,25 @@ namespace Starfall.Tests
                     "Every sixth-ring secret must be physically accessible");
                 Check(!g.Explored(room,83,75)&&!g.Explored(room,115,58),
                     "Remote viewpoints and hidden cache begin unexplored");
+                Point outsideVista=StandableOutsideTalkReach(g,vista);
+                int beforeVistaXp=g.save.xp;
+                g.save.x=outsideVista.x;g.save.y=outsideVista.y;g.Talk(vista);g.Close();
+                Check(!g.Has("far_vista_"+room)&&!g.Explored(room,83,75)&&
+                    g.save.xp==beforeVistaXp,
+                    "A lookout cannot award XP or reveal map sectors from outside physical reach");
                 g.save.x=vista.x;g.save.y=vista.y;g.Talk(vista);g.Close();
                 Check(g.Explored(room,83,75)&&g.Explored(room,80,70)&&
                     !g.Explored(room,115,58),
                     "Real lookout reveals a bounded surrounding region without discovering distant secrets");
                 int coins=g.save.coins,resources=g.save.inventory[room%3];
+                Point outsideHidden=StandableOutsideTalkReach(g,hidden);
+                g.save.x=outsideHidden.x;g.save.y=outsideHidden.y;g.Talk(hidden);g.Close();
+                Check(!g.Has("far_secret_"+room)&&g.save.coins==coins&&
+                    g.save.inventory[room%3]==resources,
+                    "An out-of-reach hidden-cache call cannot claim supplies or flag the secret");
                 g.save.x=hidden.x;g.save.y=hidden.y;g.Talk(hidden);g.Close();
                 Check(g.save.coins==coins+9&&g.save.inventory[room%3]==resources+2,
-                    "Remote concealed supplies pay actual one-time materials");
+                    "Physically reaching the concealed supplies pays its actual one-time materials");
                 g.Talk(hidden);g.Close();
                 Check(g.save.coins==coins+9,"Hidden cache cannot duplicate rewards");
                 GameCore loaded=new GameCore(data,g.save);
@@ -3787,6 +3798,22 @@ namespace Starfall.Tests
                 WorldObject shelter=Array.Find(g.Map.objects,o=>o.kind=="farshelter");
                 Check(bridge!=null&&shelter!=null,
                     "Courier actually uses existing physical bridge and refuge");
+                if(room==0)
+                {
+                    g.enemies.Clear();g.save.inventory[0]=2;g.save.inventory[4]=1;
+                    g.save.x=bridge.x;g.save.y=bridge.y;g.Talk(bridge);
+                    int repair=Array.FindIndex(g.conversation.choices,c=>c.action=="far_bridge_repair");
+                    Check(repair>=0,"An unrepaired physical bridge offers its authored repair");
+                    Point outsideBridge=StandableOutsideTalkReach(g,bridge);
+                    g.save.x=outsideBridge.x;g.save.y=outsideBridge.y;g.Choose(repair);g.Close();
+                    Check(!g.FarBridgeOpen(room)&&g.save.inventory[0]==2&&g.save.inventory[4]==1,
+                        "A stale bridge dialog cannot spend materials or repair after leaving interaction reach");
+                    g.save.x=bridge.x;g.save.y=bridge.y;g.Talk(bridge);
+                    repair=Array.FindIndex(g.conversation.choices,c=>c.action=="far_bridge_repair");
+                    g.Choose(repair);g.Close();
+                    Check(g.FarBridgeOpen(room)&&g.save.inventory[0]==0&&g.save.inventory[4]==0,
+                        "Repairing at the bridge consumes real materials and opens the physical crossing");
+                }
                 g.save.x=bridge.x;g.save.y=bridge.y;
                 g.Talk(bridge);
                 Check(Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_start")<0,

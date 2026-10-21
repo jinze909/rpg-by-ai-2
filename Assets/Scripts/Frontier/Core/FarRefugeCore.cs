@@ -41,7 +41,7 @@ namespace Starfall
         {
             if(o.kind!="farhidden"&&o.kind!="farlookout")return false;
             int room=save.room;
-            if(room<0||room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(room<0||room>7||!HasPhysicalInteractionReach(o))return true;
             bool vista=o.kind=="farlookout";
             string flag=(vista?"far_vista_":"far_secret_")+room;
             bool first=!Has(flag);
@@ -92,7 +92,7 @@ namespace Starfall
         {
             if(o.kind!="farbridge")return false;
             int room=save.room;
-            if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(room<0||room>=8||!HasPhysicalInteractionReach(o))return true;
             bool repaired=FarBridgeOpen(room);
             Dialog(o.name,o.en,repaired?
                 "居民已重新铺好山脊桥面。北部气象站到南部避险棚的近路永久开放；原长路仍可走。":
@@ -111,7 +111,7 @@ namespace Starfall
             if(room<0||room>=8||Dying||practicing||FarBridgeOpen(room))return true;
             WorldObject bridge=null;
             foreach(WorldObject item in Map.objects)if(item.kind=="farbridge"){bridge=item;break;}
-            if(bridge==null||(Position-new Point(bridge.x,bridge.y)).Length>2.2f)return true;
+            if(bridge==null||!HasPhysicalInteractionReach(bridge))return true;
             if(!SafeTravel)
             {Notify("敌人太近，无法安全铺桥。","Hostiles are too close to repair the crossing.");return true;}
             if(!Spend(2,0,0,0,1))return true;
@@ -284,7 +284,7 @@ namespace Starfall
             int room=save.room;
             if(!CivicSupplySite(room)||!CivicSupplyComplete||
                 !CivicSupplyResolved(room)||!FarShelterBuilt(room)||
-                (Position-new Point(o.x,o.y)).Length>2.2f)return false;
+                !HasPhysicalInteractionReach(o))return false;
             if(checkpoint)
             {
                 if(!CivicResponseClinicRun)return false;
@@ -351,7 +351,7 @@ namespace Starfall
                 foreach(WorldObject o in Map.objects)
                     if(o.kind=="farrefugerecord"){registry=o;break;}
                 if(registry==null||
-                    (Position-new Point(registry.x,registry.y)).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(registry))return true;
                 Flag("civic_response_ledger");
                 CreditCoins(40);CreditShards(2);
                 AddXp(55);revision++;sound="reward";
@@ -375,8 +375,8 @@ namespace Starfall
                 if(o.kind=="farcheck")checkpoint=o;
             }
             if(shelter==null||checkpoint==null)return true;
-            bool nearShelter=(Position-new Point(shelter.x,shelter.y)).Length<=2.2f;
-            bool nearCheck=(Position-new Point(checkpoint.x,checkpoint.y)).Length<=2.2f;
+            bool nearShelter=HasPhysicalInteractionReach(shelter);
+            bool nearCheck=HasPhysicalInteractionReach(checkpoint);
             if(abort)
             {
                 if(CivicResponseActive&&nearShelter)
@@ -437,7 +437,7 @@ namespace Starfall
             if(o.kind=="farrefugerecord" && save.room==9 &&
                 Has("far_refuge_guest_record")&&FarCourierDeliveredCount>0)
             {
-                if((Position-new Point(o.x,o.y)).Length>2.2f)return true;
+                if(!HasPhysicalInteractionReach(o))return true;
                 if(!CivicSupplyStarted)
                     Dialog(o.name,o.en,
                         "住客名单末尾多了三封写给普通旅人的求援信：引水渠的医药、赤铁矿场的夜间守望、雾港的临时床位。\n\n新的救援包已经真正抵达，但谁来维护这些地方，还没有答案。请在三地的居民检查台收集选择，最后回旅店公开账目。",
@@ -477,7 +477,7 @@ namespace Starfall
             }
             if(o.kind!="farcheck"||!CivicSupplyStarted||!CivicSupplySite(save.room)||
                 FarCourierActive)return false;
-            if((Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(!HasPhysicalInteractionReach(o))return true;
             int room=save.room;
             if(!FarCourierDelivered(room))
             {
@@ -524,7 +524,7 @@ namespace Starfall
                 WorldObject registry=null;
                 foreach(WorldObject o in Map.objects)if(o.kind=="farrefugerecord")
                     {registry=o;break;}
-                if(registry==null||(Position-new Point(registry.x,registry.y)).Length>2.2f)
+                if(registry==null||!HasPhysicalInteractionReach(registry))
                     return true;
                 if(action=="civic_supply_begin")
                 {
@@ -556,7 +556,7 @@ namespace Starfall
                 !FarCourierDelivered(room)||!FarShelterBuilt(room)||FarCourierActive)return true;
             WorldObject checkpoint=null;
             foreach(WorldObject o in Map.objects)if(o.kind=="farcheck"){checkpoint=o;break;}
-            if(checkpoint==null||(Position-new Point(checkpoint.x,checkpoint.y)).Length>2.2f||
+            if(checkpoint==null||!HasPhysicalInteractionReach(checkpoint)||
                 CivicSupplyResolved(room))return true;
             if(!SafeTravel)
             {
@@ -586,7 +586,7 @@ namespace Starfall
             if(TalkFarBridge(o))return true;
             if(TalkFarSecrets(o))return true;
             if(o.kind=="faratlasdesk"&&save.room==9&&
-                (Position-new Point(o.x,o.y)).Length<=2.2f&&
+                HasPhysicalInteractionReach(o)&&
                 Has("far_refuge_atlas")&&FarCourierDeliveredCount==8&&
                 !Has("far_courier_charter"))
             {
@@ -599,7 +599,7 @@ namespace Starfall
             }
             if(o.kind=="faratlasdesk" || o.kind=="farrefugerecord")
             {
-                if(save.room!=9||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+                if(save.room!=9||!HasPhysicalInteractionReach(o))return true;
                 if(o.kind=="farrefugerecord")
                 {
                     bool first=!Has("far_refuge_guest_record");
@@ -629,7 +629,7 @@ namespace Starfall
             }
             if(o.kind!="farledger"&&o.kind!="farcalibrate"&&o.kind!="farshelter")return false;
             int room=save.room;
-            if(room<0||room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(room<0||room>7||!HasPhysicalInteractionReach(o))return true;
             if(o.kind=="farledger")
             {
                 bool first=!FarLogFound(room);
@@ -722,7 +722,7 @@ namespace Starfall
                 WorldObject atlas=null;
                 foreach(WorldObject o in Map.objects)
                     if(o.kind=="faratlasdesk"){atlas=o;break;}
-                if(atlas==null||(Position-new Point(atlas.x,atlas.y)).Length>2.2f)return true;
+                if(atlas==null||!HasPhysicalInteractionReach(atlas))return true;
                 Flag("far_courier_charter");CreditCoins(65);
                 AddXp(75);revision++;sound="reward";
                 RecordMoment("八地居民终于把实物交接、桥梁维护与药材分配写入公开补给公约，避险棚能提供更好的救治。",
@@ -739,7 +739,7 @@ namespace Starfall
                 WorldObject desk=null;
                 foreach(WorldObject item in Map.objects)
                     if(item.kind=="faratlasdesk"){desk=item;break;}
-                if(desk==null||(Position-new Point(desk.x,desk.y)).Length>2.2f)return true;
+                if(desk==null||!HasPhysicalInteractionReach(desk))return true;
                 if(FarShelterCount!=8)
                 {
                     Notify("仍有避险棚没有被实地修复。","Some remote shelters have yet to be rebuilt.");
@@ -761,7 +761,7 @@ namespace Starfall
             WorldObject station=null;
             foreach(WorldObject o in Map.objects)
                 if(o.kind==required){station=o;break;}
-            if(station==null||(Position-new Point(station.x,station.y)).Length>2.2f)return true;
+            if(station==null||!HasPhysicalInteractionReach(station))return true;
             if(action.StartsWith("far_dial_"))
             {
                 if(!FarLogFound(room)||FarDialReady(room))return true;

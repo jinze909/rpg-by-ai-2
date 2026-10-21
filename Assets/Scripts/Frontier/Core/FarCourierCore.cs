@@ -171,7 +171,7 @@ namespace Starfall
                 checkpoint=o.kind=="farcheck";
             if(!bridge&&!shelter&&!checkpoint)return false;
             int room=save.room;
-            if(room<0||room>=8||(Position-new Point(o.x,o.y)).Length>2.2f||
+            if(room<0||room>=8||!HasPhysicalInteractionReach(o)||
                !FarBridgeOpen(room)||!FarShelterBuilt(room)||FarCourierDelivered(room))return false;
             if(checkpoint)
             {
@@ -267,7 +267,7 @@ namespace Starfall
             if(action=="far_courier_guard")
             {
                 if(!FarCourierActive||!courierCrossed||courierGuardSpent||
-                    (Position-new Point(checkpoint.x,checkpoint.y)).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(checkpoint))return true;
                 if(save.energy<30)
                 {
                     Notify("护送结界需要30耐力；休整后仍可再尝试。",
@@ -283,7 +283,7 @@ namespace Starfall
             {
                 if(!FarCourierActive||!courierCrossed||courierPatched||
                     courierIntegrity>=99||
-                    (Position-new Point(checkpoint.x,checkpoint.y)).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(checkpoint))return true;
                 if(save.inventory[4]<=0)
                 {
                     Notify("需要一枚备用零件加固救援包。",
@@ -299,7 +299,7 @@ namespace Starfall
             if(action=="far_courier_stamp")
             {
                 if(!FarCourierActive||!courierCrossed||courierStamped||
-                    (Position-new Point(checkpoint.x,checkpoint.y)).Length>2.2f||
+                    !HasPhysicalInteractionReach(checkpoint)||
                     (Position-courierLast).Length>.65f)return true;
                 courierStamped=true;revision++;sound="quest";
                 Notify("封条已由居民核验，继续送往避险棚。",
@@ -308,13 +308,13 @@ namespace Starfall
             }
             if(action=="far_courier_cancel")
             {
-                if(FarCourierActive&&(Position-new Point(bridge.x,bridge.y)).Length<=2.2f)
+                if(FarCourierActive&&HasPhysicalInteractionReach(bridge))
                 {ResetFarCourier();Notify("救援包留在桥头。","Parcel returned to the bridge.");}
                 return true;
             }
             if(action=="far_courier_start")
             {
-                if(FarCourierActive||(Position-new Point(bridge.x,bridge.y)).Length>2.2f)return true;
+                if(FarCourierActive||!HasPhysicalInteractionReach(bridge))return true;
                 // Reuse the same comprehensive live-field exclusion as
                 // resting and the minecart/frost mission pickup. A second
                 // transport clock must never mask the current quest objective.
@@ -338,7 +338,7 @@ namespace Starfall
                 return true;
             }
             if(!FarCourierActive||
-                (Position-new Point(shelter.x,shelter.y)).Length>2.2f||
+                !HasPhysicalInteractionReach(shelter)||
                 (Position-courierLast).Length>=.65f||
                 !courierCrossed||!courierStamped||courierWalked<17||courierElapsed>=95)return true;
             if(!SafeTravel)
