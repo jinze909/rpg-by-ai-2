@@ -1,5 +1,15 @@
 # AI-2 live development handoff — Starfall Frontier
 
+## 2026-10-20 AI-2 transient combat and draw-record recovery
+
+- **Scope:** Continued from the real jinze909/rpg-by-ai-2/chatgpt/dev handoff HEAD and kept all writes on that branch. Latest tested gameplay commit before this entry is [e42de9a3](https://github.com/jinze909/rpg-by-ai-2/commit/e42de9a37f5f5cef294faa27b254f17aac429166); its [Core CI is green](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39519532994).
+- [94cfb5a5](https://github.com/jinze909/rpg-by-ai-2/commit/94cfb5a59ccc6166dc05b110e5c904b063495a5c) repairs enemy reaction clocks before AI lock-budget arithmetic. Non-finite hit/stun/release/windup clocks and recoil vectors cancel unsafe windups, retract only that enemy's pending danger cue, and give a bounded reacquisition. Non-critical flash/poise/gait clocks are normalized without interrupting a valid telegraphed attack.
+- [9ced3e19](https://github.com/jinze909/rpg-by-ai-2/commit/9ced3e19230c9d2651803f12927eba2b93a58f63) hardens transient effect lifetime/position data and the production effect draw path. Null or malformed effect records are removed before world hooks enumerate them; invalid radius, height and direction values are restored to neutral presentation values, while valid effects keep their original lifetime.
+- [284c7f13](https://github.com/jinze909/rpg-by-ai-2/commit/284c7f132dbeb319170ff51749c0536e00cc77f2) also guards the actual world depth sort and canopy-overlap path: invalid/null corpses are never dereferenced before DrawFallen, and corpses from another room cannot affect the current scene's sorting or cover fade.
+- **Executed regressions:** OuterPatrolInvalidWindupsRecoverAndRetractWarnings, MalformedTransientEffectsAreQuarantinedWithoutLosingValidFeedback, and VerifyMalformedTransientRecordsAreSkippedByProductionDrawGuards. The last test executes the production draw/sort guard path with malformed corpse/effect entries; CI log also confirms Runtime combat input: 80/80 groups passed.
+- **Preserved:** no SaveData schema, accepted art pixels, Unity resource GUIDs, protagonist identity, mature quest content or combat damage timing changed. No scheduler or other repository was touched.
+- **Remaining limits:** licensed Unity 2022.3.53f1 Editor/GameView/PlayMode/GPU verification remains NATIVE_UNVERIFIED. The 18 original full-body hero Attack/Cast contact drawings and moving recovery still remain ART_REVIEW_REQUIRED; this work does not claim those art tasks solved.
+
 ## 2026-10-19 AI-2 hero and companion planted-foot continuity
 
 - **Scope and source:** Continued only on `jinze909/rpg-by-ai-2/chatgpt/dev`; latest exact tested HEAD is [`ea53031d`](https://github.com/jinze909/rpg-by-ai-2/commit/ea53031dbf10437eeb2e0aeeb8e80402248e2484). The canonical gold-haired hero, accepted PNG pixels/GUIDs, GameCore root movement, combat/contact timing, quests, and old save schema remain unchanged.
