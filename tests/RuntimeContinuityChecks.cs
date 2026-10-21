@@ -473,6 +473,24 @@ public static class RuntimeContinuityChecks
         Check(NavigationRouteDots(1.5f) > 0,
             "The full local map also draws the same route at its own tile scale");
 
+        List<Point> cachedRoute = Get<List<Point>>(app, "navigationRouteCache");
+        int revisionBeforeIdleTick = game.revision;
+        game.Tick(.05f, new Point());
+        Check(game.revision != revisionBeforeIdleTick,
+            "The test advanced a real world simulation tick");
+        Call(app, "NavigationRoute");
+        Check(object.ReferenceEquals(cachedRoute, Get<List<Point>>(app, "navigationRouteCache")),
+            "The route cache survives ordinary simulation ticks without another BFS rebuild");
+
+        string bridgeFlag = "far_bridge_" + game.save.room;
+        game.save.flags.RemoveAll(flag => flag == bridgeFlag);
+        Call(app, "NavigationRoute");
+        List<Point> sealedRoute = Get<List<Point>>(app, "navigationRouteCache");
+        Call(game, "Flag", bridgeFlag);
+        Call(app, "NavigationRoute");
+        Check(!object.ReferenceEquals(sealedRoute, Get<List<Point>>(app, "navigationRouteCache")),
+            "A newly opened collision bridge invalidates the route cache immediately");
+
         game.save.x = 12; game.save.y = 14; game.mode = "world";
         Set(app, "camera", game.Position);
         ClearDraw(); Call(app, "DrawNavigationTargetMarker");

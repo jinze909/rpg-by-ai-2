@@ -9,10 +9,16 @@ namespace Starfall
         // NavigationPath is a real collision-aware BFS. Cache its output by
         // map, start/goal tile and world revision so IMGUI Layout/Repaint passes
         // do not repeatedly search the full 120x80 outdoor maps.
-        private readonly List<Point> navigationRouteCache = new List<Point>();
+        // Keep the actual BFS result across simulation ticks. Game.revision is
+        // intentionally broad (it advances every Tick), while this key covers
+        // only state that can change collision topology or the route's endpoints.
+        private List<Point> navigationRouteCache = new List<Point>();
         private MapData navigationRouteMap;
+        private string[] navigationRouteRows;
+        private Decoration[] navigationRouteDecor;
         private bool navigationRouteCacheValid, navigationRouteLowTide, navigationRouteGateBarrier;
-        private int navigationRouteRoom = -1, navigationRouteFloor = -1, navigationRouteRevision = -1;
+        private bool navigationRouteFarBridge, navigationRouteSeal;
+        private int navigationRouteRoom = -1, navigationRouteFloor = -1;
         private int navigationRouteStartX = int.MinValue, navigationRouteStartY = int.MinValue;
         private int navigationRouteTargetX = int.MinValue, navigationRouteTargetY = int.MinValue;
         private Conversation lastConversation;
@@ -218,21 +224,29 @@ namespace Starfall
             int startX = (int)Game.Position.x, startY = (int)Game.Position.y;
             int targetX = (int)Math.Floor(goal.Value.x), targetY = (int)Math.Floor(goal.Value.y);
             bool lowTide = Game.LowTide, gateBarrier = Game.GateBarrierActive;
+            bool farBridge = Game.Has("far_bridge_" + Game.save.room);
+            bool seal = Game.Has("seal_" + Game.save.room);
             if (navigationRouteCacheValid && object.ReferenceEquals(navigationRouteMap, map) &&
+                object.ReferenceEquals(navigationRouteRows, map.rows) &&
+                object.ReferenceEquals(navigationRouteDecor, map.decor) &&
                 navigationRouteRoom == Game.save.room && navigationRouteFloor == Game.save.abyssFloor &&
-                navigationRouteRevision == Game.revision && navigationRouteStartX == startX &&
-                navigationRouteStartY == startY && navigationRouteTargetX == targetX &&
-                navigationRouteTargetY == targetY && navigationRouteLowTide == lowTide &&
-                navigationRouteGateBarrier == gateBarrier)
+                navigationRouteStartX == startX && navigationRouteStartY == startY &&
+                navigationRouteTargetX == targetX && navigationRouteTargetY == targetY &&
+                navigationRouteLowTide == lowTide && navigationRouteGateBarrier == gateBarrier &&
+                navigationRouteFarBridge == farBridge && navigationRouteSeal == seal)
                 return navigationRouteCache;
 
-            navigationRouteCache.Clear();
-            navigationRouteCache.AddRange(Game.NavigationPath(goal.Value));
-            navigationRouteMap = map; navigationRouteRoom = Game.save.room;
-            navigationRouteFloor = Game.save.abyssFloor; navigationRouteRevision = Game.revision;
+            // Replace the cached list only when the path must actually be
+            // rebuilt. This keeps a measurable, allocation-free hit path and
+            // lets the runtime regression prove idle ticks do not run another BFS.
+            navigationRouteCache = new List<Point>(Game.NavigationPath(goal.Value));
+            navigationRouteMap = map; navigationRouteRows = map.rows;
+            navigationRouteDecor = map.decor; navigationRouteRoom = Game.save.room;
+            navigationRouteFloor = Game.save.abyssFloor;
             navigationRouteStartX = startX; navigationRouteStartY = startY;
             navigationRouteTargetX = targetX; navigationRouteTargetY = targetY;
             navigationRouteLowTide = lowTide; navigationRouteGateBarrier = gateBarrier;
+            navigationRouteFarBridge = farBridge; navigationRouteSeal = seal;
             navigationRouteCacheValid = true;
             return navigationRouteCache;
         }
