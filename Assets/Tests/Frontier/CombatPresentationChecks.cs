@@ -4446,9 +4446,7 @@ namespace Starfall.Tests
                 Point relative=goal-hero;
                 // Start on the opposite axis from the fixed formation socket,
                 // so the direct segment must cross the hero's actual body disk.
-                Point start=Math.Abs(relative.x)>=Math.Abs(relative.y)
-                    ?new Point(hero.x-Math.Sign(relative.x)*6f,hero.y)
-                    :new Point(hero.x,hero.y-Math.Sign(relative.y)*6f);
+                Point start=hero-relative.Normalized*6f;
                 Point line=goal-start,offset=hero-start;
                 float projection=GameCore.Clamp(
                     (offset.x*line.x+offset.y*line.y)/
