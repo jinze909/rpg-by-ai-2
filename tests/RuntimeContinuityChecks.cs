@@ -675,6 +675,25 @@ public static class RuntimeContinuityChecks
             Check(NavigationBlockedPixels() == 9 && NavigationEdgeArrowPixels() == 0 &&
                 NavigationRouteDots(4f) == 0,
                 "An unreachable off-screen objective keeps directional bearing but marks the edge cue blocked");
+
+            // The outer map array stays the same while one immutable row is
+            // replaced in-place. Reference-checking only the array would keep
+            // the empty route forever; the snapshot must notice this change.
+            List<Point> closedRouteCache = (List<Point>)Call(app, "NavigationRoute");
+            char[] openCorridor = blockedRows[targetY].ToCharArray();
+            for (int x = targetX - 2; x <= targetX; x++) openCorridor[x] = '.';
+            blockedRows[targetY] = new string(openCorridor);
+            List<Point> reopenedRoute = (List<Point>)Call(app, "NavigationRoute");
+            Check(reopenedRoute.Count > 0 &&
+                !object.ReferenceEquals(closedRouteCache, reopenedRoute),
+                "Replacing one terrain row inside the same rows array invalidates the cached BFS immediately");
+            Set(app, "camera", unreachable.Value);
+            ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+            Check(NavigationBlockedPixels() == 0 && NavigationRouteDots(4f) == 12,
+                "Opening a real walkable corridor restores the ordinary gold objective ring");
+            ClearDraw(); Call(app, "DrawMinimap");
+            Check(!GUI.commands.Exists(command => command.Contains(blockedLabel)),
+                "The minimap clears its blocked warning as soon as terrain becomes reachable");
         }
         finally
         {

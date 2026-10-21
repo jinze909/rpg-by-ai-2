@@ -15,6 +15,10 @@ namespace Starfall
         private List<Point> navigationRouteCache = new List<Point>();
         private MapData navigationRouteMap;
         private string[] navigationRouteRows;
+        // Map rows are immutable strings but the rows array can be updated
+        // in-place by dynamic terrain/editor changes. Snapshot row identities
+        // so that replacing map.rows[y] cannot leave an old BFS cached.
+        private string[] navigationRouteRowSnapshot;
         private Decoration[] navigationRouteDecor;
         private bool navigationRouteCacheValid, navigationRouteLowTide, navigationRouteGateBarrier;
         private bool navigationRouteFarBridge, navigationRouteSeal;
@@ -205,9 +209,18 @@ namespace Starfall
             Point? objective = Game.NavigationTarget();
             if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
                 Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
-                    9, PixelArt.C("#ff6961"), TextAnchor.MiddleLeft);
+                    9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
             Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold);
             if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
+        }
+        private bool NavigationRouteRowsUnchanged(string[] rows)
+        {
+            if (rows == null || navigationRouteRowSnapshot == null ||
+                rows.Length != navigationRouteRowSnapshot.Length) return false;
+            for (int i = 0; i < rows.Length; i++)
+                if (!object.ReferenceEquals(rows[i], navigationRouteRowSnapshot[i]))
+                    return false;
+            return true;
         }
         private List<Point> NavigationRoute()
         {
@@ -238,6 +251,7 @@ namespace Starfall
             bool seal = Game.Has("seal_" + Game.save.room);
             if (navigationRouteCacheValid && object.ReferenceEquals(navigationRouteMap, map) &&
                 object.ReferenceEquals(navigationRouteRows, map.rows) &&
+                NavigationRouteRowsUnchanged(map.rows) &&
                 object.ReferenceEquals(navigationRouteDecor, map.decor) &&
                 navigationRouteRoom == Game.save.room && navigationRouteFloor == Game.save.abyssFloor &&
                 navigationRouteStartX == startX && navigationRouteStartY == startY &&
@@ -251,6 +265,7 @@ namespace Starfall
             // lets the runtime regression prove idle ticks do not run another BFS.
             navigationRouteCache = new List<Point>(Game.NavigationPath(goal.Value));
             navigationRouteMap = map; navigationRouteRows = map.rows;
+            navigationRouteRowSnapshot = (string[])map.rows.Clone();
             navigationRouteDecor = map.decor; navigationRouteRoom = Game.save.room;
             navigationRouteFloor = Game.save.abyssFloor;
             navigationRouteStartX = startX; navigationRouteStartY = startY;
