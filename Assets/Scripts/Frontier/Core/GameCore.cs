@@ -1941,7 +1941,11 @@ namespace Starfall
         // Saved quest flags remain the authority; no extra persistent state.
         public bool IsObjectPresent(WorldObject o)
         {
-            if (o == null) return false;
+            // Map records are shared by rendering, proximity selection and
+            // quest interaction. A malformed kind or coordinate must be
+            // ignored consistently before any StartsWith/path arithmetic.
+            if (o == null || String.IsNullOrEmpty(o.kind) ||
+                !Finite(o.x) || !Finite(o.y)) return false;
             if(o.kind.StartsWith("stormnode")) return Has("storm_started");
             if(o.kind.StartsWith("hearingplaque"))
             {
@@ -1971,7 +1975,9 @@ namespace Starfall
         public WorldObject Nearest()
         {
             WorldObject best = null; float distance = 1.75f;
-            foreach (WorldObject o in Map.objects)
+            WorldObject[] objects = Map.objects;
+            if (objects == null) return null;
+            foreach (WorldObject o in objects)
             {
                 if (!IsObjectPresent(o)) continue;
                 Point objective = new Point(o.x, o.y);

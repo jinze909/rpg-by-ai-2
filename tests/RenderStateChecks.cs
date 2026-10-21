@@ -5342,8 +5342,16 @@ public static class RenderStateChecks
             game.Map.objects=new WorldObject[] {
                 null,
                 new WorldObject {kind=null,x=foot.x,y=foot.y},
+                new WorldObject {kind="",x=foot.x,y=foot.y},
                 new WorldObject {kind="guild",x=float.PositiveInfinity,y=foot.y}
             };
+            WorldObject[] malformedObjects=game.Map.objects;
+            game.Map.objects=null;
+            Check(game.Nearest()==null,
+                "Null object collections are safe for the actual proximity interaction selector");
+            game.Map.objects=malformedObjects;
+            Check(game.Nearest()==null,
+                "Null/empty-kind/non-finite world objects cannot crash or claim an interaction target");
             var marks=(System.Collections.IList)typeof(FrontierRuntime)
                 .GetField("footfallMarks",Private).GetValue(app);
             marks.Clear();

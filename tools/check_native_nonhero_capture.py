@@ -76,6 +76,10 @@ def main():
     assert "if (!ValidEffectForDraw(e)) return;" in presentation
     assert "private void RepairTransientEffects()" in core
     assert "private void TickEffects(float dt)" in core
+    assert "if (o == null || String.IsNullOrEmpty(o.kind) ||" in core
+    assert "!Finite(o.x) || !Finite(o.y)) return false;" in core
+    assert "WorldObject[] objects = Map.objects;" in core
+    assert "if (objects == null) return null;" in core
     # The Unity-only native clip builders must never preserve an old
     # m_LocalScale/m_LocalPosition animation on an otherwise correct Sprite.
     # This source contract supplements (not replaces) Editor PlayMode QA.
