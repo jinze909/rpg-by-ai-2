@@ -1994,28 +1994,28 @@ namespace Starfall
             if (o.kind == "scout") return !Has("scout_saved");
             return true;
         }
+        private bool HasPhysicalInteractionReach(WorldObject o)
+        {
+            if(o==null||!IsObjectPresent(o))return false;
+            Point objective=new Point(o.x,o.y);
+            float distance=(Position-objective).Length;
+            if(!Finite(distance)||distance>=1.75f)return false;
+            // Check the path to interaction reach, not through the object's
+            // own tile: some authored props sit inside solid decorative cells.
+            Point contact=distance>.55f?
+                objective-(objective-Position).Normalized*.55f:Position;
+            return ClearAttackPath(Position,contact);
+        }
         public WorldObject Nearest()
         {
-            WorldObject best = null; float distance = 1.75f;
-            WorldObject[] objects = Map.objects;
-            if (objects == null) return null;
-            foreach (WorldObject o in objects)
+            WorldObject best=null;float distance=1.75f;
+            WorldObject[] objects=Map.objects;
+            if(objects==null)return null;
+            foreach(WorldObject o in objects)
             {
-                if (!IsObjectPresent(o)) continue;
-                Point objective = new Point(o.x, o.y);
-                float d = (Position - objective).Length;
-                // Check the path to the actor's INTERACTION REACH, not
-                // through the object's own tile. Authored dry wood, mural
-                // plaques and some harbor interactables are embedded in
-                // solid decorative cells; players must still reach these
-                // from the neighboring legal floor. The .55f endpoint
-                // margin leaves an intervening full wall solid while
-                // preserving intended in-world E-key reach.
-                Point contact = d > .55f ?
-                    objective - (objective - Position).Normalized * .55f :
-                    Position;
-                if (d < distance && ClearAttackPath(Position, contact))
-                { distance = d; best = o; }
+                if(!HasPhysicalInteractionReach(o))continue;
+                float d=(Position-new Point(o.x,o.y)).Length;
+                if(d<distance){distance=d;best=o;}
             }
             return best;
         }
@@ -2045,15 +2045,8 @@ namespace Starfall
             if (o.kind != "waytrail") return false;
             int region = save.room;
             if (region < 0 || region > 7) return false;
-            // Talk() is also used by internal gameplay/test callers, not only
-            // Interact() after Nearest(). Never award or submit a route marker
-            // remotely, and preserve the same reach/occlusion rule as E input.
-            Point objective = new Point(o.x, o.y);
-            float distance = (Position - objective).Length;
-            Point contact = distance > .55f ?
-                objective - (objective - Position).Normalized * .55f : Position;
-            if (!Finite(distance) || distance >= 1.75f ||
-                !ClearAttackPath(Position, contact))
+            // Direct/internal Talk callers must obey the same reach rule as E input.
+            if (!HasPhysicalInteractionReach(o))
             {
                 Notify("请靠近路标并确保路线畅通，再记录旧路。",
                     "Move within reach of the marker with a clear path before recording the road.");

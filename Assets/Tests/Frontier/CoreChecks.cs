@@ -14,6 +14,18 @@ namespace Starfall.Tests
         { var g = new GameCore(data); g.NewGame(profession); g.Close(); return g; }
         private static WorldObject Object(GameCore g, string kind)
         { foreach (var o in g.Map.objects) if (o.kind == kind) return o; throw new Exception("Missing object " + kind); }
+        private static Point StandableOutsideTalkReach(GameCore g, WorldObject o)
+        {
+            Point[] offsets={new Point(-2f,0f),new Point(2f,0f),new Point(0f,-2f),new Point(0f,2f),
+                new Point(-1.5f,-1.5f),new Point(-1.5f,1.5f),new Point(1.5f,-1.5f),new Point(1.5f,1.5f)};
+            foreach(Point offset in offsets)
+            {
+                Point p=new Point(o.x+offset.x,o.y+offset.y);
+                float d=(p-new Point(o.x,o.y)).Length;
+                if(d>=1.75f&&d<=2.2f&&g.CanStand(p))return p;
+            }
+            throw new Exception("No standable regression point outside physical Talk reach for "+o.id);
+        }
         private static void Action(GameCore g, string kind, string action)
         {
             g.Talk(Object(g, kind));
@@ -828,7 +840,14 @@ namespace Starfall.Tests
                         visited.Contains((int)sites[k-1].y*width+(int)sites[k-1].x),
                         "Real collision and traversal reach every landmark in room "+room);
                 }
-                g.save.x=sites[2].x;g.save.y=sites[2].y;int startCoins=g.save.coins;
+                int startCoins=g.save.coins,startXp=g.save.xp;
+                Point outsideCircuit=StandableOutsideTalkReach(g,sites[0]);
+                g.save.x=outsideCircuit.x;g.save.y=outsideCircuit.y;
+                g.Talk(sites[0]);g.Close();
+                Check(g.TrailCircuitProgress(room)==0&&g.save.coins==startCoins&&
+                    g.save.xp==startXp,
+                    "A physically standable point outside E-key reach cannot submit a third-ring waypoint");
+                g.save.x=sites[2].x;g.save.y=sites[2].y;
                 g.Talk(sites[2]);g.Close();
                 Check(g.TrailCircuitProgress(room)==0,"Third landmark cannot bypass first two");
                 for(int k=0;k<3;k++)
@@ -3394,7 +3413,13 @@ namespace Starfall.Tests
                 Check(east!=null&&south!=null&&g.CanStand(new Point(east.x,east.y))&&
                     g.CanStand(new Point(south.x,south.y)),
                     "Fifth ring links use two real standable authored locations");
-                int coins=g.save.coins,shards=g.save.shards;
+                int coins=g.save.coins,shards=g.save.shards,xp=g.save.xp;
+                Point outsideRidge=StandableOutsideTalkReach(g,east);
+                g.save.x=outsideRidge.x;g.save.y=outsideRidge.y;
+                g.Talk(east);g.Close();
+                Check(!g.RidgeSeen(room,0)&&g.save.coins==coins&&
+                    g.save.shards==shards&&g.save.xp==xp,
+                    "A nearby but out-of-reach ridge marker cannot grant survey XP or shortcut credit");
                 g.save.x=east.x;g.save.y=east.y;
                 g.Talk(east);
                 Check(g.RidgeSeen(room,0)&&!g.RidgeLinked(room),

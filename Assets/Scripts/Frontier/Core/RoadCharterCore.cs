@@ -36,8 +36,8 @@ namespace Starfall
             int region = save.room;
             if (!RoadCharterReady || !RoadCharterStarted ||
                 RoadCharterComplete || region < 1 || region > 3 ||
-                o.kind != "waytrail" || o.id != "waytrail" + region + "e" ||
-                (Position - new Point(o.x, o.y)).Length > 2.2f ||
+                o==null || o.kind != "waytrail" || o.id != "waytrail" + region + "e" ||
+                !HasPhysicalInteractionReach(o) ||
                 Has("roadcharter_report_" + region)) return false;
             Flag("roadcharter_report_" + region);
             RecordMoment(

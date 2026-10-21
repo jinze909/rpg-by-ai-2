@@ -43,7 +43,13 @@ namespace Starfall
         {
             if(o.kind!="trailcircuit")return false;
             int room=save.room;
-            if(room<0||room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(room<0||room>7)return true;
+            if(!HasPhysicalInteractionReach(o))
+            {
+                Notify("请走近路标，并确保途中没有墙体阻挡。",
+                    "Move within reach of the route marker with a clear path.");
+                return true;
+            }
             int stage=0;
             for(int i=1;i<=3;i++)if(o.id=="trailcircuit_"+room+"_"+i)stage=i;
             if(stage==0)return true;

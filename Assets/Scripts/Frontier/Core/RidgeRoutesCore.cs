@@ -18,7 +18,13 @@ namespace Starfall
         {
             if(o.kind!="ridgemarker")return false;
             int room=save.room;
-            if(room<0||room>7||(Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(room<0||room>7)return true;
+            if(!HasPhysicalInteractionReach(o))
+            {
+                Notify("请走近高地路标，并确保途中没有墙体阻挡。",
+                    "Move within reach of the ridge marker with a clear path.");
+                return true;
+            }
             int side=o.id=="ridge_route_"+room+"_0"?0:
                 o.id=="ridge_route_"+room+"_1"?1:-1;
             if(side<0)return true;
@@ -92,7 +98,7 @@ namespace Starfall
             foreach(WorldObject o in Map.objects)
             {
                 if(o.kind!="ridgemarker")continue;
-                if((Position-new Point(o.x,o.y)).Length<=2.2f)start=o;
+                if(HasPhysicalInteractionReach(o))start=o;
             }
             if(start==null)return true;
             string targetId=start.id=="ridge_route_"+room+"_0"?
