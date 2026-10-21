@@ -421,6 +421,35 @@ public static class RuntimeContinuityChecks
                 Math.Abs(call.color.b - expected.b) < .001f) count++;
         return count;
     }
+    static int NavigationEdgeArrowPixels()
+    {
+        Color expected = PixelArt.C("#f2d48b");
+        int count = 0;
+        foreach (var call in GUI.textureCalls)
+            if (call.texture == Texture2D.whiteTexture &&
+                Math.Abs(call.rect.width - 3f) < .001f &&
+                Math.Abs(call.rect.height - 3f) < .001f &&
+                Math.Abs(call.color.r - expected.r) < .001f &&
+                Math.Abs(call.color.g - expected.g) < .001f &&
+                Math.Abs(call.color.b - expected.b) < .001f) count++;
+        return count;
+    }
+    static bool NavigationEdgeArrowStaysInPlayableView()
+    {
+        Color expected = PixelArt.C("#f2d48b");
+        foreach (var call in GUI.textureCalls)
+        {
+            if (call.texture != Texture2D.whiteTexture ||
+                Math.Abs(call.rect.width - 3f) >= .001f ||
+                Math.Abs(call.rect.height - 3f) >= .001f ||
+                Math.Abs(call.color.r - expected.r) >= .001f ||
+                Math.Abs(call.color.g - expected.g) >= .001f ||
+                Math.Abs(call.color.b - expected.b) >= .001f) continue;
+            if (call.rect.x < 350 || call.rect.x + call.rect.width > 970 ||
+                call.rect.y < 125 || call.rect.y + call.rect.height > 650) return false;
+        }
+        return true;
+    }
     static void NavigationRouteGuidance(FrontierRuntime app)
     {
         Prepare(app, 0);
@@ -501,10 +530,27 @@ public static class RuntimeContinuityChecks
         Check(NavigationRouteDots(4f) == 0,
             "The world marker obeys the existing route-guidance toggle");
         game.save.showGuidance = true;
-        game.save.x = 80; game.save.y = 14; Set(app, "camera", game.Position);
+        Point[] offscreenStarts = {
+            new Point(80, 14), new Point(-40, 14),
+            new Point(12, 80), new Point(12, -40)
+        };
+        string[] edgeNames = { "left", "right", "top", "bottom" };
+        for (int i = 0; i < offscreenStarts.Length; i++)
+        {
+            game.save.x = offscreenStarts[i].x; game.save.y = offscreenStarts[i].y;
+            Set(app, "camera", game.Position);
+            ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+            Check(NavigationRouteDots(4f) == 0,
+                "Off-screen " + edgeNames[i] + " objective does not draw a misleading on-world ring");
+            Check(NavigationEdgeArrowPixels() == 4 &&
+                NavigationEdgeArrowStaysInPlayableView(),
+                "Off-screen " + edgeNames[i] + " objective receives a four-pixel directional cue outside HUD panels");
+        }
+        game.mode = "inventory";
         ClearDraw(); Call(app, "DrawNavigationTargetMarker");
-        Check(NavigationRouteDots(4f) == 0,
-            "An off-screen objective never paints a marker over the HUD panels");
+        Check(NavigationEdgeArrowPixels() == 0,
+            "World edge cues never leak into inventory overlays");
+        game.mode = "world";
 
         Point next = route[0]; game.save.x = next.x; game.save.y = next.y;
         ClearDraw(); Call(app, "MiniTerrainWindow", 1024f, 42f);

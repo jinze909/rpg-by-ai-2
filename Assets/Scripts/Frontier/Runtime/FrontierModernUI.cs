@@ -268,6 +268,40 @@ namespace Starfall
                 Box(x - dot * .5f, y - dot * .5f, dot, dot, routeColor);
             }
         }
+        private void DrawNavigationEdgeArrow(Point edge, Point direction, Color color,
+            bool horizontalEdge)
+        {
+            // Four compact pixel clusters form a directional chevron. Its tip
+            // stays inside the playable view, away from the fixed HUD panels.
+            if (horizontalEdge && direction.x > 0)
+            {
+                Box(edge.x - 3, edge.y - 1.5f, 3, 3, color);
+                Box(edge.x - 6, edge.y - 4.5f, 3, 3, color);
+                Box(edge.x - 6, edge.y + 1.5f, 3, 3, color);
+                Box(edge.x - 9, edge.y - 1.5f, 3, 3, color);
+            }
+            else if (horizontalEdge)
+            {
+                Box(edge.x, edge.y - 1.5f, 3, 3, color);
+                Box(edge.x + 3, edge.y - 4.5f, 3, 3, color);
+                Box(edge.x + 3, edge.y + 1.5f, 3, 3, color);
+                Box(edge.x + 6, edge.y - 1.5f, 3, 3, color);
+            }
+            else if (direction.y > 0)
+            {
+                Box(edge.x - 1.5f, edge.y - 3, 3, 3, color);
+                Box(edge.x - 4.5f, edge.y - 6, 3, 3, color);
+                Box(edge.x + 1.5f, edge.y - 6, 3, 3, color);
+                Box(edge.x - 1.5f, edge.y - 9, 3, 3, color);
+            }
+            else
+            {
+                Box(edge.x - 1.5f, edge.y, 3, 3, color);
+                Box(edge.x - 4.5f, edge.y + 3, 3, 3, color);
+                Box(edge.x + 1.5f, edge.y + 3, 3, 3, color);
+                Box(edge.x - 1.5f, edge.y + 6, 3, 3, color);
+            }
+        }
         private void DrawNavigationTargetMarker()
         {
             if (Game == null || Game.mode != "world" || !Game.save.showGuidance) return;
@@ -276,9 +310,29 @@ namespace Starfall
                 float.IsNaN(target.Value.y) || float.IsInfinity(target.Value.y) ||
                 (target.Value - Game.Position).Length < 1.15f) return;
             Point screen = ScreenPoint(target.Value);
-            // The marker belongs to the playable viewport, never over the
-            // fixed status panels or the right-side quest guidance.
-            if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > 650) return;
+            // Keep the ordinary target ring away from HUD panels. If the
+            // objective is beyond that view, project its bearing to a safe
+            // edge instead of silently losing the player's direction cue.
+            if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > 650)
+            {
+                Point player = ScreenPoint(Game.Position);
+                Point direction = screen - player;
+                if (direction.Length < .001f) return;
+                const float left = 366, right = 954, top = 145, bottom = 630;
+                float centerX = (left + right) * .5f, centerY = (top + bottom) * .5f;
+                float tx = direction.x > .001f ? (right - centerX) / direction.x :
+                    direction.x < -.001f ? (left - centerX) / direction.x : float.PositiveInfinity;
+                float ty = direction.y > .001f ? (bottom - centerY) / direction.y :
+                    direction.y < -.001f ? (top - centerY) / direction.y : float.PositiveInfinity;
+                float scale = Math.Min(tx, ty);
+                if (float.IsNaN(scale) || float.IsInfinity(scale) || scale <= 0) return;
+                Point edge = new Point(
+                    Math.Max(left, Math.Min(right, centerX + direction.x * scale)),
+                    Math.Max(top, Math.Min(bottom, centerY + direction.y * scale)));
+                Color edgeColor = PixelArt.C("#f2d48b");
+                DrawNavigationEdgeArrow(edge, direction, edgeColor, tx <= ty);
+                return;
+            }
             Color marker = PixelArt.C("#e8bd62");
             Ring(target.Value, .38f, new Color(marker.r, marker.g, marker.b, .82f), 12);
             Box(screen.x - 1.5f, screen.y - 1.5f, 3f, 3f, ink);
