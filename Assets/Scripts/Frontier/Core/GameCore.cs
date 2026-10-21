@@ -1994,10 +1994,8 @@ namespace Starfall
             if (o.kind == "scout") return !Has("scout_saved");
             return true;
         }
-        private bool HasPhysicalInteractionReach(WorldObject o)
+        private bool HasPhysicalInteractionReach(Point objective)
         {
-            if(o==null||!IsObjectPresent(o))return false;
-            Point objective=new Point(o.x,o.y);
             float distance=(Position-objective).Length;
             if(!Finite(distance)||distance>=1.75f)return false;
             // Check the path to interaction reach, not through the object's
@@ -2005,6 +2003,11 @@ namespace Starfall
             Point contact=distance>.55f?
                 objective-(objective-Position).Normalized*.55f:Position;
             return ClearAttackPath(Position,contact);
+        }
+        private bool HasPhysicalInteractionReach(WorldObject o)
+        {
+            if(o==null||!IsObjectPresent(o))return false;
+            return HasPhysicalInteractionReach(new Point(o.x,o.y));
         }
         public WorldObject Nearest()
         {

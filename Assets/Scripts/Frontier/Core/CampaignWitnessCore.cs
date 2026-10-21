@@ -80,12 +80,13 @@ namespace Starfall
         private bool TalkWitness(WorldObject o)
         {
             int region=save.room;
-            if(region<1 || region>3)return false;
+            if(o==null||region<1 || region>3)return false;
             string kind=o.kind;
             bool resident=kind=="witnessnpc"+region;
             bool first=kind=="witnesssite1"+region;
             bool second=kind=="witnesssite2"+region;
             if(!resident && !first && !second)return false;
+            if(!HasPhysicalInteractionReach(o))return true;
             string[] whoZh={"","密林巡路员 · 莫芽","遗迹渡口幸存者 · 阿菱","赤铁矿工 · 维恩"};
             string[] whoEn={"","Moya · Grove Roadwarden","Arin · Sluice Survivor","Venn · Ironreach Miner"};
             if(!WitnessEligible(region))
@@ -224,7 +225,7 @@ namespace Starfall
             if(action=="witness_begin_"+region)
             {
                 if(Has("witness_started_"+region) ||
-                    (Position-WitnessPoint(region,"npc")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(WitnessPoint(region,"npc")))return true;
                 Flag("witness_started_"+region);
                 TrackQuest("campaign_witness");
                 RecordMoment("第"+region+"章：有人愿意亲自讲述旧星核指令的代价。",
@@ -236,7 +237,7 @@ namespace Starfall
             {
                 if(parts.Length!=4 || !Has("witness_started_"+region) ||
                     Has("witness_read_"+region) ||
-                    (Position-WitnessPoint(region,"site1")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(WitnessPoint(region,"site1")))return true;
                 int choice;
                 if(!int.TryParse(parts[3],out choice))return true;
                 int correct=region==1?1:region==2?2:2;
@@ -269,7 +270,7 @@ namespace Starfall
                     wayfarerEncounterRoom!=0 || atlasEchoRoom!=0 ||
                     RootHarmonyRoom!=0 || commonsRelayRoom!=0 ||
                     TemperActive || TriadDefenseActive ||
-                    (Position-WitnessPoint(region,"site2")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(WitnessPoint(region,"site2")))return true;
                 if(!SpawnWitnessDefense(region))
                 {
                     Notify("守卫接近路线暂时受阻，调整站位后再试。",
@@ -283,7 +284,7 @@ namespace Starfall
             if(action=="witness_abort_"+region)
             {
                 if(witnessDefenseRoom==region &&
-                    (Position-WitnessPoint(region,"site2")).Length<=2.2f)
+                    HasPhysicalInteractionReach(WitnessPoint(region,"site2")))
                 {ResetWitnessDefense();revision++;
                     Notify("保全已暂停。先前核实的证词保留，可重试。",
                         "Preservation paused. Previous verified testimony remains for retry.");}
@@ -293,7 +294,7 @@ namespace Starfall
             {
                 if(!Has("witness_defeated_"+region) ||
                     Has("witness_sealed_"+region) ||
-                    (Position-WitnessPoint(region,"site2")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(WitnessPoint(region,"site2")))return true;
                 Flag("witness_sealed_"+region);
                 Notify("现场原稿已保全，返回证人身边签署记录。",
                     "Field original preserved. Return to the witness for signature.");
@@ -303,7 +304,7 @@ namespace Starfall
             {
                 if(!Has("witness_sealed_"+region) ||
                     Has("witness_complete_"+region) ||
-                    (Position-WitnessPoint(region,"npc")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(WitnessPoint(region,"npc")))return true;
                 Flag("witness_complete_"+region);
                 CreditCoins(region*10+15);
                 CreditShards(1);

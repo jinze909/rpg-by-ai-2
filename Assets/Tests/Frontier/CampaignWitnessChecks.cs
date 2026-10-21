@@ -39,6 +39,19 @@ namespace Starfall.Tests
                 Check(g.Nearest()==first,"First independent record must be interactable");
                 float initialEnergy=g.save.energy;
                 int wrong=region==1?0:1;
+                if(region==1)
+                {
+                    g.save.x=first.x;g.save.y=first.y;g.Talk(first);
+                    int stale=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="witness_answer_"+region+"_"+wrong);
+                    Check(stale>=0,"The physical first record exposes a real interpretation choice");
+                    Point outside=StandableOutsideTalkReach(g,first);
+                    float energyBeforeStale=g.save.energy;
+                    g.save.x=outside.x;g.save.y=outside.y;g.Choose(stale);g.Close();
+                    Check(!g.Has("witness_read_"+region)&&g.save.energy==energyBeforeStale,
+                        "A stale witness-answer dialog cannot change evidence or drain energy remotely");
+                    g.save.x=first.x;g.save.y=first.y;
+                }
                 Action(g,first.kind,"witness_answer_"+region+"_"+wrong);
                 Check(g.save.energy==initialEnergy-8 &&
                     !g.Has("witness_read_"+region),
@@ -105,6 +118,20 @@ namespace Starfall.Tests
                     !g.Has("witness_complete_"+region),
                     "A separate field archive action is needed after the genuine fight");
                 g.save.x=npc.x;g.save.y=npc.y;
+                if(region==1)
+                {
+                    g.Talk(npc);
+                    int finish=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="witness_finish_"+region);
+                    Check(finish>=0,"The living witness offers a real signature choice after field preservation");
+                    Point outsideNpc=StandableOutsideTalkReach(g,npc);
+                    int beforeCoins=g.save.coins,beforeXp=g.save.xp;
+                    g.save.x=outsideNpc.x;g.save.y=outsideNpc.y;g.Choose(finish);g.Close();
+                    Check(!g.Has("witness_complete_"+region)&&g.save.coins==beforeCoins&&
+                        g.save.xp==beforeXp,
+                        "A stale witness-signature dialog cannot award chapter rewards remotely");
+                    g.save.x=npc.x;g.save.y=npc.y;
+                }
                 Action(g,npc.kind,"witness_finish_"+region);
                 Check(g.Has("witness_complete_"+region) &&
                     g.WitnessesFiled==region &&
