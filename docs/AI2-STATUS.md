@@ -1,3 +1,15 @@
+## 2026-10-21 verified-save discovery, concurrent timestamp ties, and abandoned stage cleanup
+
+- **Latest tested code/test HEAD:** [`5dd09831`](https://github.com/jinze909/rpg-by-ai-2/commit/5dd09831c5145b46de6408a5be66de63147991f7). Exact-commit [Core CI SUCCESS, run #1703](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39592181458): **52/52 steps passed**; production offline runtime harness reports **96/96 groups passed**.
+- **Continue-screen correctness:** `SaveStore.Exists` now returns true only when the primary or at least one primary/tmp/backup/precommit/unique-stage candidate passes the same checksum and v1/v2 schema checks as `Read`. A corrupt first-write stage cannot falsely enable Continue; a valid stage-only save still does.
+- **Concurrent write tie:** when independent writers start before either stage is visible, `savedAtUtc` can tie. `Read` now uses filesystem write time as a tie-break only for interrupted `.tmp`/`.stage-*` candidates, leaving primary-first behavior for backups. Post-commit cleanup also preserves a same-timestamp stage written after the primary.
+- **Abandoned stage cleanup:** after a successful primary commit, a unique stage that fails decoding is pruned only after a 10-minute grace period and a successful exclusive read. A valid save, a fresh/locked candidate, and legacy `.tmp` recovery files are not removed by this stale-stage cleanup.
+- **Executed evidence:** `PASS Real SaveStore I/O: unique staging recovery, failed-write preservation, monotonic timestamps, clock rollback, corrupt future metadata, schema rejection and v1/v2 compatibility`; `PASS Atomic portable save: update, failed rename rollback, crash recovery and subsequent heal`; `Runtime combat input: 96/96 groups passed; NATIVE_UNVERIFIED`.
+- **Preserved:** SaveData v1/v2 schema, all existing slot paths, quest progress, canonical blonde protagonist and accepted source artwork, Unity GUIDs, and production scene. All code changes stayed on `jinze909/rpg-by-ai-2/chatgpt/dev`; no scheduled tasks or other branches were changed.
+- **Still honestly gated:** the 18 genuinely hand-drawn hero Attack/Cast contact paintings and motion-complete moving recovery remain `ART_REVIEW_REQUIRED`; licensed Unity 2022.3.53f1 Editor/GameView/PlayMode/GPU verification remains `NATIVE_UNVERIFIED`. This save-safety work does not claim to resolve those art/runtime gates.
+
+---
+
 ## 2026-10-21 save staging recovery — stage-only slot coverage
 
 - **Latest tested code/test HEAD:** [`56500fa5`](https://github.com/jinze909/rpg-by-ai-2/commit/56500fa58b985192af57059ef77e745b60e8d60b). Exact-commit [Core CI SUCCESS, run #1698](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39588630298): all 52 workflow steps passed; production offline runtime harness reports **96/96 groups passed**.
