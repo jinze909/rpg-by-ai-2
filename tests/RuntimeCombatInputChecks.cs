@@ -3032,6 +3032,11 @@ public static class RuntimeCombatInputChecks
 
             g.save.flags.Add("civic_conduit_complete");
             g.Talk(inn);
+            Check(g.conversation.text.Contains("旧路线图")&&
+                g.conversation.textEn.Contains("old route chart")&&
+                g.conversation.text.Contains("可选的三地巡路复核")&&
+                g.conversation.textEn.Contains("optional three-region audit"),
+                "The Inn introduces the optional field audit in both languages after the grid is restored");
             int begin=Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_begin");
             Check(begin>=0,"The original night traveler offers the optional audit after grid completion");
             int coinsBeforeStart=g.save.coins,shardsBeforeStart=g.save.shards;
@@ -3065,6 +3070,9 @@ public static class RuntimeCombatInputChecks
                 if(i==1)
                 {
                     g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;g.Talk(inn);
+                    Check(g.conversation.text.Contains("2/3")&&
+                        g.conversation.textEn.Contains("2/3"),
+                        "The Inn's actual dialogue reports the saved two-of-three field audit progress");
                     Check(Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_publish")<0&&
                         Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_status")>=0,
                         "The Inn cannot publish a two-of-three audit");
@@ -3083,6 +3091,11 @@ public static class RuntimeCombatInputChecks
                 g.save.coins==coinsBeforePublish+35&&g.save.shards==shardsBeforePublish+1,
                 "Publishing settles the one-time reward and completes the persistent quest");
             int coinsAfterPublish=g.save.coins,shardsAfterPublish=g.save.shards;
+            g.Talk(inn);
+            Check(g.conversation.text.Contains("公开记录")&&
+                g.conversation.textEn.Contains("public record")&&
+                Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_status")>=0,
+                "The Inn acknowledges the published field record and offers a review instead of a repeat reward");
             CallCore(g,"ChooseCivicAftercare","civic_aftercare_publish");
             Check(g.save.coins==coinsAfterPublish&&g.save.shards==shardsAfterPublish,
                 "A stale second publication action cannot duplicate the reward");

@@ -95,6 +95,22 @@ namespace Starfall
                 "Road audit recorded "+count+"/3. Verify the other regions.");
             return true;
         }
+        private string CivicAftercareInnNote(bool en)
+        {
+            if(Has("civic_aftercare_published"))
+                return en?
+                    "\n\nThe three-region road audit is now on the public record. Travelers can compare the field-checked markers with the restored grid instead of relying on the old chart alone.":
+                    "\n\n三地巡路复核已列入公开记录。旅人现在可以用实地核验的路标对照重接后的电网，不必只依赖旧路线图。";
+            if(Has("civic_aftercare_started"))
+                return en?
+                    "\n\nThe road audit is still underway: "+CivicAftercareWaypointCount+"/3 regional markers verified. Bring the remaining field notes back here to publish the record.":
+                    "\n\n三地巡路复核仍在进行："+CivicAftercareWaypointCount+"/3 个地区路标已核验。把剩余现场记录带回来，就能在这里公开归档。";
+            if(CivicConduitComplete)
+                return en?
+                    "\n\nThe public grid is running again, but the old route chart still needs field verification. I can register the optional three-region audit when you're ready.":
+                    "\n\n公共电网已经重新运行，但旧路线图仍需要实地核验。准备好后，我可以登记这项可选的三地巡路复核。";
+            return "";
+        }
         private Choice[] CivicAftercareInnChoices()
         {
             var choices=new List<Choice>();
