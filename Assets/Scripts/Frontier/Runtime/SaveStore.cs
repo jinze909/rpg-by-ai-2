@@ -126,6 +126,38 @@ namespace Starfall
             return path.EndsWith(".tmp", StringComparison.Ordinal) ||
                 path.IndexOf(".stage-", StringComparison.Ordinal) >= 0;
         }
+        private static void RemoveStaleInvalidStage(string path)
+        {
+            // Failed/crashed writes can leave partial unique stages behind.
+            // Only consider old stages, and first acquire an exclusive handle
+            // so an active writer cannot be mistaken for abandoned debris.
+            if (path.IndexOf(".stage-", StringComparison.Ordinal) < 0 ||
+                !File.Exists(path) ||
+                File.GetLastWriteTimeUtc(path) > DateTime.UtcNow.AddMinutes(-10))
+                return;
+            string contents;
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open,
+                    FileAccess.Read, FileShare.None))
+                using (var reader = new StreamReader(stream, Encoding.UTF8,
+                    true, 1024, true))
+                    contents = reader.ReadToEnd();
+            }
+            catch { return; }
+            try
+            {
+                Decode(contents);
+                return; // A complete save is recoverable, never garbage.
+            }
+            catch
+            {
+                // Exclusive access plus the grace period confirms an abandoned
+                // invalid stage. Unique stage paths are never reused by writers.
+            }
+            try { File.Delete(path); }
+            catch { /* Cleanup must never invalidate the committed primary. */ }
+        }
         private static void CleanupCommittedRecoveryPaths(string main)
         {
             // Cleanup runs after commit, but another game process could still
@@ -161,8 +193,10 @@ namespace Starfall
                 }
                 catch
                 {
-                    // An invalid stage may be an in-flight writer. Preserve it;
-                    // Read() ignores invalid candidates without hiding the main.
+                    // Keep fresh or locked candidates in case a writer is
+                    // still active. Prune only old invalid unique stages after
+                    // acquiring exclusive access; legacy .tmp remains untouched.
+                    RemoveStaleInvalidStage(path);
                 }
             }
         }

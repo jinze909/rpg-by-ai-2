@@ -1868,8 +1868,12 @@ public static class RuntimeCombatInputChecks
             System.IO.File.WriteAllText(partialStage, "{partial");
             cleanup.Invoke(null, new object[] { main });
             Check(System.IO.File.Exists(partialStage),
-                "Commit cleanup never deletes an unreadable candidate that may still be in flight.");
-            System.IO.File.Delete(partialStage);
+                "Commit cleanup never deletes a fresh unreadable candidate that may still be in flight.");
+            System.IO.File.SetLastWriteTimeUtc(partialStage,
+                DateTime.UtcNow.AddHours(-1));
+            cleanup.Invoke(null, new object[] { main });
+            Check(!System.IO.File.Exists(partialStage),
+                "A stale invalid unique stage is pruned after the grace period and exclusive-read check.");
 
             Console.WriteLine("PASS Real SaveStore I/O: unique staging recovery, failed-write preservation, monotonic timestamps, clock rollback, corrupt future metadata, schema rejection and v1/v2 compatibility");
         }
