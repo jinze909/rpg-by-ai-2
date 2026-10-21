@@ -3169,7 +3169,8 @@ namespace Starfall.Tests
             g.save.room=9;
             WorldObject inn=Object(g,"innGuest");
             g.save.x=inn.x;g.save.y=inn.y;g.enemies.Clear();
-            int coins=g.save.coins,shards=g.save.shards,xp=g.save.xp;
+            int coins=g.save.coins,shards=g.save.shards;
+            int totalXp=g.save.xp+20*g.save.level*(g.save.level-1);
             Action(g,"innGuest","civic_aftercare_begin");
             Check(g.CivicAftercareActive&&g.save.trackedQuest=="civic_aftercare",
                 "The completed grid starts the real three-region audit through the inn traveler");
@@ -3241,12 +3242,12 @@ namespace Starfall.Tests
                 "Publication grants exactly 35 coins (before "+coins+", after "+g.save.coins+")");
             Check(g.save.shards==shards+1,
                 "Publication grants exactly one shard (before "+shards+", after "+g.save.shards+")");
-            Check(g.save.xp==xp+45,
-                "Publication grants exactly 45 XP (before "+xp+", after "+g.save.xp+")");
+            Check(g.save.xp+20*g.save.level*(g.save.level-1)==totalXp+45,
+                "Publication grants exactly 45 lifetime XP across real level-up thresholds");
             handler.Invoke(g,new object[]{"civic_aftercare_publish"});
             Check(g.save.coins==coins+35&&g.save.shards==shards+1&&
-                g.save.xp==xp+45,
-                "Replaying publication cannot duplicate its one-time reward");
+                g.save.xp+20*g.save.level*(g.save.level-1)==totalXp+45,
+                "Replaying publication cannot duplicate coins, shards or lifetime XP");
 
             g.PrepareSave();
             var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
@@ -3261,6 +3262,3 @@ namespace Starfall.Tests
                 resumed.conversation.textEn.Contains("three-region road audit is now on the public record"),
                 "The inn's persistent bilingual response reflects the published audit after reload");
         }
-
-    }
-}
