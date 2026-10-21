@@ -4351,6 +4351,73 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void CompanionFollowRoutesBeyondLocalRadiusThroughDistantOpening(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                // The only opening is more than 30 tiles away from the
+                // follower. The old 18-tile local search could not reach the
+                // goal and therefore kept sweeping against the wall forever.
+                const int size=64;
+                var rows=new string[size];
+                for(int y=0;y<size;y++)
+                {
+                    char[] cells=new string('#',size).ToCharArray();
+                    if(y>=2&&y<=61)
+                        for(int x=2;x<=61;x++)cells[x]='.';
+                    if(y>=2&&y<=53)cells[25]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{
+                    id=0,spawnX=43.5f,spawnY=20.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=43.5f;g.save.y=20.5f;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.companionPosition=new Point(7.5f,20.5f);
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(cadence!=null&&g.CanStand(g.companionPosition)&&
+                    g.CanStand(g.Position),
+                    "Long-route follower and target begin on safe physical ground");
+                cadence.SetValue(g,100f);
+                Point start=g.companionPosition;
+                Point goal=(Point)typeof(GameCore).GetMethod(
+                    "CompanionFollowTarget",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic).Invoke(g,null);
+                Check((goal-start).Length>18f,
+                    "Distant target exceeds the retired local path search radius");
+                bool crossedDistantOpening=false,reachedGoal=false;
+                float totalTravelled=0f;
+                for(int frame=0;frame<1200;frame++)
+                {
+                    Point before=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    Point travelled=g.companionPosition-before;
+                    totalTravelled+=travelled.Length;
+                    Check(travelled.Length<.35f&&g.CanStand(g.companionPosition),
+                        "Long detours must retain small swept movement and legal planted feet");
+                    if(g.companionPosition.x>25.5f&&
+                        g.companionPosition.y>53.5f)
+                        crossedDistantOpening=true;
+                    if((g.companionPosition-goal).Length<.7f)
+                    {reachedGoal=true;break;}
+                }
+                Check(crossedDistantOpening,
+                    "A companion more than 18 tiles from its destination must route through the distant open passage");
+                Check(reachedGoal&&totalTravelled>80f&&
+                    (g.companionPosition-goal).Length<.7f,
+                    "The cached full-map route reaches the hero without warping; reached="+
+                    reachedGoal+", travel="+totalTravelled+", foot="+
+                    g.companionPosition.x+","+g.companionPosition.y+
+                    ", goal="+goal.x+","+goal.y);
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void CompanionFollowRoutesAroundLivingEnemyBodies(Campaign data)
         {
             MapData original=data.maps[0];

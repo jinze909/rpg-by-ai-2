@@ -21,6 +21,17 @@ namespace Starfall
         private Point dashOrigin;
         private float dodgeEscapeTime;
         private float companionAttack, climateTimer, stormTimer;
+        // A successful follower route is cached only in memory. The route is
+        // tied to this save session, room/map, party identity and target tile;
+        // the next physical segment is rechecked against live terrain/enemies
+        // every tick. This lets a follower finish a long detour without running
+        // a whole-world BFS on every frame or persisting navigation in SaveData.
+        private readonly Queue<Point> companionFollowRoute = new Queue<Point>();
+        private SaveData companionFollowRouteSave;
+        private MapData companionFollowRouteMap;
+        private int companionFollowRouteRoom = -1;
+        private int companionFollowRouteGeneration = -1;
+        private int companionFollowRouteGoalCell = -1;
         // Local, nonserialized climate danger notifications. Re-arm only
         // after actually recovering below the lower safe threshold.
         private bool heatDangerWarned, coldDangerWarned;
@@ -195,6 +206,7 @@ namespace Starfall
         {
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAutoTarget = null;
+            ClearCompanionFollowRoute();
             companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPresentationGeneration++;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
@@ -335,6 +347,7 @@ namespace Starfall
             outerPatrolCompanionGuardFoot=new Point();
             outerPatrolGuardRouteCheck=0f;
             companionPresentationGeneration++;
+            ClearCompanionFollowRoute();
             companionAction = null; companionAutoTarget = null;
             if(unreleasedCommand)companionCooldown=0f;
             companionPosition = CompanionFollowTarget();
@@ -484,41 +497,101 @@ namespace Starfall
             // SafeActorFoot/recovery; avoid introducing a new saved location.
             return Position;
         }
+        private void ClearCompanionFollowRoute()
+        {
+            companionFollowRoute.Clear();
+            companionFollowRouteSave=null;
+            companionFollowRouteMap=null;
+            companionFollowRouteRoom=-1;
+            companionFollowRouteGeneration=-1;
+            companionFollowRouteGoalCell=-1;
+        }
+
         // Ordinary follow movement is a real actor route, not a teleport or a
-        // line-of-sight shortcut. When the next physical step is blocked, use
-        // the same dynamic Fits footprint graph as pursuit/navigation and take
-        // only the first tile-center waypoint. The next Tick recomputes from
-        // the actor's actual swept feet, so doors/tides and moving targets are
-        // naturally re-evaluated without persistent path state or save fields.
+        // line-of-sight shortcut. A cached full-map route handles long detours
+        // around buildings; only its next edge is reused, and that edge is
+        // checked against live terrain and enemy bodies on every world tick.
         private bool TryCompanionFollowWaypoint(Point target,float dt,
             out Point waypoint)
         {
             waypoint=target;
             Point delta=target-companionPosition;
             if(!Finite(delta.x)||!Finite(delta.y)||delta.Length<.001f||
-                !Fits(companionPosition)||!Fits(target))return false;
+                !Fits(companionPosition)||!Fits(target))
+            {
+                ClearCompanionFollowRoute();
+                return false;
+            }
             Point direction=delta.Normalized;
             Point next=companionPosition+
                 direction*Math.Min(delta.Length,Math.Max(.001f,dt*(Speed+1)));
             bool terrainStepClear=Fits(next);
             bool actorStepClear=terrainStepClear&&
                 CompanionCornerWalkable(companionPosition,next);
-            if(actorStepClear)return false;
+            if(actorStepClear)
+            {
+                // A newly opened doorway or a moving target can make the
+                // direct route preferable; do not keep steering toward an
+                // obsolete cached detour.
+                ClearCompanionFollowRoute();
+                return false;
+            }
 
-            int width=Map.rows[0].Length,height=Map.rows.Length;
+            MapData map=Map;
+            if(map==null||map.rows==null||map.rows.Length==0||
+                string.IsNullOrEmpty(map.rows[0]))
+            {
+                ClearCompanionFollowRoute();
+                return false;
+            }
+            int width=map.rows[0].Length,height=map.rows.Length;
             int sx=(int)Math.Floor(companionPosition.x);
             int sy=(int)Math.Floor(companionPosition.y);
-            if(sx<0||sy<0||sx>=width||sy>=height)return false;
-            int start=sy*width+sx;
+            int tx=(int)Math.Floor(target.x),ty=(int)Math.Floor(target.y);
+            if(sx<0||sy<0||tx<0||ty<0||sx>=width||tx>=width||
+                sy>=height||ty>=height)
+            {
+                ClearCompanionFollowRoute();
+                return false;
+            }
+            int start=sy*width+sx,goalCell=ty*width+tx;
+            bool sameRoute=companionFollowRoute.Count>0&&
+                System.Object.ReferenceEquals(companionFollowRouteSave,save)&&
+                System.Object.ReferenceEquals(companionFollowRouteMap,map)&&
+                companionFollowRouteRoom==save.room&&
+                companionFollowRouteGeneration==companionPresentationGeneration&&
+                companionFollowRouteGoalCell==goalCell;
+            if(sameRoute)
+            {
+                while(companionFollowRoute.Count>0&&
+                    (companionFollowRoute.Peek()-companionPosition).Length<=.12f)
+                    companionFollowRoute.Dequeue();
+                if(companionFollowRoute.Count>0)
+                {
+                    Point first=companionFollowRoute.Peek();
+                    int fx=(int)Math.Floor(companionPosition.x);
+                    int fy=(int)Math.Floor(companionPosition.y);
+                    int wx=(int)Math.Floor(first.x);
+                    int wy=(int)Math.Floor(first.y);
+                    bool adjacent=Math.Abs(fx-wx)+Math.Abs(fy-wy)<=1;
+                    if(adjacent&&CompanionCornerWalkable(
+                        companionPosition,first))
+                    {
+                        waypoint=first;
+                        return true;
+                    }
+                }
+            }
+            // Any stale, obstructed, moved-target or cross-session route is
+            // discarded before replanning. A new map/search never shares a
+            // persistent path with the previous save or companion identity.
+            ClearCompanionFollowRoute();
+
             PreparePathSearch(width*height);
             int head=0,tail=0,found=-1;
             pathQueue[tail++]=start;
             VisitPath(start,-1);
-            // Follow goals remain close to the hero. A 18-tile local bound
-            // allows a useful detour around buildings without turning each
-            // blocked follow tick into an unbounded whole-world search.
-            const int radius=18;
-            while(head<tail)
+            while(head<tail&&found<0)
             {
                 int node=pathQueue[head++];
                 int x=node%width,y=node/width;
@@ -528,38 +601,60 @@ namespace Starfall
                 for(int i=0;i<4;i++)
                 {
                     int nx=x+pursuitSteps[i,0],ny=y+pursuitSteps[i,1];
-                    if(nx<0||ny<0||nx>=width||ny>=height||
-                        Math.Abs(nx-sx)>radius||Math.Abs(ny-sy)>radius)
-                        continue;
+                    if(nx<0||ny<0||nx>=width||ny>=height)continue;
                     int candidate=ny*width+nx;
+                    if(PathVisited(candidate))continue;
                     Point fromPoint=node==start?companionPosition:center;
                     Point toCenter=new Point(nx+.5f,ny+.5f);
-                    // The first route edge begins at the actual fractional
-                    // foot, not the abstract center of its containing tile.
-                    // Checking the true segment prevents a first waypoint
-                    // from cutting through a nearby living enemy body.
-                    if(PathVisited(candidate)||
-                        !CompanionCornerWalkable(fromPoint,toCenter))
-                        continue;
+                    // The first route edge starts at the actual fractional
+                    // foot. Every later edge uses tile centers, and every
+                    // segment checks both the swept terrain and living actors.
+                    if(!CompanionCornerWalkable(fromPoint,toCenter))continue;
                     VisitPath(candidate,node);
                     pathQueue[tail++]=candidate;
                 }
             }
             if(found<0)
             {
-                // Terrain-blocked paths retain the ordinary collision-slide
-                // fallback. If terrain is open but a living actor blocks the
-                // next step and no safe detour exists, plant here instead of
-                // clipping through that actor; retry on the next world tick.
+                // If open terrain is blocked only by a living actor and no
+                // safe alternate path exists, plant here rather than clipping
+                // through it. Terrain-only blockage retains swept collision
+                // sliding so an unreachable objective cannot freeze the ally.
                 if(terrainStepClear)
                 {waypoint=companionPosition;return true;}
                 return false;
             }
-            int first=found;
-            while(pathParents[first]>=0&&pathParents[first]!=start)
-                first=pathParents[first];
-            if(pathParents[first]!=start)return false;
-            waypoint=new Point(first%width+.5f,first/width+.5f);
+
+            var reversed=new List<Point>();
+            int cursor=found;
+            while(cursor!=start)
+            {
+                reversed.Add(new Point(cursor%width+.5f,cursor/width+.5f));
+                int parent=pathParents[cursor];
+                if(parent<0)
+                {
+                    ClearCompanionFollowRoute();
+                    return false;
+                }
+                cursor=parent;
+            }
+            reversed.Reverse();
+            if(reversed.Count==0)return false;
+            foreach(Point point in reversed)companionFollowRoute.Enqueue(point);
+            companionFollowRouteSave=save;
+            companionFollowRouteMap=map;
+            companionFollowRouteRoom=save.room;
+            companionFollowRouteGeneration=companionPresentationGeneration;
+            companionFollowRouteGoalCell=goalCell;
+            Point firstWaypoint=companionFollowRoute.Peek();
+            if(!CompanionCornerWalkable(companionPosition,firstWaypoint))
+            {
+                ClearCompanionFollowRoute();
+                if(terrainStepClear)
+                {waypoint=companionPosition;return true;}
+                return false;
+            }
+            waypoint=firstWaypoint;
             return true;
         }
         private bool CanCompanionHeal()
