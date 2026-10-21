@@ -1779,6 +1779,17 @@ public static class RuntimeCombatInputChecks
             Check(restored != null && restored.coins == 89 &&
                 warning == "Recovered interrupted save.",
                 "A complete unpromoted unique staging file is a recoverable interrupted save.");
+            string stageOnlyMain = SaveStore.PathFor(2);
+            string stageOnly = stageOnlyMain + ".stage-only-fixture";
+            put(stageOnly, 123, DateTime.UtcNow.AddMinutes(7).ToString("o", CultureInfo.InvariantCulture));
+            Check(SaveStore.Exists(2),
+                "The title/save existence query recognizes a valid stage-only recovery candidate.");
+            restored = SaveStore.Read(2, out warning);
+            Check(restored != null && restored.coins == 123 &&
+                warning == "Recovered interrupted save.",
+                "A flushed staging candidate remains loadable when no primary, backup or legacy temp exists.");
+            System.IO.File.Delete(stageOnly);
+
             var invalidCandidate = new SaveData { version = 2, coins = 90,
                 inventory = new int[7] };
             Check(!SaveStore.Write(invalidCandidate, 0) &&
