@@ -198,7 +198,17 @@ namespace Starfall
             if(cooldown>0) Bar(x+4,y+h-3,w-8,1-cooldown/Math.Max(.01f,duration),gold,2);
             if(hit) act();
         }
-        private void DrawMinimap() { Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073")); MiniTerrainWindow(1024, 42); Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold); if (Button(1190, 184, 48, 25, "M")) OpenMenu("map"); }
+        private void DrawMinimap()
+        {
+            Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073"));
+            MiniTerrainWindow(1024, 42);
+            Point? objective = Game.NavigationTarget();
+            if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
+                Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
+                    9, PixelArt.C("#ff6961"), TextAnchor.MiddleLeft);
+            Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold);
+            if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
+        }
         private List<Point> NavigationRoute()
         {
             if (Game == null || !Game.save.showGuidance)
@@ -249,6 +259,14 @@ namespace Starfall
             navigationRouteFarBridge = farBridge; navigationRouteSeal = seal;
             navigationRouteCacheValid = true;
             return navigationRouteCache;
+        }
+        private bool HasBlockedNavigationRoute(Point target)
+        {
+            if (Game == null || Game.mode != "world" || !Game.save.showGuidance ||
+                float.IsNaN(target.x) || float.IsInfinity(target.x) ||
+                float.IsNaN(target.y) || float.IsInfinity(target.y)) return false;
+            return (target - Game.Position).Length > 3f &&
+                NavigationRoute().Count == 0;
         }
         private void DrawNavigationRoute(float x0, float y0, float tileSize,
             int left, int top, int width, int height)
@@ -324,7 +342,7 @@ namespace Starfall
             // unreachable. Do not keep presenting a normal gold ring/arrow as
             // though the route were clear; near targets remain unflagged
             // because their intentionally empty route can mean "already here".
-            bool routeBlocked = targetDistance > 3f && NavigationRoute().Count == 0;
+            bool routeBlocked = HasBlockedNavigationRoute(target.Value);
             Point screen = ScreenPoint(target.Value);
             // Keep the ordinary target ring away from HUD panels. If the
             // objective is beyond that view, project its bearing to a safe

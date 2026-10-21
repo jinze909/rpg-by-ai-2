@@ -504,6 +504,10 @@ public static class RuntimeContinuityChecks
         }
         Check(hasVisible, "The reachable route intersects the live minimap viewport");
 
+        ClearDraw(); Call(app, "DrawMinimap");
+        string blockedLabel = game.L("路线受阻", "ROUTE BLOCKED");
+        Check(!GUI.commands.Exists(command => command.Contains(blockedLabel)),
+            "A reachable tracked objective never shows the minimap blocked-route label");
         ClearDraw(); Call(app, "MiniTerrainWindow", 1024f, 42f);
         int minimapDots = NavigationRouteDots(3f);
         Check(minimapDots > 0 && minimapDots <= route.Count,
@@ -654,6 +658,14 @@ public static class RuntimeContinuityChecks
             List<Point> unreachableRoute = (List<Point>)Call(app, "NavigationRoute");
             Check(unreachableRoute.Count == 0,
                 "A complete collision pocket produces no fabricated walking path");
+            ClearDraw(); Call(app, "DrawMinimap");
+            Check(GUI.commands.Exists(command => command.Contains(blockedLabel)),
+                "The minimap explicitly explains why the missing route has no gold breadcrumbs");
+            game.save.showGuidance = false;
+            ClearDraw(); Call(app, "DrawMinimap");
+            Check(!GUI.commands.Exists(command => command.Contains(blockedLabel)),
+                "The blocked-route label obeys the existing guidance accessibility toggle");
+            game.save.showGuidance = true;
             ClearDraw(); Call(app, "DrawNavigationTargetMarker");
             Check(NavigationBlockedPixels() == 5 && NavigationRouteDots(4f) == 0,
                 "An unreachable visible objective gets a coral broken-route mark instead of the gold ring");
