@@ -434,7 +434,7 @@ public static class RuntimeContinuityChecks
                 Math.Abs(call.color.b - expected.b) < .001f) count++;
         return count;
     }
-    static bool NavigationEdgeArrowStaysInPlayableView()
+    static bool NavigationEdgeArrowStaysInPlayableView(float bottom)
     {
         Color expected = PixelArt.C("#f2d48b");
         foreach (var call in GUI.textureCalls)
@@ -446,7 +446,7 @@ public static class RuntimeContinuityChecks
                 Math.Abs(call.color.g - expected.g) >= .001f ||
                 Math.Abs(call.color.b - expected.b) >= .001f) continue;
             if (call.rect.x < 350 || call.rect.x + call.rect.width > 970 ||
-                call.rect.y < 125 || call.rect.y + call.rect.height > 600) return false;
+                call.rect.y < 125 || call.rect.y + call.rect.height > bottom) return false;
         }
         return true;
     }
@@ -543,18 +543,23 @@ public static class RuntimeContinuityChecks
             Check(NavigationRouteDots(4f) == 0,
                 "Off-screen " + edgeNames[i] + " objective does not draw a misleading on-world ring");
             Check(NavigationEdgeArrowPixels() == 4 &&
-                NavigationEdgeArrowStaysInPlayableView(),
+                NavigationEdgeArrowStaysInPlayableView(630f),
                 "Off-screen " + edgeNames[i] + " objective receives a four-pixel directional cue outside HUD panels");
         }
         Point? bossBarTarget = game.NavigationTarget();
-        Check(bossBarTarget.HasValue, "Boss-bar overlap fixture has a real objective");
+        Check(bossBarTarget.HasValue, "Lower-playfield fixture has a real objective");
         game.save.x = bossBarTarget.Value.x;
         game.save.y = bossBarTarget.Value.y - 7.2f;
         Set(app, "camera", game.Position);
         ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+        Check(NavigationRouteDots(4f) == 12 && NavigationEdgeArrowPixels() == 0,
+            "A lower on-screen objective keeps its ring when no Boss HUD occupies that space");
+        game.enemies.Add(new Enemy(1222, 0, 17, 14, 999) { boss = true });
+        ClearDraw(); Call(app, "DrawNavigationTargetMarker");
         Check(NavigationRouteDots(4f) == 0 && NavigationEdgeArrowPixels() == 4 &&
-            NavigationEdgeArrowStaysInPlayableView(),
+            NavigationEdgeArrowStaysInPlayableView(600f),
             "A target behind the centered Boss bar is rerouted to a visible safe-edge cue");
+        game.enemies.Clear();
 
         game.mode = "inventory";
         ClearDraw(); Call(app, "DrawNavigationTargetMarker");

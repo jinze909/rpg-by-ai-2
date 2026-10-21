@@ -314,13 +314,20 @@ namespace Starfall
             // objective is beyond that view, project its bearing to a safe
             // edge instead of silently losing the player's direction cue.
             // The centered Boss health panel overlays the lower playfield.
-            if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > 590)
+            bool bossHudVisible = Game.enemies != null &&
+                Game.enemies.Exists(enemy => enemy != null && enemy.boss);
+            float markerBottom = bossHudVisible ? 590f : 650f;
+            if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > markerBottom)
             {
                 Point player = ScreenPoint(Game.Position);
                 Point direction = screen - player;
                 if (direction.Length < .001f) return;
-                // The live Boss bar occupies y=612..676; keep edge cues above it.
-                const float left = 366, right = 954, top = 145, bottom = 600;
+                bool bossHudVisible = Game.enemies != null &&
+                    Game.enemies.Exists(enemy => enemy != null && enemy.boss);
+                // The centered Boss bar occupies y=612..676. When no Boss is
+                // active, let objectives use the lower playfield instead.
+                const float left = 366, right = 954, top = 145;
+                float bottom = bossHudVisible ? 600f : 630f;
                 float centerX = (left + right) * .5f, centerY = (top + bottom) * .5f;
                 float tx = direction.x > .001f ? (right - centerX) / direction.x :
                     direction.x < -.001f ? (left - centerX) / direction.x : float.PositiveInfinity;
