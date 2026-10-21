@@ -1519,6 +1519,100 @@ namespace Starfall.Tests
                 "Only the actual green phase now shows an actionable tune button");
             g.Close();
         }
+
+        public static void QualityCivicGridRepairGroundingAbortAndRetryPreserveOwnedEffects(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.stage = 3;
+            g.save.difficulty = 1;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_shelter");
+            g.Enter(4);
+            g.enemies.Clear();
+            var master = Object(g, "civicconduitmaster");
+            var valve = Object(g, "civicconduitvalve");
+            g.save.x = master.x;
+            g.save.y = master.y;
+            g.save.inventory[4] = 3;
+            g.save.energy = 100;
+            g.save.health = 100;
+            g.invulnerable = 200f;
+            Action(g, "civicconduitmaster", "civic_conduit_start");
+            Check(g.CivicConduitActive && g.save.inventory[4] == 2,
+                "The first run consumes exactly one genuine fuse before any repair or grounding");
+
+            int walked = 0;
+            Point destination = new Point(valve.x, valve.y);
+            while ((g.Position - destination).Length > .45f && walked < 2000)
+            {
+                Point delta = destination - g.Position;
+                g.Tick(.02f, delta.Length > .001f ? delta.Normalized : new Point());
+                walked++;
+            }
+            Check(walked < 2000 && (g.Position - destination).Length <= .7f,
+                "Repair and grounding require approaching the real first valve along the map");
+
+            var hurt = typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Check(hurt != null, "Conductor repair must respond to the production hit transaction");
+            g.invulnerable = 0f;
+            hurt.Invoke(g, new object[] { 20f, "shot", null });
+            Check(g.CivicConduitIntegrity < 85f && g.CivicConduitRepairAvailable,
+                "A genuine accepted combat hit damages the live conductor and unlocks one material repair");
+            Action(g, "civicconduitvalve", "civic_conduit_repair");
+            Check(g.save.inventory[4] == 1 &&
+                g.CivicConduitIntegrity >= 99.9f &&
+                !g.CivicConduitRepairAvailable,
+                "One spare part restores conductor integrity once, without allowing repeated repairs");
+            g.Talk(valve);
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "civic_conduit_repair"),
+                "A repaired conductor no longer offers an inert second repair action");
+            g.Close();
+
+            g.hazards.Add(new Hazard { position = g.Position, radius = 1f, timer = 30f,
+                damage = 1f, kind = "civic-test-unrelated" });
+            g.hazards.Add(new Hazard { position = g.Position, radius = 1f, timer = 30f,
+                damage = 1f, kind = "civic-test-owned", civicConduitOwned = true });
+            g.effects.Add(new Effect("civic-test-unrelated", g.Position, 30f));
+            g.effects.Add(new Effect("civic-test-owned", g.Position, 30f) { civicConduitOwned = true });
+            float energyBeforeGround = g.save.energy;
+            Check(g.CivicConduitGroundAvailable,
+                "The current valve exposes grounding when the player has enough real stamina");
+            Action(g, "civicconduitvalve", "civic_conduit_ground");
+            Check(Math.Abs(g.save.energy - (energyBeforeGround - 20f)) < .01f &&
+                !g.CivicConduitGroundAvailable,
+                "Grounding costs 20 stamina and is available only once at this stage");
+            Check(g.hazards.Exists(h => h.kind == "civic-test-unrelated") &&
+                !g.hazards.Exists(h => h.kind == "civic-test-owned") &&
+                g.effects.Exists(e => e.kind == "civic-test-unrelated") &&
+                !g.effects.Exists(e => e.kind == "civic-test-owned"),
+                "Grounding removes only its own live warning/effect records and preserves unrelated world presentation");
+            g.Talk(valve);
+            Check(!Array.Exists(g.conversation.choices, c => c.action == "civic_conduit_ground"),
+                "A grounded valve no longer advertises a second grounding action");
+            g.Close();
+
+            destination = new Point(master.x, master.y);
+            walked = 0;
+            while ((g.Position - destination).Length > .45f && walked < 2000)
+            {
+                Point delta = destination - g.Position;
+                g.Tick(.02f, delta.Length > .001f ? delta.Normalized : new Point());
+                walked++;
+            }
+            Check(walked < 2000 && (g.Position - destination).Length <= .7f,
+                "The player can physically return to the western console to abort the run");
+            Action(g, "civicconduitmaster", "civic_conduit_abort");
+            Check(!g.CivicConduitActive && g.save.inventory[4] == 1 &&
+                g.hazards.Exists(h => h.kind == "civic-test-unrelated") &&
+                g.effects.Exists(e => e.kind == "civic-test-unrelated"),
+                "Aborting retires circuit-owned transients but preserves unrelated effects and does not refund spent materials");
+            g.hazards.RemoveAll(h => h.kind == "civic-test-unrelated");
+            g.effects.RemoveAll(e => e.kind == "civic-test-unrelated");
+            Action(g, "civicconduitmaster", "civic_conduit_start");
+            Check(g.CivicConduitActive && g.save.inventory[4] == 1,
+                "Retry reuses the originally donated fuse instead of charging another part");
+        }
         public static void QualityCitadelAbortAtBothIntermissionsPreservesSaveAndRewardIntegrity(Campaign data)
         {
             var g=Fresh(data);g.save.stage=4;
