@@ -218,7 +218,11 @@ namespace Starfall
             // gait phases 0/2 are grounded and appear every HALF stride.
             float stride=GameCore.WalkStride*
                 CurrentWorldVisualLook.companionStrideDistanceFactor;
-            int contact=PlantedFootfallIndex(Game.companionMoveTime,stride);
+            // Use the exact same rebased source-frame distance as
+            // DrawCompanionActor; otherwise a stop/restart could show a
+            // planted body while the dirt/grass footfall fires mid-air.
+            float gaitDistance=CompanionGaitDistance(true);
+            int contact=PlantedFootfallIndex(gaitDistance,stride);
             if(companionRoom!=room || companionId!=id ||
                !System.Object.ReferenceEquals(companionFootfallOwner,Game) ||
                companionFootfallGeneration!=Game.companionPresentationGeneration)
@@ -227,14 +231,14 @@ namespace Starfall
                 companionFootfallOwner=Game;
                 companionFootfallGeneration=Game.companionPresentationGeneration;
                 companionPrevious=now;
-                companionLastMoveTime=Game.companionMoveTime;
+                companionLastMoveTime=gaitDistance;
                 companionContactIndex=contact;return;
             }
             float distance=(now-companionPrevious).Length;
-            bool rewound=Game.companionMoveTime<
+            bool rewound=gaitDistance<
                 companionLastMoveTime-.0001f;
             companionPrevious=now;
-            companionLastMoveTime=Game.companionMoveTime;
+            companionLastMoveTime=gaitDistance;
             int prior=companionContactIndex;
             companionContactIndex=contact;
             // Paused spells, collisions, party swaps and teleport recovery

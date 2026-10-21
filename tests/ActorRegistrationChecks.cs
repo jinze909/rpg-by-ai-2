@@ -79,6 +79,88 @@ public static class ActorRegistrationChecks
         return row*columns+column;
     }
 
+    static void CompanionGaitRestartUsesPlantedSourceContact(FrontierRuntime app)
+    {
+        string[] names={"Mira","Ivo","Sen"};
+        object style=Call(app,"get_CurrentWorldVisualLook");
+        float factor=(float)style.GetType().GetField(
+            "companionStrideDistanceFactor").GetValue(style);
+        float stride=GameCore.WalkStride*factor;
+        int total=0;
+        foreach(int id in new[]{0,1,2})
+        foreach(int heading in new[]{0,1,2,3})
+        foreach(int passing in new[]{1,3})
+        {
+            app.BeginVisualReview(0,0);
+            var game=app.Game;
+            game.save.companion=id;
+            game.save.reducedMotion=false;
+            game.save.effectsQuality=2;
+            game.companionAction=null;
+            game.companionAim=Directions[heading];
+            game.companionMoving=true;
+            float raw=stride*(passing+.5f)/4f;
+            game.companionMoveTime=raw;
+            Point root=game.companionPosition;
+            Point pixel=new Point(360,350);
+            Place(app,root,pixel);
+            Set(app,"clock",50f);
+            int row=GameCore.DirectionRow(Directions[heading]);
+
+            // Seed a genuine in-flight source phase, then stop on an airborne
+            // key. This isolates the restart transition from arbitrary phase
+            // selection used by the broader four-cell gait test.
+            Set(app,"companionVisualId",id);
+            Set(app,"companionVisualOwner",game);
+            Set(app,"companionVisualGeneration",game.companionPresentationGeneration);
+            Set(app,"companionLastWalkFrame",passing);
+            Set(app,"companionLastWalkFacing",row);
+            Set(app,"companionWasWalking",true);
+            Set(app,"companionStopTime",49.99f);
+            Set(app,"companionTrackedAction",null);
+            Set(app,"companionAttackStartedFromWalk",false);
+            Set(app,"companionGaitPhaseOwner",game);
+            Set(app,"companionGaitPhaseSave",game.save);
+            Set(app,"companionGaitPhaseId",id);
+            Set(app,"companionGaitPhaseGeneration",game.companionPresentationGeneration);
+            Set(app,"companionGaitPhaseRoom",game.save.room);
+            Set(app,"companionGaitPhaseOffset",0f);
+            Set(app,"companionGaitLastRawDistance",raw);
+            Set(app,"companionGaitPhaseMoving",true);
+
+            var moving=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+            Check(moving.texture.name.EndsWith("/Walk"+names[id])&&
+                AtlasFrame(moving,4,3)%4==passing,
+                "Companion restart fixture must begin on its real passing source cell");
+
+            game.companionMoving=false;
+            Set(app,"clock",50.01f);
+            Call(app,"CompanionGaitDistance",true);
+            var stopped=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+            int planted=passing==1?2:0;
+            Check(AtlasFrame(stopped,4,3)%4==planted&&
+                stopped.texture.name.EndsWith("/Walk"+names[id]),
+                "Companion must stop on the next genuine planted source cell");
+
+            game.companionMoving=true;
+            game.companionMoveTime+=.02f;
+            Set(app,"clock",50.03f);
+            float phase=(float)Call(app,"CompanionGaitDistance",true);
+            Check(GameCore.GaitFrame(phase,stride)==planted,
+                "Companion restart phase must remain aligned with its planted source frame");
+            var resumed=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+            Check(AtlasFrame(resumed,4,3)%4==planted&&
+                resumed.texture.name.EndsWith("/Walk"+names[id])&&
+                Math.Abs(resumed.rect.y-stopped.rect.y)<.001f&&
+                Math.Abs(game.companionPosition.x-root.x)<.0001f&&
+                Math.Abs(game.companionPosition.y-root.y)<.0001f,
+                "Companion stop/restart must preserve one source body, foot root and real movement authority");
+            total++;
+        }
+        Console.WriteLine("PASS companion source gait restart: "+total+
+            " stop/restart cases rebase to planted cells 0/2 and share phase with footfall VFX");
+    }
+
     // The canonical blonde actor must stop on a genuine planted Run source
     // cell before Idle, using the same frame resolver for native SpriteRenderer
     // and the whole-body GUI fallback. No root translation or action clock is
@@ -380,6 +462,14 @@ public static class ActorRegistrationChecks
                 g.companionAim=Directions[heading];
                 g.companionMoveTime=GameCore.WalkStride*stride*
                     (phase+.5f)/4f;
+                Set(app,"companionGaitPhaseOwner",g);
+                Set(app,"companionGaitPhaseSave",g.save);
+                Set(app,"companionGaitPhaseId",id);
+                Set(app,"companionGaitPhaseGeneration",g.companionPresentationGeneration);
+                Set(app,"companionGaitPhaseRoom",g.save.room);
+                Set(app,"companionGaitPhaseOffset",0f);
+                Set(app,"companionGaitLastRawDistance",g.companionMoveTime);
+                Set(app,"companionGaitPhaseMoving",true);
                 Set(app,"clock",10f+phase);
                 Clear();
                 var moving=Draw(app,"DrawCompanionActor");
@@ -403,6 +493,7 @@ public static class ActorRegistrationChecks
                 g.companionMoving=false;
                 float stopAt=10.01f+phase;
                 Set(app,"clock",stopAt);
+                Call(app,"CompanionGaitDistance",true);
                 Clear();
                 var style=Call(app,"get_CurrentWorldVisualLook");
                 float settle=(float)style.GetType().GetField(
@@ -534,6 +625,7 @@ public static class ActorRegistrationChecks
             Check(fresh.texture.name==approved&&freshCell==0,
                 "Re-selected same companion must not retain hidden old airborne pose");
         }
+        CompanionGaitRestartUsesPlantedSourceContact(app);
         Console.WriteLine("PASS 3 companions x 4 facings x 4 original gait phases: forward footfall recovery, exactly one whole-body action, source-painted soil contacts (no second head/weapon), reset and idle");
     }
     static void Enemies(FrontierRuntime app,string folder)

@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "Assets/Resources/Frontier/Art"
 RUNTIME = ROOT / "Assets/Scripts/Frontier/Runtime/FrontierExpansionUI.cs"
 GEOMETRY = ROOT / "Assets/Scripts/Frontier/Runtime/ActorAtlasGeometry.cs"
+FOOTFALLS = ROOT / "Assets/Scripts/Frontier/Runtime/FrontierFootfallVisual.cs"
 REPORT = ROOT / ".starfall-checks/sprite-qa/companion-gait.json"
 NAMES = ("Mira", "Ivo", "Sen")
 CELL = 256
@@ -79,6 +80,7 @@ def main():
     result = {name: inspect(name) for name in NAMES}
     idle_fallbacks = {name: inspect_idle_fallback(name) for name in NAMES}
     runtime = RUNTIME.read_text(encoding="utf-8")
+    footfalls = FOOTFALLS.read_text(encoding="utf-8")
     geometry = GEOMETRY.read_text(encoding="utf-8")
     assert "internal static bool IsAcceptedCompanionAtlas(Texture2D sheet)" in geometry
     assert "return HasSquareGrid(sheet, 3, 4);" in geometry
@@ -103,6 +105,15 @@ def main():
             "COMPANION_ACTION_FACING_MUST_USE_CANONICAL_ROW_MIRROR")
     assert "!north&&!(south&&action!=null)" not in runtime, (
         "COMPANION_SOUTH_IDLE_MUST_NOT_BE_MIRRORED")
+    assert "private float CompanionGaitDistance(bool commit)" in runtime, (
+        "COMPANION_RESTART_MUST_USE_ONE_SHARED_DISTANCE_PHASE")
+    assert "CompanionGaitDistance(!drawingOutline)" in runtime, (
+        "COMPANION_OUTLINE_PASS_MUST_NOT_CONSUME_GAIT_PHASE")
+    assert "PlantedFootfallIndex(gaitDistance,stride)" in footfalls and (
+        "float gaitDistance=CompanionGaitDistance(true);" in footfalls), (
+            "COMPANION_FOOTFALLS_MUST_SHARE_REBASED_GAIT_PHASE")
+    assert "offset=raw-plantedDistance;" in runtime, (
+        "COMPANION_RESTART_MUST_REBASE_TO_A_REAL_PLANTED_SOURCE_CELL")
     REPORT.write_text(json.dumps({
         "kind": "actual_original_companion_walk_source",
         "unity_native_verified": False,

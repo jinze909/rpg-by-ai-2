@@ -53,6 +53,90 @@ namespace Starfall
         private float companionStopTime;
         private ActorAction companionTrackedAction;
         private bool companionAttackStartedFromWalk;
+
+        // One shared distance phase feeds both the source-painted walk Sprite
+        // and its grounded footfalls. Rebase ONLY when a real movement segment
+        // resumes, so an idle/action pause never starts the next walk airborne.
+        // This is presentation state, not a second movement clock or SaveData.
+        private GameCore companionGaitPhaseOwner;
+        private SaveData companionGaitPhaseSave;
+        private int companionGaitPhaseId=-1;
+        private int companionGaitPhaseGeneration=-1;
+        private int companionGaitPhaseRoom=-1;
+        private float companionGaitPhaseOffset;
+        private float companionGaitLastRawDistance;
+        private bool companionGaitPhaseMoving;
+
+        private float CompanionGaitDistance(bool commit)
+        {
+            if(Game==null||Game.save==null||Game.save.companion<0)
+            {
+                if(commit)
+                {
+                    companionGaitPhaseOwner=null;
+                    companionGaitPhaseSave=null;
+                    companionGaitPhaseId=-1;
+                    companionGaitPhaseGeneration=-1;
+                    companionGaitPhaseRoom=-1;
+                    companionGaitPhaseMoving=false;
+                }
+                return 0f;
+            }
+
+            float raw=Game.companionMoveTime;
+            if(float.IsNaN(raw)||float.IsInfinity(raw)||raw<0f)raw=0f;
+            int id=Game.save.companion;
+            bool same=System.Object.ReferenceEquals(companionGaitPhaseOwner,Game)&&
+                System.Object.ReferenceEquals(companionGaitPhaseSave,Game.save)&&
+                companionGaitPhaseId==id&&
+                companionGaitPhaseGeneration==Game.companionPresentationGeneration&&
+                companionGaitPhaseRoom==Game.save.room;
+            float offset=same?companionGaitPhaseOffset:raw;
+            bool wasMoving=same&&companionGaitPhaseMoving;
+            if(!same||raw<companionGaitLastRawDistance-.0001f)
+            {
+                offset=raw;
+                wasMoving=false;
+            }
+
+            float stride=GameCore.WalkStride*
+                CurrentWorldVisualLook.companionStrideDistanceFactor;
+            if(float.IsNaN(stride)||float.IsInfinity(stride)||stride<=.1f)
+                stride=GameCore.WalkStride;
+            if(Game.companionMoving&&!wasMoving)
+            {
+                int startFrame=0;
+                bool sameVisual=companionVisualId==id&&
+                    System.Object.ReferenceEquals(companionVisualOwner,Game)&&
+                    companionVisualGeneration==Game.companionPresentationGeneration;
+                if(sameVisual&&!Game.save.reducedMotion)
+                    startFrame=CompanionStopPose(clock-companionStopTime);
+                float plantedDistance=startFrame*stride*.25f;
+                if(startFrame>0)plantedDistance+=.001f;
+                offset=raw-plantedDistance;
+            }
+
+            float phaseDistance=raw-offset;
+            if(float.IsNaN(phaseDistance)||float.IsInfinity(phaseDistance)||
+                phaseDistance<0f)
+            {
+                offset=raw;
+                phaseDistance=0f;
+            }
+            if(commit)
+            {
+                companionGaitPhaseOwner=Game;
+                companionGaitPhaseSave=Game.save;
+                companionGaitPhaseId=id;
+                companionGaitPhaseGeneration=Game.companionPresentationGeneration;
+                companionGaitPhaseRoom=Game.save.room;
+                companionGaitPhaseOffset=offset;
+                companionGaitLastRawDistance=raw;
+                companionGaitPhaseMoving=Game.companionMoving;
+            }
+            return phaseDistance;
+        }
+
         private int CompanionStopPose(float seconds)
         {
             int from=(companionLastWalkFrame%4+4)%4;
@@ -171,9 +255,10 @@ namespace Starfall
                 // Slightly longer travel per 4-cell loop makes each source
                 // leg-extension pose read as a full step instead of rapid
                 // shuffling; it cannot cause in-place foot cycling.
-                int step=GameCore.GaitFrame(Game.companionMoveTime,
-                    GameCore.WalkStride*
-                        CurrentWorldVisualLook.companionStrideDistanceFactor);
+                float stride=GameCore.WalkStride*
+                    CurrentWorldVisualLook.companionStrideDistanceFactor;
+                int step=GameCore.GaitFrame(
+                    CompanionGaitDistance(!drawingOutline),stride);
                 if(!drawingOutline)
                 {
                     companionLastWalkFrame=step;
