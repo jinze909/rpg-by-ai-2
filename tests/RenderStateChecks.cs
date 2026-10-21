@@ -5452,25 +5452,31 @@ public static class RenderStateChecks
                 g.save.flags.Remove("civic_aftercare_waytrail_"+room);
                 g.save.flags.Add("waytrail_"+marker.id);
                 Clear();Call(app,"DrawObject",marker);
-                Check(Label("✓"),
-                    "The original route-chart check remains visible before the optional audit starts");
+                Check(Label("✓")&&!Label("AUDIT ?")&&!Label("复核 ?"),
+                    "The original route-chart check remains independent before the optional audit starts");
                 g.save.flags.Add("civic_aftercare_started");
                 Clear();Call(app,"DrawObject",marker);
-                Check(Label("?"),
-                    "An old survey check cannot hide the active audit's pending region cue (room "+room+")");
+                Check(Label("✓")&&(Label("AUDIT ?")||Label("复核 ?")),
+                    "The pending regional audit gets its own cue without hiding the legacy survey check (room "+room+")");
                 g.save.flags.Add("civic_aftercare_waytrail_"+room);
                 Clear();Call(app,"DrawObject",marker);
-                Check(Label("✓"),
-                    "The region's audit cue changes to verified after its own persistent flag (room "+room+")");
+                Check(Label("✓")&&(Label("AUDIT ✓")||Label("复核 ✓")),
+                    "The separate audit badge changes to verified after its region flag (room "+room+")");
+                g.save.flags.Add("civic_aftercare_published");
+                Clear();Call(app,"DrawObject",marker);
+                Check(Label("✓")&&(Label("AUDIT ✓")||Label("复核 ✓")),
+                    "Published regional audit badges remain visible after the active quest ends");
+                g.save.flags.Remove("civic_aftercare_published");
             }
             g.save.room=1;
             WorldObject unrelated=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
             Check(unrelated!=null,"Non-audit regions retain their original route marker");
             g.save.flags.Add("waytrail_"+unrelated.id);
             Clear();Call(app,"DrawObject",unrelated);
-            Check(Label("✓"),
-                "The optional audit does not overwrite original survey cues in other regions");
-            Console.WriteLine("PASS civic audit waytrail cues follow region progress without changing legacy survey flags");
+            Check(Label("✓")&&!Label("AUDIT ?")&&!Label("复核 ?")&&
+                !Label("AUDIT ✓")&&!Label("复核 ✓"),
+                "The optional audit does not overwrite or add cues to original survey markers in other regions");
+            Console.WriteLine("PASS civic audit badges preserve legacy route chart and persist after publication");
         }
         finally
         {

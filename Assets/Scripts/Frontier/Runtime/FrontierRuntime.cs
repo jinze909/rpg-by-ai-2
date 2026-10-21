@@ -942,22 +942,28 @@ namespace Starfall
             }
             if (kind == "waytrail")
             {
-                // The late civic audit revisits old markers that may already
-                // carry their original survey checkmark. While the audit is
-                // active, show the region's audit state instead; otherwise a
-                // completed old survey can misleadingly look like this new
-                // objective is already done.
-                bool auditRegion = Game.CivicAftercareActive &&
-                    (Game.save.room == 0 || Game.save.room == 3 ||
-                     Game.save.room == 5);
-                bool recorded = auditRegion ?
-                    Game.Has("civic_aftercare_waytrail_" + Game.save.room) :
-                    Game.Has("waytrail_" + o.id);
+                // Preserve the original survey's per-marker checkmark. The
+                // Chapter Twelve audit is regional, so it gets a separate,
+                // localized badge rather than overwriting legacy map progress.
+                bool recorded = Game.Has("waytrail_" + o.id);
                 PropImage("obelisk", 0, p.x - 31, p.y - 71, 62, 73,
                     recorded ? new Color(.65f, .87f, .79f, .8f) : Color.white);
                 Ring(new Point(o.x, o.y), .43f, recorded ? mint : gold, 12);
                 Text(p.x - 46, p.y - 83, 92, 21, recorded ? "✓" : "?", 17,
                     recorded ? mint : gold, TextAnchor.MiddleCenter);
+                bool auditRegion =
+                    (Game.CivicAftercareActive ||
+                     Game.Has("civic_aftercare_published")) &&
+                    (Game.save.room == 0 || Game.save.room == 3 ||
+                     Game.save.room == 5);
+                if (auditRegion)
+                {
+                    bool audited = Game.Has("civic_aftercare_waytrail_" + Game.save.room);
+                    Text(p.x - 31, p.y - 103, 62, 17,
+                        audited ? Game.L("复核 ✓", "AUDIT ✓") :
+                                  Game.L("复核 ?", "AUDIT ?"),
+                        9, audited ? mint : gold, TextAnchor.MiddleCenter);
+                }
                 return;
             }
 
