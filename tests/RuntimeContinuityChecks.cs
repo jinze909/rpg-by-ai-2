@@ -650,29 +650,45 @@ public static class RuntimeContinuityChecks
         MapData blockedMap = game.Map;
         string[] originalRows = blockedMap.rows;
         float originalX = game.save.x, originalY = game.save.y;
+        bool originalPractice = game.practicing;
+        Enemy[] originalEnemies = game.enemies.ToArray();
+        Point blockedPredecessor = new Point();
         try
         {
+            Point? campaignTarget = game.NavigationTarget();
+            Check(campaignTarget.HasValue,
+                "The blocked-route fixture begins with the real tracked campaign objective");
+            int mapWidth = originalRows[0].Length, mapHeight = originalRows.Length;
+            Point blockedObjective = new Point();
+            float farthest = -1f;
+            // Use an already-proven reachable point on the real route, but keep
+            // the 5x5 fixture away from map borders. This avoids assuming the
+            // authored quest target itself has five tiles of margin.
+            for (int i = 1; i < route.Count; i++)
+            {
+                Point candidate = route[i];
+                int x = (int)Math.Floor(candidate.x), y = (int)Math.Floor(candidate.y);
+                float distance = (candidate - game.Position).Length;
+                if (x < 5 || y < 5 || x >= mapWidth - 5 || y >= mapHeight - 5 ||
+                    distance <= 6f || !game.CanStand(candidate)) continue;
+                if (distance > farthest)
+                {
+                    farthest = distance; blockedObjective = candidate;
+                    blockedPredecessor = route[i - 1];
+                }
+            }
+            Check(farthest > 6f,
+                "The proven route contains a roomy interior waypoint for the collision fixture");
+            game.practicing = true;
+            game.enemies.Clear();
+            game.enemies.Add(new Enemy(991233, 0,
+                blockedObjective.x, blockedObjective.y, 100));
             Point? unreachable = game.NavigationTarget();
-            Check(unreachable.HasValue, "The blocked-route fixture starts from a real tracked objective");
+            Check(unreachable.HasValue &&
+                (unreachable.Value - blockedObjective).Length < .001f,
+                "The fixture uses a real live practice target as its tracked in-world objective");
             int targetX = (int)Math.Floor(unreachable.Value.x);
             int targetY = (int)Math.Floor(unreachable.Value.y);
-            int mapWidth = originalRows[0].Length, mapHeight = originalRows.Length;
-            Check(targetX >= 5 && targetY >= 5 && targetX < mapWidth - 5 &&
-                targetY < mapHeight - 5,
-                "The real objective leaves enough map space for an isolated collision fixture");
-            Point farStart = game.Position;
-            float farthest = -1f;
-            for (int y = 3; y < mapHeight - 3; y += 2)
-                for (int x = 3; x < mapWidth - 3; x += 2)
-                {
-                    Point candidate = new Point(x + .5f, y + .5f);
-                    float distance = (candidate - unreachable.Value).Length;
-                    if (distance > farthest && distance > 6f && game.CanStand(candidate))
-                    { farthest = distance; farStart = candidate; }
-                }
-            Check(farthest > 6f,
-                "The collision fixture can keep the player safely outside the blocked pocket");
-            game.save.x = farStart.x; game.save.y = farStart.y;
             string[] blockedRows = (string[])originalRows.Clone();
             for (int y = targetY - 2; y <= targetY + 2; y++)
             {
@@ -707,9 +723,36 @@ public static class RuntimeContinuityChecks
             // replaced in-place. Reference-checking only the array would keep
             // the empty route forever; the snapshot must notice this change.
             List<Point> closedRouteCache = (List<Point>)Call(app, "NavigationRoute");
-            char[] openCorridor = blockedRows[targetY].ToCharArray();
-            for (int x = targetX - 2; x <= targetX; x++) openCorridor[x] = '.';
-            blockedRows[targetY] = new string(openCorridor);
+            int predecessorX = (int)Math.Floor(blockedPredecessor.x);
+            int predecessorY = (int)Math.Floor(blockedPredecessor.y);
+            if (predecessorX < targetX)
+            {
+                char[] openCorridor = blockedRows[targetY].ToCharArray();
+                for (int x = targetX - 2; x <= targetX; x++) openCorridor[x] = '.';
+                blockedRows[targetY] = new string(openCorridor);
+            }
+            else if (predecessorX > targetX)
+            {
+                char[] openCorridor = blockedRows[targetY].ToCharArray();
+                for (int x = targetX; x <= targetX + 2; x++) openCorridor[x] = '.';
+                blockedRows[targetY] = new string(openCorridor);
+            }
+            else if (predecessorY < targetY)
+            {
+                for (int y = targetY - 2; y <= targetY; y++)
+                {
+                    char[] row = blockedRows[y].ToCharArray();
+                    row[targetX] = '.'; blockedRows[y] = new string(row);
+                }
+            }
+            else
+            {
+                for (int y = targetY; y <= targetY + 2; y++)
+                {
+                    char[] row = blockedRows[y].ToCharArray();
+                    row[targetX] = '.'; blockedRows[y] = new string(row);
+                }
+            }
             List<Point> reopenedRoute = (List<Point>)Call(app, "NavigationRoute");
             Check(reopenedRoute.Count > 0 &&
                 !object.ReferenceEquals(closedRouteCache, reopenedRoute),
@@ -725,6 +768,8 @@ public static class RuntimeContinuityChecks
         finally
         {
             blockedMap.rows = originalRows;
+            game.practicing = originalPractice;
+            game.enemies.Clear(); game.enemies.AddRange(originalEnemies);
             game.save.x = originalX; game.save.y = originalY;
             Set(app, "camera", game.Position);
             Call(app, "NavigationRoute");
