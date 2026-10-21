@@ -126,8 +126,27 @@ namespace Starfall
                 choices.Add(C("查看巡路复核进度","Review road audit progress","civic_aftercare_status"));
             return choices.ToArray();
         }
+        private bool AtCivicAftercareInn()
+        {
+            if(save.room!=9)return false;
+            foreach(WorldObject o in Map.objects)
+                if(o.kind=="innGuest"&&o.id=="innTraveler"&&
+                    (Position-new Point(o.x,o.y)).Length<=2.2f)
+                    return true;
+            return false;
+        }
         private bool ChooseCivicAftercare(string action)
         {
+            bool civicAction=action=="civic_aftercare_begin"||
+                action=="civic_aftercare_status"||
+                action=="civic_aftercare_publish";
+            if(!civicAction)return false;
+            if(!AtCivicAftercareInn())
+            {
+                Notify("请回炉火旅店，与守夜的旅人交谈后再办理巡路复核。",
+                    "Return to Hearth Inn and speak with the night traveler to manage the road audit.");
+                return true;
+            }
             if(action=="civic_aftercare_begin")
             {
                 if(!CivicConduitComplete)

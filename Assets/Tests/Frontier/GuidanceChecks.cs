@@ -3161,5 +3161,95 @@ namespace Starfall.Tests
                 "Original physical abort still retires only owned field work");
         }
 
+
+        public static void CivicAftercareRequiresPhysicalInnPublicationAndPersistsTheAudit(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.room=9;
+            WorldObject inn=Object(g,"innGuest");
+            g.save.x=inn.x;g.save.y=inn.y;g.enemies.Clear();
+            int coins=g.save.coins,shards=g.save.shards,xp=g.save.xp;
+            Action(g,"innGuest","civic_aftercare_begin");
+            Check(g.CivicAftercareActive&&g.save.trackedQuest=="civic_aftercare",
+                "The completed grid starts the real three-region audit through the inn traveler");
+
+            var handler=typeof(GameCore).GetMethod("ChooseCivicAftercare",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(handler!=null,"The audit actions route through the actual gameplay handler");
+            var remote=Fresh(data);
+            remote.save.flags.Add("civic_conduit_complete");
+            remote.save.room=0;
+            handler.Invoke(remote,new object[]{"civic_aftercare_begin"});
+            Check(!remote.Has("civic_aftercare_started")&&
+                remote.save.trackedQuest!="civic_aftercare",
+                "A forged begin request outside the physical inn cannot start or track the audit");
+
+            handler.Invoke(g,new object[]{"civic_aftercare_publish"});
+            Check(!g.Has("civic_aftercare_published")&&g.save.coins==coins&&
+                g.save.shards==shards&&g.save.xp==xp,
+                "An incomplete audit cannot publish or grant any reward even at the inn");
+
+            foreach(int room in new[]{0,3,5})
+            {
+                g.save.room=room;
+                var markers=new System.Collections.Generic.List<WorldObject>();
+                foreach(WorldObject o in g.Map.objects)
+                    if(o.kind=="waytrail")markers.Add(o);
+                Check(markers.Count>=2,"Each audit region retains its two original route markers");
+                foreach(WorldObject marker in markers)
+                    g.save.flags.Add("waytrail_"+marker.id);
+                g.save.x=markers[0].x;g.save.y=markers[0].y;
+                g.Talk(markers[0]);
+                Check(g.mode=="dialog","The audit reuses the actual route-marker interaction");
+                g.Choose(0);
+                Check(g.Has("civic_aftercare_waytrail_"+room)&&
+                    g.CivicAftercareWaypointCount==(room==0?1:room==3?2:3),
+                    "A previously charted marker can be revisited and counts once for its region");
+
+                if(room==0)
+                {
+                    g.save.x=markers[1].x;g.save.y=markers[1].y;
+                    g.Talk(markers[1]);g.Choose(0);
+                    Check(g.CivicAftercareWaypointCount==1,
+                        "A second marker in the same region cannot double-count the regional audit");
+                }
+            }
+
+            g.save.room=5;
+            handler.Invoke(g,new object[]{"civic_aftercare_publish"});
+            handler.Invoke(g,new object[]{"civic_aftercare_status"});
+            Check(!g.Has("civic_aftercare_published")&&g.mode=="world"&&
+                g.save.coins==coins&&g.save.shards==shards&&g.save.xp==xp,
+                "Neither remote publishing nor remote status can bypass the physical inn interaction");
+
+            g.save.room=9;inn=Object(g,"innGuest");
+            g.save.x=inn.x;g.save.y=inn.y;
+            Action(g,"innGuest","civic_aftercare_publish");
+            Check(g.Has("civic_aftercare_published")&&
+                g.GetQuest("civic_aftercare").complete&&
+                g.save.coins==coins+35&&g.save.shards==shards+1&&
+                g.save.xp==xp+45,
+                "Publishing the three real regional visits completes the quest and pays exactly its authored reward");
+            handler.Invoke(g,new object[]{"civic_aftercare_publish"});
+            Check(g.save.coins==coins+35&&g.save.shards==shards+1&&
+                g.save.xp==xp+45,
+                "Replaying publication cannot duplicate its one-time reward");
+
+            g.PrepareSave();
+            var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
+            Check(resumed.save.version==2&&resumed.Has("civic_aftercare_published")&&
+                resumed.CivicAftercareWaypointCount==3&&
+                resumed.GetQuest("civic_aftercare").complete,
+                "All audit regions and the published result survive the original SaveData v2 reload");
+            resumed.save.room=9;WorldObject resumedInn=Object(resumed,"innGuest");
+            resumed.save.x=resumedInn.x;resumed.save.y=resumedInn.y;
+            resumed.Talk(resumedInn);
+            Check(resumed.conversation!=null&&
+                resumed.conversation.textEn.Contains("three-region road audit is now on the public record"),
+                "The inn's persistent bilingual response reflects the published audit after reload");
+        }
+
     }
 }
