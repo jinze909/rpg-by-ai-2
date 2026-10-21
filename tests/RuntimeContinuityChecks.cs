@@ -450,6 +450,23 @@ public static class RuntimeContinuityChecks
         }
         return true;
     }
+    static bool NavigationEdgeArrowNearLeft()
+    {
+        Color expected = PixelArt.C("#f2d48b");
+        int count = 0;
+        foreach (var call in GUI.textureCalls)
+        {
+            if (call.texture != Texture2D.whiteTexture ||
+                Math.Abs(call.rect.width - 3f) >= .001f ||
+                Math.Abs(call.rect.height - 3f) >= .001f ||
+                Math.Abs(call.color.r - expected.r) >= .001f ||
+                Math.Abs(call.color.g - expected.g) >= .001f ||
+                Math.Abs(call.color.b - expected.b) >= .001f) continue;
+            count++;
+            if (call.rect.x + call.rect.width > 400) return false;
+        }
+        return count == 4;
+    }
     static void NavigationRouteGuidance(FrontierRuntime app)
     {
         Prepare(app, 0);
@@ -560,6 +577,15 @@ public static class RuntimeContinuityChecks
             NavigationEdgeArrowStaysInPlayableView(600f),
             "A target behind the centered Boss bar is rerouted to a visible safe-edge cue");
         game.enemies.Clear();
+
+        Point? bearingTarget = game.NavigationTarget();
+        Check(bearingTarget.HasValue, "Clamped-camera bearing fixture has a real objective");
+        game.save.x = bearingTarget.Value.x - 2f;
+        game.save.y = bearingTarget.Value.y;
+        Set(app, "camera", new Point(game.save.x + 16f, game.save.y));
+        ClearDraw(); Call(app, "DrawNavigationTargetMarker");
+        Check(NavigationEdgeArrowNearLeft(),
+            "A target beyond the left screen edge still points left when the camera is clamped away from the hero");
 
         game.mode = "inventory";
         ClearDraw(); Call(app, "DrawNavigationTargetMarker");

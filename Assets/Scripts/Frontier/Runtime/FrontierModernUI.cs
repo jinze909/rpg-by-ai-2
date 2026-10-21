@@ -319,9 +319,6 @@ namespace Starfall
             float markerBottom = bossHudVisible ? 590f : 650f;
             if (screen.x < 350 || screen.x > 970 || screen.y < 125 || screen.y > markerBottom)
             {
-                Point player = ScreenPoint(Game.Position);
-                Point direction = screen - player;
-                if (direction.Length < .001f) return;
                 bool bossHudVisible = Game.enemies != null &&
                     Game.enemies.Exists(enemy => enemy != null && enemy.boss);
                 // The centered Boss bar occupies y=612..676. When no Boss is
@@ -329,6 +326,11 @@ namespace Starfall
                 const float left = 366, right = 954, top = 145;
                 float bottom = bossHudVisible ? 600f : 630f;
                 float centerX = (left + right) * .5f, centerY = (top + bottom) * .5f;
+                // Project from the viewport, not the hero: at a clamped world
+                // boundary the hero can sit off-centre while the target lies
+                // beyond that same edge. Screen-space bearing stays correct.
+                Point direction = screen - new Point(centerX, centerY);
+                if (direction.Length < .001f) return;
                 float tx = direction.x > .001f ? (right - centerX) / direction.x :
                     direction.x < -.001f ? (left - centerX) / direction.x : float.PositiveInfinity;
                 float ty = direction.y > .001f ? (bottom - centerY) / direction.y :
