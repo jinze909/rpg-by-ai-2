@@ -3751,6 +3751,115 @@ public static class ActorRegistrationChecks
         }
     }
 
+    public static void VerifyCompanionFootfallsFollowGaitRestart(FrontierRuntime app)
+    {
+        app.BeginVisualReview(0,1);
+        var game=app.Game;
+        int savedId=game.save.companion;
+        int savedQuality=game.save.effectsQuality;
+        var marks=(System.Collections.IList)typeof(FrontierRuntime)
+            .GetField("footfallMarks",Private).GetValue(app);
+        object style=Call(app,"get_CurrentWorldVisualLook");
+        float stride=GameCore.WalkStride*(float)style.GetType().GetField(
+            "companionStrideDistanceFactor").GetValue(style);
+        string[] names={"Mira","Ivo","Sen"};
+        int total=0;
+        try
+        {
+            game.save.effectsQuality=2;
+            game.save.reducedMotion=false;
+            foreach(int id in new[]{0,1,2})
+            foreach(int heading in new[]{0,1,2,3})
+            foreach(int passing in new[]{1,3})
+            {
+                marks.Clear();
+                game.save.companion=id;
+                game.companionPresentationGeneration++;
+                game.companionAction=null;
+                game.companionAim=Directions[heading];
+                game.companionMoving=true;
+                game.companionPosition=new Point(12f,12f);
+                float raw=stride*(passing+.5f)/4f;
+                game.companionMoveTime=raw;
+                int row=GameCore.DirectionRow(Directions[heading]);
+                Set(app,"clock",900f+id*20f+heading*2f+passing*.1f);
+                Set(app,"companionVisualId",id);
+                Set(app,"companionVisualOwner",game);
+                Set(app,"companionVisualGeneration",game.companionPresentationGeneration);
+                Set(app,"companionLastWalkFrame",passing);
+                Set(app,"companionLastWalkFacing",row);
+                Set(app,"companionWasWalking",true);
+                Set(app,"companionStopTime",800f);
+                Set(app,"companionTrackedAction",null);
+                Set(app,"companionAttackStartedFromWalk",false);
+                Set(app,"companionGaitPhaseOwner",game);
+                Set(app,"companionGaitPhaseSave",game.save);
+                Set(app,"companionGaitPhaseId",id);
+                Set(app,"companionGaitPhaseGeneration",game.companionPresentationGeneration);
+                Set(app,"companionGaitPhaseRoom",game.save.room);
+                Set(app,"companionGaitPhaseOffset",0f);
+                Set(app,"companionGaitLastRawDistance",raw);
+                Set(app,"companionGaitPhaseMoving",true);
+                Call(app,"AdvanceCompanionFootfalls",game.save.room);
+                Check(marks.Count==0,
+                    "Restart fixture must establish its real prior planted-contact index");
+                Clear();
+                var moving=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                Check(AtlasFrame(moving,4,3)%4==passing&&
+                    moving.texture.name.EndsWith("/Walk"+names[id]),
+                    "Footfall restart fixture must begin on its real source gait key");
+
+                game.companionMoving=false;
+                Set(app,"clock",900.01f+id*20f+heading*2f+passing*.1f);
+                Call(app,"AdvanceCompanionFootfalls",game.save.room);
+                Check(marks.Count==0,
+                    "A stationary stop must not manufacture a companion footstep");
+                Clear();
+                var stopped=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                int planted=passing==1?2:0;
+                Check(AtlasFrame(stopped,4,3)%4==planted,
+                    "Stopped companion must hold the next original planted source cell");
+
+                game.companionMoving=true;
+                game.companionMoveTime+=.02f;
+                game.companionPosition=new Point(12.02f,12f);
+                Set(app,"clock",900.03f+id*20f+heading*2f+passing*.1f);
+                Call(app,"AdvanceCompanionFootfalls",game.save.room);
+                int expectedMarks=passing==1?1:0;
+                Check(marks.Count==expectedMarks,
+                    "Ground VFX must follow the same rebased contact index as the resumed body");
+                if(expectedMarks==1)
+                {
+                    object mark=marks[0];
+                    bool alternate=(bool)mark.GetType().GetField("alternate",
+                        BindingFlags.Instance|BindingFlags.NonPublic|
+                        BindingFlags.Public).GetValue(mark);
+                    Point position=(Point)mark.GetType().GetField("position",
+                        BindingFlags.Instance|BindingFlags.NonPublic|
+                        BindingFlags.Public).GetValue(mark);
+                    Check(alternate&&Math.Abs(position.x-game.companionPosition.x)<.0001f&&
+                        Math.Abs(position.y-game.companionPosition.y)<.0001f,
+                        "A resumed frame-2 contact emits one correctly rooted, alternating footfall");
+                }
+                Clear();
+                var resumed=Draw(app,"DrawCompanionActor").Single(ActorTexture);
+                Check(AtlasFrame(resumed,4,3)%4==planted&&
+                    resumed.texture.name.EndsWith("/Walk"+names[id])&&
+                    Math.Abs(resumed.rect.y-stopped.rect.y)<.001f,
+                    "Resumed full-body gait and footfall must share the same planted source cell and pivot");
+                total++;
+            }
+            Console.WriteLine("PASS companion planted-contact/footfall restart: "+total+
+                " production draw + VFX cases; no airborne or stationary ghost steps");
+        }
+        finally
+        {
+            game.save.companion=savedId;
+            game.save.effectsQuality=savedQuality;
+            app.EndVisualReview();Clear();
+        }
+    }
+
     public static void VerifyCanonicalHeroFootfallsMatchWalkCellContacts(FrontierRuntime app)
     {
         app.BeginVisualReview(0,1);
@@ -4321,7 +4430,7 @@ public static class ActorRegistrationChecks
     public static void VerifyBossMovingFlash(FrontierRuntime app) { BossFlashFollowsActualMovingSilhouette(app); }
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);VerifyGpuOnlyMonsterHitAndSelectionFallback(app);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);CompanionOutlinePassCannotConsumeGaitOrAttack(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);BossOutlineCannotRewriteLastLiveBodyOrStage(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
+        try{PreparedMasks();VerifyQueuedSkillWorldCueOnlyForActualIntent(app);VerifyQueuedAttackWorldCueFollowsRealGameCore(app);VerifyEnemyFootfallsFollowGenuinePaintedContacts(app);VerifyCompanionFootfallsMatchAuthoredWalkContacts(app);VerifyCompanionFootfallsFollowGaitRestart(app);VerifyCanonicalHeroFootfallsMatchWalkCellContacts(app);FullBodyHeroProductionFrames(app);ProductionLoadoutUsesFullBodyHero(app);Players(app,folder);VerifyGpuOnlyMonsterHitAndSelectionFallback(app);HeroWalkStopUsesNextPlantedSourceCell(app,folder);HeroStopPlantNeverLeaksAcrossSameRoomSaveSwitch(app);Companions(app,folder);CompanionGaitActuallyPlantsBothFeet(app);CompanionOutlinePassCannotConsumeGaitOrAttack(app);VerticalArcherKeepsFacingThroughContact(app,folder);EnemyAtlasHandoffsKeepOneGroundedIdentity(app,folder);EnemyWalkStopUsesNextPlantedSourceCell(app,folder);EnemyStopPlantInterruptions(app,folder);BossFlashFollowsActualMovingSilhouette(app);BriarBeastDeathPreservesLastCombatFrame(app);RegionalBossDeathKeepsLivePhasePalette(app);RegionalBossDeathPreservesLastRenderedPose(app);BossOutlineCannotRewriteLastLiveBodyOrStage(app);MovingBossDeathStaysOnOneRoot(app);EnemyLethalSnapshotSurvivesRetiredAI(app);PatrolDeathRetainsWholeBodyFootfall(app);StationaryDeathUsesActualLastPose(app);VerticalArcherDeathHandoffUsesBowIdentity(app);EnemyAttackFramesHoldThroughFlash(app);Enemies(app,folder);Muzzles(app,folder);}
         finally{Screen.width=1280;Screen.height=800;app.EndVisualReview();Clear();}
     }
 }
