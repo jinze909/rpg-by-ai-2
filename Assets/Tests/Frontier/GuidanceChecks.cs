@@ -3192,6 +3192,15 @@ namespace Starfall.Tests
                 g.save.shards==shards&&g.save.xp+20*g.save.level*(g.save.level-1)==totalXp,
                 "An incomplete audit cannot publish or grant any reward even at the inn");
 
+            g.save.room=0;
+            WorldObject remoteMarker=Object(g,"waytrail");
+            g.save.flags.Add("waytrail_"+remoteMarker.id);
+            g.save.x=18f;g.save.y=18f;
+            g.Talk(remoteMarker);g.Close();
+            Check(!g.Has("civic_aftercare_waytrail_0")&&
+                g.CivicAftercareWaypointCount==0,
+                "Calling Talk on a distant route marker cannot forge physical Chapter Twelve field evidence");
+
             foreach(int room in new[]{0,3,5})
             {
                 g.save.room=room;

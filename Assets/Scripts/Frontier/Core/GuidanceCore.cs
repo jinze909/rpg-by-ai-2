@@ -80,6 +80,14 @@ namespace Starfall
         private bool RecordCivicAftercareWaypoint(WorldObject o)
         {
             if(o==null||o.kind!="waytrail"||!CivicAftercareActive)return false;
+            // Nearest() already enforces this for player input. Repeat the
+            // physical-reach invariant here because Talk() also has internal
+            // callers and must never let a remote call forge field evidence.
+            Point target=new Point(o.x,o.y);
+            float distance=(Position-target).Length;
+            Point contact=distance>.55f?
+                target-(target-Position).Normalized*.55f:Position;
+            if(distance>2.2f||!ClearAttackPath(Position,contact))return false;
             int room=save.room;
             if(room!=0&&room!=3&&room!=5)return false;
             string flag="civic_aftercare_waytrail_"+room;
