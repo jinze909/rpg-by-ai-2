@@ -200,6 +200,31 @@ namespace Starfall
                 }
             }
         }
+        // Serialize writers for one save slot across game instances. FileShare.None
+        // is released automatically if a process exits, while the persistent lock
+        // file itself is harmless and is never treated as a recovery candidate.
+        private static FileStream AcquireWriterLock(string main)
+        {
+            string lockPath = main + ".writer-lock";
+            IOException last = null;
+            // A save normally holds this lock only for a few milliseconds. A short
+            // bounded wait lets overlapping autosaves finish without hanging the game.
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                try
+                {
+                    return new FileStream(lockPath, FileMode.OpenOrCreate,
+                        FileAccess.ReadWrite, FileShare.None);
+                }
+                catch (IOException ex)
+                {
+                    last = ex;
+                    if (attempt < 99) System.Threading.Thread.Sleep(10);
+                }
+            }
+            throw new IOException("Timed out waiting for another save writer to finish.", last);
+        }
+
         private static DateTime NextSaveTimestamp(int slot)
         {
             string main = PathFor(slot);
@@ -357,30 +382,36 @@ namespace Starfall
             {
                 Directory.CreateDirectory(Application.persistentDataPath);
                 string path = PathFor(slot);
-                // Never reuse .tmp or a previous stage for a new write: it may
-                // be the only checksum-valid copy left after an earlier crash.
-                string temp = path + ".stage-" + Guid.NewGuid().ToString("N");
-                value.savedAtUtc = NextSaveTimestamp(slot).ToString("o", CultureInfo.InvariantCulture);
-                string payload = JsonUtility.ToJson(value);
-                string json = JsonUtility.ToJson(new SaveEnvelope { payload = payload, checksum = Checksum(payload) }, true);
-                // Validate before touching disk. The unique stage path then
-                // preserves all older recovery candidates until the new bytes
-                // are flushed and decoded from disk.
-                Decode(json);
-                using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
-                { byte[] bytes = Encoding.UTF8.GetBytes(json); stream.Write(bytes, 0, bytes.Length); stream.Flush(true); }
-                Decode(File.ReadAllText(temp));
-                if (!File.Exists(path)) File.Move(temp, path);
-                else
+                // The lock covers timestamp selection, staging, promotion and cleanup.
+                // Without it, two writers can tie savedAtUtc and one can delete the
+                // other's valid stage before it is promoted.
+                using (AcquireWriterLock(path))
                 {
-                    bool validOld = true; try { Decode(File.ReadAllText(path)); } catch { validOld = false; }
-                    string backup = validOld ? path + ".bak" : null;
-                    try { File.Replace(temp, path, backup); }
-                    catch (PlatformNotSupportedException)
-                    { PortableReplace(temp, path, backup); }
+                    // Never reuse .tmp or a previous stage for a new write: it may
+                    // be the only checksum-valid copy left after an earlier crash.
+                    string temp = path + ".stage-" + Guid.NewGuid().ToString("N");
+                    value.savedAtUtc = NextSaveTimestamp(slot).ToString("o", CultureInfo.InvariantCulture);
+                    string payload = JsonUtility.ToJson(value);
+                    string json = JsonUtility.ToJson(new SaveEnvelope { payload = payload, checksum = Checksum(payload) }, true);
+                    // Validate before touching disk. The unique stage path then
+                    // preserves all older recovery candidates until the new bytes
+                    // are flushed and decoded from disk.
+                    Decode(json);
+                    using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+                    { byte[] bytes = Encoding.UTF8.GetBytes(json); stream.Write(bytes, 0, bytes.Length); stream.Flush(true); }
+                    Decode(File.ReadAllText(temp));
+                    if (!File.Exists(path)) File.Move(temp, path);
+                    else
+                    {
+                        bool validOld = true; try { Decode(File.ReadAllText(path)); } catch { validOld = false; }
+                        string backup = validOld ? path + ".bak" : null;
+                        try { File.Replace(temp, path, backup); }
+                        catch (PlatformNotSupportedException)
+                        { PortableReplace(temp, path, backup); }
+                    }
+                    CleanupCommittedRecoveryPaths(path);
+                    return true;
                 }
-                CleanupCommittedRecoveryPaths(path);
-                return true;
             }
             catch (Exception ex) { Debug.LogWarning("Starfall save failed: " + ex.Message); return false; }
         }

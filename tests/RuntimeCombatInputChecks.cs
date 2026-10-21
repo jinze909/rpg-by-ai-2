@@ -1875,6 +1875,40 @@ public static class RuntimeCombatInputChecks
             Check(!System.IO.File.Exists(partialStage),
                 "A stale invalid unique stage is pruned after the grace period and exclusive-read check.");
 
+            // Race independent writers against the same previously empty slot.
+            // Every valid save must finish, and the final primary must decode as one
+            // of those writes rather than losing the slot to a staging/replace race.
+            var concurrentStart = new System.Threading.ManualResetEvent(false);
+            var concurrentThreads = new System.Threading.Thread[12];
+            var concurrentResults = new bool[concurrentThreads.Length];
+            for (int i = 0; i < concurrentThreads.Length; i++)
+            {
+                int writerIndex = i;
+                concurrentThreads[i] = new System.Threading.Thread(() =>
+                {
+                    concurrentStart.WaitOne();
+                    concurrentResults[writerIndex] = SaveStore.Write(
+                        new SaveData { version = 2, coins = 200 + writerIndex }, 1);
+                });
+                concurrentThreads[i].IsBackground = true;
+                concurrentThreads[i].Start();
+            }
+            concurrentStart.Set();
+            bool allJoined = true;
+            for (int i = 0; i < concurrentThreads.Length; i++)
+                if (!concurrentThreads[i].Join(5000)) allJoined = false;
+            concurrentStart.Dispose();
+            Check(allJoined,
+                "Concurrent save writers finish within the bounded lock wait.");
+            bool allWritesSucceeded = true;
+            for (int i = 0; i < concurrentResults.Length; i++)
+                if (!concurrentResults[i]) allWritesSucceeded = false;
+            Check(allWritesSucceeded,
+                "Per-slot writer locking serializes concurrent transactions without dropping a valid write.");
+            restored = SaveStore.Read(1, out warning);
+            Check(restored != null && restored.coins >= 200 && restored.coins < 212 &&
+                warning == null,
+                "The final primary remains one of the fully verified concurrent writes.");
             Console.WriteLine("PASS Real SaveStore I/O: unique staging recovery, failed-write preservation, monotonic timestamps, clock rollback, corrupt future metadata, schema rejection and v1/v2 compatibility");
         }
         finally
