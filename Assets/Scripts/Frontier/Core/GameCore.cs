@@ -2531,17 +2531,17 @@ namespace Starfall
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action;
-            // A world dialogue may be read remotely, but every state-changing
-            // choice requires a real source interaction. This applies to all
-            // current and future story modules, not an action-name allowlist.
-            // The sole exception is a one-shot, filtered regional-report shortcut.
+            // A world dialogue may be opened remotely, but every state-changing
+            // choice must be submitted while its source is physically reachable.
+            // Re-check live reach here so approaching the target or reopening a
+            // blocked path restores a legitimate choice without reopening the UI.
+            // Only the filtered regional-report shortcut may act remotely.
             bool authorizedRemoteChoice =
                 !String.IsNullOrEmpty(authorizedRemoteDialogueActionPrefix) &&
                 action.StartsWith(authorizedRemoteDialogueActionPrefix);
             if (conversationSource != null && action != "close" &&
-                ((conversationSourceWasReachable &&
-                  !HasPhysicalInteractionReach(conversationSource)) ||
-                 (!conversationSourceWasReachable && !authorizedRemoteChoice)))
+                !HasPhysicalInteractionReach(conversationSource) &&
+                !authorizedRemoteChoice)
             {
                 bool initiallyReachable = conversationSourceWasReachable;
                 Close();

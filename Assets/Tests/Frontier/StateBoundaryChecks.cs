@@ -816,6 +816,17 @@ namespace Starfall.Tests
             Check(camp.mode == "world" && camp.toast.Contains("走近"),
                 "A remote campfire cannot open the companion-management menu");
 
+            envoy.Talk(envoyObject);
+            int approachThenChoose = Array.FindIndex(envoy.conversation.choices,
+                choice => choice.action == "exp_begin");
+            Check(approachThenChoose >= 0,
+                "The same envoy dialogue can remain open while the player approaches");
+            Check(PlaceWithinTalkReach(envoy, envoyObject),
+                "The player can restore actual reach without discarding the open dialogue");
+            envoy.Choose(approachThenChoose);
+            Check(envoy.save.room == 5 && envoy.Has("exp_intro"),
+                "An open remote dialogue becomes actionable only after physical reach is restored");
+
             var rescue = Fresh(data);
             rescue.save.room = 5; rescue.enemies.Clear();
             rescue.save.inventory[0] = 2; rescue.save.inventory[2] = 2;
