@@ -47,9 +47,41 @@ namespace Starfall.Tests
         {
             TalkNearObject(g, Object(g, kind));
         }
+        private static bool BaseChoiceNeedsReach(string action)
+        {
+            if (string.IsNullOrEmpty(action)) return false;
+            return action.StartsWith("goto") || action == "routes" ||
+                action == "rest" || action == "scout" || action == "engine" ||
+                action == "plant" || action == "harvest" || action == "seeds" ||
+                action == "upgrade" || action == "bow" || action == "staff" ||
+                action == "cook" || action == "buymeal" || action == "buywood" ||
+                action == "fish" || action == "deliver" || action.StartsWith("ally") ||
+                action == "boss" || action.StartsWith("ending") ||
+                action == "epilogue" || action == "continue" ||
+                action == "swordlesson_start" ||
+                action == "swordlesson_veteran_start";
+        }
+        private static bool ImmediateWorldObjectNeedsReach(string kind, string action)
+        {
+            if (string.IsNullOrEmpty(kind)) return false;
+            if (kind.StartsWith("portal") || kind == "routes" ||
+                kind.StartsWith("rune") || kind == "lore" ||
+                kind == "herb" || kind == "wood" || kind == "ore" ||
+                kind == "shrine" || kind.StartsWith("cache") ||
+                kind.StartsWith("seal") || kind.StartsWith("mirror") ||
+                kind.StartsWith("bell") || kind == "manifest" ||
+                kind == "abyssEntry" || kind == "townboard" ||
+                kind == "contract") return true;
+            return kind.StartsWith("survey") && kind != "surveyDesk" &&
+                action == "close";
+        }
         private static void Action(GameCore g, string kind, string action)
         {
-            TalkNear(g, kind);
+            if (BaseChoiceNeedsReach(action) ||
+                ImmediateWorldObjectNeedsReach(kind, action))
+                TalkNear(g, kind);
+            else
+                g.Talk(Object(g, kind));
             Check(g.mode == "dialog", "Expected dialogue at " + kind);
             for (int i = 0; i < g.conversation.choices.Length; i++)
                 if (g.conversation.choices[i].action == action) { g.Choose(i); return; }
@@ -554,7 +586,7 @@ namespace Starfall.Tests
         {
             var g = Fresh(data); g.Enter(3); Check(g.save.room == 0, "Locked routes must remain locked");
             g.Enter(1); TalkNear(g, "scout"); Check(!g.GateOpen, "Scout cannot open the gate before the rescue"); g.Close();
-            int herbs = g.save.inventory[2]; var node = Object(g, "herb"); g.Talk(node); g.Talk(node); Check(g.save.inventory[2] == herbs + 3, "A resource node yields once per rest");
+            int herbs = g.save.inventory[2]; var node = Object(g, "herb"); TalkNearObject(g, node); g.Talk(node); Check(g.save.inventory[2] == herbs + 3, "A resource node yields once per rest");
             g.save.kills[1] = 4; Action(g, "scout", "scout"); Check(g.GateOpen, "Rescue opens forest gate");
             g.save.stage = 1; g.Enter(2); TalkNear(g, "rune2"); Check(g.runeProgress == 0, "Wrong rune resets puzzle");
             TalkNear(g, "rune0"); TalkNear(g, "rune2"); TalkNear(g, "rune1"); Check(g.GateOpen, "Correct rune order opens ruins");
