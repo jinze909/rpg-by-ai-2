@@ -1943,7 +1943,28 @@ namespace Starfall
             if (GateOpen && GateBarrierActive) { Notify("道路正在打开，等屏障消散后再进入祭坛。", "The road is opening; wait for the barrier to dissolve before entering the altar."); return; }
             if (!GateOpen) { Notify(ExpansionGateHint(false), ExpansionGateHint(true)); return; }
             if (Has("boss_" + save.room))
-            { Dialog(o.name, o.en, "异常能源已经平静。保留这里的记录，去找当地的同伴提交调查。", "The unstable energy settles. Bring its record to your local companion.", C("去提交调查", "File the regional report", save.room == 5 ? "report_mira" : save.room == 6 ? "report_ivo" : "report_sen"), C("继续探索", "Keep exploring", "close")); return; }
+            {
+                string reportFlag = save.room == 5 ? "harbor_report" :
+                    save.room == 6 ? "desert_report" : "mountain_report";
+                if (Has(reportFlag))
+                {
+                    Dialog(o.name, o.en,
+                        "这份地区记录已经归档。若要继续同伴故事、赠送炖汤或邀请同行，请亲自前往同伴所在的位置。",
+                        "That regional report is already filed. Visit the companion in person to continue their story, share a stew, or invite them to travel.",
+                        C("继续探索", "Keep exploring", "close"));
+                }
+                else
+                {
+                    Dialog(o.name, o.en,
+                        "异常能源已经平静。保留这里的记录，去找当地的同伴提交调查。",
+                        "The unstable energy settles. Bring its record to your local companion.",
+                        C("去提交调查", "File the regional report",
+                            save.room == 5 ? "report_mira" :
+                            save.room == 6 ? "report_ivo" : "report_sen"),
+                        C("继续探索", "Keep exploring", "close"));
+                }
+                return;
+            }
             if (enemies.Exists(e => e.boss)) { Notify("挑战已经开始。注意环形与分段攻击预告。", "The challenge is underway. Watch the segmented warning rings."); return; }
             Dialog(CurrentBoss.name, CurrentBoss.en, new[] { "潮壳海兽身上长满了废弃的航标。它吞下废水，再把毒潮吐回港口。避开横向三连潮击，打断它的蓄力。", "玻璃守卫仍在执行九年前的命令。它用纵向光柱封住退路。走出金色警戒区，再击破它的护甲。", "霜钟执事举起权杖：如果他们不再相信钟声，谁来让他们走过冬天？\n\n霜印会跟随你落下。不要站在原地。受伤后它会敲响三面冰钟；向没有蓝色预警的方向撤离。" }[save.room - 5], new[] { "The Tide Maw is covered in broken buoys. It swallows waste and spits poison tides. Dodge its three lateral surges and break its charge.", "The Glass Custodian still obeys a nine-year-old order. Vertical light pillars seal the retreat. Leave their warnings, then break its armor.", "The Frost Prelate raises his staff: If they stop believing in the bells, who gets them through winter?\n\nFrost marks follow you. Keep moving. When wounded, it rings three frost bells; escape through the unmarked direction." }[save.room - 5], C("开始挑战", "Challenge", "expboss"), C("准备一下", "Prepare", "close"));
         }

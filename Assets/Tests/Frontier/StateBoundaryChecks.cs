@@ -942,6 +942,12 @@ namespace Starfall.Tests
                 reportShortcut.Has("companion_0") && reportShortcut.Has("relic_0") &&
                 reportShortcut.mode == "world",
                 "The one-shot report shortcut still files its report and grants authored rewards");
+            reportShortcut.Talk(altar);
+            Check(reportShortcut.mode == "dialog" &&
+                !Array.Exists(reportShortcut.conversation.choices,
+                    choice => choice.action == "report_mira") &&
+                reportShortcut.conversation.text.Contains("已经归档"),
+                "The altar no longer offers a useless report shortcut after filing; companion actions require visiting Mira");
         }
 
         public static void RemotePolishChoicesRequireLiveSourceReach(Campaign data)
