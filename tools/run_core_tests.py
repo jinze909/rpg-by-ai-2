@@ -42,7 +42,7 @@ catch(Exception e) { failed++; Console.WriteLine("FAIL "+method.Name+": "+(e.Inn
         sources = sorted((ROOT/'Assets/Scripts/Frontier/Core').glob('*.cs')) + sorted((ROOT/'Assets/Tests/Frontier').glob('*Checks.cs')) + [temp/'CampaignFixture.cs',temp/'Harness.cs']
         compiler = [mono, mcs] if mcs.endswith('.exe') else [mcs]
         exe = temp/'checks.exe'
-        subprocess.run(compiler + ['-out:'+str(exe)] + [str(p) for p in sources],check=True)
+        subprocess.run(compiler + ['-debug','-out:'+str(exe)] + [str(p) for p in sources],check=True)
         subprocess.run([mono,str(exe)],check=True)
 
 if __name__ == '__main__': main()
