@@ -40,6 +40,9 @@ namespace Starfall
         public Conversation conversation;
         // Transient identity of the interacted NPC, not the nearest NPC on each render.
         public WorldObject conversationSource;
+        // Choices opened from a reachable world object must be revalidated when
+        // submitted; leaving its reach cannot turn an old modal into remote action.
+        private bool conversationSourceWasReachable;
         private Point dashDirection;
         private int enemyId;
 
@@ -168,7 +171,8 @@ namespace Starfall
             // play after loading a different character or starting fresh.
             sounds.Clear(); lastSound = "";
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
-            invulnerable = 1; conversation = null; conversationSource = null; runeProgress = 0;
+            invulnerable = 1; conversation = null; conversationSource = null;
+            conversationSourceWasReachable = false; runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
@@ -193,7 +197,11 @@ namespace Starfall
         public void Notify(string zh, string en) { toast = L(zh, en); toastTime = 4; }
         private void Dialog(string speaker, string en, string text, string textEn, params Choice[] choices)
         { conversation = new Conversation(speaker, en, text, textEn, choices); mode = "dialog"; }
-        public void Close() { conversation = null; conversationSource = null; mode = "world"; }
+        public void Close()
+        {
+            conversation = null; conversationSource = null;
+            conversationSourceWasReachable = false; mode = "world";
+        }
         public bool Blocked(float x, float y)
         {
             int tx = (int)Math.Floor(x), ty = (int)Math.Floor(y);
@@ -2110,7 +2118,24 @@ namespace Starfall
         {
             if (!IsObjectPresent(o)) return;
             if (practicing) { Notify("先完成或结束训练，再与居民交谈。", "Finish or end practice before talking to residents."); return; }
+            Conversation previousConversation = conversation;
             conversationSource = o;
+            conversationSourceWasReachable = HasPhysicalInteractionReach(o);
+            try { TalkCore(o); }
+            finally
+            {
+                // Immediate interactions (runes, notes, etc.) must not leave a
+                // stale source attached to an unrelated dialogue opened later.
+                if (mode != "dialog" || conversation == previousConversation)
+                {
+                    conversationSource = null;
+                    conversationSourceWasReachable = false;
+                }
+            }
+        }
+
+        private void TalkCore(WorldObject o)
+        {
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
             if (TryTalkWaytrail(o)) return;
@@ -2426,6 +2451,14 @@ namespace Starfall
         {
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
+            if(conversationSourceWasReachable &&
+                !HasPhysicalInteractionReach(conversationSource))
+            {
+                Close();
+                Notify("你已离开交互范围，请重新靠近目标并交谈。",
+                    "You left interaction range. Return to the target and talk again.");
+                return;
+            }
             string action = conversation.choices[index].action; Close();
             if (ChooseSwordLesson(action)) return;
             if (ChooseFrostSignal(action)) return;

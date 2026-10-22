@@ -374,6 +374,7 @@ namespace Starfall.Tests
         [Test] public void FishingFarmingAndCooking() { CoreChecks.DailyLife(Data()); }
         [Test] public void EveryMapAndQuestIsReachable() { CoreChecks.GatesAndGathering(Data()); }
         [Test] public void InvalidSavesAndBoundaryCollision() { CoreChecks.SaveValidation(Data()); }
+        [Test] public void StaleDialogueChoicesCannotResolveWorldActionsRemotely() { CoreChecks.StaleDialogueChoicesCannotResolveWorldActionsRemotely(Data()); }
         [Test] public void StandardDifficultyCampaignAndAllEndings() { CoreChecks.CompleteCampaign(Data()); }
         [Test] public void OldSaveMigrationAndBuildRules() { CoreChecks.MigrationAndBuilds(Data()); }
         [Test] public void AllNewMapsAndTidesAreReachable() { CoreChecks.DistantReachability(Data()); }

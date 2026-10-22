@@ -426,5 +426,40 @@ namespace Starfall.Tests
                 "The canceled ambush cannot resurrect its hostile shot on the next gameplay frame");
         }
 
+        public static void StaleDialogueChoicesCannotResolveWorldActionsRemotely(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.room = 1;
+            WorldObject scout = Object(g, "scout");
+            g.save.kills[1] = 4;
+            g.save.x = scout.x; g.save.y = scout.y;
+            g.enemies.Clear();
+            Check(g.CanStand(g.Position),
+                "The scout's authored interaction foot is walkable");
+            int coins = g.save.coins;
+
+            g.Talk(scout);
+            Check(g.mode == "dialog" && g.conversation != null,
+                "A reachable scout opens the real rescue dialogue");
+            int rescue = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "scout");
+            Check(rescue >= 0, "The rescue dialogue exposes its authentic action");
+            Point outside = StandableOutsideTalkReach(g, scout);
+            g.save.x = outside.x; g.save.y = outside.y;
+            g.Choose(rescue);
+            Check(!g.Has("scout_saved") && g.save.coins == coins,
+                "A stale dialogue cannot rescue the scout or award coins after leaving reach");
+
+            g.save.x = scout.x; g.save.y = scout.y;
+            g.Talk(scout);
+            rescue = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "scout");
+            Check(rescue >= 0,
+                "Returning to the scout restores the legitimate rescue choice");
+            g.Choose(rescue);
+            Check(g.Has("scout_saved") && g.save.coins == coins + 20,
+                "A fresh in-range dialogue still resolves the rescue and one-time reward");
+        }
+
     }
 }
