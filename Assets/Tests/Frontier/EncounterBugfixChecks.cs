@@ -658,13 +658,13 @@ namespace Starfall.Tests
                 WorldObject letter=new WorldObject{id="letter6",
                     kind="history6",name="Old roadwarden letter",
                     en="Old roadwarden letter",x=10.5f,y=10.5f};
-                data.maps[1]=new MapData{id=1,spawnX=12f,
+                data.maps[1]=new MapData{id=1,spawnX=12.23f,
                     spawnY=10.5f,rows=rows,
                     objects=new[]{letter},decor=new Decoration[0]};
                 var g=Fresh(data);g.save.stage=3;g.Enter(1);
-                // Stand 1.5 units from the letter: 1.75 is the exclusive
-                // physical-reach boundary, even though the tile is clear.
-                g.enemies.Clear();g.save.x=12f;g.save.y=10.5f;
+                // Stand 1.73 units from the letter: 1.75 is exclusive, while
+                // the player's 0.22-unit collision footprint stays clear of x=11.
+                g.enemies.Clear();g.save.x=12.23f;g.save.y=10.5f;
                 g.save.flags.Add("survey_complete");
                 // The other two actual dispatch letters were already
                 // decoded in the persisted world: this final real letter
