@@ -381,6 +381,7 @@ namespace Starfall.Tests
         [Test] public void RemoteImmediateWorldInteractionsRequireReach() { CoreChecks.RemoteImmediateWorldInteractionsRequireReach(Data()); }
         [Test] public void RemoteSpecializedWorldInteractionsRequireReach() { CoreChecks.RemoteSpecializedWorldInteractionsRequireReach(Data()); }
         [Test] public void RemoteExpansionChoicesCannotCommitFromOutOfReachSources() { CoreChecks.RemoteExpansionChoicesCannotCommitFromOutOfReachSources(Data()); }
+        [Test] public void RemotePolishChoicesRequireLiveSourceReach() { CoreChecks.RemotePolishChoicesRequireLiveSourceReach(Data()); }
         [Test] public void StandardDifficultyCampaignAndAllEndings() { CoreChecks.CompleteCampaign(Data()); }
         [Test] public void OldSaveMigrationAndBuildRules() { CoreChecks.MigrationAndBuilds(Data()); }
         [Test] public void AllNewMapsAndTidesAreReachable() { CoreChecks.DistantReachability(Data()); }

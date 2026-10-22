@@ -60,6 +60,12 @@ namespace Starfall.Tests
                 action == "epilogue" || action == "continue" ||
                 action == "swordlesson_start" ||
                 action == "swordlesson_veteran_start" ||
+                action == "practice" || action == "scoutgift" ||
+                action == "survey_finish" || action == "survey_home" ||
+                action.StartsWith("survey_to_") || action == "dispatch_recap" ||
+                action == "farshore_relief_routes" ||
+                action == "farshore_relief_return" ||
+                action.StartsWith("farshore_relief_to_") ||
                 action == "exp_begin" || action == "camp" ||
                 action == "companions" || action == "parley" ||
                 action.StartsWith("pledge") ||

@@ -2539,7 +2539,12 @@ namespace Starfall
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
                 action == "continue" || action == "swordlesson_start" ||
-                action == "swordlesson_veteran_start") return true;
+                action == "swordlesson_veteran_start" || action == "practice" ||
+                action == "scoutgift" || action == "survey_finish" ||
+                action == "survey_home" || action.StartsWith("survey_to_") ||
+                action == "dispatch_recap" || action == "farshore_relief_routes" ||
+                action == "farshore_relief_return" ||
+                action.StartsWith("farshore_relief_to_")) return true;
 
             // Expansion dialogue actions without their own physical target guard.
             return action == "exp_begin" || action == "camp" ||

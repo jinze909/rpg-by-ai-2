@@ -944,5 +944,103 @@ namespace Starfall.Tests
                 "The one-shot report shortcut still files its report and grants authored rewards");
         }
 
+        public static void RemotePolishChoicesRequireLiveSourceReach(Campaign data)
+        {
+            var training = Fresh(data);
+            WorldObject mentor = Object(training, "mentor");
+            Point remote = StandableOutsideTalkReach(training, mentor);
+            training.save.x = remote.x; training.save.y = remote.y;
+            training.Talk(mentor);
+            int practice = Array.FindIndex(training.conversation.choices,
+                choice => choice.action == "practice");
+            Check(practice >= 0, "The mentor retains the real practice option");
+            training.Choose(practice);
+            Check(!training.practicing && training.mode == "world" &&
+                training.toast.Contains("走近"),
+                "A remote mentor cannot start combat practice");
+            training.Talk(mentor);
+            practice = Array.FindIndex(training.conversation.choices,
+                choice => choice.action == "practice");
+            Check(PlaceWithinTalkReach(training, mentor),
+                "The mentor has a genuine standable contact point");
+            training.Choose(practice);
+            Check(training.practicing,
+                "The same practice option works after live physical reach is restored");
+
+            var scoutGame = Fresh(data);
+            scoutGame.save.room = 1;
+            scoutGame.save.flags.Add("scout_saved");
+            WorldObject returnedScout = Object(scoutGame, "returnscout");
+            remote = StandableOutsideTalkReach(scoutGame, returnedScout);
+            scoutGame.save.x = remote.x; scoutGame.save.y = remote.y;
+            int stewBefore = scoutGame.save.inventory[6];
+            scoutGame.Talk(returnedScout);
+            int gift = Array.FindIndex(scoutGame.conversation.choices,
+                choice => choice.action == "scoutgift");
+            Check(gift >= 0, "The rescued scout retains the authored one-time stew gift");
+            scoutGame.Choose(gift);
+            Check(!scoutGame.Has("scout_gift") &&
+                scoutGame.save.inventory[6] == stewBefore &&
+                scoutGame.toast.Contains("走近"),
+                "A remote rescued-scout dialogue cannot claim the stew reward");
+            scoutGame.Talk(returnedScout);
+            gift = Array.FindIndex(scoutGame.conversation.choices,
+                choice => choice.action == "scoutgift");
+            Check(PlaceWithinTalkReach(scoutGame, returnedScout),
+                "The rescued scout has a genuine reachable interaction point");
+            scoutGame.Choose(gift);
+            Check(scoutGame.Has("scout_gift") &&
+                scoutGame.save.inventory[6] == stewBefore + 1,
+                "The stew gift remains available at physical reach");
+
+            var chart = Fresh(data);
+            chart.save.room = 9; chart.save.stage = 1;
+            chart.save.flags.Add("scout_saved");
+            chart.save.flags.Add("survey_1");
+            chart.save.flags.Add("survey_2");
+            chart.save.flags.Add("survey_3");
+            WorldObject desk = Object(chart, "surveyDesk");
+            remote = StandableOutsideTalkReach(chart, desk);
+            chart.save.x = remote.x; chart.save.y = remote.y;
+            int coins = chart.save.coins, shards = chart.save.shards;
+            int points = chart.save.skillPoints;
+            chart.Talk(desk);
+            int finish = Array.FindIndex(chart.conversation.choices,
+                choice => choice.action == "survey_finish");
+            Check(finish >= 0, "The complete three-signal chart offers its real completion reward");
+            chart.Choose(finish);
+            Check(!chart.Has("survey_complete") && chart.save.coins == coins &&
+                chart.save.shards == shards && chart.save.skillPoints == points &&
+                chart.toast.Contains("走近"),
+                "A remote survey desk cannot claim chart-completion rewards");
+            chart.Talk(desk);
+            finish = Array.FindIndex(chart.conversation.choices,
+                choice => choice.action == "survey_finish");
+            Check(PlaceWithinTalkReach(chart, desk),
+                "The chart desk has a genuine reachable interaction point");
+            chart.Choose(finish);
+            Check(chart.Has("survey_complete") && chart.save.coins == coins + 60 &&
+                chart.save.shards == shards + 5 && chart.save.skillPoints == points + 1,
+                "The same chart reward succeeds at physical reach");
+
+            remote = StandableOutsideTalkReach(chart, desk);
+            chart.save.x = remote.x; chart.save.y = remote.y;
+            chart.Talk(desk);
+            int travel = Array.FindIndex(chart.conversation.choices,
+                choice => choice.action == "survey_to_1");
+            Check(travel >= 0, "The completed chart exposes the real regional travel option");
+            chart.Choose(travel);
+            Check(chart.save.room == 9 && chart.toast.Contains("走近"),
+                "A remote survey desk cannot teleport the player to a beacon");
+            chart.Talk(desk);
+            travel = Array.FindIndex(chart.conversation.choices,
+                choice => choice.action == "survey_to_1");
+            Check(PlaceWithinTalkReach(chart, desk),
+                "The same chart can be approached without losing its open menu");
+            chart.Choose(travel);
+            Check(chart.save.room == 1 && chart.CanStand(chart.Position),
+                "The chart travel option still lands on valid walkable ground when reached");
+        }
+
     }
 }
