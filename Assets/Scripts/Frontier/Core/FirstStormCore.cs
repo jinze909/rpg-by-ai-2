@@ -311,7 +311,7 @@ namespace Starfall
                 if(save.room!=4 || !Has("boss_4") || !StormChapterComplete ||
                     StormBudgetLeft<=0 || Dying || practicing ||
                     Has("storm_orrin_open") || Has("storm_orrin_guard") ||
-                    (Position-StormPoint(4,"shrine")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(StormPoint(4,"shrine")))return true;
                 Flag(action);revision++;sound="quest";
                 RecordMoment(action=="storm_orrin_open"?
                     "厄洛与主角将公用余量交给余烬镇开放疗养站。城墙外也可以有灯。":

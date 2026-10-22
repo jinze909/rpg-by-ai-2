@@ -286,10 +286,16 @@ namespace Starfall.Tests
                 !Array.Exists(town.conversation.choices,c=>c.action=="boss"),
                 "The former Warden genuinely returns for a peace dialogue, not a revived original boss fight");
             town.Close();
-            town.save.x=shrine.x-4;town.save.y=shrine.y;
+            Point outside=StandableOutsideTalkReach(town,shrine);
+            town.save.x=outside.x;town.save.y=outside.y;
             town.Talk(shrine);
+            int remoteOpen=Array.FindIndex(town.conversation.choices,
+                c=>c.action=="storm_orrin_open");
+            Check(remoteOpen>=0,
+                "The distant Orrin dialogue exposes its real choice for submission-time validation");
+            town.Choose(remoteOpen);
             Check(!town.Has("storm_orrin_open") && town.mode=="world",
-                "Neither the story menu nor a remote action can forge a signed reserve treaty");
+                "A remote choice cannot forge a signed reserve treaty");
             town.save.x=shrine.x;town.save.y=shrine.y;
             Action(town,shrine.kind,"storm_orrin_open");
             Check(town.Has("storm_orrin_open") &&

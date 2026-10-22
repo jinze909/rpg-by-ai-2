@@ -2580,6 +2580,7 @@ namespace Starfall
             if (ChoosePolish(action)) return;
             if (ChooseExpansion(action)) return;
             if (ChooseLastDirective(action)) return;
+            if (ChooseStorm(action)) return;
             if (ChooseCivicConduit(action)) return;
             if (action == "close") return;
             if (action.StartsWith("goto")) { Enter(int.Parse(action.Substring(4))); return; }
