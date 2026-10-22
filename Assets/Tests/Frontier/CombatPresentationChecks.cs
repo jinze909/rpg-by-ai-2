@@ -5829,5 +5829,59 @@ namespace Starfall.Tests
                 "A genuinely different cursor target still controls the next aimed volley");
         }
 
+        public static void CompanionHoldPositionIsTransientAndResumesPhysicalFollowing(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);
+            Check(g.save.companion==0,"Mira is selected for the hold-order test");
+            Point anchor=g.companionPosition;
+            Check(g.CanStand(anchor),"The companion begins on valid terrain");
+            g.ToggleCompanionHold();
+            Check(g.CompanionHoldingPosition,"P hold order captures the current physical companion foot");
+
+            Point initialHero=g.Position;
+            Point away=(initialHero-anchor).Normalized;
+            Point[] directions={new Point(1,0),new Point(-1,0),
+                new Point(0,1),new Point(0,-1)};
+            Point movement=new Point();
+            float best=-float.MaxValue;
+            foreach(Point direction in directions)
+            {
+                float alignment=direction.x*away.x+direction.y*away.y;
+                bool corridor=true;
+                for(float distance=.25f;distance<=2.5f;distance+=.25f)
+                    if(!g.CanStand(g.Position+direction*distance))
+                    {corridor=false;break;}
+                if(corridor&&alignment>best)
+                {best=alignment;movement=direction;}
+            }
+            Check(best>-.5f&&movement.Length>.5f,
+                "The hero has a physically walkable route away from the held companion");
+            for(int frame=0;frame<30;frame++)g.Tick(.02f,movement);
+            Check((g.Position-initialHero).Length>.55f,
+                "The hero can leave while the companion is stationed");
+            Check((g.companionPosition-anchor).Length<.18f&&
+                g.CanStand(g.companionPosition),
+                "The companion remains on its valid hold anchor while the hero moves away");
+
+            float beforeResume=(g.companionPosition-g.Position).Length;
+            g.ToggleCompanionHold();
+            Check(!g.CompanionHoldingPosition,
+                "The second P order restores follow mode");
+            Advance(g,1.4f);
+            float afterResume=(g.companionPosition-g.Position).Length;
+            Check(afterResume<beforeResume-.3f&&g.CanStand(g.companionPosition),
+                "A resumed companion physically follows back without teleporting");
+
+            g.ToggleCompanionHold();
+            Check(g.CompanionHoldingPosition,"The hold can be reissued after following");
+            g.Enter(1);
+            Check(!g.CompanionHoldingPosition,
+                "Changing regions retires the transient hold instead of pinning an old-room coordinate");
+            Check(g.save.companion==0,
+                "Hold/follow orders do not mutate the saved party selection");
+        }
+
     }
 }

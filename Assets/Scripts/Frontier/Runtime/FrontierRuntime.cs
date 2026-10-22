@@ -70,7 +70,7 @@ namespace Starfall
         private float worldActorOpacity = 1f;
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
-        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
+        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
 
@@ -171,6 +171,7 @@ namespace Starfall
                 if (Input.GetKeyDown(KeyCode.F)) Game.Eat();
                 if (Input.GetKeyDown(KeyCode.T)) Game.DrinkTea();
                 if (Input.GetKeyDown(KeyCode.Z)) Game.CommandCompanion();
+                if (Input.GetKeyDown(KeyCode.P)) Game.ToggleCompanionHold();
                 if (Input.GetKeyDown(KeyCode.H)) Game.ReturnToTown();
                 if (Input.GetKeyDown(KeyCode.R)) Game.UseExplorationAbility();
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();

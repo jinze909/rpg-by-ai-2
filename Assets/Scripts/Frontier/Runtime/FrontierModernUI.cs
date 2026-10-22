@@ -482,8 +482,8 @@ namespace Starfall
         }
         private void DrawCompanions()
         {
-            Window(Game.L("同行伙伴", "Companions"), Game.L("一次邀请一人 · 自动支援与 Z 战术指令 · 羁绊强化效果", "One active companion · automatic support and Z commands · stronger bonds"));
-            string[] info = { Game.L("低生命时治疗。\nZ：治疗、耐力与护盾。", "Heals you when hurt.\nZ: healing, energy and guard."), Game.L("远程射击支援。\nZ：三发贯穿箭。", "Ranged support shots.\nZ: three piercing arrows."), Game.L("星火支援与冻结。\nZ：冻结与寒星领域。", "Starfire and frost support.\nZ: freezing and a frost field.") };
+            Window(Game.L("同行伙伴", "Companions"), Game.L("一次邀请一人 · Z 战术指令 · P 原地驻守 / 恢复跟随 · 羁绊强化效果", "One active companion · Z tactical command · P hold position / resume following · stronger bonds"));
+            string[] info = { Game.L("低生命时治疗。\nZ：治疗、耐力与护盾。\nP：驻守 / 恢复跟随。", "Heals you when hurt.\nZ: healing, energy and guard.\nP: hold / follow."), Game.L("远程射击支援。\nZ：三发贯穿箭。\nP：驻守 / 恢复跟随。", "Ranged support shots.\nZ: three piercing arrows.\nP: hold / follow."), Game.L("星火支援与冻结。\nZ：冻结与寒星领域。\nP：驻守 / 恢复跟随。", "Starfire and frost support.\nZ: freezing and a frost field.\nP: hold / follow.") };
             for (int i = 0; i < 3; i++)
             {
                 float x = 279 + i * 318; bool owned = Game.Has("companion_" + i); Card(x, 177, 302, 449, Game.save.companion == i); Portrait(i + 3, x + 57, 192, 188, 182);
@@ -492,7 +492,12 @@ namespace Starfall
                 if (Button(x + 17, 536, 268, 34, Game.L("邀请同行", "Travel together"), Game.save.companion == i, owned && Game.SafeTravel)) Game.SelectCompanion(i);
                 if (Button(x + 17, 583, 268, 32, Game.L("个人故事与赠礼", "Story & shared meal"), false, owned)) { dialogParent = "companions"; Game.CompanionStory(i); }
             }
-            if (Button(279, 652, 938, 38, Game.L("独自旅行", "Travel alone"), Game.save.companion < 0, Game.SafeTravel)) Game.SelectCompanion(-1);
+            if (Button(279, 652, 460, 38, Game.L("独自旅行", "Travel alone"), Game.save.companion < 0, Game.SafeTravel)) Game.SelectCompanion(-1);
+            if (Button(756, 652, 461, 38,
+                Game.L(Game.CompanionHoldingPosition ? "恢复跟随（P）" : "原地驻守（P）",
+                    Game.CompanionHoldingPosition ? "Resume following (P)" : "Hold position (P)"),
+                Game.CompanionHoldingPosition, Game.save.companion >= 0 && !Game.practicing))
+                Game.ToggleCompanionHold();
         }
         private void DrawLoadout()
         {

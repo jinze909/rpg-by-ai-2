@@ -32,6 +32,27 @@ namespace Starfall
         private int companionFollowRouteRoom = -1;
         private int companionFollowRouteGeneration = -1;
         private int companionFollowRouteGoalCell = -1;
+        // A deliberate hold order is transient and tied to this exact party
+        // body, room and map. It is never written to SaveData v2 and cannot
+        // silently carry over through a save load or companion swap.
+        private bool companionHoldActive;
+        private Point companionHoldFoot;
+        private SaveData companionHoldSave;
+        private MapData companionHoldMap;
+        private int companionHoldRoom = -1;
+        private int companionHoldGeneration = -1;
+        public bool CompanionHoldingPosition
+        {
+            get
+            {
+                return companionHoldActive && save != null &&
+                    System.Object.ReferenceEquals(companionHoldSave,save) &&
+                    System.Object.ReferenceEquals(companionHoldMap,Map) &&
+                    companionHoldRoom==save.room &&
+                    companionHoldGeneration==companionPresentationGeneration &&
+                    save.companion>=0 && !OuterPatrolActive;
+            }
+        }
         // Local, nonserialized climate danger notifications. Re-arm only
         // after actually recovering below the lower safe threshold.
         private bool heatDangerWarned, coldDangerWarned;
@@ -206,6 +227,7 @@ namespace Starfall
         {
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAutoTarget = null;
+            ClearCompanionHold();
             ClearCompanionFollowRoute();
             companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPresentationGeneration++;
@@ -337,6 +359,7 @@ namespace Starfall
             // heal, arrow volley or frost aura for free.
             bool unreleasedCommand=companionAction!=null &&
                 companionAction.kind=="command" && !companionAction.released;
+            ClearCompanionHold();
             save.companion = id;
             // A tactical watch was assigned to a PARTICULAR companion
             // body and its original physical foot. Swapping that body
@@ -532,6 +555,54 @@ namespace Starfall
             companionFollowRouteRoom=-1;
             companionFollowRouteGeneration=-1;
             companionFollowRouteGoalCell=-1;
+        }
+        private void ClearCompanionHold()
+        {
+            companionHoldActive=false;
+            companionHoldFoot=new Point();
+            companionHoldSave=null;
+            companionHoldMap=null;
+            companionHoldRoom=-1;
+            companionHoldGeneration=-1;
+        }
+        public void ToggleCompanionHold()
+        {
+            if((mode!="world"&&mode!="companions")||Dying||practicing||
+                save.companion<0)return;
+            if(companionHoldActive&&!CompanionHoldingPosition)
+                ClearCompanionHold();
+            if(CompanionHoldingPosition)
+            {
+                ClearCompanionHold();
+                ClearCompanionFollowRoute();
+                ClearCompanionCornerPlan();
+                Notify("同行者恢复跟随。","Companion resumes following.");
+                sound="skill";revision++;
+                return;
+            }
+            if(OuterPatrolActive)
+            {
+                Notify("补给守卫任务中请使用专属守卫指令。",
+                    "Use the dedicated guard order during an active supply defense.");
+                return;
+            }
+            if(!CanStand(companionPosition))
+            {
+                Notify("同伴脚下地形不安全，无法驻守。",
+                    "The companion cannot hold on unsafe ground.");
+                return;
+            }
+            ClearCompanionFollowRoute();
+            ClearCompanionCornerPlan();
+            companionHoldFoot=companionPosition;
+            companionHoldSave=save;
+            companionHoldMap=Map;
+            companionHoldRoom=save.room;
+            companionHoldGeneration=companionPresentationGeneration;
+            companionHoldActive=true;
+            Notify("同行者原地驻守。再次按 P 恢复跟随。",
+                "Companion holding position. Press P again to resume following.");
+            sound="skill";revision++;
         }
 
         // Ordinary follow movement is a real actor route, not a teleport or a
@@ -959,6 +1030,16 @@ namespace Starfall
         private void TickCompanion(float dt)
         {
             companionMoving = false;
+            if(companionHoldActive&&!CompanionHoldingPosition)
+                ClearCompanionHold();
+            if(CompanionHoldingPosition&&!CanStand(companionHoldFoot))
+            {
+                ClearCompanionHold();
+                ClearCompanionFollowRoute();
+                Notify("驻守位置已被地形阻断，同伴恢复跟随。",
+                    "The hold position became blocked; the companion resumes following.");
+                revision++;
+            }
             if (save.companion < 0 || practicing)
             { companionAction = null; companionAutoTarget = null; return; }
             companionCooldown = Math.Max(0, companionCooldown - dt); companionAttack -= dt;
@@ -1120,11 +1201,14 @@ namespace Starfall
                 { companionAction = null; companionAutoTarget = null; }
                 return; // Plant the feet while drawing a bow or casting.
             }
-            Point followGoal = CompanionTacticalFollowTarget(
-                CompanionOutpostGuardTarget());
-            // Preserve the approved tactical firing-foot route: its separate
-            // body-clearance checks are stricter than ordinary follow routing.
-            bool pursuingFiringFoot=companionCornerTarget!=null&&
+            Point followGoal = CompanionHoldingPosition ?
+                companionHoldFoot : CompanionTacticalFollowTarget(
+                    CompanionOutpostGuardTarget());
+            // A deliberate hold overrides ordinary tactical repositioning.
+            // It still uses the same physical route planner to return to its
+            // anchor, but never pursues a firing-foot detour while stationed.
+            bool pursuingFiringFoot=!CompanionHoldingPosition&&
+                companionCornerTarget!=null&&
                 System.Object.ReferenceEquals(companionCornerSave,save)&&
                 companionCornerRoom==save.room&&
                 companionCornerGeneration==companionPresentationGeneration&&
