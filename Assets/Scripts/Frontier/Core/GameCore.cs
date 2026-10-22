@@ -2519,18 +2519,33 @@ namespace Starfall
                 RoadwardenTrialRoom != 0 || RootHarmonyRoom != 0 ||
                 SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
+        private static bool RequiresBaseWorldChoiceReach(string action)
+        {
+            if (string.IsNullOrEmpty(action)) return false;
+            return action.StartsWith("goto") || action == "routes" ||
+                action == "rest" || action == "scout" || action == "engine" ||
+                action == "plant" || action == "harvest" || action == "seeds" ||
+                action == "upgrade" || action == "bow" || action == "staff" ||
+                action == "cook" || action == "buymeal" || action == "buywood" ||
+                action == "fish" || action == "deliver" ||
+                action.StartsWith("ally") || action == "boss" ||
+                action.StartsWith("ending") || action == "epilogue" ||
+                action == "continue";
+        }
+
         public void Choose(int index)
         {
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action;
-            // Every world-sourced choice requires genuine contact at submission
-            // time, regardless of whether the source was already out of range
-            // when the dialogue opened. System-owned dialogs have no source,
-            // and Close remains available so a distant modal cannot trap play.
+            // Specialized quest handlers retain their own contact validation.
+            // The shared guard closes only a world source that has gone stale,
+            // plus base menu choices that otherwise lacked initial-reach checks.
             if (conversationSource != null && action != "close" &&
-                (!conversationSourceWasReachable ||
-                 !HasPhysicalInteractionReach(conversationSource)))
+                ((conversationSourceWasReachable &&
+                  !HasPhysicalInteractionReach(conversationSource)) ||
+                 (RequiresBaseWorldChoiceReach(action) &&
+                  !conversationSourceWasReachable)))
             {
                 bool initiallyReachable = conversationSourceWasReachable;
                 Close();

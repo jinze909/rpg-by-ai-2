@@ -287,8 +287,8 @@ namespace Starfall.Tests
                 "The former Warden genuinely returns for a peace dialogue, not a revived original boss fight");
             town.Close();
             town.save.x=shrine.x-4;town.save.y=shrine.y;
-            Action(town,shrine.kind,"storm_orrin_open");
-            Check(!town.Has("storm_orrin_open"),
+            town.Talk(shrine);
+            Check(!town.Has("storm_orrin_open") && town.mode=="world",
                 "Neither the story menu nor a remote action can forge a signed reserve treaty");
             town.save.x=shrine.x;town.save.y=shrine.y;
             Action(town,shrine.kind,"storm_orrin_open");
