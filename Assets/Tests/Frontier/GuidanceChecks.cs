@@ -2217,15 +2217,13 @@ namespace Starfall.Tests
                 "The promise permanently discounts inn stew and explains the benefit");
             g.Enter(9); g.enemies.Clear();
             WorldObject traveler = Object(g, "innGuest");
-            g.save.x = traveler.x; g.save.y = traveler.y;
-            g.Talk(traveler);
+            TalkNearObject(g, traveler);
             Check(g.conversation.textEn.Contains("discounts stew by two coins"),
                 "The inn traveler acknowledges the decoded promise");
             g.Close();
             WorldObject chartDesk = Object(g, "surveyDesk");
             // The chart's permanent recap is intentionally range-gated.
-            g.save.x = chartDesk.x; g.save.y = chartDesk.y;
-            g.Talk(chartDesk);
+            TalkNearObject(g, chartDesk);
             Check(g.conversation.choices.Length == 5 && g.conversation.choices[4].action == "dispatch_recap",
                 "The chart offers a permanent reread of the promise");
             g.Choose(4);

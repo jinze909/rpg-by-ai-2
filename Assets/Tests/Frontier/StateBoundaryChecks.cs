@@ -1045,6 +1045,9 @@ namespace Starfall.Tests
                 "The stew gift remains available at physical reach");
 
             var chart = Fresh(data);
+            // The chart completion grants 50 XP; isolate the one-time chart
+            // reward from unrelated level-up skill points in this reach test.
+            chart.save.level = 10; chart.save.xp = 0;
             chart.save.room = 9; chart.save.stage = 1;
             chart.save.flags.Add("scout_saved");
             chart.save.flags.Add("survey_1");

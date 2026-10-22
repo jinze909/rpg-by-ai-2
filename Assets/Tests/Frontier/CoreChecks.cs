@@ -84,8 +84,8 @@ namespace Starfall.Tests
         private static bool ImmediateWorldObjectNeedsReach(string kind, string action)
         {
             if (string.IsNullOrEmpty(kind)) return false;
-            if (kind.StartsWith("portal") || kind == "routes" ||
-                kind.StartsWith("rune") || kind == "lore" ||
+            if (kind.StartsWith("portal") || kind.StartsWith("history") ||
+                kind == "routes" || kind.StartsWith("rune") || kind == "lore" ||
                 kind == "herb" || kind == "wood" || kind == "ore" ||
                 kind == "shrine" || kind.StartsWith("cache") || kind.StartsWith("seal") ||
                 kind.StartsWith("mirror") || kind.StartsWith("bell") ||
