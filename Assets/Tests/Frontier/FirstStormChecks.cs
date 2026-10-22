@@ -225,16 +225,16 @@ namespace Starfall.Tests
                     g.StormReliefCount==region-1,
                     "Real civilian aid cannot occur without an actual purchased or cooked stew");
                 g.save.inventory[6]=1;
+                g.Talk(witness);
+                int staleRelief=Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="storm_relief_"+region);
+                Check(staleRelief>=0,
+                    "The witness menu keeps its real relief choice available for submission-time validation");
                 Point outside=StandableOutsideTalkReach(g,witness);
                 g.save.x=outside.x;g.save.y=outside.y;
-                g.Talk(witness);
-                int remoteRelief=Array.FindIndex(g.conversation.choices,c=>
-                    c.action=="storm_relief_"+region);
-                Check(remoteRelief>=0,
-                    "The witness menu keeps its real relief choice available for submission-time validation");
-                g.Choose(remoteRelief);
+                g.Choose(staleRelief);
                 Check(!g.Has("storm_relief_"+region) && g.save.inventory[6]==1,
-                    "A remote relief choice cannot consume a real meal or award humanitarian credit");
+                    "A stale relief choice cannot consume a real meal or award humanitarian credit after leaving the witness");
                 g.save.x=witness.x;g.save.y=witness.y;
                 Action(g,witness.kind,"storm_relief_"+region);
                 Check(g.Has("storm_relief_"+region) &&
@@ -248,17 +248,11 @@ namespace Starfall.Tests
                     "A completed local relief action neither repeats its reward nor hides older witness testimony");
                 int oldStory=Array.FindIndex(g.conversation.choices,c=>
                     c.action=="storm_oldstory_"+region);
-                g.Close();
                 outside=StandableOutsideTalkReach(g,witness);
                 g.save.x=outside.x;g.save.y=outside.y;
-                g.Talk(witness);
-                int remoteStory=Array.FindIndex(g.conversation.choices,c=>
-                    c.action=="storm_oldstory_"+region);
-                Check(remoteStory>=0,
-                    "The distant witness menu retains its earlier story option for validation");
-                g.Choose(remoteStory);
+                g.Choose(oldStory);
                 Check(g.mode=="world",
-                    "A remote story option cannot open the witness's follow-up conversation");
+                    "A stale story option cannot open the witness's follow-up conversation after leaving the NPC");
                 g.save.x=witness.x;g.save.y=witness.y;
                 g.Talk(witness);
                 oldStory=Array.FindIndex(g.conversation.choices,c=>
