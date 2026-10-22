@@ -38,6 +38,7 @@ namespace Starfall
             bool voice=region>=1 && region<=3 && o.kind=="witnessnpc"+region;
             bool plaque=region>=1&&region<=3 && o.kind=="hearingplaque"+region;
             if(!dais && !voice && !plaque && !orrin)return false;
+            if(!HasPhysicalInteractionReach(o))return true;
             if(orrin)
             {
                 if(HearingOrrinResponsibility!=0)
@@ -159,7 +160,7 @@ namespace Starfall
             if(action=="hearing_orrin_review")
             {
                 if(save.room==4 && HearingComplete &&
-                    (Position-ObjectPoint(4,"shrine",new Point(-100,-100))).Length<2.2f)
+                    HasPhysicalInteractionReach(ObjectPoint(4,"shrine",new Point(-100,-100))))
                 {
                     foreach(WorldObject shrine in Map.objects)
                         if(shrine.kind=="shrine"){TalkStorm(shrine);break;}
@@ -171,7 +172,7 @@ namespace Starfall
                 if(!HearingReady || !HearingComplete ||
                     HearingOrrinResponsibility!=0 || save.room!=4 ||
                     Dying || practicing ||
-                    (Position-ObjectPoint(4,"shrine",new Point(-100,-100))).Length>2.2f)
+                    !HasPhysicalInteractionReach(ObjectPoint(4,"shrine",new Point(-100,-100))))
                     return true;
                 bool aid=action=="hearing_orrin_aid";
                 // Each responsibility is a one-time transfer. Do not mark
@@ -208,7 +209,7 @@ namespace Starfall
             {
                 if(!HearingReady || Has("hearing_started") ||
                     save.room!=0 || Dying || practicing ||
-                    (Position-HearingDais).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(HearingDais))return true;
                 Flag("hearing_started");TrackQuest("hearing");
                 RecordMoment("第七章：莉雅在余烬镇召开真正的居民听证。每个曾受星核影响的人必须能亲自决定公共设施的未来。",
                     "Chapter Seven: Lyra convenes a genuine public hearing. People who lived through the cores' cost must each speak for themselves.");
@@ -226,8 +227,8 @@ namespace Starfall
                     !HearingReady || !Has("hearing_started") ||
                     HearingComplete || HearingVoice(region)!=0 ||
                     save.room!=region || Dying || practicing ||
-                    (Position-ObjectPoint(region,"witnessnpc"+region,
-                        new Point(-100,-100))).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(ObjectPoint(region,"witnessnpc"+region,
+                        new Point(-100,-100))))return true;
                 Flag(action);revision++;sound="quest";
                 RecordMoment(
                     new[]{"","莫芽","阿菱","维恩"}[region]+"亲自签署了自己的第七章公民选择。不是主角代替其投票。",
@@ -242,7 +243,7 @@ namespace Starfall
                 if(!HearingReady || !Has("hearing_started") ||
                     HearingComplete || HearingSignatures!=3 ||
                     save.room!=0 || Dying || practicing ||
-                    (Position-HearingDais).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(HearingDais))return true;
                 bool open=action=="hearing_verdict_public";
                 Flag(open?"hearing_public":"hearing_reserve");
                 Flag("hearing_complete");

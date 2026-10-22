@@ -23,16 +23,26 @@ namespace Starfall.Tests
                 "Chapter Seven is a genuine tracked continuation after previous actual main story rather than a replacement");
             for(int region=1;region<=3;region++)
             {
-                g.Enter(region);g.enemies.Clear();g.invulnerable=150;
+                g.Enter(region);g.Close();g.enemies.Clear();g.invulnerable=150;
                 WorldObject witness=Object(g,"witnessnpc"+region);
                 WorldObject plaque=Object(g,"hearingplaque"+region);
                 Check(g.CanStand(new Point(plaque.x,plaque.y)) &&
                     !g.IsObjectPresent(plaque),
                     "All authored civic oath monuments are on walkable maps but hidden before authentic hearing resolution");
-                g.save.x=plaque.x;g.save.y=plaque.y;
-                Action(g,witness.kind,"hearing_voice_"+region+"_care");
+                Point outsideWitness=StandableOutsideTalkReach(g,witness);
+                g.save.x=outsideWitness.x;g.save.y=outsideWitness.y;
+                g.Talk(witness);
+                Check(g.mode!="dialog",
+                    "A direct Talk call cannot open a resident vote outside current physical reach");
+                g.save.x=witness.x;g.save.y=witness.y;
+                g.Talk(witness);
+                int stale=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="hearing_voice_"+region+"_care");
+                Check(stale>=0,"The resident presents a genuine choice while physically present");
+                g.save.x=outsideWitness.x;g.save.y=outsideWitness.y;
+                g.Choose(stale);g.Close();
                 Check(g.HearingVoice(region)==0,
-                    "Public hearing cannot remotely forge an original resident's independent vote");
+                    "A stale hearing dialog cannot remotely forge an original resident's independent vote");
                 g.save.x=witness.x;g.save.y=witness.y;
                 string decision="hearing_voice_"+region+(region==2?"_watch":"_care");
                 Action(g,witness.kind,decision);
@@ -53,10 +63,17 @@ namespace Starfall.Tests
             g.save.x=dais.x;g.save.y=dais.y;
             int coins=g.save.coins,shards=g.save.shards,ending=g.save.ending;
             g.Talk(dais);
-            Check(Array.Exists(g.conversation.choices,c=>c.action=="hearing_verdict_public") &&
+            int staleVerdict=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="hearing_verdict_public");
+            Check(staleVerdict>=0 &&
                 Array.Exists(g.conversation.choices,c=>c.action=="hearing_verdict_reserve"),
                 "Actual council presents two distinct civic tradeoffs only after all three independent signatures");
-            g.Close();
+            Point outsideDais=StandableOutsideTalkReach(g,dais);
+            g.save.x=outsideDais.x;g.save.y=outsideDais.y;
+            g.Choose(staleVerdict);g.Close();
+            Check(!g.HearingComplete&&g.save.coins==coins&&g.save.shards==shards,
+                "A stale council choice cannot ratify a verdict or grant its rewards outside physical reach");
+            g.save.x=dais.x;g.save.y=dais.y;
             Action(g,dais.kind,"hearing_verdict_public");
             Check(g.HearingComplete && g.HearingVerdict==1 &&
                 g.save.coins==coins+85 && g.save.shards==shards+2 &&
