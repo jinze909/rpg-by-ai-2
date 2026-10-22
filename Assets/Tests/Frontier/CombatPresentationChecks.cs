@@ -1288,6 +1288,83 @@ namespace Starfall.Tests
             finally{data.maps[0]=old;}
         }
 
+        public static void CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease(Campaign data)
+        {
+            var game=Fresh(data,1);
+            game.Enter(0);game.enemies.Clear();
+            game.save.flags.Add("companion_1");
+            game.SelectCompanion(1);
+            game.save.reducedMotion=true;
+            game.save.x=15.5f;game.save.y=10.88f;
+            game.companionPosition=new Point(10.5f,10.88f);
+            var idle=new Enemy(99121,0,10.5f,12f,10000f)
+                {timer=1000f};
+            var nearest=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var autoTarget=typeof(GameCore).GetField("companionAutoTarget",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var attackTimer=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(nearest!=null&&autoTarget!=null&&attackTimer!=null,
+                "Production companion target selection and release state must be testable");
+            Check(game.CanStand(game.companionPosition)&&
+                game.CanStand(idle.Position)&&game.CanStand(game.Position),
+                "The interception fixture starts on real walkable ground");
+            game.enemies.Add(idle);
+            Check(System.Object.ReferenceEquals(nearest.Invoke(game,null),idle),
+                "Without an active hero threat the nearest valid enemy remains the target");
+            game.ToggleCompanionHold();
+            Check(game.CompanionHoldingPosition,
+                "The companion can protect the hero without leaving its tactical anchor");
+            attackTimer.SetValue(game,0f);
+            game.Tick(.02f,new Point());
+            Check(game.companionAction!=null&&
+                game.companionAction.kind=="attack"&&
+                System.Object.ReferenceEquals(autoTarget.GetValue(game),idle),
+                "A real automatic attack starts against the nearer ordinary foe");
+
+            var threat=new Enemy(99122,2,14.4f,10.88f,10000f)
+                {state=1,timer=.6f,windupDuration=.65f,
+                 target=game.Position,facing=new Point(1,0)};
+            Check(game.CanStand(threat.Position)&&
+                (game.Position-threat.Position).Length<
+                    GameCore.EnemyAreaRadius(threat),
+                "The heavy is physically placed with a genuine area strike on the hero");
+            game.enemies.Add(threat);
+            Check(System.Object.ReferenceEquals(nearest.Invoke(game,null),threat),
+                "A committed heavy strike that can hit now outranks a closer idle target");
+            Advance(game,.16f);
+            Check(game.companionAction!=null&&game.companionAction.released&&
+                System.Object.ReferenceEquals(autoTarget.GetValue(game),threat)&&
+                game.companionAction.target.HasValue&&
+                (game.companionAction.target.Value-threat.Position).Length<.01f,
+                "The real auto-fire contact redirects to the committed hero threat instead of releasing at its stale target");
+
+            var control=Fresh(data,1);
+            control.Enter(0);control.enemies.Clear();
+            control.save.flags.Add("companion_1");
+            control.SelectCompanion(1);
+            control.save.reducedMotion=true;
+            control.save.x=15.5f;control.save.y=10.88f;
+            control.companionPosition=new Point(10.5f,10.88f);
+            var ordinary=new Enemy(99123,0,10.5f,12f,10000f)
+                {timer=1000f};
+            var stale=new Enemy(99124,2,14.4f,10.88f,10000f)
+                {state=1,timer=.3f,windupDuration=.65f,
+                 target=new Point(14.4f,13.8f),facing=new Point(0,1)};
+            control.enemies.Add(ordinary);control.enemies.Add(stale);
+            Check(System.Object.ReferenceEquals(nearest.Invoke(control,null),ordinary),
+                "A heavy windup aimed outside the hero's actual release radius does not gain false threat priority");
+            stale.target=control.Position;
+            stale.Face(control.Position-stale.Position);
+            stale.targetingReliefCivilian=true;
+            Check(System.Object.ReferenceEquals(nearest.Invoke(control,null),ordinary),
+                "An enemy committed to a rescue civilian cannot masquerade as an attack on the hero");
+        }
+
         public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
         {
             // Drive the REAL Arcanist alternate-Q and world update loop:

@@ -970,16 +970,43 @@ namespace Starfall
             companionCornerGeneration=companionPresentationGeneration;
             return newGoal;
         }
+        private bool CompanionCommittedHeroStrike(Enemy foe)
+        {
+            // Auto-support should interrupt an enemy that is genuinely
+            // committed to hitting the hero, not simply any foe whose attack
+            // animation happens to be in its windup state. Reuse the exact
+            // geometry used by release damage and the real archer lane.
+            if(foe==null||foe.hp<=0||foe.state!=1||
+                !Finite(foe.timer)||!Finite(foe.windupDuration)||
+                foe.windupDuration<=0f||
+                foe.timer>foe.windupDuration+.001f||
+                foe.stun>.001f||foe.hitTime>.001f||
+                foe.releaseTime>.001f||
+                foe.targetingWayfarer||foe.targetingReliefCivilian||
+                foe.targetingAfterlightStock||foe.targetingOuterPatrolStock||
+                !Finite(foe.target.x)||!Finite(foe.target.y)||
+                !CanStand(foe.Position)||
+                !ClearAttackPath(foe.Position,Position))
+                return false;
+            if(foe.boss||foe.kind==2)
+                return (Position-foe.target).Length<EnemyAreaRadius(foe);
+            if(foe.kind==1)
+                return (foe.target-Position).Length<=.55f&&
+                    EnemyBowFlightLaneClear(foe,foe.target);
+            return InEnemyMeleeArc(foe,Position);
+        }
         private Enemy NearestCompanionThreat()
         {
             Enemy nearest=null;
             float best=7f*7f;
             int bestPriority=int.MaxValue;
-            // When multiple raiders have committed genuine stock strikes,
-            // the earliest physical contact wins; distance is only the tie
-            // breaker. Otherwise Ivo could shoot a nearby slow windup while a
-            // farther heavy lands an already-warned hit on the protected cache.
+            // Objective strikes retain first priority during their
+            // dedicated defense. Otherwise prioritize the earliest REAL
+            // release geometry currently threatening the hero, so companion
+            // auto-support can interrupt a heavy slam or committed lunge
+            // instead of spending its contact on a closer idle enemy.
             float bestStockSeconds=float.PositiveInfinity;
+            float bestHeroStrikeSeconds=float.PositiveInfinity;
             foreach(Enemy foe in enemies)
             {
                 if(foe==null || foe.hp<=0)continue;
@@ -987,14 +1014,19 @@ namespace Starfall
                 float squared=delta.x*delta.x+delta.y*delta.y;
                 bool saboteur=OuterPatrolActive&&
                     IsOuterPatrolEnemy(foe)&&foe.kind!=1;
+                bool heroStrike=!saboteur&&
+                    CompanionCommittedHeroStrike(foe);
                 int priority=saboteur?
-                    (OuterPatrolUncoveredStockStrike(foe)?0:1):2;
+                    (OuterPatrolUncoveredStockStrike(foe)?0:1):
+                    heroStrike?2:3;
                 if(squared>=7f*7f || priority>bestPriority)
                     continue;
-                // OuterPatrolUncoveredStockStrike guarantees a finite
-                // clock. Preserve negative overdue deadlines when ordering;
-                // clamping them would turn every overdue hit into a distance tie.
+                // Preserve raw deadlines, including an overdue stock strike.
+                // For equally urgent hero strikes, the nearer valid shot is
+                // the deterministic tie-breaker; ordinary foes remain nearest-first.
                 float stockSeconds=priority==0?foe.timer:
+                    float.PositiveInfinity;
+                float heroStrikeSeconds=priority==2?foe.timer:
                     float.PositiveInfinity;
                 if(priority==bestPriority)
                 {
@@ -1005,6 +1037,13 @@ namespace Starfall
                             (!float.IsInfinity(stockSeconds)&&
                              !float.IsInfinity(bestStockSeconds)&&
                              Math.Abs(stockSeconds-bestStockSeconds)<=.0001f);
+                        if(!earlier&&!(tied&&squared<best))continue;
+                    }
+                    else if(priority==2)
+                    {
+                        bool earlier=heroStrikeSeconds<bestHeroStrikeSeconds;
+                        bool tied=heroStrikeSeconds==bestHeroStrikeSeconds||
+                            Math.Abs(heroStrikeSeconds-bestHeroStrikeSeconds)<=.0001f;
                         if(!earlier&&!(tied&&squared<best))continue;
                     }
                     else if(squared>=best)continue;
@@ -1023,6 +1062,7 @@ namespace Starfall
                     continue;
                 best=squared;bestPriority=priority;nearest=foe;
                 bestStockSeconds=priority==0?stockSeconds:float.PositiveInfinity;
+                bestHeroStrikeSeconds=priority==2?heroStrikeSeconds:float.PositiveInfinity;
             }
             return nearest;
         }
@@ -1126,7 +1166,31 @@ namespace Starfall
                                 (!lockedCache||
                                  available!=locked&&
                                  availableSeconds<lockedSeconds-.0001f);
-                            if(available!=null&&(!oldValid||urgentCache))
+                            bool availableHeroStrike=
+                                CompanionCommittedHeroStrike(available);
+                            bool lockedHeroStrike=
+                                CompanionCommittedHeroStrike(locked);
+                            float availableHeroSeconds=availableHeroStrike?
+                                available.timer:float.PositiveInfinity;
+                            float lockedHeroSeconds=lockedHeroStrike?
+                                locked.timer:float.PositiveInfinity;
+                            bool tiedHeroDeadlines=availableHeroStrike&&
+                                lockedHeroStrike&&
+                                Math.Abs(availableHeroSeconds-
+                                    lockedHeroSeconds)<=.0001f;
+                            bool nearerTiedHero=availableHeroStrike&&
+                                lockedHeroStrike&&available!=locked&&
+                                tiedHeroDeadlines&&
+                                (available.Position-companionPosition).Length<
+                                (locked.Position-companionPosition).Length-.0001f;
+                            bool urgentHeroStrike=availableHeroStrike&&
+                                (!lockedHeroStrike||
+                                 available!=locked&&
+                                 (availableHeroSeconds<
+                                      lockedHeroSeconds-.0001f||
+                                  nearerTiedHero));
+                            if(available!=null&&
+                                (!oldValid||urgentCache||urgentHeroStrike))
                             {
                                 locked=available;
                                 companionAutoTarget=available;
