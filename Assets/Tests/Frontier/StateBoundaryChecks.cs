@@ -773,6 +773,13 @@ namespace Starfall.Tests
             Check(envoy.save.room == 0 && !envoy.Has("exp_intro") &&
                 envoy.mode == "world" && envoy.toast.Contains("走近"),
                 "A remote envoy cannot start the expansion or teleport to Mistport");
+            envoy.Talk(envoyObject);
+            int projects = Array.FindIndex(envoy.conversation.choices,
+                choice => choice.action == "camp");
+            Check(projects >= 0, "The envoy retains its normal town-project shortcut");
+            envoy.Choose(projects);
+            Check(envoy.mode == "world" && envoy.toast.Contains("走近"),
+                "A remote envoy cannot open a world-source project menu");
 
             var camp = Fresh(data);
             camp.save.room = 5; camp.enemies.Clear();
@@ -790,6 +797,13 @@ namespace Starfall.Tests
                 camp.save.totalTime == 123f && camp.mode == "world" &&
                 camp.toast.Contains("走近"),
                 "A remote campfire cannot heal, refill energy or advance rest time");
+            camp.Talk(fire);
+            int companions = Array.FindIndex(camp.conversation.choices,
+                choice => choice.action == "companions");
+            Check(companions >= 0, "The campfire retains its companion-management shortcut");
+            camp.Choose(companions);
+            Check(camp.mode == "world" && camp.toast.Contains("走近"),
+                "A remote campfire cannot open the companion-management menu");
 
             var rescue = Fresh(data);
             rescue.save.room = 5; rescue.enemies.Clear();
