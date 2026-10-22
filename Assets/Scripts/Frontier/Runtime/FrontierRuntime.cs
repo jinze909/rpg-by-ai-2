@@ -157,6 +157,7 @@ namespace Starfall
             // repaints or a free-running artificial walking animation.
             AdvanceFootfallVisual(frameDelta);
             UpdatePresentation(frameDelta); UpdateMenuInput(frameDelta);
+            if(Game.mode!="world"||!beganInWorld)companionPadGesture.Cancel();
             if (Game.mode == "world" && beganInWorld)
             {
                 Point mouse = MouseVirtual();
@@ -177,7 +178,14 @@ namespace Starfall
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();
-                if (PadDown(4)) Game.Eat(); if (PadDown(5)) Game.CommandCompanion();
+                if (PadDown(4)) Game.Eat();
+                CompanionButtonAction companionPadAction=companionPadGesture.Advance(
+                    Input.GetKey(KeyCode.JoystickButton5),frameDelta);
+                if(companionPadAction==CompanionButtonAction.Command)
+                    Game.CommandCompanion();
+                else if(companionPadAction==CompanionButtonAction.ToggleHold&&
+                    Game.save.companion>=0&&!Game.practicing)
+                    Game.ToggleCompanionHold();
                 if (PadDown(6)) OpenMenu("journal"); if (PadDown(7)) { OpenMenu("pause"); Save(); }
             }
             else if (Game.mode == "fish" && (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))) Game.FishHit();

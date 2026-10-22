@@ -114,6 +114,40 @@ namespace Starfall
         public Point Position { get { return new Point(x, y); } }
         public int BossPhase { get { return hp > maxHp * .66f ? 1 : hp > maxHp * .33f ? 2 : 3; } }
     }
+    // The world-mode companion button is tap-to-command / hold-to-station.
+    // This pure transient state machine keeps keyboard/controller behavior
+    // deterministic without adding input state to SaveData or mission clocks.
+    public enum CompanionButtonAction { None, Command, ToggleHold }
+    public sealed class CompanionButtonGesture
+    {
+        public const float HoldThreshold = .38f;
+        private bool wasDown, holdTriggered;
+        private float heldSeconds;
+        public CompanionButtonAction Advance(bool isDown, float deltaTime)
+        {
+            if(float.IsNaN(deltaTime)||float.IsInfinity(deltaTime)||deltaTime<0)
+                deltaTime=0;
+            // A hitch or debugger pause must not convert a one-frame tap into
+            // a hold; subsequent real frames still measure the actual gesture.
+            deltaTime=Math.Min(deltaTime,.1f);
+            if(isDown)
+            {
+                if(!wasDown){heldSeconds=0;holdTriggered=false;}
+                wasDown=true;
+                heldSeconds+=deltaTime;
+                if(!holdTriggered&&heldSeconds>=HoldThreshold)
+                {holdTriggered=true;return CompanionButtonAction.ToggleHold;}
+                return CompanionButtonAction.None;
+            }
+            if(!wasDown){heldSeconds=0;holdTriggered=false;return CompanionButtonAction.None;}
+            bool tap=!holdTriggered;
+            Reset();
+            return tap?CompanionButtonAction.Command:CompanionButtonAction.None;
+        }
+        public void Cancel(){Reset();}
+        private void Reset(){wasDown=false;holdTriggered=false;heldSeconds=0;}
+    }
+
     [Serializable] public class EnemyRecord
     {
         public int id, kind;

@@ -11,6 +11,7 @@ namespace Starfall
         private string confirmControl, drawnScope, dialogParent, settingsParent = "world", pressedControl;
         private float navigationRepeat, pressedTime;
         private bool focusVisible, controllerUsed, drawingModal;
+        private readonly CompanionButtonGesture companionPadGesture = new CompanionButtonGesture();
         private string ControlId(float x, float y, float w, float h) { return x.ToString(CultureInfo.InvariantCulture) + ":" + y.ToString(CultureInfo.InvariantCulture) + ":" + w.ToString(CultureInfo.InvariantCulture) + ":" + h.ToString(CultureInfo.InvariantCulture); }
         private string InputScope()
         { return Game.mode + (Game.mode == "dialog" && Game.conversation != null ? "/" + Game.conversation.GetHashCode() + "/" + dialoguePage : "") + (replacePrompt ? "/replace" : "") + (saveConfirmation != null ? "/confirm" : ""); }

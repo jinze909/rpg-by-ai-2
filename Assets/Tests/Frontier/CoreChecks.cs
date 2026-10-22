@@ -4259,5 +4259,28 @@ namespace Starfall.Tests
                 "SaveData v2 preserves the earned linked route without serializing timed drills");
         }
 
+        public static void CompanionButtonGestureDistinguishesTapFromHoldAndCancelsSafely(Campaign data)
+        {
+            var gesture=new CompanionButtonGesture();
+            Check(gesture.Advance(true,.10f)==CompanionButtonAction.None&&
+                gesture.Advance(true,.12f)==CompanionButtonAction.None&&
+                gesture.Advance(false,.01f)==CompanionButtonAction.Command,
+                "A short RB tap produces exactly one ordinary companion command on release");
+            Check(gesture.Advance(true,.10f)==CompanionButtonAction.None&&
+                gesture.Advance(true,.10f)==CompanionButtonAction.None&&
+                gesture.Advance(true,.10f)==CompanionButtonAction.None&&
+                gesture.Advance(true,.10f)==CompanionButtonAction.ToggleHold&&
+                gesture.Advance(true,.10f)==CompanionButtonAction.None&&
+                gesture.Advance(false,.01f)==CompanionButtonAction.None,
+                "A sustained RB press toggles hold once and cannot also issue a command on release");
+            gesture.Advance(true,.1f);gesture.Cancel();
+            Check(gesture.Advance(false,.01f)==CompanionButtonAction.None,
+                "Leaving world mode cancels an unfinished companion-button tap");
+            var malformed=new CompanionButtonGesture();
+            Check(malformed.Advance(true,float.NaN)==CompanionButtonAction.None&&
+                malformed.Advance(false,float.PositiveInfinity)==CompanionButtonAction.Command,
+                "Malformed frame time cannot create a phantom hold or repeated command");
+        }
+
     }
 }
