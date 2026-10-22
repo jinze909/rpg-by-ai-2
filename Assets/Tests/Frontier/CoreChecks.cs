@@ -497,6 +497,44 @@ namespace Starfall.Tests
                 "Queued Q commits its cost once, not on every repeated press");
         }
 
+        public static void BufferedSkillWaitsForOriginalActionDuration(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();g.save.energy=100f;
+            g.Attack(new Point(1,0));
+            ActorAction original=g.playerAction;
+            Check(original!=null&&original.kind=="attack",
+                "The first accepted swing owns a concrete full-body action");
+
+            for(int frame=0;frame<100&&
+                System.Object.ReferenceEquals(g.playerAction,original)&&
+                g.PlayerPhase!=ActionPhase.Recovery;frame++)
+                g.Tick(.01f,new Point());
+            Check(System.Object.ReferenceEquals(g.playerAction,original)&&
+                g.PlayerPhase==ActionPhase.Recovery,
+                "The regression must submit Q during a live swing's recovery tail");
+            float remaining=original.duration-original.elapsed;
+            Check(remaining>.001f,
+                "The original action still has a real authored duration to preserve");
+            float energyBefore=g.save.energy;
+            g.Skill(new Point(0,-1));
+            Check(System.Object.ReferenceEquals(g.playerAction,original)&&
+                g.SkillQueued&&g.save.energy==energyBefore,
+                "Q during recovery queues once instead of overwriting the visible swing or charging early");
+
+            float originalDuration=original.duration;
+            for(int frame=0;frame<100&&
+                System.Object.ReferenceEquals(g.playerAction,original);frame++)
+                g.Tick(.01f,new Point());
+            Check(original.elapsed+.00001f>=originalDuration,
+                "The prior action must reach its own authored end before another action starts");
+            Check(g.playerAction!=null&&
+                !System.Object.ReferenceEquals(g.playerAction,original)&&
+                g.playerAction.kind=="skill"&&!g.SkillQueued,
+                "The queued Q starts only after the old action ends and is consumed exactly once");
+            Check(g.skillCooldown>0&&g.save.energy<energyBefore,
+                "The deferred skill commits its real cooldown and energy cost when accepted");
+        }
+
         public static void ClassesAndPause(Campaign data)
         {
             for (int i = 0; i < 3; i++)

@@ -741,9 +741,17 @@ namespace Starfall
             ClearBufferedDodge();
             ClearBufferedAttack(); // A requested Q outranks a queued ordinary swing.
             Point facing = direction.HasValue && Finite(direction.Value.x) && Finite(direction.Value.y) && direction.Value.Length > .05f ? direction.Value.Normalized : aim;
-            if (ActionTransitionBlocked)
+            if (ActionTransitionBlocked || playerAction != null)
             {
-                bufferedSkill = new SkillIntent { remaining = SkillBufferWindow, direction = facing, target = aimTarget,
+                // A Q submitted during the tail of a released action belongs
+                // to the NEXT action. Keep the complete current body visible
+                // through its authored duration; give this one accepted intent
+                // enough time to reach that boundary without extending it on repeats.
+                float window = SkillBufferWindow;
+                if (playerAction != null && PlayerPhase == ActionPhase.Recovery)
+                    window = Math.Max(window, Math.Max(0f,
+                        playerAction.duration - playerAction.elapsed));
+                bufferedSkill = new SkillIntent { remaining = window, direction = facing, target = aimTarget,
                     weapon = save.weapon, profession = save.profession, style = Style, technique = save.technique };
                 return;
             }
