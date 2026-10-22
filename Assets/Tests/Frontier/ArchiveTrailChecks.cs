@@ -13,6 +13,22 @@ namespace Starfall.Tests
             g.save.x = keeper.x; g.save.y = keeper.y;
             Check(g.CanStand(g.Position) && g.Nearest() == keeper,
                 "The new cartographer exists on walkable town ground");
+            Point outsideKeeper=StandableOutsidePhysicalRadius(g,keeper,2.2001f);
+            g.save.x=outsideKeeper.x;g.save.y=outsideKeeper.y;
+            g.Talk(keeper);
+            Check(g.mode!="dialog",
+                "A direct Talk cannot open the atlas commission outside physical reach");
+            g.Close();
+            g.save.x=keeper.x;g.save.y=keeper.y;
+            g.Talk(keeper);
+            int staleAccept=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_accept");
+            Check(staleAccept>=0,"The cartographer offers the real accept action while nearby");
+            g.save.x=outsideKeeper.x;g.save.y=outsideKeeper.y;
+            g.Choose(staleAccept);g.Close();
+            Check(!g.Has("archive_started"),
+                "A stale atlas-accept choice cannot start the quest from beyond the keeper's reach");
+            g.save.x=keeper.x;g.save.y=keeper.y;
             Action(g, keeper.kind, "archive_accept");
             Check(g.Has("archive_started") && !g.GetQuest("archive_trail").locked &&
                 g.save.trackedQuest == "archive_trail",
@@ -42,6 +58,28 @@ namespace Starfall.Tests
                         "The tide inscription is unreadable before the woodland chart");
                     g.Close(); g.save.flags.Add("archive_fragment_1");
                 }
+                if(region==1)
+                {
+                    Point outsideArtifact=StandableOutsidePhysicalRadius(g,artifact,2.2001f);
+                    g.save.x=outsideArtifact.x;g.save.y=outsideArtifact.y;
+                    g.Talk(artifact);
+                    Check(g.mode!="dialog",
+                        "A direct Talk cannot open a regional atlas artifact outside physical reach");
+                    g.Close();
+                    g.save.x=artifact.x;g.save.y=artifact.y;
+                    g.Talk(artifact);
+                    int staleClaim=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_claim_"+region);
+                    Check(staleClaim>=0,"A reachable atlas artifact offers its genuine claim action");
+                    int coinsBeforeStaleClaim=g.save.coins,shardsBeforeStaleClaim=g.save.shards;
+                    g.save.x=outsideArtifact.x;g.save.y=outsideArtifact.y;
+                    g.Choose(staleClaim);g.Close();
+                    Check(!g.Has("archive_fragment_"+region) &&
+                        g.save.coins==coinsBeforeStaleClaim &&
+                        g.save.shards==shardsBeforeStaleClaim,
+                        "A stale atlas-claim choice cannot award records or resources outside reach");
+                    g.save.x=artifact.x;g.save.y=artifact.y;
+                }
                 Action(g, artifact.kind, "archive_claim_" + region);
                 Check(g.Has("archive_fragment_" + region) &&
                     g.save.coins == coins + region * 20 &&
@@ -55,6 +93,20 @@ namespace Starfall.Tests
             Check(!g.GetQuest("archive_trail").complete && g.GetQuest("archive_trail").room == 0,
                 "Collecting all records directs the player back to Lin");
             g.Enter(0); g.save.x = keeper.x; g.save.y = keeper.y;
+            g.Talk(keeper);
+            int staleComplete=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_complete");
+            Check(staleComplete>=0,"The nearby cartographer offers the final atlas delivery");
+            int coinsBeforeStaleComplete=g.save.coins,shardsBeforeStaleComplete=g.save.shards;
+            int skillBeforeStaleComplete=g.save.skillPoints;
+            g.save.x=outsideKeeper.x;g.save.y=outsideKeeper.y;
+            g.Choose(staleComplete);g.Close();
+            Check(!g.Has("archive_complete") &&
+                g.save.coins==coinsBeforeStaleComplete &&
+                g.save.shards==shardsBeforeStaleComplete &&
+                g.save.skillPoints==skillBeforeStaleComplete,
+                "A stale atlas-delivery choice cannot publish the quest or grant rewards remotely");
+            g.save.x=keeper.x;g.save.y=keeper.y;
             Action(g, keeper.kind, "archive_complete");
             Check(g.Has("archive_complete") && g.GetQuest("archive_trail").complete &&
                 g.save.coins == coins + 120 && g.save.shards == shards + 6 &&
@@ -271,11 +323,27 @@ namespace Starfall.Tests
             WorldObject rui = Object(g, "rootlistener");
             g.save.x = rui.x; g.save.y = rui.y;
             Check(g.CanStand(g.Position), "Rui occupies real walkable town terrain");
+            Point outsideRui=StandableOutsidePhysicalRadius(g,rui,2.2001f);
+            g.save.x=outsideRui.x;g.save.y=outsideRui.y;
+            g.Talk(rui);
+            Check(g.mode!="dialog",
+                "A direct Talk cannot open the counterpoint dialogue outside physical reach");
+            g.Close();
+            g.save.x=rui.x;g.save.y=rui.y;
             g.Talk(rui);
             Check(!Array.Exists(g.conversation.choices,
                 c => c.action == "root_harmony_accept"),
                 "The player must first rescue the scout, preserving the opening story");
             g.Close(); g.save.flags.Add("scout_saved");
+            g.Talk(rui);
+            int staleAccept=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="root_harmony_accept");
+            Check(staleAccept>=0,"Rui offers the real quest acceptance while nearby");
+            g.save.x=outsideRui.x;g.save.y=outsideRui.y;
+            g.Choose(staleAccept);g.Close();
+            Check(!g.Has("root_harmony_started"),
+                "A stale counterpoint-accept choice cannot start the quest remotely");
+            g.save.x=rui.x;g.save.y=rui.y;
             Action(g, "rootlistener", "root_harmony_accept");
             Check(g.Has("root_harmony_started") &&
                 !g.GetQuest("root_harmony").locked &&
@@ -305,6 +373,22 @@ namespace Starfall.Tests
                     "The live quest guide points to the next unfinished region");
                 int right = region == 1 ? 2 : region == 2 ? 0 : 1;
                 int wrong = (right + 1) % 3;
+                Point outsideNode=new Point();
+                if(region==1)
+                {
+                    outsideNode=StandableOutsidePhysicalRadius(g,node,2.2001f);
+                    g.Talk(node);
+                    int staleTune=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="root_harmony_tune_1_"+wrong);
+                    Check(staleTune>=0,"A reachable first resonance node offers its true tuning choices");
+                    float energyBeforeStaleTune=g.save.energy;
+                    g.save.x=outsideNode.x;g.save.y=outsideNode.y;
+                    g.Choose(staleTune);g.Close();
+                    Check(g.RootHarmonyRoom==0 && !g.Has("root_harmony_1") &&
+                        Math.Abs(g.save.energy-energyBeforeStaleTune)<.001f,
+                        "A stale tuning choice cannot start combat or spend energy outside physical reach");
+                    g.save.x=node.x;g.save.y=node.y;
+                }
                 float energy = g.save.energy;
                 Action(g, node.kind, "root_harmony_tune_" + region + "_" + wrong);
                 Check(!g.Has("root_harmony_" + region) &&
@@ -373,6 +457,22 @@ namespace Starfall.Tests
                 // above has been verified.
                 g.enemies.RemoveAll(g.IsRootHarmonyEnemy);
                 g.save.x = node.x; g.save.y = node.y;
+                if(region==1)
+                {
+                    g.Talk(node);
+                    int staleSeal=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="root_harmony_seal_"+region);
+                    Check(staleSeal>=0,"A cleared node offers its genuine seal action");
+                    int coinsBeforeStaleSeal=g.save.coins,shardsBeforeStaleSeal=g.save.shards;
+                    g.save.x=outsideNode.x;g.save.y=outsideNode.y;
+                    g.Choose(staleSeal);g.Close();
+                    Check(!g.Has("root_harmony_"+region) &&
+                        g.RootHarmonyRoom==region &&
+                        g.save.coins==coinsBeforeStaleSeal &&
+                        g.save.shards==shardsBeforeStaleSeal,
+                        "A stale seal choice cannot publish a reading or reward from outside reach");
+                    g.save.x=node.x;g.save.y=node.y;
+                }
                 Action(g, node.kind, "root_harmony_seal_" + region);
                 Check(g.Has("root_harmony_" + region) && g.RootHarmonyRoom == 0 &&
                     g.save.coins == coins + 25 * region &&
@@ -389,6 +489,20 @@ namespace Starfall.Tests
                 g.GetQuest("root_harmony").room == 0,
                 "All three readings require a real return to the new town NPC");
             g.Enter(0); g.save.x = rui.x; g.save.y = rui.y;
+            g.Talk(rui);
+            int staleFinish=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="root_harmony_finish");
+            Check(staleFinish>=0,"Rui offers final archiving after all three real readings");
+            int coinsBeforeStaleFinish=g.save.coins,shardsBeforeStaleFinish=g.save.shards;
+            int talentBeforeStaleFinish=g.save.skillPoints;
+            g.save.x=outsideRui.x;g.save.y=outsideRui.y;
+            g.Choose(staleFinish);g.Close();
+            Check(!g.Has("root_harmony_complete") &&
+                g.save.coins==coinsBeforeStaleFinish &&
+                g.save.shards==shardsBeforeStaleFinish &&
+                g.save.skillPoints==talentBeforeStaleFinish,
+                "A stale counterpoint-finalization choice cannot grant rewards remotely");
+            g.save.x=rui.x;g.save.y=rui.y;
             Action(g, "rootlistener", "root_harmony_finish");
             Check(g.Has("root_harmony_complete") &&
                 g.GetQuest("root_harmony").complete &&

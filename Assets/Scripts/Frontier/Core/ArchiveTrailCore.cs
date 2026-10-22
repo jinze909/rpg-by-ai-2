@@ -10,6 +10,7 @@ namespace Starfall
         {
             if (o.kind == "archivekeeper")
             {
+                if(!PhysicalRefugeReach(new Point(o.x,o.y),2.2001f))return true;
                 if (save.room != 0) return true;
                 if (Has("archive_complete"))
                 {
@@ -44,6 +45,7 @@ namespace Starfall
                 return true;
             }
             if (!o.kind.StartsWith("archivefragment")) return false;
+            if(!PhysicalRefugeReach(new Point(o.x,o.y),2.2001f))return true;
             int region;
             if (!int.TryParse(o.kind.Substring("archivefragment".Length), out region) ||
                 region < 1 || region > 3 || save.room != region) return true;
@@ -91,7 +93,8 @@ namespace Starfall
             }
             if (action == "archive_accept")
             {
-                if (save.room == 0 && !Has("archive_started") && !Dying)
+                if (save.room == 0 && !Has("archive_started") && !Dying &&
+                    PhysicalRefugeReach(ObjectPoint(0, "archivekeeper", new Point(-100, -100)),2.2001f))
                 {
                     Flag("archive_started"); TrackQuest("archive_trail"); revision++;
                     Notify("新支线：失落测绘师的星图。先去密林寻找残图。",
@@ -103,7 +106,8 @@ namespace Starfall
             {
                 if (save.room != 0 || !Has("archive_started") || Has("archive_complete") ||
                     !Has("archive_fragment_1") || !Has("archive_fragment_2") ||
-                    !Has("archive_fragment_3") || Dying) return true;
+                    !Has("archive_fragment_3") || Dying ||
+                    !PhysicalRefugeReach(ObjectPoint(0, "archivekeeper", new Point(-100, -100)),2.2001f)) return true;
                 Flag("archive_complete"); CreditCoins(60); CreditSkillPoints(1);
                 AddXp(60); revision++; sound = "reward";
                 RecordMoment("失落测绘师的星图已修复：获得60硬币、1技能点。归途的秘密不是宝藏，而是活下来的路。",
@@ -121,7 +125,8 @@ namespace Starfall
             WorldObject artifact = null;
             foreach (WorldObject o in Map.objects)
                 if (o.kind == "archivefragment" + region) { artifact = o; break; }
-            if (artifact == null || (Position - new Point(artifact.x, artifact.y)).Length > 2.2f)
+            if (artifact == null || !IsObjectPresent(artifact) ||
+                !PhysicalRefugeReach(new Point(artifact.x, artifact.y),2.2001f))
                 return true;
             Flag("archive_fragment_" + region); CreditCoins(20); CreditShards(2);
             AddXp(20); revision++; sound = "reward";
@@ -228,6 +233,7 @@ namespace Starfall
         {
             if (o.kind == "rootlistener")
             {
+                if(!PhysicalRefugeReach(new Point(o.x,o.y),2.2001f))return true;
                 if (save.room != 0) return true;
                 if (!Has("scout_saved"))
                 {
@@ -273,6 +279,7 @@ namespace Starfall
                 return true;
             }
             if (!o.kind.StartsWith("rootcounter")) return false;
+            if(!PhysicalRefugeReach(new Point(o.x,o.y),2.2001f))return true;
             int region;
             if (!int.TryParse(o.kind.Substring("rootcounter".Length), out region) ||
                 region < 1 || region > 3 || save.room != region) return true;
@@ -332,7 +339,7 @@ namespace Starfall
             if (action == "root_harmony_accept")
             {
                 if (save.room == 0 && Has("scout_saved") && !Has("root_harmony_started") &&
-                    (Position - ObjectPoint(0, "rootlistener", new Point(-100, -100))).Length <= 2.2f)
+                    PhysicalRefugeReach(ObjectPoint(0, "rootlistener", new Point(-100, -100)),2.2001f))
                 {
                     Flag("root_harmony_started"); TrackQuest("root_harmony");
                     Notify("新任务：星根失谐。去荆棘密林寻找第一处音纹。",
@@ -344,7 +351,7 @@ namespace Starfall
             {
                 if (save.room == 0 && Has("root_harmony_started") &&
                     !Has("root_harmony_complete") && RootHarmonyNext() == 0 &&
-                    (Position - ObjectPoint(0, "rootlistener", new Point(-100, -100))).Length <= 2.2f)
+                    PhysicalRefugeReach(ObjectPoint(0, "rootlistener", new Point(-100, -100)),2.2001f))
                 {
                     Flag("root_harmony_complete"); CreditCoins(75); CreditSkillPoints(1);
                     AddXp(70); revision++; sound = "reward";
@@ -362,7 +369,7 @@ namespace Starfall
                     room < 1 || room > 3) return true;
                 Point site = ObjectPoint(room, "rootcounter" + room, new Point(-100, -100));
                 if (RootHarmonyRoom == room && save.room == room && !Dying &&
-                    (Position - site).Length <= 2.2f)
+                    PhysicalRefugeReach(site,2.2001f))
                 {
                     ResetRootHarmonyTrial(); revision++; sound = "quest";
                     Notify("已安全终止调谐。守卫与残留攻击已清除，可重新尝试。",
@@ -380,7 +387,7 @@ namespace Starfall
                 Point site = ObjectPoint(room, "rootcounter" + room, new Point(-100, -100));
                 if (save.room != room || !Has("root_harmony_started") ||
                     RootHarmonyNext() != room || RootHarmonyRoom != 0 ||
-                    (Position - site).Length > 2.2f || Dying || practicing || racing ||
+                    !PhysicalRefugeReach(site,2.2001f) || Dying || practicing || racing ||
                     reliefMissionRoom != 0 || roadTrialRoom != 0 ||
                     wayfarerEncounterRoom != 0 || atlasEchoRoom != 0) return true;
                 int answer = room == 1 ? 2 : room == 2 ? 0 : 1;
@@ -415,7 +422,7 @@ namespace Starfall
                     room < 1 || room > 3) return true;
                 Point site = ObjectPoint(room, "rootcounter" + room, new Point(-100, -100));
                 if (save.room != room || RootHarmonyRoom != room || RootHarmonyTime <= 0 ||
-                    (Position - site).Length > 2.2f || enemies.Exists(IsRootHarmonyEnemy) ||
+                    !PhysicalRefugeReach(site,2.2001f) || enemies.Exists(IsRootHarmonyEnemy) ||
                     Has("root_harmony_" + room)) return true;
                 ResetRootHarmonyTrial(); Flag("root_harmony_" + room);
                 CreditCoins(25); CreditShards(2); AddXp(35);

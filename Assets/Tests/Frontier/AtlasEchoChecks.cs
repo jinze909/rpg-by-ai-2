@@ -20,6 +20,22 @@ namespace Starfall.Tests
             Check(!Array.Exists(g.conversation.choices, c => c.action == "archive_echo_start"),
                 "Echo cannot start before the atlas is restored");
             g.Close(); g.save.flags.Add("archive_complete");
+            Point outsideCompass=StandableOutsidePhysicalRadius(g,compass,2.2001f);
+            g.save.x=outsideCompass.x;g.save.y=outsideCompass.y;
+            g.Talk(compass);
+            Check(g.mode!="dialog",
+                "A direct Talk cannot open the echo encounter outside physical reach");
+            g.Close();
+            g.save.x=compass.x;g.save.y=compass.y;
+            g.Talk(compass);
+            int staleStart=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_echo_start");
+            Check(staleStart>=0,"The nearby calibrator offers the real encounter action");
+            g.save.x=outsideCompass.x;g.save.y=outsideCompass.y;
+            g.Choose(staleStart);g.Close();
+            Check(g.AtlasEchoRoom==0&&!g.enemies.Exists(e=>e.id==83001),
+                "A stale calibrator choice cannot summon the echo remotely");
+            g.save.x=compass.x;g.save.y=compass.y;
             g.enemies.Add(new Enemy(450, 0, g.save.x + .8f, g.save.y, 40));
             Action(g, compass.kind, "archive_echo_start");
             Check(g.AtlasEchoRoom == 0 && !g.enemies.Exists(e => e.id == 83001),
@@ -104,6 +120,17 @@ namespace Starfall.Tests
             Check(retry.AtlasEchoRoom == 3, "Trial can be started on a fresh saved atlas");
             retry.hazards.Add(new Hazard { position = retry.Position, radius = .5f,
                 timer = 2, damage = 5, kind = "bell", atlasEchoOwned = true });
+            retry.Talk(marker);
+            int staleAbandon=Array.FindIndex(retry.conversation.choices,
+                c=>c.action=="archive_echo_abandon");
+            Check(staleAbandon>=0,"The active encounter offers its real withdrawal action");
+            Point outsideMarker=StandableOutsidePhysicalRadius(retry,marker,2.2001f);
+            retry.save.x=outsideMarker.x;retry.save.y=outsideMarker.y;
+            retry.Choose(staleAbandon);retry.Close();
+            Check(retry.AtlasEchoRoom==3&&retry.enemies.Exists(e=>e.id==83001)&&
+                retry.hazards.Exists(h=>h.atlasEchoOwned),
+                "A stale withdrawal choice cannot remotely cancel the active encounter");
+            retry.save.x=marker.x;retry.save.y=marker.y;
             Action(retry, marker.kind, "archive_echo_abandon");
             Check(retry.AtlasEchoRoom == 0 && !retry.Has("archive_echo_complete") &&
                 !retry.enemies.Exists(e => e.id == 83001) &&

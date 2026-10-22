@@ -35,6 +35,7 @@ namespace Starfall
         private bool TalkAtlasEcho(WorldObject o)
         {
             if (o.kind != "archiveecho") return false;
+            if(!PhysicalRefugeReach(new Point(o.x,o.y),2.2001f))return true;
             if (save.room != 3) return true;
             if (!Has("archive_complete"))
             {
@@ -72,7 +73,9 @@ namespace Starfall
         {
             if (action == "archive_echo_abandon")
             {
-                if (atlasEchoRoom != 0)
+                Point site=ObjectPoint(3,"archiveecho",new Point(-100,-100));
+                if (atlasEchoRoom != 0 && save.room == 3 &&
+                    PhysicalRefugeReach(site,2.2001f))
                 { ResetAtlasEcho(); revision++; Notify("已撤出试炼，稍后可以重试。", "Echo trial withdrawn; retry any time."); }
                 return true;
             }
@@ -81,7 +84,7 @@ namespace Starfall
                 atlasEchoRoom != 0 || TemperActive || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
                 Dying || practicing || !CanEnter(3)) return true;
             Point marker = ObjectPoint(3, "archiveecho", new Point(-100, -100));
-            if ((Position - marker).Length > 2.2f) return true;
+            if (!PhysicalRefugeReach(marker,2.2001f)) return true;
             if (!SafeTravel)
             { Notify("先清理校准台附近的巡逻敌人。", "Clear nearby patrols before calibration."); return true; }
             Point[] options = { marker + new Point(-3, 0), marker + new Point(-3, -2),
