@@ -527,5 +527,73 @@ namespace Starfall.Tests
                 "Opening the world map is a UI action, not a fabricated cross-map interaction");
         }
 
+        public static void RemoteWorldDialogueCannotExecuteChoices(Campaign data)
+        {
+            var g = Fresh(data);
+            WorldObject smith = Object(g, "forge");
+            Point remote = StandableOutsideTalkReach(g, smith);
+            g.save.x = remote.x; g.save.y = remote.y;
+            g.save.inventory[1] = 4;
+            g.save.inventory[4] = 3;
+            Check(!g.Has("weapon_2") && g.save.weapon == 0,
+                "Remote forge test begins without an existing staff");
+
+            g.Talk(smith);
+            Check(g.mode == "dialog" && g.conversation != null,
+                "A world-source dialogue may open before a choice is submitted");
+            int staff = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "staff");
+            Check(staff >= 0, "The real forge menu exposes its normal staff craft");
+            g.Choose(staff);
+            Check(g.mode == "world" && !g.Has("weapon_2") &&
+                g.save.weapon == 0 && g.save.inventory[1] == 4 &&
+                g.save.inventory[4] == 3 &&
+                g.toast.Contains("走近"),
+                "A remotely opened forge dialogue cannot craft, equip, or consume materials");
+
+            // Leaving reach must not trap the player in a modal: the explicit
+            // Close action remains available even when its world source is far.
+            g.Talk(smith);
+            int close = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "close");
+            Check(close >= 0, "The forge menu keeps its ordinary close action");
+            g.Choose(close);
+            Check(g.mode == "world", "Remote dialogue can always be dismissed");
+
+            var reachMethod = typeof(GameCore).GetMethod(
+                "HasPhysicalInteractionReach",
+                System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic,
+                null, new Type[] { typeof(WorldObject) }, null);
+            Check(reachMethod != null,
+                "Tests can query the same authoritative physical-reach predicate");
+            Point[] offsets = {
+                new Point(-1,0), new Point(1,0), new Point(0,-1),
+                new Point(0,1), new Point(-1,-1), new Point(-1,1),
+                new Point(1,-1), new Point(1,1), new Point(0.5f,0),
+                new Point(-0.5f,0), new Point(0,0.5f), new Point(0,-0.5f)
+            };
+            bool foundNear = false;
+            foreach (Point offset in offsets)
+            {
+                Point candidate = new Point(smith.x + offset.x,
+                    smith.y + offset.y);
+                if (!g.CanStand(candidate)) continue;
+                g.save.x = candidate.x; g.save.y = candidate.y;
+                if ((bool)reachMethod.Invoke(g, new object[] { smith }))
+                { foundNear = true; break; }
+            }
+            Check(foundNear,
+                "The authored forge has a standable, physically reachable interaction point");
+            g.Talk(smith);
+            staff = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "staff");
+            Check(staff >= 0, "The close-range forge menu retains staff crafting");
+            g.Choose(staff);
+            Check(g.Has("weapon_2") && g.save.weapon == 2 &&
+                g.save.inventory[1] == 0 && g.save.inventory[4] == 0,
+                "The same staff craft succeeds normally inside genuine physical reach");
+        }
+
     }
 }

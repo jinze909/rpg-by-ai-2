@@ -377,6 +377,7 @@ namespace Starfall.Tests
         [Test] public void StaleDialogueChoicesCannotResolveWorldActionsRemotely() { CoreChecks.StaleDialogueChoicesCannotResolveWorldActionsRemotely(Data()); }
         [Test] public void StaleChainedDialogueChoicesCannotContinueRemotely() { CoreChecks.StaleChainedDialogueChoicesCannotContinueRemotely(Data()); }
         [Test] public void CrossMapObjectReferencesCannotStartInteractions() { CoreChecks.CrossMapObjectReferencesCannotStartInteractions(Data()); }
+        [Test] public void RemoteWorldDialogueCannotExecuteChoices() { CoreChecks.RemoteWorldDialogueCannotExecuteChoices(Data()); }
         [Test] public void StandardDifficultyCampaignAndAllEndings() { CoreChecks.CompleteCampaign(Data()); }
         [Test] public void OldSaveMigrationAndBuildRules() { CoreChecks.MigrationAndBuilds(Data()); }
         [Test] public void AllNewMapsAndTidesAreReachable() { CoreChecks.DistantReachability(Data()); }

@@ -2505,17 +2505,28 @@ namespace Starfall
         {
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
-            if(conversationSourceWasReachable &&
-                !HasPhysicalInteractionReach(conversationSource))
+            string action = conversation.choices[index].action;
+            // A world dialogue is not permission to operate a distant object.
+            // The previous gate only rejected sources that were reachable when
+            // opened and then left; a dialogue opened OUTSIDE reach could still
+            // craft, rest, or commit other world actions. Keep Close available
+            // and leave system-owned dialogs (which have no world source) alone.
+            if (conversationSource != null && action != "close" &&
+                (!conversationSourceWasReachable ||
+                 !HasPhysicalInteractionReach(conversationSource)))
             {
+                bool initiallyReachable = conversationSourceWasReachable;
                 Close();
-                Notify("你已离开交互范围，请重新靠近目标并交谈。",
-                    "You left interaction range. Return to the target and talk again.");
+                Notify(initiallyReachable ?
+                    "你已离开交互范围，请重新靠近目标并交谈。" :
+                    "请先走近目标，再选择交互操作。",
+                    initiallyReachable ?
+                    "You left interaction range. Return to the target and talk again." :
+                    "Move closer to the target before choosing this interaction.");
                 return;
             }
             WorldObject selectedSource = conversationSource;
             bool selectedSourceWasReachable = conversationSourceWasReachable;
-            string action = conversation.choices[index].action;
             Close();
             pendingDialogueSource = selectedSource;
             pendingDialogueSourceWasReachable = selectedSourceWasReachable;
