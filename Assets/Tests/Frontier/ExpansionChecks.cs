@@ -503,7 +503,11 @@ namespace Starfall.Tests
             return g;
         }
         private static void Gather(GameCore g)
-        { foreach (WorldObject o in g.Map.objects) if (o.kind == "wood" || o.kind == "ore" || o.kind == "herb") g.Talk(o); }
+        {
+            foreach (WorldObject o in g.Map.objects)
+                if (o.kind == "wood" || o.kind == "ore" || o.kind == "herb")
+                    TalkNearObject(g, o);
+        }
         public static void DistantCampaign(Campaign data)
         { for (int i = 0; i < 3; i++) ShoreRun(data, i, i + 1, i + 1); }
 

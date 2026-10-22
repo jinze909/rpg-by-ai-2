@@ -37,12 +37,15 @@ namespace Starfall.Tests
             }
             throw new Exception("No standable regression point beyond radius "+radius+" for "+o.id);
         }
-        private static void TalkNear(GameCore g, string kind)
+        private static void TalkNearObject(GameCore g, WorldObject target)
         {
-            WorldObject target = Object(g, kind);
             if (!PlaceWithinTalkReach(g, target))
                 throw new Exception("No reachable test position for " + target.id);
             g.Talk(target);
+        }
+        private static void TalkNear(GameCore g, string kind)
+        {
+            TalkNearObject(g, Object(g, kind));
         }
         private static void Action(GameCore g, string kind, string action)
         {
