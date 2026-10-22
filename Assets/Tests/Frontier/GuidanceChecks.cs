@@ -1576,7 +1576,7 @@ namespace Starfall.Tests
             int start=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="civic_conduit_start");
             Check(start>=0,"The original power console offers its real start action");
-            Point outsideMaster=StandableOutsideTalkReach(g,master);
+            Point outsideMaster=StandableOutsidePhysicalRadius(g,master,2.2f);
             g.save.x=outsideMaster.x;g.save.y=outsideMaster.y;
             g.Choose(start);g.Close();
             Check(!g.CivicConduitActive&&!g.CivicConduitStarted&&
@@ -1595,7 +1595,7 @@ namespace Starfall.Tests
                 c=>c.action=="civic_conduit_ground");
             Check(ground>=0&&g.CivicConduitGroundAvailable,
                 "A reachable current valve offers its genuine one-use grounding control");
-            Point outsideValve=StandableOutsideTalkReach(g,valve);
+            Point outsideValve=StandableOutsidePhysicalRadius(g,valve,2.2f);
             float energy=g.save.energy;
             g.save.x=outsideValve.x;g.save.y=outsideValve.y;
             g.Choose(ground);g.Close();
