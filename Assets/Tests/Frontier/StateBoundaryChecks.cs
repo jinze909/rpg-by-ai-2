@@ -499,5 +499,33 @@ namespace Starfall.Tests
                 "The same multi-page chronicle works normally while the player remains in reach");
         }
 
+        public static void CrossMapObjectReferencesCannotStartInteractions(Campaign data)
+        {
+            var g = Fresh(data);
+            g.save.room = 0;
+            g.mode = "world";
+            WorldObject foreign = Array.Find(data.maps[1].objects,
+                candidate => candidate.kind == "scout");
+            Check(foreign != null,
+                "The second map contains the authored scout reference");
+            g.save.x = foreign.x; g.save.y = foreign.y;
+            g.Talk(foreign);
+            Check(g.mode == "world" && g.conversation == null,
+                "A foreign-room object cannot start a dialogue at matching coordinates");
+
+            WorldObject guild = Object(g, "guild");
+            g.save.x = guild.x; g.save.y = guild.y;
+            g.Talk(guild);
+            Check(g.mode == "dialog" && g.conversation != null,
+                "A genuine current-map resident remains interactable");
+            int routes = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "routes");
+            Check(routes >= 0,
+                "The guild's existing route-menu action remains available");
+            g.Choose(routes);
+            Check(g.mode == "map" && g.conversation == null,
+                "Opening the world map is a UI action, not a fabricated cross-map interaction");
+        }
+
     }
 }

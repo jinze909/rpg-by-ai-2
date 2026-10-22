@@ -2029,9 +2029,18 @@ namespace Starfall
                 objective-(objective-Position).Normalized*.55f:Position;
             return ClearAttackPath(Position,contact);
         }
+        private bool IsCurrentMapObject(WorldObject o)
+        {
+            if (o == null) return false;
+            MapData current = Map;
+            if (current == null || current.objects == null) return false;
+            foreach (WorldObject candidate in current.objects)
+                if (System.Object.ReferenceEquals(candidate, o)) return true;
+            return false;
+        }
         private bool HasPhysicalInteractionReach(WorldObject o)
         {
-            if(o==null||!IsObjectPresent(o))return false;
+            if(o==null||!IsObjectPresent(o)||!IsCurrentMapObject(o))return false;
             return HasPhysicalInteractionReach(new Point(o.x,o.y));
         }
         public WorldObject Nearest()
@@ -2133,7 +2142,9 @@ namespace Starfall
 
         public void Talk(WorldObject o)
         {
-            if (!IsObjectPresent(o)) return;
+            // A stale reference from a previous room must never impersonate
+            // an interactable at coincident coordinates in the current map.
+            if (!IsObjectPresent(o) || !IsCurrentMapObject(o)) return;
             if (practicing) { Notify("先完成或结束训练，再与居民交谈。", "Finish or end practice before talking to residents."); return; }
             Conversation previousConversation = conversation;
             conversationSource = o;
@@ -2149,6 +2160,14 @@ namespace Starfall
                     conversationSourceWasReachable = false;
                 }
             }
+        }
+
+        private void OpenRoutesMap()
+        {
+            conversation = null;
+            conversationSource = null;
+            conversationSourceWasReachable = false;
+            mode = "map";
         }
 
         private void TalkCore(WorldObject o)
@@ -2190,10 +2209,7 @@ namespace Starfall
                         "\n\nThe citadel has confirmed unconditional emergency refuge: shelter the stranded first, then let residents decide how to rebuild."):"") + CivicAftercareInnNote(true), CivicAftercareInnChoices()); return;
             }
             if (kind.StartsWith("portal")) { Enter(int.Parse(kind.Substring(6))); return; }
-            if (kind == "routes")
-            {
-                conversation = null; mode = "map"; return;
-            }
+            if (kind == "routes") { OpenRoutesMap(); return; }
             if (kind == "guild")
             {
                 if (TalkTriadGuild(o)) return;
@@ -2503,7 +2519,7 @@ namespace Starfall
             if (ChooseCivicConduit(action)) return;
             if (action == "close") return;
             if (action.StartsWith("goto")) { Enter(int.Parse(action.Substring(4))); return; }
-            if (action == "routes") { Talk(data.maps[0].objects[5]); return; }
+            if (action == "routes") { OpenRoutesMap(); return; }
             if (action == "rest")
             {
                 if (FieldWorkPreventsRest || !SafeTravel)
