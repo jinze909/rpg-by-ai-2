@@ -47,7 +47,7 @@ namespace Starfall.Tests
         {
             TalkNearObject(g, Object(g, kind));
         }
-        private static bool BaseChoiceNeedsReach(string action)
+        private static bool ChoiceNeedsPhysicalSource(string action)
         {
             if (string.IsNullOrEmpty(action)) return false;
             return action.StartsWith("goto") || action == "routes" ||
@@ -59,7 +59,21 @@ namespace Starfall.Tests
                 action == "boss" || action.StartsWith("ending") ||
                 action == "epilogue" || action == "continue" ||
                 action == "swordlesson_start" ||
-                action == "swordlesson_veteran_start";
+                action == "swordlesson_veteran_start" ||
+                action == "exp_begin" || action == "camp" ||
+                action == "companions" || action == "parley" ||
+                action.StartsWith("pledge") ||
+                action.StartsWith("rescue") || action.StartsWith("relay") ||
+                action == "holdtide" || action == "harbor_report" ||
+                action.StartsWith("desert") || action.StartsWith("mountain") ||
+                action.StartsWith("report_") || action == "expboss" ||
+                action.StartsWith("warm:") || action == "tea" ||
+                action == "fieldrest" || action == "race" ||
+                action.StartsWith("personal") || action.StartsWith("gift") ||
+                action.StartsWith("join") || action.StartsWith("covenant") ||
+                action == "council_epilogue" ||
+                action.StartsWith("abyssStart") || action == "abyssLeave" ||
+                action == "abyssBank" || action.StartsWith("boon");
         }
         private static bool ImmediateWorldObjectNeedsReach(string kind, string action)
         {
@@ -76,7 +90,7 @@ namespace Starfall.Tests
         }
         private static void Action(GameCore g, string kind, string action)
         {
-            if (BaseChoiceNeedsReach(action) ||
+            if (ChoiceNeedsPhysicalSource(action) ||
                 ImmediateWorldObjectNeedsReach(kind, action))
                 TalkNear(g, kind);
             else

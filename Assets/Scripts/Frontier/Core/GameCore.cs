@@ -2519,10 +2519,11 @@ namespace Starfall
                 RoadwardenTrialRoom != 0 || RootHarmonyRoom != 0 ||
                 SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
-        private static bool RequiresBaseWorldChoiceReach(string action)
+        private static bool RequiresWorldSourceReach(string action)
         {
             if (string.IsNullOrEmpty(action)) return false;
-            return action.StartsWith("goto") || action == "routes" ||
+            // Base campaign choices that commit travel, resources or progression.
+            if (action.StartsWith("goto") || action == "routes" ||
                 action == "rest" || action == "scout" || action == "engine" ||
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
@@ -2530,7 +2531,25 @@ namespace Starfall
                 action == "fish" || action == "deliver" ||
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
-                action == "continue";
+                action == "continue" || action == "swordlesson_start" ||
+                action == "swordlesson_veteran_start") return true;
+
+            // Expansion dialogues contain meaningful choices whose handlers
+            // validate mission state but did not all validate the dialogue source.
+            return action == "exp_begin" || action == "camp" ||
+                action == "companions" || action == "parley" ||
+                action.StartsWith("pledge") ||
+                action.StartsWith("rescue") || action.StartsWith("relay") ||
+                action == "holdtide" || action == "harbor_report" ||
+                action.StartsWith("desert") || action.StartsWith("mountain") ||
+                action.StartsWith("report_") || action == "expboss" ||
+                action.StartsWith("warm:") || action == "tea" ||
+                action == "fieldrest" || action == "race" ||
+                action.StartsWith("personal") || action.StartsWith("gift") ||
+                action.StartsWith("join") || action.StartsWith("covenant") ||
+                action == "council_epilogue" ||
+                action.StartsWith("abyssStart") || action == "abyssLeave" ||
+                action == "abyssBank" || action.StartsWith("boon");
         }
 
         public void Choose(int index)
@@ -2538,13 +2557,13 @@ namespace Starfall
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action;
-            // Specialized quest handlers retain their own contact validation.
-            // The shared guard closes only a world source that has gone stale,
-            // plus base menu choices that otherwise lacked initial-reach checks.
+            // Specialized handlers keep their own target checks. This shared
+            // guard also covers source-bound choices without local contact checks.
+            // System-owned dialogs have no world source and remain unaffected.
             if (conversationSource != null && action != "close" &&
                 ((conversationSourceWasReachable &&
                   !HasPhysicalInteractionReach(conversationSource)) ||
-                 (RequiresBaseWorldChoiceReach(action) &&
+                 (RequiresWorldSourceReach(action) &&
                   !conversationSourceWasReachable)))
             {
                 bool initiallyReachable = conversationSourceWasReachable;

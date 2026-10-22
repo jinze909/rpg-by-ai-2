@@ -487,15 +487,15 @@ namespace Starfall.Tests
             for (int i = 0; i < 3; i++) { Action(g, "relay" + i, "relay" + i); Action(g, "castaway" + i, "rescue" + i); }
             Check(g.GateOpen, "Every harbor priority reaches the lighthouse");
             TalkNear(g, "manifest"); g.Close(); Action(g, "sluice", "holdtide"); Combat(g, false); g.save.x = 28; g.save.y = 10;
-            AwaitArenaOpening(g); Action(g, "expAltar", "expboss"); Combat(g, true); Action(g, "captain", "harbor_report"); Check(g.Has("companion_0") && g.Has("relic_0"), "Harbor report has permanent rewards");
+            AwaitArenaOpening(g); Action(g, "expAltar", "expboss"); g.save.x = 28; g.save.y = 10; Combat(g, true); Action(g, "captain", "harbor_report"); Check(g.Has("companion_0") && g.Has("relic_0"), "Harbor report has permanent rewards");
             Action(g, "captain", "personal0"); Check(g.Has("personal_0"), "Mira's story uses the discovered manifest");
             g.Enter(6); Gather(g); Action(g, "campfire", "tea"); g.DrinkTea();
             TalkNear(g, "mirror0"); TalkNear(g, "mirror1"); Check(!g.GateOpen, "A partial light route cannot open the gate");
             TalkNear(g, "mirror1"); TalkNear(g, "mirror2"); Check(g.GateOpen && g.LightRays().Count == 4, "A connected beam opens the glass gate");
-            Combat(g, false); AwaitArenaOpening(g); g.save.x = 28; g.save.y = 10; Action(g, "expAltar", "expboss"); Combat(g, true); Action(g, "tinker", "desert" + (profession == 1 ? 2 : 1));
+            Combat(g, false); AwaitArenaOpening(g); g.save.x = 28; g.save.y = 10; Action(g, "expAltar", "expboss"); g.save.x = 28; g.save.y = 10; Combat(g, true); Action(g, "tinker", "desert" + (profession == 1 ? 2 : 1));
             Check(g.Has("companion_1") && g.CanEnter(7), "Desert decision recruits Ivo and opens the highlands"); Action(g, "tinker", "personal1"); Check(g.Has("personal_1"), "Ivo's story repairs a real machine");
             g.Enter(7); Gather(g); Action(g, "campfire", "tea"); g.DrinkTea(); TalkNear(g, "bell0"); TalkNear(g, "bell0"); TalkNear(g, "bell2");
-            Check(g.GateOpen, "The three tone settings open Frostchime"); Combat(g, false); AwaitArenaOpening(g); g.save.x = 28; g.save.y = 10; Action(g, "expAltar", "expboss"); Combat(g, true);
+            Check(g.GateOpen, "The three tone settings open Frostchime"); Combat(g, false); AwaitArenaOpening(g); g.save.x = 28; g.save.y = 10; Action(g, "expAltar", "expboss"); g.save.x = 28; g.save.y = 10; Combat(g, true);
             Action(g, "keeper", "mountain" + (profession == 0 ? 1 : 2)); Action(g, "keeper", "personal2"); Check(g.Proofs == 3 && g.Has("personal_2") && g.Has("relic_4"), "Three reports and personal arcs complete");
             g.Enter(0); Check(g.BuildProject(0) && g.BuildProject(0) && g.BuildProject(1), "Recovered resources can fund the shared-rule requirements");
             Check(g.CouncilPactReady, "All factions and projects support shared governance");

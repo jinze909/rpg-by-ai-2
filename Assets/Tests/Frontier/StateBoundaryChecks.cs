@@ -758,5 +758,110 @@ namespace Starfall.Tests
                 "A nearby mirror still advances exactly one real puzzle state");
         }
 
+        public static void RemoteExpansionChoicesCannotCommitFromOutOfReachSources(Campaign data)
+        {
+            var envoy = Fresh(data);
+            envoy.save.stage = 1;
+            WorldObject envoyObject = Object(envoy, "envoy");
+            Point remote = StandableOutsideTalkReach(envoy, envoyObject);
+            envoy.save.x = remote.x; envoy.save.y = remote.y;
+            envoy.Talk(envoyObject);
+            int begin = Array.FindIndex(envoy.conversation.choices,
+                choice => choice.action == "exp_begin");
+            Check(begin >= 0, "The envoy exposes the real Letters from Afar start choice");
+            envoy.Choose(begin);
+            Check(envoy.save.room == 0 && !envoy.Has("exp_intro") &&
+                envoy.mode == "world" && envoy.toast.Contains("走近"),
+                "A remote envoy cannot start the expansion or teleport to Mistport");
+
+            var camp = Fresh(data);
+            camp.save.room = 5; camp.enemies.Clear();
+            camp.save.projects[1] = 1;
+            camp.save.health = 37; camp.save.energy = 29; camp.save.totalTime = 123f;
+            WorldObject fire = Object(camp, "campfire");
+            remote = StandableOutsideTalkReach(camp, fire);
+            camp.save.x = remote.x; camp.save.y = remote.y;
+            camp.Talk(fire);
+            int rest = Array.FindIndex(camp.conversation.choices,
+                choice => choice.action == "fieldrest");
+            Check(rest >= 0, "A built waystation offers its ordinary safe field-rest choice");
+            camp.Choose(rest);
+            Check(camp.save.health == 37 && camp.save.energy == 29 &&
+                camp.save.totalTime == 123f && camp.mode == "world" &&
+                camp.toast.Contains("走近"),
+                "A remote campfire cannot heal, refill energy or advance rest time");
+
+            var rescue = Fresh(data);
+            rescue.save.room = 5; rescue.enemies.Clear();
+            rescue.save.inventory[0] = 2; rescue.save.inventory[2] = 2;
+            WorldObject castaway = Object(rescue, "castaway0");
+            remote = StandableOutsideTalkReach(rescue, castaway);
+            rescue.save.x = remote.x; rescue.save.y = remote.y;
+            int timber = rescue.save.inventory[0], herbs = rescue.save.inventory[2];
+            int coins = rescue.save.coins;
+            rescue.Talk(castaway);
+            int rescueChoice = Array.FindIndex(rescue.conversation.choices,
+                choice => choice.action == "rescue0");
+            Check(rescueChoice >= 0, "The stranded passenger offers the real supply-backed rescue");
+            rescue.Choose(rescueChoice);
+            Check(!rescue.Has("rescue_0") && rescue.save.inventory[0] == timber &&
+                rescue.save.inventory[2] == herbs && rescue.save.coins == coins &&
+                rescue.mode == "world" && rescue.toast.Contains("走近"),
+                "A remote castaway cannot consume rescue supplies or claim a rescue");
+
+            var sluiceGame = Fresh(data);
+            sluiceGame.save.room = 5; sluiceGame.enemies.Clear();
+            sluiceGame.save.inventory[1] = 3;
+            WorldObject sluice = Object(sluiceGame, "sluice");
+            remote = StandableOutsideTalkReach(sluiceGame, sluice);
+            sluiceGame.save.x = remote.x; sluiceGame.save.y = remote.y;
+            int crystals = sluiceGame.save.inventory[1];
+            float tide = sluiceGame.save.tideHeldUntil;
+            sluiceGame.Talk(sluice);
+            int hold = Array.FindIndex(sluiceGame.conversation.choices,
+                choice => choice.action == "holdtide");
+            Check(hold >= 0, "The sluice exposes its normal two-crystal tide-hold choice");
+            sluiceGame.Choose(hold);
+            Check(sluiceGame.save.inventory[1] == crystals &&
+                sluiceGame.save.tideHeldUntil == tide &&
+                sluiceGame.mode == "world" && sluiceGame.toast.Contains("走近"),
+                "A remote sluice cannot spend crystals or change the tide timer");
+
+            var race = Fresh(data);
+            race.save.room = 6; race.enemies.Clear();
+            WorldObject skiff = Object(race, "skiff");
+            remote = StandableOutsideTalkReach(race, skiff);
+            race.save.x = remote.x; race.save.y = remote.y;
+            race.Talk(skiff);
+            int launch = Array.FindIndex(race.conversation.choices,
+                choice => choice.action == "race");
+            Check(launch >= 0, "The skiff retains its authored race-start option");
+            race.Choose(launch);
+            Check(!race.racing && race.mode == "world" &&
+                race.toast.Contains("走近"),
+                "A remote skiff cannot begin a race from anywhere in the desert");
+
+            var council = Fresh(data);
+            council.save.room = 5; council.enemies.Clear();
+            council.save.flags.Add("harbor_report");
+            council.save.flags.Add("desert_report");
+            council.save.flags.Add("mountain_report");
+            WorldObject councilObject = Object(council, "council");
+            remote = StandableOutsideTalkReach(council, councilObject);
+            council.save.x = remote.x; council.save.y = remote.y;
+            int beforeCoins = council.save.coins, beforeShards = council.save.shards;
+            int beforePoints = council.save.skillPoints;
+            council.Talk(councilObject);
+            int covenant = Array.FindIndex(council.conversation.choices,
+                choice => choice.action == "covenant1");
+            Check(covenant >= 0, "The completed three-region record unlocks the first governance covenant");
+            council.Choose(covenant);
+            Check(council.save.frontierEnding == 0 &&
+                !council.Has("frontier_settled") && council.save.coins == beforeCoins &&
+                council.save.shards == beforeShards && council.save.skillPoints == beforePoints &&
+                council.mode == "world" && council.toast.Contains("走近"),
+                "A remote council cannot settle governance or award its permanent rewards");
+        }
+
     }
 }
