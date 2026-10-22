@@ -5876,6 +5876,29 @@ namespace Starfall.Tests
 
             g.ToggleCompanionHold();
             Check(g.CompanionHoldingPosition,"The hold can be reissued after following");
+            MapData heldMap=g.Map;
+            Point blockedAnchor=g.CompanionHoldPosition;
+            int blockedX=(int)Math.Floor(blockedAnchor.x);
+            int blockedY=(int)Math.Floor(blockedAnchor.y);
+            string originalRow=heldMap.rows[blockedY];
+            char[] blockedRow=originalRow.ToCharArray();
+            blockedRow[blockedX]='#';
+            heldMap.rows[blockedY]=new string(blockedRow);
+            bool invalidAnchorRejected=false,safeRecovery=false;
+            try
+            {
+                Check(!g.CanStand(blockedAnchor),
+                    "The dynamic-ground fixture really closes the companion's hold tile");
+                g.Tick(.02f,new Point());
+                invalidAnchorRejected=!g.CompanionHoldingPosition;
+                safeRecovery=g.CanStand(g.companionPosition);
+            }
+            finally { heldMap.rows[blockedY]=originalRow; }
+            Check(invalidAnchorRejected&&safeRecovery,
+                "A newly blocked hold tile clears the order and returns the companion to valid ground");
+            g.ToggleCompanionHold();
+            Check(g.CompanionHoldingPosition,
+                "The companion can take a fresh hold after physical recovery");
             g.Enter(1);
             Check(!g.CompanionHoldingPosition,
                 "Changing regions retires the transient hold instead of pinning an old-room coordinate");
