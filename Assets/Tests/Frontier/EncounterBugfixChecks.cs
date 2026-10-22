@@ -20,7 +20,7 @@ namespace Starfall.Tests
                     rows[y]=new string(line);
                 }
                 var beacon=new WorldObject{id="survey1",kind="survey1",
-                    name="Beacon",en="Beacon",x=10.5f,y=10.5f};
+                    name="Beacon",en="Beacon",x=10.75f,y=10.5f};
                 data.maps[1]=new MapData{id=1,spawnX=12.25f,
                     spawnY=10.5f,rows=rows,
                     objects=new[]{beacon},decor=new Decoration[0]};
@@ -132,7 +132,7 @@ namespace Starfall.Tests
                     rows[y]=new string(cells);
                 }
                 var beacon=new WorldObject{id="survey1",kind="survey1",
-                    name="Beacon",en="Beacon",x=10.5f,y=10.5f};
+                    name="Beacon",en="Beacon",x=10.75f,y=10.5f};
                 data.maps[1]=new MapData{id=1,spawnX=12.25f,
                     spawnY=10.5f,rows=rows,
                     objects=new[]{beacon},decor=new Decoration[0]};
@@ -425,7 +425,7 @@ namespace Starfall.Tests
                 }
                 WorldObject station=new WorldObject{id="survey1",
                     kind="survey1",name="Open beacon",
-                    en="Open beacon",x=10.5f,y=10.5f};
+                    en="Open beacon",x=10.75f,y=10.5f};
                 data.maps[1]=new MapData{id=1,spawnX=12.25f,
                     spawnY=10.5f,rows=rows,
                     objects=new[]{station},decor=new Decoration[0]};
@@ -563,7 +563,7 @@ namespace Starfall.Tests
                     rows[y]=new string(cells);
                 }
                 WorldObject beacon=new WorldObject{id="survey1",kind="survey1",
-                    name="Beacon",en="Beacon",x=10.5f,y=10.5f};
+                    name="Beacon",en="Beacon",x=10.75f,y=10.5f};
                 data.maps[1]=new MapData{id=1,spawnX=12.25f,
                     spawnY=10.5f,rows=rows,
                     objects=new[]{beacon},decor=new Decoration[0]};
@@ -900,6 +900,7 @@ namespace Starfall.Tests
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();
             var plant=new WorldObject { id="qa-herb-stack", kind="herb", x=12, y=14, name="Moonherb", en="Moonherb" };
+            g.save.x=plant.x;g.save.y=plant.y;
             g.save.inventory[2]=9999;
             g.Talk(plant);
             Check(!g.Has("node_"+plant.id) && g.save.inventory[2]==9999,
@@ -1067,7 +1068,7 @@ namespace Starfall.Tests
                 "Commission consumes its materials, marks the ally and cannot overflow stew, cash or skill points");
             g = Fresh(data); g.Enter(1);
             g.save.coins = 999999; g.save.inventory[1] = 9999;
-            g.Talk(Object(g, "lore"));
+            TalkNear(g, "lore");
             Check(!g.Has("treasure_1") && g.Has("lore_1") &&
                 g.save.coins == 999999 && g.save.inventory[1] == 9999,
                 "First lore discovery persists narrative history without consuming a blocked physical relic reward");
@@ -1221,24 +1222,24 @@ namespace Starfall.Tests
             g = Fresh(data);
             g.Enter(1);
             g.save.coins = 999999; g.save.inventory[1] = 9999;
-            g.Talk(Object(g, "lore"));
+            TalkNear(g, "lore");
             Check(g.Has("lore_1") && !g.Has("treasure_1") &&
                 g.save.coins == 999999 && g.save.inventory[1] == 9999 &&
                 g.conversation.textEn.Contains("remain"),
                 "Full wallet and crystals must preserve the region's lore and leave its first loot recoverable");
             g.Close();
             g.save.coins = 999979; g.save.inventory[1] = 9998;
-            g.Talk(Object(g, "lore"));
+            TalkNear(g, "lore");
             Check(!g.Has("treasure_1") && g.save.coins == 999979 &&
                 g.save.inventory[1] == 9998,
                 "Partial crystal capacity may not consume an atomic two-crystal relic prize");
             g.Close();
             g.save.inventory[1] = 9997;
-            g.Talk(Object(g, "lore"));
+            TalkNear(g, "lore");
             Check(g.Has("treasure_1") && g.save.coins == 999999 &&
                 g.save.inventory[1] == 9999,
                 "Making exactly enough room awards all first relic resources together");
-            g.Close(); g.Talk(Object(g, "lore"));
+            g.Close(); TalkNear(g, "lore");
             Check(g.save.coins == 999999 && g.save.inventory[1] == 9999,
                 "Repeated lore interactions do not mint duplicate rewards");
             g.PrepareSave();

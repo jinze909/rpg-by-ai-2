@@ -66,7 +66,12 @@ namespace Starfall.Tests
             for(int change=0;change<5;change++)
             {
                 var g=Quiet(data);g.save.flags.Add("core_1");g.save.flags.Add("weapon_1");g.save.flags.Add("technique_"+g.save.profession);
-                if(change>=3)g.Enter(0);
+                if(change>=3)
+                {
+                    g.Enter(0);
+                    Check(PlaceWithinTalkReach(g,Object(g,"forge")),
+                        "Equipment-change fixture starts at the actual forge contact point");
+                }
                 g.Attack(new Point(1,0));Point before=g.Position;g.mode="inventory";
                 if(change==0)g.SetStyle(1);else if(change==1)g.LearnTechnique();else if(change==2)g.save.weapon=1;
                 else if(change==3)Action(g,"forge","bow");
@@ -671,6 +676,7 @@ namespace Starfall.Tests
                     System.Reflection.BindingFlags.NonPublic,
                 null, new Type[] { typeof(WorldObject) }, null);
             if (reach == null) return false;
+            if ((bool)reach.Invoke(g, new object[] { o })) return true;
             Point[] offsets = {
                 new Point(-1,0), new Point(1,0), new Point(0,-1),
                 new Point(0,1), new Point(-1,-1), new Point(-1,1),
