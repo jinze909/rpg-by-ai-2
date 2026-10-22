@@ -2236,7 +2236,9 @@ namespace Starfall.Tests
                 restored.save.trackedQuest == "dispatches" && restored.save.skillPoints == points,
                 "Original save schema persists the decoded letters");
             restored.Enter(1); restored.enemies.Clear();
-            restored.Talk(Object(restored, "history6"));
+            // A loaded chart must not bypass the same physical reach rule
+            // when rereading a solved letter.
+            TalkNear(restored, "history6");
             Check(restored.conversation.choices.Length == 1 && restored.save.coins == coins,
                 "Loading cannot duplicate rewards");
         }
