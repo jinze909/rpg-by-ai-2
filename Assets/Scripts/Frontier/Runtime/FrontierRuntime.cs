@@ -566,6 +566,17 @@ namespace Starfall
             // Sort scenery and actors by their ground position, for proper overlap.
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);
             DrawOrderedWorld();
+            // Make the new tactical hold legible in the actual world pass:
+            // a ground ring marks the saved-in-memory anchor, not a fake actor.
+            if(Game.CompanionHoldingPosition)
+            {
+                Point anchor=Game.CompanionHoldPosition;
+                Ring(anchor,.62f,new Color(.48f,.9f,1f,.82f),18);
+                Point heldScreen=ScreenPoint(anchor);
+                Text(heldScreen.x-36,heldScreen.y-42,72,16,
+                    Game.L("驻守","HOLD"),10,
+                    new Color(.65f,.96f,1f),TextAnchor.MiddleCenter);
+            }
             // Authoritative enemy-to-ward pressure above the depth pass,
             // distinct from damage telegraphs and unowned ambient effects.
             DrawRoadwardenWardSiphons();

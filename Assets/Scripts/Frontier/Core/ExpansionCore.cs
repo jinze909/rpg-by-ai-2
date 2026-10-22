@@ -53,6 +53,10 @@ namespace Starfall
                     save.companion>=0 && !OuterPatrolActive;
             }
         }
+        public Point CompanionHoldPosition
+        {
+            get { return CompanionHoldingPosition ? companionHoldFoot : companionPosition; }
+        }
         // Local, nonserialized climate danger notifications. Re-arm only
         // after actually recovering below the lower safe threshold.
         private bool heatDangerWarned, coldDangerWarned;
