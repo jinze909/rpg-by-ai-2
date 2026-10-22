@@ -1520,6 +1520,90 @@ namespace Starfall.Tests
             g.Close();
         }
 
+        public static void ChapterTenStaleDirectiveChoicesAndCluesRequirePhysicalReach(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("civic_response_ledger");
+            var board=Object(g,"lastdirectiveboard");
+            g.save.x=board.x;g.save.y=board.y;
+            g.Talk(board);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="last_directive_begin");
+            Check(begin>=0,
+                "The original chapter-ten board exposes its genuine first visit");
+            Point outsideBoard=StandableOutsideTalkReach(g,board);
+            g.save.x=outsideBoard.x;g.save.y=outsideBoard.y;
+            g.Choose(begin);g.Close();
+            Check(!g.LastDirectiveStarted&&!g.Has("last_directive_started"),
+                "A stale chapter-ten board choice cannot start the inquiry outside physical reach");
+
+            g.save.flags.Add("last_directive_started");
+            g.Enter(4);g.enemies.Clear();
+            var clue=Object(g,"lastdirectiveclue0");
+            Point outsideClue=StandableOutsideTalkReach(g,clue);
+            g.save.x=outsideClue.x;g.save.y=outsideClue.y;
+            int xp=g.save.xp;
+            g.Talk(clue);
+            Check(!g.Has("last_directive_clue_0")&&g.save.xp==xp,
+                "A direct Talk call cannot award field-testimony XP beyond physical reach");
+
+            for(int i=0;i<3;i++)g.save.flags.Add("last_directive_clue_"+i);
+            g.Enter(4);g.enemies.Clear();
+            var core=Object(g,"lastdirectivecore");
+            g.save.x=core.x;g.save.y=core.y;
+            g.Talk(core);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="last_directive_code_0");
+            Check(start>=0,
+                "The terminal offers its real first security challenge after three clues");
+            Point outsideCore=StandableOutsideTalkReach(g,core);
+            g.save.x=outsideCore.x;g.save.y=outsideCore.y;
+            g.Choose(start);g.Close();
+            Check(g.LastDirectiveWave==0&&g.LastDirectiveEnemies==0,
+                "A stale terminal choice cannot spawn the guardian wave remotely");
+        }
+
+        public static void ChapterElevenStaleConduitChoicesRequirePhysicalReach(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.Enter(4);g.enemies.Clear();
+            var master=Object(g,"civicconduitmaster");
+            g.save.x=master.x;g.save.y=master.y;
+            int parts=g.save.inventory[4];
+            g.Talk(master);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_conduit_start");
+            Check(start>=0,"The original power console offers its real start action");
+            Point outsideMaster=StandableOutsideTalkReach(g,master);
+            g.save.x=outsideMaster.x;g.save.y=outsideMaster.y;
+            g.Choose(start);g.Close();
+            Check(!g.CivicConduitActive&&!g.CivicConduitStarted&&
+                g.save.inventory[4]==parts,
+                "A stale console choice cannot consume the fuse or energize the grid remotely");
+
+            g.save.x=master.x;g.save.y=master.y;
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            WorldObject valve=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(g.CivicConduitValveIndex(o)==0){valve=o;break;}
+            Check(valve!=null,"The first stable-identity valve exists in the real map");
+            g.save.x=valve.x;g.save.y=valve.y;
+            g.Talk(valve);
+            int ground=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_conduit_ground");
+            Check(ground>=0&&g.CivicConduitGroundAvailable,
+                "A reachable current valve offers its genuine one-use grounding control");
+            Point outsideValve=StandableOutsideTalkReach(g,valve);
+            float energy=g.save.energy;
+            g.save.x=outsideValve.x;g.save.y=outsideValve.y;
+            g.Choose(ground);g.Close();
+            Check(g.CivicConduitActive&&g.save.energy==energy&&
+                g.CivicConduitGroundAvailable,
+                "A stale valve choice cannot spend energy or ground the circuit beyond physical reach");
+        }
+
         public static void QualityCivicGridRepairGroundingAbortAndRetryPreserveOwnedEffects(Campaign data)
         {
             var g = Fresh(data);

@@ -78,7 +78,7 @@ public sealed partial class GameCore {
     }
     private bool TalkLastDirective(WorldObject o){
         if(!o.kind.StartsWith("lastdirective"))return false;
-        if((Position-new Point(o.x,o.y)).Length>2.2f)return true;
+        if(!HasPhysicalInteractionReach(o))return true;
         if(o.kind=="lastdirectiveboard"){
             if(save.room!=0)return true;
             if(!Has("civic_response_ledger")){
@@ -154,8 +154,8 @@ public sealed partial class GameCore {
         WorldObject board=null,core=null;foreach(WorldObject o in Map.objects){
             if(o.kind=="lastdirectiveboard")board=o;if(o.kind=="lastdirectivecore")core=o;
         }
-        bool atBoard=save.room==0&&board!=null&&(Position-new Point(board.x,board.y)).Length<=2.2f;
-        bool atCore=save.room==4&&core!=null&&(Position-new Point(core.x,core.y)).Length<=2.2f;
+        bool atBoard=save.room==0&&board!=null&&HasPhysicalInteractionReach(board);
+        bool atCore=save.room==4&&core!=null&&HasPhysicalInteractionReach(core);
         if(action=="last_directive_abort")
         {
             if(atCore&&directiveRoom==4&&directivePhase>=1&&directivePhase<=4)

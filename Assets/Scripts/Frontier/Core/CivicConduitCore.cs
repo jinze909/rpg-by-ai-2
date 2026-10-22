@@ -114,7 +114,7 @@ namespace Starfall
         private bool TalkCivicConduit(WorldObject o)
         {
             if(o.kind!="civicconduitmaster"&&o.kind!="civicconduitvalve")return false;
-            if((Position-new Point(o.x,o.y)).Length>2.2f)return true;
+            if(!HasPhysicalInteractionReach(o))return true;
             if(save.room!=4)return true;
             if(!LastDirectiveComplete)
             {
@@ -229,11 +229,10 @@ namespace Starfall
             {
                 if(o.kind=="civicconduitmaster")master=o;
                 if(CivicConduitValveIndex(o)==conduitStage&&
-                    (Position-new Point(o.x,o.y)).Length<=2.2f)
+                    HasPhysicalInteractionReach(o))
                     valve=o;
             }
-            bool nearMaster=master!=null&&
-                (Position-new Point(master.x,master.y)).Length<=2.2f;
+            bool nearMaster=master!=null&&HasPhysicalInteractionReach(master);
             if(action=="civic_conduit_abort")
             {
                 if(CivicConduitActive&&nearMaster)
