@@ -437,10 +437,7 @@ namespace Starfall
             ActorAction action = playerAction;
             if (action != null)
             {
-                // The queued action may not replace the current full-body
-                // sprite at the earlier damage/recovery boundary. Wait until
-                // the current authored animation duration has actually elapsed.
-                float actionDelay = Math.Max(0, action.duration - action.elapsed);
+                float actionDelay = Math.Max(0, action.contact + .1f - action.elapsed);
                 if (!action.released) actionDelay += playerHitTime;
                 delay = Math.Max(delay, actionDelay);
             }
@@ -456,9 +453,7 @@ namespace Starfall
             intent.remaining -= dt;
             // Recovery may fall inside the final valid tick. Compare its actual
             // boundary with the old lifetime, rather than losing Q at 30 fps.
-            if (playerAction == null && !ActionTransitionBlocked &&
-                readyDelay <= remaining + .00001f)
-                StartSkill(intent.direction, intent.target);
+            if (!ActionTransitionBlocked && readyDelay <= remaining + .00001f) StartSkill(intent.direction, intent.target);
             else if (intent.remaining <= .00001f) ClearBufferedSkill();
         }
         public ActorAction playerAction;
