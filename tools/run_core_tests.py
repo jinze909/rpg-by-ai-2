@@ -37,7 +37,7 @@ def main():
 class Harness { static int Main() { var data=CampaignFixture.Create(); int failed=0;
 foreach(var method in typeof(CoreChecks).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)) {
 try { method.Invoke(null,new object[]{data}); Console.WriteLine("PASS "+method.Name); }
-catch(Exception e) { failed++; Console.WriteLine("FAIL "+method.Name+": "+(e.InnerException??e).Message); }
+catch(Exception e) { failed++; Console.WriteLine("FAIL "+method.Name+": "+(e.InnerException??e)); }
 } return failed==0?0:1; } }''')
         sources = sorted((ROOT/'Assets/Scripts/Frontier/Core').glob('*.cs')) + sorted((ROOT/'Assets/Tests/Frontier').glob('*Checks.cs')) + [temp/'CampaignFixture.cs',temp/'Harness.cs']
         compiler = [mono, mcs] if mcs.endswith('.exe') else [mcs]
