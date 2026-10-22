@@ -295,7 +295,7 @@ namespace Starfall
                 fieldSurveyRoom != 0 || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
                 atlasEchoRoom != 0 || practicing || Dying || racing || !CanEnter(region)) return;
             Point post = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
-            if ((Position - post).Length > 2.2f) return;
+            if (!PhysicalRefugeReach(post,2.2001f)) return;
             if (!SafeTravel)
             { Notify("先清理站台附近的巡逻敌人，才能启动救援。", "Clear patrols near the station before starting rescue."); return; }
             // Stage zero is the outbound journey. Do not let raiders chase the
@@ -754,6 +754,7 @@ namespace Starfall
             int region;
             if (!int.TryParse(o.kind.Substring("fieldstation".Length), out region) ||
                 region < 5 || region > 7 || save.room != region) return true;
+            if(!PhysicalRefugeReach(new Point(o.x,o.y),2.2001f))return true;
             if (Has("fieldstation_" + region))
             {
                 string textZh = region == 5 ?
@@ -889,7 +890,7 @@ namespace Starfall
                     !Has("farshore_relief_" + currentRoom) ||
                     !Has("fieldstation_survey_" + currentRoom)) return true;
                 Point basePost = ObjectPoint(currentRoom, "fieldstation" + currentRoom, new Point(-100, -100));
-                if ((Position - basePost).Length > 2.2f) return true;
+                if (!PhysicalRefugeReach(basePost,2.2001f)) return true;
                 var options = new List<Choice>();
                 if (reliefMissionRoom == currentRoom)
                     options.Add(C("放弃本次撤离", "Abandon this sortie", "fieldstation_rescue_cancel"));
@@ -914,7 +915,9 @@ namespace Starfall
             }
             if (action == "fieldstation_rescue_cancel")
             {
-                if (reliefMissionRoom != 0 && reliefMissionRoom == save.room)
+                if (reliefMissionRoom != 0 && reliefMissionRoom == save.room &&
+                    save.room >= 5 && save.room <= 7 &&
+                    PhysicalRefugeReach(ObjectPoint(save.room,"fieldstation"+save.room,new Point(-100,-100)),2.2001f))
                 { ResetReliefMission(); revision++; Notify("撤离行动取消，可免费重试。", "Rescue canceled; retry for free."); }
                 return true;
             }
@@ -932,7 +935,7 @@ namespace Starfall
                 WorldObject homePost = null;
                 foreach (WorldObject o in Map.objects)
                     if (o.kind == "fieldstation" + sourceStation) { homePost = o; break; }
-                if (homePost == null || (Position - new Point(homePost.x, homePost.y)).Length > 2.2f) return true;
+                if (homePost == null || !PhysicalRefugeReach(new Point(homePost.x,homePost.y),2.2001f)) return true;
                 if (!SafeTravel)
                 { Notify("附近敌人正在破坏补给线。暂时无法返回旅店。", "Nearby hostiles block the supply route to the inn."); return true; }
                 Enter(9);
@@ -952,7 +955,7 @@ namespace Starfall
                     roadTrialRoom != 0 || wayfarerEncounterRoom != 0 || atlasEchoRoom != 0 ||
                     fieldSurveyRoom != 0) return true;
                 Point chart = ObjectPoint(9, "surveyDesk", new Point(-100, -100));
-                if ((Position - chart).Length > 2.2f) return true;
+                if (!PhysicalRefugeReach(chart,2.2001f)) return true;
                 if (!SafeTravel)
                 { Notify("旅店附近尚有敌人，不能启动运输路线。", "The route cannot open while hostiles threaten the inn."); return true; }
                 Enter(reliefDestination);
@@ -976,7 +979,7 @@ namespace Starfall
                 WorldObject post = null;
                 foreach (WorldObject o in Map.objects)
                     if (o.kind == "fieldstation" + reliefRegion) { post = o; break; }
-                if (post == null || (Position - new Point(post.x, post.y)).Length > 2.2f) return true;
+                if (post == null || !PhysicalRefugeReach(new Point(post.x,post.y),2.2001f)) return true;
                 if (!SafeTravel)
                 { Notify("敌人正在威胁施工路线。先清理附近的巡逻队。", "Hostiles threaten the construction route. Clear nearby patrols first."); return true; }
                 if (reliefRegion == 5 && !LowTide)
@@ -1016,7 +1019,7 @@ namespace Starfall
                 foreach (WorldObject o in Map.objects)
                     if (o.kind == "fieldstation" + currentRegion) { forecastPost = o; break; }
                 if (forecastPost == null ||
-                    (Position - new Point(forecastPost.x, forecastPost.y)).Length > 2.2f) return true;
+                    !PhysicalRefugeReach(new Point(forecastPost.x,forecastPost.y),2.2001f)) return true;
                 float phase = save.totalTime % 36;
                 int toEbb = (int)Math.Ceiling(phase < 22 ? 0 : 36 - phase);
                 int toFlood = (int)Math.Ceiling(phase < 22 ? 22 - phase : 0);
@@ -1040,7 +1043,9 @@ namespace Starfall
             }
             if (action == "fieldstation_survey_cancel")
             {
-                if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0)
+                if (fieldSurveyRoom == save.room && fieldSurveyRoom != 0 &&
+                    save.room >= 5 && save.room <= 7 &&
+                    PhysicalRefugeReach(ObjectPoint(save.room,"fieldstation"+save.room,new Point(-100,-100)),2.2001f))
                 { ResetFieldStationSurvey(); revision++; Notify("已取消巡测，可随时重试。", "Survey abandoned; you may retry."); }
                 return true;
             }
@@ -1058,7 +1063,7 @@ namespace Starfall
                 WorldObject surveyPost = null;
                 foreach (WorldObject o in Map.objects)
                     if (o.kind == "fieldstation" + surveyRegion) { surveyPost = o; break; }
-                if (surveyPost == null || (Position - new Point(surveyPost.x, surveyPost.y)).Length > 2.2f) return true;
+                if (surveyPost == null || !PhysicalRefugeReach(new Point(surveyPost.x,surveyPost.y),2.2001f)) return true;
                 fieldSurveyRoom = surveyRegion; fieldSurveyPhase = 1; fieldSurveyTime = 90;
                 fieldSurveyConditionWarned = false; TrackQuest("station_patrol");
                 revision++; sound = "quest";
@@ -1088,7 +1093,7 @@ namespace Starfall
                 WorldObject origin = null;
                 foreach (WorldObject o in Map.objects)
                     if (o.kind == "fieldstation" + save.room) { origin = o; break; }
-                if (origin == null || (Position - new Point(origin.x, origin.y)).Length > 2.2f)
+                if (origin == null || !PhysicalRefugeReach(new Point(origin.x,origin.y),2.2001f))
                     return true;
                 if (!SafeTravel)
                 {
@@ -1108,7 +1113,7 @@ namespace Starfall
                 if (save.room != 5 || !Has("fieldstation_5") || Dying || practicing) return true;
                 WorldObject post = null;
                 foreach (WorldObject o in Map.objects) if (o.kind == "fieldstation5") { post = o; break; }
-                if (post == null || (new Point(post.x, post.y) - Position).Length > 2.2f) return true;
+                if (post == null || !PhysicalRefugeReach(new Point(post.x,post.y),2.2001f)) return true;
                 if (!SafeTravel) { Notify("附近仍有威胁，潮汐装置暂不可操作。", "Clear nearby hostiles before operating the tidewatch."); return true; }
                 save.tideHeldUntil = Math.Max(save.tideHeldUntil, save.totalTime + TidewatchHoldSeconds);
                 revision++; sound = "quest";
@@ -1124,7 +1129,7 @@ namespace Starfall
             WorldObject station = null;
             foreach (WorldObject o in Map.objects)
                 if (o.kind == "fieldstation" + region) { station = o; break; }
-            if (station == null || (new Point(station.x, station.y) - Position).Length > 2.2f) return true;
+            if (station == null || !PhysicalRefugeReach(new Point(station.x,station.y),2.2001f)) return true;
             if (!SafeTravel)
             {
                 Notify("先清理观测站附近的敌人，才能安全维修。", "Clear nearby enemies before repairing the station.");

@@ -46,6 +46,89 @@ namespace Starfall.Tests
             Check(choice >= 0, "The survivor offers the requested player command: " + action);
             g.Choose(choice);
         }
+        public static void FarshoreStationChoicesRequireCurrentPhysicalReach(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=10;
+            foreach(string flag in new[]{"exp_intro","harbor_report","desert_report",
+                "fieldstation_6","fieldstation_survey_6","farshore_relief_6"})
+                g.save.flags.Add(flag);
+            g.save.frontierEnding=2;g.Enter(6);g.enemies.Clear();
+            WorldObject station=Object(g,"fieldstation6");
+            Point outside=StandableOutsidePhysicalRadius(g,station,2.2001f);
+            g.save.x=outside.x;g.save.y=outside.y;
+            g.Talk(station);
+            Check(g.mode!="dialog",
+                "A direct Talk cannot open a field station outside physical reach");
+            g.Close();
+            g.save.x=station.x;g.save.y=station.y;
+            g.Talk(station);
+            int staleMenu=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fieldstation_rescue_menu");
+            Check(staleMenu>=0,"A reachable refuge post offers the rescue submenu");
+            g.save.x=outside.x;g.save.y=outside.y;
+            g.Choose(staleMenu);g.Close();
+            Check(g.reliefMissionRoom==0&&!g.ReliefEscortActive,
+                "A stale rescue-menu choice cannot open a remote sortie");
+
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"fieldstation_rescue_menu");
+            int staleStart=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fieldstation_rescue_start");
+            Check(staleStart>=0,"The station submenu offers the real rescue start");
+            g.save.x=outside.x;g.save.y=outside.y;
+            g.Choose(staleStart);g.Close();
+            Check(g.reliefMissionRoom==0,
+                "A stale rescue-start choice cannot create a timed mission remotely");
+            g.save.x=station.x;g.save.y=station.y;
+            StartCivilianRescueViaRealDialogue(g,station);
+            Check(g.reliefMissionRoom==6,
+                "The physically reachable station starts the actual rescue");
+
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"fieldstation_rescue_menu");
+            int staleCancel=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fieldstation_rescue_cancel");
+            Check(staleCancel>=0,"The active sortie offers a real cancel action");
+            g.save.x=outside.x;g.save.y=outside.y;
+            g.Choose(staleCancel);g.Close();
+            Check(g.reliefMissionRoom==6,
+                "A stale cancel choice cannot erase an active civilian rescue remotely");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"fieldstation_rescue_menu");
+            int cancel=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fieldstation_rescue_cancel");
+            Check(cancel>=0,"Returning to the station restores the explicit cancel action");
+            g.Choose(cancel);
+            Check(g.reliefMissionRoom==0,
+                "A nearby station can explicitly cancel the rescue without completing it");
+
+            g.save.flags.Remove("fieldstation_survey_6");
+            g.save.x=station.x;g.save.y=station.y;
+            g.Talk(station);
+            int staleSurveyStart=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fieldstation_survey_start");
+            Check(staleSurveyStart>=0,"The restored station offers a genuine field-survey start");
+            g.save.x=outside.x;g.save.y=outside.y;
+            g.Choose(staleSurveyStart);g.Close();
+            Check(g.fieldSurveyRoom==0,
+                "A stale survey-start choice cannot begin an out-and-back timer remotely");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"fieldstation_survey_start");
+            Check(g.fieldSurveyRoom==6,"The station starts the real timed field survey nearby");
+            g.Talk(station);
+            int staleSurveyCancel=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fieldstation_survey_cancel");
+            Check(staleSurveyCancel>=0,"An active field survey offers an explicit cancel action");
+            g.save.x=outside.x;g.save.y=outside.y;
+            g.Choose(staleSurveyCancel);g.Close();
+            Check(g.fieldSurveyRoom==6,
+                "A stale survey-cancel choice cannot erase a live field reading remotely");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"fieldstation_survey_cancel");
+            Check(g.fieldSurveyRoom==0,
+                "A nearby station can explicitly cancel the active field survey");
+        }
+
         public static void RescueCivilianWaitFollowAndOneUseAidArePlayable(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;
