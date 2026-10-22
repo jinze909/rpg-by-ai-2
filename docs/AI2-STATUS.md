@@ -1,3 +1,14 @@
+## 2026-10-22 — Companion hold orders and imminent-threat interception (verified code/test HEAD: c74b827e)
+
+- **Exact-commit CI:** [Core workflow #39857624099 SUCCESS](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39857624099) for code/test HEAD c74b827e1d6aac0b035f9dfd4a694175785c500f; all 50 workflow steps passed. Actual C# log confirms PASS CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease and Runtime combat input: 97/97 groups passed; NATIVE_UNVERIFIED.
+- **Tactical companion orders:** 4c6bcfd1 adds transient P hold/resume-follow using the existing physical route planner; 7c56faec renders the real hold anchor in-world; 922523b9 adds production-input/world-marker/dialogue-gating regression coverage; 3a06205e documents keyboard and controller use; fe81ccc1 verifies blocked hold-ground recovery and region-change cleanup. No new SaveData v2 field or save-format migration.
+- **Automatic threat selection:** c5e39461 makes companion support prefer a genuinely committed strike whose release geometry threatens the hero, rather than a nearer idle enemy. It checks live attack state, target ownership, actual melee arc / area radius / bow flight lane and obstruction. The auto-fire release rechecks the live threat and redirects a still-unreleased shot when a more urgent hero strike appears. Existing roadwarden stock-defense priorities remain higher; attacks committed to travelers, civilians or protected stock are not misidentified as hero strikes.
+- **Regression and performance:** c74b827e adds real melee-facing and archer-lane positive/negative cases, rejects stale aim and attacks against rescue civilians, and rejects out-of-range enemies before running expensive threat-geometry probes. The core test also advances the actual attack/contact clock and confirms the real auto-attack retargets before projectile release.
+- **Preserved:** canonical blonde hero, accepted sprite pixels/GUIDs, Frontier.unity, SaveData v1/v2 compatibility and all other branches. No force-push/history rewrite or scheduled/automated task changes.
+- **Still gated honestly:** licensed Unity 2022.3.53f1 native Editor/PlayMode/GameView/GPU review remains NATIVE_UNVERIFIED; the 18 original full-body hero Attack/Cast contact artworks and motion-complete recovery remain ART_REVIEW_REQUIRED.
+
+---
+
 ## 2026-10-21 — Save-writer isolation and chronicle chronology (verified code/test HEAD: df4808df)
 
 - **Exact-commit CI:** [Core workflow #1707 passed](https://github.com/jinze909/rpg-by-ai-2/actions/runs/39607173059) for code/test HEAD `df4808df243c2c26f4bffa80ce136bf411037d53`. The actual C# log includes `PASS ChronicleEndingFollowsPostGridAccounts`, `PASS ChronicleChapterNavigationNeverLeaksFutureEvents`, and `Runtime combat input: 96/96 groups passed; NATIVE_UNVERIFIED`.
