@@ -2526,22 +2526,56 @@ namespace Starfall
                 SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
 
+        private static bool RequiresWorldSourceReach(string action)
+        {
+            if (string.IsNullOrEmpty(action)) return false;
+            // Choices whose handlers do not independently validate their target.
+            if (action.StartsWith("goto") || action == "routes" ||
+                action == "rest" || action == "scout" || action == "engine" ||
+                action == "plant" || action == "harvest" || action == "seeds" ||
+                action == "upgrade" || action == "bow" || action == "staff" ||
+                action == "cook" || action == "buymeal" || action == "buywood" ||
+                action == "fish" || action == "deliver" ||
+                action.StartsWith("ally") || action == "boss" ||
+                action.StartsWith("ending") || action == "epilogue" ||
+                action == "continue" || action == "swordlesson_start" ||
+                action == "swordlesson_veteran_start") return true;
+
+            // Expansion dialogue actions without their own physical target guard.
+            return action == "exp_begin" || action == "camp" ||
+                action == "companions" || action == "parley" ||
+                action.StartsWith("pledge") ||
+                action.StartsWith("rescue") || action.StartsWith("relay") ||
+                action == "holdtide" || action == "harbor_report" ||
+                action.StartsWith("desert") || action.StartsWith("mountain") ||
+                action.StartsWith("report_") || action == "expboss" ||
+                action.StartsWith("warm:") || action == "tea" ||
+                action == "drinktea" || action == "fieldrest" || action == "race" ||
+                action.StartsWith("personal") || action.StartsWith("gift") ||
+                action.StartsWith("join") || action.StartsWith("covenant") ||
+                action == "council_epilogue" ||
+                action.StartsWith("abyssStart") || action == "abyssLeave" ||
+                action == "abyssBank" || action.StartsWith("boon");
+        }
+
         public void Choose(int index)
         {
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action;
-            // A world dialogue may be opened remotely, but every state-changing
-            // choice must be submitted while its source is physically reachable.
-            // Re-check live reach here so approaching the target or reopening a
-            // blocked path restores a legitimate choice without reopening the UI.
-            // Only the filtered regional-report shortcut may act remotely.
+            // A stale menu opened from a reachable source cannot survive leaving it.
+            // For a menu first opened remotely, gate only choices without their own
+            // live target validation. Re-check current reach so approaching a source
+            // or opening a blocked path restores a legitimate action.
             bool authorizedRemoteChoice =
                 !String.IsNullOrEmpty(authorizedRemoteDialogueActionPrefix) &&
                 action.StartsWith(authorizedRemoteDialogueActionPrefix);
+            bool sourceReachableNow = conversationSource != null &&
+                HasPhysicalInteractionReach(conversationSource);
             if (conversationSource != null && action != "close" &&
-                !HasPhysicalInteractionReach(conversationSource) &&
-                !authorizedRemoteChoice)
+                ((conversationSourceWasReachable && !sourceReachableNow) ||
+                 (RequiresWorldSourceReach(action) && !sourceReachableNow &&
+                  !authorizedRemoteChoice)))
             {
                 bool initiallyReachable = conversationSourceWasReachable;
                 Close();
